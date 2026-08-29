@@ -1,0 +1,39 @@
+name: Observation 007
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  minikanren:
+    name: miniKanren observer composition
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Racket
+        uses: Bogdanp/setup-racket@v1.15
+        with:
+          architecture: x64
+          distribution: full
+          variant: CS
+          version: stable
+
+      - name: Install miniKanren
+        shell: bash
+        run: |
+          set -euo pipefail
+          raco pkg install --auto --skip-installed minikanren
+          raco pkg show minikanren
+
+      - name: Compose vocabulary-preserving observers
+        shell: bash
+        run: |
+          set -euo pipefail
+          racket scheme/007_compose_summary_observers.rkt 2>&1 | tee /tmp/observation-007.txt
+          grep -Fq 'OBSERVATION_007_OK' /tmp/observation-007.txt
