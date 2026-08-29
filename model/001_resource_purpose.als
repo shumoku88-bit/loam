@@ -1,4 +1,4 @@
-module model/001_resource_purpose
+module model/resource_purpose_001
 
 open util/ordering[Time]
 
