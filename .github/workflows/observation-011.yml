@@ -74,3 +74,20 @@ jobs:
           if wrong:
               raise SystemExit(f'unexpected Alloy results: {wrong}')
           PY
+
+  lean:
+    name: Lean exact availability law
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build and check Lean proofs
+        uses: leanprover/lean-action@v1
+        with:
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          axiom-audit: true
+          use-github-cache: false
