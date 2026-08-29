@@ -1,0 +1,72 @@
+name: Observation 002
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  alloy:
+    name: Alloy projection collision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Seek same-projection distinct-history witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j -o /tmp/alloy-output model/002_same_projection_distinct_history.als
+          jq -e '.commands.observationalCollision.solution | length > 0' /tmp/alloy-output/receipt.json
+          sed -n '1,220p' /tmp/alloy-output/receipt.json
+
+  j:
+    name: J projection collision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install J
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
+          mkdir -p /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
+          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
+          test -n "$JCONSOLE"
+          chmod +x "$JCONSOLE"
+          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
+
+      - name: Execute projection collision
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$JCONSOLE" j/002_check.ijs | tee /tmp/j-observation-002.txt
+          grep -Fq 'Observation 002 / projection collision' /tmp/j-observation-002.txt
