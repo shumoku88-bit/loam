@@ -44,9 +44,9 @@ pred branchingCorrections {
   KB.target = C0
 }
 
-pred resolvesWholeFrontier[before: set Interpretation, r: Resolution] {
-  r not in before
-  r.parents = frontier[before]
+pred resolvesWholeFrontier[prior: set Interpretation, r: Resolution] {
+  r not in prior
+  r.parents = frontier[prior]
 }
 
 pred fullResolution {
