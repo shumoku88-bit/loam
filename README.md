@@ -8,15 +8,24 @@ The project begins with a deliberately narrow question:
 
 ## Method
 
-Tools are added only when a question needs them.
+Use the smallest set of tools that can answer the current question.
+
+The default core is:
 
 - **Alloy** explores possible structures and counterexamples.
-- **J** observes many structures as arrays and looks for shape.
-- **TLA+** is a candidate when correctness depends on temporal behavior or operation order.
-- **miniKanren** is a candidate when useful questions become relational or need to run backwards.
-- **Lean 4** is a candidate when an observed law becomes worth proving generally.
+- **J** observes structures as arrays and exposes projection, loss, and shape.
+- **Lean 4** proves observed laws generally when they become worth keeping.
 
-Using every tool is not a goal. A tool that never becomes necessary should remain absent.
+Two additional tools remain available, but are not part of the default path:
+
+- **TLA+** is introduced only when a question depends essentially on temporal behavior or operation order and the core cannot expose the distinction clearly enough.
+- **miniKanren** is introduced only when a question needs genuinely relational or backwards search that the core cannot provide clearly enough.
+
+Before adding either optional tool to a new observation, state what the core cannot answer and what distinct kind of result the extra tool is expected to produce.
+
+Past observations that used TLA+ or miniKanren remain part of the evidence. They show cases where those tools had a distinct role; they do not create a permanent dependency.
+
+Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
 
 ## Observation 001 — A World Before Envelopes
 
