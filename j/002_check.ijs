@@ -2,6 +2,12 @@ NB. Executable checks for Observation 002.
 
 0!:0 < 'j/002_observe.ijs'
 
+smoutput 'Observation 002 / projection debug'
+smoutput 'Left projection candidate:'
+smoutput projectCounts leftHistory
+smoutput 'Right projection candidate:'
+smoutput projectCounts rightHistory
+
 checkObservation =: 3 : 0
   assert. 0 = leftHistory -: rightHistory
   assert. expectedProjection -: projectCounts leftHistory
@@ -18,10 +24,6 @@ smoutput 'Left identity history (Time x Unit):'
 smoutput leftHistory
 smoutput 'Right identity history (Time x Unit):'
 smoutput rightHistory
-smoutput 'Left count projection:'
-smoutput projectCounts leftHistory
-smoutput 'Right count projection:'
-smoutput projectCounts rightHistory
 smoutput 'Persistent-at-Purpose-1 / Left:'
 smoutput 1 persistentAt leftHistory
 smoutput 'Persistent-at-Purpose-1 / Right:'
