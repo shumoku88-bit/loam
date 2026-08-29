@@ -1,0 +1,75 @@
+name: Observation 005
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  alloy:
+    name: Alloy four visible history classes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Seek four history-visible classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j -o /tmp/alloy-output model/005_vocabulary_induced_state.als
+          jq -e '.commands.fourVisibleClasses.solution | length > 0' /tmp/alloy-output/receipt.json
+          sed -n '1,260p' /tmp/alloy-output/receipt.json
+
+  tla:
+    name: TLA+ two-bit vocabulary preservation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check vocabulary-preserving bits
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/VocabularyInducedState.cfg \
+            tla/VocabularyInducedState.tla \
+            2>&1 | tee /tmp/observation-005.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-005.txt
