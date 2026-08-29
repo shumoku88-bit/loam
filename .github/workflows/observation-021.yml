@@ -1,0 +1,119 @@
+name: Observation 021
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  alloy:
+    name: Alloy correction-chain structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy 6.2.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+
+      - name: Execute Alloy observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j \
+            -o /tmp/alloy-output \
+            model/021_correction_chain.als
+
+      - name: Require branching witness and chain safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path('/tmp/alloy-output/receipt.json').read_text())
+          commands = receipt['commands']
+
+          def has_solution(name):
+              return bool(commands.get(name, {}).get('solution', []))
+
+          results = {
+              'branchingAmbiguity': has_solution('branchingAmbiguity'),
+              'LinearChainHasUniqueTip': has_solution('LinearChainHasUniqueTip'),
+              'LinearChainTipIsK1': has_solution('LinearChainTipIsK1'),
+          }
+          for name, sat in results.items():
+              print(f'{name}: {"SAT" if sat else "UNSAT"}')
+
+          if not results['branchingAmbiguity']:
+              raise SystemExit('missing weak-branching SAT witness')
+          if results['LinearChainHasUniqueTip']:
+              raise SystemExit('linear chain admitted multiple tips')
+          if results['LinearChainTipIsK1']:
+              raise SystemExit('linear chain tip was not K1')
+          PY
+
+  tla:
+    name: TLA+ current-tip correction admission
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check correction-chain behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/CorrectionChain.cfg \
+            tla/CorrectionChain.tla \
+            2>&1 | tee /tmp/observation-021-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-021-positive.txt
+
+      - name: Require repeated-correction witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/CorrectionChainWitness.cfg \
+            tla/CorrectionChain.tla \
+            2>&1 | tee /tmp/observation-021-witness.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoThreeCorrectionWitness' /tmp/observation-021-witness.txt
+          grep -Fq 'Invariant' /tmp/observation-021-witness.txt
