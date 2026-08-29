@@ -13,18 +13,9 @@ purposeEncode =: 3 : 0
 
 identityEncode =: ]
 
+NB. #/.~ is the J frequency idiom: count equal items/rows, then sort the class sizes.
 classSizes =: 3 : 0
-  data =. y
-  if. 1 = # $ data do.
-    data =. ,. data
-  end.
-  uniq =. ~. data
-  sizes =. i. 0
-  for_i. i. # uniq do.
-    row =. i { uniq
-    sizes =. sizes , +/ *./"1 data = row
-  end.
-  /:~ sizes
+  /:~ #/.~ y
 )
 
 checkObservation =: 3 : 0
