@@ -101,7 +101,7 @@ pred withoutNamedMovement {
       c.to = q
 }
 
-run baselineEnvelopeLike for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit
-run withoutExclusivePlacement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit
-run withoutUseBoundary for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit
-run withoutNamedMovement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit
+run baselineEnvelopeLike for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
+run withoutExclusivePlacement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
+run withoutUseBoundary for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
+run withoutNamedMovement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
