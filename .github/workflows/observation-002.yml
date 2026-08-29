@@ -43,3 +43,30 @@ jobs:
           java -jar "$ALLOY_JAR" exec -f -s sat4j -o /tmp/alloy-output model/002_same_projection_distinct_history.als
           jq -e '.commands.observationalCollision.solution | length > 0' /tmp/alloy-output/receipt.json
           sed -n '1,220p' /tmp/alloy-output/receipt.json
+
+  j:
+    name: J projection collision
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install J
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
+          mkdir -p /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
+          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
+          test -n "$JCONSOLE"
+          chmod +x "$JCONSOLE"
+          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
+
+      - name: Execute projection collision
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$JCONSOLE" j/002_check.ijs | tee /tmp/j-observation-002.txt
+          grep -Fq 'Observation 002 / projection collision' /tmp/j-observation-002.txt
