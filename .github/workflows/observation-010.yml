@@ -45,7 +45,7 @@ jobs:
             model/010_purpose_becomes_envelope.als
           find /tmp/alloy-output -maxdepth 2 -type f -print -exec sed -n '1,120p' {} \;
 
-      - name: Require all four witnesses
+      - name: Require all five witnesses
         shell: bash
         run: |
           set -euo pipefail
@@ -60,6 +60,7 @@ jobs:
               'withoutExclusivePlacement',
               'withoutUseBoundary',
               'withoutNamedMovement',
+              'repeatedUseUnderCandidateLaws',
           ]
           missing = []
           for name in expected:
