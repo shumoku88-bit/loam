@@ -90,14 +90,17 @@
        (preserves-vocabo rest kind h1 h2))]))
 
 (define (sufficient-summaryo vocab kind)
-  (summary-kindo kind)
-  ;; Six unordered pairs cover the four history classes.
-  (preserves-vocabo vocab kind 'h00 'h10)
-  (preserves-vocabo vocab kind 'h00 'h01)
-  (preserves-vocabo vocab kind 'h00 'h11)
-  (preserves-vocabo vocab kind 'h10 'h01)
-  (preserves-vocabo vocab kind 'h10 'h11)
-  (preserves-vocabo vocab kind 'h01 'h11))
+  ;; `fresh` conjoins the miniKanren goals below. Leaving them as ordinary
+  ;; Racket body expressions would evaluate and discard every goal but the last.
+  (fresh ()
+    (summary-kindo kind)
+    ;; Six unordered pairs cover the four history classes.
+    (preserves-vocabo vocab kind 'h00 'h10)
+    (preserves-vocabo vocab kind 'h00 'h01)
+    (preserves-vocabo vocab kind 'h00 'h11)
+    (preserves-vocabo vocab kind 'h10 'h01)
+    (preserves-vocabo vocab kind 'h10 'h11)
+    (preserves-vocabo vocab kind 'h01 'h11)))
 
 (define (summary-answers vocabulary-name)
   (run* (q)
