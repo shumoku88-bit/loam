@@ -50,8 +50,18 @@ CountAt(place, purpose) ==
 SameCountProjection ==
   \A p \in Purposes : CountAt(leftPlace, p) = CountAt(rightPlace, p)
 
-LeftContinuityEnabled == "u0" \in leftStayed
-RightContinuityEnabled == "u0" \in rightStayed
+LeftContinuityUse ==
+  /\ phase = 1
+  /\ "u0" \in leftStayed
+  /\ UNCHANGED vars
+
+RightContinuityUse ==
+  /\ phase = 1
+  /\ "u0" \in rightStayed
+  /\ UNCHANGED vars
+
+LeftContinuityEnabled == ENABLED LeftContinuityUse
+RightContinuityEnabled == ENABLED RightContinuityUse
 
 SameCurrentImpliesSameEnabled ==
   (leftPlace = rightPlace) =>
