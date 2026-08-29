@@ -49,15 +49,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install J engine
+      - name: Install J
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --location --retry 3 \
-            --output /tmp/j-linux64.zip \
-            https://github.com/jsoftware/jsource/releases/download/build96/l64.zip
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
           mkdir -p /tmp/j
-          unzip -q /tmp/j-linux64.zip -d /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
           JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
           test -n "$JCONSOLE"
           chmod +x "$JCONSOLE"
@@ -67,4 +67,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$JCONSOLE" j/001_check.ijs
+          "$JCONSOLE" j/001_check.ijs | tee /tmp/j-observation.txt
+          grep -Fq 'Observation 001 / J projection' /tmp/j-observation.txt
