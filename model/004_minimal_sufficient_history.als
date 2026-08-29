@@ -1,4 +1,4 @@
-module model/004_minimal_sufficient_history
+module model/observation_004_minimal_sufficient_history
 
 open util/ordering[Time]
 
