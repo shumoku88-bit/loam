@@ -1,0 +1,57 @@
+name: Observation 017
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ anonymous household vocabulary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check anonymous vocabulary closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/AnonymousHouseholdVocabulary.cfg \
+            tla/AnonymousHouseholdVocabulary.tla \
+            2>&1 | tee /tmp/observation-017-anonymous.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-017-anonymous.txt
+
+      - name: Require named-identity distinction
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/NamedHouseholdVocabulary.cfg \
+            tla/AnonymousHouseholdVocabulary.tla \
+            2>&1 | tee /tmp/observation-017-named.txt
+          status=${PIPESTATUS[0]}
+          set -e
+
+          test "$status" -ne 0
+          grep -Fq 'NamedPermissionAgreement' /tmp/observation-017-named.txt
+          grep -Fq 'Invariant' /tmp/observation-017-named.txt
