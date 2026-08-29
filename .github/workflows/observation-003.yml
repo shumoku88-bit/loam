@@ -1,0 +1,47 @@
+name: Observation 003
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ history-sensitive futures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Seek history-sensitive enabledness counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/HistorySensitiveFutures.cfg \
+            tla/HistorySensitiveFutures.tla \
+            2>&1 | tee /tmp/observation-003.txt
+          status=${PIPESTATUS[0]}
+          set -e
+
+          test "$status" -ne 0
+          grep -Fq 'SameCurrentImpliesSameEnabled' /tmp/observation-003.txt
+          grep -Fq 'Invariant' /tmp/observation-003.txt
