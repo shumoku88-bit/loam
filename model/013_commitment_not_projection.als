@@ -1,6 +1,6 @@
 module model/observation_013_commitment_not_projection
 
-open util/ordering[Time]
+open util/ordering[Time] as ord
 
 sig Time {}
 sig Purpose {}
@@ -23,15 +23,15 @@ fact ClosedResourceWorld {
 }
 
 fun present: one Time {
-  next[first]
+  ord/next[ord/first]
 }
 
 fun observedThroughPresent: set Time {
-  present.*prev
+  present.*(ord/prev)
 }
 
 fun futureBeforeHorizon: set Time {
-  present.^next - last
+  present.^(ord/next) - ord/last
 }
 
 fun purposeAt[w: World, t: Time, u: Unit]: set Purpose {
@@ -47,7 +47,7 @@ fun usedAt[w: World, t: Time]: set Unit {
 
 fun usedBefore[w: World, t: Time]: set Unit {
   { u: Unit |
-    some earlier: t.^prev, p: Purpose |
+    some earlier: t.^(ord/prev), p: Purpose |
       earlier->u->p in w.used
   }
 }
@@ -93,7 +93,7 @@ pred commitmentSemantics[w: World] {
     implies
     (u in liveAtPurpose[w, present, p] and
      u not in usedAt[w, present] and
-     all t: present.*next |
+     all t: present.*(ord/next) |
        p in purposeAt[w, t, u] and
      all t: futureBeforeHorizon |
        u not in usedAt[w, t])
@@ -187,7 +187,7 @@ assert CommitmentIsHonoredThroughHorizon {
     all w: World, u: Unit, p: Purpose |
       p in commitmentPurpose[w, u]
       implies
-      (all t: present.*next |
+      (all t: present.*(ord/next) |
          p in purposeAt[w, t, u])
 }
 
