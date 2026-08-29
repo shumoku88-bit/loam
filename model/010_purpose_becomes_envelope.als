@@ -101,7 +101,17 @@ pred withoutNamedMovement {
       c.to = q
 }
 
+pred repeatedUseUnderCandidateLaws {
+  exclusivePlacement
+  useFollowsPlacement
+  changesNameMovement
+  some disj e1, e2: Use |
+    e1.unit = e2.unit and
+    e1.when != e2.when
+}
+
 run baselineEnvelopeLike for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
 run withoutExclusivePlacement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
 run withoutUseBoundary for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
 run withoutNamedMovement for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
+run repeatedUseUnderCandidateLaws for exactly 3 Time, exactly 2 Purpose, exactly 2 Unit, 4 Use, 8 Change
