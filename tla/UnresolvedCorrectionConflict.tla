@@ -1,5 +1,5 @@
 ---- MODULE UnresolvedCorrectionConflict ----
-EXTENDS FiniteSets, Sequences
+EXTENDS FiniteSets, Naturals, Sequences
 
 Corrections == {"kA", "kB"}
 AllEvents == {"c0"} \cup Corrections
