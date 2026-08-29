@@ -63,8 +63,7 @@ pred samePurposeProfileDifferentIdentity {
 assert TotalCountDeterminesTotalMovable {
   #Left.committed = #Right.committed
   implies
-  #movableFrom[Left, P0] + #movableFrom[Left, P1] =
-  #movableFrom[Right, P0] + #movableFrom[Right, P1]
+  #(Unit - Left.committed) = #(Unit - Right.committed)
 }
 
 assert TotalCountDeterminesPurposeAnonymousPermission {
