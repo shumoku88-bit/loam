@@ -1,4 +1,5 @@
 import Loam.Core.Quantity
+import Loam.Core.Measure
 
 namespace Loam
 
