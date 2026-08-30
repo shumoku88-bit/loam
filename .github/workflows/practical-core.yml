@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Tests/**'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Tests/**'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -30,7 +32,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Loam.Core
+    name: Build and test Loam.Core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -47,3 +49,7 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Run practical persistence check
+        shell: bash
+        run: lake env lean --run Loam/Tests/Persistence.lean
