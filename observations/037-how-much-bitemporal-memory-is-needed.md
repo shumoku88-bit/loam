@@ -126,11 +126,13 @@ V5  V4 + ask the exact frontier at t1
 
 Two histories are equivalent for a vocabulary exactly when all questions in that vocabulary return the same answers.
 
-## Expected quotient geometry
+## Observed J result
 
-The J enumeration is expected to produce:
+The J enumeration produced exactly:
 
 ```text
+15 admissible histories
+
 V0  1 class
 V1  2 classes
 V2  5 classes
@@ -139,21 +141,36 @@ V4  9 classes
 V5 15 classes
 ```
 
-The intended pressure is visible before the exact counts are confirmed:
+or compactly:
 
 ```text
-current-only vocabulary
-        can forget much historical distinction
-
-historical as-of vocabulary
-        forces some of that distinction back into memory
+1 2 5 6 9 15
 ```
 
-A separate non-nested comparison asks only the settled/conflict kind for the whole timeline. It is expected to need fewer classes than exact frontier identity through time.
+The observed class sizes include:
+
+```text
+V2 current exact frontier
+  1 2 3 3 6
+
+V4 current + exact t2 frontier
+  1 1 1 2 2 2 2 2 2
+
+V5 full exact frontier timeline
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+```
+
+A separate non-nested observer that asks only settled/conflict kind over the whole timeline needs only:
+
+```text
+4 classes
+```
+
+So exact identity through time is substantially more discriminating than merely remembering whether the interpretation was settled or conflicting.
 
 ## Concrete insufficiency witnesses
 
-Current exact frontier alone should not recover the earlier exact frontier.
+Current exact frontier alone does not recover an earlier exact frontier.
 
 For example:
 
@@ -178,7 +195,7 @@ history A at t1 = {kA}
 history B at t1 = {c0}
 ```
 
-Likewise, exact t2 plus current frontier should not recover exact t1. The two sibling-arrival orders:
+Likewise, exact t2 plus current frontier does not recover exact t1. The two sibling-arrival orders:
 
 ```text
 kA@t1, kB@t2
@@ -194,19 +211,53 @@ current = {kA, kB}
 
 while their t1 frontiers differ.
 
-## What this observation would mean
+Both insufficiency witnesses are checked directly by the J script.
 
-If the expected counts hold, the bounded conclusion is:
+## Finding
+
+The bounded conclusion is:
 
 > There is no single context-free amount of bitemporal history that must be remembered. The minimal observational memory grows with the as-of vocabulary the future is allowed to ask.
 
-In particular, the same 15 histories may be quotiented to only five classes if the future asks for the exact current frontier and nothing historical.
+The same 15 histories collapse to only five classes when the future asks for the exact **current** frontier and nothing historical.
 
-But if the future may ask the exact frontier at every knowledge time, all 15 schedules become distinguishable in this deliberately small model.
+But when the future may ask the exact frontier at every knowledge time in this bounded world, all 15 schedules become distinguishable.
 
-That is not a claim that a real implementation must store fifteen raw histories or a literal frontier table. It is a statement about **semantic distinctions**, not byte-level encoding.
+This sharpens the earlier LOAM maxim:
 
-A more compact representation such as change points may still encode the same answers exactly.
+```text
+safe forgetting is relative to future vocabulary
+```
+
+into a temporal form:
+
+```text
+safe forgetting of the past
+is relative to which past views
+future queries are allowed to recover
+```
+
+There is therefore an explicit semantic cost to auditability. Allowing more exact `as-of knowledge time` questions can require more distinctions to survive in memory.
+
+At the same time, the `4 classes` result for the kind-only timeline shows that preserving **some** history does not imply preserving exact historical identity.
+
+## Semantic quotient versus storage encoding
+
+This experiment measures semantic distinguishability, not bytes.
+
+Even when V5 has 15 singleton classes, an implementation need not store a literal table of every knowledge-time frontier. A change-point representation or another compact encoding may preserve exactly the same answers.
+
+So there are two different compression questions:
+
+```text
+semantic compression
+  which histories may become indistinguishable?
+
+representation compression
+  how compactly can the required distinctions be encoded?
+```
+
+Observation 037 addresses only the first.
 
 ## Important boundary
 
@@ -220,7 +271,7 @@ This bounded world is intentionally unusually clean:
 - there are no source/provenance fields invisible to the frontier;
 - there are no duplicate or semantically redundant observations.
 
-Because of that, an exact full frontier timeline may distinguish every raw schedule here.
+Because of that, the exact full frontier timeline distinguishes every raw schedule here.
 
 That must **not** be generalized into:
 
