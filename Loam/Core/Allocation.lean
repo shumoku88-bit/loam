@@ -68,7 +68,7 @@ theorem sum_parts
     (total recipients : Nat) (hPositive : 0 < recipients) :
     (parts total recipients).sum = total := by
   have hNonzero : recipients ≠ 0 := Nat.ne_of_gt hPositive
-  have hExtra : extra total recipients ≤ recipients :=
+  have hMod : total % recipients ≤ recipients :=
     Nat.le_of_lt (Nat.mod_lt total hPositive)
   simp only [parts, hNonzero, if_false, List.sum_append, sum_replicate]
   unfold base extra
@@ -86,7 +86,7 @@ theorem sum_parts
           (total / recipients) + total % recipients := by
             rw [Nat.add_mul]
     _ = recipients * (total / recipients) + total % recipients := by
-            rw [Nat.add_sub_of_le hExtra]
+            rw [Nat.add_sub_of_le hMod]
     _ = total := Nat.div_add_mod total recipients
 
 /-- Concrete sanity check for an indivisible remainder. -/
