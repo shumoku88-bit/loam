@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Persistence.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
       - 'tools/loam'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Persistence.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
       - 'tools/loam'
