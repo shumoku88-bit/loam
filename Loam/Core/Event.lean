@@ -132,8 +132,9 @@ theorem quantityAt_sameCoordinate_two
            Effect.ofQuantity rightKey locus measure right],
         keyNodup := by simp [hDifferent] }
       locus measure = left + right := by
-  apply Quantity.ext
-  simp [quantityAt]
+  cases left
+  cases right
+  simp [quantityAt, Quantity.add, Quantity.zero, Quantity.ofQuanta]
 
 /-- An effect at another locus does not contribute to the queried coordinate. -/
 theorem quantityAt_otherLocus_zero
