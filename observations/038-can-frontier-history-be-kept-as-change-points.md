@@ -16,7 +16,7 @@ For the vocabulary that can ask the exact frontier at every knowledge time, Obse
 
 That does **not** imply that a dense table with one frontier value per time coordinate is the required representation.
 
-The next question is:
+This observation asks:
 
 > If exact as-of frontier answers must remain available, can the same meaning be carried by recording only the times at which the frontier changes?
 
@@ -26,7 +26,7 @@ This is a finite representation experiment rather than a new relation search or 
 
 J can enumerate the bounded history space, derive dense timelines, encode change points, reconstruct every as-of answer, and count the retained records directly.
 
-A generic theorem that run-length/change-point encoding round-trips a piecewise-constant sequence would be elementary but is not yet a LOAM-specific law worth adding to Lean. If a later observation discovers a stronger domain law, it can be promoted then.
+A generic theorem that run-length/change-point encoding round-trips a piecewise-constant sequence would be elementary but is not yet a LOAM-specific law worth adding to Lean.
 
 No Alloy, TLA+, or miniKanren adds a distinct result here.
 
@@ -48,7 +48,7 @@ r0  whole-frontier Resolution of {kA,kB}
 
 Each interpretation may occur at most once. `r0` may occur only after both sibling Corrections have already been learned.
 
-Under those constraints the expected bounded space contains **83 admissible schedules**.
+J observed exactly **83 admissible schedules**.
 
 The longer horizon deliberately introduces idle knowledge times. This lets the experiment distinguish a dense time grid from the semantic moments at which the frontier actually changes.
 
@@ -66,15 +66,13 @@ Frontier codes are:
 4 = {r0}
 ```
 
-A dense representation therefore stores six frontier cells per history.
-
-Across 83 histories that is expected to produce:
+The 83 schedules produce 83 distinct dense frontier timelines and:
 
 ```text
 83 * 6 = 498 dense frontier cells
 ```
 
-This number is only a convenient record-count baseline, not a byte-size claim.
+This number is only a record-count baseline, not a byte-size claim.
 
 ## Change-point projection
 
@@ -90,11 +88,35 @@ The J implementation uses a fixed-width matrix with `_1` as a temporary sentinel
 
 Decoding carries the last known frontier forward through idle slots.
 
-## Expected checks
+## Observed J result
 
-The experiment asks for four things.
+The final J run observed:
 
-### 1. Exact round trip
+```text
+admissible six-slot histories:       83
+dense frontier cells:               498
+change-point records:               192
+
+distribution by change count:
+  0 changes :  1 history
+  1 change  : 12 histories
+  2 changes : 30 histories
+  3 changes : 40 histories
+
+distinct dense timelines:            83
+distinct change-point encodings:     83
+round trip exact:                      1
+all emitted change points irredundant: 1
+```
+
+Two implementation mistakes were found before this result and were corrected without changing the question:
+
+1. the mixed-radix schedule matrix was accidentally transposed, so schedules were presented along the wrong axis;
+2. change-point counting used an ambiguous J expression, so the comparison mask was named explicitly before row summation.
+
+The final run therefore compares the intended 83 row-major histories and the intended per-row change masks.
+
+## Exact round trip
 
 For every admissible schedule:
 
@@ -104,52 +126,47 @@ decode(encode(dense frontier timeline))
 dense frontier timeline
 ```
 
-So every exact as-of query must return the same answer after representation compression.
+So every exact as-of frontier answer selected by this observation survives the representation change.
 
-### 2. Distinguishability is preserved
+## Distinguishability is preserved
 
-If all 83 dense timelines are distinct, all 83 change-point encodings should also remain distinct.
+All 83 dense timelines are distinct and all 83 change-point encodings are distinct.
 
-This checks that representation compression does not accidentally perform semantic quotienting.
+Representation compression therefore did not perform additional semantic quotienting in this scope.
 
-### 3. Idle time is omitted
+Observation 037's semantic distinctions remain intact even though idle time cells disappear from the representation.
 
-Because there are at most three semantic interpretation changes, each six-slot history should need only zero to three change-point records.
+## Idle time is omitted
 
-The expected distribution is:
+Across all 83 histories, the dense projection contains 498 time-indexed frontier cells while the sparse projection contains 192 semantic change records.
 
-```text
-0 changes :  1 history
-1 change  : 12 histories
-2 changes : 30 histories
-3 changes : 40 histories
-```
-
-for a total of:
+In this clean model every admitted interpretation changes the exact frontier, and the J experiment confirms:
 
 ```text
-192 change-point records
+change-point count = admitted interpretation count
 ```
 
-rather than 498 dense frontier cells.
+So change points remove idle knowledge-time cells. They do not erase meaningful interpretation changes.
 
-Again, this compares logical record counts, not bytes: a sparse record must also carry its time coordinate.
+Again, 498 versus 192 compares logical record counts, not bytes. A sparse record must carry its knowledge coordinate as well as its frontier value.
 
-### 4. Every emitted point is necessary for this vocabulary
+## Every emitted point is necessary for this vocabulary
 
-For every change point in every encoded history, delete that one point and decode again.
+For every emitted change point in every history, J deletes that one point and decodes again.
 
-If the future vocabulary may ask the exact frontier at **every** knowledge time, the modified encoding should differ from the target timeline somewhere.
+Every deletion changes at least one reconstructed exact as-of frontier answer.
 
-This is a bounded irredundancy claim about emitted change points, not a global minimal-bit theorem.
+Thus, relative to the vocabulary asking the exact frontier at every knowledge time, the emitted change points are irredundant in this bounded representation.
 
-## Expected interpretation
+This is not a global minimum-bit proof. It says only that no emitted semantic change can be dropped while preserving the selected dense answer timeline under this decoder.
 
-If all checks hold, the bounded conclusion is:
+## Interpretation
+
+The bounded conclusion is:
 
 > Exact historical distinguishability does not require a dense historical table. A piecewise-constant frontier can preserve every selected as-of answer by retaining only its semantic change points.
 
-This would sharpen Observation 037:
+This sharpens Observation 037:
 
 ```text
 future vocabulary determines
@@ -161,6 +178,8 @@ representation determines
 
 The two questions are related but not identical.
 
+A history may be semantically impossible to quotient any further for a chosen vocabulary while still admitting a much sparser representation.
+
 ## Important boundary
 
 This model is deliberately clean:
@@ -171,9 +190,9 @@ This model is deliberately clean:
 - no provenance invisible to the frontier is retained;
 - no duplicate or semantically redundant observations occur.
 
-Therefore change-point count equals admitted semantic-event count in this scope.
+Therefore the experiment shows that idle time cells are unnecessary for the selected frontier vocabulary. It does **not** show that event history, parentage, provenance, or all temporal metadata can always be reconstructed from frontier change points.
 
-The experiment may show that idle time cells are unnecessary. It does **not** show that event history, parentage, provenance, or all temporal metadata can always be reconstructed from frontier change points.
+In particular, a future vocabulary that asks **why** a frontier has a certain value may require a second retained structure even when the frontier timeline itself is represented sparsely.
 
 ## Tool choice
 
