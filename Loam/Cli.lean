@@ -10,7 +10,7 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
   amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
 private def usage : String :=
-  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT"
+  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory add MEMORY_FILE EVENT_FILE"
 
 /-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
 private def parseEffects : List String → Option (List Loam.Core.Effect)
@@ -106,6 +106,39 @@ def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
               IO.eprintln "loam: remembered event cannot be represented"
               return 2
 
+/--
+Add one already-complete persisted Event to an existing Event memory.
+
+Both files are fully admitted before the memory file is written. Duplicate
+Event identity therefore fails without publication. The final list position is
+persistence representation only and does not mean latest, later, causal, or
+more authoritative. This boundary performs one validated write, but does not
+claim crash-safe filesystem replacement semantics.
+-/
+def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk memoryPath
+  let eventFile := System.FilePath.mk eventPath
+  match ← Loam.Core.Persistence.loadEventMemory? memoryFile with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some memory =>
+      match ← Loam.Core.Persistence.loadEvent? eventFile with
+      | none =>
+          IO.eprintln "loam: malformed or unsupported event file"
+          return 2
+      | some event =>
+          match Loam.Core.EventMemory.add? memory event with
+          | none =>
+              IO.eprintln "loam: event identity already remembered"
+              return 1
+          | some updated =>
+              if ← Loam.Core.Persistence.saveEventMemory? memoryFile updated then
+                return 0
+              else
+                IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
+                return 2
+
 /-- Command dispatcher for the practical CLI surface. -/
 def run (args : List String) : IO UInt32 :=
   match args with
@@ -116,6 +149,8 @@ def run (args : List String) : IO UInt32 :=
       showEventQuantity path locus measure
   | ["event-memory", "get", path, eventToken] =>
       showRememberedEvent path eventToken
+  | ["event-memory", "add", memoryPath, eventPath] =>
+      addRememberedEvent memoryPath eventPath
   | _ => do
       IO.eprintln usage
       return 2
