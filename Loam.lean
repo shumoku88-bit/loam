@@ -1,7 +1,12 @@
-import Loam.Observation008
-import Loam.Observation011
-import Loam.Observation029
-import Loam.Observation043
-import Loam.Observation044
-import Loam.Observation045
-import Loam.Observation046
+import Loam.Core
+import Loam.Observations
+
+/-!
+# LOAM Lean umbrella
+
+`Loam.Core` is the practical implementation entry point.
+`Loam.Observations` preserves the historical proof suite.
+
+Keeping both here retains the existing full `lake build` qualification while
+allowing practical code to depend only on the core.
+-/
