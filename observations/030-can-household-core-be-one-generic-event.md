@@ -28,7 +28,7 @@ The bounded Alloy model gives every event only these semantic facets:
 
 ```text
 Event identity
-  + delta       : optional/current quantitative effect
+  + delta       : quantitative effect
   + purpose     : optional intentional destination
   + parent      : zero or more earlier events this event continues/revises/settles
 ```
@@ -57,7 +57,7 @@ The generic history must answer three concrete projections and support the revis
 
 1. **Balance** — sum the deltas of current tips.
 2. **Current commitments** — read purposes from current tips.
-3. **Explanation** — retain the current tips and their parent ancestry.
+3. **Explanation** — observe the ancestry relation from current tips to the events they descend from.
 
 A tip is a present event that has not been named as a parent by another present event.
 
@@ -98,15 +98,60 @@ If two worlds have exactly the same present events, deltas, purposes, and parent
 
 Expected check result: **UNSAT** counterexample.
 
-## What a positive result would mean
+## Observed results
 
-A positive result would not establish a final household database schema.
+With exactly 4 Events, 2 Purposes, 2 Worlds, and 4-bit Ints, Alloy 6.2.0 + Sat4j returned:
 
-It would establish a smaller bounded claim:
+```text
+genericCoreExpressesHouseholdRoles          SAT
+differentNominalKindsSameCoreSameAnswers   SAT
+forgettingDeltaCanLoseBalance               SAT
+forgettingPurposeCanLoseCommitment          SAT
+forgettingParentCanLoseCurrentMeaning       SAT
+forgettingParentCanLoseExplanationOnly      SAT
+GenericCoreDeterminesSelectedVocabulary     UNSAT
+```
+
+The bounded witnesses therefore support all six positive searches, while Alloy finds no counterexample to whole-core sufficiency in this scope.
+
+### A useful failed formulation
+
+The first version represented Explanation only as the **set of events** reachable from current tips. Alloy returned UNSAT for `forgettingParentCanLoseExplanationOnly`.
+
+That was not evidence that parentage was unnecessary for explanation. In a finite acyclic parent graph, every present event eventually lies below some tip, so the reachable-event set collapses to the whole present set. The projection had accidentally erased the shape it was meant to observe.
+
+After Explanation was changed to the **tip-to-ancestor relation**, Alloy found the expected SAT witness while Balance and Current commitments remained equal.
+
+This sharpens the household requirement:
+
+> Explanation is not merely remembering which events participated. It may require remembering how those events are related.
+
+## Finding
+
+For the selected future vocabulary, the experiment does not need primitive stored event-kind names.
+
+A bounded candidate core is:
+
+```text
+Event identity
++ delta
++ optional purpose
++ parent relation
+```
+
+The familiar household words can be derived as roles over that structure. In contrast, each of `delta`, `purpose`, and `parent` carries a future-visible distinction that can be lost when that facet is forgotten.
+
+The nominal `tag` field can vary while the semantic core and all selected answers remain identical, so it adds no observational power here.
+
+## What the result means
+
+This does not establish a final household database schema.
+
+It establishes a smaller bounded claim:
 
 > For this future vocabulary, named event kinds are not required as primitive memory. Event identity plus quantitative effect, intentional purpose, and revision parentage can carry the selected distinctions, while household event names can be derived roles.
 
-This would make a possible core look less like:
+This makes a possible core look less like:
 
 ```text
 Actual | Commit | Release | Correction | Resolution
@@ -116,7 +161,7 @@ and more like:
 
 ```text
 Event {
-  delta?
+  delta
   purpose?
   parents*
 }
@@ -152,7 +197,7 @@ The question is structural: remove or vary one relation and ask for a counterexa
 
 ## Next question
 
-If this generic core survives, the next pressure point is quantitative and structural rather than nominal:
+The next pressure point is quantitative and structural rather than nominal:
 
 > What additional relation, if any, becomes unavoidable when Balance must be split across multiple loci/commodities and commitments must coexist with physical movement without conflating the two?
 
