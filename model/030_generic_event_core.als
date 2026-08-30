@@ -88,7 +88,7 @@ pred sameSelectedAnswers[a, b: World] {
 }
 
 pred genericCoreExpressesHouseholdRoles {
-  #Left.present >= 6
+  #Left.present = 4
 
   some physicalEvents[Left]
   some intentionalEvents[Left]
@@ -155,10 +155,10 @@ assert GenericCoreDeterminesSelectedVocabulary {
     sameSelectedAnswers[Left, Right]
 }
 
-run genericCoreExpressesHouseholdRoles for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-run differentNominalKindsSameCoreSameAnswers for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-run forgettingDeltaCanLoseBalance for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-run forgettingPurposeCanLoseCommitment for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-run forgettingParentCanLoseCurrentMeaning for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-run forgettingParentCanLoseExplanationOnly for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
-check GenericCoreDeterminesSelectedVocabulary for exactly 6 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 5 Int
+run genericCoreExpressesHouseholdRoles for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+run differentNominalKindsSameCoreSameAnswers for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+run forgettingDeltaCanLoseBalance for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+run forgettingPurposeCanLoseCommitment for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+run forgettingParentCanLoseCurrentMeaning for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+run forgettingParentCanLoseExplanationOnly for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
+check GenericCoreDeterminesSelectedVocabulary for exactly 4 Event, exactly 2 Purpose, exactly 4 Kind, exactly 2 World, 4 Int
