@@ -10,7 +10,7 @@ NB.
 NB. Each interpretation may occur at most once.  r0 may occur only after both
 NB. sibling Corrections have already been learned.
 
-allSchedules =: |: (6 $ 4) #: i. 4 ^ 6
+allSchedules =: (6 $ 4) #: i. 4 ^ 6
 
 admissible =: 3 : 0
   if. 1 < +/ y = 1 do. 0 return. end.
