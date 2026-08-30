@@ -6,18 +6,18 @@ import Loam.Core.EventMemory
 import Loam.Core.Rate
 import Loam.Core.Allocation
 import Loam.Core.RecipientAssignment
-import Loam.Core.Persistence
 
 namespace Loam
 
 /-!
 # Practical core
 
-This module is the entry point for the practical Lean implementation.
+This module is the entry point for the practical Lean domain core.
 
-The historical observation proofs remain separate under `Loam.Observations`.
-New application-facing code should grow from this module rather than importing
-the observation suite.
+The historical observation proofs remain separate under `Loam.Observations`,
+and persistence remains a separate runtime boundary under `Loam.Persistence`.
+New domain code should grow from this module rather than importing either
+boundary accidentally.
 -/
 
 namespace Core
