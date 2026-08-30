@@ -36,23 +36,24 @@ An exact rational relation from one measure coordinate to another.
 assumption that the relation is a price, exchange rate, valuation authority,
 invertible relation, or time-stable fact.
 -/
-structure Rate (from to : MeasureId) where
+structure Rate (source target : MeasureId) where
   ratio : Rat
 deriving Repr, DecidableEq
 
 namespace Rate
 
 /-- Construct an exact relation value. -/
-def ofRat {from to : MeasureId} (ratio : Rat) : Rate from to :=
+def ofRat {source target : MeasureId} (ratio : Rat) : Rate source target :=
   ⟨ratio⟩
 
 /-- Apply a relation without quantizing the target result. -/
-def apply {from to : MeasureId}
-    (rate : Rate from to) (amount : Amount from) : RationalAmount to :=
+def apply {source target : MeasureId}
+    (rate : Rate source target) (amount : Amount source) : RationalAmount target :=
   RationalAmount.ofRat (Rat.ofInt amount.quantity.quanta * rate.ratio)
 
 @[simp] theorem quanta_apply
-    {from to : MeasureId} (rate : Rate from to) (amount : Amount from) :
+    {source target : MeasureId}
+    (rate : Rate source target) (amount : Amount source) :
     (rate.apply amount).quanta =
       Rat.ofInt amount.quantity.quanta * rate.ratio :=
   rfl
@@ -93,7 +94,10 @@ def quantize {measure : MeasureId}
     {measure : MeasureId} (choose : Quantizer) (value : RationalAmount measure) :
     Rat.ofInt (quantize choose value).amount.quantity.quanta +
         (quantize choose value).remainder.quanta = value.quanta := by
-  simp [quantize]
+  simp only [quantize, Amount.quantity_ofQuantity, Quantity.quanta_ofQuanta,
+    quanta_ofRat]
+  rw [Rat.add_comm]
+  exact Rat.sub_add_cancel
 
 end RationalAmount
 
