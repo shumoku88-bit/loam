@@ -51,16 +51,16 @@ pred wholeFrontierExplanationResolutionSettles {
   frontier[Resolved] = Resolve
 }
 
-pred oneClaimStep[before, later: View, r: Claim] {
-  r not in before.known
-  later.known = before.known + r
-  r.parent in frontier[before]
+pred oneClaimStep[prior, nextView: View, r: Claim] {
+  r not in prior.known
+  nextView.known = prior.known + r
+  r.parent in frontier[prior]
 }
 
 assert SettlementRequiresWholeExplanationFrontier {
-  all before, later: View, r: Claim |
-    oneClaimStep[before, later, r] and frontier[later] = r
-      implies r.parent = frontier[before]
+  all prior, nextView: View, r: Claim |
+    oneClaimStep[prior, nextView, r] and frontier[nextView] = r
+      implies r.parent = frontier[prior]
 }
 
 assert WholeResolutionPreservesBothBranches {
