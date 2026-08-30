@@ -35,6 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-positive \
             -config tla/AsynchronousSettlement.cfg \
             tla/AsynchronousSettlement.tla \
             2>&1 | tee /tmp/observation-050-positive.txt
@@ -46,6 +47,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-pending \
             -config tla/AsynchronousSettlementPendingBoundary.cfg \
             tla/AsynchronousSettlement.tla \
             2>&1 | tee /tmp/observation-050-pending.txt
@@ -61,6 +63,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-settled \
             -config tla/AsynchronousSettlementSettledBoundary.cfg \
             tla/AsynchronousSettlement.tla \
             2>&1 | tee /tmp/observation-050-settled.txt
@@ -76,6 +79,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-physical \
             -config tla/AsynchronousSettlementPhysicalBoundary.cfg \
             tla/AsynchronousSettlement.tla \
             2>&1 | tee /tmp/observation-050-physical.txt
