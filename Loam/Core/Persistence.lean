@@ -1,4 +1,5 @@
 import Loam.Core.Measure
+import Init.Guard
 import Std
 
 namespace Loam.Core
