@@ -100,7 +100,7 @@ theorem forkFrontierCovered :
 /-- The graph and the coverage law do not determine a unique answer to
 "which frontier covers root?". -/
 theorem forkRootHasNoUniqueCover :
-    ¬ ∃! tip, Covers forkParent forkKnown tip .root := by
+    ¬ (∃! tip, Covers forkParent forkKnown tip .root) := by
   intro hUnique
   rcases hUnique with ⟨tip, _, hOnly⟩
   have hLeft : ForkNode.left = tip := hOnly .left forkLeftCoversRoot
