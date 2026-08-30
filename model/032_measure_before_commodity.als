@@ -72,7 +72,7 @@ fun coordinateBalances[w: World]: Locus -> Measure -> Int {
 
 fun measureTotals[w: World]: Measure -> Int {
   { m: Measure, i: Int |
-      i = sum l: Locus | balanceAt[w, l, m] }
+      i = (sum l: Locus | balanceAt[w, l, m]) }
 }
 
 fun commitments[w: World]: set Purpose {
