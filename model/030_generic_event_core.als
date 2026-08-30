@@ -49,8 +49,8 @@ fun commitments[w: World]: set Purpose {
   tips[w].(w.purpose)
 }
 
-fun explanation[w: World]: set Event {
-  tips[w].*(w.parent)
+fun explanation[w: World]: Event -> Event {
+  tips[w] <: *(w.parent)
 }
 
 fun physicalEvents[w: World]: set Event {
