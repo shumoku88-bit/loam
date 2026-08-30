@@ -81,7 +81,7 @@ The first deliberately strong hypothesis says:
 
 > Every known past relation must equal the current relation.
 
-If TLC finds a counterexample, a trace of the shape
+A counterexample trace of the shape
 
 ```text
 time 0: observe r0
@@ -89,16 +89,16 @@ advance
 time 1: observe r1
 ```
 
-is enough to separate:
+separates:
 
 ```text
 relation-as-of time 0 = r0
 current relation      = r1
 ```
 
-The intended boundary result is an invariant violation of `LatestRelationAnswersPast`.
+The boundary is expressed as `LatestRelationAnswersPast`.
 
-That would mean a system retaining only the latest relation cannot in general answer a future vocabulary that asks how a past coordinate was viewed.
+If it fails, a system retaining only the latest relation cannot in general answer a future vocabulary that asks how a past coordinate was viewed.
 
 ## Boundary 2 — current relation determines a future plan target
 
@@ -110,7 +110,7 @@ plan assumption = r0
 
 The second strong hypothesis says that this snapshot must equal the relation later observed at the plan target.
 
-TLC is asked to find a trace such as:
+A counterexample trace can have the shape:
 
 ```text
 time 0: observe r0
@@ -119,7 +119,7 @@ advance
 time 1: observe r1
 ```
 
-The intended boundary result is an invariant violation of `PlanAssumptionDeterminesTarget`.
+The boundary is expressed as `PlanAssumptionDeterminesTarget`.
 
 This does not make planning invalid. It separates two meanings:
 
@@ -130,17 +130,80 @@ later relation observation        = fact available later
 
 An assumption can be useful without becoming a claim that the future has already been observed.
 
-## Intended interpretation
+## Observed TLA+ result
 
-If the positive model holds and both boundary hypotheses fail, the bounded conclusion is:
+TLC 2.19, from TLA+ tools 1.7.4, produced the intended result set.
 
-> A relation between Measures needs temporal memory once future questions distinguish past, present, and future viewpoints.
+### Positive model
 
-More specifically:
+```text
+Model checking completed. No error has been found.
+89 states generated
+89 distinct states found
+0 states left on queue
+depth 7
+```
 
-- the current relation can answer a present-view question;
-- historical relation questions require enough history to recover the relevant past view;
-- a current relation may be carried into a plan as an explicit assumption, but it does not determine the relation that will later be observed.
+The append-only temporal model therefore preserved the selected safety properties throughout the complete bounded state graph.
+
+### Historical boundary
+
+`LatestRelationAnswersPast` was violated.
+
+TLC found the four-state trace:
+
+```text
+State 1: now = 0, history = <<>>, current = unknown
+State 2: observe r0 at time 0
+State 3: advance to time 1, current remains r0
+State 4: observe r1 at time 1, current becomes r1
+```
+
+At State 4 the current relation is `r1`, while the relation as of time 0 remains `r0`.
+
+TLC reached the counterexample after generating 13 distinct states, at depth 4.
+
+### Future-plan boundary
+
+`PlanAssumptionDeterminesTarget` was violated.
+
+TLC found the five-state trace:
+
+```text
+State 1: now = 0, no relation, no plan
+State 2: observe r0 at time 0
+State 3: make a plan for time 1 with assumption r0
+State 4: advance to time 1
+State 5: observe r1 at time 1
+```
+
+At State 5 the plan still truthfully remembers its assumption `r0`, while the relation later observed at the target is `r1`.
+
+TLC reached this counterexample after generating 33 distinct states, at depth 5.
+
+## Bounded interpretation
+
+The observed result supports a three-way separation:
+
+```text
+past
+  relation history preserves what could be answered as of an earlier coordinate
+
+present
+  current relation is the latest observed relation as of now
+
+future
+  a present relation may be carried forward only as an explicit assumption
+```
+
+So one current relation is not sufficient for all three viewpoints.
+
+In particular:
+
+- applying the latest relation backward can erase an observable historical distinction;
+- changing the current relation does not require rewriting earlier relation views;
+- carrying the current relation into a future plan does not make it a fact about what will later be observed;
+- `Unknown` is semantically different from a current value copied into the future without qualification.
 
 This extends the LOAM pattern:
 
@@ -164,7 +227,7 @@ and
 when the relation was valid
 ```
 
-If Observation 034 succeeds, that bitemporal split is the next natural pressure point.
+That bitemporal split is now the next natural pressure point.
 
 ## Tool choice
 
