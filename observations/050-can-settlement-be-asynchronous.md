@@ -1,17 +1,15 @@
-# Observation 050 — Can Settlement Be Asynchronous?
+# Observation 050: Can Settlement Be Asynchronous?
 
 ## Question
 
 Observation 048 separated physical holding from allocation eligibility.
-Observation 049 then separated physical location from accounting role.
+Observation 049 separated physical location from accounting role.
 
-A different boundary now appears when quantity moves between loci:
+The next boundary appears when quantity moves between loci:
 
 > Does initiating a movement mean that the physical movement has already settled?
 
-Real household movements can be asynchronous. A card payment can be initiated before final settlement. A bank transfer can be requested before the receiving side has actually settled it. If LOAM collapses these moments into one fact, an intermediate state becomes impossible to represent without lying about either physical holdings or pending activity.
-
-The pressure for this observation is therefore:
+The pressure is:
 
 ```text
 initiated
@@ -28,13 +26,13 @@ while
 physical holdings remain unchanged
 ```
 
-This observation does not yet model failure, cancellation, reversal, reconciliation evidence, or institution-specific payment rails.
+This observation does not model failure, cancellation, reversal, reconciliation evidence, or institution-specific payment rails.
 
 ## Why TLA+
 
-This is not a static relational-independence question.
+This is a transition-order question rather than static relational independence.
 
-The interesting object is an ordering of reachable states:
+The state path under pressure is:
 
 ```text
 not initiated
@@ -42,15 +40,15 @@ not initiated
     -> later settled
 ```
 
-Alloy could encode snapshots of these states, but the pressure here is whether transition order itself preserves the intended meaning. TLA+ therefore answers something new:
+TLA+ is useful here because the questions are about reachable intermediate states and ordering:
 
-- whether a pending state is reachable;
-- whether time can pass while it remains pending;
-- whether settlement can occur later;
-- whether physical quantity changes only at settlement;
-- whether settlement can ever precede initiation.
+- can a pending state exist;
+- can time pass while it remains pending;
+- can settlement occur later;
+- do physical holdings change only at settlement;
+- can settlement ever precede initiation.
 
-No J, Lean 4, or miniKanren is needed for this observation.
+No J, Lean 4, miniKanren, or Alloy is needed for this observation.
 
 ## Minimal model
 
@@ -58,7 +56,7 @@ The model contains one unit of quantity and two neutral physical coordinates:
 
 ```text
 source
-    destination
+destination
 ```
 
 It deliberately does not introduce Account, Asset, Liability, Envelope, BackingPool, institution, ownership, or payment-method objects.
@@ -73,15 +71,13 @@ sourceHeld
 destinationHeld
 ```
 
-with a finite time horizon of 0..2.
+with finite time horizon `0..2`.
 
 ## Transitions
 
 ### Initiate
 
-`Initiate` records `initiatedAt`.
-
-It does **not** change physical holdings.
+`Initiate` records `initiatedAt` but does not change physical holdings:
 
 ```text
 before:
@@ -95,13 +91,13 @@ sourceHeld      = 1
 destinationHeld = 0
 ```
 
-This is the hypothesis under pressure: initiation is semantic history, not proof that physical settlement already happened.
+Initiation is semantic history, not proof that physical settlement already happened.
 
 ### Advance
 
 After initiation, time may advance while holdings remain unchanged.
 
-This makes the intermediate state genuinely temporal rather than merely two labels on one instant.
+This makes the intermediate state genuinely temporal rather than two labels on one instant.
 
 ### Settle
 
@@ -126,46 +122,32 @@ No other transition changes physical holdings.
 
 The ordinary TLC configuration checks:
 
-### TypeOK
+- `TypeOK`
+- `KnownTimesAreNotFuture`
+- `SettlementRequiresInitiation`
+- `SettlementIsLater`
+- `QuantityConserved`
+- `PhysicalStateFollowsSettlement`
+- `PendingLeavesPhysicalHoldingsUnchanged`
 
-All times and quantities remain inside the modeled domains.
-
-### KnownTimesAreNotFuture
-
-Neither initiation nor settlement can be recorded in the modeled future relative to `now`.
-
-### SettlementRequiresInitiation
-
-A settled state cannot exist without an initiation fact.
-
-### SettlementIsLater
-
-Whenever settlement exists:
+In particular, whenever settlement exists:
 
 ```text
 initiatedAt < settledAt
 ```
 
-So the model cannot silently collapse later settlement back onto the initiation instant.
+and while pending:
 
-### QuantityConserved
-
-The physical quantity is conserved across the two loci.
-
-### PhysicalStateFollowsSettlement
-
-Before settlement, the unit remains at the source.
-After settlement, the unit is at the destination.
-
-### PendingLeavesPhysicalHoldingsUnchanged
-
-The pending state itself does not mutate physical holdings.
+```text
+sourceHeld      = 1
+destinationHeld = 0
+```
 
 ## Reachability boundaries
 
-TLC explores all reachable states. Three deliberately over-strong invariants are checked separately and are expected to fail.
+TLC explores all reachable states. Three deliberately over-strong invariants are checked separately.
 
-### Boundary 1 — NoPendingState
+### Boundary 1: NoPendingState
 
 Hypothesis:
 
@@ -173,11 +155,11 @@ Hypothesis:
 there is never an initiated-but-unsettled state
 ```
 
-Expected: **invariant violation**.
+Observed: **invariant violation**.
 
-A counterexample would establish that pending is a reachable state in the model.
+Pending is reachable.
 
-### Boundary 2 — NoSettledState
+### Boundary 2: NoSettledState
 
 Hypothesis:
 
@@ -185,11 +167,11 @@ Hypothesis:
 settlement is never reachable
 ```
 
-Expected: **invariant violation**.
+Observed: **invariant violation**.
 
-Combined with the positive `SettlementIsLater` invariant, this shows that a reachable settlement can occur strictly after initiation.
+Combined with `SettlementIsLater`, a reachable settlement occurs strictly after initiation.
 
-### Boundary 3 — UnmovedPhysicalStateMeansNotInitiated
+### Boundary 3: UnmovedPhysicalStateMeansNotInitiated
 
 Hypothesis:
 
@@ -198,19 +180,19 @@ if physical holdings have not moved,
 then initiation has not happened
 ```
 
-Expected: **invariant violation**.
+Observed: **invariant violation**.
 
 The pre-initiation state and the pending state have the same physical holdings but different initiation vocabulary.
 
-If this counterexample appears, then physical holdings alone cannot answer the future question:
+Therefore physical holdings alone cannot answer:
 
 ```text
 is there a movement currently pending?
 ```
 
-## Expected result
+## Observed result
 
-TLA+ tools 1.7.4 / TLC:
+TLA+ tools 1.7.4 / TLC on pull-request head `53781cc4df2012cc7c956fde1ac1f8cd03e5e077`:
 
 ```text
 positive safety model                              PASS
@@ -219,11 +201,11 @@ NoSettledState                                     VIOLATED
 UnmovedPhysicalStateMeansNotInitiated              VIOLATED
 ```
 
-This section remains an expectation until CI executes the exact pull-request head.
+The Observation 050 workflow passed all four checks, and the same exact head passed Observation 001 through 050, 50/50 SUCCESS.
 
-## Interpretation if the expected result holds
+## Interpretation
 
-The bounded result would be:
+The bounded result is:
 
 ```text
 movement initiation
@@ -243,14 +225,14 @@ initiated but pending
 
 So a physical quantity projection is insufficient for a future vocabulary that asks about pending movements.
 
-At minimum, that vocabulary needs some retained initiation/settlement distinction such as:
+At minimum, that vocabulary must retain an initiation/settlement distinction, represented in this witness by:
 
 ```text
 initiatedAt
 settledAt
 ```
 
-The observation would **not** imply that these exact fields are the final LOAM representation. They are only a small witness that one collapsed physical state is not sufficient.
+These exact fields are not claimed as the final LOAM representation. They are only a small witness that one collapsed physical state is insufficient.
 
 This extends the recurring LOAM separation pattern:
 
@@ -293,16 +275,18 @@ This observation does **not** establish:
 - institution-specific states;
 - historical correction of settlement facts.
 
-Those are intentionally outside this model.
+The model does not assert eventual settlement. TLC establishes reachable states and the safety laws above, not a liveness promise.
 
-In particular, the model does not assert eventual settlement. TLC only establishes which states and transitions are reachable while preserving the safety laws above.
+## CI note
+
+An earlier PR-head batch exposed an unrelated pre-existing TLC metadata-directory collision in Observation 018 when two TLC invocations started within the same second. Observation 050 therefore gives each of its four TLC invocations a distinct `-metadir`. No Observation 018 model or workflow was changed in this observation.
 
 ## Next question
 
-If initiation and settlement are distinct, a practical system must eventually answer a different question:
+If initiation and settlement are distinct, a practical system must eventually answer:
 
 > What evidence lets us say that the world and our recorded state agree?
 
 That is Observation 051: reconciliation evidence.
 
-The default tool there returns to Alloy because the first pressure is relational: recorded claims, observed evidence, and the relation that says what evidence supports which claim. TLA+ should be added only if ordering of reconciliation observations turns out to change the answer.
+The default tool returns to Alloy because the first pressure is relational: recorded claims, observed evidence, and the relation that says what evidence supports which claim. TLA+ should be added only if ordering of reconciliation observations changes the answer.
