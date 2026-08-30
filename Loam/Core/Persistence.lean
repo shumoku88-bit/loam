@@ -98,27 +98,19 @@ private def sample : SomeAmount :=
   SomeAmount.ofQuantity yen (Quantity.ofQuanta (-1250))
 
 /-- The wire shape is explicit and exact. -/
-example :
-    encode? sample = some "LOAM-AMOUNT\t1\njpy\t-1250\n" := by
-  decide
+#guard encode? sample = some "LOAM-AMOUNT\t1\njpy\t-1250\n"
 
 /-- Pure encode/decode returns the same observable identity and quanta. -/
-example :
-    ((encode? sample).bind decode?).map
-      (fun amount => (amount.measure.token, amount.quantity.quanta)) =
-      some ("jpy", -1250) := by
-  decide
+#guard ((encode? sample).bind decode?).map
+    (fun amount => (amount.measure.token, amount.quantity.quanta)) =
+  some ("jpy", -1250)
 
 /-- A changed version marker is rejected rather than guessed. -/
-example :
-    (decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone = true := by
-  decide
+#guard (decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone
 
 /-- A token containing a field separator is not silently escaped or changed. -/
-example :
-    (encode? (SomeAmount.ofQuantity ⟨"jp\ty"⟩ (Quantity.ofQuanta 1))).isNone =
-      true := by
-  decide
+#guard (encode?
+  (SomeAmount.ofQuantity ⟨"jp\ty"⟩ (Quantity.ofQuanta 1))).isNone
 
 end Persistence
 
