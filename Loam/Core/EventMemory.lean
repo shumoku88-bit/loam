@@ -1,3 +1,4 @@
+import Init.Data.List.Perm
 import Loam.Core.Event
 
 namespace Loam.Core
@@ -48,6 +49,38 @@ private def findEventById? : List Event → EventId → Option Event
       else
         findEventById? rest id
 
+private theorem findEventById?_perm
+    {left right : List Event}
+    (hPerm : left.Perm right)
+    (hNodup : (left.map Event.id).Nodup)
+    (id : EventId) :
+    findEventById? left id = findEventById? right id := by
+  induction hPerm with
+  | nil =>
+      rfl
+  | cons event hPerm ih =>
+      simp only [List.map_cons, List.nodup_cons] at hNodup
+      by_cases h : event.id = id
+      · simp [findEventById?, h]
+      · simp [findEventById?, h, ih hNodup.2]
+  | swap x y rest =>
+      simp only [List.map_cons, List.nodup_cons] at hNodup
+      have hyx : y.id ≠ x.id := by
+        intro hEqual
+        apply hNodup.1
+        simp [hEqual]
+      by_cases hy : y.id = id
+      · have hx : x.id ≠ id := by
+          intro hx
+          exact hyx (hy.trans hx.symm)
+        simp [findEventById?, hy, hx]
+      · by_cases hx : x.id = id
+        · simp [findEventById?, hy, hx]
+        · simp [findEventById?, hy, hx]
+  | trans hLeft hRight ihLeft ihRight =>
+      have hMiddleNodup := (hLeft.map Event.id).nodup hNodup
+      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
+
 /--
 Find one remembered Event by its stable identity.
 
@@ -57,6 +90,19 @@ causal, priority, authority, or posting-order semantics.
 -/
 def findById? (memory : EventMemory) (id : EventId) : Option Event :=
   findEventById? memory.events id
+
+/--
+Identity lookup is invariant under permutation of the represented Events.
+The memory admission law that rejects repeated `EventId` values is the condition
+that makes a representation-order-independent lookup possible.
+-/
+theorem findById?_perm
+    (left right : EventMemory)
+    (hPerm : left.events.Perm right.events)
+    (id : EventId) :
+    findById? left id = findById? right id := by
+  simpa [findById?] using
+    findEventById?_perm hPerm left.idNodup id
 
 @[simp] theorem findById?_empty (id : EventId) :
     findById? { events := [], idNodup := by simp } id = none := by
