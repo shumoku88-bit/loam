@@ -5,7 +5,9 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
+      - 'tools/loam'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -14,7 +16,9 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
+      - 'tools/loam'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -51,3 +55,18 @@ jobs:
       - name: Run practical persistence check
         shell: bash
         run: lake env lean --run Loam/Tests/Persistence.lean
+
+      - name: Run practical CLI check
+        shell: bash
+        run: |
+          amount_file="$(mktemp)"
+          printf 'LOAM-AMOUNT\t1\njpy\t-1250\n' >"$amount_file"
+          output="$(./tools/loam amount show "$amount_file")"
+          test "$output" = $'jpy\t-1250'
+
+          printf 'broken\n' >"$amount_file"
+          if ./tools/loam amount show "$amount_file" >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected malformed input to fail' >&2
+            exit 1
+          fi
+          grep -Fq 'malformed or unsupported amount file' /tmp/loam-cli.err
