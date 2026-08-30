@@ -10,7 +10,7 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
   amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
 private def usage : String :=
-  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE"
+  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT"
 
 /-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
 private def parseEffects : List String → Option (List Loam.Core.Effect)
@@ -82,6 +82,30 @@ def showEventQuantity
       IO.eprintln "loam: malformed or unsupported event file"
       return 2
 
+/--
+Read one persisted Event memory and retrieve one Event by stable identity.
+The command exposes no storage index and therefore adds no `first`, `latest`,
+temporal, causal, priority, authority, or posting-order semantics.
+-/
+def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
+  match ← Loam.Core.Persistence.loadEventMemory? (System.FilePath.mk path) with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some memory =>
+      match Loam.Core.EventMemory.findById? memory ⟨eventToken⟩ with
+      | none =>
+          IO.eprintln "loam: event not found in memory"
+          return 1
+      | some event =>
+          match Loam.Core.Persistence.encodeEvent? event with
+          | some text =>
+              IO.print text
+              return 0
+          | none =>
+              IO.eprintln "loam: remembered event cannot be represented"
+              return 2
+
 /-- Command dispatcher for the practical CLI surface. -/
 def run (args : List String) : IO UInt32 :=
   match args with
@@ -90,6 +114,8 @@ def run (args : List String) : IO UInt32 :=
       createEvent path eventToken effectArgs
   | ["event", "quantity", path, locus, measure] =>
       showEventQuantity path locus measure
+  | ["event-memory", "get", path, eventToken] =>
+      showRememberedEvent path eventToken
   | _ => do
       IO.eprintln usage
       return 2

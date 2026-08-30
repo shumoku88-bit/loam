@@ -127,3 +127,29 @@ jobs:
             exit 1
           fi
           grep -Fq 'malformed or unsupported event file' /tmp/loam-cli.err
+
+          memory_file="$tmp_dir/memory.loam"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tevent-2\nEFFECT\teffect-d\twallet\tjpy\t-500\nEVENT\tevent-1\nEFFECT\teffect-a\twallet\tjpy\t-1000\nEFFECT\teffect-b\twallet\tjpy\t-250\n' >"$memory_file"
+
+          output="$(./tools/loam event-memory get "$memory_file" event-1)"
+          expected_remembered=$'LOAM-EVENT\t1\nevent-1\neffect-a\twallet\tjpy\t-1000\neffect-b\twallet\tjpy\t-250'
+          test "$output" = "$expected_remembered"
+
+          if ./tools/loam event-memory get "$memory_file" missing-event >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected missing Event identity to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'event not found in memory' /tmp/loam-cli.err
+
+          printf 'broken\n' >"$memory_file"
+          if ./tools/loam event-memory get "$memory_file" event-1 >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected malformed Event memory to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-cli.err
