@@ -2,6 +2,7 @@ import Loam.Core.Quantity
 import Loam.Core.Measure
 import Loam.Core.Rate
 import Loam.Core.Allocation
+import Loam.Core.RecipientAssignment
 
 namespace Loam
 
