@@ -11,8 +11,6 @@ on:
       - 'lean-toolchain'
       - '.github/workflows/practical-core.yml'
   push:
-    branches:
-      - main
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
