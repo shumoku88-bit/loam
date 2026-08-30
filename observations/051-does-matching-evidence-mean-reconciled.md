@@ -77,15 +77,13 @@ supports(e, c)
 content(e) = content(c)
 ```
 
-The converse is intentionally **not** asserted.
+The converse is intentionally **not** asserted:
 
 ```text
 content(e) = content(c)
     does not imply
 supports(e, c)
 ```
-
-This is the boundary under pressure.
 
 ## Selected reconciliation vocabulary
 
@@ -101,29 +99,29 @@ Everything else remains unreconciled in the selected vocabulary.
 
 This does not claim that explicit support proves metaphysical truth. It only defines the small reconciliation answer being observed.
 
-## Pressure
+## Observed pressure
 
 ### 1. Coincident matching content need not reconcile
 
-Can one Claim and one Evidence have identical Locus, Measure, and Quantity while no support edge exists and the Claim remains unreconciled?
+One Claim and one Evidence can have identical Locus, Measure, and Quantity while no support edge exists and the Claim remains unreconciled.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-If satisfiable, value equality alone is insufficient.
+So value equality alone is insufficient.
 
 ### 2. Identical claims can have different evidence status
 
-Can two distinct Claim identities have identical content while one matching Evidence explicitly supports only one of them?
+Two distinct Claim identities can have identical selected content while one matching Evidence explicitly supports only one of them.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-If satisfiable, even complete equality of selected Claim content does not erase Claim identity when reconciliation evidence is claim-specific.
+So even complete equality of the selected Claim content does not erase Claim identity when reconciliation evidence is claim-specific.
 
 ### 3. Support overlay can change reconciliation while content stays fixed
 
-Because Claim and Evidence content is global and identical in both modeled Worlds, can Left and Right differ only in `supports` and therefore disagree about which Claims are reconciled?
+Claim and Evidence content is global and therefore identical in the two modeled Worlds. Left and Right can differ only in `supports` and still disagree about which Claim is reconciled.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 This is the direct relational-independence witness.
 
@@ -136,7 +134,9 @@ if some Evidence matches a Claim,
 the Claim must be reconciled
 ```
 
-Expected check result: **SAT counterexample**.
+Observed check result: **SAT counterexample**.
+
+Matching content therefore does not determine reconciliation.
 
 ### 5. Reconciled claims have matching support
 
@@ -148,19 +148,19 @@ reconciled
 there exists explicit matching Evidence support
 ```
 
-Expected check result: **UNSAT counterexample**.
+Observed check result: **UNSAT counterexample**.
 
-This should follow from the support law and selected reconciliation definition.
+Within this selected vocabulary, reconciliation cannot appear without a matching support witness.
 
 ### 6. Same support determines selected reconciliation
 
-If two Worlds have exactly the same support relation, can their reconciled / unreconciled Claim sets differ?
+If two Worlds have exactly the same support relation, their reconciled and unreconciled Claim sets cannot differ.
 
-Expected check result: **UNSAT counterexample**.
+Observed check result: **UNSAT counterexample**.
 
-## Expected Alloy result
+## Observed Alloy result
 
-Alloy 6.2.0 + Sat4j:
+Alloy 6.2.0 + Sat4j on pull-request head `d9a13009a98ec160439f26f6804b81b52ecc0e80`:
 
 ```text
 coincidentMatchNeedNotReconcile                 SAT
@@ -171,11 +171,11 @@ ReconciledClaimsHaveMatchingSupport             UNSAT
 SameSupportDeterminesSelectedReconciliation     UNSAT
 ```
 
-This section remains an expectation until CI executes the exact pull-request head.
+The complete expected result set passed in CI.
 
-## Interpretation if the expected result holds
+## Interpretation
 
-The bounded separation would be:
+The bounded separation is:
 
 ```text
 same observed value
@@ -192,6 +192,8 @@ reconciled
 ```
 
 A future vocabulary that asks whether a particular recorded claim has been reconciled cannot, in general, recover that answer from Claim and Evidence values alone. It needs at least some relation retaining which evidence supports which claim.
+
+The strongest small witness is identity-sensitive. Two Claims can have the same selected content, while the same matching Evidence supports only one. If Claim identity were discarded merely because values coincide, the reconciliation question would become unanswerable.
 
 This continues LOAM's recurring pattern:
 
@@ -228,8 +230,8 @@ This observation does **not** establish:
 
 Those questions are intentionally outside this minimal model.
 
-## Next question
+## Next move
 
-If the expected result holds, the planned formal-observation sequence has reached its current stopping point.
+The planned formal-observation sequence has reached its current stopping point.
 
 The next move is not to add another speculative domain object. It is to descend into a small Lean 4 program and see whether any of these observed laws become useful when proving something concrete.
