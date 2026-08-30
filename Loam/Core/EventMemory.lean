@@ -71,6 +71,31 @@ theorem findById?_singleton_other
     findById? { events := [event], idNodup := by simp } id = none := by
   simp [findById?, findEventById?, h]
 
+/--
+Add one complete Event to a memory, rejecting repeated Event identity.
+
+The resulting list is a deterministic persistence representation only. The
+fact that the added Event is represented at the end of that list does not make
+it latest, later, more authoritative, or causally subsequent.
+-/
+def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
+  ofEvents? (memory.events ++ [event])
+
+@[simp] theorem add?_empty (event : Event) :
+    add? { events := [], idNodup := by simp } event =
+      some { events := [event], idNodup := by simp } := by
+  simp [add?, ofEvents?]
+
+@[simp] theorem add?_singleton_duplicate (event : Event) :
+    add? { events := [event], idNodup := by simp } event = none := by
+  simp [add?, ofEvents?]
+
+theorem add?_singleton_distinct
+    (existing added : Event) (h : existing.id ≠ added.id) :
+    add? { events := [existing], idNodup := by simp } added =
+      some { events := [existing, added], idNodup := by simp [h] } := by
+  simp [add?, ofEvents?, h]
+
 end EventMemory
 
 end Loam.Core
