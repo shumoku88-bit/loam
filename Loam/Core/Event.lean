@@ -72,13 +72,14 @@ read-only aggregate projection. A coordinate with no matching effect projects
 to exact zero.
 -/
 def quantityAt (event : Event) (locus : LocusId) (measure : MeasureId) : Quantity :=
-  event.effects.foldr
-    (fun effect total =>
-      if effect.coordinate = ⟨locus, measure⟩ then
-        effect.quantity + total
-      else
-        total)
-    0
+  Quantity.ofQuanta <|
+    event.effects.foldr
+      (fun effect total =>
+        if effect.coordinate = ⟨locus, measure⟩ then
+          effect.quantity.quanta + total
+        else
+          total)
+      0
 
 /-- An empty effect relation is not rejected at this layer. -/
 @[simp] theorem ofEffects?_nil (id : EventId) :
@@ -131,10 +132,8 @@ theorem quantityAt_sameCoordinate_two
           [Effect.ofQuantity leftKey locus measure left,
            Effect.ofQuantity rightKey locus measure right],
         keyNodup := by simp [hDifferent] }
-      locus measure = left + right := by
-  cases left
-  cases right
-  simp [quantityAt, Quantity.add, Quantity.zero, Quantity.ofQuanta]
+      locus measure = Quantity.ofQuanta (left.quanta + right.quanta) := by
+  simp [quantityAt]
 
 /-- An effect at another locus does not contribute to the queried coordinate. -/
 theorem quantityAt_otherLocus_zero
