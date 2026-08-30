@@ -148,6 +148,23 @@ def main : IO Unit := do
       | none =>
           throw <| IO.userError "Event-memory save/load failed to decode its own file"
 
+      IO.FS.withTempDir fun dir => do
+        let target := dir / "memory.loam"
+        let stage := System.FilePath.mk (target.toString ++ ".loam-stage")
+        let oldWire := "LOAM-EVENT-MEMORY\t1\n"
+        IO.FS.writeFile target oldWire
+        IO.FS.createDir stage
+        let stagingFailed ←
+          try
+            let _ ← Loam.Persistence.saveEventMemory? target memory
+            pure false
+          catch _ =>
+            pure true
+        expect stagingFailed
+          "Event-memory publication bypassed its sibling staging path"
+        expect ((← IO.FS.readFile target) == oldWire)
+          "Event-memory staging failure changed the published target"
+
   expect
     ((Loam.Persistence.encodeEventMemory?
       { events := [], idNodup := by simp }) ==

@@ -109,11 +109,12 @@ def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
 /--
 Add one already-complete persisted Event to an existing Event memory.
 
-Both files are fully admitted before the memory file is written. Duplicate
-Event identity therefore fails without publication. The final list position is
+Both files are fully admitted before publication. Duplicate Event identity
+therefore fails without changing the memory target. The final list position is
 persistence representation only and does not mean latest, later, causal, or
-more authoritative. This boundary performs one validated write, but does not
-claim crash-safe filesystem replacement semantics.
+more authoritative. Successful publication stages the complete encoded memory
+beside the target and then replaces the target with one filesystem rename; it
+does not serialize concurrent writers or claim power-loss durability.
 -/
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath

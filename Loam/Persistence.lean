@@ -48,6 +48,13 @@ Event row order and Event-memory block order preserve the current practical
 representation only; neither acquires temporal, causal, priority, authority,
 debit/credit, or posting-order meaning.
 
+Event-memory publication first writes the complete encoded representation to a
+sibling staging path and only then replaces the target with a filesystem rename.
+Thus the target path is not truncated while a new representation is still being
+written. This is an atomic publication boundary where the underlying rename has
+replacement atomicity; it is not a concurrent-writer lock or a power-loss
+ durability guarantee, and an interrupted process may leave the staging file.
+
 Filesystem failures remain ordinary `IO` exceptions. Malformed or unsupported
 file contents return `none` from the relevant decode/load boundary.
 -/
@@ -281,14 +288,29 @@ def loadEvent? (path : System.FilePath) : IO (Option Event) := do
   let input ← IO.FS.readFile path
   return decodeEvent? input
 
+/-- Sibling staging path reserved for Event-memory publication. -/
+private def eventMemoryStagePath (path : System.FilePath) : System.FilePath :=
+  System.FilePath.mk (path.toString ++ ".loam-stage")
+
 /--
-Write one Event memory when every contained Event is representable. The file
-order is deterministic representation only.
+Publish one Event memory when every contained Event is representable.
+
+The complete encoded representation is written to a sibling staging path before
+`IO.FS.rename` replaces the target. For ordinary file targets this keeps staging
+and target on the same filesystem and prevents a partially written new memory
+from appearing at the target path before replacement. Event order remains
+deterministic representation only.
+
+This does not serialize concurrent writers and does not claim power-loss
+durability. A process interrupted before rename may leave the staging file;
+the next publication overwrites that reserved staging path.
 -/
 def saveEventMemory? (path : System.FilePath) (memory : EventMemory) : IO Bool := do
   match encodeEventMemory? memory with
   | some text =>
-      IO.FS.writeFile path text
+      let stagePath := eventMemoryStagePath path
+      IO.FS.writeFile stagePath text
+      IO.FS.rename stagePath path
       return true
   | none =>
       return false
