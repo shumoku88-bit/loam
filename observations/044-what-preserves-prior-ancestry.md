@@ -12,7 +12,7 @@ The remaining question is:
 
 ## Why Lean
 
-This is exactly where bounded search and unbounded proof should disagree if a hidden finiteness assumption exists.
+This is exactly where bounded search and unbounded proof can separate if a hidden finiteness assumption exists.
 
 No new Alloy run is needed. J has no distinct quotient question here. TLA+ has no new transition question.
 
@@ -41,7 +41,7 @@ Ancestor parent child prior
 
 No household, explanation, chronology, quantity, purpose, or meaning vocabulary appears.
 
-## Candidate missing condition
+## The missing condition — frontier coverage
 
 Define a prior view as `FrontierCovered` when every known node is either itself a frontier node or lies below at least one frontier node in ancestry:
 
@@ -57,9 +57,9 @@ This says that following revision descendants upward from any known node eventua
 
 It is weaker and more precise than saying merely that the graph is finite.
 
-## Target law
+## Proved unbounded law
 
-Under exact whole-frontier settlement:
+Lean accepted:
 
 ```text
 AllPriorKnownInAncestry newNode
@@ -67,9 +67,9 @@ AllPriorKnownInAncestry newNode
 FrontierCovered priorView
 ```
 
-provided direct parents of the new settlement node come from the prior frontier.
+under exact whole-frontier settlement and the rule that direct parents of the new settlement node come from the prior frontier.
 
-The two directions have different roles:
+The two directions are preserved separately:
 
 ```text
 FrontierCovered
@@ -81,11 +81,13 @@ Every prior-known node under new tip
   -> prior view was FrontierCovered
 ```
 
-Notably, the first direction needs no finiteness, acyclicity, freshness, or parent-closure assumption.
+The first direction needs no finiteness, acyclicity, freshness, or parent-closure assumption.
+
+This means frontier coverage is not merely one convenient sufficient condition in this formulation. Under the exact parent/frontier rules above, it is equivalent to preservation of every prior-known node in the new tip's ancestry.
 
 ## Infinite counterexample to acyclicity alone
 
-The Lean model also defines an infinite chain:
+Lean also accepted an infinite counterexample:
 
 ```text
 old 0 < old 1 < old 2 < old 3 < ...
@@ -93,7 +95,7 @@ old 0 < old 1 < old 2 < old 3 < ...
 
 where every later old node parents every earlier old node.
 
-Properties:
+The proof establishes all of the following together:
 
 ```text
 - the relation is acyclic;
@@ -107,11 +109,44 @@ Properties:
 
 So an infinite acyclic graph can fail ancestry preservation even under exact whole-frontier consumption.
 
-The missing property is not acyclicity. It is frontier coverage, or some stronger condition such as finiteness / well-foundedness that implies frontier coverage.
+A separate theorem proves that this endless prior view is not `FrontierCovered`.
 
-## Expected interpretation
+## Observed Lean result
 
-If Lean checks both the equivalence and the infinite counterexample, Observation 042's ancestry result should be refined to:
+Lean 4.33.1 built and checked the Observation 044 proof successfully after one proof-script repair.
+
+The first run reached the intended theorem but left one trivial rank goal open:
+
+```text
+hParent : p < c
+⊢ p < c
+```
+
+Adding the explicit `exact hParent` closed that goal without changing any definition, theorem statement, or counterexample.
+
+The successful proof therefore establishes:
+
+```text
+allPriorKnownInAncestry_iff_frontierCovered   PROVED
+acyclicityAloneDoesNotPreserveAncestry        PROVED
+endlessNotFrontierCovered                     PROVED
+```
+
+## Interpretation
+
+Observation 042's bounded ancestry result must be refined.
+
+The bounded observation suggested:
+
+```text
+acyclic
+  + whole-frontier settlement
+  -> preserve all prior ancestry
+```
+
+Observation 044 shows that this does not generalize to arbitrary infinite graphs.
+
+The corrected unbounded statement is:
 
 > Whole-frontier settlement preserves all prior-known ancestry exactly when the prior known region is covered by its frontier.
 
@@ -119,15 +154,17 @@ And:
 
 > Acyclicity prevents loops, but it does not prevent an infinite chain from escaping every frontier.
 
-This distinguishes two structural questions:
+This separates two structural questions:
 
 ```text
-acyclicity       : can revision ancestry loop back?
-frontier coverage: does every known branch eventually reach a current tip?
+acyclicity        : can revision ancestry loop back?
+frontier coverage : does every known branch eventually reach a current tip?
 ```
+
+Finite acyclic graphs can make the second property look automatic. Unbounded reasoning shows that it is not.
 
 ## Tool choice
 
 **Lean only.**
 
-The purpose is to expose the finite-scope boundary and preserve the corrected unbounded law.
+The purpose was to expose the finite-scope boundary and preserve the corrected unbounded law. That distinct role was achieved; another Alloy, J, or TLA+ model is not needed for this observation.
