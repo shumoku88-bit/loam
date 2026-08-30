@@ -70,3 +70,22 @@ jobs:
             exit 1
           fi
           grep -Fq 'malformed or unsupported amount file' /tmp/loam-cli.err
+
+          event_file="$(mktemp)"
+          printf 'LOAM-EVENT\t1\nevent-1\neffect-a\twallet\tjpy\t-1000\neffect-b\twallet\tjpy\t-250\neffect-c\tbank\tjpy\t1250\n' >"$event_file"
+
+          output="$(./tools/loam event quantity "$event_file" wallet jpy)"
+          test "$output" = '-1250'
+
+          output="$(./tools/loam event quantity "$event_file" bank jpy)"
+          test "$output" = '1250'
+
+          output="$(./tools/loam event quantity "$event_file" pocket jpy)"
+          test "$output" = '0'
+
+          printf 'broken\n' >"$event_file"
+          if ./tools/loam event quantity "$event_file" wallet jpy >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected malformed event input to fail' >&2
+            exit 1
+          fi
+          grep -Fq 'malformed or unsupported event file' /tmp/loam-cli.err
