@@ -124,103 +124,88 @@ The Alloy relation is:
 sparseIndex(w) : Time -> Event
 ```
 
-Observation 038 already established the general representation intuition in a larger finite schedule. Observation 039 asks whether this sparse temporal projection can be separated from parentage while retaining the selected vocabulary.
+Observation 038 already established the representation intuition in a larger finite schedule. Observation 039 asks whether this sparse temporal projection can be separated from parentage while retaining the selected vocabulary.
 
-## Structural tests
+## Observed Alloy result
 
-### 1. Non-trivial factorized witness
-
-The first predicate requires a staggered history in which:
+Alloy 6.2.0 with Sat4j returned:
 
 ```text
-C learned at T1
-D learned at T2
-R learned at T3
+factorizedMemoryCarriesHistoricalMeaning       SAT
+sameSparseIndexDifferentExplanation            SAT
+sameGraphDifferentSparseIndex                  SAT
+SparseIndexDeterminesFrontier                  UNSAT
+TimelessGraphDoesNotLeakFuture                 UNSAT
+FactorizedMemoryDeterminesSelectedVocabulary   UNSAT
 ```
 
-and checks that the final explanation through `R` reaches both immediate parents and earlier roots.
+Both lower-bound witnesses expose their first differing selected answer at `T1`.
 
-Expected: **SAT**.
+## What the witnesses show
 
-### 2. Time index alone does not determine explanation
+### Sparse time alone loses explanation
 
-Hold the complete sparse frontier index equal between `Left` and `Right`, but allow the `C/D -> A/B` matching to differ.
+`sameSparseIndexDifferentExplanation` is SAT.
 
-When `C` and `D` appear together, both worlds can have exactly the same frontier timeline:
+Two worlds can retain exactly the same sparse frontier timeline while assigning the sibling revisions to different roots:
 
 ```text
-T0 -> {A,B}
-T1 -> {C,D}
-T3 -> {R}
+world L                world R
+C -> A                 C -> B
+D -> B                 D -> A
 ```
 
-while explanation still distinguishes:
+If `C` and `D` appear together, the frontier timeline is unchanged by that swap, but `whyAsOf` distinguishes the worlds at `T1`.
+
+So the temporal index answers **what was current when**, but not **why those named events were current**.
+
+### Explanation graph alone loses chronology
+
+`sameGraphDifferentSparseIndex` is SAT.
+
+Two worlds can keep exactly the same parent graph while learning `C` and `D` on different schedules. Alloy finds an intermediate distinction at `T1`.
+
+So the graph answers ancestry but does not determine which frontier was visible at each knowledge time.
+
+### Sparse change points recover the selected frontier timeline
+
+`SparseIndexDeterminesFrontier` has no counterexample in this scope.
+
+Thus the sparse temporal relation used here is sufficient for the modeled exact frontier-at-time vocabulary. This is a bounded consistency result, not a replacement for Observation 038's larger finite representation experiment.
+
+### The timeless graph does not leak future events backward
+
+`TimelessGraphDoesNotLeakFuture` has no counterexample.
+
+Even though the full parent graph is retained once, without copying edges into every time slot, traversing ancestors from an as-of frontier reaches only events already known at that time.
+
+The reason is directional: parent edges point backward from later interpretations to earlier causes. Future descendants are present elsewhere in the stored graph, but an ancestor traversal cannot reach them.
+
+This is the safety condition that lets one stored explanation graph serve multiple historical views in this bounded world.
+
+### The pair determines the selected historical vocabulary
+
+`FactorizedMemoryDeterminesSelectedVocabulary` has no counterexample.
+
+Within the scope, equality of both:
 
 ```text
-C -> A
+sparse temporal index
+parent graph
 ```
 
-from:
-
-```text
-C -> B
-```
-
-Expected `sameSparseIndexDifferentExplanation`: **SAT**.
-
-### 3. Explanation graph alone does not determine time
-
-Hold the parent graph equal while changing when `C` and `D` are learned.
-
-For example one world can learn `C` first and another `D` first. Their graph is identical, but the intermediate frontier differs.
-
-Expected `sameGraphDifferentSparseIndex`: **SAT**.
-
-### 4. Sparse index determines the frontier timeline
-
-Within this bounded world, two worlds with the same sparse change index should have the same exact frontier at every modeled knowledge coordinate.
-
-Expected check `SparseIndexDeterminesFrontier`: **UNSAT counterexample**.
-
-This is not a global proof of change-point encoding. It is a consistency check that the sparse summary used in this experiment really carries the selected temporal projection.
-
-### 5. A timeless backward graph must not leak future knowledge
-
-Although the whole parent graph is retained without per-edge timestamps, explaining a frontier at time `t` must never reach an event that was not yet known at `t`.
-
-Because parent edges point from later interpretations to earlier causes, following ancestors from an as-of frontier should remain inside the known set for that time.
-
-Expected check `TimelessGraphDoesNotLeakFuture`: **UNSAT counterexample**.
-
-This is the key safety condition that makes a timeless stored graph compatible with historical as-of explanation in this bounded model.
-
-### 6. The pair determines the selected vocabulary
-
-Finally, if two worlds have both:
-
-```text
-same sparse temporal index
-same parent graph
-```
-
-then they should agree on:
+forces equality of every modeled:
 
 ```text
 frontier(w,t)
 whyAsOf(w,t)
 ```
 
-for every modeled knowledge time.
+answer.
 
-Expected check `FactorizedMemoryDeterminesSelectedVocabulary`: **UNSAT counterexample**.
+## Finding
 
-## Intended interpretation
-
-If all six results hold, the bounded conclusion is:
-
-> Chronology and explanation carry different observable distinctions, but they can compose: a sparse frontier index answers “what was current when?”, while a separate backward parent graph answers “why?”, and the pair is sufficient for the selected historical vocabulary.
-
-The resulting shape is not one monolithic event log:
+The bounded result supports a factorized memory:
 
 ```text
                  sparse time index
@@ -236,6 +221,14 @@ The explanation query composes the two:
 WhyAsOf(t)
   = ancestors(FrontierAsOf(t))
 ```
+
+Chronology and explanation are therefore neither interchangeable nor necessarily one monolithic stored history.
+
+A useful sharpened form is:
+
+> The time index locates a historical view; the explanation graph gives that view depth.
+
+The two structures carry different observable distinctions, while their composition is sufficient for the selected bounded vocabulary.
 
 ## Important boundaries
 
