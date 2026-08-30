@@ -144,6 +144,45 @@ jobs:
           test "$status" = '1'
           grep -Fq 'event not found in memory' /tmp/loam-cli.err
 
+          added_event_file="$tmp_dir/event-3.loam"
+          ./tools/loam event create "$added_event_file" event-3 \
+            effect-e wallet jpy -75 \
+            effect-f bank jpy 75
+          ./tools/loam event-memory add "$memory_file" "$added_event_file"
+
+          expected_memory_after_add=$'LOAM-EVENT-MEMORY\t1\nEVENT\tevent-2\nEFFECT\teffect-d\twallet\tjpy\t-500\nEVENT\tevent-1\nEFFECT\teffect-a\twallet\tjpy\t-1000\nEFFECT\teffect-b\twallet\tjpy\t-250\nEVENT\tevent-3\nEFFECT\teffect-e\twallet\tjpy\t-75\nEFFECT\teffect-f\tbank\tjpy\t75'
+          test "$(cat "$memory_file")" = "$expected_memory_after_add"
+
+          output="$(./tools/loam event-memory get "$memory_file" event-3)"
+          expected_added=$'LOAM-EVENT\t1\nevent-3\neffect-e\twallet\tjpy\t-75\neffect-f\tbank\tjpy\t75'
+          test "$output" = "$expected_added"
+
+          duplicate_event_file="$tmp_dir/event-2-duplicate.loam"
+          ./tools/loam event create "$duplicate_event_file" event-2 duplicate-effect pocket jpy 1
+          before_duplicate="$(cat "$memory_file")"
+          if ./tools/loam event-memory add "$memory_file" "$duplicate_event_file" >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected duplicate Event identity to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'event identity already remembered' /tmp/loam-cli.err
+          test "$(cat "$memory_file")" = "$before_duplicate"
+
+          malformed_added_event="$tmp_dir/malformed-event.loam"
+          printf 'broken\n' >"$malformed_added_event"
+          before_malformed_event="$(cat "$memory_file")"
+          if ./tools/loam event-memory add "$memory_file" "$malformed_added_event" >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected malformed Event input for memory add to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported event file' /tmp/loam-cli.err
+          test "$(cat "$memory_file")" = "$before_malformed_event"
+
           printf 'broken\n' >"$memory_file"
           if ./tools/loam event-memory get "$memory_file" event-1 >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
             echo 'expected malformed Event memory to fail' >&2
