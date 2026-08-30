@@ -10,22 +10,7 @@ NB.
 NB. c0 is already known at t0.  kA and kB may arrive independently.  r0 may
 NB. appear only in the two schedules where both corrections were learned first.
 
-histories =: 15 3 $ \
-  0 0 0  \
-  1 0 0  \
-  0 1 0  \
-  0 0 1  \
-  2 0 0  \
-  0 2 0  \
-  0 0 2  \
-  1 2 0  \
-  1 0 2  \
-  2 1 0  \
-  0 1 2  \
-  2 0 1  \
-  0 2 1  \
-  1 2 3  \
-  2 1 3
+histories =: 15 3 $ 0 0 0  1 0 0  0 1 0  0 0 1  2 0 0  0 2 0  0 0 2  1 2 0  1 0 2  2 1 0  0 1 2  2 0 1  0 2 1  1 2 3  2 1 3
 
 NB. Frontier codes:
 NB.   0 = {c0}
