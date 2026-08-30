@@ -2,9 +2,36 @@ name: Observation 023
 
 on:
   pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
   push:
     branches:
       - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
