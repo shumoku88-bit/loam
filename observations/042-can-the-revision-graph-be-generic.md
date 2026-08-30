@@ -99,9 +99,38 @@ For a closed acyclic prior graph, if the new revision settles the whole frontier
 
 This distinguishes resolution from destructive winner-selection. Settlement can make one current tip without erasing the branches that led to it.
 
-## What success would mean
+## Observed Alloy result
 
-If the witness is SAT and all three generic checks are UNSAT for counterexamples, then Observations 022, 023, 041, and 042 line up around a domain-independent structure:
+Alloy 6.2.0 + Sat4j produced:
+
+```text
+genericForkPartialAndSettlement               SAT
+SoleFrontierRequiresWholePriorFrontier        UNSAT
+WholePriorFrontierIsEnoughToSettle            UNSAT
+WholeSettlementPreservesPriorKnownAncestry    UNSAT
+```
+
+The witness exists, and no counterexample was found for any of the three generic laws in scopes up to 6 `Revision` atoms and 4 `View` atoms.
+
+So the layer names were not carrying the frontier / settlement behavior. The bounded structure survives with only revision identity, parentage, and a known-set view.
+
+The first two checks combine into the bounded equivalence:
+
+```text
+frontier(later) = {r}
+    iff
+r.parent = frontier(prior)
+```
+
+for one-revision steps from a parent-closed prior view.
+
+The ancestry check also survived: with an acyclic prior graph, whole-frontier settlement makes one current tip while retaining every previously known revision in that tip's ancestry.
+
+This is the first point in the observation sequence where the law is both domain-independent in statement and small enough to merit an unbounded proof attempt.
+
+## Interpretation
+
+Observations 022, 023, 041, and 042 now line up around the same structure:
 
 ```text
 revision graph
@@ -115,9 +144,9 @@ whole frontier consumption
   -> prior branches remain ancestry
 ```
 
-That would not prove every correction system in reality must use this graph. It would establish that the LOAM observations no longer need household or explanation vocabulary to state the structural law.
+This does not prove every correction system in reality must use this graph. It shows that the LOAM observations no longer need household or explanation vocabulary to state the structural law.
 
-At that point Lean becomes useful for a different reason from Alloy: not to search another bounded instance, but to preserve the whole-frontier settlement equivalence as a general theorem over finite sets / relations.
+Lean now has a distinct role: preserve the whole-frontier settlement equivalence, and possibly the ancestry result, without a finite scope bound.
 
 ## Important boundaries
 
@@ -133,4 +162,4 @@ At that point Lean becomes useful for a different reason from Alloy: not to sear
 
 ## Tool choice
 
-**Alloy first.** Lean only if the generic checks survive.
+**Alloy only for Observation 042.** The generic bounded laws survived, so Lean is now justified as a separate next observation.
