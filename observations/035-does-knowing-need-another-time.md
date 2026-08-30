@@ -102,7 +102,7 @@ learned time = valid time
 
 for every observation.
 
-A counterexample of the form
+TLC found the minimal counterexample:
 
 ```text
 time 0: no observation
@@ -110,13 +110,9 @@ advance
 time 1: learn r0, valid at time 0
 ```
 
-would show that the two coordinates can differ even in a tiny retrospective world.
+The invariant `ObservationTimeEqualsValidity` was violated at depth 3.
 
-The expected invariant violation is:
-
-```text
-ObservationTimeEqualsValidity
-```
+So the two coordinates can differ even in this tiny retrospective world.
 
 ## Boundary 2 — later knowledge does not change the past view
 
@@ -128,28 +124,54 @@ Answer(validTime, now)
 Answer(validTime, validTime)
 ```
 
-The same late observation would separate:
+TLC found the same three-state counterexample:
+
+```text
+time 0: no observation
+advance
+time 1: learn r0, valid at time 0
+```
+
+It separates:
 
 ```text
 what was knowable at time 0 about time 0 = Unknown
 what is knowable at time 1 about time 0 = r0
 ```
 
+The invariant `RetrospectiveViewEqualsContemporaneousView` was violated at depth 3.
+
 The past valid coordinate did not change. What changed is the knowledge available about it.
 
-The expected invariant violation is:
+## Observed TLC result
+
+TLC 2.19 with TLA+ tools 1.7.4 produced:
 
 ```text
+positive model
+  215 states generated
+  215 distinct states
+  depth 6
+  no error
+
+ObservationTimeEqualsValidity
+  violated as intended
+  depth 3
+  witness: learned=1, valid=0, value=r0
+
 RetrospectiveViewEqualsContemporaneousView
+  violated as intended
+  depth 3
+  same late-observation witness
 ```
 
-## Intended interpretation
+## Interpretation
 
-If the positive model holds and both boundaries fail, the bounded conclusion is:
+The bounded conclusion is:
 
 > A validity coordinate and a knowledge coordinate carry distinct observable information once the future vocabulary can ask both “what was true then?” and “what did we know then?”.
 
-This would refine the emerging LOAM time geometry:
+This refines the emerging LOAM time geometry:
 
 ```text
 valid time     : when a relation applies
@@ -163,6 +185,14 @@ view(valid time, knowledge time)
 ```
 
 A later observation can therefore change a retrospective **view of the past** without rewriting the past valid coordinate.
+
+This is not merely a storage detail. Flattening the pair into one time coordinate loses an observable distinction:
+
+```text
+past fact coordinate
+      !=
+knowledge available at that moment
+```
 
 ## Important boundary
 
