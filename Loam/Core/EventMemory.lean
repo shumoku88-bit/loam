@@ -40,6 +40,37 @@ def ofEvents? (events : List Event) : Option EventMemory :=
     ofEvents? [event] = some { events := [event], idNodup := by simp } := by
   simp [ofEvents?]
 
+private def findEventById? : List Event → EventId → Option Event
+  | [], _ => none
+  | event :: rest, id =>
+      if event.id = id then
+        some event
+      else
+        findEventById? rest id
+
+/--
+Find one remembered Event by its stable identity.
+
+This lookup observes `EventId` only. It does not expose or assign meaning to the
+Event's list position and therefore introduces no `first`, `latest`, temporal,
+causal, priority, authority, or posting-order semantics.
+-/
+def findById? (memory : EventMemory) (id : EventId) : Option Event :=
+  findEventById? memory.events id
+
+@[simp] theorem findById?_empty (id : EventId) :
+    findById? { events := [], idNodup := by simp } id = none := by
+  simp [findById?, findEventById?]
+
+@[simp] theorem findById?_singleton_self (event : Event) :
+    findById? { events := [event], idNodup := by simp } event.id = some event := by
+  simp [findById?, findEventById?]
+
+theorem findById?_singleton_other
+    (event : Event) (id : EventId) (h : event.id ≠ id) :
+    findById? { events := [event], idNodup := by simp } id = none := by
+  simp [findById?, findEventById?, h]
+
 end EventMemory
 
 end Loam.Core
