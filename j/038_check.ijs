@@ -77,8 +77,10 @@ decodeChangePoints =: 3 : 0
 encoded =: encodeChangePoints"1 dense
 decoded =: decodeChangePoints"1 encoded
 
-changeCounts =: +/"1 _1 ~: encoded
-eventCounts =: +/"1 histories ~: 0
+changeMask =: _1 ~: encoded
+eventMask =: histories ~: 0
+changeCounts =: +/"1 changeMask
+eventCounts =: +/"1 eventMask
 
 classSizes =: 3 : 0
   /:~ #/.~ y
@@ -95,15 +97,6 @@ irredundant =: 3 : 0
   end.
   1
 )
-
-smoutput 'diagnostic event records:'
-smoutput +/ eventCounts
-smoutput 'diagnostic change-point records:'
-smoutput +/ changeCounts
-smoutput 'diagnostic event-count classes:'
-smoutput classSizes eventCounts
-smoutput 'diagnostic change-count classes:'
-smoutput classSizes changeCounts
 
 checkObservation =: 3 : 0
   NB. Six knowledge slots with at most three semantic interpretation changes
