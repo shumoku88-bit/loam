@@ -1,3 +1,5 @@
+import Loam.Core.Quantity
+
 namespace Loam
 
 /-!
