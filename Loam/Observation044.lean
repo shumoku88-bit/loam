@@ -128,6 +128,7 @@ theorem endlessParent_rank
     endlessRank prior < endlessRank child := by
   cases child <;> cases prior <;>
     simp [endlessParent, endlessRank] at hParent ⊢
+  exact hParent
 
 /-- Every transitive ancestry step strictly decreases rank when followed from
 child to prior. -/
