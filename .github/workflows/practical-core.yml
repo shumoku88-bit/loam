@@ -1,0 +1,49 @@
+name: Practical Lean Core
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/**'
+      - 'Loam/Core.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-core.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Core/**'
+      - 'Loam/Core.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-core.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-core-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Loam.Core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical core only
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
