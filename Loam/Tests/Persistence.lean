@@ -17,12 +17,30 @@ private def sampleEvent? : Option Event :=
      Effect.ofQuantity ⟨"effect-b"⟩ ⟨"wallet"⟩ yen (Quantity.ofQuanta (-250)),
      Effect.ofQuantity ⟨"effect-c"⟩ ⟨"bank"⟩ yen (Quantity.ofQuanta 1250)]
 
+private def secondEvent? : Option Event :=
+  Event.ofEffects? ⟨"event-2"⟩
+    [Effect.ofQuantity ⟨"effect-d"⟩ ⟨"wallet"⟩ yen (Quantity.ofQuanta (-500))]
+
+private def sampleMemory? : Option EventMemory := do
+  let first ← sampleEvent?
+  let second ← secondEvent?
+  EventMemory.ofEvents? [first, second]
+
 private def eventWire : String :=
   "LOAM-EVENT\t1\n" ++
   "event-1\n" ++
   "effect-a\twallet\tjpy\t-1000\n" ++
   "effect-b\twallet\tjpy\t-250\n" ++
   "effect-c\tbank\tjpy\t1250\n"
+
+private def eventMemoryWire : String :=
+  "LOAM-EVENT-MEMORY\t1\n" ++
+  "EVENT\tevent-1\n" ++
+  "EFFECT\teffect-a\twallet\tjpy\t-1000\n" ++
+  "EFFECT\teffect-b\twallet\tjpy\t-250\n" ++
+  "EFFECT\teffect-c\tbank\tjpy\t1250\n" ++
+  "EVENT\tevent-2\n" ++
+  "EFFECT\teffect-d\twallet\tjpy\t-500\n"
 
 def main : IO Unit := do
   expect
@@ -99,3 +117,86 @@ def main : IO Unit := do
   expect
     (Persistence.decodeEvent? "LOAM-EVENT\t2\nevent-1\n").isNone
     "event persistence accepted an unsupported version"
+
+  match sampleMemory? with
+  | none =>
+      throw <| IO.userError "sample Event memory failed identity admission"
+  | some memory =>
+      expect (Persistence.encodeEventMemory? memory == some eventMemoryWire)
+        "Event-memory persistence changed the exact wire shape"
+
+      match (Persistence.encodeEventMemory? memory).bind Persistence.decodeEventMemory? with
+      | none =>
+          throw <| IO.userError "Event-memory round-trip failed to decode"
+      | some restored =>
+          match restored.events with
+          | [first, second] =>
+              expect (first.id.token == "event-1")
+                "Event-memory round-trip changed first represented Event identity"
+              expect (second.id.token == "event-2")
+                "Event-memory round-trip changed second represented Event identity"
+          | _ =>
+              throw <| IO.userError "Event-memory round-trip changed Event count"
+
+      let path := System.FilePath.mk "/tmp/loam-event-memory-persistence-test"
+      expect (← Persistence.saveEventMemory? path memory)
+        "Event-memory persistence refused representable Events"
+      match ← Persistence.loadEventMemory? path with
+      | some restored =>
+          expect (restored.events.length == 2)
+            "Event-memory save/load changed Event count"
+      | none =>
+          throw <| IO.userError "Event-memory save/load failed to decode its own file"
+
+  expect
+    ((Persistence.encodeEventMemory?
+      { events := [], idNodup := by simp }) ==
+      some "LOAM-EVENT-MEMORY\t1\n")
+    "empty Event memory changed its exact wire shape"
+
+  match Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t1\n" with
+  | some memory =>
+      expect memory.events.isEmpty
+        "empty Event-memory persistence restored phantom Events"
+  | none =>
+      throw <| IO.userError "empty Event memory failed to decode"
+
+  expect
+    (Persistence.decodeEventMemory?
+      ("LOAM-EVENT-MEMORY\t1\n" ++
+       "EVENT\tevent-1\n" ++
+       "EVENT\tevent-1\n")).isNone
+    "Event-memory persistence admitted duplicate Event identity"
+
+  expect
+    (Persistence.decodeEventMemory?
+      ("LOAM-EVENT-MEMORY\t1\n" ++
+       "EVENT\tevent-1\n" ++
+       "EFFECT\tsame\twallet\tjpy\t-1\n" ++
+       "EFFECT\tsame\tbank\tjpy\t1\n")).isNone
+    "Event-memory persistence admitted duplicate Effect identity"
+
+  match Persistence.decodeEventMemory?
+      ("LOAM-EVENT-MEMORY\t1\n" ++
+       "EVENT\tevent-2\n" ++
+       "EFFECT\teffect-d\twallet\tjpy\t-500\n" ++
+       "EVENT\tevent-1\n" ++
+       "EFFECT\teffect-a\twallet\tjpy\t-1000\n") with
+  | some reordered =>
+      match reordered.events with
+      | [first, second] =>
+          expect (first.id.token == "event-2" && second.id.token == "event-1")
+            "Event-memory decoder failed to retain representation order"
+      | _ =>
+          throw <| IO.userError "reordered Event memory changed Event count"
+  | none =>
+      throw <| IO.userError "Event-memory decoder rejected a different storage order"
+
+  expect
+    (Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t2\n").isNone
+    "Event-memory persistence accepted an unsupported version"
+
+  expect
+    (Persistence.decodeEventMemory?
+      "LOAM-EVENT-MEMORY\t1\nEVENT\tevent-1").isNone
+    "Event-memory persistence accepted a missing trailing newline"
