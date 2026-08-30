@@ -77,7 +77,24 @@ So the graph can satisfy `FrontierCovered` while failing:
 there exists exactly one covering frontier for root
 ```
 
-## Interpretation if both proofs hold
+## Observed Lean result
+
+Lean 4.33.1 accepted all of the semantic checks after removing unsupported unique-existence notation from the proof surface:
+
+```text
+frontierCovered_iff_existsCover    PROVED
+chooseCoveringFrontier_covers      PROVED
+forkFrontierCovered                PROVED
+forkRootHasNoUniqueCover           PROVED
+```
+
+The selector is obtained with `Classical.choose`, so it is deliberately `noncomputable`. It shows that a selected witness need not be stored merely to prove or reason from coverage.
+
+The fork counterexample shows the complementary boundary: the same graph can have two valid covering frontiers for the same node. Therefore the graph plus `FrontierCovered` does not canonically determine a stable answer to "which frontier?".
+
+The first two CI failures were parser/library-surface issues only: this Lean core did not provide the `∃!` notation or an `ExistsUnique` identifier. Replacing that surface syntax with an explicit `UniqueCover` predicate changed neither the graph nor the semantic claim.
+
+## Interpretation
 
 The memory boundary depends again on future vocabulary.
 
@@ -95,7 +112,7 @@ If the future asks:
 which frontier covers this node?
 ```
 
-then the graph plus coverage law may be insufficient to determine a unique answer. A production system would need some additional selection structure if a stable answer matters: for example an explicit witness, an ordering, or another selection policy.
+then the graph plus coverage law can be insufficient to determine a unique answer. A production system needs additional selection structure if a stable answer matters: for example an explicit witness, an ordering, or another selection policy.
 
 This does not imply that a witness must be stored per node. It separates existence from chosen identity.
 
