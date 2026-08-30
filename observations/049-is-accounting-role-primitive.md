@@ -101,7 +101,7 @@ Keep the physical core and every physical answer identical.
 
 Can one Locus be Asset in one world and Income in another, while another Locus swaps in the opposite direction, changing Balance Sheet and P&L answers without changing any physical quantity?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 2. Same statement family, different finer role
 
@@ -109,29 +109,29 @@ Keep the physical core identical and keep the set of Balance Sheet loci and P&L 
 
 Can a Balance Sheet Locus change from Asset to Liability while a P&L Locus changes from Income to Expense?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-This asks whether even the finer accounting distinction is recoverable from `where` plus statement family alone.
+This shows that even the finer accounting distinction is not recoverable from `where` plus statement family alone in this bounded vocabulary.
 
 ### 3. Physical core determines physical answers
 
 If `present`, `effect`, and `parent` are identical, can physical coordinate balances or totals differ?
 
-Expected check result: **UNSAT** counterexample.
+Observed check result: **UNSAT** counterexample.
 
 ### 4. Physical core determines accounting vocabulary
 
 If the physical core is identical but role is not fixed, must all selected accounting answers remain identical?
 
-Expected check result: **SAT** counterexample.
+Observed check result: **SAT** counterexample.
 
 ### 5. Physical core plus AccountingRole determines selected vocabulary
 
 If both the physical core and the role relation are identical, can either the physical answers or selected accounting answers differ?
 
-Expected check result: **UNSAT** counterexample.
+Observed check result: **UNSAT** counterexample.
 
-## Expected Alloy result
+## Observed Alloy result
 
 Alloy 6.2.0 + Sat4j, exactly 2 Events / 2 Loci / 1 Measure / 2 coordinate Cells / 5 AccountingRoles / 2 Worlds / 5-bit Ints:
 
@@ -143,11 +143,11 @@ PhysicalCoreDeterminesAccountingVocabulary                   SAT
 PhysicalCorePlusAccountingRoleDeterminesSelectedVocabulary   UNSAT
 ```
 
-The workflow records the exact solver result set. This section remains an expectation until CI executes the model on the pull-request head.
+The complete expected result set passed in CI.
 
-## Interpretation if the expected result holds
+## Interpretation
 
-The bounded separation would be:
+The bounded separation is:
 
 ```text
 where quantity is
@@ -168,14 +168,14 @@ Income vs Expense
     is not determined by physical placement
 ```
 
-That would sharpen Observation 031 without reversing it:
+That sharpens Observation 031 without reversing it:
 
 ```text
 Account object          may still be unnecessary
 AccountingRole relation may still be necessary
 ```
 
-The word **primitive** must remain vocabulary-relative here. This experiment can show that the selected physical core is insufficient and that adding a role relation is sufficient for the selected report vocabulary. It cannot show that AccountingRole is metaphysically primitive, nor that it could never later be derived from some richer semantic facts.
+The word **primitive** remains vocabulary-relative here. This experiment shows that the selected physical core is insufficient and that adding a role relation is sufficient for the selected report vocabulary. It does not show that AccountingRole is metaphysically primitive, nor that it could never later be derived from some richer semantic facts.
 
 ## Important boundaries
 
