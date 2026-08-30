@@ -58,6 +58,20 @@ def project? (memory : EventMemory) (correction : EventCorrection) : Option Corr
   let effective ← EventMemory.findById? memory correction.replacement
   return { correction := correction, original := original, effective := effective }
 
+/--
+Correction projection inherits EventMemory's representation-order independence.
+Reordering the remembered Events cannot change either endpoint selected by a
+stable correction relation.
+-/
+theorem project?_perm
+    (left right : EventMemory)
+    (hPerm : left.events.Perm right.events)
+    (correction : EventCorrection) :
+    project? left correction = project? right correction := by
+  unfold project?
+  rw [EventMemory.findById?_perm left right hPerm correction.target]
+  rw [EventMemory.findById?_perm left right hPerm correction.replacement]
+
 /-- A correction cannot project from an Event memory containing no endpoints. -/
 @[simp] theorem project?_empty (correction : EventCorrection) :
     project? { events := [], idNodup := by simp } correction = none := by
