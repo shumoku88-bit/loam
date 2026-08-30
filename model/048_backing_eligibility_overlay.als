@@ -61,15 +61,22 @@ fun coordinateBalances[w: World]: Cell -> Int {
   { c: Cell, i: Int | i = balanceAt[w, c] }
 }
 
+fun measureContribution[w: World, c: Cell, m: Measure]: one Int {
+  (c.measure = m) => balanceAt[w, c] else 0
+}
+
+fun eligibleMeasureContribution[w: World, c: Cell, m: Measure]: one Int {
+  (c.measure = m and c.locus in w.eligible) => balanceAt[w, c] else 0
+}
+
 fun totalByMeasure[w: World]: Measure -> Int {
   { m: Measure, i: Int |
-      i = sum c: Cell | (c.measure = m) => balanceAt[w, c] else 0 }
+      i = (sum c: Cell | measureContribution[w, c, m]) }
 }
 
 fun allocatableByMeasure[w: World]: Measure -> Int {
   { m: Measure, i: Int |
-      i = sum c: Cell |
-        (c.measure = m and c.locus in w.eligible) => balanceAt[w, c] else 0 }
+      i = (sum c: Cell | eligibleMeasureContribution[w, c, m]) }
 }
 
 pred samePhysicalCore[a, b: World] {
