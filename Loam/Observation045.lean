@@ -27,7 +27,7 @@ theorem ancestor_appendDirect
   | direct hFirst =>
       exact Ancestor.trans hFirst (Ancestor.direct hParent)
   | trans hFirst _ ih =>
-      exact Ancestor.trans hFirst ih
+      exact Ancestor.trans hFirst (ih hParent)
 
 /-- If following known children is well-founded, every known node eventually
 reaches at least one frontier node.
