@@ -32,21 +32,16 @@ This observation asks where those two threads meet:
 
 ## Why TLA+
 
-The static correction graph is already known from Alloy in Observations 022–023.
-
-The missing question is temporal:
+The static correction graph is already known from Alloy in Observations 022–023. The missing question is temporal:
 
 ```text
 t0: c0 is known
-
 t1: learn kA, correcting c0
-
 t2: learn kB, also correcting c0
-
 t3: append r0, resolving {kA, kB}
 ```
 
-The new observable is not just the final graph. It is the sequence of knowledge-time views:
+The new observable is the sequence of knowledge-time views:
 
 ```text
 view(t0) = {c0}
@@ -55,9 +50,7 @@ view(t2) = {kA, kB}
 view(t3) = {r0}
 ```
 
-J adds no distinct quantitative question here. Lean is not yet earned because no new general theorem is claimed. miniKanren adds no separate inverse-synthesis answer.
-
-TLA+ is therefore the smallest tool that adds a genuinely new answer.
+J adds no distinct quantitative question here. Lean is not yet earned because no new general theorem is claimed. miniKanren adds no separate inverse-synthesis answer. TLA+ is therefore the smallest tool that adds a genuinely new answer.
 
 ## Bounded model
 
@@ -67,43 +60,24 @@ All interpretations concern the same valid coordinate:
 valid time = 0
 ```
 
-The bounded event identities are:
+The bounded event identities and fixed parent relation are:
 
 ```text
-c0  original interpretation
-kA  correction of c0
-kB  independent correction of c0
-r0  resolution of {kA, kB}
+c0  original interpretation      Parents = {}
+kA  correction of c0             Parents = {c0}
+kB  independent correction of c0 Parents = {c0}
+r0  resolution                   Parents = {kA, kB}
 ```
 
-with fixed parent relation:
+The two Corrections may be learned in either order at knowledge times 1 and 2. At most one observation is admitted at each learned time. Resolution is admitted only at knowledge time 3 and only when the current frontier is exactly `{kA, kB}`.
 
-```text
-Parents(c0) = {}
-Parents(kA) = {c0}
-Parents(kB) = {c0}
-Parents(r0) = {kA, kB}
-```
-
-The two Corrections may be learned in either order at knowledge times 1 and 2. At most one observation is admitted at each learned time.
-
-Resolution is admitted only at knowledge time 3 and only when the current frontier is exactly:
-
-```text
-{kA, kB}
-```
-
-## Knowledge-time frontier
-
-For any knowledge time `k`, the model first keeps only interpretations whose `learned <= k`, then derives the frontier among those interpretations.
-
-So the query is effectively:
+For any knowledge time `k`, the model keeps only interpretations with `learned <= k` and derives the frontier among those interpretations. The query is therefore:
 
 ```text
 Frontier(valid_time = 0, knowledge_time = k)
 ```
 
-Later events are invisible to an earlier knowledge-time query even though they remain in the same append-only history.
+Later events remain in the same append-only history but are invisible to an earlier knowledge-time query.
 
 ## Positive properties
 
@@ -121,80 +95,82 @@ The primary TLC configuration checks:
 
 ## Boundary 1 — later learned means winner
 
-A deliberately strong hypothesis says:
+The deliberately strong hypothesis `LaterLearnedCorrectionWins` says that whichever sibling Correction was learned later becomes the unique current interpretation.
 
-> When both `kA` and `kB` are known, whichever Correction was learned later is the unique current interpretation.
-
-This would turn learned chronology into authority.
-
-The intended counterexample is:
+TLC found a counterexample at depth 5:
 
 ```text
 t0: c0
-
 t1: kA corrects c0
-
 t2: kB also corrects c0
 ```
 
-Even though `kB` arrived later, its parent relation does not make it a correction of `kA`.
-
-The truthful frontier should remain:
+At that point `kB` is later in learned time, but both Corrections have the same parent `c0`. The current frontier is therefore:
 
 ```text
 {kA, kB}
 ```
 
-rather than silently selecting `kB`.
+not `{kB}`.
 
-The expected invariant violation is:
-
-```text
-LaterLearnedCorrectionWins
-```
-
-The symmetric arrival order should have the same conflict frontier.
+So learned chronology does not by itself create correction authority. The positive invariant also applies symmetrically when the sibling arrival order is reversed.
 
 ## Boundary 2 — later Resolution rewrites earlier conflict
 
-A second deliberately strong hypothesis says:
+The second strong hypothesis `ResolutionRewritesPastConflict` says that once `r0` resolves the current conflict, the earlier knowledge-time view at time 2 should also become `{r0}`.
 
-> Once `r0` resolves the conflict, the earlier knowledge-time view at time 2 should also become `{r0}`.
-
-But if knowledge time is an observable coordinate, the intended distinction is:
+TLC found a counterexample at depth 7:
 
 ```text
-knowledge time 2 -> {kA, kB}
-knowledge time 3 -> {r0}
+t0: c0
+t1: kA
+t2: kB
+t3: r0 resolves {kA, kB}
 ```
 
-The later Resolution changes the current projection without changing what the system knew at knowledge time 2.
-
-The expected invariant violation is:
+The current frontier at knowledge time 3 is:
 
 ```text
+{r0}
+```
+
+but the frontier as of knowledge time 2 remains:
+
+```text
+{kA, kB}
+```
+
+The later Resolution changes the current projection without changing what was knowable before the Resolution was learned.
+
+## Observed TLC result
+
+TLC 2.19 with TLA+ tools 1.7.4 produced:
+
+```text
+positive model
+  20 states generated
+  20 distinct states
+  depth 7
+  no error
+
+LaterLearnedCorrectionWins
+  violated as intended
+  depth 5
+  witness: c0 -> kA@t1 -> kB@t2
+
 ResolutionRewritesPastConflict
+  violated as intended
+  depth 7
+  witness: c0 -> kA@t1 -> kB@t2 -> r0@t3
 ```
 
-## Intended interpretation
+## Finding
 
-If the positive model holds and both boundaries fail, the bounded conclusion is:
+The bounded conclusion is:
 
 > Correction ancestry and learned chronology are different relations. Learned-later does not by itself mean semantically-later, and a later Resolution need not rewrite the knowledge frontier that existed before it was learned.
 
-The combined geometry becomes:
-
-```text
-                         knowledge time
-                              ↑
-                              │
-valid time 0:   c0 -> {kA,kB} -> r0
-                              │
-                              └── each stage remains queryable as-of
-                                  the knowledge available then
-```
-
-More precisely:
+The combined geometry is:
 
 ```text
 append-only interpretation graph
@@ -205,24 +181,23 @@ learned-time coordinate
 frontier(valid time, knowledge time)
 ```
 
-Chronology remains provenance. Parentage and whole-frontier Resolution determine correction structure.
+For the concrete trace:
+
+```text
+knowledge t0 -> {c0}
+knowledge t1 -> {kA}
+knowledge t2 -> {kA, kB}
+knowledge t3 -> {r0}
+```
+
+Chronology remains provenance. Parentage determines correction structure, and whole-frontier parentage determines Resolution structure.
+
+This is stronger than merely saying that history is append-only. The system can preserve multiple historically accurate **knowledge views** over one unchanged valid coordinate.
 
 ## Important boundary
 
-This observation gives each event a fixed meaning and fixed parents.
-
-It does not yet ask:
-
-- whether a later correction can itself be corrected;
-- whether the learned-time record can be corrected;
-- whether two observations learned at different times can carry different provenance or authority;
-- whether a Resolution meaning must itself preserve a valid interval;
-- how this two-time correction structure should be compressed for storage.
-
-Those are separate pressure points.
+This observation gives each event a fixed meaning and fixed parents. It does not yet ask whether a later correction can itself be corrected, whether learned-time metadata can be corrected, whether different sources carry different authority, whether Resolution meaning must preserve a valid interval, or how this two-time correction structure should be compressed for storage.
 
 ## Tool choice
 
-**TLA+ only.**
-
-Alloy has already supplied the static correction/frontier geometry. This experiment uses TLA+ only for the new temporal composition.
+**TLA+ only.** Alloy has already supplied the static correction/frontier geometry. This experiment uses TLA+ only for the new temporal composition.
