@@ -1,4 +1,4 @@
-import Loam.Core.Event
+import Loam.Core.EventMemory
 import Std
 
 namespace Loam.Core
@@ -11,7 +11,8 @@ set_option autoImplicit false
 The first practical persisted value is one runtime `SomeAmount`: a stable
 measure identity together with an exact signed quantity. Event persistence then
 keeps one `EventId` and every detailed `Effect` intact so aggregate projections
-can be recomputed after reload.
+can be recomputed after reload. Event-memory persistence keeps several Events
+without turning their serialization order into semantic history.
 
 The text formats are deliberately tiny and versioned:
 
@@ -27,13 +28,23 @@ LOAM-EVENT<TAB>1
 ...
 ```
 
+```text
+LOAM-EVENT-MEMORY<TAB>1
+EVENT<TAB><event-token>
+EFFECT<TAB><effect-key><TAB><locus-token><TAB><measure-token><TAB><signed-decimal-quanta>
+...
+EVENT<TAB><event-token>
+...
+```
+
 Persisted identity tokens are opaque tokens, not display names. To keep these
 first formats unambiguous without introducing an escaping layer, the
 persistence boundary admits only nonempty tokens without tab or line-break
 characters.
 
-Event row order preserves the current practical representation only; it does
-not acquire temporal, causal, priority, debit/credit, or posting-order meaning.
+Event row order and Event-memory block order preserve the current practical
+representation only; neither acquires temporal, causal, priority, authority,
+debit/credit, or posting-order meaning.
 
 Filesystem failures remain ordinary `IO` exceptions. Malformed or unsupported
 file contents return `none` from the relevant decode/load boundary.
@@ -46,6 +57,9 @@ def amountHeader : String := "LOAM-AMOUNT\t1"
 
 /-- Version marker for the first persisted LOAM event format. -/
 def eventHeader : String := "LOAM-EVENT\t1"
+
+/-- Version marker for the first persisted multi-Event memory format. -/
+def eventMemoryHeader : String := "LOAM-EVENT-MEMORY\t1"
 
 /-- Whether one opaque identity token is representable by the first text formats. -/
 def validToken (token : String) : Bool :=
@@ -101,19 +115,24 @@ private def encodeEffectRow? (effect : Effect) : Option String :=
   else
     none
 
+/-- Decode one event effect from already separated text fields. -/
+private def decodeEffectFields?
+    (keyToken locusToken measureToken quantaText : String) : Option Effect :=
+  if validToken keyToken && validToken locusToken && validToken measureToken then
+    match quantaText.toInt? with
+    | some quanta =>
+        some (Effect.ofQuantity
+          ⟨keyToken⟩ ⟨locusToken⟩ ⟨measureToken⟩
+          (Quantity.ofQuanta quanta))
+    | none => none
+  else
+    none
+
 /-- Decode one event effect row without assigning meaning to its sign or position. -/
 private def decodeEffectRow? (row : String) : Option Effect :=
   match row.splitOn "\t" with
   | [keyToken, locusToken, measureToken, quantaText] =>
-      if validToken keyToken && validToken locusToken && validToken measureToken then
-        match quantaText.toInt? with
-        | some quanta =>
-            some (Effect.ofQuantity
-              ⟨keyToken⟩ ⟨locusToken⟩ ⟨measureToken⟩
-              (Quantity.ofQuanta quanta))
-        | none => none
-      else
-        none
+      decodeEffectFields? keyToken locusToken measureToken quantaText
   | _ => none
 
 /--
@@ -148,6 +167,77 @@ def decodeEvent? (input : String) : Option Event :=
       else
         none
   | _ => none
+
+/-- Encode one Event as tagged lines inside Event-memory persistence. -/
+private def encodeMemoryEventLines? (event : Event) : Option (List String) :=
+  if validToken event.id.token then
+    match event.effects.mapM encodeEffectRow? with
+    | some rows =>
+        some (("EVENT\t" ++ event.id.token) ::
+          rows.map (fun row => "EFFECT\t" ++ row))
+    | none => none
+  else
+    none
+
+/-- Decode one tagged Effect row from Event-memory persistence. -/
+private def decodeMemoryEffectRow? (row : String) : Option Effect :=
+  match row.splitOn "\t" with
+  | ["EFFECT", keyToken, locusToken, measureToken, quantaText] =>
+      decodeEffectFields? keyToken locusToken measureToken quantaText
+  | _ => none
+
+/-- Remove the optional final empty row left by a trailing newline in one chunk. -/
+private def withoutTrailingEmpty (rows : List String) : List String :=
+  match rows.reverse with
+  | "" :: rest => rest.reverse
+  | _ => rows
+
+/-- Decode one Event chunk after its leading `EVENT<TAB>` marker was removed. -/
+private def decodeMemoryEventChunk? (chunk : String) : Option Event :=
+  match chunk.splitOn "\n" with
+  | eventToken :: rawRows =>
+      if validToken eventToken then
+        match (withoutTrailingEmpty rawRows).mapM decodeMemoryEffectRow? with
+        | some effects => Event.ofEffects? ⟨eventToken⟩ effects
+        | none => none
+      else
+        none
+  | _ => none
+
+/--
+Encode several Events without giving their serialization order domain meaning.
+Event identity remains explicit and is already unique by `EventMemory` law.
+-/
+def encodeEventMemory? (memory : EventMemory) : Option String :=
+  match memory.events.mapM encodeMemoryEventLines? with
+  | some blocks =>
+      some (String.intercalate "\n" (eventMemoryHeader :: blocks.flatten) ++ "\n")
+  | none => none
+
+/--
+Decode one version-1 Event memory. The final `EventMemory.ofEvents?` admission
+rejects repeated Event identity rather than treating repeated blocks as
+multiplicity. Block order is retained only for deterministic round-trip.
+-/
+def decodeEventMemory? (input : String) : Option EventMemory :=
+  if input = eventMemoryHeader ++ "\n" then
+    EventMemory.ofEvents? []
+  else
+    match (input.splitOn "\n").reverse with
+    | "" :: _ =>
+        match input.splitOn "\nEVENT\t" with
+        | header :: chunks =>
+            if header = eventMemoryHeader then
+              match chunks with
+              | [] => none
+              | _ =>
+                  match chunks.mapM decodeMemoryEventChunk? with
+                  | some events => EventMemory.ofEvents? events
+                  | none => none
+            else
+              none
+        | _ => none
+    | _ => none
 
 /--
 Write one amount to a UTF-8 file when its measure token is admitted by the
@@ -190,6 +280,27 @@ exceptions.
 def loadEvent? (path : System.FilePath) : IO (Option Event) := do
   let input ← IO.FS.readFile path
   return decodeEvent? input
+
+/--
+Write one Event memory when every contained Event is representable. The file
+order is deterministic representation only.
+-/
+def saveEventMemory? (path : System.FilePath) (memory : EventMemory) : IO Bool := do
+  match encodeEventMemory? memory with
+  | some text =>
+      IO.FS.writeFile path text
+      return true
+  | none =>
+      return false
+
+/--
+Read and decode one Event-memory file. Malformed contents, unsupported versions,
+duplicate Effect keys, and duplicate Event identity return `none`; filesystem
+failures remain `IO` exceptions.
+-/
+def loadEventMemory? (path : System.FilePath) : IO (Option EventMemory) := do
+  let input ← IO.FS.readFile path
+  return decodeEventMemory? input
 
 end Persistence
 
