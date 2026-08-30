@@ -147,6 +147,7 @@ theorem quantityAt_otherLocus_zero
         keyNodup := by simp }
       queryLocus measure = 0 := by
   simp [quantityAt, Effect.coordinate, hDifferent]
+  rfl
 
 end Event
 
