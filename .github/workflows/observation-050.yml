@@ -1,0 +1,90 @@
+name: Observation 050
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ asynchronous settlement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check asynchronous settlement safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-positive \
+            -config tla/AsynchronousSettlement.cfg \
+            tla/AsynchronousSettlement.tla \
+            2>&1 | tee /tmp/observation-050-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-050-positive.txt
+
+      - name: Require reachable pending state
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-pending \
+            -config tla/AsynchronousSettlementPendingBoundary.cfg \
+            tla/AsynchronousSettlement.tla \
+            2>&1 | tee /tmp/observation-050-pending.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoPendingState' /tmp/observation-050-pending.txt
+          grep -Fq 'Invariant' /tmp/observation-050-pending.txt
+
+      - name: Require reachable later settlement
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-settled \
+            -config tla/AsynchronousSettlementSettledBoundary.cfg \
+            tla/AsynchronousSettlement.tla \
+            2>&1 | tee /tmp/observation-050-settled.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoSettledState' /tmp/observation-050-settled.txt
+          grep -Fq 'Invariant' /tmp/observation-050-settled.txt
+
+      - name: Require physical-state insufficiency boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-050-state-physical \
+            -config tla/AsynchronousSettlementPhysicalBoundary.cfg \
+            tla/AsynchronousSettlement.tla \
+            2>&1 | tee /tmp/observation-050-physical.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'UnmovedPhysicalStateMeansNotInitiated' /tmp/observation-050-physical.txt
+          grep -Fq 'Invariant' /tmp/observation-050-physical.txt
