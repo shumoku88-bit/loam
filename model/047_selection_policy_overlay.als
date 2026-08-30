@@ -17,7 +17,9 @@ fact WellFormed {
 
     w.better in w.known -> w.known
     no iden & w.better
-    w.better.w.better in w.better
+    all a, b, c: w.known |
+      (a->b in w.better and b->c in w.better) implies
+        a->c in w.better
     all disj a, b: w.known |
       a->b in w.better or b->a in w.better
   }
