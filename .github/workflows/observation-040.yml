@@ -1,0 +1,71 @@
+name: Observation 040
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ correctable explanation edge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check append-only explanation interpretation
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/CorrectableExplanationEdge.cfg \
+            tla/CorrectableExplanationEdge.tla \
+            2>&1 | tee /tmp/observation-040-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-040-positive.txt
+
+      - name: Require mutable-current-graph boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/CorrectableExplanationEdgeMutableBoundary.cfg \
+            tla/CorrectableExplanationEdge.tla \
+            2>&1 | tee /tmp/observation-040-mutable.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'MutableCurrentGraphAnswersEveryAsOf' /tmp/observation-040-mutable.txt
+          grep -Fq 'Invariant' /tmp/observation-040-mutable.txt
+
+      - name: Require learned-time boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg \
+            tla/CorrectableExplanationEdge.tla \
+            2>&1 | tee /tmp/observation-040-learned-time.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ClaimGraphWithoutLearnedTimeDeterminesAsOf' /tmp/observation-040-learned-time.txt
+          grep -Fq 'Invariant' /tmp/observation-040-learned-time.txt
