@@ -81,6 +81,50 @@ def quantityAt (event : Event) (locus : LocusId) (measure : MeasureId) : Quantit
           total)
       0
 
+private theorem quantityFold_perm
+    {left right : List Effect}
+    (hPerm : left.Perm right)
+    (locus : LocusId) (measure : MeasureId) :
+    left.foldr
+        (fun effect total =>
+          if effect.coordinate = ⟨locus, measure⟩ then
+            effect.quantity.quanta + total
+          else
+            total)
+        0 =
+      right.foldr
+        (fun effect total =>
+          if effect.coordinate = ⟨locus, measure⟩ then
+            effect.quantity.quanta + total
+          else
+            total)
+        0 := by
+  induction hPerm with
+  | nil => rfl
+  | cons effect h ih =>
+      simp only [List.foldr_cons]
+      rw [ih]
+  | swap x y rest =>
+      simp only [List.foldr_cons]
+      by_cases hx : x.coordinate = ⟨locus, measure⟩
+      <;> by_cases hy : y.coordinate = ⟨locus, measure⟩
+      <;> simp [hx, hy, Int.add_assoc, Int.add_comm, Int.add_left_comm]
+  | trans hLeft hRight ihLeft ihRight =>
+      exact ihLeft.trans ihRight
+
+/--
+The quantity projection is invariant under permutation of the represented
+Effects. List position therefore cannot change the observed quantity at a
+locus/measure coordinate.
+-/
+theorem quantityAt_perm
+    (left right : Event)
+    (hPerm : left.effects.Perm right.effects)
+    (locus : LocusId) (measure : MeasureId) :
+    quantityAt left locus measure = quantityAt right locus measure := by
+  simpa [quantityAt] using
+    congrArg Quantity.ofQuanta (quantityFold_perm hPerm locus measure)
+
 /-- An empty effect relation is not rejected at this layer. -/
 @[simp] theorem ofEffects?_nil (id : EventId) :
     ofEffects? id [] = some { id := id, effects := [], keyNodup := by simp } := by
