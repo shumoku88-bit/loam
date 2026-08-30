@@ -1,0 +1,54 @@
+name: Apply observation path gating
+
+on:
+  push:
+    branches:
+      - ci/gate-observation-workflows
+    paths:
+      - '.github/workflows/apply-observation-gating.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ci/gate-observation-workflows
+
+      - name: Gate historical observations away from practical Core changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          old = """on:\n  pull_request:\n  push:\n    branches:\n      - main\n"""
+          new = """on:\n  pull_request:\n    paths:\n      - 'Loam/Observations/**'\n      - 'Loam/Observations.lean'\n      - 'model/**'\n      - 'j/**'\n      - 'scheme/**'\n      - 'tla/**'\n      - 'observations/**'\n      - 'Loam.lean'\n      - 'lakefile.lean'\n      - 'lake-manifest.json'\n      - 'lean-toolchain'\n      - '.github/workflows/observation-*.yml'\n  push:\n    branches:\n      - main\n    paths:\n      - 'Loam/Observations/**'\n      - 'Loam/Observations.lean'\n      - 'model/**'\n      - 'j/**'\n      - 'scheme/**'\n      - 'tla/**'\n      - 'observations/**'\n      - 'Loam.lean'\n      - 'lakefile.lean'\n      - 'lake-manifest.json'\n      - 'lean-toolchain'\n      - '.github/workflows/observation-*.yml'\n  workflow_dispatch:\n"""
+
+          changed = []
+          already = []
+          for path in sorted(Path('.github/workflows').glob('observation-*.yml')):
+              text = path.read_text()
+              if "- 'Loam/Observations/**'" in text:
+                  already.append(path.name)
+                  continue
+              if old not in text:
+                  raise SystemExit(f'unexpected trigger shape: {path}')
+              path.write_text(text.replace(old, new, 1))
+              changed.append(path.name)
+
+          print(f'already gated: {len(already)}')
+          print(f'newly gated: {len(changed)}')
+          if len(already) != 7 or len(changed) != 44:
+              raise SystemExit(
+                  f'expected 7 already gated and 44 new; got {len(already)} and {len(changed)}')
+          PY
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/observation-*.yml
+          git diff --cached --check
+          git commit -m "ci: gate historical observations from practical core"
+          git push origin HEAD:ci/gate-observation-workflows
