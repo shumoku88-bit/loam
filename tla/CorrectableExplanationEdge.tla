@@ -13,10 +13,13 @@ VARIABLES now, history, oracleParent
 
 vars == <<now, history, oracleParent>>
 
-ClaimIds(H) == {H[i].claim : i \in DOMAIN H}
+ClaimIds(H) ==
+  {c \in Claims : \E i \in DOMAIN H : H[i].claim = c}
 
 KnownClaimsAt(H, knowledgeTime) ==
-  {H[i].claim : i \in DOMAIN H /\ H[i].learned <= knowledgeTime}
+  {c \in Claims :
+    \E i \in DOMAIN H :
+      H[i].claim = c /\ H[i].learned <= knowledgeTime}
 
 ActiveClaimsAt(H, knowledgeTime) ==
   {c \in KnownClaimsAt(H, knowledgeTime) :
