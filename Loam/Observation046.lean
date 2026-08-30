@@ -51,6 +51,14 @@ theorem chooseCoveringFrontier_covers
       (chooseCoveringFrontier parent known hCovered node hKnown) node := by
   exact Classical.choose_spec (hCovered node hKnown)
 
+/-- A stable chosen answer would require exactly one covering frontier. -/
+def UniqueCover {Node : Type u}
+    (parent : Parent Node)
+    (known : NodeSet Node)
+    (node : Node) : Prop :=
+  ∃ tip, Covers parent known tip node ∧
+    ∀ other, Covers parent known other node → other = tip
+
 /-- Small graph where one old node has two distinct covering frontiers. -/
 inductive ForkNode where
   | root
@@ -100,7 +108,7 @@ theorem forkFrontierCovered :
 /-- The graph and the coverage law do not determine a unique answer to
 "which frontier covers root?". -/
 theorem forkRootHasNoUniqueCover :
-    ¬ ExistsUnique (fun tip => Covers forkParent forkKnown tip .root) := by
+    ¬ UniqueCover forkParent forkKnown .root := by
   intro hUnique
   rcases hUnique with ⟨tip, _, hOnly⟩
   have hLeft : ForkNode.left = tip := hOnly .left forkLeftCoversRoot
