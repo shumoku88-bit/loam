@@ -77,7 +77,7 @@ minus
 claims directly superseded by another known claim
 ```
 
-So the intended conflict view is:
+So the conflict view is:
 
 ```text
 known = {E0, KA, KB}
@@ -94,7 +94,7 @@ A partial interpretation claim supersedes only `KA`:
 Partial -> KA
 ```
 
-With `KB` still untouched, the intended frontier is:
+With `KB` still untouched, the frontier is:
 
 ```text
 {Partial, KB}
@@ -110,7 +110,7 @@ The full resolution claim has:
 Resolve -> {KA, KB}
 ```
 
-The intended frontier then becomes:
+The frontier then becomes:
 
 ```text
 {Resolve}
@@ -118,32 +118,41 @@ The intended frontier then becomes:
 
 while the ancestry of both sibling branches remains reachable through the resolution node.
 
-## Commands
+## Observed Alloy 6.2.0 + Sat4j results
 
-The Alloy model asks for three witnesses:
-
-```text
-explanationSiblingConflict
-partialExplanationResolutionStillConflicts
-wholeFrontierExplanationResolutionSettles
-```
-
-and two checks:
+Exact bounded scope:
 
 ```text
-SettlementRequiresWholeExplanationFrontier
-WholeResolutionPreservesBothBranches
+exactly 5 Claim
+exactly 3 Meaning
+exactly 4 View
 ```
 
-The first check is a small structural law for a step that adds exactly one new claim whose parents are chosen from the prior frontier:
+Observed commands:
 
-> If that new claim becomes the only frontier node, it must parent the whole prior frontier.
+```text
+explanationSiblingConflict                  SAT
+partialExplanationResolutionStillConflicts SAT
+wholeFrontierExplanationResolutionSettles  SAT
+SettlementRequiresWholeExplanationFrontier UNSAT counterexample
+WholeResolutionPreservesBothBranches       UNSAT counterexample
+```
 
-The second checks that the whole-frontier resolution keeps both sibling branches and the original interpretation in its ancestry.
+The first witness confirms that sibling corrections of the same explanation interpretation recreate a two-node frontier.
 
-## What this would mean
+The second confirms that superseding only one sibling does not settle the conflict: the untouched sibling remains current beside the new partial claim.
 
-If the witnesses exist and both checks have no counterexample in the bounded model, then the notable result is not merely another conflict example.
+The third confirms that a claim whose parents are the entire prior frontier can become the sole current interpretation.
+
+The `SettlementRequiresWholeExplanationFrontier` check found no counterexample to the small structural law used here:
+
+> In a step that adds exactly one claim whose parents are chosen from the prior frontier, if the new claim becomes the sole frontier node, it must parent the whole prior frontier.
+
+`WholeResolutionPreservesBothBranches` also found no counterexample: both sibling corrections and their common original interpretation remain in the resolution node's ancestry.
+
+## Interpretation
+
+The notable result is not merely another conflict example.
 
 The same shape seen earlier over corrected household meaning has reappeared over **claims about explanation itself**:
 
@@ -158,9 +167,19 @@ whole-frontier resolution
     -> settled frontier
 ```
 
-That would suggest the structure is less about a particular household concept and more about correctable interpreted meaning.
+No explanation-specific conflict mechanism was added. The result follows from the same graph projection:
 
-It would still be too early to claim a universal theorem. A natural next observation would erase the names “household event” and “explanation claim” entirely and ask whether a generic revision graph captures both as instances.
+```text
+frontier = known - known.parent
+```
+
+This strengthens the suspicion that frontier / resolution is less about a particular household concept and more about the structure of correctable interpreted meaning.
+
+It is still too early to call that a universal theorem. The next clean pressure is to erase the names “household event” and “explanation claim” entirely and ask whether one generic revision graph captures both as instances. If that abstraction survives, a Lean statement may finally be worth preserving.
+
+## CI plumbing note
+
+Two initial runs failed before the solver could answer the semantic question because `after` and then `before` were used as identifiers. Alloy 6 reserves both as temporal-language keywords. They were renamed to neutral identifiers without changing the model's meaning.
 
 ## Important boundaries
 
