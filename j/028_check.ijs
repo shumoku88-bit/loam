@@ -42,7 +42,7 @@ checkObservation =: 3 : 0
   NB. Adding Hidden finally splits each remaining pair.
   assert. 1 2 3 4 4 8 -: counts
 
-  assert. 8 -: classSizes sig0
+  assert. (,8) -: classSizes sig0
   assert. 2 6 -: classSizes sig1
   assert. 2 2 4 -: classSizes sig2
   assert. 2 2 2 2 -: classSizes sig3
