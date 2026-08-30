@@ -96,6 +96,15 @@ irredundant =: 3 : 0
   1
 )
 
+smoutput 'diagnostic event records:'
+smoutput +/ eventCounts
+smoutput 'diagnostic change-point records:'
+smoutput +/ changeCounts
+smoutput 'diagnostic event-count classes:'
+smoutput classSizes eventCounts
+smoutput 'diagnostic change-count classes:'
+smoutput classSizes changeCounts
+
 checkObservation =: 3 : 0
   NB. Six knowledge slots with at most three semantic interpretation changes
   NB. produce 83 admissible schedules in this bounded model.
