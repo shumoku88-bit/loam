@@ -1,0 +1,55 @@
+name: Observation 046
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean coverage witness boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build and check Lean proofs
+        uses: leanprover/lean-action@v1
+        with:
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          axiom-audit: true
+          use-github-cache: false

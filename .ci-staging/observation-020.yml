@@ -1,0 +1,113 @@
+name: Observation 020
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ append-only correction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check append-only correction projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/AppendOnlyCorrection.cfg \
+            tla/AppendOnlyCorrection.tla \
+            2>&1 | tee /tmp/observation-020-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-020-positive.txt
+
+      - name: Require Purpose correction witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/AppendOnlyCorrectionPurposeWitness.cfg \
+            tla/AppendOnlyCorrection.tla \
+            2>&1 | tee /tmp/observation-020-purpose.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoPurposeCorrectionWitness' /tmp/observation-020-purpose.txt
+          grep -Fq 'Invariant' /tmp/observation-020-purpose.txt
+
+      - name: Require quantity correction witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/AppendOnlyCorrectionQuantityWitness.cfg \
+            tla/AppendOnlyCorrection.tla \
+            2>&1 | tee /tmp/observation-020-quantity.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoQuantityCorrectionWitness' /tmp/observation-020-quantity.txt
+          grep -Fq 'Invariant' /tmp/observation-020-quantity.txt
+
+      - name: Require correction history beyond flattened current state
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/AppendOnlyCorrectionBoundary.cfg \
+            tla/AppendOnlyCorrection.tla \
+            2>&1 | tee /tmp/observation-020-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'FlattenedCurrentDeterminesCorrectionHistory' /tmp/observation-020-boundary.txt
+          grep -Fq 'Invariant' /tmp/observation-020-boundary.txt

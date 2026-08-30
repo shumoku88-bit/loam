@@ -1,0 +1,98 @@
+name: Observation 035
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ valid time vs learned time
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check valid-time and learned-time safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/ValidTimeVsLearnedTime.cfg \
+            tla/ValidTimeVsLearnedTime.tla \
+            2>&1 | tee /tmp/observation-035-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-035-positive.txt
+
+      - name: Require single-time-coordinate boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg \
+            tla/ValidTimeVsLearnedTime.tla \
+            2>&1 | tee /tmp/observation-035-single-coordinate.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ObservationTimeEqualsValidity' /tmp/observation-035-single-coordinate.txt
+          grep -Fq 'Invariant' /tmp/observation-035-single-coordinate.txt
+
+      - name: Require retrospective knowledge boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg \
+            tla/ValidTimeVsLearnedTime.tla \
+            2>&1 | tee /tmp/observation-035-retrospective.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'RetrospectiveViewEqualsContemporaneousView' /tmp/observation-035-retrospective.txt
+          grep -Fq 'Invariant' /tmp/observation-035-retrospective.txt

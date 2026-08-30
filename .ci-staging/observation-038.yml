@@ -1,0 +1,76 @@
+name: Observation 038
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  j:
+    name: J change-point frontier representation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install J
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
+          mkdir -p /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
+          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
+          test -n "$JCONSOLE"
+          chmod +x "$JCONSOLE"
+          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
+
+      - name: Execute J observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$JCONSOLE" j/038_check.ijs | tee /tmp/j-observation.txt
+          grep -Fq 'Observation 038 / change-point frontier representation' /tmp/j-observation.txt
+          grep -Fq 'admissible six-slot histories:' /tmp/j-observation.txt
+          grep -Fxq '83' /tmp/j-observation.txt
+          grep -Fq 'dense frontier cells:' /tmp/j-observation.txt
+          grep -Fxq '498' /tmp/j-observation.txt
+          grep -Fq 'change-point records:' /tmp/j-observation.txt
+          grep -Fxq '192' /tmp/j-observation.txt
+          grep -Fq 'histories by change-point count 0..3:' /tmp/j-observation.txt
+          grep -Fq '1 12 30 40' /tmp/j-observation.txt
+          grep -Fq 'round trip exact:' /tmp/j-observation.txt
+          grep -Fxq '1' /tmp/j-observation.txt
+          grep -Fq 'all emitted change points irredundant:' /tmp/j-observation.txt

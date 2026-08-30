@@ -1,0 +1,98 @@
+name: Observation 001
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alloy:
+    name: Alloy 6.2.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Execute Alloy observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j -o /tmp/alloy-output model/001_resource_purpose.als
+          find /tmp/alloy-output -maxdepth 2 -type f -print -exec sed -n '1,80p' {} \;
+
+  j:
+    name: J projection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install J
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
+          mkdir -p /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
+          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
+          test -n "$JCONSOLE"
+          chmod +x "$JCONSOLE"
+          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
+
+      - name: Execute J observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$JCONSOLE" j/001_check.ijs | tee /tmp/j-observation.txt
+          grep -Fq 'Observation 001 / J projection' /tmp/j-observation.txt

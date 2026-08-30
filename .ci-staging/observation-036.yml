@@ -1,0 +1,98 @@
+name: Observation 036
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Observations/**'
+      - 'Loam/Observations.lean'
+      - 'model/**'
+      - 'j/**'
+      - 'scheme/**'
+      - 'tla/**'
+      - 'observations/**'
+      - 'Loam.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/observation-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ bitemporal correction frontier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check bitemporal correction safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/BitemporalCorrectionFrontier.cfg \
+            tla/BitemporalCorrectionFrontier.tla \
+            2>&1 | tee /tmp/observation-036-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-036-positive.txt
+
+      - name: Require later-learned correction boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg \
+            tla/BitemporalCorrectionFrontier.tla \
+            2>&1 | tee /tmp/observation-036-later-wins.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'LaterLearnedCorrectionWins' /tmp/observation-036-later-wins.txt
+          grep -Fq 'Invariant' /tmp/observation-036-later-wins.txt
+
+      - name: Require resolution history boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg \
+            tla/BitemporalCorrectionFrontier.tla \
+            2>&1 | tee /tmp/observation-036-resolution-past.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ResolutionRewritesPastConflict' /tmp/observation-036-resolution-past.txt
+          grep -Fq 'Invariant' /tmp/observation-036-resolution-past.txt
