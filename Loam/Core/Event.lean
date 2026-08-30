@@ -65,6 +65,21 @@ def ofEffects? (id : EventId) (effects : List Effect) : Option Event :=
   else
     none
 
+/--
+Project an event onto one locus/measure coordinate and sum every matching exact
+quantity. Effect identity and the original effect list remain intact; this is a
+read-only aggregate projection. A coordinate with no matching effect projects
+to exact zero.
+-/
+def quantityAt (event : Event) (locus : LocusId) (measure : MeasureId) : Quantity :=
+  event.effects.foldr
+    (fun effect total =>
+      if effect.coordinate = ⟨locus, measure⟩ then
+        effect.quantity + total
+      else
+        total)
+    0
+
 /-- An empty effect relation is not rejected at this layer. -/
 @[simp] theorem ofEffects?_nil (id : EventId) :
     ofEffects? id [] = some { id := id, effects := [], keyNodup := by simp } := by
@@ -97,6 +112,40 @@ theorem ofEffects?_sameCoordinate_distinctKeys_isSome
       [Effect.ofQuantity leftKey locus measure left,
        Effect.ofQuantity rightKey locus measure right]).isSome = true := by
   simp [ofEffects?, hDifferent]
+
+/-- A coordinate with no effects projects to exact zero. -/
+@[simp] theorem quantityAt_empty
+    (id : EventId) (locus : LocusId) (measure : MeasureId) :
+    quantityAt { id := id, effects := [], keyNodup := by simp } locus measure = 0 := by
+  rfl
+
+/-- Distinct effects at one coordinate contribute additively to its projection. -/
+theorem quantityAt_sameCoordinate_two
+    (id : EventId) (leftKey rightKey : EffectKey)
+    (hDifferent : leftKey ≠ rightKey)
+    (locus : LocusId) (measure : MeasureId)
+    (left right : Quantity) :
+    quantityAt
+      { id := id,
+        effects :=
+          [Effect.ofQuantity leftKey locus measure left,
+           Effect.ofQuantity rightKey locus measure right],
+        keyNodup := by simp [hDifferent] }
+      locus measure = left + right := by
+  simp [quantityAt, Quantity.add, Quantity.zero]
+
+/-- An effect at another locus does not contribute to the queried coordinate. -/
+theorem quantityAt_otherLocus_zero
+    (id : EventId) (key : EffectKey)
+    (effectLocus queryLocus : LocusId)
+    (hDifferent : effectLocus ≠ queryLocus)
+    (measure : MeasureId) (quantity : Quantity) :
+    quantityAt
+      { id := id,
+        effects := [Effect.ofQuantity key effectLocus measure quantity],
+        keyNodup := by simp }
+      queryLocus measure = 0 := by
+  simp [quantityAt, Effect.coordinate, hDifferent]
 
 end Event
 
