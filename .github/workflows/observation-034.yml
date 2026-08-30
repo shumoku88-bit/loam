@@ -1,0 +1,71 @@
+name: Observation 034
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ time-indexed relation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check time-indexed relation safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/TimeIndexedRelation.cfg \
+            tla/TimeIndexedRelation.tla \
+            2>&1 | tee /tmp/observation-034-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-034-positive.txt
+
+      - name: Require historical latest-relation boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/TimeIndexedRelationHistoricalBoundary.cfg \
+            tla/TimeIndexedRelation.tla \
+            2>&1 | tee /tmp/observation-034-historical.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'LatestRelationAnswersPast' /tmp/observation-034-historical.txt
+          grep -Fq 'Invariant' /tmp/observation-034-historical.txt
+
+      - name: Require future plan-assumption boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/TimeIndexedRelationFutureBoundary.cfg \
+            tla/TimeIndexedRelation.tla \
+            2>&1 | tee /tmp/observation-034-future.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'PlanAssumptionDeterminesTarget' /tmp/observation-034-future.txt
+          grep -Fq 'Invariant' /tmp/observation-034-future.txt
