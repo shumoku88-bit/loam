@@ -1,4 +1,4 @@
-import Loam.Core.Persistence
+import Loam.Persistence
 
 open Loam.Core
 
@@ -44,10 +44,10 @@ private def eventMemoryWire : String :=
 
 def main : IO Unit := do
   expect
-    (Persistence.encode? sample == some "LOAM-AMOUNT\t1\njpy\t-1250\n")
+    (Loam.Persistence.encode? sample == some "LOAM-AMOUNT\t1\njpy\t-1250\n")
     "persistence encode changed the exact wire shape"
 
-  match (Persistence.encode? sample).bind Persistence.decode? with
+  match (Loam.Persistence.encode? sample).bind Loam.Persistence.decode? with
   | some amount =>
       expect (amount.measure.token == "jpy")
         "persistence round-trip changed measure identity"
@@ -57,11 +57,11 @@ def main : IO Unit := do
       throw <| IO.userError "persistence round-trip failed to decode"
 
   expect
-    (Persistence.decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone
+    (Loam.Persistence.decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone
     "persistence accepted an unsupported version"
 
   expect
-    (Persistence.encode?
+    (Loam.Persistence.encode?
       (SomeAmount.ofQuantity ⟨"jp\ty"⟩ (Quantity.ofQuanta 1))).isNone
     "persistence accepted an ambiguous measure token"
 
@@ -69,10 +69,10 @@ def main : IO Unit := do
   | none =>
       throw <| IO.userError "sample event failed identity admission"
   | some event =>
-      expect (Persistence.encodeEvent? event == some eventWire)
+      expect (Loam.Persistence.encodeEvent? event == some eventWire)
         "event persistence encode changed the exact wire shape"
 
-      match (Persistence.encodeEvent? event).bind Persistence.decodeEvent? with
+      match (Loam.Persistence.encodeEvent? event).bind Loam.Persistence.decodeEvent? with
       | none =>
           throw <| IO.userError "event persistence round-trip failed to decode"
       | some restored =>
@@ -97,9 +97,9 @@ def main : IO Unit := do
             "event persistence changed the bank/jpy projection"
 
       let path := System.FilePath.mk "/tmp/loam-event-persistence-test"
-      expect (← Persistence.saveEvent? path event)
+      expect (← Loam.Persistence.saveEvent? path event)
         "event persistence refused a representable event"
-      match ← Persistence.loadEvent? path with
+      match ← Loam.Persistence.loadEvent? path with
       | some restored =>
           expect
             ((Event.quantityAt restored ⟨"wallet"⟩ yen).quanta == -1250)
@@ -108,24 +108,24 @@ def main : IO Unit := do
           throw <| IO.userError "event save/load failed to decode its own file"
 
   expect
-    (Persistence.decodeEvent?
+    (Loam.Persistence.decodeEvent?
       ("LOAM-EVENT\t1\nevent-1\n" ++
        "same\twallet\tjpy\t-1\n" ++
        "same\tbank\tjpy\t1\n")).isNone
     "event persistence admitted duplicate effect identity"
 
   expect
-    (Persistence.decodeEvent? "LOAM-EVENT\t2\nevent-1\n").isNone
+    (Loam.Persistence.decodeEvent? "LOAM-EVENT\t2\nevent-1\n").isNone
     "event persistence accepted an unsupported version"
 
   match sampleMemory? with
   | none =>
       throw <| IO.userError "sample Event memory failed identity admission"
   | some memory =>
-      expect (Persistence.encodeEventMemory? memory == some eventMemoryWire)
+      expect (Loam.Persistence.encodeEventMemory? memory == some eventMemoryWire)
         "Event-memory persistence changed the exact wire shape"
 
-      match (Persistence.encodeEventMemory? memory).bind Persistence.decodeEventMemory? with
+      match (Loam.Persistence.encodeEventMemory? memory).bind Loam.Persistence.decodeEventMemory? with
       | none =>
           throw <| IO.userError "Event-memory round-trip failed to decode"
       | some restored =>
@@ -139,9 +139,9 @@ def main : IO Unit := do
               throw <| IO.userError "Event-memory round-trip changed Event count"
 
       let path := System.FilePath.mk "/tmp/loam-event-memory-persistence-test"
-      expect (← Persistence.saveEventMemory? path memory)
+      expect (← Loam.Persistence.saveEventMemory? path memory)
         "Event-memory persistence refused representable Events"
-      match ← Persistence.loadEventMemory? path with
+      match ← Loam.Persistence.loadEventMemory? path with
       | some restored =>
           expect (restored.events.length == 2)
             "Event-memory save/load changed Event count"
@@ -149,12 +149,12 @@ def main : IO Unit := do
           throw <| IO.userError "Event-memory save/load failed to decode its own file"
 
   expect
-    ((Persistence.encodeEventMemory?
+    ((Loam.Persistence.encodeEventMemory?
       { events := [], idNodup := by simp }) ==
       some "LOAM-EVENT-MEMORY\t1\n")
     "empty Event memory changed its exact wire shape"
 
-  match Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t1\n" with
+  match Loam.Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t1\n" with
   | some memory =>
       expect memory.events.isEmpty
         "empty Event-memory persistence restored phantom Events"
@@ -162,21 +162,21 @@ def main : IO Unit := do
       throw <| IO.userError "empty Event memory failed to decode"
 
   expect
-    (Persistence.decodeEventMemory?
+    (Loam.Persistence.decodeEventMemory?
       ("LOAM-EVENT-MEMORY\t1\n" ++
        "EVENT\tevent-1\n" ++
        "EVENT\tevent-1\n")).isNone
     "Event-memory persistence admitted duplicate Event identity"
 
   expect
-    (Persistence.decodeEventMemory?
+    (Loam.Persistence.decodeEventMemory?
       ("LOAM-EVENT-MEMORY\t1\n" ++
        "EVENT\tevent-1\n" ++
        "EFFECT\tsame\twallet\tjpy\t-1\n" ++
        "EFFECT\tsame\tbank\tjpy\t1\n")).isNone
     "Event-memory persistence admitted duplicate Effect identity"
 
-  match Persistence.decodeEventMemory?
+  match Loam.Persistence.decodeEventMemory?
       ("LOAM-EVENT-MEMORY\t1\n" ++
        "EVENT\tevent-2\n" ++
        "EFFECT\teffect-d\twallet\tjpy\t-500\n" ++
@@ -193,10 +193,10 @@ def main : IO Unit := do
       throw <| IO.userError "Event-memory decoder rejected a different storage order"
 
   expect
-    (Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t2\n").isNone
+    (Loam.Persistence.decodeEventMemory? "LOAM-EVENT-MEMORY\t2\n").isNone
     "Event-memory persistence accepted an unsupported version"
 
   expect
-    (Persistence.decodeEventMemory?
+    (Loam.Persistence.decodeEventMemory?
       "LOAM-EVENT-MEMORY\t1\nEVENT\tevent-1").isNone
     "Event-memory persistence accepted a missing trailing newline"

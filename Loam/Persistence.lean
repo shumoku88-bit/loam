@@ -1,7 +1,9 @@
 import Loam.Core.EventMemory
 import Std
 
-namespace Loam.Core
+namespace Loam.Persistence
+
+open Loam.Core
 
 set_option autoImplicit false
 
@@ -49,8 +51,6 @@ debit/credit, or posting-order meaning.
 Filesystem failures remain ordinary `IO` exceptions. Malformed or unsupported
 file contents return `none` from the relevant decode/load boundary.
 -/
-
-namespace Persistence
 
 /-- Version marker for the first persisted LOAM amount format. -/
 def amountHeader : String := "LOAM-AMOUNT\t1"
@@ -302,6 +302,4 @@ def loadEventMemory? (path : System.FilePath) : IO (Option EventMemory) := do
   let input ← IO.FS.readFile path
   return decodeEventMemory? input
 
-end Persistence
-
-end Loam.Core
+end Loam.Persistence

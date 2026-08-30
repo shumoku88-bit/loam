@@ -36,17 +36,17 @@ concurrency:
 
 jobs:
   build:
-    name: Build and test Loam.Core
+    name: Build and test practical Lean boundary
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build practical core only
+      - name: Build practical core and persistence
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core
+          build-args: Loam.Core Loam.Persistence
           test: false
           lint: false
           use-mathlib-cache: false

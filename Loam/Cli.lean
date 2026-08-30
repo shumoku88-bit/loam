@@ -1,4 +1,4 @@
-import Loam.Core.Persistence
+import Loam.Persistence
 import Std
 
 namespace Loam.Cli
@@ -30,7 +30,7 @@ private def parseEffects : List String → Option (List Loam.Core.Effect)
 
 /-- Read one persisted amount and print its stable measure token and exact quanta. -/
 def showAmount (path : String) : IO UInt32 := do
-  match ← Loam.Core.Persistence.load? (System.FilePath.mk path) with
+  match ← Loam.Persistence.load? (System.FilePath.mk path) with
   | some amount =>
       IO.println (renderAmount amount)
       return 0
@@ -60,7 +60,7 @@ def createEvent
             IO.eprintln "loam: target event file already exists"
             return 2
           else
-            if ← Loam.Core.Persistence.saveEvent? filePath event then
+            if ← Loam.Persistence.saveEvent? filePath event then
               return 0
             else
               IO.eprintln "loam: event contains an unrepresentable identity token"
@@ -73,7 +73,7 @@ read-only `Event.quantityAt` projection.
 -/
 def showEventQuantity
     (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
-  match ← Loam.Core.Persistence.loadEvent? (System.FilePath.mk path) with
+  match ← Loam.Persistence.loadEvent? (System.FilePath.mk path) with
   | some event =>
       let quantity := Loam.Core.Event.quantityAt event ⟨locusToken⟩ ⟨measureToken⟩
       IO.println (toString quantity.quanta)
@@ -88,7 +88,7 @@ The command exposes no storage index and therefore adds no `first`, `latest`,
 temporal, causal, priority, authority, or posting-order semantics.
 -/
 def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
-  match ← Loam.Core.Persistence.loadEventMemory? (System.FilePath.mk path) with
+  match ← Loam.Persistence.loadEventMemory? (System.FilePath.mk path) with
   | none =>
       IO.eprintln "loam: malformed or unsupported event-memory file"
       return 2
@@ -98,7 +98,7 @@ def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
           IO.eprintln "loam: event not found in memory"
           return 1
       | some event =>
-          match Loam.Core.Persistence.encodeEvent? event with
+          match Loam.Persistence.encodeEvent? event with
           | some text =>
               IO.print text
               return 0
@@ -118,12 +118,12 @@ claim crash-safe filesystem replacement semantics.
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let eventFile := System.FilePath.mk eventPath
-  match ← Loam.Core.Persistence.loadEventMemory? memoryFile with
+  match ← Loam.Persistence.loadEventMemory? memoryFile with
   | none =>
       IO.eprintln "loam: malformed or unsupported event-memory file"
       return 2
   | some memory =>
-      match ← Loam.Core.Persistence.loadEvent? eventFile with
+      match ← Loam.Persistence.loadEvent? eventFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported event file"
           return 2
@@ -133,7 +133,7 @@ def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
               IO.eprintln "loam: event identity already remembered"
               return 1
           | some updated =>
-              if ← Loam.Core.Persistence.saveEventMemory? memoryFile updated then
+              if ← Loam.Persistence.saveEventMemory? memoryFile updated then
                 return 0
               else
                 IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
