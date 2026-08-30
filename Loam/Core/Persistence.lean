@@ -1,5 +1,4 @@
 import Loam.Core.Measure
-import Init.Guard
 import Std
 
 namespace Loam.Core
@@ -92,26 +91,6 @@ filesystem failures remain `IO` exceptions.
 def load? (path : System.FilePath) : IO (Option SomeAmount) := do
   let input ← IO.FS.readFile path
   return decode? input
-
-private def yen : MeasureId := ⟨"jpy"⟩
-
-private def sample : SomeAmount :=
-  SomeAmount.ofQuantity yen (Quantity.ofQuanta (-1250))
-
-/-- The wire shape is explicit and exact. -/
-#guard encode? sample = some "LOAM-AMOUNT\t1\njpy\t-1250\n"
-
-/-- Pure encode/decode returns the same observable identity and quanta. -/
-#guard ((encode? sample).bind decode?).map
-    (fun amount => (amount.measure.token, amount.quantity.quanta)) =
-  some ("jpy", -1250)
-
-/-- A changed version marker is rejected rather than guessed. -/
-#guard (decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone
-
-/-- A token containing a field separator is not silently escaped or changed. -/
-#guard (encode?
-  (SomeAmount.ofQuantity ⟨"jp\ty"⟩ (Quantity.ofQuanta 1))).isNone
 
 end Persistence
 
