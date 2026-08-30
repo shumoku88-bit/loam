@@ -6,9 +6,14 @@ sig Measure {}
 sig MeasureName {}
 sig Event {}
 
+sig Cell {
+  locus: one Locus,
+  measure: one Measure
+}
+
 abstract sig World {
   present: set Event,
-  effect: Event -> Locus -> Measure -> lone Int,
+  effect: Event -> Cell -> lone Int,
   purpose: Event -> lone Purpose,
   parent: Event -> set Event,
   measureName: Measure -> lone MeasureName
@@ -16,9 +21,14 @@ abstract sig World {
 
 one sig Left, Right extends World {}
 
+fact CoordinateCells {
+  all l: Locus, m: Measure |
+    one c: Cell | c.locus = l and c.measure = m
+}
+
 fact WellFormed {
   all w: World | {
-    w.effect.Int in w.present -> Locus -> Measure
+    w.effect.Int in w.present -> Cell
     w.purpose.Purpose in w.present
     w.parent in w.present -> w.present
     w.measureName.MeasureName in Measure
@@ -38,8 +48,12 @@ fact WellFormed {
   }
 }
 
+fun cell[l: Locus, m: Measure]: one Cell {
+  { c: Cell | c.locus = l and c.measure = m }
+}
+
 fun amount[w: World, e: Event, l: Locus, m: Measure]: one Int {
-  sum { i: Int | e->l->m->i in w.effect }
+  sum { i: Int | e->cell[l, m]->i in w.effect }
 }
 
 fun collapsedAmount[w: World, e: Event, l: Locus]: one Int {
@@ -156,8 +170,8 @@ assert MeasureCoreDeterminesSelectedVocabulary {
     sameSelectedAnswers[Left, Right]
 }
 
-run measureCoreExpressesDistinctQuantityAxes for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
-run differentMeasureNamesSameCoreSameAnswers for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
-run forgettingMeasureCanLoseDistribution for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
-run forgettingMeasureCanLoseConversionShape for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
-check MeasureCoreDeterminesSelectedVocabulary for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
+run measureCoreExpressesDistinctQuantityAxes for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 4 Cell, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
+run differentMeasureNamesSameCoreSameAnswers for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 4 Cell, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
+run forgettingMeasureCanLoseDistribution for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 4 Cell, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
+run forgettingMeasureCanLoseConversionShape for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 4 Cell, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
+check MeasureCoreDeterminesSelectedVocabulary for exactly 4 Event, exactly 2 Locus, exactly 2 Measure, exactly 4 Cell, exactly 2 MeasureName, exactly 2 Purpose, exactly 2 World, 6 Int
