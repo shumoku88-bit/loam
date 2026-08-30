@@ -1,0 +1,174 @@
+# Observation 033 — Can Valuation Remain an Overlay?
+
+## Question
+
+Observation 032 found that a future vocabulary asking **what kind of quantity** can force a neutral `Measure` coordinate without first making `Currency` or `Commodity` a primitive domain noun.
+
+The next question is different in kind:
+
+> Once two Measures exist, does the household event core itself determine how they should be compared, or can a relation between Measures be layered over the same history without rewriting it?
+
+This observation deliberately avoids beginning with `Price`, `ExchangeRate`, `MarketValue`, or `Valuation` as stored event kinds.
+
+It adds only a neutral relation:
+
+```text
+Measure -> Measure -> RelationValue
+```
+
+## Core held fixed
+
+The event side remains the geometry established by Observations 030–032:
+
+```text
+Event identity
+  + effect : Locus × Measure -> signed Quantity
+  + purpose?
+  + parents*
+```
+
+For Alloy representation, `(Locus, Measure)` is again carried by the neutral `Cell` product used in Observation 032.
+
+The new relation is not part of event history. Two worlds may share exactly the same events, effects, purposes, and ancestry while carrying different Measure-to-Measure relations.
+
+## Selected vocabulary
+
+The bounded vocabulary separates two families of questions.
+
+### Core questions
+
+1. balance at each `(Locus, Measure)` coordinate;
+2. current commitments;
+3. explanation ancestry.
+
+### Relation-dependent question
+
+4. for a Measure currently held by the household, what `RelationValue`, if any, is supplied when viewing it against another Measure?
+
+The model calls this relation-dependent projection `valuationView`, but the name is intentionally provisional. `RelationValue` has no price, market, rate, authority, or economic semantics beyond being the answer supplied by the relation.
+
+## Structural tests and observed results
+
+### Change only the overlay
+
+Can two worlds have exactly the same event core and therefore the same balances, commitments, and explanations, while differing only in their relation and relation-dependent answer?
+
+Observed: **SAT**.
+
+The bounded witness keeps `present`, `effect`, `purpose`, and `parent` identical while changing only the Measure relation. The core answers stay fixed and `valuationView` changes.
+
+### Relation may be absent
+
+Can the same event history retain all core answers when one world has no relation at all and the other supplies one, while only the relation-dependent answer changes?
+
+Observed: **SAT**.
+
+One bounded witness has no relation in `Left` and a `Measure -> Measure -> RelationValue` observation in `Right`, with the same event history and core answers in both worlds.
+
+### Several relation answers fit one history
+
+Can one fixed event history admit distinct relation values without altering the history itself?
+
+Observed: **SAT**.
+
+The same event core admits different `RelationValue` choices.
+
+### Event core determines valuation?
+
+Assert that identical event cores must yield the same relation-dependent answer.
+
+Observed check result: **SAT counterexample**.
+
+Therefore the event core alone does not determine `valuationView` in this bounded vocabulary.
+
+### Full view sufficiency
+
+If two worlds share both the complete event core and the relation overlay, can any selected answer differ?
+
+Observed check result: **UNSAT counterexample**.
+
+Within this finite scope, event core plus the relation overlay determines the selected vocabulary.
+
+## Alloy result
+
+Alloy 6.2.0 + Sat4j, exactly 3 Events / 1 Locus / 2 Measures / 2 coordinate Cells / 2 RelationValues / 2 Purposes / 2 Worlds / 5-bit Ints:
+
+```text
+relationOverlayCanChangeOnlyValuation       SAT
+relationCanBeAbsentWithoutChangingCore      SAT
+relationValuesCanVaryOverSameHistory        SAT
+EventCoreDeterminesValuation                SAT counterexample
+FullViewDeterminesSelectedVocabulary        UNSAT counterexample
+```
+
+The complete expected result set passed in CI.
+
+## Interpretation
+
+The bounded conclusion is:
+
+> A household history can determine what quantities exist, where, and of what Measure without determining how distinct Measures should be compared.
+
+The model supports a separation such as:
+
+```text
+history
+  says what happened and what remains
+
+relation observation
+  says how one Measure is viewed against another
+```
+
+Changing the relation does not require rewriting the underlying events in this vocabulary.
+
+This is a different kind of boundary from Observations 031 and 032. `Locus` and `Measure` became coordinates inside the event effect because future questions could distinguish them. Observation 033 instead finds that a Measure-to-Measure comparison can vary **while that entire event core remains fixed**.
+
+So the emerging geometry is not simply another coordinate added to every event:
+
+```text
+Event -> Locus -> Measure -> Quantity
+
+plus
+
+Relation : Measure × Measure -> RelationValue
+```
+
+The relation is observable when valuation-like questions are asked, but it is not generated by the event history itself.
+
+This does **not** imply that valuation information is unimportant or need not be stored. It means only that, for this vocabulary, it is an additional observation rather than something entailed by the event core. A production system could still preserve such observations with their own identity, provenance, and time semantics.
+
+## Important boundaries
+
+This observation does not establish:
+
+- that `RelationValue` is a production representation;
+- that a relation is necessarily external to the program or transient;
+- that exchange rates, prices, appraisals, or cost bases are interchangeable concepts;
+- that relation values compose transitively;
+- that inverse relations exist;
+- that there is one authoritative relation between any pair of Measures;
+- that arithmetic conversion is safe or meaningful for heterogeneous Measures;
+- that a relation has no provenance, source, timestamp, confidence, or validity interval;
+- that a historical valuation should use the same relation as a present valuation;
+- that concurrent or conflicting relation observations are already resolved.
+
+Those are later questions.
+
+## Tool choice
+
+**Alloy only.**
+
+The current question is static independence and sufficiency: hold event history fixed, vary one relation, and search for future-visible divergence.
+
+- J is unnecessary because no quotient-counting table is needed yet.
+- Lean is unnecessary until a general law about overlays crystallizes beyond the concrete Observation 029 factorization law.
+- TLA+ becomes useful when relation observations change over time and a query must distinguish historical from current valuation.
+- miniKanren has no distinct role yet.
+
+## Next pressure point
+
+The static separation now holds, so the temporal question becomes concrete:
+
+> When relation observations change through time, which relation may answer a question about a past event, a present holding, or a future plan?
+
+This is genuinely different from Observation 033. Alloy has established that the overlay can vary independently; the next question concerns evolution and temporal applicability, which may justify TLA+.
