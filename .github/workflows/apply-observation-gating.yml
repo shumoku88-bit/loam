@@ -8,7 +8,7 @@ on:
       - '.github/workflows/apply-observation-gating.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   rewrite:
@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ci/gate-observation-workflows
 
-      - name: Gate historical observations away from practical Core changes
+      - name: Stage transformed observation workflows as ordinary blobs
         shell: bash
         run: |
           python3 - <<'PY'
@@ -27,17 +27,21 @@ jobs:
           old = """on:\n  pull_request:\n  push:\n    branches:\n      - main\n"""
           new = """on:\n  pull_request:\n    paths:\n      - 'Loam/Observations/**'\n      - 'Loam/Observations.lean'\n      - 'model/**'\n      - 'j/**'\n      - 'scheme/**'\n      - 'tla/**'\n      - 'observations/**'\n      - 'Loam.lean'\n      - 'lakefile.lean'\n      - 'lake-manifest.json'\n      - 'lean-toolchain'\n      - '.github/workflows/observation-*.yml'\n  push:\n    branches:\n      - main\n    paths:\n      - 'Loam/Observations/**'\n      - 'Loam/Observations.lean'\n      - 'model/**'\n      - 'j/**'\n      - 'scheme/**'\n      - 'tla/**'\n      - 'observations/**'\n      - 'Loam.lean'\n      - 'lakefile.lean'\n      - 'lake-manifest.json'\n      - 'lean-toolchain'\n      - '.github/workflows/observation-*.yml'\n  workflow_dispatch:\n"""
 
+          staged = Path('.ci-staging')
+          staged.mkdir(exist_ok=True)
           changed = []
           already = []
           for path in sorted(Path('.github/workflows').glob('observation-*.yml')):
               text = path.read_text()
               if "- 'Loam/Observations/**'" in text:
                   already.append(path.name)
-                  continue
-              if old not in text:
-                  raise SystemExit(f'unexpected trigger shape: {path}')
-              path.write_text(text.replace(old, new, 1))
-              changed.append(path.name)
+                  transformed = text
+              else:
+                  if old not in text:
+                      raise SystemExit(f'unexpected trigger shape: {path}')
+                  transformed = text.replace(old, new, 1)
+                  changed.append(path.name)
+              (staged / path.name).write_text(transformed)
 
           print(f'already gated: {len(already)}')
           print(f'newly gated: {len(changed)}')
@@ -46,13 +50,9 @@ jobs:
                   f'expected 7 already gated and 44 new; got {len(already)} and {len(changed)}')
           PY
 
-          mkdir -p /tmp/gated-observations
-          cp .github/workflows/observation-*.yml /tmp/gated-observations/
-
-      - name: Upload transformed workflows
-        uses: actions/upload-artifact@v4
-        with:
-          name: gated-observation-workflows
-          path: /tmp/gated-observations
-          if-no-files-found: error
-          retention-days: 1
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .ci-staging
+          git diff --cached --check
+          git commit -m "ci: stage gated observation blobs"
+          git push origin HEAD:ci/gate-observation-workflows
