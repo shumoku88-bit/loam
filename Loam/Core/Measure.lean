@@ -99,6 +99,21 @@ def add? (left right : SomeAmount) : Option SomeAmount :=
     (ofQuantity measure quantity).quantity = quantity :=
   rfl
 
+/-- Runtime values with the same measure enter ordinary typed addition. -/
+@[simp] theorem add?_sameMeasure
+    (measure : MeasureId) (left right : Amount measure) :
+    add? ⟨measure, left⟩ ⟨measure, right⟩ =
+      some ⟨measure, left + right⟩ := by
+  simp [add?]
+
+/-- Distinct runtime measure identities cannot enter typed addition. -/
+@[simp] theorem add?_differentMeasure
+    {leftMeasure rightMeasure : MeasureId}
+    (hDifferent : leftMeasure ≠ rightMeasure)
+    (left : Amount leftMeasure) (right : Amount rightMeasure) :
+    add? ⟨leftMeasure, left⟩ ⟨rightMeasure, right⟩ = none := by
+  simp [add?, hDifferent]
+
 end SomeAmount
 
 end Loam.Core
