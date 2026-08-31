@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–062.
+This document is a checkpoint after Observations 001–063.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -159,6 +159,51 @@ AccountingRole
 
 This is an expressibility and observability result, not an import-format decision. Observation 062 deliberately does not decide whether a ledger posting maps one-to-one to a practical LOAM Effect.
 
+### 063 — Plan realization needs explicit identity linkage
+
+Observation 063 applies the next anonymized pressure from real household records: expected Plan facts later connect to Actual Events, but expected and Actual records need not be identical in time or quantity.
+
+The model keeps Plan identity, Event identity, a small expected/actual content vocabulary, and one explicit partial matching:
+
+```text
+Plan
+  + expected Time / Amount / Shape
+
+Event
+  + actual Time / Amount / Shape
+
+realizes : Plan -> lone Event
+```
+
+Observed:
+
+```text
+realization can link non-identical records        SAT
+same records can yield different completion       SAT
+same completed set can hide different provenance  SAT
+same Actual can be planned or unplanned            SAT
+exact content matching can be ambiguous            SAT
+Plan/Event records determine completion            SAT counterexample
+completion summary determines realization          SAT counterexample
+explicit relation determines selected answers      UNSAT counterexample
+```
+
+The bounded separation is therefore:
+
+```text
+Plan record
+    +
+Actual Event record
+
+        does not determine
+
+which Event realizes which Plan
+```
+
+The realization linkage carries observable information of its own. Even exact time/amount/Shape matching is insufficient when identity-distinct Events occupy the same observable coordinates.
+
+Observation 063 does not choose whether the relation is physically stored on the Plan side, Event side, or as a separate relation record. Under the current one-to-one vocabulary those are representation choices. It also does not yet earn split/merged realization, Series, recurrence, or a practical Plan type.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -171,8 +216,9 @@ The following structures currently carry distinctions that at least one retained
 - Measure identity
 - per-kind Correction identity
 - per-kind Resolution identity
+- Plan identity in the bounded expectation/realization vocabulary of Observation 063
 
-Identity is not inferred from list position, physical storage order, display names, or aggregate coordinates.
+Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, or matching expected/actual content.
 
 ### Quantitative coordinates
 
@@ -190,15 +236,25 @@ Coordinate totals are projections over effects, not effect identity.
 
 Observation 062 adds no new primitive coordinate. Representative bookkeeping-shaped Events can still be expressed with the existing Event / Effect / Locus structure plus independent AccountingRole.
 
+Observation 063 likewise does not enlarge the physical Event coordinate set. Planning information remains outside the Actual physical core in the bounded experiment.
+
 ### Explicit revision relations
 
 Correction and Resolution remain explicit raw relation facts rather than edits that erase earlier facts.
 
 Their referenced Events may be absent from the current Event memory. Raw memory can still retain the relation fact while derived referential admission fails closed.
 
+### Explicit correspondence when provenance distinguishes identical content
+
+Observation 063 finds that the mapping from Plan identity to Actual Event identity cannot be reconstructed from Plan/Event content or from the completed-Plan set. When future questions ask which Actual fulfilled which expectation, the correspondence itself must survive in some representation.
+
+This does not yet imply that realization needs its own identity-bearing fact type.
+
 ### More than one time coordinate when the question requires it
 
 The observation layer has earned a distinction between validity and knowledge time for retrospective questions. This does not imply that every practical-core fact must immediately carry both timestamps.
+
+Observation 063 additionally demonstrates that expected time and Actual time need not be equal merely because a Plan and Event are linked.
 
 ## 3. Derived views
 
@@ -210,6 +266,9 @@ The following have appeared as derivable views rather than automatically deservi
 - balance by Locus / Measure
 - transfer-like shape
 - role-aware bookkeeping shapes such as expense, income, liability repayment, refund, and opening balance in the bounded Observation 062 vocabulary
+- completed Plan membership from explicit realization linkage
+- realized Actual Event membership from explicit realization linkage
+- expected/actual amount, time, and Shape mismatch views from realization linkage
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -223,6 +282,7 @@ These relations have evidence of semantic independence from the neutral physical
 
 - Purpose / intentional assignment
 - AccountingRole
+- Plan realization linkage in the bounded Observation 063 vocabulary
 - valuation / rate relations
 - selection policy
 - backing eligibility
@@ -230,6 +290,8 @@ These relations have evidence of semantic independence from the neutral physical
 - other application-facing classifications
 
 Observation 062 supplies a real-data-shaped witness that AccountingRole remains semantically active while AccountName and nominal EventKind remain observationally inert for the selected bookkeeping-shape vocabulary.
+
+Observation 063 supplies a separate real-data-shaped witness that plannedness and completion provenance are not properties of Actual Event content alone.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -254,7 +316,7 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observation 062 does not add an Account object, nominal EventKind, AccountingRole implementation, import layer, or new persistence format to the practical core. It is evidence about what current real-ledger-shaped questions do and do not force.
+Observations 062 and 063 add no Account object, nominal EventKind, Plan type, realization type, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
 
 The implementation policy remains conservative:
 
@@ -286,7 +348,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observation 062 does not alter persistence at all.
+Observations 062 and 063 do not alter persistence at all. In particular, Observation 063 does not earn a Plan store or a realization stream merely because explicit realization is semantically observable.
 
 ## 7. Deliberately unearned concepts
 
@@ -307,12 +369,16 @@ LOAM should not silently promote the following into domain law without a new obs
 - a manifest or generation selector
 - general Resolution persistence parity beyond the stable-frontier case observed in 061
 - one-to-one ledger-posting-to-LOAM-Effect import semantics
-- plan / series / issue metadata semantics merely because such annotations appear in source data
+- a Practical Core `Plan` type merely because planning appears in source data
+- first-class realization identity, correction, or persistence
+- one Plan realized by several Events or several Plans realized by one Event
+- Series / recurrence semantics
+- issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-two observations
+## 8. Tool roles after sixty-three observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -325,8 +391,9 @@ Use when the question is primarily structural:
 - does removing a field collapse distinctions?
 - can a familiar household noun remain a projection?
 - do anonymized real-data shapes fit the existing structural vocabulary without adding a new primitive?
+- can identity linkage be reconstructed from the endpoint records it connects?
 
-Observation 062 is an example of the last case.
+Observations 062 and 063 are examples of the last two cases.
 
 ### J
 
@@ -375,18 +442,32 @@ question
 
 Observation 061 extended that loop just far enough to test the next relation kind without mechanically copying the Correction protocol.
 
-Observation 062 then did something different: instead of extending protocol machinery, it brought anonymized shapes from ordinary household records back to the earlier structural questions. The result did not force Account or EventKind back into the core, and it confirmed that AccountingRole remains the independent relation needed for the selected bookkeeping-shaped readings.
+Observation 062 then brought anonymized shapes from ordinary household records back to the earlier structural questions. The result did not force Account or EventKind back into the core, and it confirmed that AccountingRole remains the independent relation needed for the selected bookkeeping-shaped readings.
 
-That makes 062 another useful stopping point.
+Observation 063 follows the same real-data-pressure strategy one layer outward. It finds that expectation and actuality can remain separate facts, but their correspondence is not recoverable from endpoint content. Stable completion provenance therefore needs explicit identity linkage even when matching coordinates look sufficient.
 
-The next pressure should come from information that real records contain but Observation 062 intentionally left out, not from a predetermined Observation number. Plausible candidates include:
+The resulting picture is now:
 
 ```text
-plan / series linkage
-explicit event or issue linkage
-multi-Measure activity
-imported posting identity vs LOAM Effect identity
-moving Event / Correction / Resolution frontier
+Actual physical facts
+        |
+        +---- AccountingRole / other readings
+
+Expectation facts
+        |
+        +---- explicit realization linkage ----> Actual Event identity
 ```
 
-Each should become its own observation only when one concrete question requires it. Until then, no Account abstraction, import schema, metadata hierarchy, manifest, or global history has been earned.
+This is a useful stopping point before adding any Plan implementation. The new semantic information has been observed, but no practical storage pressure has yet earned a Plan store, realization stream, or generic relation abstraction.
+
+The strongest next pressure is no longer "should Plan be an Event field?" Under one-to-one cardinality that is mostly a representation choice. A genuinely new question would relax the cardinality or add lifecycle behavior:
+
+```text
+one Plan -> several Actual Events
+several Plans -> one Actual Event
+partial realization
+supersession / cancellation
+Series / recurrence
+```
+
+If concrete workflows require those shapes, Observation 064 can ask whether realization itself needs identity, quantities, or temporal lifecycle. Otherwise LOAM can stop here without manufacturing another abstraction.
