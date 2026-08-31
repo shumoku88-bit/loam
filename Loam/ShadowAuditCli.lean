@@ -27,9 +27,6 @@ private structure Audit where
   identifiedEffects : Nat := 0
   eventsWithMetadata : Nat := 0
 
-private def trimAsciiString (text : String) : String :=
-  text.trimAsciiStart.toString.trimAsciiEnd.toString
-
 private def looksLikeDateHeader (text : String) : Bool :=
   match text.toList with
   | a :: b :: c :: d :: '-' :: e :: f :: '-' :: g :: h :: _ =>
@@ -150,3 +147,11 @@ def auditFile (path : String) (showCounts : Bool := false) : IO UInt32 := do
     return 0
 
 end Loam.ShadowAuditCli
+
+def main (args : List String) : IO UInt32 :=
+  match args with
+  | [path] => Loam.ShadowAuditCli.auditFile path false
+  | [path, "--counts"] => Loam.ShadowAuditCli.auditFile path true
+  | _ => do
+      IO.eprintln "usage: shadow-audit <journal-file> [--counts]"
+      return 2
