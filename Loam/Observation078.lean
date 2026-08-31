@@ -117,7 +117,11 @@ theorem quantityAtRecorded_singleton_ignores_identity
                keyNodup := by simp }],
           idNodup := by simp }
         queryLocus queryMeasure := by
-  simp
+  rw [EventMemory.quantityAtRecorded_singleton]
+  rw [EventMemory.quantityAtRecorded_singleton]
+  exact quantityAt_single_effect_ignores_identity
+    oldId newId oldKey newKey effectLocus queryLocus
+    effectMeasure queryMeasure quantity
 
 /--
 Identity-sensitive operations remain outside the stateless-shadow allowance.
@@ -149,7 +153,14 @@ theorem findById_observes_identity
         oldId = none := by
   dsimp
   constructor
-  · simp
-  · exact EventMemory.findById?_singleton_other _ _ hDifferent.symm
+  · simpa using EventMemory.findById?_singleton_self
+      ({ id := oldId,
+         effects := [Effect.ofQuantity key locus measure quantity],
+         keyNodup := by simp } : Event)
+  · simpa using EventMemory.findById?_singleton_other
+      ({ id := newId,
+         effects := [Effect.ofQuantity key locus measure quantity],
+         keyNodup := by simp } : Event)
+      oldId hDifferent.symm
 
 end Loam.Observation078
