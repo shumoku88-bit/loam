@@ -83,7 +83,32 @@ ambiguity
 
 This does not create a promise that the same match can be reconstructed automatically after another arbitrary edit.
 
-## Expected boundary
+## Alloy 6.2.0 / Sat4j result
+
+Observation 076 push run #1 completed **SUCCESS** on exact head
+`7769db90042a1d671f12060e00532db125b9b99b`.
+
+The bounded commands were:
+
+```text
+retiredAidAmbiguity                                      SAT
+sourceIdentityExit                                       SAT
+authorityTransferExit                                    SAT
+explicitReconciliationExit                               SAT
+RetiredAidAloneDeterminesOngoingReattachment             SAT counterexample
+SourceIdentityMakesAidUnnecessary                        UNSAT counterexample
+NoPermanentAidForcesSourceOwnedIdentity                  SAT counterexample
+OngoingAutomaticShadowWithoutAidNeedsStableSourceIdentityOrReconciliation
+                                                         SAT counterexample
+```
+
+The important distinction is not that every sidecar-free design must add source-owned identity. The model admits more than one safe exit shape.
+
+What fails is the stronger convenience assumption that deleting an external aid somehow preserves automatic reattachment to an identity-free mutable source. The two indistinguishable-current-candidate witness remains reachable after the aid is gone.
+
+Source-owned stable identity is sufficient to make the aid unnecessary under the explicit identity-conformance law. An authority-transfer witness and a current-cycle explicit-reconciliation witness are also reachable without a permanent external aid, but they answer different operational questions.
+
+## Finding
 
 A retired external aid is **not** by itself enough to preserve automatic ongoing synchronization against a mutable identity-free source.
 
@@ -111,6 +136,25 @@ continuity responsibility has moved somewhere explicit
 or automatic reattachment has stopped
 ```
 
+## Project direction
+
+The practical default after this observation is stronger than merely preferring a small sidecar:
+
+```text
+prefer no sidecar
+```
+
+If a later experiment temporarily needs external identity aid, it must be born with a retirement condition. The experiment should say what event makes the aid removable and which authority carries continuity afterward.
+
+If that retirement condition cannot be satisfied, the aid must not silently graduate into permanent infrastructure. The affected source occurrence should instead remain one of:
+
+- shadow-only and non-imported;
+- explicitly unresolved;
+- explicitly reconciled for the current operation;
+- or deliberately transferred across a separately named authority boundary.
+
+For the current real-data shadow direction, the source remains canonical. Therefore authority transfer is only a comparison case, not the default plan. The next practical pressure should favor fail-closed reconciliation over creation of a durable mapping store.
+
 ## Practical Core impact
 
 None.
@@ -126,7 +170,7 @@ This observation constrains a future admission protocol. It does not implement o
 
 ## Next pressure
 
-If the bounded results confirm this separation, the next useful question is operational:
+The next useful question is operational:
 
 > For a source that remains canonical and identity-free, what is the smallest fail-closed reconciliation entrance that can resolve one ambiguous admission without creating a permanent mapping store?
 
