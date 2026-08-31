@@ -68,6 +68,9 @@ retain several independently identified Effects.
 
 The identity items are the important pressure.
 
+The private inspection is intentionally recorded only as a sampled structural
+finding. No exhaustive private-data count is copied into this public record.
+
 ## Why direct conversion is not yet honest
 
 Current Practical Core requires:
@@ -150,6 +153,13 @@ The dedicated workflow therefore uses only synthetic fixture data. It checks:
 - byte-for-byte source immutability;
 - absence of synthetic raw descriptions, loci, and quantities from audit
   output.
+
+Observation 074 push run #1 completed **SUCCESS** on exact head
+`09e9c3df388de00fd7c0107f7c904024a4fcfb60`.
+
+The compiled Lean target, redaction checks, source hash comparison, partial
+identity specimen, fully identified specimen, and practical wrapper path all
+passed.
 
 A successful public CI run proves the adapter boundary against synthetic input.
 It does not claim that private data was uploaded to or evaluated by CI.
