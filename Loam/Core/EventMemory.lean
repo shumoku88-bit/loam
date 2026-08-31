@@ -118,6 +118,69 @@ theorem findById?_singleton_other
   simp [findById?, findEventById?, h]
 
 /--
+Project every remembered Event onto one locus/measure coordinate and sum the
+resulting exact quantities.
+
+This is deliberately the aggregate of all recorded facts in the memory. It does
+not apply correction, reversal, current-state, effective-state, temporal, or
+accounting semantics. Later effective projections must therefore remain named
+separately rather than silently changing the meaning of this function.
+-/
+def quantityAtRecorded
+    (memory : EventMemory) (locus : LocusId) (measure : MeasureId) : Quantity :=
+  Quantity.ofQuanta <|
+    memory.events.foldr
+      (fun event total => (Event.quantityAt event locus measure).quanta + total)
+      0
+
+private theorem quantityAtRecordedFold_perm
+    {left right : List Event}
+    (hPerm : left.Perm right)
+    (locus : LocusId) (measure : MeasureId) :
+    left.foldr
+        (fun event total => (Event.quantityAt event locus measure).quanta + total)
+        0 =
+      right.foldr
+        (fun event total => (Event.quantityAt event locus measure).quanta + total)
+        0 := by
+  induction hPerm with
+  | nil => rfl
+  | cons event hPerm ih =>
+      simp only [List.foldr_cons]
+      rw [ih]
+  | swap x y rest =>
+      simp only [List.foldr_cons]
+      simp [Int.add_assoc, Int.add_comm, Int.add_left_comm]
+  | trans hLeft hRight ihLeft ihRight =>
+      exact ihLeft.trans ihRight
+
+/--
+The recorded aggregate is invariant under permutation of EventMemory's list
+representation. Storage order therefore cannot change the quantity observed at
+a locus/measure coordinate.
+-/
+theorem quantityAtRecorded_perm
+    (left right : EventMemory)
+    (hPerm : left.events.Perm right.events)
+    (locus : LocusId) (measure : MeasureId) :
+    quantityAtRecorded left locus measure = quantityAtRecorded right locus measure := by
+  simpa [quantityAtRecorded] using
+    congrArg Quantity.ofQuanta (quantityAtRecordedFold_perm hPerm locus measure)
+
+/-- Empty recorded memory contributes exact zero at every coordinate. -/
+@[simp] theorem quantityAtRecorded_empty
+    (locus : LocusId) (measure : MeasureId) :
+    quantityAtRecorded { events := [], idNodup := by simp } locus measure = 0 := by
+  rfl
+
+/-- A single remembered Event contributes exactly its own coordinate projection. -/
+@[simp] theorem quantityAtRecorded_singleton
+    (event : Event) (locus : LocusId) (measure : MeasureId) :
+    quantityAtRecorded { events := [event], idNodup := by simp } locus measure =
+      Event.quantityAt event locus measure := by
+  simp [quantityAtRecorded]
+
+/--
 Add one complete Event to a memory, rejecting repeated Event identity.
 
 The resulting list is a deterministic persistence representation only. The
