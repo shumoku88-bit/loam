@@ -6,6 +6,10 @@ on:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
+      - 'Loam/CorrectionCli.lean'
+      - 'Loam/EffectiveCli.lean'
+      - 'Loam/CorrectionIntegrityCli.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -17,6 +21,10 @@ on:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
+      - 'Loam/CorrectionCli.lean'
+      - 'Loam/EffectiveCli.lean'
+      - 'Loam/CorrectionIntegrityCli.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -34,17 +42,17 @@ concurrency:
 
 jobs:
   build:
-    name: Build and test correction entrance
+    name: Build and test compiled correction entrance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build practical dependencies
+      - name: Build practical loam executable
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core Loam.Persistence
+          build-args: loam
           test: false
           lint: false
           use-mathlib-cache: false
@@ -52,9 +60,15 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Run cold-start correction, effective, and integrity smoke check
+      - name: Run compiled correction, effective, and integrity smoke check
         shell: bash
         run: |
+          test -x .lake/build/bin/loam
+          if grep -Fq 'lean --run' tools/loam; then
+            echo 'practical wrapper must not invoke Lean frontend per action' >&2
+            exit 1
+          fi
+
           rm -rf scratch/dogfood
           mkdir -p scratch/dogfood
           memory_file="scratch/dogfood/memory.loam"
@@ -62,13 +76,7 @@ jobs:
 
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
 
-          rm -f \
-            .lake/build/lib/lean/Loam/Core/RelationAdmission.olean \
-            .lake/build/lib/lean/Loam/Persistence.olean
-
           printf '4\n1\nwallet\n1280\n' | ./tools/loam | tee /tmp/loam-correction.out
-
-          grep -Fq 'Preparing correction support...' /tmp/loam-correction.out
           grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
 
           expected_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\nEVENT\treplacement-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
@@ -77,23 +85,15 @@ jobs:
           expected_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\tbad-record\treplacement-1'
           test "$(cat "$correction_file")" = "$expected_corrections"
 
-          rm -f .lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean
-
           printf '5\n' | ./tools/loam | tee /tmp/loam-effective.out
-
-          grep -Fq 'Preparing effective projection...' /tmp/loam-effective.out
           grep -Fq 'Effective quantities (single-correction projection; zero coordinates omitted):' /tmp/loam-effective.out
-          grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
           if grep -Fq 'スーパー:' /tmp/loam-effective.out; then
-            echo 'expected zero effective coordinate to be omitted from ordinary view' >&2
+            echo 'ordinary effective view must omit zero coordinate' >&2
             exit 1
           fi
-
-          rm -f .lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean
+          grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
 
           printf '6\n' | ./tools/loam | tee /tmp/loam-integrity.out
-
-          grep -Fq 'Preparing correction integrity...' /tmp/loam-integrity.out
           grep -Fq 'Correction correction-1' /tmp/loam-integrity.out
           grep -Fq 'bad-record -> replacement-1' /tmp/loam-integrity.out
           grep -Fq 'relation: closed' /tmp/loam-integrity.out
@@ -102,3 +102,6 @@ jobs:
           grep -Fq 'Projection law: original contribution excluded; replacement retained once' /tmp/loam-integrity.out
           grep -Fq 'Arithmetic balance: not asserted across different coordinates or measures' /tmp/loam-integrity.out
           grep -Fq 'All correction relations are closed.' /tmp/loam-integrity.out
+
+          direct="$(.lake/build/bin/loam effective "$memory_file" "$correction_file")"
+          grep -Fq 'wallet: -1280 jpy' <<<"$direct"
