@@ -133,6 +133,12 @@ jobs:
           memory_file="$tmp_dir/memory.loam"
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tevent-2\nEFFECT\teffect-d\twallet\tjpy\t-500\nEVENT\tevent-1\nEFFECT\teffect-a\twallet\tjpy\t-1000\nEFFECT\teffect-b\twallet\tjpy\t-250\n' >"$memory_file"
 
+          output="$(./tools/loam event-memory quantity "$memory_file" wallet jpy)"
+          test "$output" = '-1750'
+
+          output="$(./tools/loam event-memory quantity "$memory_file" bank jpy)"
+          test "$output" = '0'
+
           output="$(./tools/loam event-memory get "$memory_file" event-1)"
           expected_remembered=$'LOAM-EVENT\t1\nevent-1\neffect-a\twallet\tjpy\t-1000\neffect-b\twallet\tjpy\t-250'
           test "$output" = "$expected_remembered"
@@ -154,6 +160,15 @@ jobs:
 
           expected_memory_after_add=$'LOAM-EVENT-MEMORY\t1\nEVENT\tevent-2\nEFFECT\teffect-d\twallet\tjpy\t-500\nEVENT\tevent-1\nEFFECT\teffect-a\twallet\tjpy\t-1000\nEFFECT\teffect-b\twallet\tjpy\t-250\nEVENT\tevent-3\nEFFECT\teffect-e\twallet\tjpy\t-75\nEFFECT\teffect-f\tbank\tjpy\t75'
           test "$(cat "$memory_file")" = "$expected_memory_after_add"
+
+          output="$(./tools/loam event-memory quantity "$memory_file" wallet jpy)"
+          test "$output" = '-1825'
+
+          output="$(./tools/loam event-memory quantity "$memory_file" bank jpy)"
+          test "$output" = '75'
+
+          output="$(./tools/loam event-memory quantity "$memory_file" pocket jpy)"
+          test "$output" = '0'
 
           output="$(./tools/loam event-memory get "$memory_file" event-3)"
           expected_added=$'LOAM-EVENT\t1\nevent-3\neffect-e\twallet\tjpy\t-75\neffect-f\tbank\tjpy\t75'
@@ -188,6 +203,15 @@ jobs:
           printf 'broken\n' >"$memory_file"
           if ./tools/loam event-memory get "$memory_file" event-1 >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
             echo 'expected malformed Event memory to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-cli.err
+
+          if ./tools/loam event-memory quantity "$memory_file" wallet jpy >/tmp/loam-cli.out 2>/tmp/loam-cli.err; then
+            echo 'expected malformed Event memory quantity input to fail' >&2
             exit 1
           else
             status=$?
