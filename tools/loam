@@ -61,6 +61,37 @@ run_correction() {
   exec lake env lean --run LoamCorrection.lean "$@"
 }
 
+effective_dependencies_are_current() {
+  local quantity_olean=".lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean"
+  local persistence_olean=".lake/build/lib/lean/Loam/Persistence.olean"
+
+  [[ -f "$quantity_olean" && -f "$persistence_olean" ]] || return 1
+
+  if [[ Loam/Core/CorrectionQuantity.lean -nt "$quantity_olean" ]]; then
+    return 1
+  fi
+
+  if [[ Loam/Persistence.lean -nt "$persistence_olean" ]]; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && ( "$input" -nt "$quantity_olean" || "$input" -nt "$persistence_olean" ) ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+run_effective() {
+  if ! effective_dependencies_are_current; then
+    echo "Preparing effective projection..."
+    lake build Loam.Core.CorrectionQuantity Loam.Persistence >/dev/null
+  fi
+  exec lake env lean --run LoamEffective.lean "$@"
+}
+
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
   correction_file="scratch/dogfood/corrections.loam"
@@ -74,6 +105,7 @@ What do you want to do?
 2. Review what I recorded
 3. Show recorded quantities
 4. Correct a spending record
+5. Show effective quantities
 q. Quit
 EOF
   printf '> '
@@ -99,6 +131,9 @@ EOF
       ;;
     4)
       run_correction "$memory_file" "$correction_file"
+      ;;
+    5)
+      run_effective "$memory_file" "$correction_file"
       ;;
     q|Q)
       exit 0
