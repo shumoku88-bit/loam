@@ -60,7 +60,6 @@ pred representativeRefundPressure {
   some disj e0, e1: Expense, r: Return |
     e0.delta = e1.delta and
     e0.at = e1.at and
-    r.delta = -e0.delta and
     r->e0 in Left.refundOf and
     r->e1 in Right.refundOf
 }
@@ -80,7 +79,6 @@ pred exactSourceCandidatesAmbiguous {
     e0.delta = e1.delta and
     e0.at = e1.at and
     e0.shape = e1.shape and
-    r.delta = -e0.delta and
     r->e0 in Left.refundOf and
     r->e1 in Right.refundOf
 }
