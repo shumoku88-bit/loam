@@ -8,15 +8,25 @@
 \* reached their respective physical streams.
 
 VARIABLES
+  \* @type: Bool;
   diskEventNew,
+  \* @type: Bool;
   diskCorrectionNew,
+  \* @type: Bool;
   writerUp,
+  \* @type: Str;
   writerPc,
+  \* @type: Bool;
   writerCrashed,
+  \* @type: Bool;
   readerUp,
+  \* @type: Str;
   readerPc,
+  \* @type: Bool;
   seenEventNew,
+  \* @type: Bool;
   seenCorrectionNew,
+  \* @type: Bool;
   readerDone
 
 vars == <<
