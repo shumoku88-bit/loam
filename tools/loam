@@ -30,7 +30,34 @@ run_loam() {
   fi
 }
 
+correction_dependencies_are_current() {
+  local relation_olean=".lake/build/lib/lean/Loam/Core/RelationAdmission.olean"
+  local persistence_olean=".lake/build/lib/lean/Loam/Persistence.olean"
+
+  [[ -f "$relation_olean" && -f "$persistence_olean" ]] || return 1
+
+  if find Loam/Core -type f -name '*.lean' -newer "$relation_olean" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  if [[ Loam/Persistence.lean -nt "$persistence_olean" ]]; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && ( "$input" -nt "$relation_olean" || "$input" -nt "$persistence_olean" ) ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
 run_correction() {
+  if ! correction_dependencies_are_current; then
+    echo "Preparing correction support..."
+    lake build Loam.Core.RelationAdmission Loam.Persistence >/dev/null
+  fi
   exec lake env lean --run LoamCorrection.lean "$@"
 }
 
