@@ -4,4 +4,35 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+if [[ $# -eq 0 ]]; then
+  memory_file="scratch/dogfood/memory.loam"
+
+  cat <<'EOF'
+LOAM
+
+What do you want to do?
+1. Record spending
+2. Review what I recorded
+q. Quit
+EOF
+  printf '> '
+  IFS= read -r choice
+
+  case "$choice" in
+    1)
+      exec lake exe loam spend "$memory_file"
+      ;;
+    2)
+      exec lake exe loam review "$memory_file"
+      ;;
+    q|Q)
+      exit 0
+      ;;
+    *)
+      echo "loam: choice not understood" >&2
+      exit 2
+      ;;
+  esac
+fi
+
 exec lake exe loam "$@"
