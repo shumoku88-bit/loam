@@ -49,11 +49,14 @@ Persistent physical state:
 - `diskCorrectionNew`
 - `diskEventNew`
 
-Volatile writer state:
+Volatile writer/probe state:
 
 - `writerUp`
 - `writerPc`
 - `writerCrashed`
+- `crashedAfterRelation`
+
+`crashedAfterRelation` records the specific recovery midpoint where the Correction has reached disk but the replacement Event has not.
 
 Volatile reader state:
 
@@ -121,31 +124,34 @@ That is the transient shape that can make a correction-aware view pass through `
 
 ### `IndInv`
 
-The model also records a stronger reachable-state shape for Apalache's inductive-invariant check. It combines:
+The model records a stronger reachable-state shape for Apalache's inductive-invariant check. It combines:
 
 - type constraints;
 - `DiskOrder`;
 - reader snapshot safety;
 - writer phase constraints;
-- reader phase/sample constraints.
+- reader phase/sample constraints;
+- the monotone mid-publication crash marker.
 
 This is protocol structure only. It does not add chronology, transaction identity, authority, or a domain batch concept.
 
-## Expected Apalache checks
+## Observed Apalache results
 
-The CI pins Apalache 0.62.2 and checks:
+CI pins Apalache 0.62.2 and its release SHA-256, runs it on Java 21, and checks:
 
-1. `Init` satisfies `IndInv`.
-2. One `Next` step preserves `IndInv` when starting from `IndInv`.
-3. `IndInv` implies `Safety`.
-4. A bounded recovery witness exists where the writer crashes and an explicit retry later completes Event publication.
-5. The sensitivity model `UnsafeNext`, which publishes Event before Correction, violates `DiskOrder`.
+1. `Init` satisfies `IndInv`: **PASS**.
+2. One `Next` step preserves `IndInv` from an arbitrary `IndInv` state: **PASS**.
+3. `IndInv` implies `Safety`: **PASS**.
+4. A bounded witness exists for `Correction published -> crash before Event -> restart/retry -> Event published`: **PASS, counterexample to `NoRecoveredCompletion` found**.
+5. The sensitivity model `UnsafeNext`, which publishes Event before Correction, violates `DiskOrder`: **PASS, counterexample found**.
 
-The first three checks are the important safety result. The final two ensure the model is not vacuous: retry can actually recover, and reversing writer order still produces the bad physical state.
+The first two checks establish the ordinary induction pattern: the initial state is inside `IndInv`, and every modeled transition preserves it. Because `Safety` follows from `IndInv`, the modeled safety property is not limited to one chosen execution length.
+
+The last two checks keep the model from becoming vacuous. The exact mid-publication crash can recover under explicit retry, while reversing writer order still reaches the bad physical state.
 
 ## Interpretation
 
-If the inductive checks pass, the bounded one-Correction protocol gains a stronger result than Observation 059:
+Observation 060 strengthens Observation 059:
 
 > Crash/restart does not by itself force Event and Correction into one atomic physical bundle, provided publication remains relation-first, acquisition remains Event-first, already-published stream state does not roll back, and retry is explicit and idempotent at this level.
 
