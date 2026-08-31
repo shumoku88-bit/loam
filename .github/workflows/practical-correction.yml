@@ -58,8 +58,8 @@ jobs:
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
 
           printf '1\nwallet\n1280\n' | \
-            lake env lean --run LoamCorrection.lean "$memory_file" "$correction_file" \
-            >/tmp/loam-correction.out
+            lake env lean --run LoamCorrection.lean "$memory_file" "$correction_file" | \
+            tee /tmp/loam-correction.out
 
           grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
 
