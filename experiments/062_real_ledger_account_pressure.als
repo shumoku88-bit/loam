@@ -212,9 +212,9 @@ assert NominalPresentationCannotChangeSelectedShapes {
   }
 }
 
-run representativeLedgerShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
-run sameSemanticCoreDifferentNominals for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
-run roleOverlayCanChangeRecognizedShape for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
-check EffectCoreAloneDeterminesSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
-check EffectCorePlusRoleDeterminesSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
-check NominalPresentationCannotChangeSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, 5 Int
+run representativeLedgerShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
+run sameSemanticCoreDifferentNominals for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
+run roleOverlayCanChangeRecognizedShape for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
+check EffectCoreAloneDeterminesSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
+check EffectCorePlusRoleDeterminesSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
+check NominalPresentationCannotChangeSelectedShapes for exactly 8 Event, exactly 7 Locus, exactly 17 Effect, exactly 2 AccountName, exactly 2 EventKind, exactly 2 World, 5 Int
