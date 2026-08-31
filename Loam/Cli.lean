@@ -9,8 +9,26 @@ set_option autoImplicit false
 def renderAmount (amount : Loam.Core.SomeAmount) : String :=
   amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
-private def usage : String :=
-  "usage:\n  loam spend MEMORY_FILE\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory quantity FILE LOCUS MEASURE\n  loam event-memory add MEMORY_FILE EVENT_FILE"
+private def practicalUsage : String :=
+  "LOAM practical dogfood\n\n" ++
+  "Record a JPY spend:\n" ++
+  "  ./tools/loam spend scratch/dogfood/memory.loam\n\n" ++
+  "Review recorded facts:\n" ++
+  "  ./tools/loam review scratch/dogfood/memory.loam\n\n" ++
+  "The final path is the memory file LOAM reads or writes.\n" ++
+  "For lower-level commands:\n" ++
+  "  ./tools/loam help low-level"
+
+private def lowLevelUsage : String :=
+  "Low-level commands\n" ++
+  "Replace each word in <angle brackets> with your own value.\n" ++
+  "Do not type the angle-bracket words literally.\n\n" ++
+  "  ./tools/loam amount show <amount-file>\n" ++
+  "  ./tools/loam event create <event-file> <event-id> [<effect-key> <locus> <measure> <quanta>]...\n" ++
+  "  ./tools/loam event quantity <event-file> <locus> <measure>\n" ++
+  "  ./tools/loam event-memory get <memory-file> <event-id>\n" ++
+  "  ./tools/loam event-memory quantity <memory-file> <locus> <measure>\n" ++
+  "  ./tools/loam event-memory add <memory-file> <event-file>"
 
 /-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
 private def parseEffects : List String → Option (List Loam.Core.Effect)
@@ -30,13 +48,18 @@ private def parseEffects : List String → Option (List Loam.Core.Effect)
 
 /-- Read one persisted amount and print its stable measure token and exact quanta. -/
 def showAmount (path : String) : IO UInt32 := do
-  match ← Loam.Persistence.load? (System.FilePath.mk path) with
-  | some amount =>
-      IO.println (renderAmount amount)
-      return 0
-  | none =>
-      IO.eprintln "loam: malformed or unsupported amount file"
-      return 2
+  let filePath := System.FilePath.mk path
+  if ← filePath.pathExists then
+    match ← Loam.Persistence.load? filePath with
+    | some amount =>
+        IO.println (renderAmount amount)
+        return 0
+    | none =>
+        IO.eprintln "loam: malformed or unsupported amount file"
+        return 2
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
 
 /--
 Create one complete event from caller-supplied effect tuples and persist it in
@@ -73,14 +96,19 @@ read-only `Event.quantityAt` projection.
 -/
 def showEventQuantity
     (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
-  match ← Loam.Persistence.loadEvent? (System.FilePath.mk path) with
-  | some event =>
-      let quantity := Loam.Core.Event.quantityAt event ⟨locusToken⟩ ⟨measureToken⟩
-      IO.println (toString quantity.quanta)
-      return 0
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event file"
-      return 2
+  let filePath := System.FilePath.mk path
+  if ← filePath.pathExists then
+    match ← Loam.Persistence.loadEvent? filePath with
+    | some event =>
+        let quantity := Loam.Core.Event.quantityAt event ⟨locusToken⟩ ⟨measureToken⟩
+        IO.println (toString quantity.quanta)
+        return 0
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event file"
+        return 2
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
 
 /--
 Read one persisted Event memory and retrieve one Event by stable identity.
@@ -88,23 +116,28 @@ The command exposes no storage index and therefore adds no `first`, `latest`,
 temporal, causal, priority, authority, or posting-order semantics.
 -/
 def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
-  match ← Loam.Persistence.loadEventMemory? (System.FilePath.mk path) with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      match Loam.Core.EventMemory.findById? memory ⟨eventToken⟩ with
-      | none =>
-          IO.eprintln "loam: event not found in memory"
-          return 1
-      | some event =>
-          match Loam.Persistence.encodeEvent? event with
-          | some text =>
-              IO.print text
-              return 0
-          | none =>
-              IO.eprintln "loam: remembered event cannot be represented"
-              return 2
+  let memoryFile := System.FilePath.mk path
+  if ← memoryFile.pathExists then
+    match ← Loam.Persistence.loadEventMemory? memoryFile with
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event-memory file"
+        return 2
+    | some memory =>
+        match Loam.Core.EventMemory.findById? memory ⟨eventToken⟩ with
+        | none =>
+            IO.eprintln "loam: event not found in memory"
+            return 1
+        | some event =>
+            match Loam.Persistence.encodeEvent? event with
+            | some text =>
+                IO.print text
+                return 0
+            | none =>
+                IO.eprintln "loam: remembered event cannot be represented"
+                return 2
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
 
 /--
 Read one persisted Event memory and project the exact aggregate of all recorded
@@ -116,15 +149,57 @@ accounting semantics, and therefore is not named `balance`.
 -/
 def showRememberedQuantity
     (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
-  match ← Loam.Persistence.loadEventMemory? (System.FilePath.mk path) with
-  | some memory =>
-      let quantity :=
-        Loam.Core.EventMemory.quantityAtRecorded memory ⟨locusToken⟩ ⟨measureToken⟩
-      IO.println (toString quantity.quanta)
-      return 0
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
+  let memoryFile := System.FilePath.mk path
+  if ← memoryFile.pathExists then
+    match ← Loam.Persistence.loadEventMemory? memoryFile with
+    | some memory =>
+        let quantity :=
+          Loam.Core.EventMemory.quantityAtRecorded memory ⟨locusToken⟩ ⟨measureToken⟩
+        IO.println (toString quantity.quanta)
+        return 0
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event-memory file"
+        return 2
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
+
+/--
+Show every Event currently represented in one Event memory without interpreting
+representation order as time, causality, priority, or authority.
+
+This is a human-facing inspection entrance, not a chronological history. It
+prints only facts the current Practical Core actually retains; descriptive
+context such as merchant or purpose is therefore absent unless a future
+observation earns a representation for it.
+-/
+def reviewRememberedEvents (path : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk path
+  if ← memoryFile.pathExists then
+    match ← Loam.Persistence.loadEventMemory? memoryFile with
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event-memory file"
+        return 2
+    | some memory =>
+        match memory.events with
+        | [] =>
+            IO.println "No recorded events."
+            return 0
+        | events =>
+            IO.println "Recorded facts (display order has no time meaning):"
+            for event in events do
+              IO.println ("Event " ++ event.id.token)
+              match event.effects with
+              | [] => IO.println "  (no quantity effects)"
+              | effects =>
+                  for effect in effects do
+                    IO.println
+                      ("  " ++ effect.locus.token ++ ": " ++
+                        toString effect.quantity.quanta ++ " " ++ effect.measure.token)
+            return 0
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
 
 /--
 Add one already-complete persisted Event to an existing Event memory.
@@ -139,26 +214,33 @@ does not serialize concurrent writers or claim power-loss durability.
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let eventFile := System.FilePath.mk eventPath
-  match ← Loam.Persistence.loadEventMemory? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      match ← Loam.Persistence.loadEvent? eventFile with
-      | none =>
-          IO.eprintln "loam: malformed or unsupported event file"
-          return 2
-      | some event =>
-          match Loam.Core.EventMemory.add? memory event with
-          | none =>
-              IO.eprintln "loam: event identity already remembered"
-              return 1
-          | some updated =>
-              if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                return 0
-              else
-                IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
-                return 2
+  if !(← memoryFile.pathExists) then
+    IO.eprintln ("loam: file not found: " ++ memoryPath)
+    return 2
+  else if !(← eventFile.pathExists) then
+    IO.eprintln ("loam: file not found: " ++ eventPath)
+    return 2
+  else
+    match ← Loam.Persistence.loadEventMemory? memoryFile with
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event-memory file"
+        return 2
+    | some memory =>
+        match ← Loam.Persistence.loadEvent? eventFile with
+        | none =>
+            IO.eprintln "loam: malformed or unsupported event file"
+            return 2
+        | some event =>
+            match Loam.Core.EventMemory.add? memory event with
+            | none =>
+                IO.eprintln "loam: event identity already remembered"
+                return 1
+            | some updated =>
+                if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                  return 0
+                else
+                  IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
+                  return 2
 
 /-- Prompt for one line while keeping the practical entrance interactive. -/
 private def promptLine (prompt : String) : IO String := do
@@ -265,7 +347,17 @@ def spendJpy (memoryPath : String) : IO UInt32 := do
 /-- Command dispatcher for the practical CLI surface. -/
 def run (args : List String) : IO UInt32 :=
   match args with
+  | [] => do
+      IO.println practicalUsage
+      return 0
+  | ["help"] => do
+      IO.println practicalUsage
+      return 0
+  | ["help", "low-level"] => do
+      IO.println lowLevelUsage
+      return 0
   | ["spend", memoryPath] => spendJpy memoryPath
+  | ["review", memoryPath] => reviewRememberedEvents memoryPath
   | ["amount", "show", path] => showAmount path
   | "event" :: "create" :: path :: eventToken :: effectArgs =>
       createEvent path eventToken effectArgs
@@ -278,7 +370,8 @@ def run (args : List String) : IO UInt32 :=
   | ["event-memory", "add", memoryPath, eventPath] =>
       addRememberedEvent memoryPath eventPath
   | _ => do
-      IO.eprintln usage
+      IO.eprintln "loam: command not understood"
+      IO.eprintln practicalUsage
       return 2
 
 end Loam.Cli
