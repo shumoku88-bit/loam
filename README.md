@@ -31,7 +31,7 @@ Using every tool is not a goal. If two tools answer the same question in the sam
 
 ## Current map
 
-Observations 001–060 form the first completed arc from pre-household structure discovery to a practical split-stream persistence protocol. Observation 061 extends that protocol result to a multi-parent Resolution over an already-visible stable conflict frontier without claiming the same result for a moving frontier. See [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) for the current inventory of earned structure, derived views, overlays, protocol findings, and deliberately unearned concepts.
+Observations 001–060 form the first completed arc from pre-household structure discovery to a practical split-stream persistence protocol. Observation 061 extends that protocol result to a multi-parent Resolution over an already-visible stable conflict frontier. Observation 062 then applies anonymized real-ledger pressure and finds that representative transfer, expense, split-expense, income, liability, repayment, refund, and opening-balance shapes still fit `Event + Effect + Locus + AccountingRole` without forcing a conventional Account object or nominal EventKind back into the neutral core. See [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) for the current inventory of earned structure, derived views, overlays, protocol findings, and deliberately unearned concepts.
 
 ## Observation 001 — A World Before Envelopes
 
