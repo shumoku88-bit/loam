@@ -218,3 +218,40 @@ jobs:
           fi
           test "$status" = '2'
           grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-cli.err
+
+          record_memory="$tmp_dir/record-memory.loam"
+          printf 'wallet\n-1280\njpy\n' | ./tools/loam record "$record_memory" >/tmp/loam-record.out
+          grep -Fq 'Recorded total at wallet / jpy: -1280' /tmp/loam-record.out
+          expected_record_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
+          test "$(cat "$record_memory")" = "$expected_record_memory"
+
+          printf 'wallet\n-220\njpy\n' | ./tools/loam record "$record_memory" >/tmp/loam-record.out
+          grep -Fq 'Recorded total at wallet / jpy: -1500' /tmp/loam-record.out
+          expected_record_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1280\nEVENT\trecord-2\nEFFECT\teffect-1\twallet\tjpy\t-220'
+          test "$(cat "$record_memory")" = "$expected_record_memory"
+          output="$(./tools/loam event-memory quantity "$record_memory" wallet jpy)"
+          test "$output" = '-1500'
+
+          invalid_record_memory="$tmp_dir/invalid-record-memory.loam"
+          if printf 'wallet\nnot-a-number\n' | ./tools/loam record "$invalid_record_memory" >/tmp/loam-record.out 2>/tmp/loam-record.err; then
+            echo 'expected invalid interactive change to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'change must be a signed integer quantity' /tmp/loam-record.err
+          test ! -e "$invalid_record_memory"
+
+          malformed_record_memory="$tmp_dir/malformed-record-memory.loam"
+          printf 'broken\n' >"$malformed_record_memory"
+          before_malformed_record="$(cat "$malformed_record_memory")"
+          if printf 'wallet\n-1\njpy\n' | ./tools/loam record "$malformed_record_memory" >/tmp/loam-record.out 2>/tmp/loam-record.err; then
+            echo 'expected malformed Event memory record target to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-record.err
+          test "$(cat "$malformed_record_memory")" = "$before_malformed_record"
