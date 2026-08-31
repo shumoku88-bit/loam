@@ -153,9 +153,43 @@ If both worlds use the same policy and both explicitly satisfy `conformsToPolicy
 
 Expected check result: **UNSAT counterexample**.
 
+## Executed result
+
+Alloy 6.2.0 + Sat4j produced:
+
+```text
+representativePolicyAttribution                         SAT
+oppositePoliciesDifferentQuantityAttribution            SAT
+samePolicyDifferentExplicitRelation                     SAT
+sameExplicitRelationDifferentPolicy                     SAT
+policyAndExplicitCanDisagree                            SAT
+PolicyDeterminesExplicitConsumption                     SAT counterexample
+ExplicitConsumptionDeterminesPolicy                     SAT counterexample
+ExplicitConsumptionMustEqualPolicyAttribution           SAT counterexample
+PolicyDeterminesPolicyAttribution                       UNSAT counterexample
+SamePolicyAndConformanceDetermineExplicitConsumption    UNSAT counterexample
+```
+
+The strongest concrete counterexamples are small:
+
+```text
+same policy = PreferEarlier
+
+Left explicit relation:   2 + 2
+Right explicit relation:  3 + 1
+```
+
+So a deterministic current policy does not determine an independently retained source relation.
+
+Conversely the same explicit `2 + 2` relation coexists with `PreferEarlier` in one world and `PreferLater` in another, so the retained relation does not identify the policy either.
+
+The UNSAT checks confirm the narrower positive result: the policy function itself is deterministic, and when both worlds explicitly state conformance to the same policy, their retained quantity allocation is fixed.
+
+The first workflow run failed before solving because Alloy does not accept the initially written nested `if ... then ... else ...` syntax. The selector was rewritten as an explicit four-case relational predicate. No semantic hypothesis or expected result changed.
+
 ## Intended interpretation
 
-If the expected results hold, the bounded distinction is:
+The bounded distinction is:
 
 ```text
 valid disposal allocation
@@ -204,7 +238,7 @@ The practical core already has stable `EffectKey` identity, exact `Quantity`, an
 
 Observation 068 does not reuse those modules automatically or add a disposal API. Similar mathematical shape does not establish identical domain semantics.
 
-No Practical Core change is earned merely by the bounded distinction.
+No Practical Core change is earned by the bounded distinction.
 
 ## Important boundaries
 
