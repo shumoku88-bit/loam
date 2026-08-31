@@ -53,22 +53,57 @@ effect context = parent Event context
 
 That is tested as an explicit additional law rather than assumed by the representation.
 
-## Expected pressure
+## Observed Alloy result
 
-The model asks for witnesses where:
+Alloy 6.2.0 + Sat4j produced the expected boundary:
 
-- the same Event context coexists with different Effect context;
-- the same Effect context coexists with different Event context;
-- two Effects of one Event carry distinct contexts;
-- an Effect context disagrees with its Event context.
+```text
+representativeSplitAttachment                    SAT
+sameEventContextDifferentEffectContext            SAT
+sameEffectContextDifferentEventContext            SAT
+splitEffectsNeedNotShareContext                   SAT
+eventAndEffectCanDisagree                         SAT
+uniformConformanceAllowsCompression               SAT
+PhysicalShapeDeterminesContext                    SAT counterexample
+EventContextDeterminesEffectContext               SAT counterexample
+EffectContextDeterminesEventContext               SAT counterexample
+UniformConformanceMakesEventContextSufficient     UNSAT counterexample
+SplitContextCannotConformToSingleEventContext     UNSAT counterexample
+```
 
-It then checks whether either attachment relation determines the other.
+The same physical Event/Effect shape therefore admits worlds where Event-level context stays fixed while Effect-level context changes, and worlds where Effect-level context stays fixed while Event-level context changes.
 
-The intended boundary is not that LOAM must store two concrete context fields. The narrower question is whether collapsing all descriptive context to one Event-level value, or all descriptive context to Effect-level values, is information-preserving for a future vocabulary that can ask both scopes.
+One Event may also contain Effects with different contexts. Such a split-context world cannot satisfy the compression law that every Effect simply inherits one Event context.
+
+Conversely, when that uniform-conformance law is explicitly imposed, the same Event context does determine the Effect contexts in this bounded model.
+
+## Finding
+
+The bounded distinction is:
+
+```text
+context attached to the whole Event
+    !=
+context attached to an individual Effect
+```
+
+Neither attachment scope determines the other merely from the physical Event/Effect structure.
+
+A single Event-level context can be sufficient only under an additional semantic law:
+
+```text
+all Effect context = parent Event context
+```
+
+That law is not a free representation compression. It rules out observable split-context worlds.
+
+Likewise, Effect-level context alone does not reconstruct an independently retained whole-Event context.
+
+So if a future human vocabulary needs both questions, attachment scope itself is information that must remain distinguishable. This does **not** imply that LOAM should store two concrete fields. A generic attachment relation or several typed overlays could preserve the same distinction; representation remains open.
 
 ## Deliberate boundary
 
-Even if the bounded model separates Event-level from Effect-level attachment, it does not tell us what any Context means.
+The model still does not tell us what any Context means.
 
 In particular, this observation does **not** earn:
 
@@ -94,6 +129,6 @@ The observation is about attachment scope only.
 
 ## Practical Core impact
 
-None unless a later practical question actually requires one of these context distinctions.
+None yet.
 
-No Practical Core, Persistence, CLI, or wire-format change is proposed by Observation 073.
+Observation 073 adds no Practical Core type, Persistence format, CLI prompt, or wire-format field. The next practical step should still be driven by a concrete human question that requires one of these retained contexts rather than by the existence of the bounded model alone.
