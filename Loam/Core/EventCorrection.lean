@@ -221,7 +221,7 @@ def projectSiblingConflict?
                 branchIdNodup := by simp [hBranchId]
                 branchTarget := by
                   intro branch hBranch
-                  simp only [List.mem_cons, List.mem_singleton] at hBranch
+                  simp only [List.mem_cons, List.not_mem_nil, or_false] at hBranch
                   rcases hBranch with rfl | rfl
                   · exact hLeftTarget
                   · exact hRightTarget
