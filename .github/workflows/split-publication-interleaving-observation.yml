@@ -1,0 +1,71 @@
+name: Observation 059
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/059_split_publication_safe.pml'
+      - 'experiments/059_split_publication_unsafe_writer.pml'
+      - 'experiments/059_split_publication_unsafe_reader.pml'
+      - 'experiments/059_split_publication_interleaving.md'
+      - '.github/workflows/split-publication-interleaving-observation.yml'
+  push:
+    branches:
+      - 'experiment/059-split-publication-interleaving'
+      - main
+    paths:
+      - 'experiments/059_split_publication_safe.pml'
+      - 'experiments/059_split_publication_unsafe_writer.pml'
+      - 'experiments/059_split_publication_unsafe_reader.pml'
+      - 'experiments/059_split_publication_interleaving.md'
+      - '.github/workflows/split-publication-interleaving-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spin:
+    name: SPIN split publication interleaving
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install SPIN
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y spin
+          spin -V
+
+      - name: Verify candidate protocol has no unsafe interleaving
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/059_split_publication_safe.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'errors:[[:space:]]+0' <<<"$output"
+
+      - name: Require Event-first writer counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/059_split_publication_unsafe_writer.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'assertion violated|errors:[[:space:]]+[1-9][0-9]*' <<<"$output"
+          if grep -Eq 'errors:[[:space:]]+0' <<<"$output"; then
+            echo 'expected an unsafe writer-order interleaving'
+            exit 1
+          fi
+
+      - name: Require relation-first reader counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/059_split_publication_unsafe_reader.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'assertion violated|errors:[[:space:]]+[1-9][0-9]*' <<<"$output"
+          if grep -Eq 'errors:[[:space:]]+0' <<<"$output"; then
+            echo 'expected an unsafe reader-order interleaving'
+            exit 1
+          fi
