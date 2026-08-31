@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–067.
+This document is a checkpoint after Observations 001–068.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -144,7 +144,7 @@ same semantic core, different AccountName / EventKind    SAT
 role-only change can change recognized shape             SAT
 Effect core alone determines selected shapes             SAT counterexample
 Effect core + AccountingRole determines selected shapes  UNSAT counterexample
-nominal presentation changes selected shapes              UNSAT counterexample
+nominal presentation changes selected shapes             UNSAT counterexample
 ```
 
 So the real-data pressure does not reverse Observations 031 or 049. It strengthens their practical relevance:
@@ -405,6 +405,59 @@ before any new Lot identity is allowed into the practical core.
 
 This does not establish one-to-one acquisition-to-Effect mapping, production disposal semantics, a selection algorithm, transfer of acquisition provenance, or gain calculation.
 
+### 068 — policy attribution is not an explicit source relation
+
+Observation 068 asks whether the quantity-bearing relation exposed by Observation 067 should automatically be treated as the output of a configured selection policy.
+
+The physical facts are held fixed at two acquisition-specific Effects of three units each and one four-unit disposal. Several quantity allocations are structurally valid. Two experiment-local deterministic selectors choose opposite attributions:
+
+```text
+PreferEarlier -> 3 + 1
+PreferLater   -> 1 + 3
+```
+
+Each world separately retains an `explicitConsumption` relation. A `conformsToPolicy` predicate connects that relation to the policy only when the model explicitly asks for the connection.
+
+Observed:
+
+```text
+representative policy attribution                         SAT
+opposite policies, different quantity attribution         SAT
+same policy, different explicit relation                  SAT
+same explicit relation, different policy                  SAT
+policy and explicit relation can disagree                 SAT
+policy determines explicit relation                       SAT counterexample
+explicit relation determines policy                       SAT counterexample
+explicit relation must equal policy attribution           SAT counterexample
+same policy determines policy attribution                 UNSAT counterexample
+same policy + conformance determines explicit relation    UNSAT counterexample
+```
+
+The bounded separation is therefore:
+
+```text
+valid disposal allocation
+    !=
+policy-selected attribution
+    !=
+explicitly retained source relation
+```
+
+The first boundary says the physical facts allow more than one valid allocation. The second says a deterministic current selector does not by itself establish what an independently retained historical or source-specific statement means.
+
+A separate semantic rule can deliberately connect them:
+
+```text
+physical facts
+    + policy
+    + explicit conformance
+        -> selected explicit attribution
+```
+
+Observation 068 therefore does not promote FIFO, LIFO, specific identification, or another familiar method into physical history. It also does not claim an explicit source relation is automatically authoritative evidence. It only establishes that policy output and retained source relation are independently variable until an additional conformance rule connects them.
+
+This is distinct from Observation 047. That observation separated a selection policy from the revision graph it selects over. Observation 068 applies the lesson to a quantity-bearing allocation and additionally separates a deterministic policy output from an independently retained relation.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -426,6 +479,8 @@ Observation 065 uses Event identity to distinguish otherwise matching refund-sou
 Observation 066 introduces one experiment-local acquisition identity only to ask whether basis belongs to that acquisition rather than to valuation history. It does not yet earn a new practical identity type.
 
 Observation 067 strengthens the relevance of already-earned Effect identity: aggregate quantity and even the set of participating source identities can lose disposal provenance. The bounded selected vocabulary can refer directly to acquisition-specific Effect-like identities without adding a separate Lot identity.
+
+Observation 068 adds no identity type. A configured policy and an explicit source relation remain distinguishable even when both refer to the same acquisition Effect identities.
 
 ### Quantitative coordinates
 
@@ -450,6 +505,8 @@ Observation 065 adds no quantity coordinate either. Even retaining the physical 
 Observation 066 also adds no physical quantity coordinate. Acquisition basis and valuation remain comparison/provenance information outside the signed physical placement geometry in the bounded model.
 
 Observation 067 adds no new physical coordinate either, but it does show that provenance itself can be quantity-bearing. Retaining only the aggregate quantity or only a set-valued source relation loses how much of one disposal was assigned to each acquisition identity.
+
+Observation 068 keeps that quantity-bearing shape but separates three meanings: a structurally valid allocation, a policy-generated attribution, and an independently retained source relation.
 
 ### Explicit revision relations
 
@@ -495,7 +552,9 @@ Disposal Effect
     -> Quantity
 ```
 
-This does not yet imply a first-class Lot object, a production disposal relation, or a selection policy.
+Observation 068 sharpens the meaning of that relation: it must not silently be equated with the output of a currently configured policy unless the application explicitly establishes conformance between the retained relation and the selector.
+
+This does not yet imply a first-class Lot object, a production disposal relation, or a practical selection-policy type.
 
 ### More than one time coordinate when the question requires it
 
@@ -504,6 +563,8 @@ The observation layer has earned a distinction between validity and knowledge ti
 Observation 063 additionally demonstrates that expected time and Actual time need not be equal merely because a Plan and Event are linked.
 
 Observation 066 is deliberately not another time-coordinate result. It shows that two meanings can remain distinct even when they refer to the same acquisition coordinate.
+
+Observation 068 deliberately leaves policy change through time unmodeled. That is now a separate temporal pressure rather than something inferred from the static independence result.
 
 ## 3. Derived views
 
@@ -526,6 +587,7 @@ The following have appeared as derivable views rather than automatically deservi
 - aggregate post-disposal holding from acquisition quantities and explicit consumption provenance
 - participating acquisition source set from positive disposal-provenance quantities
 - implicated acquisition-basis set from the participating acquisition identities
+- policy-generated disposal attribution from physical acquisition positions plus a selected policy
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -544,8 +606,10 @@ These relations have evidence of semantic independence from the neutral physical
 - refund / reimbursement source linkage in the bounded Observation 065 vocabulary
 - valuation / rate relations
 - acquisition-basis relation in the bounded Observation 066 vocabulary
-- quantity-bearing disposal-to-acquisition provenance in the bounded Observation 067 vocabulary
-- selection policy
+- quantity-bearing disposal-to-acquisition source relation in the bounded Observations 067–068 vocabulary
+- disposal selection policy in the bounded Observation 068 vocabulary
+- explicit conformance between policy output and retained attribution when an application chooses that semantics
+- selection policy more generally
 - backing eligibility
 - recipient assignment
 - other application-facing classifications
@@ -561,6 +625,8 @@ Observation 065 adds that numerical offset and net quantity do not determine ref
 Observation 066 adds that acquisition basis is not determined by valuation history, even when the valuation answer at the acquisition coordinate is retained.
 
 Observation 067 adds that disposal provenance is not determined by aggregate holding, and a source-set overlay is still too coarse when the amount consumed from each acquisition remains observable.
+
+Observation 068 adds that a deterministic policy-generated attribution is not automatically the same information as an independently retained source relation. Conformance is an additional semantic statement, not a consequence of the physical facts or policy alone.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -585,11 +651,13 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observations 062–067 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, disposal-provenance type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
+Observations 062–068 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, disposal-provenance type, disposal-policy type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
 
 Observation 066 does not change `Rate`. The current practical `Rate` already deliberately avoids claiming that a Measure relation is a price, valuation authority, or time-stable fact. The observation only adds evidence that a rate-like valuation relation should not be reused implicitly as acquisition provenance.
 
 Observation 067 likewise does not change `Effect` or reuse the existing practical `Allocation` module merely because the experiment contains a quantity-bearing relation. It first establishes only that stable Effect-like identity can serve as a meaningful provenance endpoint in the bounded vocabulary and that aggregate projection is insufficient.
+
+Observation 068 does not change `Allocation` or `RecipientAssignment` either. A deterministic quantity allocator and an explicitly retained accounting/source relation may have similar mathematical shapes while carrying different semantics.
 
 The implementation policy remains conservative:
 
@@ -621,7 +689,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observations 062–067 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, acquisition basis, or disposal provenance does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, disposal-provenance stream, lot store, or recurrence store.
+Observations 062–068 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, acquisition basis, disposal source attribution, or policy conformance does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, disposal-attribution stream, policy stream, lot store, or recurrence store.
 
 ## 7. Deliberately unearned concepts
 
@@ -654,15 +722,20 @@ LOAM should not silently promote the following into domain law without a new obs
 - first-class basis identity, correction, authority, or persistence
 - a production disposal-provenance relation merely because its information shape is observable
 - an additional Lot identity when existing acquisition / Effect identity already suffices for the bounded selected questions
-- FIFO, LIFO, average-cost, specific-identification, or any other lot-selection policy
-- realized/unrealized gain semantics derived merely from valuation, basis, and disposal-provenance separation
+- FIFO, LIFO, average-cost, specific-identification, or any other lot-selection policy as primitive physical history
+- a Practical Core disposal-selection policy type merely because deterministic attribution is observable
+- policy identity, versioning, validity time, provenance, authority, or correction semantics
+- automatic rewriting of historical disposal attribution when a configured policy changes
+- a rule that policy changes affect only future disposals
+- a rule that every explicit source relation must conform to the current policy
+- realized/unrealized gain semantics derived merely from valuation, basis, disposal-provenance, and policy separation
 - tax-specific basis rules
 - issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-seven observations
+## 8. Tool roles after sixty-eight observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -680,8 +753,9 @@ Use when the question is primarily structural:
 - can aggregate quantity reconstruct a source-specific real-world provenance relation?
 - can one semantic relation be reconstructed from another even when both refer to the same time coordinate?
 - can an aggregate or set-valued provenance view reconstruct a quantity-bearing provenance relation?
+- does a deterministic selection policy determine an independently retained relation, or is explicit conformance another piece of information?
 
-Observations 062–067 are examples of the last six cases.
+Observations 062–068 are examples of the last seven cases.
 
 ### J
 
@@ -699,7 +773,9 @@ Lean is both a proof environment and the current practical-core language.
 
 Use when the distinction depends on state transitions, temporal knowledge, operation order, or reachable intermediate states.
 
-Observation 034 already used TLA+ to separate historical, current, and future relation viewpoints. Observations 066–067 stay with Alloy because their new distinctions are structural: basis is independent from valuation at one coordinate, and disposal provenance is independent from aggregate holding.
+Observation 034 already used TLA+ to separate historical, current, and future relation viewpoints. Observations 066–068 stay with Alloy because their new distinctions are structural: basis is independent from valuation at one coordinate, disposal source allocation is independent from aggregate holding, and policy output is independent from an explicit retained relation unless conformance is stated.
+
+A natural next use of TLA+ would arise if policy can change after a disposal attribution has been recorded and the question becomes whether historical attribution must remain stable across that transition.
 
 ### Apalache
 
@@ -744,6 +820,8 @@ Observation 066 then opens the external-pressure arc with a distinction already 
 
 Observation 067 goes one step further without importing a Lot object. Once several acquisition-specific Effects are aggregated, a later disposal cannot recover its source provenance from the resulting holding. Even remembering only which sources participated is insufficient when the retained question asks how much came from each origin. Existing Effect-style identity plus an explicit quantity-bearing relation is sufficient for the bounded selected answers.
 
+Observation 068 then prevents that newly visible relation from being over-interpreted. The same physical facts admit multiple valid allocations. A deterministic policy can compute one attribution, but the policy neither determines nor is determined by an independently retained source relation. Only an explicit conformance rule connects the two in the bounded model.
+
 The resulting bounded picture is now:
 
 ```text
@@ -755,9 +833,15 @@ Actual physical facts
         |
         +---- acquisition-basis information when provenance is asked
         |
-        +---- quantity-bearing disposal provenance
+        +---- valid disposal allocations
                      |
-                     +----> acquisition / Effect identities
+                     +---- policy ----> selected attribution
+                     |
+                     +---- explicit source relation ----> acquisition / Effect identities
+                                      |
+                                      x---- not automatically equal to policy output
+                                      |
+                                      +---- conformance may connect them explicitly
 
 Expectation facts
         |
@@ -774,14 +858,14 @@ Valuation observations
 
 This is still not a universal ontology. It is an inventory of distinctions that concrete questions and external pressure have forced so far.
 
-It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, Lot, or disposal-provenance implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
+It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, Lot, disposal-attribution, or selection-policy implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
 
-The next external-pressure question can now separate **provenance** from **selection policy**:
+The strongest next question is now genuinely temporal rather than another static allocation variant:
 
 ```text
-several provenance assignments may be structurally possible
-        !=
-policy that selects one assignment
+record disposal attribution under policy P0
+        -> policy changes to P1
+        -> should the historical attribution change?
 ```
 
-FIFO, specific identification, or another familiar rule should therefore be introduced only as pressure for that policy question, not as a primitive accounting noun copied into the core.
+That question can test whether policy validity time, attribution provenance, or a historical policy reference is needed. Unlike Observation 068, it would give TLA+ a distinct job rather than repeating Alloy's structural independence result.
