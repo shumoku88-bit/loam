@@ -60,59 +60,70 @@ From the explicit realization relation the model derives:
 - which differ in structural Shape;
 - which specific Event fulfilled which specific Plan.
 
-## Pressures
+## Pressures and observed result
 
-### 1. Can explicit realization survive non-identical expected and Actual records?
+Alloy 6.2.0 + Sat4j, exactly 3 Plans / 3 Events / 2 Times / 2 Shapes / 2 Worlds / 5-bit Ints:
 
-Require a linked Plan/Event pair with the same broad Shape but different time and amount.
+```text
+realizationCanLinkNonidenticalRecords          SAT
+sameRecordsDifferentCompletion                 SAT
+sameCompletionDifferentRealization             SAT
+sameActualCanBePlannedOrUnplanned              SAT
+exactContentCanBeAmbiguous                     SAT
+PlanEventRecordsDetermineCompletion            SAT counterexample
+CompletionSummaryDeterminesRealization         SAT counterexample
+ExplicitRelationDeterminesSelectedAnswers      UNSAT counterexample
+```
 
-Expected: **SAT**.
+The complete expected result set passed in CI.
 
-The correspondence therefore need not mean equality of every observed field.
+### 1. Explicit realization can survive non-identical expected and Actual records
 
-### 2. Can identical Plan/Event records yield different completion answers when only realization linkage changes?
+A linked Plan/Event pair can keep the same broad Shape while differing in both time and amount.
+
+Observed: **SAT**.
+
+The correspondence therefore does not mean equality of every observed field.
+
+### 2. Identical Plan/Event records do not determine completion
 
 The Plan and Event atoms and all their fields are shared across `Left` and `Right`; only `World.realizes` varies.
 
-Expected: **SAT**.
+Observed: **SAT** witness, and `PlanEventRecordsDetermineCompletion` has a **SAT counterexample**.
 
-If so, Plan/Event content alone does not determine completion.
+So Plan/Event content alone does not determine which Plan is completed.
 
-### 3. Can two worlds have exactly the same completed Plan set but disagree about which Actual Event fulfilled which Plan?
+### 3. Completion membership loses realization provenance
 
-Expected: **SAT**.
+Two worlds can have exactly the same completed Plan set while disagreeing about which Actual Event fulfilled which Plan.
 
-This asks whether a completion summary loses provenance even when it preserves completion membership.
+Observed: **SAT** witness, and `CompletionSummaryDeterminesRealization` has a **SAT counterexample**.
 
-### 4. Can the same Actual Event be planned in one world and unplanned in another while all Event content remains identical?
+A set of completed Plan identities is therefore too coarse when later questions ask which Actual Event supplied the completion evidence.
 
-Expected: **SAT**.
+### 4. Plannedness is not an intrinsic property of the Actual Event record
 
-This tests whether plannedness is a property inferable from the Actual Event itself.
+The same Actual Event can participate in realization in one world and remain unrelated to any Plan in another while all Event content stays fixed.
 
-### 5. Can exact content matching still be ambiguous?
+Observed: **SAT**.
 
-Allow one Plan to have two Event candidates with identical time, amount, and Shape, while explicit realization selects only one.
+### 5. Exact content matching can still be ambiguous
 
-Expected: **SAT**.
+Alloy found a Plan with two Event candidates that agree on expected/actual time, amount, and Shape. Explicit realization selects one candidate and leaves the other unrelated.
 
-Stable identity plus explicit linkage should preserve a distinction that content matching cannot recover.
+Observed: **SAT**.
 
-### 6. Do Plan and Event records determine completion without realization linkage?
+Stable identity plus explicit linkage preserves a distinction that exact content matching cannot recover.
 
-Expected check result: **SAT counterexample**.
+### 6. Explicit realization determines the selected answers
 
-### 7. Does the completed-Plan set determine realization provenance?
+When `Left.realizes = Right.realizes`, Alloy found no counterexample in which completion, realized-Event membership, or amount/time/Shape mismatch answers differ.
 
-Expected check result: **SAT counterexample**.
+Observed check result: **UNSAT counterexample**.
 
-### 8. Once explicit realization is fixed, are the selected answers fixed?
+## Finding
 
-Expected check result: **UNSAT counterexample**.
-
-## Interpretation if the expected results hold
-
-The intended bounded conclusion is:
+The bounded separation is:
 
 ```text
 Plan record
@@ -125,6 +136,18 @@ which Event realizes which Plan
 ```
 
 The realization correspondence therefore carries its own observable information.
+
+This sharpens the earlier commitment observations without turning Plan into part of the physical Event core:
+
+```text
+physical / Actual facts
+        !=
+expectation facts
+        !=
+realization linkage between them
+```
+
+The relation is not recoverable from matching time, amount, or Shape, even when all three happen to match, because multiple identity-distinct Events may occupy the same observable coordinates.
 
 That does **not** force realization to be a first-class practical fact with its own identity yet. Under the current one-to-one vocabulary it may be stored as a Plan-side field, Event-side field, or separate relation while preserving the same information.
 
@@ -156,10 +179,10 @@ The one-to-one restriction is especially important. If real workflows require sp
 
 ## Next pressure
 
-If explicit realization linkage is independently observable, the next natural question is not automatically persistence.
+Explicit realization linkage is now independently observable, but persistence is not automatically earned.
 
 A stronger pressure would be:
 
 > Does one-to-one realization survive real workflows, or do partial/split/merged realizations force realization to become a richer relation with its own identity or lifecycle?
 
-That would be a candidate Observation 064 if concrete data or application behavior requires it.
+That would be a candidate Observation 064 only if concrete data or application behavior requires it.
