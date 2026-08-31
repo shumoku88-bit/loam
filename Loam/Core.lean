@@ -4,6 +4,8 @@ import Loam.Core.Effect
 import Loam.Core.Event
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
+import Loam.Core.EventCorrectionMemory
+import Loam.Core.EventResolutionMemory
 import Loam.Core.RelationAdmission
 import Loam.Core.CorrectionQuantity
 import Loam.Core.Rate
