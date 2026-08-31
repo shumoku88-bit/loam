@@ -1,239 +1,136 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–069.
+This document is a compressed checkpoint after Observations 001–071.
 
-It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
+It is not a final ontology, schema, or roadmap. Detailed evidence remains in the individual observation and experiment records. This map records only the current terrain: what the observations have earned, what remains derived or overlay-like, what the Practical Lean Core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
-## 1. The arc so far
+The Practical Core audit for the latest sub-arc is recorded separately in [`experiments/066_071_practical_core_audit.md`](experiments/066_071_practical_core_audit.md).
+
+## 1. Arc so far
 
 ### 001–017 — before household nouns
 
-The first observations begin without Account, Transaction, Budget, Envelope, Month, or Report and ask what survives when finite resources are distributed through time and purpose.
+LOAM begins without assuming Account, Transaction, Budget, Envelope, Month, or Report.
 
-The main pressure is whether familiar household nouns carry independent information or can be recovered as views over smaller relations.
+The early observations ask which structures survive when finite resources are distributed through time and purpose.
 
-Notable outcomes include:
+Earned lessons include:
 
 - availability can be derived in the bounded consumptive world;
-- live envelope-like holdings can be a projection of purpose placement and derived availability;
-- commitment needs information beyond live holdings;
-- vocabulary itself changes what history must remain distinguishable.
+- envelope-like live holdings can be projections rather than primary stored objects;
+- commitment requires information beyond live holdings;
+- the vocabulary of future questions determines which distinctions history must retain.
 
 ### 018–029 — memory, provenance, correction, and resolution
 
-The second arc asks how much history must remain when later questions can target, explain, correct, or resolve earlier facts.
-
-The recurring separation is:
+The second arc separates occurrence from later interpretation:
 
 ```text
 what happened
-!=
+    !=
 how the current view interprets it
 ```
 
-Append-only parentage, explicit identity, correction, resolution, conflict, and provenance pressure appear here. Compression remains vocabulary-relative: information may be forgotten only when no retained future question can distinguish the worlds it separates.
+Explicit identity, append-only parentage, provenance, Correction, Resolution, conflict, and vocabulary-relative compression appear here.
 
-### 030–039 — generic events, coordinates, and time geometry
+Earlier facts need not be erased merely because a later relation changes which facts a current view treats as effective.
 
-The third arc removes more nominal household structure.
+### 030–039 — generic Events, coordinates, and time
 
-A bounded generic event can carry selected household distinctions without primitive stored event-kind names. `Account` does not yet return as an irreducible domain object, but a distinguishable `Locus` coordinate becomes necessary once future questions ask where quantity resides.
+A bounded generic Event can retain the selected physical distinctions without restoring a nominal household EventKind hierarchy.
 
-A separate `Measure` coordinate becomes necessary when quantities that must not be collapsed coexist.
+When the questions require them, two coordinates become independently observable:
 
-Time also separates into more than one observable coordinate. In particular:
+```text
+Locus
+Measure
+```
+
+and time itself separates:
 
 ```text
 valid time
-!=
+    !=
 learned time
 ```
 
-and retrospective knowledge is naturally queried as a two-dimensional view:
+Retrospective questions can therefore require a two-dimensional view:
 
 ```text
 view(valid time, knowledge time)
 ```
 
-### 040–051 — revision structure, overlays, and asynchronous evidence
+### 040–051 — revision structure and overlays
 
-The fourth arc pressures explanation edges, conflict recurrence, revision graphs, frontier settlement, coverage, selection, backing eligibility, accounting role, asynchronous settlement, and reconciliation evidence.
+This arc pressures explanation, conflict recurrence, revision frontiers, selection, backing eligibility, AccountingRole, asynchronous settlement, and reconciliation evidence.
 
-A repeated result is that many familiar classifications are not properties of physical quantity placement itself. They remain independent overlays unless richer facts later earn a derivation.
+A recurring result is that many useful classifications are not properties of physical quantity placement itself.
 
-In particular:
+For example:
 
 ```text
 where quantity is
-!=
+    !=
 what accounting role that locus plays
 ```
 
-Selection and backing eligibility likewise remain outside the physical holdings core in the observations that test them.
+Selection policy, backing eligibility, and AccountingRole remain overlays unless richer retained facts later earn a derivation.
 
 ### 052–061 — from observation to practical protocol
 
-The fifth arc turns directly toward the practical Lean core and persistence boundary.
-
-It first separates effect identity from coordinate aggregation:
+Observation 052 earns stable Effect identity before coordinate collapse:
 
 ```text
 Effect identity
-!=
+    !=
 Locus × Measure coordinate
 ```
 
-Then it separates physical storage order from history, compares unified and split canonical fact topologies, observes publication boundaries, relation collection identity, derived referential admission, and raw relation-memory append admission.
+The following observations separate storage order from history, compare unified and split fact topologies, observe publication boundaries, relation collection identity, derived referential admission, and raw relation-memory append admission.
 
-The final three observations use protocol-specific tools:
+Protocol-specific tools then earn bounded ordering results.
 
-- Observation 059 uses SPIN to check split-stream Correction publication/acquisition interleavings.
-- Observation 060 uses TLA+ / Apalache to check crash/restart/retry behavior for the same candidate Correction protocol.
-- Observation 061 uses SPIN to ask whether a multi-parent Resolution over an already-visible stable frontier needs a stronger publication order.
-
-The candidate ordering earned for the bounded Correction case is:
+For Correction publication:
 
 ```text
 writer: Correction -> Event
 reader: Event -> Correction
 ```
 
-with fail-closed semantic admission hiding an early Correction until its referenced replacement Event is available.
-
-Observation 061 then finds that multiple already-visible parent references do not add another publication edge. For a stable existing conflict frontier, the same narrower ordering shape is sufficient:
+For a Resolution over an already-visible stable conflict frontier:
 
 ```text
 writer: Resolution -> Event
 reader: Event -> Resolution
 ```
 
-This result is intentionally conditional on the non-replacement endpoints already being visible and stable. It does not cover concurrent Correction publication that changes the frontier while a Resolution is published or acquired.
+These results do not solve moving-frontier concurrency, autonomous recovery, concurrent writers, fsync durability, or a general multi-stream transaction protocol.
 
-Observation 060 does not earn autonomous recovery, concurrent-writer semantics, fsync guarantees, or a manifest/generation protocol. Observation 061 does not turn a moving three-stream frontier into a solved problem.
+### 062–065 — real household pressure outside the physical core
 
-### 062 — real-ledger pressure without restoring Account
+Anonymized household-record structure tests whether familiar application nouns must return to the neutral core.
 
-Observation 062 turns back from protocol machinery and applies anonymized structural pressure from a private household ledger supplied by the repository owner.
-
-The public model copies no private descriptions, dates, identities, or quantities. It keeps only eight recurring shapes:
-
-- holding-to-holding transfer;
-- ordinary expense;
-- split expense;
-- income;
-- liability-funded expense;
-- liability repayment;
-- expense refund / reimbursement;
-- opening balance against equity.
-
-All eight shapes coexist in one bounded Alloy model using only:
+Observation 062 finds that representative bookkeeping shapes still fit:
 
 ```text
 Event
-Effect
-Locus
-signed Quantity
-AccountingRole
++ Effect
++ Locus
++ signed Quantity
++ AccountingRole
 ```
 
-Observed:
+without forcing a conventional Account object or nominal EventKind hierarchy into the physical core.
+
+Observation 063 finds:
 
 ```text
-representative real-ledger shapes                         SAT
-same semantic core, different AccountName / EventKind    SAT
-role-only change can change recognized shape             SAT
-Effect core alone determines selected shapes             SAT counterexample
-Effect core + AccountingRole determines selected shapes  UNSAT counterexample
-nominal presentation changes selected shapes              UNSAT counterexample
-```
-
-So the real-data pressure does not reverse Observations 031 or 049. It strengthens their practical relevance:
-
-```text
-Account as domain object
-    still not forced by the selected vocabulary
-
-AccountingRole
-    still independent of signed placement
-```
-
-This is an expressibility and observability result, not an import-format decision. Observation 062 deliberately does not decide whether a ledger posting maps one-to-one to a practical LOAM Effect.
-
-### 063 — Plan realization needs explicit identity linkage
-
-Observation 063 applies the next anonymized pressure from real household records: expected Plan facts later connect to Actual Events, but expected and Actual records need not be identical in time or quantity.
-
-The model keeps Plan identity, Event identity, a small expected/actual content vocabulary, and one explicit partial matching:
-
-```text
-Plan
-  + expected Time / Amount / Shape
-
-Event
-  + actual Time / Amount / Shape
-
-realizes : Plan -> lone Event
-```
-
-Observed:
-
-```text
-realization can link non-identical records        SAT
-same records can yield different completion       SAT
-same completed set can hide different provenance  SAT
-same Actual can be planned or unplanned            SAT
-exact content matching can be ambiguous            SAT
-Plan/Event records determine completion            SAT counterexample
-completion summary determines realization          SAT counterexample
-explicit relation determines selected answers      UNSAT counterexample
-```
-
-The bounded separation is therefore:
-
-```text
-Plan record
-    +
-Actual Event record
-
-        does not determine
-
+Plan record + Actual Event record
+    does not determine
 which Event realizes which Plan
 ```
 
-The realization linkage carries observable information of its own. Even exact time/amount/Shape matching is insufficient when identity-distinct Events occupy the same observable coordinates.
-
-Observation 063 does not choose whether the relation is physically stored on the Plan side, Event side, or as a separate relation record. Under the current one-to-one vocabulary those are representation choices. It also does not yet earn split/merged realization, Series membership, recurrence generation, or a practical Plan type.
-
-### 064 — recurring Plan content does not determine Series membership
-
-Before extending realization cardinality, Observation 064 checks the current canonical household records for concrete split or merged realization pressure. None is present yet: the visible Plan-linked Actual records still use one Plan identity per Actual record.
-
-Rather than manufacturing many-to-many realization, the observation follows a structure that is already explicit in the source: recurring Plans are grouped into Series and carry recurrence classifications such as monthly, cycle, and once.
-
-The public model retains only anonymized structure:
-
-```text
-Plan identity
-  + expected Time / Amount / Shape
-  + Recurrence kind
-
-seriesOf : Plan -> one Series
-```
-
-Observed:
-
-```text
-representative Series pressure                     SAT
-same Plan records, different grouping              SAT
-same Series, changing expected amount              SAT
-same recurrence + Shape, different Series          SAT
-Plan records determine Series grouping             SAT counterexample
-same recurrence + Shape forces same Series         SAT counterexample
-Series membership requires fixed amount            SAT counterexample
-explicit membership determines peer answers        UNSAT counterexample
-```
-
-The bounded separation is therefore:
+Observation 064 finds:
 
 ```text
 Plan content
@@ -243,57 +140,15 @@ recurrence kind
 Series membership
 ```
 
-A recurring thread can continue across changed expected quantities, while distinct recurring threads can share recurrence kind and broad structural Shape. Which Plan identities belong to the same thread is observable grouping information of its own.
-
-Observation 064 does not earn a first-class practical `Series` object or a recurrence engine. A Plan-side series identifier, standalone membership relation, or another information-equivalent encoding could preserve the same observed distinction.
-
-### 065 — refund provenance is not quantity reversal or Correction
-
-Observation 065 follows another structure already present in ordinary household records: a later return-like Event can offset quantity from an earlier expense-like Event, while a future question may still ask which earlier Event the return belongs to.
-
-The public model keeps only anonymized structure:
+Observation 065 finds:
 
 ```text
-Expense Event identity
-  + Time
-  + signed Quantity
-
-Return Event identity
-  + Time
-  + signed Quantity
-
-refundOf : Return -> lone Expense
-```
-
-The model deliberately does not require equal magnitudes. Full versus partial offset is separate from the provenance question.
-
-Observed:
-
-```text
-representative refund pressure                              SAT
-same Event records, different refund provenance             SAT
-same net quantity, different refund provenance              SAT
-matching source coordinates remain ambiguous                SAT
-same Return can be refund-linked or unlinked                SAT
-Event records determine refund provenance                   SAT counterexample
-net quantity determines refund provenance                   SAT counterexample
-explicit refund relation determines selected answers        UNSAT counterexample
-Correction-style projection preserves source occurrence     SAT counterexample
-```
-
-The bounded separation is therefore:
-
-```text
-Event records
-    +
-net quantity
-
-        does not determine
-
+Event records + net quantity
+    does not determine
 refund provenance
 ```
 
-and the practical semantic boundary is:
+and:
 
 ```text
 refund / reimbursement
@@ -301,387 +156,221 @@ refund / reimbursement
 Correction
 ```
 
-A later refund can offset quantity without saying that the earlier expense was mistaken, replaced, or did not occur. Treating the refund relation like Correction-style supersession loses the selected occurrence answer for the source Event.
+These observations make several application relations observable without yet earning practical Plan, Series, or Refund types.
 
-Observation 065 does not earn a first-class practical `Refund` object, relation identity, allocation lifecycle, or persistence stream. It only earns the distinction that source-specific refund provenance cannot be reconstructed from physical Event records or aggregate quantity when that provenance remains observable.
+### 066–071 — external accounting pressure without importing product ontology
 
-### 066 — acquisition basis is not historical valuation
+This sub-arc uses mature accounting features only as pressure. It does not copy their nouns into the Practical Core.
 
-Observation 066 begins an external-accounting-pressure arc. It does not import a conventional Lot or CostBasis object. Instead it takes a narrower pressure seen in existing accounting systems: acquisition-specific cost information and later valuation can remain separately observable.
-
-The bounded model keeps one acquisition identity, two time coordinates, complete valuation answers, and a separate acquisition-basis answer:
+Observation 066 separates:
 
 ```text
-valuationAt : Time -> ComparisonValue
-
-acquisitionBasis : Acquisition -> ComparisonValue
-```
-
-Observed:
-
-```text
-acquisition-time valuation / basis / current valuation differ  SAT
-same complete valuation history, different basis                SAT
-same basis + acquisition-time valuation, different current      SAT
-same acquisition-time valuation, different basis                SAT
-basis may differ from acquisition-time valuation                SAT
-valuation history determines basis                              SAT counterexample
-basis equals historical valuation                               SAT counterexample
-basis determines current valuation                              SAT counterexample
-explicit basis + valuation determines selected answers          UNSAT counterexample
-```
-
-The bounded separation is therefore:
-
-```text
-historical valuation relation
+historical valuation
     !=
 acquisition basis
     !=
-current valuation relation
+current valuation
 ```
 
-Observation 034 had already shown that historical and current valuation can differ across time. Observation 066 adds a different distinction: even at the acquisition coordinate, a historical valuation answer does not generally determine acquisition provenance.
-
-This sharpens the practical meaning of `Rate` without changing it. A neutral `Rate` remains useful as an exact Measure-to-Measure relation, but it should not silently stand in for acquisition basis merely because it applies at the acquisition time.
-
-Observation 066 does not earn a practical `CostBasis` or `Lot` type, disposal selection method, gain calculation, tax rule, basis persistence stream, or identity-bearing basis fact.
-
-### 067 — disposal provenance survives aggregate holding
-
-Observation 067 continues the external-pressure arc by asking whether multiple acquisition-specific contributions can be collapsed to one aggregate holding without losing later disposal answers.
-
-The model deliberately reuses the identity lesson from Observation 052 instead of introducing a `Lot` object. It keeps two acquisition-specific Effect-like identities, each with quantity three and a distinct basis marker, then disposes three units from the aggregate holding of six.
-
-Each world carries only the quantity-bearing provenance relation:
-
-```text
-consumesFrom : AcquisitionEffect -> Quantity
-```
-
-Observed:
-
-```text
-representative disposal pressure                    SAT
-same aggregate, different source                    SAT
-same aggregate, different basis provenance          SAT
-one disposal can consume multiple acquisitions      SAT
-same source set, different quantity allocation      SAT
-aggregate determines disposal sources               SAT counterexample
-aggregate determines basis provenance               SAT counterexample
-source set determines quantity allocation           SAT counterexample
-explicit quantity relation determines answers       UNSAT counterexample
-```
-
-The bounded separations are therefore:
+Observation 067 separates:
 
 ```text
 aggregate holding
     !=
-disposal source provenance
+quantity-bearing disposal provenance
 ```
 
 and:
 
 ```text
-set of source acquisition identities
+source identity set
     !=
 quantity consumed from each source
 ```
 
-The second boundary is stronger than merely preserving lot-like identity. Two worlds can use the same source set while one assigns `2 + 1` and the other `1 + 2` across the same acquisition identities.
-
-At the same time, the selected vocabulary does not force another stored identity named `Lot`. The required answers can be expressed with already-earned Effect-style identity plus an explicit quantity-bearing disposal-to-acquisition relation.
-
-Observation 067 therefore supports the narrower shape:
+Observation 068 separates three meanings:
 
 ```text
-Acquisition / Effect identity
-        +
-quantity-bearing disposal provenance
-```
-
-before any new Lot identity is allowed into the practical core.
-
-This does not establish one-to-one acquisition-to-Effect mapping, production disposal semantics, a selection algorithm, transfer of acquisition provenance, or gain calculation.
-
-### 068 — policy attribution is not an explicit source relation
-
-Observation 068 asks whether the quantity-bearing relation exposed by Observation 067 should automatically be treated as the output of a configured selection policy.
-
-The physical facts are held fixed at two acquisition-specific Effects of three units each and one four-unit disposal. Several quantity allocations are structurally valid. Two experiment-local deterministic selectors choose opposite attributions:
-
-```text
-PreferEarlier -> 3 + 1
-PreferLater   -> 1 + 3
-```
-
-Each world separately retains an `explicitConsumption` relation. A `conformsToPolicy` predicate connects that relation to the policy only when the model explicitly asks for the connection.
-
-Observed:
-
-```text
-representative policy attribution                         SAT
-opposite policies, different quantity attribution         SAT
-same policy, different explicit relation                  SAT
-same explicit relation, different policy                  SAT
-policy and explicit relation can disagree                 SAT
-policy determines explicit relation                       SAT counterexample
-explicit relation determines policy                       SAT counterexample
-explicit relation must equal policy attribution           SAT counterexample
-same policy determines policy attribution                 UNSAT counterexample
-same policy + conformance determines explicit relation    UNSAT counterexample
-```
-
-The bounded separation is therefore:
-
-```text
-valid disposal allocation
+valid allocation
     !=
 policy-selected attribution
     !=
-explicitly retained source relation
+explicitly retained attribution
 ```
 
-The first boundary says the physical facts allow more than one valid allocation. The second says a deterministic current selector does not by itself establish what an independently retained historical or source-specific statement means.
-
-A separate semantic rule can deliberately connect them:
+Observation 069 moves that distinction through time:
 
 ```text
-physical facts
-    + policy
-    + explicit conformance
-        -> selected explicit attribution
-```
-
-Observation 068 therefore does not promote FIFO, LIFO, specific identification, or another familiar method into physical history. It also does not claim an explicit source relation is automatically authoritative evidence. It only establishes that policy output and retained source relation are independently variable until an additional conformance rule connects them.
-
-This is distinct from Observation 047. That observation separated a selection policy from the revision graph it selects over. Observation 068 applies the lesson to a quantity-bearing allocation and additionally separates a deterministic policy output from an independently retained relation.
-
-### 069 — current policy does not reconstruct retained historical attribution
-
-Observation 069 moves the Observation 068 distinction through time. The model keeps only a current policy and one retained attribution. `RecordDisposal` snapshots the current policy's attribution once; a later `ChangePolicy` changes only the current selector.
-
-TLC checks both a positive safety property and one deliberately false reconstruction hypothesis.
-
-Positive result:
-
-```text
-RecordedAttributionNeverRewrites
-    SUCCESS over all reachable states
-```
-
-Boundary counterexample:
-
-```text
-State 1
-currentPolicy       = preferEarlier
-recordedAttribution = none
-
-State 2  RecordDisposal
-currentPolicy       = preferEarlier
-recordedAttribution = earlier3_later1
-
-State 3  ChangePolicy
-currentPolicy       = preferLater
-recordedAttribution = earlier3_later1
-```
-
-At State 3 the current-policy attribution view is `earlier1_later3`, while the retained historical attribution remains `earlier3_later1`. Therefore the invariant that today's policy can reconstruct the retained historical answer is false.
-
-The temporal separation is:
-
-```text
-retained historical attribution
+current policy
     !=
-current-policy attribution view
+retained historical attribution
 ```
 
-This is narrower than earning policy versioning. Observation 069 does not store `recordedUnderPolicy`, does not require policy identity or validity intervals, and does not claim every attribution must be persisted. It only establishes that once an application chooses to retain an attribution as historical meaning, a later current-policy change must not silently rewrite that retained answer.
+Observation 070 finds:
 
-Observation 034 had already shown the general danger of answering past relation questions with the latest relation. Observation 069 applies temporal pressure to the new quantity-bearing attribution / configurable-policy distinction first exposed in Observations 067–068.
+```text
+retained attribution
+    !=
+policy provenance
+```
+
+Observation 071 finally holds policy identity fixed while its behavior changes and finds:
+
+```text
+stable policy identity
+    !=
+historical policy definition
+```
+
+More strongly, in the bounded model:
+
+```text
+stable policy identity
++ current definition
++ retained attribution
+
+    does not determine
+
+historical policy definition
+```
+
+The sub-arc is closed at Observation 071. It earns no `CostBasis`, `Lot`, disposal-policy, `PolicyId`, or `PolicyVersion` primitive. It instead constrains how those ideas must be treated if a future practical question actually requires them.
 
 ## 2. Earned structure
 
-The following structures currently carry distinctions that at least one retained question can observe.
-
 ### Stable identity
 
-- Event identity
-- Effect identity
-- Locus identity
-- Measure identity
-- per-kind Correction identity
-- per-kind Resolution identity
-- Plan identity in the bounded expectation/realization vocabulary of Observations 063–064
+Current evidence supports stable identity for:
 
-Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, matching expected/actual content, recurrence classification, opposite-signed quantity, or net balance.
+- Event
+- Effect
+- Locus
+- Measure
+- Correction within its semantic kind
+- Resolution within its semantic kind
 
-Observation 065 uses Event identity to distinguish otherwise matching refund-source candidates. It does not yet earn a separate identity for refund linkage itself.
+Experimental vocabularies also show why Plan identity and source Event identity matter when planning, realization, Series, or refund questions are retained.
 
-Observation 066 introduces one experiment-local acquisition identity only to ask whether basis belongs to that acquisition rather than to valuation history. It does not yet earn a new practical identity type.
+Identity is not inferred from:
 
-Observation 067 strengthens the relevance of already-earned Effect identity: aggregate quantity and even the set of participating source identities can lose disposal provenance. The bounded selected vocabulary can refer directly to acquisition-specific Effect-like identities without adding a separate Lot identity.
+- list position;
+- physical file order;
+- display name;
+- aggregate coordinate;
+- equal amount/time/shape;
+- opposite-signed quantity;
+- recurrence kind;
+- current policy output.
 
-Observations 068–069 add no identity type. A configured policy and an explicit source relation remain distinguishable, and the temporal result does not by itself earn policy identity or version identity.
+The practical `EffectKey` is especially important: later overlays can refer to one Effect without turning `(Locus, Measure)` or list position into identity.
 
-### Quantitative coordinates
+### Exact physical quantity shape
 
-The practical physical shape is centered on exact signed quantity effects with explicit coordinates:
+The Practical Core physical shape remains:
 
 ```text
 Event
-  -> Effect
+  -> Effect identity
        -> Locus
        -> Measure
        -> Quantity
 ```
 
-Coordinate totals are projections over effects, not effect identity.
+Quantity is exact. Coordinate totals are projections over Effects, not Effect identity.
 
-Observation 062 adds no new primitive coordinate. Representative bookkeeping-shaped Events can still be expressed with the existing Event / Effect / Locus structure plus independent AccountingRole.
-
-Observations 063 and 064 likewise do not enlarge the physical Event coordinate set. Planning and recurring-thread information remain outside the Actual physical core in the bounded experiments.
-
-Observation 065 adds no quantity coordinate either. Even retaining the physical Event records and their net quantity does not recover which earlier Event a later return is meant to explain.
-
-Observation 066 also adds no physical quantity coordinate. Acquisition basis and valuation remain comparison/provenance information outside the signed physical placement geometry in the bounded model.
-
-Observation 067 adds no new physical coordinate either, but it does show that provenance itself can be quantity-bearing. Retaining only the aggregate quantity or only a set-valued source relation loses how much of one disposal was assigned to each acquisition identity.
-
-Observation 068 keeps that quantity-bearing shape but separates three meanings: a structurally valid allocation, a policy-generated attribution, and an independently retained source relation. Observation 069 changes none of their quantity geometry; it only pressures their temporal interpretation.
+Observations 062–071 add application/provenance questions around this shape but do not add another physical coordinate.
 
 ### Explicit revision relations
 
-Correction and Resolution remain explicit raw relation facts rather than edits that erase earlier facts.
+Correction and Resolution remain explicit relations rather than destructive edits.
 
-Their referenced Events may be absent from the current Event memory. Raw memory can still retain the relation fact while derived referential admission fails closed.
+Raw relation memory may retain references whose Event endpoints are not currently visible. Derived referential admission fails closed until the needed endpoints exist.
 
-Observation 065 sharpens the boundary around Correction: an offsetting later Event is not thereby a Correction. Refund linkage preserves the source as an occurrence rather than replacing its effective interpretation.
+### Explicit correspondence when provenance is observable
 
-### Explicit correspondence when provenance distinguishes identical content
+Several experiments share one general lesson:
 
-Observation 063 finds that the mapping from Plan identity to Actual Event identity cannot be reconstructed from Plan/Event content or from the completed-Plan set. When future questions ask which Actual fulfilled which expectation, the correspondence itself must survive in some representation.
+> Endpoint content or aggregate summaries need not determine correspondence.
 
-This does not yet imply that realization needs its own identity-bearing fact type.
+Examples include:
 
-### Explicit recurring-thread grouping when peer identity matters
+- Plan -> Actual realization;
+- Plan -> Series membership;
+- Return -> earlier expense refund provenance;
+- acquisition -> basis information;
+- disposal -> acquisition-specific quantity provenance;
+- retained attribution -> historical policy provenance.
 
-Observation 064 finds that recurrence kind and Plan content do not determine which Plan identities belong to the same recurring thread. When future questions ask which expectations are peers in one Series, the membership distinction must survive in some representation.
-
-This does not yet imply that Series must be a first-class stored object or that membership needs its own identity-bearing fact.
-
-### Explicit refund provenance when source identity matters
-
-Observation 065 finds that Event records, opposite-signed quantity, and net quantity do not determine which earlier Event a return belongs to. When future questions ask which occurrence was refunded or reimbursed, the source linkage must survive in some representation.
-
-This does not yet imply a first-class Refund fact, identity-bearing refund relation, or general refund-allocation model.
-
-### Explicit acquisition basis when acquisition provenance matters
-
-Observation 066 finds that even complete valuation history does not determine the selected basis answer for an acquisition identity. When future questions distinguish how an acquisition was carried from how the same holding is valued, that acquisition-specific information must survive in some representation.
-
-This does not yet imply a practical CostBasis type, a Lot identity, or one mandatory basis representation.
-
-### Explicit quantity-bearing disposal provenance when source quantity matters
-
-Observation 067 finds that aggregate holdings do not determine which acquisition identities supplied a disposal, and the participating source set itself does not determine how much came from each source.
-
-When future questions ask acquisition-specific disposal provenance, a quantity-bearing relation must survive in some representation:
-
-```text
-Disposal Effect
-    -> Acquisition Effect
-    -> Quantity
-```
-
-Observation 068 sharpens the meaning of that relation: it must not silently be equated with the output of a currently configured policy unless the application explicitly establishes conformance between the retained relation and the selector.
-
-Observation 069 adds a temporal boundary: if such an attribution is retained as historical meaning, a later current-policy change must not be used to reconstruct and silently rewrite that retained answer.
-
-This does not yet imply a first-class Lot object, a production disposal relation, a practical selection-policy type, or persisted policy version metadata.
+This does **not** imply one universal practical Relation type. Different relation kinds still carry different semantic and operational laws.
 
 ### More than one time coordinate when the question requires it
 
-The observation layer has earned a distinction between validity and knowledge time for retrospective questions. This does not imply that every practical-core fact must immediately carry both timestamps.
+Validity time and knowledge time remain independently observable in retrospective questions.
 
-Observation 063 additionally demonstrates that expected time and Actual time need not be equal merely because a Plan and Event are linked.
-
-Observation 066 is deliberately not another time-coordinate result. It shows that two meanings can remain distinct even when they refer to the same acquisition coordinate.
-
-Observation 069 is temporal but does not add another timestamp coordinate. Instead it observes an operation-order boundary: a retained attribution can stay fixed while a mutable current policy changes, so current configuration and retained historical meaning can diverge across states.
+Later temporal observations also show a different principle: a mutable current configuration must not be substituted for retained historical meaning merely because the current and historical values share one representation shape.
 
 ## 3. Derived views
 
-The following have appeared as derivable views rather than automatically deserving primary stored identity.
+The following have appeared as derivable views rather than automatically deserving primary stored identity:
 
-- live envelope-like holdings
-- availability in the bounded consumptive model
-- total balance
-- balance by Locus / Measure
-- transfer-like shape
-- role-aware bookkeeping shapes such as expense, income, liability repayment, refund, and opening balance in the bounded Observation 062 vocabulary
-- completed Plan membership from explicit realization linkage
-- realized Actual Event membership from explicit realization linkage
-- expected/actual amount, time, and Shape mismatch views from realization linkage
-- same-Series peer sets from explicit Series membership
-- refunded-source Event membership from explicit refund linkage
-- refund-linked Return membership from explicit refund linkage
-- historical valuation answers from retained valuation observations
-- current valuation answer from the selected current relation
-- aggregate post-disposal holding from acquisition quantities and explicit consumption provenance
-- participating acquisition source set from positive disposal-provenance quantities
-- implicated acquisition-basis set from the participating acquisition identities
-- policy-generated disposal attribution from physical acquisition positions plus a selected current policy
-- current tips of a revision graph
-- correction-aware effective views
-- referentially admitted relation views
-- report-like readings over physical facts plus overlays
+- envelope-like live holdings;
+- availability in the bounded consumptive model;
+- total balance;
+- balance by Locus / Measure;
+- transfer-like shape;
+- role-aware bookkeeping readings over physical facts plus AccountingRole;
+- completed Plan membership from explicit realization linkage;
+- realized Actual membership from explicit realization linkage;
+- expected/Actual mismatch views;
+- same-Series peer sets from explicit Series membership;
+- refund-linked source/return sets from explicit refund linkage;
+- historical/current valuation answers from retained valuation observations;
+- aggregate post-disposal holding from acquisition quantities and disposal provenance;
+- participating acquisition source set from positive provenance quantities;
+- implicated acquisition-basis set from participating acquisition identities;
+- policy-generated current attribution from physical candidates plus current policy;
+- current revision tips;
+- correction-aware effective quantity views;
+- referentially admitted relation views;
+- report-like readings over physical facts plus overlays.
 
-A derived view may later earn stored operational support for performance or publication, but that would not by itself make the stored representation canonical domain meaning.
+A stored cache or publication representation may later support a derived view operationally. That alone would not make the cache canonical domain meaning.
 
-Observation 069 clarifies that a current-policy attribution view is still a derived current view. It must not be substituted for an independently retained historical attribution merely because both have the same shape.
+A particularly important boundary from Observation 069 is:
+
+```text
+current-policy attribution view
+    !=
+retained historical attribution
+```
+
+when the application has chosen to retain the latter as historical meaning.
 
 ## 4. Overlays
 
-These relations have evidence of semantic independence from the neutral physical core, or are intentionally kept outside it pending stronger pressure.
+The following relations are semantically independent from the neutral physical core in the bounded observations, or remain intentionally outside it pending stronger pressure:
 
-- Purpose / intentional assignment
-- AccountingRole
-- Plan realization linkage in the bounded Observation 063 vocabulary
-- Series membership in the bounded Observation 064 vocabulary
-- refund / reimbursement source linkage in the bounded Observation 065 vocabulary
-- valuation / rate relations
-- acquisition-basis relation in the bounded Observation 066 vocabulary
-- quantity-bearing disposal-to-acquisition source relation in the bounded Observations 067–069 vocabulary
-- disposal selection policy in the bounded Observations 068–069 vocabulary
-- explicit conformance between policy output and retained attribution when an application chooses that semantics
-- selection policy more generally
-- backing eligibility
-- recipient assignment
-- other application-facing classifications
-
-Observation 062 supplies a real-data-shaped witness that AccountingRole remains semantically active while AccountName and nominal EventKind remain observationally inert for the selected bookkeeping-shape vocabulary.
-
-Observation 063 supplies a separate real-data-shaped witness that plannedness and completion provenance are not properties of Actual Event content alone.
-
-Observation 064 adds that recurrence classification and Plan content do not determine recurring-thread membership.
-
-Observation 065 adds that numerical offset and net quantity do not determine refund-source provenance, and that this source linkage has different semantics from Correction-style supersession.
-
-Observation 066 adds that acquisition basis is not determined by valuation history, even when the valuation answer at the acquisition coordinate is retained.
-
-Observation 067 adds that disposal provenance is not determined by aggregate holding, and a source-set overlay is still too coarse when the amount consumed from each acquisition remains observable.
-
-Observation 068 adds that a deterministic policy-generated attribution is not automatically the same information as an independently retained source relation. Conformance is an additional semantic statement, not a consequence of the physical facts or policy alone.
-
-Observation 069 adds that this distinction survives policy change through time: the current selector may change while a previously retained attribution remains unchanged.
+- Purpose / intentional assignment;
+- AccountingRole;
+- Plan realization linkage;
+- Series membership;
+- refund / reimbursement source linkage;
+- valuation / Rate relations;
+- acquisition-basis relation;
+- quantity-bearing disposal-to-acquisition provenance;
+- disposal selection policy;
+- explicit policy/conformance statement when an application intentionally defines retained attribution as policy-generated;
+- policy provenance when a future query asks which selector produced a retained attribution;
+- historical policy-definition information when mutable policy identity must remain historically explainable;
+- backing eligibility;
+- recipient assignment;
+- other application-facing classifications.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
-## 5. Practical Lean core
+## 5. Practical Lean Core
 
-The practical core now contains small typed pieces including:
+The current entry point imports:
 
 - `Quantity`
 - `Measure`
@@ -692,143 +381,156 @@ The practical core now contains small typed pieces including:
 - `EventCorrectionMemory`
 - `EventResolution`
 - `EventResolutionMemory`
-- correction-aware quantity projections
-- relation admission
+- `RelationAdmission`
+- `CorrectionQuantity`
 - `Rate`
 - `Allocation`
 - `RecipientAssignment`
 
-Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
+The core remains deliberately concrete.
 
-Observations 062–069 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, disposal-provenance type, disposal-policy type, policy-version type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
+Correction and Resolution have separate modules rather than one premature generic relation abstraction.
 
-Observation 066 does not change `Rate`. The current practical `Rate` already deliberately avoids claiming that a Measure relation is a price, valuation authority, or time-stable fact. The observation only adds evidence that a rate-like valuation relation should not be reused implicitly as acquisition provenance.
+`Rate` remains a neutral exact Measure-to-Measure relation. Observation 066 strengthens the reason not to treat it as acquisition provenance.
 
-Observation 067 likewise does not change `Effect` or reuse the existing practical `Allocation` module merely because the experiment contains a quantity-bearing relation. It first establishes only that stable Effect-like identity can serve as a meaningful provenance endpoint in the bounded vocabulary and that aggregate projection is insufficient.
+`EffectKey` already provides a stable endpoint for the bounded provenance question in Observation 067. That result does not earn a separate Lot identity.
 
-Observation 068 does not change `Allocation` or `RecipientAssignment` either. A deterministic quantity allocator and an explicitly retained accounting/source relation may have similar mathematical shapes while carrying different semantics.
+`Allocation` and `RecipientAssignment` remain exact numeric infrastructure. Similar arithmetic shape does not make them disposal-provenance or accounting-policy semantics.
 
-Observation 069 still does not earn a policy object or historical-policy reference. The TLA+ result only says that a retained historical attribution and a mutable current-policy view must not be conflated after a policy change.
+Observations 062–071 therefore add **no new Practical Core primitive**.
 
-The implementation policy remains conservative:
+The implementation rule remains:
 
 ```text
 observation
   -> identify one earned distinction or law
-  -> add only the minimum practical representation needed
+  -> add only the minimum practical representation needed by a real operation or retained query
 ```
 
-The practical core is not intended to mirror every experimental vocabulary term.
+Experimental vocabulary does not automatically become production vocabulary.
 
 ## 6. Persistence boundary
 
-The current practical persistence work has crossed an important boundary without introducing one global ordered history.
+Current practical persistence keeps:
 
-Event memory and raw Correction memory can be persisted as separate versioned streams. The logical canonical basis is the admitted facts and their explicit identity relations, while physical storage topology is a separate operational choice.
+- exact Amount representation;
+- Event identity and every detailed Effect, including `EffectKey`;
+- EventMemory without giving block order historical meaning;
+- raw Correction memory as an independent stream.
 
-The current observations therefore distinguish:
+Physical storage topology remains separate from logical canonical meaning:
 
 ```text
 logical canonical facts
-!=
+    !=
 physical storage topology
-!=
+    !=
 derived projections
 ```
 
-Separate atomic file replacement is not sufficient by itself when multiple streams form one semantic read/write protocol. Writer and reader order are part of the protocol.
+Publication by separate atomic file replacement does not create a cross-stream transaction, concurrent-writer lock, or power-loss durability guarantee.
 
-Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
+Observation 061 earns only the bounded stable-frontier Resolution protocol. Practical Resolution persistence is not added merely by analogy.
 
-Observations 062–069 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, acquisition basis, disposal source attribution, policy conformance, or retained-attribution stability does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, disposal-attribution stream, policy stream, policy-version stream, lot store, or recurrence store.
+Observations 062–071 add **no persistence stream or wire-format change**.
+
+In particular, observability alone does not earn:
+
+- Plan store;
+- realization stream;
+- Series store;
+- refund stream;
+- acquisition-basis stream;
+- disposal-provenance stream;
+- policy stream;
+- policy-version stream;
+- Lot store.
+
+A new stream should appear only when a practical operation must publish, reload, coordinate, correct, or query that information.
 
 ## 7. Deliberately unearned concepts
 
-LOAM should not silently promote the following into domain law without a new observation that requires them.
+LOAM should not silently promote these into domain law without concrete pressure that requires them:
 
-- one global FactId shared by all fact kinds
-- one globally ordered canonical history
-- chronology from list or file position
-- priority or authority from arrival order
-- a conventional Account object as the physical primitive
-- a stored nominal EventKind hierarchy for bookkeeping roles
-- a stored Envelope balance as the live-holdings source of truth
-- one mandatory transaction/event nominal sum type for household roles
-- eager referential rejection as a raw relation-memory rule
-- autonomous recovery metadata
-- concurrent-writer locking semantics
-- fsync or power-loss durability guarantees
-- a manifest or generation selector
-- general Resolution persistence parity beyond the stable-frontier case observed in 061
-- one-to-one ledger-posting-to-LOAM-Effect import semantics
-- a Practical Core `Plan` type merely because planning appears in source data
-- first-class realization identity, correction, or persistence
-- one Plan realized by several Events or several Plans realized by one Event
-- a Practical Core `Series` object merely because Series membership is observable
-- recurrence generation, next-occurrence prediction, or Series lifecycle semantics
-- a Practical Core `Refund` type merely because refund provenance is observable
-- first-class refund-link identity, correction, or persistence
-- generalized one-to-many or many-to-many refund allocation and lifecycle semantics
-- a Practical Core `CostBasis` or `Lot` type merely because acquisition basis or disposal provenance is observable
-- first-class basis identity, correction, authority, or persistence
-- a production disposal-provenance relation merely because its information shape is observable
-- an additional Lot identity when existing acquisition / Effect identity already suffices for the bounded selected questions
-- FIFO, LIFO, average-cost, specific-identification, or any other lot-selection policy as primitive physical history
-- a Practical Core disposal-selection policy type merely because deterministic attribution is observable
-- policy identity, versioning, validity time, provenance, authority, or correction semantics
-- a requirement to persist which policy generated every retained attribution
-- a rule that policy changes affect only future disposals
-- a rule that every explicit source relation must conform to the current policy
-- realized/unrealized gain semantics derived merely from valuation, basis, disposal-provenance, and policy separation
-- tax-specific basis rules
-- issue metadata semantics merely because such annotations appear in source data
-- compaction semantics
+- one global FactId shared by all semantic kinds;
+- one globally ordered canonical history;
+- chronology from list or file position;
+- priority or authority from arrival order;
+- a conventional Account object as the physical primitive;
+- a stored nominal EventKind hierarchy for bookkeeping roles;
+- stored Envelope balance as the canonical live-holdings source of truth;
+- eager referential rejection as a raw relation-memory rule;
+- autonomous recovery metadata;
+- concurrent-writer locking semantics;
+- fsync or power-loss durability guarantees;
+- a manifest or generation selector;
+- general moving-frontier Resolution persistence semantics;
+- one-to-one ledger-posting-to-LOAM-Effect import semantics;
+- Practical Core Plan, Series, or Refund objects merely because their relations are observable;
+- many-to-many Plan realization without source pressure;
+- recurrence generation or Series lifecycle semantics;
+- first-class refund relation identity, lifecycle, correction, or persistence;
+- Practical Core `CostBasis` or `Lot` merely because acquisition basis or disposal provenance is observable;
+- a production disposal-provenance relation before a practical disposal workflow requires it;
+- an additional Lot identity when existing Effect-style identity answers the bounded selected questions;
+- FIFO, LIFO, average cost, specific identification, or other selection methods as primitive physical history;
+- a Practical Core disposal-selection policy merely because deterministic attribution is observable;
+- policy identity, policy version, validity interval, authority, authorship, approval, or governance semantics without a retained practical question that observes them;
+- a requirement to persist which policy generated every attribution;
+- a requirement to store a complete executable policy snapshot;
+- a rule that every explicit source relation conforms to the current policy;
+- a rule that policy changes rewrite retained historical attribution;
+- realized/unrealized gain semantics merely from valuation, basis, provenance, and policy separation;
+- tax-specific basis rules;
+- compaction semantics.
 
-The current-policy reconstruction rule is no longer merely unearned under retained-attribution semantics. Observation 069 supplies a concrete temporal counterexample: today's policy can differ from an already-retained historical attribution after a policy change.
+These concepts are not rejected forever. They are simply not earned yet.
 
-These remaining concepts are not rejected forever. They are simply not earned yet.
-
-## 8. Tool roles after sixty-nine observations
-
-LOAM's method is now easier to state from evidence rather than intention.
+## 8. Tool roles after seventy-one observations
 
 ### Alloy
 
-Use when the question is primarily structural:
+Use Alloy when the question is primarily structural:
 
-- can two worlds share one retained structure but differ in a future answer?
+- can two worlds share one retained structure but differ in a selected answer?
 - is one relation independent of another?
 - does removing a field collapse distinctions?
-- can a familiar household noun remain a projection?
-- do anonymized real-data shapes fit the existing structural vocabulary without adding a new primitive?
-- can identity linkage be reconstructed from the endpoint records it connects?
-- can recurring-thread membership be reconstructed from Plan content and recurrence classification?
-- can aggregate quantity reconstruct a source-specific real-world provenance relation?
-- can one semantic relation be reconstructed from another even when both refer to the same time coordinate?
-- can an aggregate or set-valued provenance view reconstruct a quantity-bearing provenance relation?
-- does a deterministic selection policy determine an independently retained relation, or is explicit conformance another piece of information?
+- can a familiar noun remain a projection?
+- can endpoint records reconstruct the relation connecting them?
+- can aggregate or set-valued provenance reconstruct quantity-bearing provenance?
+- does deterministic policy output determine an independently retained relation?
+- does a retained output determine which behaviorally distinct policy produced it?
 
-Observations 062–068 are examples of the last seven cases.
+Observations 062–068 and 070 are representative recent examples.
 
 ### J
 
-Use when array shape, projection, quotienting, or information loss is the clearest form of the question.
+Use J when array shape, projection, quotienting, or information loss is the clearest form of the question.
 
 J is not a mandatory second implementation of every Alloy observation.
 
 ### Lean 4
 
-Use when a discovered law is worth preserving generally or when the practical typed core needs to embody an earned distinction.
+Use Lean when a discovered law is worth preserving generally or when the Practical Core needs to embody an earned distinction.
 
-Lean is both a proof environment and the current practical-core language.
+Lean remains both proof environment and practical-core language.
 
 ### TLA+ / TLC
 
-Use when the distinction depends on state transitions, temporal knowledge, operation order, or reachable intermediate states.
+Use TLA+ when the distinction depends on state transition, operation order, temporal knowledge, or reachable history.
 
-Observation 034 used TLA+ to separate historical, current, and future relation viewpoints. Observation 069 gives TLA+ a new distinct job: it moves the static Observation 068 policy/source distinction through a reachable `RecordDisposal -> ChangePolicy` trace and shows that a mutable current-policy view can diverge from a retained historical attribution without rewriting it.
+Observation 034 separates historical/current relation viewpoints.
 
-TLC is sufficient for Observation 069's small state graph. Apalache is not added because symbolic checking would not provide a distinct answer to this bounded transition question.
+Observation 069 checks:
+
+```text
+RecordDisposal
+  -> ChangePolicy
+```
+
+and shows current policy can diverge from retained attribution.
+
+Observation 071 holds policy identity stable while its definition changes and shows two histories can converge on the same current projection while retaining different historical definitions.
 
 ### Apalache
 
@@ -840,91 +542,111 @@ Use when explicit process interleavings and protocol order are the pressure poin
 
 ### miniKanren
 
-Use when genuinely relational or backwards search adds something the other tools do not express as directly.
+Use when genuinely relational or backwards search adds a distinct answer that the current tools do not express as directly.
 
 The rule remains:
 
 > Using every tool is not a goal. A tool must earn its place in the question.
 
-## 9. Current checkpoint
+## 9. Practical Core audit after Observations 066–071
 
-After Observation 060 and the first raw Correction-memory persistence step, LOAM had completed one full development loop:
+The external-accounting-pressure sub-arc has been audited as a whole.
+
+Result:
+
+```text
+Practical Core additions: 0
+Persistence additions:     0
+CLI additions:             0
+wire-format additions:     0
+```
+
+This does **not** mean the six observations were redundant.
+
+They progressively close reconstruction shortcuts:
+
+```text
+valuation history
+    -/-> acquisition basis
+
+aggregate holding
+    -/-> disposal provenance
+
+source set
+    -/-> per-source quantity allocation
+
+policy
+    -/-> independently retained attribution
+
+current policy
+    -/-> retained historical attribution
+
+retained attribution + current policy
+    -/-> historical policy provenance
+
+stable policy identity + current definition + retained attribution
+    -/-> historical policy definition
+```
+
+What the audit changes is the next action: none of those bounded distinctions currently has practical publication/query pressure strong enough to justify another primitive or stream.
+
+Existing boundaries were strengthened instead:
+
+- `Rate` remains neutral;
+- `EffectKey` remains the stable identity before aggregation;
+- numeric allocation remains separate from source/provenance semantics;
+- current derived view remains separate from retained historical meaning;
+- policy provenance remains conditional on the questions an application chooses to retain.
+
+See [`experiments/066_071_practical_core_audit.md`](experiments/066_071_practical_core_audit.md) for the detailed audit.
+
+The policy/provenance sub-arc is therefore closed at Observation 071. Authority, approval, governance, and further policy metadata are not automatic Observation 072 candidates.
+
+## 10. Current checkpoint
+
+LOAM has now completed several loops of:
 
 ```text
 question
-  -> structural observation
+  -> formal observation
   -> counterexample or law
   -> protocol observation when needed
-  -> practical Lean boundary
-  -> persistence
+  -> Practical Lean boundary when earned
+  -> persistence when earned
 ```
 
-Observation 061 extended that loop just far enough to test the next relation kind without mechanically copying the Correction protocol.
+The important result after seventy-one observations is not that the core has accumulated seventy-one concepts.
 
-Observation 062 then brought anonymized shapes from ordinary household records back to the earlier structural questions. The result did not force Account or EventKind back into the core, and it confirmed that AccountingRole remains the independent relation needed for the selected bookkeeping-shaped readings.
+It is almost the opposite.
 
-Observation 063 follows the same real-data-pressure strategy one layer outward. It finds that expectation and actuality can remain separate facts, but their correspondence is not recoverable from endpoint content. Stable completion provenance therefore needs explicit identity linkage even when matching coordinates look sufficient.
-
-Observation 064 deliberately refuses the tempting next abstraction when the source does not require it: current records do not yet force many-to-many realization. Instead it follows the recurring structure that is already present and finds that Series membership itself cannot be reconstructed from recurrence kind or Plan content.
-
-Observation 065 follows another source-shaped relation rather than inventing a new mechanism. It finds that quantity can be offset while the source occurrence remains historically true, so refund provenance is neither reconstructable from net quantity nor interchangeable with Correction semantics.
-
-Observation 066 then opens the external-pressure arc with a distinction already needed by mature accounting systems, but translates it back into LOAM's vocabulary rather than importing their ontology. Complete valuation history still does not determine acquisition basis. A relation answering "what value is observed at this coordinate?" and information answering "how was this acquisition carried?" remain independent.
-
-Observation 067 goes one step further without importing a Lot object. Once several acquisition-specific Effects are aggregated, a later disposal cannot recover its source provenance from the resulting holding. Even remembering only which sources participated is insufficient when the retained question asks how much came from each origin. Existing Effect-style identity plus an explicit quantity-bearing relation is sufficient for the bounded selected answers.
-
-Observation 068 then prevents that newly visible relation from being over-interpreted. The same physical facts admit multiple valid allocations. A deterministic policy can compute one attribution, but the policy neither determines nor is determined by an independently retained source relation. Only an explicit conformance rule connects the two in the bounded model.
-
-Observation 069 then gives that distinction a temporal edge. A disposal attribution retained under `preferEarlier` survives a later transition to `preferLater`, while the current-policy derived view changes. TLC therefore rejects the idea that the mutable current selector can reconstruct an already-retained historical attribution.
-
-The resulting bounded picture is now:
+The neutral physical center remains small:
 
 ```text
-Actual physical facts
-        |
-        +---- AccountingRole / other readings
-        |
-        +---- refund-source linkage when provenance is asked
-        |
-        +---- acquisition-basis information when provenance is asked
-        |
-        +---- valid disposal allocations
-                     |
-                     +---- current policy ----> current selected attribution view
-                     |             |
-                     |             +---- may change through time
-                     |
-                     +---- retained source attribution ----> acquisition / Effect identities
-                                      |
-                                      x---- not automatically equal to current policy output
-                                      |
-                                      +---- explicit conformance may connect them at creation
-                                      |
-                                      +---- remains historical meaning when current policy later changes
-
-Expectation facts
-        |
-        +---- explicit realization linkage ----> Actual Event identity
-        |
-        +---- explicit recurring-thread membership
-
-Valuation observations
-        |
-        +---- historical/current valuation views
-        |
-        x---- do not reconstruct acquisition basis
+Event
+  -> Effect identity
+       -> Locus
+       -> Measure
+       -> Quantity
 ```
 
-This is still not a universal ontology. It is an inventory of distinctions that concrete questions and external pressure have forced so far.
+Revision remains explicit through narrow Correction / Resolution boundaries.
 
-It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, Lot, disposal-attribution, selection-policy, or policy-version implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
+Operational mathematics remains narrow through `Rate`, `Allocation`, and `RecipientAssignment`.
 
-The next external-pressure question can now ask a narrower audit question rather than assuming policy metadata is required:
+Many application meanings remain overlays until a retained practical question requires them.
 
-```text
-same retained attribution
-        + policy changes / versions
-        -> can a future query ask which policy produced it?
-```
+The 066–071 audit provides a useful stopping rule:
 
-Only if that question remains observably different should policy provenance, version identity, or validity intervals be allowed to enter the model.
+> Preserve a distinction when a retained practical question can observe it. Do not promote the distinction into the Practical Core merely because a bounded experiment proves that the distinction can exist.
+
+The next work should therefore not be Observation 072 merely to continue numbering.
+
+A new observation should begin only when one of these appears:
+
+- a concrete practical operation the current Core cannot express safely;
+- a retained query whose answer the current representation cannot preserve;
+- real persistence pressure for an experimentally observed relation;
+- protocol/concurrency pressure at an already-earned practical boundary;
+- new external evidence that contradicts a current compression.
+
+Until then, the small Practical Core surviving the pressure is itself the checkpoint result.
