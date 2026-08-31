@@ -117,9 +117,26 @@ Expected check result: **SAT counterexample**.
 
 Expected check result: **UNSAT counterexample**.
 
-## Interpretation if the expected results hold
+## Executed result
 
-The bounded separation would be:
+Alloy 6.2.0 + Sat4j:
+
+```text
+representativeSeriesPressure                         SAT
+sameRecordsDifferentGrouping                         SAT
+changingAmountWithinSeries                           SAT
+sameRecurrenceAndShapeDifferentSeries                SAT
+PlanRecordsDetermineSeriesGrouping                   SAT counterexample
+SameRecurrenceAndShapeMeansSameSeries                SAT counterexample
+SeriesMembershipRequiresFixedAmount                  SAT counterexample
+ExplicitSeriesRelationDeterminesPeerAnswers          UNSAT counterexample
+```
+
+The executable workflow completed successfully on the observation branch. The result matches every expected witness and check.
+
+## Finding
+
+Within the bounded vocabulary:
 
 ```text
 Plan content
@@ -129,16 +146,13 @@ recurrence kind
 Series membership
 ```
 
-A Series is not merely "all monthly Plans with this shape," and it is not merely a fixed template copied through time.
+The same recurring thread can continue across changed expected quantities, while two distinct recurring threads can share recurrence kind and broad structural Shape.
+
+Keeping all Plan records fixed while changing only Series membership can change same-series peer answers. Therefore Plan content does not determine the grouping.
 
 The independently observable information is the grouping relation: which Plan identities belong to the same recurring thread.
 
-That does **not** yet decide whether a practical representation should store:
-
-- a `series-id` field on each Plan;
-- a standalone membership relation;
-- an explicit Series object;
-- or some other information-equivalent encoding.
+This does **not** mean a first-class stored `Series` object has been earned. A `series-id` field, a standalone membership relation, or another information-equivalent representation could all preserve the observed distinction.
 
 ## Important boundaries
 
