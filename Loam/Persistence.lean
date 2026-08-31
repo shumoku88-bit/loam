@@ -1,3 +1,4 @@
+import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventMemory
 import Std
 
@@ -14,7 +15,9 @@ The first practical persisted value is one runtime `SomeAmount`: a stable
 measure identity together with an exact signed quantity. Event persistence then
 keeps one `EventId` and every detailed `Effect` intact so aggregate projections
 can be recomputed after reload. Event-memory persistence keeps several Events
-without turning their serialization order into semantic history.
+without turning their serialization order into semantic history. Correction-
+memory persistence keeps raw explicit correction relations separately from the
+Event stream and does not require their referenced Events to be present.
 
 The text formats are deliberately tiny and versioned:
 
@@ -39,21 +42,28 @@ EVENT<TAB><event-token>
 ...
 ```
 
+```text
+LOAM-EVENT-CORRECTION-MEMORY<TAB>1
+CORRECTION<TAB><correction-token><TAB><target-event-token><TAB><replacement-event-token>
+...
+```
+
 Persisted identity tokens are opaque tokens, not display names. To keep these
 first formats unambiguous without introducing an escaping layer, the
 persistence boundary admits only nonempty tokens without tab or line-break
 characters.
 
-Event row order and Event-memory block order preserve the current practical
-representation only; neither acquires temporal, causal, priority, authority,
-debit/credit, or posting-order meaning.
+Event row order, Event-memory block order, and Correction-memory row order
+preserve the current practical representation only; none acquires temporal,
+causal, priority, authority, debit/credit, or posting-order meaning.
 
-Event-memory publication first writes the complete encoded representation to a
-sibling staging path and only then replaces the target with a filesystem rename.
-Thus the target path is not truncated while a new representation is still being
-written. This is an atomic publication boundary where the underlying rename has
-replacement atomicity; it is not a concurrent-writer lock or a power-loss
- durability guarantee, and an interrupted process may leave the staging file.
+Event-memory and Correction-memory publication first write the complete encoded
+representation to a sibling staging path and only then replace the target with
+a filesystem rename. Thus the target path is not truncated while a new
+representation is still being written. Each target is an atomic publication
+boundary where the underlying rename has replacement atomicity; this is not a
+cross-stream transaction, concurrent-writer lock, or power-loss durability
+guarantee, and an interrupted process may leave the staging file.
 
 Filesystem failures remain ordinary `IO` exceptions. Malformed or unsupported
 file contents return `none` from the relevant decode/load boundary.
@@ -67,6 +77,9 @@ def eventHeader : String := "LOAM-EVENT\t1"
 
 /-- Version marker for the first persisted multi-Event memory format. -/
 def eventMemoryHeader : String := "LOAM-EVENT-MEMORY\t1"
+
+/-- Version marker for the first persisted raw Event-correction memory format. -/
+def eventCorrectionMemoryHeader : String := "LOAM-EVENT-CORRECTION-MEMORY\t1"
 
 /-- Whether one opaque identity token is representable by the first text formats. -/
 def validToken (token : String) : Bool :=
@@ -246,6 +259,62 @@ def decodeEventMemory? (input : String) : Option EventMemory :=
         | _ => none
     | _ => none
 
+/-- Encode one raw Event-correction row without checking Event availability. -/
+private def encodeEventCorrectionRow? (correction : EventCorrection) : Option String :=
+  let correctionToken := correction.id.token
+  let targetToken := correction.target.token
+  let replacementToken := correction.replacement.token
+  if validToken correctionToken && validToken targetToken && validToken replacementToken then
+    some ("CORRECTION\t" ++ correctionToken ++ "\t" ++ targetToken ++ "\t" ++ replacementToken)
+  else
+    none
+
+/-- Decode one raw Event-correction row without performing referential admission. -/
+private def decodeEventCorrectionRow? (row : String) : Option EventCorrection :=
+  match row.splitOn "\t" with
+  | ["CORRECTION", correctionToken, targetToken, replacementToken] =>
+      if validToken correctionToken && validToken targetToken && validToken replacementToken then
+        some {
+          id := ⟨correctionToken⟩
+          target := ⟨targetToken⟩
+          replacement := ⟨replacementToken⟩
+        }
+      else
+        none
+  | _ => none
+
+/--
+Encode raw correction memory as its own physical stream.
+
+Correction row order is deterministic representation only. Referenced Event
+identity is preserved even when an endpoint is not present in any current
+`EventMemory`; referential admission remains a later Core projection.
+-/
+def encodeEventCorrectionMemory? (memory : EventCorrectionMemory) : Option String :=
+  match memory.corrections.mapM encodeEventCorrectionRow? with
+  | some rows =>
+      some (String.intercalate "\n" (eventCorrectionMemoryHeader :: rows) ++ "\n")
+  | none => none
+
+/--
+Decode one version-1 raw correction memory. Repeated `EventCorrectionId` is
+rejected through `EventCorrectionMemory.ofCorrections?`; missing target or
+replacement Events are deliberately not checked at this persistence boundary.
+-/
+def decodeEventCorrectionMemory? (input : String) : Option EventCorrectionMemory :=
+  match input.splitOn "\n" with
+  | header :: rows =>
+      if header = eventCorrectionMemoryHeader then
+        match rows.reverse with
+        | "" :: reversedRows =>
+            match reversedRows.reverse.mapM decodeEventCorrectionRow? with
+            | some corrections => EventCorrectionMemory.ofCorrections? corrections
+            | none => none
+        | _ => none
+      else
+        none
+  | _ => none
+
 /--
 Write one amount to a UTF-8 file when its measure token is admitted by the
 format. Returns `false` only for an unrepresentable token; filesystem failures
@@ -323,5 +392,39 @@ failures remain `IO` exceptions.
 def loadEventMemory? (path : System.FilePath) : IO (Option EventMemory) := do
   let input ← IO.FS.readFile path
   return decodeEventMemory? input
+
+/-- Sibling staging path reserved for raw Event-correction-memory publication. -/
+private def eventCorrectionMemoryStagePath (path : System.FilePath) : System.FilePath :=
+  System.FilePath.mk (path.toString ++ ".loam-stage")
+
+/--
+Publish one raw Event-correction memory as one independently replaced stream.
+
+This helper deliberately knows nothing about the Event stream. Callers that
+coordinate both streams must preserve the observed relation-first publication
+protocol themselves. This function does not create a cross-stream transaction,
+serialize concurrent writers, or claim power-loss durability.
+-/
+def saveEventCorrectionMemory?
+    (path : System.FilePath)
+    (memory : EventCorrectionMemory) : IO Bool := do
+  match encodeEventCorrectionMemory? memory with
+  | some text =>
+      let stagePath := eventCorrectionMemoryStagePath path
+      IO.FS.writeFile stagePath text
+      IO.FS.rename stagePath path
+      return true
+  | none =>
+      return false
+
+/--
+Read and decode one raw Event-correction-memory file. Missing Event endpoints do
+not make the raw relation stream malformed; referential admission remains a
+separate Core operation.
+-/
+def loadEventCorrectionMemory?
+    (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
+  let input ← IO.FS.readFile path
+  return decodeEventCorrectionMemory? input
 
 end Loam.Persistence
