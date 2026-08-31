@@ -3,6 +3,7 @@ import Loam.Core.Measure
 import Loam.Core.Effect
 import Loam.Core.Event
 import Loam.Core.EventMemory
+import Loam.Core.EventCorrection
 import Loam.Core.Rate
 import Loam.Core.Allocation
 import Loam.Core.RecipientAssignment
