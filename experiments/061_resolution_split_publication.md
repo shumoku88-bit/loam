@@ -106,19 +106,23 @@ Resolution -> Event
 
 SPIN should find an interleaving where the reader first sees the old Resolution stream, the writer completes both publications, and the reader then sees the new Event stream.
 
-## Expected SPIN results
+## Observed SPIN results
 
-- `061_resolution_split_publication_safe.pml`: **0 errors**
-- `061_resolution_split_publication_unsafe_writer.pml`: **assertion violation exists**
-- `061_resolution_split_publication_unsafe_reader.pml`: **assertion violation exists**
+On executable model head `4a640bc874a38d8aeda466bc944fbb9a39fc89dc`, SPIN 6.5.2 produced the expected boundary:
+
+- `061_resolution_split_publication_safe.pml`: **27 states stored, depth 12, errors: 0**
+- `061_resolution_split_publication_unsafe_writer.pml`: **assertion violation at depth 5, errors: 1**
+- `061_resolution_split_publication_unsafe_reader.pml`: **assertion violation at depth 6, errors: 1**
 
 The assertion rejects a completed reader snapshot in which the replacement Event is visible without an admitted Resolution.
 
-## Finding if the expected results hold
+Observation 061 run #2 completed **SUCCESS** after the first run exposed only a Promela expression-parsing mistake in the admission expression. The fix changed no protocol hypothesis.
+
+## Finding
 
 For this bounded stable-frontier case, multi-parent Resolution does **not** require a stronger publication order than single-Correction publication.
 
-The useful generalization would be narrower than “all relations use the same protocol”:
+The useful generalization is narrower than “all relations use the same protocol”:
 
 > When every non-replacement endpoint of a newly published relation is already visible and stable, relation-first publication can leave the relation inert until the one new replacement Event appears; opposite-order acquisition can then avoid exposing that replacement without its relation.
 
@@ -126,7 +130,7 @@ The extra parent identities affect semantic admission, but they do not add new p
 
 ## Important boundary
 
-This result would say nothing about a moving frontier.
+This result says nothing about a moving frontier.
 
 If Corrections that define the unresolved frontier are themselves published concurrently with the Resolution, the reader may need to coordinate three semantic inputs:
 
@@ -142,6 +146,6 @@ That should be a separate observation rather than being smuggled into this one.
 
 ## Practical consequence
 
-Do not add Resolution persistence merely by analogy yet. If the expected SPIN results hold, they justify reusing the **ordering shape** from Observation 059 only for publication over an already-existing stable conflict frontier.
+Do not add Resolution persistence merely by analogy yet. These results justify reusing the **ordering shape** from Observation 059 only for publication over an already-existing stable conflict frontier.
 
-A later practical step can then decide whether Resolution persistence is worth implementing, while a separate observation can pressure concurrent frontier change if such a workflow becomes concrete.
+A later practical step can decide whether Resolution persistence is worth implementing, while a separate observation can pressure concurrent frontier change if such a workflow becomes concrete.
