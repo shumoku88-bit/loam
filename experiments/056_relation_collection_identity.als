@@ -67,12 +67,12 @@ pred uniqueResolutionIds[s: Snapshot] {
   all disj left, right: admittedResolutions[s] | left.id != right.id
 }
 
-fun correctionById[s: Snapshot, id: CorrectionId]: set Correction {
-  { correction: admittedCorrections[s] | correction.id = id }
+fun correctionById[s: Snapshot, cid: CorrectionId]: set Correction {
+  { correction: admittedCorrections[s] | correction.id = cid }
 }
 
-fun resolutionById[s: Snapshot, id: ResolutionId]: set Resolution {
-  { resolution: admittedResolutions[s] | resolution.id = id }
+fun resolutionById[s: Snapshot, rid: ResolutionId]: set Resolution {
+  { resolution: admittedResolutions[s] | resolution.id = rid }
 }
 
 pred admittedDuplicateCorrectionCanDisagree {
@@ -115,22 +115,22 @@ assert ReferentialAdmissionImpliesUniqueResolutionIds {
 }
 
 assert UniqueCorrectionIdsMakeLookupSingle {
-  all s: Snapshot, id: CorrectionId |
-    uniqueCorrectionIds[s] implies lone correctionById[s, id]
+  all s: Snapshot, cid: CorrectionId |
+    uniqueCorrectionIds[s] implies lone correctionById[s, cid]
 }
 
 assert UniqueResolutionIdsMakeLookupSingle {
-  all s: Snapshot, id: ResolutionId |
-    uniqueResolutionIds[s] implies lone resolutionById[s, id]
+  all s: Snapshot, rid: ResolutionId |
+    uniqueResolutionIds[s] implies lone resolutionById[s, rid]
 }
 
 assert CorrectionIdentityLookupIgnoresLayoutOrder {
   (LeftLayout.members = RightLayout.members and
    all disj left, right: LeftLayout.members | left.id != right.id)
   implies
-  all id: CorrectionId |
-    { correction: LeftLayout.members | correction.id = id } =
-      { correction: RightLayout.members | correction.id = id }
+  all cid: CorrectionId |
+    { correction: LeftLayout.members | correction.id = cid } =
+      { correction: RightLayout.members | correction.id = cid }
 }
 
 run admittedDuplicateCorrectionCanDisagree for exactly 3 Event, exactly 2 Correction, exactly 2 CorrectionId, exactly 2 Resolution, exactly 2 ResolutionId, exactly 1 Snapshot, exactly 2 Slot
