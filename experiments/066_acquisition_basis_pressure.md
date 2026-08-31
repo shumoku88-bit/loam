@@ -59,57 +59,79 @@ acquisitionBasis : Acquisition -> ComparisonValue
 
 The question is only whether two selected answers must collapse to one.
 
-## Probes
+## Observed Alloy result
 
-### 1. Can acquisition-time valuation, current valuation, and acquisition basis all differ?
+Alloy 6.2.0 + Sat4j returned:
 
-Expected: **SAT**.
+```text
+representativeAcquisitionPressure                 SAT
+sameValuationHistoryDifferentBasis                SAT
+currentValuationCanMoveWithoutRewritingBasis      SAT
+sameAcquisitionTimeValuationDifferentBasis        SAT
+basisCanDifferFromAcquisitionTimeValuation        SAT
+ValuationHistoryDeterminesAcquisitionBasis        SAT counterexample
+AcquisitionBasisEqualsHistoricalValuation         SAT counterexample
+AcquisitionBasisDeterminesCurrentValuation        SAT counterexample
+ExplicitBasisAndValuationDetermineSelectedAnswers UNSAT counterexample
+```
 
-This is the representative external-pressure witness.
+The complete expected result set passed in CI.
 
-### 2. Can two worlds share the complete valuation history but differ in acquisition basis?
+## What the witnesses show
 
-Expected: **SAT**.
+### Acquisition-time valuation, basis, and current valuation can all differ
 
-If yes, retaining all valuation observations still does not reconstruct acquisition basis.
+`representativeAcquisitionPressure` is SAT.
 
-### 3. Can current valuation change while acquisition basis and acquisition-time valuation stay fixed?
+The bounded world can assign three distinct selected answers to:
 
-Expected: **SAT**.
+```text
+valuation at AcquisitionTime
+acquisition basis
+valuation at CurrentTime
+```
 
-This separates later valuation movement from acquisition provenance.
+So neither temporal position nor shared comparison vocabulary forces these meanings to collapse.
 
-### 4. Can the same acquisition-time valuation coexist with different acquisition basis?
+### Complete valuation history still does not reconstruct basis
 
-Expected: **SAT**.
+`sameValuationHistoryDifferentBasis` is SAT, and `ValuationHistoryDeterminesAcquisitionBasis` has a counterexample.
 
-This is the narrow collision that rejects "basis = historical valuation" as a general derivation.
+Two worlds can share the complete `Time -> ComparisonValue` valuation relation while differing only in the acquisition-basis answer for the same acquisition identity.
 
-### 5. Can basis differ from acquisition-time valuation inside one world?
+Thus even perfect retention of the modeled valuation history does not determine acquisition basis in this vocabulary.
 
-Expected: **SAT**.
+### Historical valuation at the acquisition coordinate is not enough
 
-### 6. Does complete valuation history determine acquisition basis?
+`sameAcquisitionTimeValuationDifferentBasis` and `basisCanDifferFromAcquisitionTimeValuation` are SAT. The assertion `AcquisitionBasisEqualsHistoricalValuation` also has a counterexample.
 
-Expected check result: **SAT counterexample**.
+This is the distinction Observation 034 did not test:
 
-### 7. Must acquisition basis equal historical valuation at acquisition time?
+```text
+past valuation
+    !=
+acquisition provenance
+```
 
-Expected check result: **SAT counterexample**.
+Both may refer to the same time coordinate and still answer different questions.
 
-### 8. Does acquisition basis determine current valuation?
+### Current valuation can move without rewriting basis
 
-Expected check result: **SAT counterexample**.
+`currentValuationCanMoveWithoutRewritingBasis` is SAT, while `AcquisitionBasisDeterminesCurrentValuation` has a counterexample.
 
-The independence is two-way for the selected vocabulary.
+The same acquisition basis and the same acquisition-time valuation can coexist with different current valuations.
 
-### 9. If both valuation history and acquisition basis are fixed, are the selected answers fixed?
+So the independence is observable in both directions for the selected vocabulary.
 
-Expected check result: **UNSAT counterexample**.
+### Retaining both relations is sufficient for the selected answers
 
-## Intended interpretation
+`ExplicitBasisAndValuationDetermineSelectedAnswers` has no counterexample in the bounded scope.
 
-If the expected results hold, Observation 066 earns the bounded distinction:
+Once both the valuation relation and acquisition-basis relation are fixed, every selected historical, basis, and current answer is fixed.
+
+## Finding
+
+Observation 066 earns the bounded separation:
 
 ```text
 historical valuation relation
@@ -121,7 +143,7 @@ current valuation relation
 
 This does not mean every acquisition needs a lot object. It means that a future vocabulary asking both "how was this acquired?" and "what is it worth under this valuation?" cannot generally recover the first answer from the second relation, even when the valuation history is complete.
 
-The result would also sharpen the meaning of the practical `Rate` type. `Rate` can remain a neutral exact Measure-to-Measure relation; Observation 066 would be evidence against silently treating one supplied `Rate` as acquisition provenance merely because it was valid at the acquisition coordinate.
+The result also sharpens the meaning of the practical `Rate` type. `Rate` can remain a neutral exact Measure-to-Measure relation; Observation 066 is evidence against silently treating one supplied `Rate` as acquisition provenance merely because it was valid at the acquisition coordinate.
 
 ## Important boundaries
 
