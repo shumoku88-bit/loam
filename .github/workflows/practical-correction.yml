@@ -1,0 +1,74 @@
+name: Practical Correction Entrance
+
+on:
+  pull_request:
+    paths:
+      - 'LoamCorrection.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Persistence.lean'
+      - 'tools/loam'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-correction.yml'
+  push:
+    paths:
+      - 'LoamCorrection.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Persistence.lean'
+      - 'tools/loam'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-correction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-correction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test correction entrance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core Loam.Persistence
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run cold-start append-only correction smoke check
+        shell: bash
+        run: |
+          rm -rf scratch/dogfood
+          mkdir -p scratch/dogfood
+          memory_file="scratch/dogfood/memory.loam"
+          correction_file="scratch/dogfood/corrections.loam"
+
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
+
+          rm -f \
+            .lake/build/lib/lean/Loam/Core/RelationAdmission.olean \
+            .lake/build/lib/lean/Loam/Persistence.olean
+
+          printf '4\n1\nwallet\n1280\n' | ./tools/loam | tee /tmp/loam-correction.out
+
+          grep -Fq 'Preparing correction support...' /tmp/loam-correction.out
+          grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
+
+          expected_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\nEVENT\treplacement-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
+          test "$(cat "$memory_file")" = "$expected_memory"
+
+          expected_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\tbad-record\treplacement-1'
+          test "$(cat "$correction_file")" = "$expected_corrections"
