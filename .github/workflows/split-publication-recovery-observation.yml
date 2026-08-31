@@ -50,7 +50,6 @@ jobs:
           test -n "$APALACHE_HOME"
           test -x "$APALACHE_HOME/bin/apalache-mc"
           printf 'APALACHE_HOME=%s\n' "$APALACHE_HOME" >> "$GITHUB_ENV"
-          "$APALACHE_HOME/bin/apalache-mc" --help >/dev/null
 
       - name: Typecheck TLA+ recovery model
         shell: bash
