@@ -13,9 +13,9 @@ sig Relation {
 // Add a raw relation using only the local collection law established by
 // Observation 056: one relation identity names at most one raw relation fact.
 fun identityOnlyAdd[stored: set Relation, added: Relation]: set Relation {
-  if no existing: stored | existing.id = added.id
-  then stored + added
-  else stored
+  (no existing: stored | existing.id = added.id)
+    => stored + added
+    else stored
 }
 
 // An alternative eager policy: refuse to remember the raw relation unless all
@@ -25,9 +25,9 @@ fun referentialAdd[
     stored: set Relation,
     added: Relation
 ]: set Relation {
-  if added.refs in events and no existing: stored | existing.id = added.id
-  then stored + added
-  else stored
+  (added.refs in events and no existing: stored | existing.id = added.id)
+    => stored + added
+    else stored
 }
 
 // Observation 055/057 admission remains a derived view over current Events and
