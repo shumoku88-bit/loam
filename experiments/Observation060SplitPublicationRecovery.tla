@@ -238,6 +238,29 @@ ReaderSnapshotSafe ==
 
 Safety == TypeOK /\ DiskOrder /\ ReaderSnapshotSafe
 
+\* Stronger reachable-state shape used for Apalache's inductive-invariant
+\* check. These clauses describe protocol facts, not new domain semantics.
+WriterShape ==
+  /\ (writerPc = "event" => diskCorrectionNew)
+  /\ (writerPc = "done" => diskEventNew /\ diskCorrectionNew)
+  /\ (~writerUp => writerCrashed)
+
+ReaderShape ==
+  /\ (readerPc = "event" =>
+        ~seenEventNew /\ ~seenCorrectionNew /\ ~readerDone)
+  /\ (readerPc = "correction" => ~seenCorrectionNew /\ ~readerDone)
+  /\ (readerPc = "done" => readerDone)
+  /\ (readerDone => readerPc = "done")
+  /\ (seenEventNew => diskCorrectionNew)
+  /\ (seenCorrectionNew => diskCorrectionNew)
+
+IndInv ==
+  /\ TypeOK
+  /\ DiskOrder
+  /\ ReaderSnapshotSafe
+  /\ WriterShape
+  /\ ReaderShape
+
 \* This intentionally false-on-some-path invariant is used as a reachability
 \* probe. Apalache should find a path that crashes after relation publication,
 \* restarts the writer, retries from the first step, and eventually publishes
