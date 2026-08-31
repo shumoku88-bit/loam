@@ -114,6 +114,34 @@ theorem findById?_perm
       some resolution := by
   simp [findById?, findResolutionById?]
 
+/--
+Add one complete raw resolution relation, rejecting repeated resolution identity.
+
+This operation deliberately does not inspect `EventMemory`. Referential closure
+and whole-frontier settlement remain derived admission/projection concerns, so
+raw fact retention cannot depend on physical Event/relation arrival order.
+-/
+def add?
+    (memory : EventResolutionMemory)
+    (resolution : EventResolution) : Option EventResolutionMemory :=
+  ofResolutions? (memory.resolutions ++ [resolution])
+
+@[simp] theorem add?_empty (resolution : EventResolution) :
+    add? { resolutions := [], idNodup := by simp } resolution =
+      some { resolutions := [resolution], idNodup := by simp } := by
+  simp [add?, ofResolutions?]
+
+@[simp] theorem add?_singleton_duplicate (resolution : EventResolution) :
+    add? { resolutions := [resolution], idNodup := by simp } resolution = none := by
+  simp [add?, ofResolutions?]
+
+theorem add?_singleton_distinct
+    (existing added : EventResolution)
+    (h : existing.id ≠ added.id) :
+    add? { resolutions := [existing], idNodup := by simp } added =
+      some { resolutions := [existing, added], idNodup := by simp [h] } := by
+  simp [add?, ofResolutions?, h]
+
 end EventResolutionMemory
 
 end Loam.Core
