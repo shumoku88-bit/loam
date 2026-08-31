@@ -5,6 +5,7 @@ on:
     paths:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
+      - 'LoamCorrectionIntegrity.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
+      - 'LoamCorrectionIntegrity.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -50,7 +52,7 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Run cold-start correction and effective projection smoke check
+      - name: Run cold-start correction, effective, and integrity smoke check
         shell: bash
         run: |
           rm -rf scratch/dogfood
@@ -83,3 +85,17 @@ jobs:
           grep -Fq 'Effective quantities (single-correction projection; zero coordinates retained):' /tmp/loam-effective.out
           grep -Fq 'スーパー: 0 wallet' /tmp/loam-effective.out
           grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
+
+          rm -f .lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean
+
+          printf '6\n' | ./tools/loam | tee /tmp/loam-integrity.out
+
+          grep -Fq 'Preparing correction integrity...' /tmp/loam-integrity.out
+          grep -Fq 'Correction correction-1' /tmp/loam-integrity.out
+          grep -Fq 'bad-record -> replacement-1' /tmp/loam-integrity.out
+          grep -Fq 'relation: closed' /tmp/loam-integrity.out
+          grep -Fq 'スーパー: 1280 wallet' /tmp/loam-integrity.out
+          grep -Fq 'wallet: -1280 jpy' /tmp/loam-integrity.out
+          grep -Fq 'Projection law: original contribution excluded; replacement retained once' /tmp/loam-integrity.out
+          grep -Fq 'Arithmetic balance: not asserted across different coordinates or measures' /tmp/loam-integrity.out
+          grep -Fq 'All correction relations are closed.' /tmp/loam-integrity.out

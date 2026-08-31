@@ -84,12 +84,21 @@ effective_dependencies_are_current() {
   return 0
 }
 
-run_effective() {
+prepare_effective_dependencies() {
   if ! effective_dependencies_are_current; then
-    echo "Preparing effective projection..."
+    echo "$1"
     lake build Loam.Core.CorrectionQuantity Loam.Persistence >/dev/null
   fi
+}
+
+run_effective() {
+  prepare_effective_dependencies "Preparing effective projection..."
   exec lake env lean --run LoamEffective.lean "$@"
+}
+
+run_correction_integrity() {
+  prepare_effective_dependencies "Preparing correction integrity..."
+  exec lake env lean --run LoamCorrectionIntegrity.lean "$@"
 }
 
 if [[ $# -eq 0 ]]; then
@@ -106,6 +115,7 @@ What do you want to do?
 3. Show recorded quantities
 4. Correct a spending record
 5. Show effective quantities
+6. Review correction integrity
 q. Quit
 EOF
   printf '> '
@@ -134,6 +144,9 @@ EOF
       ;;
     5)
       run_effective "$memory_file" "$correction_file"
+      ;;
+    6)
+      run_correction_integrity "$memory_file" "$correction_file"
       ;;
     q|Q)
       exit 0
