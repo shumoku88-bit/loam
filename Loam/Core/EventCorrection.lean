@@ -67,6 +67,16 @@ namespace UnresolvedCorrection
 def candidateIds (conflict : UnresolvedCorrection) : List EventId :=
   conflict.branches.map EventCorrection.replacement
 
+/-- Candidate identity is not repeated inside an unresolved correction view. -/
+theorem candidateIds_nodup (conflict : UnresolvedCorrection) :
+    (candidateIds conflict).Nodup := by
+  simpa [candidateIds] using conflict.candidateIdNodup
+
+/-- An unresolved correction view always contains at least two candidates. -/
+theorem candidateIds_multiple (conflict : UnresolvedCorrection) :
+    2 ≤ (candidateIds conflict).length := by
+  simpa [candidateIds] using conflict.multiple
+
 /--
 Reordering the represented correction branches only reorders the represented
 candidate identities. It cannot choose a current winner.
