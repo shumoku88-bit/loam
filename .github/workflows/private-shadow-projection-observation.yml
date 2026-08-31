@@ -1,0 +1,125 @@
+name: Observation 074
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ShadowAuditCli.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'experiments/074_private_shadow_projection_boundary.md'
+      - '.github/workflows/private-shadow-projection-observation.yml'
+  push:
+    branches:
+      - 'experiment/074-private-shadow-projection'
+      - main
+    paths:
+      - 'Loam/ShadowAuditCli.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'experiments/074_private_shadow_projection_boundary.md'
+      - '.github/workflows/private-shadow-projection-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    name: Redacted read-only shadow audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build compiled shadow audit
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamShadowAudit
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check redaction, identity pressure, and source immutability
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat >/tmp/shadow-partial.journal <<'EOF'
+          include synthetic-accounts.journal
+
+          2026-01-01 * PRIVATE-DESCRIPTION-A
+              ; event-id: synthetic-event-a
+              synthetic-locus-a    10 SYN
+              synthetic-locus-b    -10 SYN
+
+          2026-01-02 * PRIVATE-DESCRIPTION-B
+              ; opaque: PRIVATE-METADATA
+              synthetic-locus-a    -15 SYN
+              synthetic-locus-b    10 SYN
+              synthetic-locus-c    5 SYN
+          EOF
+
+          before="$(sha256sum /tmp/shadow-partial.journal)"
+          partial="$(.lake/build/bin/loamShadowAudit /tmp/shadow-partial.journal --counts)"
+          after="$(sha256sum /tmp/shadow-partial.journal)"
+          test "$before" = "$after"
+
+          grep -Fq 'stable event identity: partial' <<<"$partial"
+          grep -Fq 'stable effect identity: absent' <<<"$partial"
+          grep -Fq 'lossless Practical Core projection without invented identity: no' <<<"$partial"
+          grep -Fq 'source events: 2' <<<"$partial"
+          grep -Fq 'candidate effects: 5' <<<"$partial"
+          grep -Fq 'multi-effect events: 2' <<<"$partial"
+          grep -Fq 'events with explicit event identity: 1' <<<"$partial"
+          grep -Fq 'effects with explicit effect identity: 0' <<<"$partial"
+          grep -Fq 'events with opaque metadata: 2' <<<"$partial"
+
+          for secret in \
+            PRIVATE-DESCRIPTION-A \
+            PRIVATE-DESCRIPTION-B \
+            PRIVATE-METADATA \
+            synthetic-locus-a \
+            synthetic-locus-b \
+            synthetic-locus-c \
+            '10 SYN' \
+            '-15 SYN'; do
+            if grep -Fq -- "$secret" <<<"$partial"; then
+              echo 'shadow audit leaked a raw source value' >&2
+              exit 1
+            fi
+          done
+
+          cat >/tmp/shadow-complete.journal <<'EOF'
+          2026-01-03 * PRIVATE-DESCRIPTION-C
+              ; event-id: synthetic-event-c
+              ; effect-key: synthetic-effect-c1
+              synthetic-locus-d    7 SYN
+              ; effect-key: synthetic-effect-c2
+              synthetic-locus-e    -7 SYN
+          EOF
+
+          complete="$(.lake/build/bin/loamShadowAudit /tmp/shadow-complete.journal)"
+          grep -Fq 'stable event identity: complete' <<<"$complete"
+          grep -Fq 'stable effect identity: complete' <<<"$complete"
+          grep -Fq 'lossless Practical Core projection without invented identity: yes' <<<"$complete"
+
+          if grep -Fq 'PRIVATE-DESCRIPTION-C' <<<"$complete"; then
+            echo 'shadow audit leaked a raw source description' >&2
+            exit 1
+          fi
+
+      - name: Check practical wrapper uses compiled audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x .lake/build/bin/loamShadowAudit
+          out="$(./tools/loam shadow-audit /tmp/shadow-complete.journal)"
+          grep -Fq 'lossless Practical Core projection without invented identity: yes' <<<"$out"
+          if grep -Fq 'lean --run' tools/loam; then
+            echo 'practical wrapper must not invoke Lean frontend per action' >&2
+            exit 1
+          fi

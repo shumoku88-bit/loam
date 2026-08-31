@@ -5,6 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 binary=".lake/build/bin/loam"
+shadow_binary=".lake/build/bin/loamShadowAudit"
 
 binary_is_current() {
   [[ -x "$binary" ]] || return 1
@@ -15,6 +16,18 @@ binary_is_current() {
 
   for input in lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$binary" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+shadow_binary_is_current() {
+  [[ -x "$shadow_binary" ]] || return 1
+
+  for input in Loam/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$shadow_binary" ]]; then
       return 1
     fi
   done
@@ -39,6 +52,29 @@ run_loam() {
     exit 1
   fi
 }
+
+run_shadow_audit() {
+  if shadow_binary_is_current; then
+    exec "$shadow_binary" "$@"
+  fi
+
+  echo "Building LOAM shadow audit..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-shadow-build.XXXXXX)"
+  if lake build loamShadowAudit >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    exec "$shadow_binary" "$@"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    exit 1
+  fi
+}
+
+if [[ "${1:-}" == "shadow-audit" ]]; then
+  shift
+  run_shadow_audit "$@"
+fi
 
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
