@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–065.
+This document is a checkpoint after Observations 001–066.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -305,6 +305,48 @@ A later refund can offset quantity without saying that the earlier expense was m
 
 Observation 065 does not earn a first-class practical `Refund` object, relation identity, allocation lifecycle, or persistence stream. It only earns the distinction that source-specific refund provenance cannot be reconstructed from physical Event records or aggregate quantity when that provenance remains observable.
 
+### 066 — acquisition basis is not historical valuation
+
+Observation 066 begins an external-accounting-pressure arc. It does not import a conventional Lot or CostBasis object. Instead it takes a narrower pressure seen in existing accounting systems: acquisition-specific cost information and later valuation can remain separately observable.
+
+The bounded model keeps one acquisition identity, two time coordinates, complete valuation answers, and a separate acquisition-basis answer:
+
+```text
+valuationAt : Time -> ComparisonValue
+
+acquisitionBasis : Acquisition -> ComparisonValue
+```
+
+Observed:
+
+```text
+acquisition-time valuation / basis / current valuation differ  SAT
+same complete valuation history, different basis                SAT
+same basis + acquisition-time valuation, different current      SAT
+same acquisition-time valuation, different basis                SAT
+basis may differ from acquisition-time valuation                SAT
+valuation history determines basis                              SAT counterexample
+basis equals historical valuation                               SAT counterexample
+basis determines current valuation                              SAT counterexample
+explicit basis + valuation determines selected answers          UNSAT counterexample
+```
+
+The bounded separation is therefore:
+
+```text
+historical valuation relation
+    !=
+acquisition basis
+    !=
+current valuation relation
+```
+
+Observation 034 had already shown that historical and current valuation can differ across time. Observation 066 adds a different distinction: even at the acquisition coordinate, a historical valuation answer does not generally determine acquisition provenance.
+
+This sharpens the practical meaning of `Rate` without changing it. A neutral `Rate` remains useful as an exact Measure-to-Measure relation, but it should not silently stand in for acquisition basis merely because it applies at the acquisition time.
+
+Observation 066 does not earn a practical `CostBasis` or `Lot` type, disposal selection method, gain calculation, tax rule, basis persistence stream, or identity-bearing basis fact.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -322,6 +364,8 @@ The following structures currently carry distinctions that at least one retained
 Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, matching expected/actual content, recurrence classification, opposite-signed quantity, or net balance.
 
 Observation 065 uses Event identity to distinguish otherwise matching refund-source candidates. It does not yet earn a separate identity for refund linkage itself.
+
+Observation 066 introduces one experiment-local acquisition identity only to ask whether basis belongs to that acquisition rather than to valuation history. It does not yet earn a new practical identity type.
 
 ### Quantitative coordinates
 
@@ -342,6 +386,8 @@ Observation 062 adds no new primitive coordinate. Representative bookkeeping-sha
 Observations 063 and 064 likewise do not enlarge the physical Event coordinate set. Planning and recurring-thread information remain outside the Actual physical core in the bounded experiments.
 
 Observation 065 adds no quantity coordinate either. Even retaining the physical Event records and their net quantity does not recover which earlier Event a later return is meant to explain.
+
+Observation 066 also adds no physical quantity coordinate. Acquisition basis and valuation remain comparison/provenance information outside the signed physical placement geometry in the bounded model.
 
 ### Explicit revision relations
 
@@ -369,11 +415,19 @@ Observation 065 finds that Event records, opposite-signed quantity, and net quan
 
 This does not yet imply a first-class Refund fact, identity-bearing refund relation, or general refund-allocation model.
 
+### Explicit acquisition basis when acquisition provenance matters
+
+Observation 066 finds that even complete valuation history does not determine the selected basis answer for an acquisition identity. When future questions distinguish how an acquisition was carried from how the same holding is valued, that acquisition-specific information must survive in some representation.
+
+This does not yet imply a practical CostBasis type, a Lot identity, or one mandatory basis representation.
+
 ### More than one time coordinate when the question requires it
 
 The observation layer has earned a distinction between validity and knowledge time for retrospective questions. This does not imply that every practical-core fact must immediately carry both timestamps.
 
 Observation 063 additionally demonstrates that expected time and Actual time need not be equal merely because a Plan and Event are linked.
+
+Observation 066 is deliberately not another time-coordinate result. It shows that two meanings can remain distinct even when they refer to the same acquisition coordinate.
 
 ## 3. Derived views
 
@@ -391,6 +445,8 @@ The following have appeared as derivable views rather than automatically deservi
 - same-Series peer sets from explicit Series membership
 - refunded-source Event membership from explicit refund linkage
 - refund-linked Return membership from explicit refund linkage
+- historical valuation answers from retained valuation observations
+- current valuation answer from the selected current relation
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -408,6 +464,7 @@ These relations have evidence of semantic independence from the neutral physical
 - Series membership in the bounded Observation 064 vocabulary
 - refund / reimbursement source linkage in the bounded Observation 065 vocabulary
 - valuation / rate relations
+- acquisition-basis relation in the bounded Observation 066 vocabulary
 - selection policy
 - backing eligibility
 - recipient assignment
@@ -420,6 +477,8 @@ Observation 063 supplies a separate real-data-shaped witness that plannedness an
 Observation 064 adds that recurrence classification and Plan content do not determine recurring-thread membership.
 
 Observation 065 adds that numerical offset and net quantity do not determine refund-source provenance, and that this source linkage has different semantics from Correction-style supersession.
+
+Observation 066 adds that acquisition basis is not determined by valuation history, even when the valuation answer at the acquisition coordinate is retained.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -444,7 +503,9 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observations 062–065 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
+Observations 062–066 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
+
+Observation 066 does not change `Rate`. The current practical `Rate` already deliberately avoids claiming that a Measure relation is a price, valuation authority, or time-stable fact. The new observation only adds evidence that a rate-like valuation relation should not be reused implicitly as acquisition provenance.
 
 The implementation policy remains conservative:
 
@@ -476,7 +537,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observations 062–065 do not alter persistence at all. In particular, semantic observability of realization, Series membership, or refund provenance does not by itself earn a Plan store, realization stream, Series stream, refund stream, or recurrence store.
+Observations 062–066 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, or acquisition basis does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, lot store, or recurrence store.
 
 ## 7. Deliberately unearned concepts
 
@@ -505,12 +566,17 @@ LOAM should not silently promote the following into domain law without a new obs
 - a Practical Core `Refund` type merely because refund provenance is observable
 - first-class refund-link identity, correction, or persistence
 - generalized one-to-many or many-to-many refund allocation and lifecycle semantics
+- a Practical Core `CostBasis` or `Lot` type merely because acquisition basis is observable
+- first-class basis identity, correction, authority, or persistence
+- FIFO, LIFO, average-cost, specific-identification, or any other lot-selection policy
+- realized/unrealized gain semantics derived merely from valuation and basis separation
+- tax-specific basis rules
 - issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-five observations
+## 8. Tool roles after sixty-six observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -526,8 +592,9 @@ Use when the question is primarily structural:
 - can identity linkage be reconstructed from the endpoint records it connects?
 - can recurring-thread membership be reconstructed from Plan content and recurrence classification?
 - can aggregate quantity reconstruct a source-specific real-world provenance relation?
+- can one semantic relation be reconstructed from another even when both refer to the same time coordinate?
 
-Observations 062–065 are examples of the last four cases.
+Observations 062–066 are examples of the last five cases.
 
 ### J
 
@@ -544,6 +611,8 @@ Lean is both a proof environment and the current practical-core language.
 ### TLA+ / TLC
 
 Use when the distinction depends on state transitions, temporal knowledge, operation order, or reachable intermediate states.
+
+Observation 034 already used TLA+ to separate historical, current, and future relation viewpoints. Observation 066 therefore stays with Alloy because its new distinction is semantic rather than temporal: historical valuation and acquisition basis can differ at the same coordinate.
 
 ### Apalache
 
@@ -584,6 +653,8 @@ Observation 064 deliberately refuses the tempting next abstraction when the sour
 
 Observation 065 follows another source-shaped relation rather than inventing a new mechanism. It finds that quantity can be offset while the source occurrence remains historically true, so refund provenance is neither reconstructable from net quantity nor interchangeable with Correction semantics.
 
+Observation 066 then opens the external-pressure arc with a distinction already needed by mature accounting systems, but translates it back into LOAM's vocabulary rather than importing their ontology. Complete valuation history still does not determine acquisition basis. A relation answering "what value is observed at this coordinate?" and information answering "how was this acquisition carried?" remain independent.
+
 The resulting bounded picture is now:
 
 ```text
@@ -592,24 +663,31 @@ Actual physical facts
         +---- AccountingRole / other readings
         |
         +---- refund-source linkage when provenance is asked
+        |
+        +---- acquisition-basis information when provenance is asked
 
 Expectation facts
         |
         +---- explicit realization linkage ----> Actual Event identity
         |
         +---- explicit recurring-thread membership
+
+Valuation observations
+        |
+        +---- historical/current valuation views
+        |
+        x---- do not reconstruct acquisition basis
 ```
 
-This is still not a universal ontology. It is an inventory of distinctions that concrete questions have forced so far.
+This is still not a universal ontology. It is an inventory of distinctions that concrete questions and external pressure have forced so far.
 
-It is also still a good stopping point before adding Plan, Series, or Refund implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned a Plan store, realization stream, Series object, recurrence engine, refund stream, or generic relation abstraction.
+It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, or Lot implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
 
-The next pressure can come from either direction:
+The strongest next external-pressure question is now narrower than "implement lots":
 
 ```text
-remaining concrete source relations
-        or
-external accounting-system edge cases
+If two acquisitions of the same Measure have different basis provenance,
+can aggregate holdings still answer which acquired quantity was disposed?
 ```
 
-If the canonical source stops producing genuinely new distinctions, a natural external-pressure arc can begin with reconciliation / cleared evidence, valuation and cost basis, lots, generated postings, or balance assertions. Those should be translated into questions about observable information rather than imported as conventional accounting nouns.
+That can test whether Effect/acquisition identity already carries enough provenance before any Lot object is allowed into the practical core.
