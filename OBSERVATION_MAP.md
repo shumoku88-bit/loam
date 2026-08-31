@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–063.
+This document is a checkpoint after Observations 001–064.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -202,7 +202,50 @@ which Event realizes which Plan
 
 The realization linkage carries observable information of its own. Even exact time/amount/Shape matching is insufficient when identity-distinct Events occupy the same observable coordinates.
 
-Observation 063 does not choose whether the relation is physically stored on the Plan side, Event side, or as a separate relation record. Under the current one-to-one vocabulary those are representation choices. It also does not yet earn split/merged realization, Series, recurrence, or a practical Plan type.
+Observation 063 does not choose whether the relation is physically stored on the Plan side, Event side, or as a separate relation record. Under the current one-to-one vocabulary those are representation choices. It also does not yet earn split/merged realization, Series membership, recurrence generation, or a practical Plan type.
+
+### 064 — recurring Plan content does not determine Series membership
+
+Before extending realization cardinality, Observation 064 checks the current canonical household records for concrete split or merged realization pressure. None is present yet: the visible Plan-linked Actual records still use one Plan identity per Actual record.
+
+Rather than manufacturing many-to-many realization, the observation follows a structure that is already explicit in the source: recurring Plans are grouped into Series and carry recurrence classifications such as monthly, cycle, and once.
+
+The public model retains only anonymized structure:
+
+```text
+Plan identity
+  + expected Time / Amount / Shape
+  + Recurrence kind
+
+seriesOf : Plan -> one Series
+```
+
+Observed:
+
+```text
+representative Series pressure                     SAT
+same Plan records, different grouping              SAT
+same Series, changing expected amount              SAT
+same recurrence + Shape, different Series          SAT
+Plan records determine Series grouping             SAT counterexample
+same recurrence + Shape forces same Series         SAT counterexample
+Series membership requires fixed amount            SAT counterexample
+explicit membership determines peer answers        UNSAT counterexample
+```
+
+The bounded separation is therefore:
+
+```text
+Plan content
+    !=
+recurrence kind
+    !=
+Series membership
+```
+
+A recurring thread can continue across changed expected quantities, while distinct recurring threads can share recurrence kind and broad structural Shape. Which Plan identities belong to the same thread is observable grouping information of its own.
+
+Observation 064 does not earn a first-class practical `Series` object or a recurrence engine. A Plan-side series identifier, standalone membership relation, or another information-equivalent encoding could preserve the same observed distinction.
 
 ## 2. Earned structure
 
@@ -216,9 +259,9 @@ The following structures currently carry distinctions that at least one retained
 - Measure identity
 - per-kind Correction identity
 - per-kind Resolution identity
-- Plan identity in the bounded expectation/realization vocabulary of Observation 063
+- Plan identity in the bounded expectation/realization vocabulary of Observations 063–064
 
-Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, or matching expected/actual content.
+Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, matching expected/actual content, or recurrence classification.
 
 ### Quantitative coordinates
 
@@ -236,7 +279,7 @@ Coordinate totals are projections over effects, not effect identity.
 
 Observation 062 adds no new primitive coordinate. Representative bookkeeping-shaped Events can still be expressed with the existing Event / Effect / Locus structure plus independent AccountingRole.
 
-Observation 063 likewise does not enlarge the physical Event coordinate set. Planning information remains outside the Actual physical core in the bounded experiment.
+Observations 063 and 064 likewise do not enlarge the physical Event coordinate set. Planning and recurring-thread information remain outside the Actual physical core in the bounded experiments.
 
 ### Explicit revision relations
 
@@ -249,6 +292,12 @@ Their referenced Events may be absent from the current Event memory. Raw memory 
 Observation 063 finds that the mapping from Plan identity to Actual Event identity cannot be reconstructed from Plan/Event content or from the completed-Plan set. When future questions ask which Actual fulfilled which expectation, the correspondence itself must survive in some representation.
 
 This does not yet imply that realization needs its own identity-bearing fact type.
+
+### Explicit recurring-thread grouping when peer identity matters
+
+Observation 064 finds that recurrence kind and Plan content do not determine which Plan identities belong to the same recurring thread. When future questions ask which expectations are peers in one Series, the membership distinction must survive in some representation.
+
+This does not yet imply that Series must be a first-class stored object or that membership needs its own identity-bearing fact.
 
 ### More than one time coordinate when the question requires it
 
@@ -269,6 +318,7 @@ The following have appeared as derivable views rather than automatically deservi
 - completed Plan membership from explicit realization linkage
 - realized Actual Event membership from explicit realization linkage
 - expected/actual amount, time, and Shape mismatch views from realization linkage
+- same-Series peer sets from explicit Series membership
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -283,6 +333,7 @@ These relations have evidence of semantic independence from the neutral physical
 - Purpose / intentional assignment
 - AccountingRole
 - Plan realization linkage in the bounded Observation 063 vocabulary
+- Series membership in the bounded Observation 064 vocabulary
 - valuation / rate relations
 - selection policy
 - backing eligibility
@@ -292,6 +343,8 @@ These relations have evidence of semantic independence from the neutral physical
 Observation 062 supplies a real-data-shaped witness that AccountingRole remains semantically active while AccountName and nominal EventKind remain observationally inert for the selected bookkeeping-shape vocabulary.
 
 Observation 063 supplies a separate real-data-shaped witness that plannedness and completion provenance are not properties of Actual Event content alone.
+
+Observation 064 adds that recurrence classification and Plan content do not determine recurring-thread membership.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -316,7 +369,7 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observations 062 and 063 add no Account object, nominal EventKind, Plan type, realization type, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
+Observations 062–064 add no Account object, nominal EventKind, Plan type, realization type, Series type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
 
 The implementation policy remains conservative:
 
@@ -348,7 +401,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observations 062 and 063 do not alter persistence at all. In particular, Observation 063 does not earn a Plan store or a realization stream merely because explicit realization is semantically observable.
+Observations 062–064 do not alter persistence at all. In particular, semantic observability of realization or Series membership does not by itself earn a Plan store, realization stream, Series stream, or recurrence store.
 
 ## 7. Deliberately unearned concepts
 
@@ -372,13 +425,14 @@ LOAM should not silently promote the following into domain law without a new obs
 - a Practical Core `Plan` type merely because planning appears in source data
 - first-class realization identity, correction, or persistence
 - one Plan realized by several Events or several Plans realized by one Event
-- Series / recurrence semantics
+- a Practical Core `Series` object merely because Series membership is observable
+- recurrence generation, next-occurrence prediction, or Series lifecycle semantics
 - issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-three observations
+## 8. Tool roles after sixty-four observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -392,8 +446,9 @@ Use when the question is primarily structural:
 - can a familiar household noun remain a projection?
 - do anonymized real-data shapes fit the existing structural vocabulary without adding a new primitive?
 - can identity linkage be reconstructed from the endpoint records it connects?
+- can recurring-thread membership be reconstructed from Plan content and recurrence classification?
 
-Observations 062 and 063 are examples of the last two cases.
+Observations 062–064 are examples of the last three cases.
 
 ### J
 
@@ -446,6 +501,8 @@ Observation 062 then brought anonymized shapes from ordinary household records b
 
 Observation 063 follows the same real-data-pressure strategy one layer outward. It finds that expectation and actuality can remain separate facts, but their correspondence is not recoverable from endpoint content. Stable completion provenance therefore needs explicit identity linkage even when matching coordinates look sufficient.
 
+Observation 064 deliberately refuses the tempting next abstraction when the source does not require it: current records do not yet force many-to-many realization. Instead it follows the recurring structure that is already present and finds that Series membership itself cannot be reconstructed from recurrence kind or Plan content.
+
 The resulting picture is now:
 
 ```text
@@ -456,18 +513,18 @@ Actual physical facts
 Expectation facts
         |
         +---- explicit realization linkage ----> Actual Event identity
+        |
+        +---- explicit recurring-thread membership
 ```
 
-This is a useful stopping point before adding any Plan implementation. The new semantic information has been observed, but no practical storage pressure has yet earned a Plan store, realization stream, or generic relation abstraction.
+This is still a good stopping point before adding any Plan or Series implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned a Plan store, realization stream, Series object, recurrence engine, or generic relation abstraction.
 
-The strongest next pressure is no longer "should Plan be an Event field?" Under one-to-one cardinality that is mostly a representation choice. A genuinely new question would relax the cardinality or add lifecycle behavior:
+The strongest next questions now come from behavior rather than another noun:
 
 ```text
-one Plan -> several Actual Events
-several Plans -> one Actual Event
-partial realization
-supersession / cancellation
-Series / recurrence
+Does a recurring thread generate future expectations?
+When amount or schedule changes, is that revision or a new thread?
+Which time coordinates are needed for expected, actual, and learned facts?
 ```
 
-If concrete workflows require those shapes, Observation 064 can ask whether realization itself needs identity, quantities, or temporal lifecycle. Otherwise LOAM can stop here without manufacturing another abstraction.
+Those questions may earn TLA+ or a practical representation later, but only if the concrete workflow needs them.
