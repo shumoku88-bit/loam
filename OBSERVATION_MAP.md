@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–064.
+This document is a checkpoint after Observations 001–065.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -247,6 +247,64 @@ A recurring thread can continue across changed expected quantities, while distin
 
 Observation 064 does not earn a first-class practical `Series` object or a recurrence engine. A Plan-side series identifier, standalone membership relation, or another information-equivalent encoding could preserve the same observed distinction.
 
+### 065 — refund provenance is not quantity reversal or Correction
+
+Observation 065 follows another structure already present in ordinary household records: a later return-like Event can offset quantity from an earlier expense-like Event, while a future question may still ask which earlier Event the return belongs to.
+
+The public model keeps only anonymized structure:
+
+```text
+Expense Event identity
+  + Time
+  + signed Quantity
+
+Return Event identity
+  + Time
+  + signed Quantity
+
+refundOf : Return -> lone Expense
+```
+
+The model deliberately does not require equal magnitudes. Full versus partial offset is separate from the provenance question.
+
+Observed:
+
+```text
+representative refund pressure                              SAT
+same Event records, different refund provenance             SAT
+same net quantity, different refund provenance              SAT
+matching source coordinates remain ambiguous                SAT
+same Return can be refund-linked or unlinked                SAT
+Event records determine refund provenance                   SAT counterexample
+net quantity determines refund provenance                   SAT counterexample
+explicit refund relation determines selected answers        UNSAT counterexample
+Correction-style projection preserves source occurrence     SAT counterexample
+```
+
+The bounded separation is therefore:
+
+```text
+Event records
+    +
+net quantity
+
+        does not determine
+
+refund provenance
+```
+
+and the practical semantic boundary is:
+
+```text
+refund / reimbursement
+    !=
+Correction
+```
+
+A later refund can offset quantity without saying that the earlier expense was mistaken, replaced, or did not occur. Treating the refund relation like Correction-style supersession loses the selected occurrence answer for the source Event.
+
+Observation 065 does not earn a first-class practical `Refund` object, relation identity, allocation lifecycle, or persistence stream. It only earns the distinction that source-specific refund provenance cannot be reconstructed from physical Event records or aggregate quantity when that provenance remains observable.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -261,7 +319,9 @@ The following structures currently carry distinctions that at least one retained
 - per-kind Resolution identity
 - Plan identity in the bounded expectation/realization vocabulary of Observations 063–064
 
-Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, matching expected/actual content, or recurrence classification.
+Identity is not inferred from list position, physical storage order, display names, aggregate coordinates, matching expected/actual content, recurrence classification, opposite-signed quantity, or net balance.
+
+Observation 065 uses Event identity to distinguish otherwise matching refund-source candidates. It does not yet earn a separate identity for refund linkage itself.
 
 ### Quantitative coordinates
 
@@ -281,11 +341,15 @@ Observation 062 adds no new primitive coordinate. Representative bookkeeping-sha
 
 Observations 063 and 064 likewise do not enlarge the physical Event coordinate set. Planning and recurring-thread information remain outside the Actual physical core in the bounded experiments.
 
+Observation 065 adds no quantity coordinate either. Even retaining the physical Event records and their net quantity does not recover which earlier Event a later return is meant to explain.
+
 ### Explicit revision relations
 
 Correction and Resolution remain explicit raw relation facts rather than edits that erase earlier facts.
 
 Their referenced Events may be absent from the current Event memory. Raw memory can still retain the relation fact while derived referential admission fails closed.
+
+Observation 065 sharpens the boundary around Correction: an offsetting later Event is not thereby a Correction. Refund linkage preserves the source as an occurrence rather than replacing its effective interpretation.
 
 ### Explicit correspondence when provenance distinguishes identical content
 
@@ -298,6 +362,12 @@ This does not yet imply that realization needs its own identity-bearing fact typ
 Observation 064 finds that recurrence kind and Plan content do not determine which Plan identities belong to the same recurring thread. When future questions ask which expectations are peers in one Series, the membership distinction must survive in some representation.
 
 This does not yet imply that Series must be a first-class stored object or that membership needs its own identity-bearing fact.
+
+### Explicit refund provenance when source identity matters
+
+Observation 065 finds that Event records, opposite-signed quantity, and net quantity do not determine which earlier Event a return belongs to. When future questions ask which occurrence was refunded or reimbursed, the source linkage must survive in some representation.
+
+This does not yet imply a first-class Refund fact, identity-bearing refund relation, or general refund-allocation model.
 
 ### More than one time coordinate when the question requires it
 
@@ -319,6 +389,8 @@ The following have appeared as derivable views rather than automatically deservi
 - realized Actual Event membership from explicit realization linkage
 - expected/actual amount, time, and Shape mismatch views from realization linkage
 - same-Series peer sets from explicit Series membership
+- refunded-source Event membership from explicit refund linkage
+- refund-linked Return membership from explicit refund linkage
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -334,6 +406,7 @@ These relations have evidence of semantic independence from the neutral physical
 - AccountingRole
 - Plan realization linkage in the bounded Observation 063 vocabulary
 - Series membership in the bounded Observation 064 vocabulary
+- refund / reimbursement source linkage in the bounded Observation 065 vocabulary
 - valuation / rate relations
 - selection policy
 - backing eligibility
@@ -345,6 +418,8 @@ Observation 062 supplies a real-data-shaped witness that AccountingRole remains 
 Observation 063 supplies a separate real-data-shaped witness that plannedness and completion provenance are not properties of Actual Event content alone.
 
 Observation 064 adds that recurrence classification and Plan content do not determine recurring-thread membership.
+
+Observation 065 adds that numerical offset and net quantity do not determine refund-source provenance, and that this source linkage has different semantics from Correction-style supersession.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -369,7 +444,7 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observations 062–064 add no Account object, nominal EventKind, Plan type, realization type, Series type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
+Observations 062–065 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped questions do and do not force.
 
 The implementation policy remains conservative:
 
@@ -401,7 +476,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observations 062–064 do not alter persistence at all. In particular, semantic observability of realization or Series membership does not by itself earn a Plan store, realization stream, Series stream, or recurrence store.
+Observations 062–065 do not alter persistence at all. In particular, semantic observability of realization, Series membership, or refund provenance does not by itself earn a Plan store, realization stream, Series stream, refund stream, or recurrence store.
 
 ## 7. Deliberately unearned concepts
 
@@ -427,12 +502,15 @@ LOAM should not silently promote the following into domain law without a new obs
 - one Plan realized by several Events or several Plans realized by one Event
 - a Practical Core `Series` object merely because Series membership is observable
 - recurrence generation, next-occurrence prediction, or Series lifecycle semantics
+- a Practical Core `Refund` type merely because refund provenance is observable
+- first-class refund-link identity, correction, or persistence
+- generalized one-to-many or many-to-many refund allocation and lifecycle semantics
 - issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-four observations
+## 8. Tool roles after sixty-five observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -447,8 +525,9 @@ Use when the question is primarily structural:
 - do anonymized real-data shapes fit the existing structural vocabulary without adding a new primitive?
 - can identity linkage be reconstructed from the endpoint records it connects?
 - can recurring-thread membership be reconstructed from Plan content and recurrence classification?
+- can aggregate quantity reconstruct a source-specific real-world provenance relation?
 
-Observations 062–064 are examples of the last three cases.
+Observations 062–065 are examples of the last four cases.
 
 ### J
 
@@ -503,12 +582,16 @@ Observation 063 follows the same real-data-pressure strategy one layer outward. 
 
 Observation 064 deliberately refuses the tempting next abstraction when the source does not require it: current records do not yet force many-to-many realization. Instead it follows the recurring structure that is already present and finds that Series membership itself cannot be reconstructed from recurrence kind or Plan content.
 
-The resulting picture is now:
+Observation 065 follows another source-shaped relation rather than inventing a new mechanism. It finds that quantity can be offset while the source occurrence remains historically true, so refund provenance is neither reconstructable from net quantity nor interchangeable with Correction semantics.
+
+The resulting bounded picture is now:
 
 ```text
 Actual physical facts
         |
         +---- AccountingRole / other readings
+        |
+        +---- refund-source linkage when provenance is asked
 
 Expectation facts
         |
@@ -517,14 +600,16 @@ Expectation facts
         +---- explicit recurring-thread membership
 ```
 
-This is still a good stopping point before adding any Plan or Series implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned a Plan store, realization stream, Series object, recurrence engine, or generic relation abstraction.
+This is still not a universal ontology. It is an inventory of distinctions that concrete questions have forced so far.
 
-The strongest next questions now come from behavior rather than another noun:
+It is also still a good stopping point before adding Plan, Series, or Refund implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned a Plan store, realization stream, Series object, recurrence engine, refund stream, or generic relation abstraction.
+
+The next pressure can come from either direction:
 
 ```text
-Does a recurring thread generate future expectations?
-When amount or schedule changes, is that revision or a new thread?
-Which time coordinates are needed for expected, actual, and learned facts?
+remaining concrete source relations
+        or
+external accounting-system edge cases
 ```
 
-Those questions may earn TLA+ or a practical representation later, but only if the concrete workflow needs them.
+If the canonical source stops producing genuinely new distinctions, a natural external-pressure arc can begin with reconciliation / cleared evidence, valuation and cost basis, lots, generated postings, or balance assertions. Those should be translated into questions about observable information rather than imported as conventional accounting nouns.
