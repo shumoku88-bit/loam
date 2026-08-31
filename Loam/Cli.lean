@@ -1,4 +1,7 @@
 import Loam.Persistence
+import Loam.CorrectionCli
+import Loam.EffectiveCli
+import Loam.CorrectionIntegrityCli
 import Std
 
 namespace Loam.Cli
@@ -419,6 +422,12 @@ def run (args : List String) : IO UInt32 :=
   | ["spend", memoryPath] => spendJpy memoryPath
   | ["review", memoryPath] => reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
+  | ["correct", memoryPath, correctionPath] =>
+      Loam.CorrectionCli.correctSpend memoryPath correctionPath
+  | ["effective", memoryPath, correctionPath] =>
+      Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
+  | ["correction-integrity", memoryPath, correctionPath] =>
+      Loam.CorrectionIntegrityCli.showCorrectionIntegrity memoryPath correctionPath
   | ["amount", "show", path] => showAmount path
   | "event" :: "create" :: path :: eventToken :: effectArgs =>
       createEvent path eventToken effectArgs
