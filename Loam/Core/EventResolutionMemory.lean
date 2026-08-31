@@ -1,5 +1,5 @@
 import Init.Data.List.Perm
-import Loam.Core.EventCorrection
+import Loam.Core.EventResolution
 
 namespace Loam.Core
 
