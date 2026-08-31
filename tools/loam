@@ -5,6 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 binary=".lake/build/bin/loam"
+correction_binary=".lake/build/bin/loamCorrection"
 
 binary_is_current() {
   [[ -x "$binary" ]] || return 1
@@ -22,6 +23,26 @@ binary_is_current() {
   return 0
 }
 
+correction_binary_is_current() {
+  [[ -x "$correction_binary" ]] || return 1
+
+  if [[ LoamCorrection.lean -nt "$correction_binary" ]]; then
+    return 1
+  fi
+
+  if find Loam -type f -name '*.lean' -newer "$correction_binary" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$correction_binary" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
 run_loam() {
   if binary_is_current; then
     exec "$binary" "$@"
@@ -30,8 +51,17 @@ run_loam() {
   fi
 }
 
+run_correction() {
+  if correction_binary_is_current; then
+    exec "$correction_binary" "$@"
+  else
+    exec lake exe loamCorrection "$@"
+  fi
+}
+
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
+  correction_file="scratch/dogfood/corrections.loam"
   mkdir -p "$(dirname "$memory_file")"
 
   cat <<'EOF'
@@ -41,6 +71,7 @@ What do you want to do?
 1. Record spending
 2. Review what I recorded
 3. Show recorded quantities
+4. Correct a spending record
 q. Quit
 EOF
   printf '> '
@@ -63,6 +94,9 @@ EOF
         exit 0
       fi
       run_loam summary "$memory_file"
+      ;;
+    4)
+      run_correction "$memory_file" "$correction_file"
       ;;
     q|Q)
       exit 0
