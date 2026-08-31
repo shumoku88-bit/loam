@@ -40,6 +40,7 @@ LOAM
 What do you want to do?
 1. Record spending
 2. Review what I recorded
+3. Show recorded quantities
 q. Quit
 EOF
   printf '> '
@@ -55,6 +56,13 @@ EOF
         exit 0
       fi
       run_loam review "$memory_file"
+      ;;
+    3)
+      if [[ ! -e "$memory_file" ]]; then
+        echo "Nothing recorded yet."
+        exit 0
+      fi
+      run_loam summary "$memory_file"
       ;;
     q|Q)
       exit 0
