@@ -4,7 +4,7 @@
 
 Observations 039–041 established that explanation relations can carry information that a flattened current view does not preserve. Observation 020 separately established append-only Correction as a relation that changes effective interpretation while retaining the original observation in provenance.
 
-The current household source introduces a more specific pressure: later Events can numerically reverse an earlier expense-like Event because money is refunded or reimbursed.
+The current household source introduces a more specific pressure: later Events can numerically offset an earlier expense-like Event because money is refunded or reimbursed.
 
 The public experiment copies **none** of the private descriptions, dates, quantities, account identities, transaction identities, or counterparties. It keeps only the anonymized structural pressure:
 
@@ -50,6 +50,8 @@ The `Expense` and `Return` labels are experiment-local specimen classes. Observa
 
 Every World sees the same Event records. Only `refundOf` may vary.
 
+The model intentionally does **not** require the return quantity to equal the source expense quantity. The provenance question exists independently of whether an offset is full or partial.
+
 ## Selected answers
 
 From explicit refund linkage the model derives:
@@ -85,7 +87,7 @@ Expected: **SAT**.
 
 Expected: **SAT**.
 
-This is the key distinction between numerical reversal and explanatory linkage.
+This is the key distinction between numerical offset and explanatory linkage.
 
 ### 4. Can exact source-coordinate matching remain ambiguous?
 
@@ -115,9 +117,27 @@ Expected check result: **SAT counterexample**.
 
 The original expense remains a historical occurrence even when later quantity returns. A Correction-style effective projection that removes the source therefore answers a different question.
 
-## Intended interpretation
+## Observed Alloy result
 
-If the expected results hold, the bounded separation is:
+Alloy 6.2.0 + Sat4j returned:
+
+```text
+representativeRefundPressure                              SAT
+sameRecordsDifferentRefundProvenance                      SAT
+sameNetDifferentRefundProvenance                          SAT
+exactSourceCandidatesAmbiguous                            SAT
+sameReturnCanBeRefundOrUnlinked                           SAT
+EventRecordsDetermineRefundProvenance                     SAT counterexample
+NetQuantityDeterminesRefundProvenance                     SAT counterexample
+ExplicitRefundRelationDeterminesSelectedAnswers           UNSAT counterexample
+RefundCanUseCorrectionProjectionWithoutLosingOccurrence   SAT counterexample
+```
+
+Observation 065 run #3 completed SUCCESS after the shape scope was made explicit. The earlier failed runs were model plumbing errors, not semantic counterexamples.
+
+## Finding
+
+The bounded separation is:
 
 ```text
 opposite-signed Event
@@ -139,6 +159,10 @@ Correction
 
 A refund may offset the quantitative effect of an earlier Event without saying that the earlier Event was mistaken, replaced, or did not occur.
 
+The same Event records can therefore support distinct refund explanations while every quantitative fact remains unchanged. Even matching source coordinates do not recover which identity was refunded.
+
+Treating the refund edge as if it were a Correction edge also loses a selected answer: the source expense remains an occurrence, whereas a Correction-style effective projection removes the target from the current effective set.
+
 This extends the general explanation result of Observation 039 with a household-shaped semantic boundary, and it pressure-tests the practical Correction concept without changing it.
 
 ## Important boundaries
@@ -148,7 +172,7 @@ Observation 065 does **not** establish:
 - a Practical Core `Refund` type;
 - that every opposite-signed Event is a refund;
 - that every return links to exactly one source generally;
-- partial refund quantities;
+- rules for allocating one return quantity across one or more source Events;
 - one expense receiving several refunds;
 - one return reimbursing several source Events;
 - refund lifecycle, dispute, chargeback, or settlement semantics;
@@ -158,4 +182,4 @@ Observation 065 does **not** establish:
 - tax treatment or accounting recognition rules;
 - that experiment-local `Expense` / `Return` classes belong in neutral Event ontology.
 
-If real records later require partial or many-to-many reimbursement, that should be a separate pressure rather than silently widened here.
+If real records later require many-to-many reimbursement or lifecycle behavior, that should be a separate pressure rather than silently widened here.
