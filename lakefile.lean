@@ -8,3 +8,6 @@ lean_lib Loam
 
 lean_exe loam where
   root := `Loam.Cli
+
+lean_exe loamShadowAudit where
+  root := `Loam.ShadowAuditCli
