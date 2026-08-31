@@ -25,8 +25,18 @@ binary_is_current() {
 run_loam() {
   if binary_is_current; then
     exec "$binary" "$@"
+  fi
+
+  echo "Building LOAM..."
+  local build_log
+  build_log="$(mktemp -t loam-build.XXXXXX)"
+  if lake build loam >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    exec "$binary" "$@"
   else
-    exec lake exe loam "$@"
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    exit 1
   fi
 }
 
