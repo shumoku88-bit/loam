@@ -1,0 +1,132 @@
+name: Observation 060
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/Observation060SplitPublicationRecovery.tla'
+      - 'experiments/060_split_publication_recovery.md'
+      - '.github/workflows/split-publication-recovery-observation.yml'
+  push:
+    branches:
+      - 'experiment/060-split-publication-recovery'
+      - main
+    paths:
+      - 'experiments/Observation060SplitPublicationRecovery.tla'
+      - 'experiments/060_split_publication_recovery.md'
+      - '.github/workflows/split-publication-recovery-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apalache:
+    name: Apalache split publication recovery
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install pinned Apalache
+        shell: bash
+        run: |
+          set -euo pipefail
+          APALACHE_VERSION='0.62.2'
+          ARCHIVE="apalache-${APALACHE_VERSION}.tgz"
+          URL="https://github.com/apalache-mc/apalache/releases/download/v${APALACHE_VERSION}/${ARCHIVE}"
+          EXPECTED_SHA256='765f610537281a0f25b8c30f2554f19523e2859c824e80e62276653ee23c10e2'
+
+          curl --fail --location --retry 3 --output "/tmp/${ARCHIVE}" "$URL"
+          printf '%s  %s\n' "$EXPECTED_SHA256" "/tmp/${ARCHIVE}" | sha256sum -c -
+
+          mkdir -p /tmp/apalache-dist
+          tar -xzf "/tmp/${ARCHIVE}" -C /tmp/apalache-dist
+          APALACHE_HOME="$(find /tmp/apalache-dist -mindepth 1 -maxdepth 1 -type d -name 'apalache-*' -print -quit)"
+          test -n "$APALACHE_HOME"
+          test -x "$APALACHE_HOME/bin/apalache-mc"
+          printf 'APALACHE_HOME=%s\n' "$APALACHE_HOME" >> "$GITHUB_ENV"
+          "$APALACHE_HOME/bin/apalache-mc" --help >/dev/null
+
+      - name: Typecheck TLA+ recovery model
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$APALACHE_HOME/bin/apalache-mc" typecheck \
+            experiments/Observation060SplitPublicationRecovery.tla
+
+      - name: Prove recovery invariant starts true
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$APALACHE_HOME/bin/apalache-mc" check \
+            --init=Init \
+            --next=Next \
+            --inv=IndInv \
+            --length=0 \
+            --out-dir=/tmp/apalache-ind-init \
+            experiments/Observation060SplitPublicationRecovery.tla
+
+      - name: Prove one protocol step preserves recovery invariant
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$APALACHE_HOME/bin/apalache-mc" check \
+            --init=IndInv \
+            --next=Next \
+            --inv=IndInv \
+            --length=1 \
+            --out-dir=/tmp/apalache-ind-next \
+            experiments/Observation060SplitPublicationRecovery.tla
+
+      - name: Prove recovery invariant implies safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$APALACHE_HOME/bin/apalache-mc" check \
+            --init=IndInv \
+            --next=Next \
+            --inv=Safety \
+            --length=0 \
+            --out-dir=/tmp/apalache-ind-safety \
+            experiments/Observation060SplitPublicationRecovery.tla
+
+      - name: Require crash then retry completion witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output="$("$APALACHE_HOME/bin/apalache-mc" check \
+            --init=Init \
+            --next=Next \
+            --inv=NoRecoveredCompletion \
+            --length=8 \
+            --out-dir=/tmp/apalache-recovery-witness \
+            experiments/Observation060SplitPublicationRecovery.tla 2>&1)"
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$status" -ne 0
+          grep -Eq 'state invariant [0-9]+ violated|counterexample' <<<"$output"
+
+      - name: Require Event-first writer counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          output="$("$APALACHE_HOME/bin/apalache-mc" check \
+            --init=Init \
+            --next=UnsafeNext \
+            --inv=DiskOrder \
+            --length=4 \
+            --out-dir=/tmp/apalache-unsafe-writer \
+            experiments/Observation060SplitPublicationRecovery.tla 2>&1)"
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$status" -ne 0
+          grep -Eq 'state invariant [0-9]+ violated|counterexample' <<<"$output"
