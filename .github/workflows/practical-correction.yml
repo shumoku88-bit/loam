@@ -105,3 +105,14 @@ jobs:
 
           direct="$(.lake/build/bin/loam effective "$memory_file" "$correction_file")"
           grep -Fq 'wallet: -1280 jpy' <<<"$direct"
+
+          # A source update may require one rebuild, but successful rebuild chatter
+          # must not leak Lean linter warnings into the practical menu surface.
+          touch Loam/EffectiveCli.lean
+          printf '5\n' | ./tools/loam | tee /tmp/loam-rebuild.out
+          grep -Fq 'Building LOAM...' /tmp/loam-rebuild.out
+          if grep -Fq 'warning:' /tmp/loam-rebuild.out; then
+            echo 'successful practical rebuild must keep Lean warnings out of the user surface' >&2
+            exit 1
+          fi
+          grep -Fq 'wallet: -1280 jpy' /tmp/loam-rebuild.out
