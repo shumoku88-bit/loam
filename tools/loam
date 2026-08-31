@@ -6,6 +6,7 @@ cd "$root"
 
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
+  mkdir -p "$(dirname "$memory_file")"
 
   cat <<'EOF'
 LOAM
@@ -23,6 +24,10 @@ EOF
       exec lake exe loam spend "$memory_file"
       ;;
     2)
+      if [[ ! -e "$memory_file" ]]; then
+        echo "Nothing recorded yet."
+        exit 0
+      fi
       exec lake exe loam review "$memory_file"
       ;;
     q|Q)
