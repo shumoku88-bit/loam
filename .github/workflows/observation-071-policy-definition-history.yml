@@ -1,0 +1,93 @@
+name: Observation 071
+
+on:
+  pull_request:
+    paths:
+      - 'tla/PolicyDefinitionHistory.tla'
+      - 'tla/PolicyDefinitionHistory*.cfg'
+      - 'experiments/071_policy_definition_history_pressure.md'
+      - 'README.md'
+      - 'OBSERVATION_MAP.md'
+      - '.github/workflows/observation-071-policy-definition-history.yml'
+  push:
+    branches:
+      - main
+      - 'experiment/071-policy-definition-history-pressure'
+    paths:
+      - 'tla/PolicyDefinitionHistory.tla'
+      - 'tla/PolicyDefinitionHistory*.cfg'
+      - 'experiments/071_policy_definition_history_pressure.md'
+      - 'README.md'
+      - 'OBSERVATION_MAP.md'
+      - '.github/workflows/observation-071-policy-definition-history.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ policy definition history
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check retained definition safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/PolicyDefinitionHistory.cfg \
+            tla/PolicyDefinitionHistory.tla \
+            2>&1 | tee /tmp/observation-071-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-071-positive.txt
+
+      - name: Require definition-A history behind current definition-B projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/PolicyDefinitionHistoryBoundaryB.cfg \
+            tla/PolicyDefinitionHistory.tla \
+            2>&1 | tee /tmp/observation-071-boundary-b.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ProjectionForcesRecordedDefinitionB' /tmp/observation-071-boundary-b.txt
+          grep -Fq 'Invariant' /tmp/observation-071-boundary-b.txt
+          grep -Fq 'currentDefinition = "definitionB"' /tmp/observation-071-boundary-b.txt
+          grep -Fq 'recordedDefinition = "definitionA"' /tmp/observation-071-boundary-b.txt
+          grep -Fq 'recordedAttribution = "earlier3_later1"' /tmp/observation-071-boundary-b.txt
+
+      - name: Require definition-B history behind the same projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/PolicyDefinitionHistoryBoundaryA.cfg \
+            tla/PolicyDefinitionHistory.tla \
+            2>&1 | tee /tmp/observation-071-boundary-a.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ProjectionForcesRecordedDefinitionA' /tmp/observation-071-boundary-a.txt
+          grep -Fq 'Invariant' /tmp/observation-071-boundary-a.txt
+          grep -Fq 'currentDefinition = "definitionB"' /tmp/observation-071-boundary-a.txt
+          grep -Fq 'recordedDefinition = "definitionB"' /tmp/observation-071-boundary-a.txt
+          grep -Fq 'recordedAttribution = "earlier3_later1"' /tmp/observation-071-boundary-a.txt
