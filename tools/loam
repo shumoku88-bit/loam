@@ -30,77 +30,6 @@ run_loam() {
   fi
 }
 
-correction_dependencies_are_current() {
-  local relation_olean=".lake/build/lib/lean/Loam/Core/RelationAdmission.olean"
-  local persistence_olean=".lake/build/lib/lean/Loam/Persistence.olean"
-
-  [[ -f "$relation_olean" && -f "$persistence_olean" ]] || return 1
-
-  if find Loam/Core -type f -name '*.lean' -newer "$relation_olean" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  if [[ Loam/Persistence.lean -nt "$persistence_olean" ]]; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && ( "$input" -nt "$relation_olean" || "$input" -nt "$persistence_olean" ) ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-run_correction() {
-  if ! correction_dependencies_are_current; then
-    echo "Preparing correction support..."
-    lake build Loam.Core.RelationAdmission Loam.Persistence >/dev/null
-  fi
-  exec lake env lean --run LoamCorrection.lean "$@"
-}
-
-effective_dependencies_are_current() {
-  local quantity_olean=".lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean"
-  local persistence_olean=".lake/build/lib/lean/Loam/Persistence.olean"
-
-  [[ -f "$quantity_olean" && -f "$persistence_olean" ]] || return 1
-
-  if [[ Loam/Core/CorrectionQuantity.lean -nt "$quantity_olean" ]]; then
-    return 1
-  fi
-
-  if [[ Loam/Persistence.lean -nt "$persistence_olean" ]]; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && ( "$input" -nt "$quantity_olean" || "$input" -nt "$persistence_olean" ) ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-prepare_effective_dependencies() {
-  if ! effective_dependencies_are_current; then
-    echo "$1"
-    lake build Loam.Core.CorrectionQuantity Loam.Persistence >/dev/null
-  fi
-}
-
-run_effective() {
-  prepare_effective_dependencies "Preparing effective projection..."
-  exec lake env lean --run LoamEffective.lean "$@"
-}
-
-run_correction_integrity() {
-  prepare_effective_dependencies "Preparing correction integrity..."
-  exec lake env lean --run LoamCorrectionIntegrity.lean "$@"
-}
-
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
   correction_file="scratch/dogfood/corrections.loam"
@@ -140,13 +69,13 @@ EOF
       run_loam summary "$memory_file"
       ;;
     4)
-      run_correction "$memory_file" "$correction_file"
+      run_loam correct "$memory_file" "$correction_file"
       ;;
     5)
-      run_effective "$memory_file" "$correction_file"
+      run_loam effective "$memory_file" "$correction_file"
       ;;
     6)
-      run_correction_integrity "$memory_file" "$correction_file"
+      run_loam correction-integrity "$memory_file" "$correction_file"
       ;;
     q|Q)
       exit 0
