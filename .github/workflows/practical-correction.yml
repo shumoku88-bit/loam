@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'LoamCorrection.lean'
+      - 'LoamEffective.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -13,6 +14,7 @@ on:
   push:
     paths:
       - 'LoamCorrection.lean'
+      - 'LoamEffective.lean'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -48,7 +50,7 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Run cold-start append-only correction smoke check
+      - name: Run cold-start correction and effective projection smoke check
         shell: bash
         run: |
           rm -rf scratch/dogfood
@@ -72,3 +74,12 @@ jobs:
 
           expected_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\tbad-record\treplacement-1'
           test "$(cat "$correction_file")" = "$expected_corrections"
+
+          rm -f .lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean
+
+          printf '5\n' | ./tools/loam | tee /tmp/loam-effective.out
+
+          grep -Fq 'Preparing effective projection...' /tmp/loam-effective.out
+          grep -Fq 'Effective quantities (single-correction projection; zero coordinates retained):' /tmp/loam-effective.out
+          grep -Fq 'スーパー: 0 wallet' /tmp/loam-effective.out
+          grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
