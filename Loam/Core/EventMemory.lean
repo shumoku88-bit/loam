@@ -150,7 +150,7 @@ private theorem quantityAtRecordedFold_perm
       rw [ih]
   | swap x y rest =>
       simp only [List.foldr_cons]
-      simp [Int.add_assoc, Int.add_comm, Int.add_left_comm]
+      simp [Int.add_comm, Int.add_left_comm]
   | trans hLeft hRight ihLeft ihRight =>
       exact ihLeft.trans ihRight
 
