@@ -30,7 +30,7 @@ fact RepresentativeInventory {
   }
 
   all w: World |
-    sum a: AcquisitionEffect | a.(w.consumesFrom) = DisposalEffect.quantity
+    (sum a: AcquisitionEffect | a.(w.consumesFrom)) = DisposalEffect.quantity
 }
 
 fun remainingFrom[w: World, a: AcquisitionEffect]: one Int {
