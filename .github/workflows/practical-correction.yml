@@ -48,19 +48,23 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Run append-only correction smoke check
+      - name: Run cold-start append-only correction smoke check
         shell: bash
         run: |
-          tmp_dir="$(mktemp -d)"
-          memory_file="$tmp_dir/memory.loam"
-          correction_file="$tmp_dir/corrections.loam"
+          rm -rf scratch/dogfood
+          mkdir -p scratch/dogfood
+          memory_file="scratch/dogfood/memory.loam"
+          correction_file="scratch/dogfood/corrections.loam"
 
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
 
-          printf '1\nwallet\n1280\n' | \
-            lake env lean --run LoamCorrection.lean "$memory_file" "$correction_file" | \
-            tee /tmp/loam-correction.out
+          rm -f \
+            .lake/build/lib/lean/Loam/Core/RelationAdmission.olean \
+            .lake/build/lib/lean/Loam/Persistence.olean
 
+          printf '4\n1\nwallet\n1280\n' | ./tools/loam | tee /tmp/loam-correction.out
+
+          grep -Fq 'Preparing correction support...' /tmp/loam-correction.out
           grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
 
           expected_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\nEVENT\treplacement-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
