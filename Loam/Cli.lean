@@ -10,7 +10,7 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
   amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
 private def usage : String :=
-  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory add MEMORY_FILE EVENT_FILE"
+  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory quantity FILE LOCUS MEASURE\n  loam event-memory add MEMORY_FILE EVENT_FILE"
 
 /-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
 private def parseEffects : List String → Option (List Loam.Core.Effect)
@@ -107,6 +107,26 @@ def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
               return 2
 
 /--
+Read one persisted Event memory and project the exact aggregate of all recorded
+facts at one explicit locus/measure coordinate.
+
+This command deliberately exposes `EventMemory.quantityAtRecorded`. It does not
+claim correction, reversal, current-state, effective-state, temporal, or
+accounting semantics, and therefore is not named `balance`.
+-/
+def showRememberedQuantity
+    (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
+  match ← Loam.Persistence.loadEventMemory? (System.FilePath.mk path) with
+  | some memory =>
+      let quantity :=
+        Loam.Core.EventMemory.quantityAtRecorded memory ⟨locusToken⟩ ⟨measureToken⟩
+      IO.println (toString quantity.quanta)
+      return 0
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+
+/--
 Add one already-complete persisted Event to an existing Event memory.
 
 Both files are fully admitted before publication. Duplicate Event identity
@@ -150,6 +170,8 @@ def run (args : List String) : IO UInt32 :=
       showEventQuantity path locus measure
   | ["event-memory", "get", path, eventToken] =>
       showRememberedEvent path eventToken
+  | ["event-memory", "quantity", path, locus, measure] =>
+      showRememberedQuantity path locus measure
   | ["event-memory", "add", memoryPath, eventPath] =>
       addRememberedEvent memoryPath eventPath
   | _ => do
