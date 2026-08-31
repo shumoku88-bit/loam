@@ -50,8 +50,7 @@ private theorem map_filter_nodup
           rcases List.mem_map.mp hMem with ⟨candidate, hCandidate, hIdentity⟩
           exact List.mem_map.mpr ⟨candidate, (List.mem_filter.mp hCandidate).1, hIdentity⟩
         · exact ih hNodup.2
-      · have hKeepFalse : keep item = false := Bool.eq_false_of_not_eq_true hKeep
-        simp only [List.filter_cons_of_neg hKeepFalse]
+      · simp only [List.filter_cons_of_neg hKeep]
         exact ih hNodup.2
 
 namespace EventCorrection
