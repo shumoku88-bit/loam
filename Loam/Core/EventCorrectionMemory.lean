@@ -114,6 +114,34 @@ theorem findById?_perm
       some correction := by
   simp [findById?, findCorrectionById?]
 
+/--
+Add one complete raw correction relation, rejecting repeated correction identity.
+
+This operation deliberately does not inspect `EventMemory`. Referential closure
+remains a derived `RelationAdmission` concern, so raw fact retention cannot
+depend on physical Event/relation arrival order.
+-/
+def add?
+    (memory : EventCorrectionMemory)
+    (correction : EventCorrection) : Option EventCorrectionMemory :=
+  ofCorrections? (memory.corrections ++ [correction])
+
+@[simp] theorem add?_empty (correction : EventCorrection) :
+    add? { corrections := [], idNodup := by simp } correction =
+      some { corrections := [correction], idNodup := by simp } := by
+  simp [add?, ofCorrections?]
+
+@[simp] theorem add?_singleton_duplicate (correction : EventCorrection) :
+    add? { corrections := [correction], idNodup := by simp } correction = none := by
+  simp [add?, ofCorrections?]
+
+theorem add?_singleton_distinct
+    (existing added : EventCorrection)
+    (h : existing.id ≠ added.id) :
+    add? { corrections := [existing], idNodup := by simp } added =
+      some { corrections := [existing, added], idNodup := by simp [h] } := by
+  simp [add?, ofCorrections?, h]
+
 end EventCorrectionMemory
 
 end Loam.Core
