@@ -130,41 +130,91 @@ Equity   -q
 
 Every representative Event is zero-total in the selected Measure. Observation 062 does not claim that every future LOAM Event must be zero-total; this is only a property of these bookkeeping-shaped specimens.
 
-## Pressures
+## Observed pressures
 
-### 1. Can all representative shapes coexist without Account or EventKind primitives?
+### 1. All representative shapes coexist without Account or EventKind primitives
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-A witness would show that the selected real-ledger vocabulary does not itself force a conventional `Account` object back into the neutral core.
+The bounded witness contains all eight distinct structural shapes at once using exactly 8 Events, 7 Loci, and 17 Effects.
 
-### 2. Can nominal account names and event-kind labels change while the semantic core stays fixed?
+This shows expressibility for the selected real-ledger vocabulary without restoring a conventional `Account` object or a stored nominal EventKind.
+
+### 2. Nominal account names and event-kind labels can change while the semantic core stays fixed
 
 Keep Effect structure and AccountingRole fixed, but change `AccountName` and `EventKind` assignments.
 
-Expected: **SAT**, while every selected structural classification remains unchanged.
+Observed: **SAT**.
 
-### 3. Can AccountingRole change a recognized shape while Effect structure stays fixed?
+The selected structural classifications remain unchanged because those nominal relations are not part of the recognition vocabulary.
+
+### 3. AccountingRole can change a recognized shape while Effect structure stays fixed
 
 Keep the same Event / Effect / Locus / Quantity structure and the same nominal presentation, but vary only AccountingRole.
 
-Can one two-effect zero-total Event be expense-like in one world and holding-transfer-like in another?
+Observed: **SAT**.
 
-Expected: **SAT**.
+The model finds a two-effect zero-total Event that is expense-like in one world and holding-transfer-like in another.
 
-This re-applies Observation 049 under a concrete ledger-shaped vocabulary: signed placement alone should not determine accounting interpretation.
+This re-applies Observation 049 under a concrete ledger-shaped vocabulary: signed placement alone does not determine accounting interpretation.
 
-### 4. Does Effect structure alone determine the selected ledger-shape vocabulary?
+### 4. Effect structure alone does not determine the selected ledger-shape vocabulary
 
-Expected check result: **SAT counterexample**.
+Observed check result: **SAT counterexample**.
 
-### 5. Does Effect structure plus AccountingRole determine the selected ledger-shape vocabulary?
+Because the Event / Effect / Locus / Quantity structure is shared by both worlds, the counterexample isolates the missing distinction in AccountingRole.
 
-Expected check result: **UNSAT counterexample**.
+### 5. Effect structure plus AccountingRole determines the selected ledger-shape vocabulary
 
-### 6. Can purely nominal presentation change the selected ledger-shape vocabulary once AccountingRole is fixed?
+Observed check result: **UNSAT counterexample**.
 
-Expected check result: **UNSAT counterexample**.
+Within this bounded vocabulary, once the Effect structure and AccountingRole relation are fixed, the selected eight structural classifications cannot differ.
+
+### 6. Purely nominal presentation cannot change the selected ledger-shape vocabulary once AccountingRole is fixed
+
+Observed check result: **UNSAT counterexample**.
+
+Changing `AccountName` and `EventKind` does not alter the selected structural answers when the semantic core is fixed.
+
+## Alloy result
+
+Alloy 6.2.0 + Sat4j, exactly 8 Events / 7 Loci / 17 Effects / 2 Worlds / 2 AccountNames / 2 EventKinds / 5-bit Ints:
+
+```text
+representativeLedgerShapes                    SAT
+sameSemanticCoreDifferentNominals             SAT
+roleOverlayCanChangeRecognizedShape            SAT
+EffectCoreAloneDeterminesSelectedShapes        SAT counterexample
+EffectCorePlusRoleDeterminesSelectedShapes     UNSAT counterexample
+NominalPresentationCannotChangeSelectedShapes  UNSAT counterexample
+```
+
+Observation 062 run #2 completed SUCCESS on executable model head `597e40ac523771cba1517740e9f5eb782676af0e`.
+
+Run #1 failed before solving because the commands omitted an explicit scope for the parent `World` signature. Adding `exactly 2 World` fixed only that Alloy scope declaration; the structural hypotheses and expected results were unchanged.
+
+## Interpretation
+
+The private real-ledger specimens do not reverse Observations 031 or 049. They strengthen their practical relevance.
+
+For the selected shapes:
+
+```text
+real bookkeeping-shaped Event
+    =
+Event + signed Effects over Loci
+      + independent AccountingRole
+```
+
+is sufficient to recognize the chosen transfer, expense, income, liability, refund, and opening-balance structures.
+
+The bounded conclusion is therefore:
+
+> Real household bookkeeping shapes still do not force conventional Account identity or nominal EventKind into the neutral core. AccountingRole remains the independent relation that makes accounting-shaped readings possible.
+
+This does **not** mean the word `Account` is forbidden at an application boundary. It means the selected observable answers do not yet require it as an additional canonical domain identity beyond Locus plus independent role.
+
+A second useful result comes from split expense. Multi-posting activity does not itself force a new transaction-kind hierarchy. Distinct Effects can remain visible inside one Event and role-aware projection can recognize the split shape without assigning an authoritative order to those Effects.
 
 ## Important boundaries
 
@@ -184,10 +234,16 @@ This observation does **not** establish:
 
 The last boundary is especially important. This experiment asks only whether the **observable structural shapes** fit the existing coordinate vocabulary. It does not yet choose an import representation.
 
-## Next decision
+## Next pressure
 
-If the expected Alloy results hold, the useful new information is not "Account is gone forever." It is narrower:
+Observation 062 did not earn more account structure.
 
-> Real household bookkeeping shapes still do not force Account identity or nominal EventKind into the neutral core; `AccountingRole` remains the independent relation that makes accounting-shaped readings possible.
+The more interesting pressure now comes from information deliberately excluded from the anonymous specimens but present in real records, including:
 
-The next pressure should then come from information present in the private ledger but intentionally excluded here, such as plan/series metadata, event identity linkage, or multi-Measure activity, rather than from inventing more account structure prematurely.
+- explicit plan / series linkage;
+- explicit event or issue linkage;
+- annotations that are not quantity coordinates;
+- more than one Measure;
+- the relationship between imported posting identity and LOAM Effect identity.
+
+Those should be observed separately rather than bundled into a larger Account abstraction.
