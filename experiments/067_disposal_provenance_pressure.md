@@ -70,61 +70,84 @@ The observation asks:
 
 The fourth question is important: even retaining only the set of participating acquisition identities can still lose information when one disposal consumes different quantities from the same source set.
 
-## Probes
+## Observed Alloy result
+
+Alloy 6.2.0 + Sat4j, exactly 2 AcquisitionEffects / 2 BasisValues / 2 Worlds / 4-bit Ints:
+
+```text
+representativeDisposalPressure                     SAT
+sameAggregateDifferentSource                       SAT
+sameAggregateDifferentBasisProvenance              SAT
+splitDisposalCanConsumeMultipleAcquisitions        SAT
+sameSourcesDifferentAllocation                     SAT
+AggregateHoldingDeterminesDisposalSources          SAT counterexample
+AggregateHoldingDeterminesBasisProvenance          SAT counterexample
+SourceSetDeterminesConsumptionAllocation           SAT counterexample
+ExplicitConsumptionDeterminesSelectedAnswers       UNSAT counterexample
+```
+
+The complete expected result set passed in CI after one syntax-only fix that parenthesized an Alloy `sum` expression. That fix changed no semantic hypothesis.
 
 ### Representative disposal
 
-Can three units be disposed entirely from one acquisition while the aggregate moves from six to three?
+A witness disposes all three units from one acquisition, moving the aggregate from six to three.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### Same aggregate, different source identity
 
-Can two worlds have the same aggregate after disposal but different acquisition identities supplying the disposal?
+The bounded counterexample uses the same before/after aggregate while one world consumes `3 + 0` and the other consumes `0 + 3` from the two acquisition identities.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### Same aggregate, different basis provenance
 
-Can the same aggregate after disposal implicate different acquisition-basis markers?
+Because the two acquisitions carry distinct basis markers, the same aggregate after disposal can implicate different basis provenance.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### One disposal can draw from more than one acquisition
 
-Can one disposal consume positive quantity from both acquisition identities?
+A witness consumes positive quantity from both acquisition identities.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-This is only an external-pressure witness. It does not by itself earn practical many-source disposal support.
+This is an external-pressure witness, not a practical implementation requirement.
 
 ### Same source set, different quantity allocation
 
-Can both worlds use the same two acquisition identities while consuming different quantities from each?
+Alloy found the sharper collision:
 
-Expected: **SAT**.
+```text
+Left : A -> 2, B -> 1
+Right: A -> 1, B -> 2
+```
 
-With a three-unit disposal, for example, `1 + 2` and `2 + 1` preserve the same source set while changing the quantity-bearing provenance.
+Both worlds retain the same source set `{A, B}`, the same disposal quantity, and the same aggregate result, while the quantity-bearing provenance differs.
 
-### Does aggregate holding determine disposal sources?
+Observed: **SAT**.
 
-Expected check result: **SAT counterexample**.
+### Aggregate holding determines disposal sources?
 
-### Does aggregate holding determine basis provenance?
+Observed check result: **SAT counterexample**.
 
-Expected check result: **SAT counterexample**.
+### Aggregate holding determines basis provenance?
 
-### Does the set of source identities determine the quantity allocation?
+Observed check result: **SAT counterexample**.
 
-Expected check result: **SAT counterexample**.
+### Source identity set determines quantity allocation?
 
-### If the explicit per-acquisition consumption relation is fixed, are selected answers fixed?
+Observed check result: **SAT counterexample**.
 
-Expected check result: **UNSAT counterexample**.
+### Explicit per-acquisition consumption determines selected answers?
 
-## Intended interpretation
+Observed check result: **UNSAT counterexample**.
 
-If the expected results hold, the bounded distinction is:
+Within the bounded selected vocabulary, fixing the quantity-bearing correspondence fixes the aggregate-after, source-set, and implicated-basis answers.
+
+## Interpretation
+
+The bounded distinctions are:
 
 ```text
 aggregate holding
@@ -132,7 +155,7 @@ aggregate holding
 disposal source provenance
 ```
 
-and, for the richer selected vocabulary:
+and, once the vocabulary asks how much came from each origin:
 
 ```text
 set of source acquisition identities
@@ -140,9 +163,13 @@ set of source acquisition identities
 quantity consumed from each source
 ```
 
-This would explain why lot-like bookkeeping pressure appears without yet showing that LOAM needs a new `Lot` identity.
+So lot-like bookkeeping pressure appears in two stages.
 
-The selected answers can instead be expressed with identities LOAM has already learned to preserve:
+First, aggregation destroys acquisition identity provenance. Second, preserving only the identities that participated can still be too weak: the quantity assigned to each source is separately observable.
+
+But the experiment does **not** force another stored identity named `Lot`.
+
+The selected answers are already expressible using identities LOAM has learned to preserve:
 
 ```text
 Acquisition / Effect identity
@@ -150,7 +177,13 @@ Acquisition / Effect identity
 explicit quantity-bearing disposal-to-acquisition relation
 ```
 
-That is a narrower claim than "lots are unnecessary." A future vocabulary might still distinguish a lot from its acquisition Event or Effect, require lot splitting/merging independent of acquisition identity, or impose operational selection rules. Observation 067 does not test those questions.
+This is important because Observation 052 already earned stable Effect identity before coordinate collapse, and the current Practical Core already has `EffectKey` so later relations can refer to one Effect without using position or `(Locus, Measure)` as identity.
+
+The bounded result therefore says:
+
+> Before inventing a Lot object, preserve acquisition-specific Effect identity and the explicit quantity-bearing provenance relation that future disposal questions can observe.
+
+That is still much narrower than "lots are unnecessary." A future vocabulary might distinguish a lot from its acquisition Event or Effect, require lot splitting/merging independent of acquisition identity, or impose operational selection rules.
 
 ## Relation to the Practical Core
 
@@ -161,6 +194,8 @@ Observation 067 therefore pressure-tests whether that already-earned identity ca
 This experiment does **not** modify `Effect`, `Allocation`, `Rate`, Event persistence, or any CLI command.
 
 The existing practical `Allocation` module is not reused automatically. Similar relation shape does not establish identical semantics.
+
+No Practical Core change is earned yet because LOAM does not yet have a practical acquisition/basis/disposal workflow that needs this correspondence.
 
 ## Important boundaries
 
@@ -187,3 +222,17 @@ Observation 067 does not establish:
 The question is structural: hold acquisition facts and aggregate quantity behavior fixed, vary only the provenance relation, and ask whether selected answers diverge.
 
 J could display the allocation as an array, but would not add a distinct answer to this bounded independence question. Lean should wait until a practical representation or reusable law is earned. TLA+ and SPIN are unnecessary because ordering and interleaving are not yet the pressure point.
+
+## Next pressure point
+
+Observation 067 stops before any selection policy.
+
+The next external question can ask whether rules such as FIFO or specific identification are facts about the acquisition/disposal history, or independent policy overlays that select one admissible provenance relation among several.
+
+That would be a different distinction:
+
+```text
+possible disposal provenance
+    !=
+policy for choosing one provenance
+```
