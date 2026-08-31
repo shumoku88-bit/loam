@@ -19,6 +19,8 @@ VARIABLES
   \* @type: Bool;
   writerCrashed,
   \* @type: Bool;
+  crashedAfterRelation,
+  \* @type: Bool;
   readerUp,
   \* @type: Str;
   readerPc,
@@ -35,6 +37,7 @@ vars == <<
   writerUp,
   writerPc,
   writerCrashed,
+  crashedAfterRelation,
   readerUp,
   readerPc,
   seenEventNew,
@@ -48,6 +51,7 @@ TypeOK ==
   /\ writerUp \in BOOLEAN
   /\ writerPc \in {"relation", "event", "done"}
   /\ writerCrashed \in BOOLEAN
+  /\ crashedAfterRelation \in BOOLEAN
   /\ readerUp \in BOOLEAN
   /\ readerPc \in {"event", "correction", "done"}
   /\ seenEventNew \in BOOLEAN
@@ -60,6 +64,7 @@ Init ==
   /\ writerUp = TRUE
   /\ writerPc = "relation"
   /\ writerCrashed = FALSE
+  /\ crashedAfterRelation = FALSE
   /\ readerUp = TRUE
   /\ readerPc = "event"
   /\ seenEventNew = FALSE
@@ -78,6 +83,7 @@ WriterPublishCorrection ==
        diskEventNew,
        writerUp,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        readerPc,
        seenEventNew,
@@ -94,6 +100,7 @@ WriterPublishEvent ==
        diskCorrectionNew,
        writerUp,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        readerPc,
        seenEventNew,
@@ -102,12 +109,15 @@ WriterPublishEvent ==
      >>
 
 \* A crash loses volatile writer progress but does not roll back either
-\* atomically replaced physical stream.
+\* atomically replaced physical stream. `crashedAfterRelation` records the
+\* specific midpoint where the Correction is durable but the Event is not.
 WriterCrash ==
   /\ writerUp
   /\ writerPc # "done"
   /\ writerUp' = FALSE
   /\ writerCrashed' = TRUE
+  /\ crashedAfterRelation' =
+       crashedAfterRelation \/ (diskCorrectionNew /\ ~diskEventNew)
   /\ UNCHANGED <<
        diskEventNew,
        diskCorrectionNew,
@@ -130,6 +140,7 @@ WriterRestart ==
        diskEventNew,
        diskCorrectionNew,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        readerPc,
        seenEventNew,
@@ -150,6 +161,7 @@ ReaderReadEvent ==
        writerUp,
        writerPc,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        seenCorrectionNew,
        readerDone
@@ -167,6 +179,7 @@ ReaderReadCorrection ==
        writerUp,
        writerPc,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        seenEventNew
      >>
@@ -181,6 +194,7 @@ ReaderCrash ==
        writerUp,
        writerPc,
        writerCrashed,
+       crashedAfterRelation,
        readerPc,
        seenEventNew,
        seenCorrectionNew,
@@ -201,7 +215,8 @@ ReaderRestart ==
        diskCorrectionNew,
        writerUp,
        writerPc,
-       writerCrashed
+       writerCrashed,
+       crashedAfterRelation
      >>
 
 \* Permit another complete acquisition after a successful read so Apalache can
@@ -219,6 +234,7 @@ ReaderBeginAgain ==
        writerUp,
        writerPc,
        writerCrashed,
+       crashedAfterRelation,
        readerUp
      >>
 
@@ -254,6 +270,7 @@ WriterShape ==
   /\ (writerPc = "event" => diskCorrectionNew)
   /\ (writerPc = "done" => diskEventNew /\ diskCorrectionNew)
   /\ (~writerUp => writerCrashed)
+  /\ (crashedAfterRelation => writerCrashed /\ diskCorrectionNew)
 
 ReaderShape ==
   /\ (readerPc = "event" =>
@@ -271,11 +288,10 @@ IndInv ==
   /\ WriterShape
   /\ ReaderShape
 
-\* This intentionally false-on-some-path invariant is used as a reachability
-\* probe. Apalache should find a path that crashes after relation publication,
-\* restarts the writer, retries from the first step, and eventually publishes
-\* the Event.
-NoRecoveredCompletion == ~(writerCrashed /\ diskEventNew)
+\* This intentionally false-on-some-path invariant is a reachability probe.
+\* Apalache must find the concrete midpoint: publish Correction, crash while the
+\* Event is still old, restart/retry, then eventually publish the Event.
+NoRecoveredCompletion == ~(crashedAfterRelation /\ diskEventNew)
 
 \* Sensitivity model: keep the same crash/restart behavior but publish the
 \* replacement Event before its Correction. DiskOrder should fail quickly.
@@ -288,6 +304,7 @@ UnsafeWriterPublishEvent ==
        diskCorrectionNew,
        writerUp,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        readerPc,
        seenEventNew,
@@ -304,6 +321,7 @@ UnsafeWriterPublishCorrection ==
        diskEventNew,
        writerUp,
        writerCrashed,
+       crashedAfterRelation,
        readerUp,
        readerPc,
        seenEventNew,
