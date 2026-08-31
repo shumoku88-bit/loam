@@ -39,7 +39,7 @@ private def printCandidates : Nat → List Loam.Core.Event → IO Unit
       | _ => pure ()
       printCandidates (index + 1) rest
 
-private def getAt? : List α → Nat → Option α
+private def getAt? {α : Type} : List α → Nat → Option α
   | [], _ => none
   | item :: _, 0 => some item
   | _ :: rest, index + 1 => getAt? rest index
