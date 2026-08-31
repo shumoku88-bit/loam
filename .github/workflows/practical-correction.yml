@@ -82,9 +82,12 @@ jobs:
           printf '5\n' | ./tools/loam | tee /tmp/loam-effective.out
 
           grep -Fq 'Preparing effective projection...' /tmp/loam-effective.out
-          grep -Fq 'Effective quantities (single-correction projection; zero coordinates retained):' /tmp/loam-effective.out
-          grep -Fq 'スーパー: 0 wallet' /tmp/loam-effective.out
+          grep -Fq 'Effective quantities (single-correction projection; zero coordinates omitted):' /tmp/loam-effective.out
           grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
+          if grep -Fq 'スーパー:' /tmp/loam-effective.out; then
+            echo 'expected zero effective coordinate to be omitted from ordinary view' >&2
+            exit 1
+          fi
 
           rm -f .lake/build/lib/lean/Loam/Core/CorrectionQuantity.olean
 
