@@ -4,6 +4,32 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+binary=".lake/build/bin/loam"
+
+binary_is_current() {
+  [[ -x "$binary" ]] || return 1
+
+  if find Loam -type f -name '*.lean' -newer "$binary" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$binary" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+run_loam() {
+  if binary_is_current; then
+    exec "$binary" "$@"
+  else
+    exec lake exe loam "$@"
+  fi
+}
+
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
   mkdir -p "$(dirname "$memory_file")"
@@ -21,14 +47,14 @@ EOF
 
   case "$choice" in
     1)
-      exec lake exe loam spend "$memory_file"
+      run_loam spend "$memory_file"
       ;;
     2)
       if [[ ! -e "$memory_file" ]]; then
         echo "Nothing recorded yet."
         exit 0
       fi
-      exec lake exe loam review "$memory_file"
+      run_loam review "$memory_file"
       ;;
     q|Q)
       exit 0
@@ -40,4 +66,4 @@ EOF
   esac
 fi
 
-exec lake exe loam "$@"
+run_loam "$@"
