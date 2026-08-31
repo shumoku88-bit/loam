@@ -37,9 +37,10 @@ private def printRecorded
     let quantity :=
       Loam.Core.EventMemory.quantityAtRecorded
         memory coordinate.locus coordinate.measure
-    IO.println
-      ("  " ++ coordinate.locus.token ++ ": " ++
-        toString quantity.quanta ++ " " ++ coordinate.measure.token)
+    if quantity.quanta ≠ 0 then
+      IO.println
+        ("  " ++ coordinate.locus.token ++ ": " ++
+          toString quantity.quanta ++ " " ++ coordinate.measure.token)
 
 private def printSingleCorrection
     (memory : Loam.Core.EventMemory)
@@ -51,9 +52,10 @@ private def printSingleCorrection
     | none =>
         return false
     | some quantity =>
-        IO.println
-          ("  " ++ coordinate.locus.token ++ ": " ++
-            toString quantity.quanta ++ " " ++ coordinate.measure.token)
+        if quantity.quanta ≠ 0 then
+          IO.println
+            ("  " ++ coordinate.locus.token ++ ": " ++
+              toString quantity.quanta ++ " " ++ coordinate.measure.token)
   return true
 
 /--
@@ -65,8 +67,9 @@ Exactly one correction uses `EventCorrection.quantityAtEffective?`, which keeps
 the replacement contribution already present in EventMemory and removes only
 the superseded target contribution. Multiple corrections are deliberately not
 folded here: chain/frontier interpretation is a separate collection projection.
-Zero-valued coordinates remain visible so this view adds no display filtering
-semantics yet.
+Zero-valued coordinates remain part of the computed projection but are omitted
+from this ordinary human-facing view. The correction integrity view retains the
+original/replacement evidence explaining why such coordinates disappeared.
 -/
 def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -88,11 +91,11 @@ def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := 
             let coordinates := recordedCoordinates memory
             match corrections.corrections with
             | [] =>
-                IO.println "Effective quantities (no corrections recorded):"
+                IO.println "Effective quantities (zero coordinates omitted):"
                 printRecorded memory coordinates
                 return 0
             | [correction] =>
-                IO.println "Effective quantities (single-correction projection; zero coordinates retained):"
+                IO.println "Effective quantities (single-correction projection; zero coordinates omitted):"
                 if ← printSingleCorrection memory correction coordinates then
                   return 0
                 else
