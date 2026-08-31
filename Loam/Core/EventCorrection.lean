@@ -298,26 +298,27 @@ Project a conflict resolution only when it covers the whole current unresolved
 candidate frontier.
 
 Coverage is compared modulo permutation so parent representation order is not
-authoritative. The replacement must not reuse one of the frontier candidates,
-and every parent plus the replacement Event must exist in the same EventMemory.
-The result preserves the entire unresolved conflict as provenance and exposes
-one effective Event again.
+authoritative. The original conflict target, every parent, and the replacement
+Event must all remain present in the same EventMemory. The replacement must not
+reuse one of the frontier candidates. The result preserves the entire unresolved
+conflict as provenance and exposes one effective Event again.
 
 This is only structural admission from Observation 023. It does not establish
 who may resolve a conflict, what evidence is required, or why the replacement
 meaning should be trusted.
 -/
-def project? 
+def project?
     (memory : EventMemory)
     (conflict : UnresolvedCorrection)
     (resolution : EventResolution) : Option ResolvedCorrection :=
   if resolution.parents.Perm (UnresolvedCorrection.candidateIds conflict) then
     if resolution.replacement ∉ resolution.parents then
-      match parentsPresent? memory resolution.parents,
+      match EventMemory.findById? memory conflict.target,
+          parentsPresent? memory resolution.parents,
           EventMemory.findById? memory resolution.replacement with
-      | some _, some effective =>
+      | some _, some _, some effective =>
           some { resolution := resolution, conflict := conflict, effective := effective }
-      | _, _ => none
+      | _, _, _ => none
     else
       none
   else
