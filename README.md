@@ -14,18 +14,24 @@ The default core is:
 
 - **Alloy** explores possible structures and counterexamples.
 - **J** observes structures as arrays and exposes projection, loss, and shape.
-- **Lean 4** proves observed laws generally when they become worth keeping.
+- **Lean 4** proves observed laws generally when they become worth keeping and hosts the practical core.
 
-Two additional tools remain available, but are not part of the default path:
+Additional tools are introduced only when they add a distinct kind of answer:
 
-- **TLA+** is introduced only when a question depends essentially on temporal behavior or operation order and the core cannot expose the distinction clearly enough.
-- **miniKanren** is introduced only when a question needs genuinely relational or backwards search that the core cannot provide clearly enough.
+- **TLA+ / TLC** for temporal behavior, operation order, and state-transition questions.
+- **Apalache** for symbolic checking of selected TLA+ transition systems and inductive invariants.
+- **SPIN / Promela** for explicit interleaving and protocol-order questions where concurrent process scheduling is the pressure point.
+- **miniKanren** for genuinely relational or backwards search that the core cannot provide clearly enough.
 
-Before adding either optional tool to a new observation, state what the core cannot answer and what distinct kind of result the extra tool is expected to produce.
+Before adding an optional tool to a new observation, state what the current toolset cannot answer and what distinct result the extra tool is expected to produce.
 
-Past observations that used TLA+ or miniKanren remain part of the evidence. They show cases where those tools had a distinct role; they do not create a permanent dependency.
+Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
 
 Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
+
+## Current map
+
+Observations 001–060 now form one completed arc from pre-household structure discovery to a first practical persistence protocol. See [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) for the current inventory of earned structure, derived views, overlays, protocol findings, and deliberately unearned concepts.
 
 ## Observation 001 — A World Before Envelopes
 
