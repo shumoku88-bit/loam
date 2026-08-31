@@ -218,3 +218,51 @@ jobs:
           fi
           test "$status" = '2'
           grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-cli.err
+
+          spend_memory="$tmp_dir/spend-memory.loam"
+          printf 'wallet\n1280\n' | ./tools/loam spend "$spend_memory" >/tmp/loam-spend.out
+          grep -Fq 'Recorded: spent 1280 jpy from wallet.' /tmp/loam-spend.out
+          expected_spend_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
+          test "$(cat "$spend_memory")" = "$expected_spend_memory"
+
+          printf 'wallet\n220\n' | ./tools/loam spend "$spend_memory" >/tmp/loam-spend.out
+          grep -Fq 'Recorded: spent 220 jpy from wallet.' /tmp/loam-spend.out
+          expected_spend_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1280\nEVENT\trecord-2\nEFFECT\teffect-1\twallet\tjpy\t-220'
+          test "$(cat "$spend_memory")" = "$expected_spend_memory"
+          output="$(./tools/loam event-memory quantity "$spend_memory" wallet jpy)"
+          test "$output" = '-1500'
+
+          invalid_spend_memory="$tmp_dir/invalid-spend-memory.loam"
+          if printf 'wallet\nnot-a-number\n' | ./tools/loam spend "$invalid_spend_memory" >/tmp/loam-spend.out 2>/tmp/loam-spend.err; then
+            echo 'expected invalid spend amount to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'amount must be a positive integer' /tmp/loam-spend.err
+          test ! -e "$invalid_spend_memory"
+
+          negative_spend_memory="$tmp_dir/negative-spend-memory.loam"
+          if printf 'wallet\n-1\n' | ./tools/loam spend "$negative_spend_memory" >/tmp/loam-spend.out 2>/tmp/loam-spend.err; then
+            echo 'expected negative spend amount to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'amount must be a positive integer' /tmp/loam-spend.err
+          test ! -e "$negative_spend_memory"
+
+          malformed_spend_memory="$tmp_dir/malformed-spend-memory.loam"
+          printf 'broken\n' >"$malformed_spend_memory"
+          before_malformed_spend="$(cat "$malformed_spend_memory")"
+          if printf 'wallet\n1\n' | ./tools/loam spend "$malformed_spend_memory" >/tmp/loam-spend.out 2>/tmp/loam-spend.err; then
+            echo 'expected malformed Event memory spend target to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-spend.err
+          test "$(cat "$malformed_spend_memory")" = "$before_malformed_spend"

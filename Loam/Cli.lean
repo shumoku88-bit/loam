@@ -10,7 +10,7 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
   amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
 private def usage : String :=
-  "usage:\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory quantity FILE LOCUS MEASURE\n  loam event-memory add MEMORY_FILE EVENT_FILE"
+  "usage:\n  loam spend MEMORY_FILE\n  loam amount show FILE\n  loam event create FILE EVENT [KEY LOCUS MEASURE QUANTA]...\n  loam event quantity FILE LOCUS MEASURE\n  loam event-memory get FILE EVENT\n  loam event-memory quantity FILE LOCUS MEASURE\n  loam event-memory add MEMORY_FILE EVENT_FILE"
 
 /-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
 private def parseEffects : List String → Option (List Loam.Core.Effect)
@@ -160,9 +160,112 @@ def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
                 IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
                 return 2
 
+/-- Prompt for one line while keeping the practical entrance interactive. -/
+private def promptLine (prompt : String) : IO String := do
+  IO.print prompt
+  let stdout ← IO.getStdout
+  stdout.flush
+  let stdin ← IO.getStdin
+  return (← stdin.getLine).trimAsciiEnd.toString
+
+/--
+Search a bounded deterministic namespace for an unused Event identity.
+
+The numeric suffix is only an operational collision-avoidance device for the
+CLI. It does not make Event-memory representation order temporal or semantic.
+With `n` remembered Events, checking `n + 1` distinct candidates guarantees at
+least one candidate is not already used.
+-/
+private def freshRecordEventIdFrom
+    (memory : Loam.Core.EventMemory) : Nat → Nat → Option Loam.Core.EventId
+  | _, 0 => none
+  | index, fuel + 1 =>
+      let candidate : Loam.Core.EventId := ⟨"record-" ++ toString index⟩
+      match Loam.Core.EventMemory.findById? memory candidate with
+      | none => some candidate
+      | some _ => freshRecordEventIdFrom memory (index + 1) fuel
+
+private def freshRecordEventId? (memory : Loam.Core.EventMemory) : Option Loam.Core.EventId :=
+  freshRecordEventIdFrom memory 1 (memory.events.length + 1)
+
+/--
+Load an existing Event memory for a human-facing entry, or begin from the
+already-admitted empty memory when the target does not yet exist. A malformed
+existing target is never silently replaced.
+-/
+private def loadEventMemoryForEntry?
+    (path : System.FilePath) : IO (Option Loam.Core.EventMemory) := do
+  if ← path.pathExists then
+    Loam.Persistence.loadEventMemory? path
+  else
+    return Loam.Core.EventMemory.ofEvents? []
+
+/--
+Human-facing entrance for one ordinary JPY spend from one locus.
+
+The user supplies the payment source and a positive amount. This adapter turns
+that action into a negative JPY quantity at the selected locus, generates
+Event/Effect identity internally, and records directly into EventMemory without
+an intermediate Event file.
+
+`spend` is deliberately an interface verb, not a new Practical Core primitive.
+The resulting Core fact remains the same neutral signed Effect. This entrance
+also does not pretend that the current Core can retain merchant, purpose, note,
+or other descriptive provenance that dogfooding has now shown users may expect.
+-/
+def spendJpy (memoryPath : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk memoryPath
+  match ← loadEventMemoryForEntry? memoryFile with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some memory =>
+      let locusToken ← promptLine "Paid from? "
+      if Loam.Persistence.validToken locusToken then
+        let amountText ← promptLine "Amount? "
+        match amountText.toInt? with
+        | none =>
+            IO.eprintln "loam: amount must be a positive integer"
+            return 2
+        | some amount =>
+            if amount > 0 then
+              match freshRecordEventId? memory with
+              | none =>
+                  IO.eprintln "loam: could not generate a fresh event identity"
+                  return 2
+              | some eventId =>
+                  let effect :=
+                    Loam.Core.Effect.ofQuantity
+                      ⟨"effect-1"⟩ ⟨locusToken⟩ ⟨"jpy"⟩
+                      (Loam.Core.Quantity.ofQuanta (-amount))
+                  match Loam.Core.Event.ofEffects? eventId [effect] with
+                  | none =>
+                      IO.eprintln "loam: could not admit generated event"
+                      return 2
+                  | some event =>
+                      match Loam.Core.EventMemory.add? memory event with
+                      | none =>
+                          IO.eprintln "loam: generated event identity already remembered"
+                          return 2
+                      | some updated =>
+                          if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                            IO.println
+                              ("Recorded: spent " ++ toString amount ++ " jpy from " ++ locusToken ++ ".")
+                            return 0
+                          else
+                            IO.eprintln "loam: recorded event contains an unrepresentable identity token"
+                            return 2
+            else
+              IO.eprintln "loam: amount must be a positive integer"
+              return 2
+      else
+        IO.eprintln "loam: payment source must be a nonempty single-line token"
+        return 2
+
 /-- Command dispatcher for the practical CLI surface. -/
 def run (args : List String) : IO UInt32 :=
   match args with
+  | ["spend", memoryPath] => spendJpy memoryPath
   | ["amount", "show", path] => showAmount path
   | "event" :: "create" :: path :: eventToken :: effectArgs =>
       createEvent path eventToken effectArgs

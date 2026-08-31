@@ -108,7 +108,7 @@ private theorem quantityFold_perm
       simp only [List.foldr_cons]
       by_cases hx : x.coordinate = ⟨locus, measure⟩
       <;> by_cases hy : y.coordinate = ⟨locus, measure⟩
-      <;> simp [hx, hy, Int.add_assoc, Int.add_comm, Int.add_left_comm]
+      <;> simp [hx, hy, Int.add_comm, Int.add_left_comm]
   | trans hLeft hRight ihLeft ihRight =>
       exact ihLeft.trans ihRight
 
