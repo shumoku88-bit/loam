@@ -1,7 +1,7 @@
 module experiments/observation_063_plan_realization_relation
 
-abstract sig Time {}
-abstract sig Shape {}
+sig Time {}
+sig Shape {}
 
 sig Plan {
   expectedTime: one Time,
