@@ -109,12 +109,12 @@ assert RefundCanUseCorrectionProjectionWithoutLosingOccurrence {
     correctionStyleVisibleExpenses[w] = occurredExpenses[w]
 }
 
-run representativeRefundPressure for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-run sameRecordsDifferentRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-run sameNetDifferentRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-run exactSourceCandidatesAmbiguous for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-run sameReturnCanBeRefundOrUnlinked for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-check EventRecordsDetermineRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-check NetQuantityDeterminesRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-check ExplicitRefundRelationDeterminesSelectedAnswers for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
-check RefundCanUseCorrectionProjectionWithoutLosingOccurrence for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 World, 6 Int
+run representativeRefundPressure for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+run sameRecordsDifferentRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+run sameNetDifferentRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+run exactSourceCandidatesAmbiguous for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+run sameReturnCanBeRefundOrUnlinked for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+check EventRecordsDetermineRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+check NetQuantityDeterminesRefundProvenance for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+check ExplicitRefundRelationDeterminesSelectedAnswers for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
+check RefundCanUseCorrectionProjectionWithoutLosingOccurrence for exactly 2 Expense, exactly 2 Return, exactly 2 Time, exactly 2 Shape, exactly 2 World, 6 Int
