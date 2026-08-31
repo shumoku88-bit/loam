@@ -46,10 +46,7 @@ proctype Reader()
     seen_replacement = disk_replacement_new;
     seen_resolution = disk_resolution_new;
 
-    admitted = seen_resolution
-        && seen_parent_a
-        && seen_parent_b
-        && seen_replacement;
+    admitted = (seen_resolution && seen_parent_a && seen_parent_b && seen_replacement);
 
     assert(!(seen_replacement && !admitted));
 }
