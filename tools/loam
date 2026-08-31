@@ -6,6 +6,7 @@ cd "$root"
 
 binary=".lake/build/bin/loam"
 shadow_binary=".lake/build/bin/loamShadowAudit"
+shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
 
 binary_is_current() {
   [[ -x "$binary" ]] || return 1
@@ -28,6 +29,26 @@ shadow_binary_is_current() {
 
   for input in Loam/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$shadow_binary" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+shadow_quantity_binary_is_current() {
+  [[ -x "$shadow_quantity_binary" ]] || return 1
+
+  if [[ Loam/ShadowQuantityCli.lean -nt "$shadow_quantity_binary" ]]; then
+    return 1
+  fi
+
+  if find Loam/Core -type f -name '*.lean' -newer "$shadow_quantity_binary" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$shadow_quantity_binary" ]]; then
       return 1
     fi
   done
@@ -71,9 +92,32 @@ run_shadow_audit() {
   fi
 }
 
+run_shadow_quantity() {
+  if shadow_quantity_binary_is_current; then
+    exec "$shadow_quantity_binary" "$@"
+  fi
+
+  echo "Building LOAM stateless shadow quantity..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-shadow-quantity-build.XXXXXX)"
+  if lake build loamShadowQuantity >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    exec "$shadow_quantity_binary" "$@"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    exit 1
+  fi
+}
+
 if [[ "${1:-}" == "shadow-audit" ]]; then
   shift
   run_shadow_audit "$@"
+fi
+
+if [[ "${1:-}" == "shadow-quantity" ]]; then
+  shift
+  run_shadow_quantity "$@"
 fi
 
 if [[ $# -eq 0 ]]; then
