@@ -38,11 +38,15 @@ fact RepresentativePhysicalFacts {
     (sum a: AcquisitionEffect | a.(w.explicitConsumption)) = DisposalEffect.quantity
 }
 
+pred policyAssigns[p: Policy, a: AcquisitionEffect, q: Int] {
+  (p = PreferEarlier and a.position = Earlier and q = 3) or
+  (p = PreferEarlier and a.position = Later and q = 1) or
+  (p = PreferLater and a.position = Earlier and q = 1) or
+  (p = PreferLater and a.position = Later and q = 3)
+}
+
 fun policyConsumption[p: Policy, a: AcquisitionEffect]: one Int {
-  if p = PreferEarlier then
-    (if a.position = Earlier then 3 else 1)
-  else
-    (if a.position = Earlier then 1 else 3)
+  { q: Int | policyAssigns[p, a, q] }
 }
 
 pred conformsToPolicy[w: World] {
