@@ -108,43 +108,130 @@ position moves, then the important requirement is not where identity is owned.
 It is that some stable occurrence anchor survives outside mutable snapshot
 facts.
 
-## Expected boundary
+## Observed Alloy result
 
-The expected result is:
+Alloy 6.2.0 + Sat4j produced:
 
 ```text
-current mutable snapshot
-    does not determine
-historical continuity
-
-content-derived key
-    is not stable across allowed edits
-
-position-derived key
-    is not stable across allowed reorder
+duplicateSnapshotAmbiguity                         SAT
+contentChangesAcrossContinuation                   SAT
+positionChangesAcrossContinuation                  SAT
+sourceOwnedIdentitySurvivesEditAndReorder           SAT
+externalAnchorSurvivesEditAndReorder                SAT
+VisibleSnapshotDeterminesContinuity                 SAT counterexample
+ContentDeterminesStableContinuity                   SAT counterexample
+PositionDeterminesStableContinuity                  SAT counterexample
+StableSourceIdentityMakesContinuityDeterminate      UNSAT counterexample
+StableAdmissionAnchorMakesContinuityDeterminate     UNSAT counterexample
 ```
 
-while either an explicitly stable source identity or an explicitly retained
-admission anchor can make continuity determinate under the corresponding
-conformance law.
+The duplicate witness is the strongest negative result. Two histories can have
+the same visible before/after content and positions while disagreeing about
+which earlier occurrence continues as which later occurrence. A current mutable
+snapshot therefore does not contain enough information to reconstruct
+historical occurrence identity in general.
+
+The content and position counterexamples close two common shortcuts:
+
+```text
+identity = content hash
+```
+
+cannot be stable across an allowed content edit, and:
+
+```text
+identity = line / presentation position
+```
+
+cannot be stable across an allowed reorder.
+
+This does not claim that hashing or positions are never useful as hints. It
+shows that neither can carry the semantic law of stable occurrence identity.
+
+The positive witnesses show that both candidate ownership shapes can coexist
+with content edits and reorder:
+
+```text
+source-owned stable identity
+```
+
+and:
+
+```text
+externally retained stable admission anchor
+```
+
+Under an explicit law that equal stable anchors are exactly the continuing
+occurrence relation, each anchor relation makes continuity determinate in the
+bounded model.
+
+## Finding
+
+The observation earns a narrower requirement than “use a sidecar” or “put IDs
+in the source”:
+
+```text
+imported identity
+    must be retained as continuity information
+    not recomputed from mutable snapshot facts
+```
+
+Ownership remains open.
+
+A source-owned stable identity is sufficient if the canonical source actually
+retains and preserves it. An external admission anchor is also sufficient if
+some future private layer can preserve and correctly reattach that anchor
+through source edits.
+
+That last condition is important. This model does **not** prove that a sidecar
+can discover its own attachment after arbitrary edits. A sidecar that merely
+stores:
+
+```text
+LOAM id -> old content or old position
+```
+
+inherits the same ambiguity. The external anchor itself must have a reliable
+continuity protocol, stable source anchor, or explicit reconciliation step.
+
+So the unresolved design question becomes more precise:
+
+> Where can LOAM honestly retain occurrence continuity so that later source
+> edits can preserve or explicitly reconcile it?
 
 ## Deliberate boundary
 
-Even if that expectation is confirmed, Observation 075 will not choose among:
+Observation 075 does not choose among:
 
 - adding explicit identities to the canonical source;
-- a private sidecar;
+- a private sidecar with a genuine continuity protocol;
 - an admission ledger;
-- a reconciliation protocol for legacy records;
+- an explicit reconciliation protocol for legacy records;
 - or leaving some historical source records shadow-only and non-importable.
 
-In particular, an external sidecar is not automatically sufficient merely
-because it stores a LOAM identifier. It still needs a stable way to know which
-source occurrence that identifier belongs to after source edits.
+No new `ImportedId`, `SourceRecordId`, or generic identity abstraction is earned.
 
 ## Practical Core impact
 
-None unless a later practical operation earns it.
+None.
 
-Observation 075 is intended to constrain future importer design, not to add a
-new Core identity layer.
+- `EventId` unchanged
+- `EffectKey` unchanged
+- Persistence unchanged
+- `shadow-audit` remains read-only
+- canonical source authority unchanged
+
+Observation 075 constrains future importer design without making the Practical
+Core larger.
+
+## Next pressure
+
+The next useful question should be operational rather than nominal:
+
+> What is the smallest admission/reconciliation protocol that can attach a
+> stable external identity to a legacy source occurrence without mutating the
+> source or silently guessing after ambiguity appears?
+
+That question may show that a private sidecar is sufficient, that source-owned
+identity is simpler, or that some legacy records must remain explicitly
+unresolved. Observation 075 does not decide among those outcomes.
