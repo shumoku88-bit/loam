@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–061.
+This document is a checkpoint after Observations 001–062.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -111,6 +111,54 @@ This result is intentionally conditional on the non-replacement endpoints alread
 
 Observation 060 does not earn autonomous recovery, concurrent-writer semantics, fsync guarantees, or a manifest/generation protocol. Observation 061 does not turn a moving three-stream frontier into a solved problem.
 
+### 062 — real-ledger pressure without restoring Account
+
+Observation 062 turns back from protocol machinery and applies anonymized structural pressure from a private household ledger supplied by the repository owner.
+
+The public model copies no private descriptions, dates, identities, or quantities. It keeps only eight recurring shapes:
+
+- holding-to-holding transfer;
+- ordinary expense;
+- split expense;
+- income;
+- liability-funded expense;
+- liability repayment;
+- expense refund / reimbursement;
+- opening balance against equity.
+
+All eight shapes coexist in one bounded Alloy model using only:
+
+```text
+Event
+Effect
+Locus
+signed Quantity
+AccountingRole
+```
+
+Observed:
+
+```text
+representative real-ledger shapes                         SAT
+same semantic core, different AccountName / EventKind    SAT
+role-only change can change recognized shape             SAT
+Effect core alone determines selected shapes             SAT counterexample
+Effect core + AccountingRole determines selected shapes  UNSAT counterexample
+nominal presentation changes selected shapes              UNSAT counterexample
+```
+
+So the real-data pressure does not reverse Observations 031 or 049. It strengthens their practical relevance:
+
+```text
+Account as domain object
+    still not forced by the selected vocabulary
+
+AccountingRole
+    still independent of signed placement
+```
+
+This is an expressibility and observability result, not an import-format decision. Observation 062 deliberately does not decide whether a ledger posting maps one-to-one to a practical LOAM Effect.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -140,6 +188,8 @@ Event
 
 Coordinate totals are projections over effects, not effect identity.
 
+Observation 062 adds no new primitive coordinate. Representative bookkeeping-shaped Events can still be expressed with the existing Event / Effect / Locus structure plus independent AccountingRole.
+
 ### Explicit revision relations
 
 Correction and Resolution remain explicit raw relation facts rather than edits that erase earlier facts.
@@ -159,6 +209,7 @@ The following have appeared as derivable views rather than automatically deservi
 - total balance
 - balance by Locus / Measure
 - transfer-like shape
+- role-aware bookkeeping shapes such as expense, income, liability repayment, refund, and opening balance in the bounded Observation 062 vocabulary
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -177,6 +228,8 @@ These relations have evidence of semantic independence from the neutral physical
 - backing eligibility
 - recipient assignment
 - other application-facing classifications
+
+Observation 062 supplies a real-data-shaped witness that AccountingRole remains semantically active while AccountName and nominal EventKind remain observationally inert for the selected bookkeeping-shape vocabulary.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -199,7 +252,9 @@ The practical core now contains small typed pieces including:
 - `Allocation`
 - `RecipientAssignment`
 
-Correction and Resolution now have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
+Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
+
+Observation 062 does not add an Account object, nominal EventKind, AccountingRole implementation, import layer, or new persistence format to the practical core. It is evidence about what current real-ledger-shaped questions do and do not force.
 
 The implementation policy remains conservative:
 
@@ -231,6 +286,8 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
+Observation 062 does not alter persistence at all.
+
 ## 7. Deliberately unearned concepts
 
 LOAM should not silently promote the following into domain law without a new observation that requires them.
@@ -240,6 +297,7 @@ LOAM should not silently promote the following into domain law without a new obs
 - chronology from list or file position
 - priority or authority from arrival order
 - a conventional Account object as the physical primitive
+- a stored nominal EventKind hierarchy for bookkeeping roles
 - a stored Envelope balance as the live-holdings source of truth
 - one mandatory transaction/event nominal sum type for household roles
 - eager referential rejection as a raw relation-memory rule
@@ -248,11 +306,13 @@ LOAM should not silently promote the following into domain law without a new obs
 - fsync or power-loss durability guarantees
 - a manifest or generation selector
 - general Resolution persistence parity beyond the stable-frontier case observed in 061
+- one-to-one ledger-posting-to-LOAM-Effect import semantics
+- plan / series / issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-one observations
+## 8. Tool roles after sixty-two observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -264,6 +324,9 @@ Use when the question is primarily structural:
 - is one relation independent of another?
 - does removing a field collapse distinctions?
 - can a familiar household noun remain a projection?
+- do anonymized real-data shapes fit the existing structural vocabulary without adding a new primitive?
+
+Observation 062 is an example of the last case.
 
 ### J
 
@@ -310,16 +373,20 @@ question
   -> persistence
 ```
 
-Observation 061 extends that loop just far enough to test the next relation kind without mechanically copying the Correction protocol. It finds no stronger ordering requirement for a Resolution whose existing conflict frontier is already visible and stable.
+Observation 061 extended that loop just far enough to test the next relation kind without mechanically copying the Correction protocol.
 
-This is another good stopping point. LOAM does not need an automatic Observation 062 simply because 061 exists.
+Observation 062 then did something different: instead of extending protocol machinery, it brought anonymized shapes from ordinary household records back to the earlier structural questions. The result did not force Account or EventKind back into the core, and it confirmed that AccountingRole remains the independent relation needed for the selected bookkeeping-shaped readings.
 
-A moving frontier remains a natural future pressure if a concrete workflow requires Corrections to arrive concurrently with Resolution publication. That would be a three-stream snapshot question over:
+That makes 062 another useful stopping point.
+
+The next pressure should come from information that real records contain but Observation 062 intentionally left out, not from a predetermined Observation number. Plausible candidates include:
 
 ```text
-EventMemory
-CorrectionMemory
-ResolutionMemory
+plan / series linkage
+explicit event or issue linkage
+multi-Measure activity
+imported posting identity vs LOAM Effect identity
+moving Event / Correction / Resolution frontier
 ```
 
-Until that pressure becomes concrete, practical boundary cleanup, documentation, or ordinary use can proceed without promoting moving-frontier machinery, a manifest, or a global history into the core.
+Each should become its own observation only when one concrete question requires it. Until then, no Account abstraction, import schema, metadata hierarchy, manifest, or global history has been earned.
