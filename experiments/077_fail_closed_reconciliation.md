@@ -73,7 +73,25 @@ source occurrence -> LOAM identity
 
 The absence of that relation is part of the experiment.
 
-## Expected witnesses
+## Result
+
+Alloy 6.2.0 + Sat4j produced:
+
+```text
+zeroCandidateReject                              SAT
+uniqueCandidateAutomatic                         SAT
+ambiguousWithoutChoiceReject                     SAT
+ambiguousWithExplicitChoice                      SAT
+reconciliationDoesNotBecomeFutureMapping         SAT
+
+NoCandidateNeverAdmits                           UNSAT counterexample
+AmbiguityWithoutChoiceNeverAdmits                UNSAT counterexample
+ExplicitChoiceMustBeCandidate                    UNSAT counterexample
+AdmissionAlwaysComesFromCandidateSet             UNSAT counterexample
+ExplicitReconciliationSelectsExactlyItsChoice    UNSAT counterexample
+```
+
+The bounded result confirms all five intended entrance properties.
 
 ### No candidate
 
@@ -97,7 +115,7 @@ If two candidates remain possible, an explicit choice may select exactly one of 
 
 After a successful explicit reconciliation in the current cycle, a later ambiguous cycle with no explicit choice still rejects automatic admission.
 
-That witness is important:
+The witness confirms:
 
 ```text
 one reconciliation
@@ -105,9 +123,9 @@ one reconciliation
 future automatic reattachment
 ```
 
-## Expected safety checks
+## Safety boundary
 
-The bounded entrance should establish:
+Within the bounded entrance:
 
 ```text
 no candidate
@@ -126,6 +144,8 @@ explicit reconciliation
     => admitted occurrence is exactly the explicit choice
 ```
 
+No counterexample was found for those assertions in the checked scope.
+
 ## Relationship to real-data dogfooding
 
 This observation is directly preparing the first stronger form of real-data dogfooding, but it is not that dogfooding yet.
@@ -142,7 +162,7 @@ real-data operational shadow dogfood
     not started yet
 ```
 
-Observation 077 is intended to make the latter possible without first creating a permanent sidecar.
+Observation 077 makes the latter possible without first creating a permanent sidecar.
 
 ## Practical Core impact
 
@@ -157,7 +177,7 @@ None.
 
 ## Next pressure
 
-If the bounded result confirms this entrance, the next practical step should be very small:
+The next practical step should be very small:
 
 > expose the current shadow audit so that a private real-data run can report unique / ambiguous / unresolved admission candidates without publishing or persisting them.
 
