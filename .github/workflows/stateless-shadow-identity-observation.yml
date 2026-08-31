@@ -1,0 +1,49 @@
+name: Observation 078
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observation078.lean'
+      - 'Loam/Core/**'
+      - 'experiments/078_stateless_shadow_identity.md'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/stateless-shadow-identity-observation.yml'
+  push:
+    branches:
+      - main
+      - experiment/078-stateless-shadow-identity
+    paths:
+      - 'Loam/Observation078.lean'
+      - 'Loam/Core/**'
+      - 'experiments/078_stateless_shadow_identity.md'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/stateless-shadow-identity-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean stateless shadow identity boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Practical Core
+        uses: leanprover/lean-action@v1
+        with:
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          axiom-audit: true
+          use-github-cache: false
+
+      - name: Check Observation 078 proof directly
+        run: lake env lean Loam/Observation078.lean
