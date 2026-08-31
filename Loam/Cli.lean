@@ -15,6 +15,8 @@ private def practicalUsage : String :=
   "  ./tools/loam spend scratch/dogfood/memory.loam\n\n" ++
   "Review recorded facts:\n" ++
   "  ./tools/loam review scratch/dogfood/memory.loam\n\n" ++
+  "Show recorded quantities:\n" ++
+  "  ./tools/loam summary scratch/dogfood/memory.loam\n\n" ++
   "The final path is the memory file LOAM reads or writes.\n" ++
   "For lower-level commands:\n" ++
   "  ./tools/loam help low-level"
@@ -160,6 +162,64 @@ def showRememberedQuantity
     | none =>
         IO.eprintln "loam: malformed or unsupported event-memory file"
         return 2
+  else
+    IO.eprintln ("loam: file not found: " ++ path)
+    return 2
+
+private def addCoordinateIfAbsent
+    (coordinates : List Loam.Core.EffectCoordinate)
+    (coordinate : Loam.Core.EffectCoordinate) : List Loam.Core.EffectCoordinate :=
+  if coordinate ∈ coordinates then
+    coordinates
+  else
+    coordinates ++ [coordinate]
+
+/--
+Collect every locus/measure coordinate that is actually represented in memory.
+The retained list order is only a display convenience inherited from the current
+persistence representation and carries no time, priority, or accounting meaning.
+-/
+private def recordedCoordinates
+    (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=
+  memory.events.foldl
+    (fun coordinates event =>
+      event.effects.foldl
+        (fun current effect => addCoordinateIfAbsent current effect.coordinate)
+        coordinates)
+    []
+
+/--
+Show one small report-like projection of EventMemory without introducing an
+Account, Balance, Report, or other accounting primitive.
+
+For each coordinate that occurs in recorded Effects, the displayed value is
+exactly `EventMemory.quantityAtRecorded`. Zero totals remain visible. No
+correction, reversal, effective-state, valuation, or temporal semantics are
+applied. Display row order is not semantic.
+-/
+def showRecordedQuantitySummary (path : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk path
+  if ← memoryFile.pathExists then
+    match ← Loam.Persistence.loadEventMemory? memoryFile with
+    | none =>
+        IO.eprintln "loam: malformed or unsupported event-memory file"
+        return 2
+    | some memory =>
+        let coordinates := recordedCoordinates memory
+        match coordinates with
+        | [] =>
+            IO.println "No recorded quantities."
+            return 0
+        | _ =>
+            IO.println "Recorded quantities (all recorded facts; display order has no time meaning):"
+            for coordinate in coordinates do
+              let quantity :=
+                Loam.Core.EventMemory.quantityAtRecorded
+                  memory coordinate.locus coordinate.measure
+              IO.println
+                ("  " ++ coordinate.locus.token ++ ": " ++
+                  toString quantity.quanta ++ " " ++ coordinate.measure.token)
+            return 0
   else
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
@@ -358,6 +418,7 @@ def run (args : List String) : IO UInt32 :=
       return 0
   | ["spend", memoryPath] => spendJpy memoryPath
   | ["review", memoryPath] => reviewRememberedEvents memoryPath
+  | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["amount", "show", path] => showAmount path
   | "event" :: "create" :: path :: eventToken :: effectArgs =>
       createEvent path eventToken effectArgs
