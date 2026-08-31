@@ -117,7 +117,7 @@ WriterCrash ==
   /\ writerUp' = FALSE
   /\ writerCrashed' = TRUE
   /\ crashedAfterRelation' =
-       crashedAfterRelation \/ (diskCorrectionNew /\ ~diskEventNew)
+       (crashedAfterRelation \/ (diskCorrectionNew /\ ~diskEventNew))
   /\ UNCHANGED <<
        diskEventNew,
        diskCorrectionNew,
