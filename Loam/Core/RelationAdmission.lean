@@ -1,4 +1,5 @@
-import Loam.Core.EventCorrection
+import Loam.Core.EventCorrectionMemory
+import Loam.Core.EventResolutionMemory
 
 namespace Loam.Core
 
@@ -22,6 +23,35 @@ whole conflict frontier. Those are later semantic questions.
 /-- Whether one explicit Event identity is present in the supplied memory. -/
 private def eventPresent (memory : EventMemory) (id : EventId) : Bool :=
   (EventMemory.findById? memory id).isSome
+
+/--
+Filtering a typed relation representation cannot introduce repeated identity.
+
+This is a representation lemma only. It says nothing about what the relation
+means or why an item is retained by the filter.
+-/
+private theorem map_filter_nodup
+    {α β : Type}
+    (identity : α → β)
+    (keep : α → Bool)
+    (items : List α)
+    (hNodup : (items.map identity).Nodup) :
+    ((items.filter keep).map identity).Nodup := by
+  induction items with
+  | nil =>
+      simp
+  | cons item rest ih =>
+      simp only [List.map_cons, List.nodup_cons] at hNodup
+      by_cases hKeep : keep item = true
+      · simp only [List.filter_cons_of_pos hKeep, List.map_cons, List.nodup_cons]
+        constructor
+        · intro hMem
+          apply hNodup.1
+          rcases List.mem_map.mp hMem with ⟨candidate, hCandidate, hIdentity⟩
+          exact List.mem_map.mpr ⟨candidate, (List.mem_filter.mp hCandidate).1, hIdentity⟩
+        · exact ih hNodup.2
+      · simp only [List.filter_cons_of_neg hKeep]
+        exact ih hNodup.2
 
 namespace EventCorrection
 
@@ -126,5 +156,76 @@ theorem not_mem_admitReferenced_of_missing
   simp [admitReferenced, hMissing]
 
 end EventResolution
+
+namespace EventCorrectionMemory
+
+/--
+Admit a correction memory against the currently present Events.
+
+The resulting memory contains exactly the referentially closed correction facts
+and retains the input memory's per-kind identity uniqueness. Filtering keeps
+representation order only; it does not choose a current or authoritative
+correction.
+-/
+def admitReferenced
+    (events : EventMemory)
+    (memory : EventCorrectionMemory) : EventCorrectionMemory :=
+  {
+    corrections := EventCorrection.admitReferenced events memory.corrections
+    idNodup := by
+      exact map_filter_nodup
+        EventCorrection.id
+        (EventCorrection.referencesPresent events)
+        memory.corrections
+        memory.idNodup
+  }
+
+/-- Typed correction admission has the same membership law as raw list admission. -/
+theorem mem_admitReferenced_iff
+    (events : EventMemory)
+    (memory : EventCorrectionMemory)
+    (correction : EventCorrection) :
+    correction ∈ (admitReferenced events memory).corrections ↔
+      correction ∈ memory.corrections ∧
+        EventCorrection.referencesPresent events correction = true := by
+  simpa [admitReferenced] using
+    EventCorrection.mem_admitReferenced_iff events memory.corrections correction
+
+end EventCorrectionMemory
+
+namespace EventResolutionMemory
+
+/--
+Admit a resolution memory against the currently present Events.
+
+The resulting memory contains exactly the referentially closed resolution facts
+and retains the input memory's per-kind identity uniqueness. This does not
+establish whole-frontier coverage or justify any replacement meaning.
+-/
+def admitReferenced
+    (events : EventMemory)
+    (memory : EventResolutionMemory) : EventResolutionMemory :=
+  {
+    resolutions := EventResolution.admitReferenced events memory.resolutions
+    idNodup := by
+      exact map_filter_nodup
+        EventResolution.id
+        (EventResolution.referencesPresent events)
+        memory.resolutions
+        memory.idNodup
+  }
+
+/-- Typed resolution admission has the same membership law as raw list admission. -/
+theorem mem_admitReferenced_iff
+    (events : EventMemory)
+    (memory : EventResolutionMemory)
+    (resolution : EventResolution) :
+    resolution ∈ (admitReferenced events memory).resolutions ↔
+      resolution ∈ memory.resolutions ∧
+        EventResolution.referencesPresent events resolution = true := by
+  simpa [admitReferenced] using
+    EventResolution.mem_admitReferenced_iff events memory.resolutions resolution
+
+end EventResolutionMemory
 
 end Loam.Core
