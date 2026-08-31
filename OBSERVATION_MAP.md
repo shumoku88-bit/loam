@@ -1,6 +1,6 @@
 # LOAM Observation Map
 
-This document is a checkpoint after Observations 001–066.
+This document is a checkpoint after Observations 001–067.
 
 It is not a final ontology, schema, or roadmap. It records what the current observations have earned, what remains derived or overlay-like, what the practical Lean core currently carries, and what LOAM has deliberately not promoted into domain meaning.
 
@@ -347,6 +347,64 @@ This sharpens the practical meaning of `Rate` without changing it. A neutral `Ra
 
 Observation 066 does not earn a practical `CostBasis` or `Lot` type, disposal selection method, gain calculation, tax rule, basis persistence stream, or identity-bearing basis fact.
 
+### 067 — disposal provenance survives aggregate holding
+
+Observation 067 continues the external-pressure arc by asking whether multiple acquisition-specific contributions can be collapsed to one aggregate holding without losing later disposal answers.
+
+The model deliberately reuses the identity lesson from Observation 052 instead of introducing a `Lot` object. It keeps two acquisition-specific Effect-like identities, each with quantity three and a distinct basis marker, then disposes three units from the aggregate holding of six.
+
+Each world carries only the quantity-bearing provenance relation:
+
+```text
+consumesFrom : AcquisitionEffect -> Quantity
+```
+
+Observed:
+
+```text
+representative disposal pressure                    SAT
+same aggregate, different source                    SAT
+same aggregate, different basis provenance          SAT
+one disposal can consume multiple acquisitions      SAT
+same source set, different quantity allocation      SAT
+aggregate determines disposal sources               SAT counterexample
+aggregate determines basis provenance               SAT counterexample
+source set determines quantity allocation           SAT counterexample
+explicit quantity relation determines answers       UNSAT counterexample
+```
+
+The bounded separations are therefore:
+
+```text
+aggregate holding
+    !=
+disposal source provenance
+```
+
+and:
+
+```text
+set of source acquisition identities
+    !=
+quantity consumed from each source
+```
+
+The second boundary is stronger than merely preserving lot-like identity. Two worlds can use the same source set while one assigns `2 + 1` and the other `1 + 2` across the same acquisition identities.
+
+At the same time, the selected vocabulary does not force another stored identity named `Lot`. The required answers can be expressed with already-earned Effect-style identity plus an explicit quantity-bearing disposal-to-acquisition relation.
+
+Observation 067 therefore supports the narrower shape:
+
+```text
+Acquisition / Effect identity
+        +
+quantity-bearing disposal provenance
+```
+
+before any new Lot identity is allowed into the practical core.
+
+This does not establish one-to-one acquisition-to-Effect mapping, production disposal semantics, a selection algorithm, transfer of acquisition provenance, or gain calculation.
+
 ## 2. Earned structure
 
 The following structures currently carry distinctions that at least one retained question can observe.
@@ -366,6 +424,8 @@ Identity is not inferred from list position, physical storage order, display nam
 Observation 065 uses Event identity to distinguish otherwise matching refund-source candidates. It does not yet earn a separate identity for refund linkage itself.
 
 Observation 066 introduces one experiment-local acquisition identity only to ask whether basis belongs to that acquisition rather than to valuation history. It does not yet earn a new practical identity type.
+
+Observation 067 strengthens the relevance of already-earned Effect identity: aggregate quantity and even the set of participating source identities can lose disposal provenance. The bounded selected vocabulary can refer directly to acquisition-specific Effect-like identities without adding a separate Lot identity.
 
 ### Quantitative coordinates
 
@@ -388,6 +448,8 @@ Observations 063 and 064 likewise do not enlarge the physical Event coordinate s
 Observation 065 adds no quantity coordinate either. Even retaining the physical Event records and their net quantity does not recover which earlier Event a later return is meant to explain.
 
 Observation 066 also adds no physical quantity coordinate. Acquisition basis and valuation remain comparison/provenance information outside the signed physical placement geometry in the bounded model.
+
+Observation 067 adds no new physical coordinate either, but it does show that provenance itself can be quantity-bearing. Retaining only the aggregate quantity or only a set-valued source relation loses how much of one disposal was assigned to each acquisition identity.
 
 ### Explicit revision relations
 
@@ -421,6 +483,20 @@ Observation 066 finds that even complete valuation history does not determine th
 
 This does not yet imply a practical CostBasis type, a Lot identity, or one mandatory basis representation.
 
+### Explicit quantity-bearing disposal provenance when source quantity matters
+
+Observation 067 finds that aggregate holdings do not determine which acquisition identities supplied a disposal, and the participating source set itself does not determine how much came from each source.
+
+When future questions ask acquisition-specific disposal provenance, a quantity-bearing relation must survive in some representation:
+
+```text
+Disposal Effect
+    -> Acquisition Effect
+    -> Quantity
+```
+
+This does not yet imply a first-class Lot object, a production disposal relation, or a selection policy.
+
 ### More than one time coordinate when the question requires it
 
 The observation layer has earned a distinction between validity and knowledge time for retrospective questions. This does not imply that every practical-core fact must immediately carry both timestamps.
@@ -447,6 +523,9 @@ The following have appeared as derivable views rather than automatically deservi
 - refund-linked Return membership from explicit refund linkage
 - historical valuation answers from retained valuation observations
 - current valuation answer from the selected current relation
+- aggregate post-disposal holding from acquisition quantities and explicit consumption provenance
+- participating acquisition source set from positive disposal-provenance quantities
+- implicated acquisition-basis set from the participating acquisition identities
 - current tips of a revision graph
 - correction-aware effective views
 - referentially admitted relation views
@@ -465,6 +544,7 @@ These relations have evidence of semantic independence from the neutral physical
 - refund / reimbursement source linkage in the bounded Observation 065 vocabulary
 - valuation / rate relations
 - acquisition-basis relation in the bounded Observation 066 vocabulary
+- quantity-bearing disposal-to-acquisition provenance in the bounded Observation 067 vocabulary
 - selection policy
 - backing eligibility
 - recipient assignment
@@ -479,6 +559,8 @@ Observation 064 adds that recurrence classification and Plan content do not dete
 Observation 065 adds that numerical offset and net quantity do not determine refund-source provenance, and that this source linkage has different semantics from Correction-style supersession.
 
 Observation 066 adds that acquisition basis is not determined by valuation history, even when the valuation answer at the acquisition coordinate is retained.
+
+Observation 067 adds that disposal provenance is not determined by aggregate holding, and a source-set overlay is still too coarse when the amount consumed from each acquisition remains observable.
 
 An overlay is not "less real." It means its meaning is not determined by the underlying physical placement and quantity relations currently retained.
 
@@ -503,9 +585,11 @@ The practical core now contains small typed pieces including:
 
 Correction and Resolution have separate semantic module boundaries. Their memory implementations remain deliberately concrete rather than being generalized behind one premature relation-memory abstraction.
 
-Observations 062–066 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
+Observations 062–067 add no Account object, nominal EventKind, Plan type, realization type, Series type, Refund type, CostBasis type, Lot type, disposal-provenance type, recurrence engine, import layer, or new persistence format to the practical core. They are evidence about what current real-data-shaped and external-pressure questions do and do not force.
 
-Observation 066 does not change `Rate`. The current practical `Rate` already deliberately avoids claiming that a Measure relation is a price, valuation authority, or time-stable fact. The new observation only adds evidence that a rate-like valuation relation should not be reused implicitly as acquisition provenance.
+Observation 066 does not change `Rate`. The current practical `Rate` already deliberately avoids claiming that a Measure relation is a price, valuation authority, or time-stable fact. The observation only adds evidence that a rate-like valuation relation should not be reused implicitly as acquisition provenance.
+
+Observation 067 likewise does not change `Effect` or reuse the existing practical `Allocation` module merely because the experiment contains a quantity-bearing relation. It first establishes only that stable Effect-like identity can serve as a meaningful provenance endpoint in the bounded vocabulary and that aggregate projection is insufficient.
 
 The implementation policy remains conservative:
 
@@ -537,7 +621,7 @@ Separate atomic file replacement is not sufficient by itself when multiple strea
 
 Observation 061 earns a stable-frontier ordering shape for Resolution, but practical Resolution persistence has not yet been added merely by analogy. A moving frontier would coordinate Event, Correction, and Resolution streams and remains a separate question.
 
-Observations 062–066 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, or acquisition basis does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, lot store, or recurrence store.
+Observations 062–067 do not alter persistence at all. In particular, semantic observability of realization, Series membership, refund provenance, acquisition basis, or disposal provenance does not by itself earn a Plan store, realization stream, Series stream, refund stream, basis stream, disposal-provenance stream, lot store, or recurrence store.
 
 ## 7. Deliberately unearned concepts
 
@@ -566,17 +650,19 @@ LOAM should not silently promote the following into domain law without a new obs
 - a Practical Core `Refund` type merely because refund provenance is observable
 - first-class refund-link identity, correction, or persistence
 - generalized one-to-many or many-to-many refund allocation and lifecycle semantics
-- a Practical Core `CostBasis` or `Lot` type merely because acquisition basis is observable
+- a Practical Core `CostBasis` or `Lot` type merely because acquisition basis or disposal provenance is observable
 - first-class basis identity, correction, authority, or persistence
+- a production disposal-provenance relation merely because its information shape is observable
+- an additional Lot identity when existing acquisition / Effect identity already suffices for the bounded selected questions
 - FIFO, LIFO, average-cost, specific-identification, or any other lot-selection policy
-- realized/unrealized gain semantics derived merely from valuation and basis separation
+- realized/unrealized gain semantics derived merely from valuation, basis, and disposal-provenance separation
 - tax-specific basis rules
 - issue metadata semantics merely because such annotations appear in source data
 - compaction semantics
 
 These are not rejected forever. They are simply not earned yet.
 
-## 8. Tool roles after sixty-six observations
+## 8. Tool roles after sixty-seven observations
 
 LOAM's method is now easier to state from evidence rather than intention.
 
@@ -593,8 +679,9 @@ Use when the question is primarily structural:
 - can recurring-thread membership be reconstructed from Plan content and recurrence classification?
 - can aggregate quantity reconstruct a source-specific real-world provenance relation?
 - can one semantic relation be reconstructed from another even when both refer to the same time coordinate?
+- can an aggregate or set-valued provenance view reconstruct a quantity-bearing provenance relation?
 
-Observations 062–066 are examples of the last five cases.
+Observations 062–067 are examples of the last six cases.
 
 ### J
 
@@ -612,7 +699,7 @@ Lean is both a proof environment and the current practical-core language.
 
 Use when the distinction depends on state transitions, temporal knowledge, operation order, or reachable intermediate states.
 
-Observation 034 already used TLA+ to separate historical, current, and future relation viewpoints. Observation 066 therefore stays with Alloy because its new distinction is semantic rather than temporal: historical valuation and acquisition basis can differ at the same coordinate.
+Observation 034 already used TLA+ to separate historical, current, and future relation viewpoints. Observations 066–067 stay with Alloy because their new distinctions are structural: basis is independent from valuation at one coordinate, and disposal provenance is independent from aggregate holding.
 
 ### Apalache
 
@@ -655,6 +742,8 @@ Observation 065 follows another source-shaped relation rather than inventing a n
 
 Observation 066 then opens the external-pressure arc with a distinction already needed by mature accounting systems, but translates it back into LOAM's vocabulary rather than importing their ontology. Complete valuation history still does not determine acquisition basis. A relation answering "what value is observed at this coordinate?" and information answering "how was this acquisition carried?" remain independent.
 
+Observation 067 goes one step further without importing a Lot object. Once several acquisition-specific Effects are aggregated, a later disposal cannot recover its source provenance from the resulting holding. Even remembering only which sources participated is insufficient when the retained question asks how much came from each origin. Existing Effect-style identity plus an explicit quantity-bearing relation is sufficient for the bounded selected answers.
+
 The resulting bounded picture is now:
 
 ```text
@@ -665,6 +754,10 @@ Actual physical facts
         +---- refund-source linkage when provenance is asked
         |
         +---- acquisition-basis information when provenance is asked
+        |
+        +---- quantity-bearing disposal provenance
+                     |
+                     +----> acquisition / Effect identities
 
 Expectation facts
         |
@@ -681,13 +774,14 @@ Valuation observations
 
 This is still not a universal ontology. It is an inventory of distinctions that concrete questions and external pressure have forced so far.
 
-It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, or Lot implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
+It is also still a good stopping point before adding Plan, Series, Refund, CostBasis, Lot, or disposal-provenance implementation. The semantic distinctions are visible, but no practical storage pressure has yet earned those objects, their streams, or a generic relation abstraction.
 
-The strongest next external-pressure question is now narrower than "implement lots":
+The next external-pressure question can now separate **provenance** from **selection policy**:
 
 ```text
-If two acquisitions of the same Measure have different basis provenance,
-can aggregate holdings still answer which acquired quantity was disposed?
+several provenance assignments may be structurally possible
+        !=
+policy that selects one assignment
 ```
 
-That can test whether Effect/acquisition identity already carries enough provenance before any Lot object is allowed into the practical core.
+FIFO, specific identification, or another familiar rule should therefore be introduced only as pressure for that policy question, not as a primitive accounting noun copied into the core.
