@@ -57,16 +57,23 @@ Both functions aggregate locus / measure / quantity observations. Their definiti
 
 Observation 078 records this as Lean proofs rather than relying on inspection alone.
 
-## Positive boundary
+## Lean result
 
-The Lean experiment checks that:
+The exact branch head proves the positive and negative boundaries against the existing Practical Core.
+
+Proved:
 
 1. replacing only an EventId cannot change `Event.quantityAt`;
 2. replacing EventId and EffectKey on one Effect cannot change the quantity answer;
 3. distinct run-local EffectKeys on a multi-effect Event still preserve the quantity answer;
-4. a singleton `EventMemory.quantityAtRecorded` answer remains unchanged under fresh Event / Effect identities.
+4. a singleton `EventMemory.quantityAtRecorded` answer remains unchanged under fresh Event / Effect identities;
+5. `EventMemory.findById?` does observe Event identity, preserving the negative boundary.
 
-The intended interpretation is:
+Observation 078 push qualification completed successfully after the proof was discharged through existing Core lemmas.
+
+## Positive boundary
+
+The result supports this narrow allowance:
 
 ```text
 identity-renaming-invariant query
@@ -76,11 +83,11 @@ identity-renaming-invariant query
 => stateless shadow observation may proceed
 ```
 
+This does **not** turn the run-local names into imported identity. They are only temporary witnesses needed to inhabit the current Practical Core structures during one computation.
+
 ## Negative boundary
 
-The experiment also proves that `EventMemory.findById?` observes identity.
-
-Therefore the run-local allowance does **not** extend to:
+Because `EventMemory.findById?` observes identity, the run-local allowance does **not** extend to:
 
 - identity lookup across runs;
 - correction attachment;
@@ -90,6 +97,13 @@ Therefore the run-local allowance does **not** extend to:
 - claims that a later source occurrence is the same historical occurrence.
 
 For those questions, Observation 075 still applies and stable retained continuity is required.
+
+A useful project rule is therefore:
+
+```text
+run-local identity may satisfy a representation precondition
+only when the retained answer is proved independent of that identity
+```
 
 ## Real-data dogfood status
 
@@ -102,10 +116,10 @@ real-data structural pressure
     started
 
 whole-file stateless shadow readiness
-    started here
+    established here
 
 read-only quantity shadow projection
-    next if the Lean boundary holds
+    now earned as the next practical step
 
 persistent / continuity-sensitive shadow admission
     still blocked on stable identity or explicit reconciliation
@@ -128,7 +142,7 @@ The experiment is a proof about which existing Core queries are safe to use in a
 
 ## Next pressure
 
-If the Lean proof remains green, the next practical step is small and concrete:
+The next practical step is now small and concrete:
 
 > add a read-only private `shadow-quantity` entrance that parses one journal snapshot, assigns fresh run-local identities, evaluates only rename-invariant recorded quantity projections, emits no persistence, and discards every generated identity when the process exits.
 
