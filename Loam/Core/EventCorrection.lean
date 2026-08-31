@@ -77,6 +77,89 @@ theorem project?_perm
     project? { events := [], idNodup := by simp } correction = none := by
   simp [project?]
 
+/--
+Project a correction only when it directly targets the supplied current
+interpretation tip.
+
+The tip is explicit input rather than inferred from EventMemory representation
+order. This is the practical admission primitive suggested by Observation 021:
+a repeated correction may continue the current interpretation, while a stale
+correction that targets an earlier interpretation does not silently become
+current merely because it was observed later.
+-/
+def projectFromTip?
+    (memory : EventMemory)
+    (tip : EventId)
+    (correction : EventCorrection) : Option CorrectedEvent :=
+  if correction.target = tip then
+    project? memory correction
+  else
+    none
+
+/-- Matching the current tip adds no meaning beyond ordinary correction projection. -/
+theorem projectFromTip?_current
+    (memory : EventMemory)
+    (tip : EventId)
+    (correction : EventCorrection)
+    (hTarget : correction.target = tip) :
+    projectFromTip? memory tip correction = project? memory correction := by
+  simp [projectFromTip?, hTarget]
+
+/-- A stale correction cannot continue a different current interpretation tip. -/
+@[simp] theorem projectFromTip?_stale
+    (memory : EventMemory)
+    (tip : EventId)
+    (correction : EventCorrection)
+    (hTarget : correction.target ≠ tip) :
+    projectFromTip? memory tip correction = none := by
+  simp [projectFromTip?, hTarget]
+
+/-- Successful current-tip projection certifies that the correction named that tip. -/
+theorem projectFromTip?_some_target
+    (memory : EventMemory)
+    (tip : EventId)
+    (correction : EventCorrection)
+    (projected : CorrectedEvent)
+    (hProjected : projectFromTip? memory tip correction = some projected) :
+    correction.target = tip := by
+  unfold projectFromTip? at hProjected
+  split at hProjected
+  next hTarget => exact hTarget
+  next hTarget => simp at hProjected
+
+/--
+Try one repeated correction after an already projected correction.
+
+Only the prior projection's effective Event identity is accepted as the next
+target. The structure therefore earns a linear continuation without declaring
+list order, arrival time, or `last correction wins` to be authoritative.
+-/
+def projectNext?
+    (memory : EventMemory)
+    (current : CorrectedEvent)
+    (next : EventCorrection) : Option CorrectedEvent :=
+  projectFromTip? memory current.effective.id next
+
+/-- A repeated correction aimed behind the current effective Event is rejected. -/
+@[simp] theorem projectNext?_stale
+    (memory : EventMemory)
+    (current : CorrectedEvent)
+    (next : EventCorrection)
+    (hTarget : next.target ≠ current.effective.id) :
+    projectNext? memory current next = none := by
+  simp [projectNext?, hTarget]
+
+/-- Current-tip admission remains independent of EventMemory representation order. -/
+theorem projectFromTip?_perm
+    (left right : EventMemory)
+    (hPerm : left.events.Perm right.events)
+    (tip : EventId)
+    (correction : EventCorrection) :
+    projectFromTip? left tip correction = projectFromTip? right tip correction := by
+  by_cases hTarget : correction.target = tip
+  · simp [projectFromTip?, hTarget, project?_perm left right hPerm correction]
+  · simp [projectFromTip?, hTarget]
+
 end EventCorrection
 
 end Loam.Core
