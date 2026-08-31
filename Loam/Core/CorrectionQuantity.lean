@@ -29,12 +29,13 @@ def quantityAtEffective?
     (locus : LocusId)
     (measure : MeasureId) : Option Quantity := do
   let projected ← project? memory correction
-  if correction.target = correction.replacement then
-    return EventMemory.quantityAtRecorded memory locus measure
-  else
-    return
-      EventMemory.quantityAtRecorded memory locus measure -
-        Event.quantityAt projected.original locus measure
+  let recorded := EventMemory.quantityAtRecorded memory locus measure
+  let effective :=
+    if correction.target = correction.replacement then
+      recorded
+    else
+      recorded - Event.quantityAt projected.original locus measure
+  return effective
 
 /-- A correction with missing endpoint Events has no effective quantity projection. -/
 @[simp] theorem quantityAtEffective?_empty
