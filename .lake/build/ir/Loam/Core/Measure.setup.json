@@ -1,0 +1,9 @@
+{"plugins": [],
+ "package": "loam",
+ "options": {},
+ "name": "Loam.Core.Measure",
+ "isModule": false,
+ "importArts":
+ {"Loam.Core.Quantity":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/Quantity.olean"]]},
+ "dynlibs": []}

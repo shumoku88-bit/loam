@@ -1,0 +1,23 @@
+{"plugins": [],
+ "package": "loam",
+ "options": {},
+ "name": "Loam.Cli",
+ "isModule": false,
+ "importArts":
+ {"Loam.Persistence":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Persistence.olean"]],
+  "Loam.Core.Quantity":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/Quantity.olean"]],
+  "Loam.Core.Measure":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/Measure.olean"]],
+  "Loam.Core.EventMemory":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/EventMemory.olean"]],
+  "Loam.Core.EventCorrectionMemory":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/EventCorrectionMemory.olean"]],
+  "Loam.Core.EventCorrection":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/EventCorrection.olean"]],
+  "Loam.Core.Event":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/Event.olean"]],
+  "Loam.Core.Effect":
+  [["/Users/user/Projects/moko/loam/.lake/build/lib/lean/Loam/Core/Effect.olean"]]},
+ "dynlibs": []}

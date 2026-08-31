@@ -1,0 +1,11 @@
+LOAM-EVENT-MEMORY	1
+EVENT	2026-08-31-opening
+EFFECT	opening-wallet	wallet	jpy	5000
+EFFECT	opening-bank	bank	jpy	20000
+EVENT	2026-08-31-konbini
+EFFECT	konbini-wallet	wallet	jpy	-430
+EVENT	2026-08-31-bank-to-wallet
+EFFECT	transfer-wallet	wallet	jpy	2000
+EFFECT	transfer-bank	bank	jpy	-2000
+EVENT	record-1
+EFFECT	effect-1	スーパー	wallet	1280
