@@ -8,3 +8,6 @@ lean_lib Loam
 
 lean_exe loam where
   root := `Loam.Cli
+
+lean_exe loamCorrection where
+  root := `LoamCorrection
