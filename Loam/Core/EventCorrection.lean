@@ -43,6 +43,42 @@ structure CorrectedEvent where
   original : Event
   effective : Event
 
+/--
+A truthful current view in which several distinct correction branches remain
+simultaneously possible.
+
+`branches` is a deterministic representation only. Its list position carries
+no arrival, temporal, priority, or authority meaning. Every branch targets the
+same interpretation, correction identity is not repeated, and replacement
+Event identity is not repeated. At least two candidate interpretations are
+present, so this value deliberately exposes no single `effective` Event.
+-/
+structure UnresolvedCorrection where
+  target : EventId
+  branches : List EventCorrection
+  branchIdNodup : (branches.map EventCorrection.id).Nodup
+  branchTarget : ∀ branch ∈ branches, branch.target = target
+  candidateIdNodup : (branches.map EventCorrection.replacement).Nodup
+  multiple : 2 ≤ branches.length
+
+namespace UnresolvedCorrection
+
+/-- Candidate interpretation identities, retaining only representation order. -/
+def candidateIds (conflict : UnresolvedCorrection) : List EventId :=
+  conflict.branches.map EventCorrection.replacement
+
+/--
+Reordering the represented correction branches only reorders the represented
+candidate identities. It cannot choose a current winner.
+-/
+theorem candidateIds_perm
+    (left right : UnresolvedCorrection)
+    (hPerm : left.branches.Perm right.branches) :
+    (candidateIds left).Perm (candidateIds right) := by
+  exact hPerm.map EventCorrection.replacement
+
+end UnresolvedCorrection
+
 namespace EventCorrection
 
 /--
@@ -159,6 +195,48 @@ theorem projectFromTip?_perm
   by_cases hTarget : correction.target = tip
   · simp [projectFromTip?, hTarget, project?_perm left right hPerm correction]
   · simp [projectFromTip?, hTarget]
+
+/--
+Project two sibling corrections as an unresolved current state.
+
+Both correction facts must directly target the same explicit interpretation,
+both replacement Events must be present in memory, correction identity must be
+distinct, and replacement Event identity must be distinct. No branch is chosen
+as effective. The returned branch list is representation only; callers that
+care about candidate meaning should treat it modulo permutation.
+-/
+def projectSiblingConflict?
+    (memory : EventMemory)
+    (tip : EventId)
+    (left right : EventCorrection) : Option UnresolvedCorrection :=
+  if hLeftTarget : left.target = tip then
+    if hRightTarget : right.target = tip then
+      if hBranchId : left.id ≠ right.id then
+        if hCandidateId : left.replacement ≠ right.replacement then
+          match project? memory left, project? memory right with
+          | some _, some _ =>
+              some {
+                target := tip
+                branches := [left, right]
+                branchIdNodup := by simp [hBranchId]
+                branchTarget := by
+                  intro branch hBranch
+                  simp only [List.mem_cons, List.mem_singleton] at hBranch
+                  rcases hBranch with rfl | rfl
+                  · exact hLeftTarget
+                  · exact hRightTarget
+                candidateIdNodup := by simp [hCandidateId]
+                multiple := by simp
+              }
+          | _, _ => none
+        else
+          none
+      else
+        none
+    else
+      none
+  else
+    none
 
 end EventCorrection
 
