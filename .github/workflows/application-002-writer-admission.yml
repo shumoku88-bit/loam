@@ -1,0 +1,54 @@
+name: Application 002 Writer Admission
+
+on:
+  push:
+    paths:
+      - 'experiments/application_002_writer_admission_probe.dfy'
+      - 'experiments/application_002_writer_admission_probe.md'
+      - '.github/workflows/application-002-writer-admission.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_002_writer_admission_probe.dfy'
+      - 'experiments/application_002_writer_admission_probe.md'
+      - '.github/workflows/application-002-writer-admission.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dafny-verified-writer-admission:
+    name: Dafny verified writer admission probe
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pinned Dafny
+        uses: dafny-lang/setup-dafny-action@v1
+        with:
+          dafny-version: '4.11.0'
+
+      - name: Record Dafny version
+        run: dafny --version
+
+      - name: Verify Application 002
+        run: dafny verify experiments/application_002_writer_admission_probe.dfy
+
+      - name: Execute verified synthetic decisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          dafny run --no-verify --target:cs \
+            experiments/application_002_writer_admission_probe.dfy \
+            | tee /tmp/application-002-dafny.out
+
+          cat > /tmp/expected-decisions <<'EOF'
+          PublishCandidate
+          RefuseDuplicateEventIdentity
+          RefuseStaleSnapshot
+          RefuseStaleSnapshot
+          EOF
+
+          grep -E '^(PublishCandidate|RefuseDuplicateEventIdentity|RefuseStaleSnapshot)$' \
+            /tmp/application-002-dafny.out > /tmp/actual-decisions
+
+          diff -u /tmp/expected-decisions /tmp/actual-decisions
