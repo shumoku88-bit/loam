@@ -10,6 +10,7 @@ on:
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
+      - 'Loam/Application/**'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -25,6 +26,7 @@ on:
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
+      - 'Loam/Application/**'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
@@ -116,3 +118,94 @@ jobs:
             exit 1
           fi
           grep -Fq 'wallet: -1280 jpy' /tmp/loam-rebuild.out
+
+          # Multiple independent / repeated correction paths now have one current
+          # frontier without using correction list position as authority.
+          cat >"$memory_file" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	a
+          EFFECT	effect-1	wallet	jpy	-100
+          EVENT	b
+          EFFECT	effect-1	wallet	jpy	-80
+          EVENT	c
+          EFFECT	effect-1	wallet	jpy	-90
+          EVENT	x
+          EFFECT	effect-1	savings	jpy	50
+          EVENT	y
+          EFFECT	effect-1	savings	jpy	60
+          EVENT	u
+          EFFECT	effect-1	cash	jpy	20
+          EOF
+          cat >"$correction_file" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	a	b
+          CORRECTION	correction-2	b	c
+          CORRECTION	correction-3	x	y
+          EOF
+
+          .lake/build/bin/loam effective "$memory_file" "$correction_file" | tee /tmp/loam-frontier.out
+          grep -Fq 'Effective quantities (correction-frontier projection; zero coordinates omitted):' /tmp/loam-frontier.out
+          grep -Fq 'wallet: -90 jpy' /tmp/loam-frontier.out
+          grep -Fq 'savings: 60 jpy' /tmp/loam-frontier.out
+          grep -Fq 'cash: 20 jpy' /tmp/loam-frontier.out
+
+          # Sibling corrections remain unresolved rather than choosing a winner.
+          cat >"$memory_file" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	a
+          EFFECT	effect-1	wallet	jpy	-100
+          EVENT	b
+          EFFECT	effect-1	wallet	jpy	-80
+          EVENT	c
+          EFFECT	effect-1	wallet	jpy	-90
+          EOF
+          cat >"$correction_file" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	a	b
+          CORRECTION	correction-2	a	c
+          EOF
+          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-frontier-refusal.out 2>&1; then
+            echo 'sibling corrections must not produce one current frontier' >&2
+            exit 1
+          fi
+          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-frontier-refusal.out
+          if grep -Fq 'correction-frontier projection' /tmp/loam-frontier-refusal.out; then
+            echo 'frontier refusal must happen before partial quantity output' >&2
+            exit 1
+          fi
+
+          # Two different targets cannot silently merge through Correction alone.
+          cat >"$correction_file" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	a	c
+          CORRECTION	correction-2	b	c
+          EOF
+          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-merge-refusal.out 2>&1; then
+            echo 'shared replacement must require an explicit resolution concept' >&2
+            exit 1
+          fi
+          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-merge-refusal.out
+
+          # Closed cycles cannot manufacture a current interpretation.
+          cat >"$correction_file" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	a	b
+          CORRECTION	correction-2	b	a
+          EOF
+          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-cycle-refusal.out 2>&1; then
+            echo 'cyclic corrections must not produce one current frontier' >&2
+            exit 1
+          fi
+          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-cycle-refusal.out
+
+          # Referentially open corrections remain fail-closed.
+          cat >"$correction_file" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	a	b
+          CORRECTION	correction-2	b	missing
+          EOF
+          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-open-refusal.out 2>&1; then
+            echo 'open correction references must not produce one current frontier' >&2
+            exit 1
+          fi
+          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-open-refusal.out
