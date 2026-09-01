@@ -1,8 +1,8 @@
 module experiments/application_001_quantity_query_shape
 
-abstract sig Event {}
-abstract sig Context {}
-abstract sig PlanEvidence {}
+sig Event {}
+sig Context {}
+sig PlanEvidence {}
 
 sig Correction {
   target: one Event,
@@ -27,27 +27,35 @@ fact ContextOnlyAttachesToRememberedEvents {
   all w: World | w.eventContext.Context in w.events
 }
 
+pred correctionClosed[w: World, c: Correction] {
+  c.target in w.events
+  c.replacement in w.events
+}
+
+pred allCorrectionsClosed[w: World] {
+  all c: w.corrections | correctionClosed[w, c]
+}
+
+pred someCorrectionOpen[w: World] {
+  some c: w.corrections | not correctionClosed[w, c]
+}
+
 -- Application 001 asks only whether the already-earned quantity projection can
--- answer safely. It does not inspect descriptive context or Plan evidence.
+-- answer safely. The four modes form a complete partition of the retained
+-- Correction evidence. Descriptive context and Plan evidence are not consulted.
 fact QuantityInspectionContract {
   all w: World |
-    (no w.corrections implies
-      w.mode = RecordedQuantity)
+    (w.mode = RecordedQuantity iff
+      no w.corrections)
     and
-    (#w.corrections = 1 and
-      all c: w.corrections |
-        c.target in w.events and c.replacement in w.events
-      implies
-        w.mode = SingleCorrectionEffectiveQuantity)
+    (w.mode = SingleCorrectionEffectiveQuantity iff
+      #w.corrections = 1 and allCorrectionsClosed[w])
     and
-    (#w.corrections = 1 and
-      some c: w.corrections |
-        c.target not in w.events or c.replacement not in w.events
-      implies
-        w.mode = MissingCorrectionEndpoint)
+    (w.mode = MissingCorrectionEndpoint iff
+      #w.corrections = 1 and someCorrectionOpen[w])
     and
-    (#w.corrections > 1 implies
-      w.mode = FrontierRequired)
+    (w.mode = FrontierRequired iff
+      #w.corrections > 1)
 }
 
 pred sameQuantityEvidence[left, right: World] {
@@ -65,16 +73,14 @@ pred zeroCorrectionReadable {
 pred oneClosedCorrectionReadable {
   some w: World |
     #w.corrections = 1
-    and all c: w.corrections |
-      c.target in w.events and c.replacement in w.events
+    and allCorrectionsClosed[w]
     and w.mode = SingleCorrectionEffectiveQuantity
 }
 
 pred oneOpenCorrectionRefuses {
   some w: World |
     #w.corrections = 1
-    and some c: w.corrections |
-      c.target not in w.events or c.replacement not in w.events
+    and someCorrectionOpen[w]
     and w.mode = MissingCorrectionEndpoint
 }
 
@@ -99,17 +105,13 @@ assert ZeroCorrectionsAlwaysUseRecordedQuantity {
 
 assert OneClosedCorrectionAlwaysUsesSingleCorrectionProjection {
   all w: World |
-    (#w.corrections = 1 and
-      all c: w.corrections |
-        c.target in w.events and c.replacement in w.events)
+    (#w.corrections = 1 and allCorrectionsClosed[w])
       implies w.mode = SingleCorrectionEffectiveQuantity
 }
 
 assert OneOpenCorrectionNeverPretendsToBeEffective {
   all w: World |
-    (#w.corrections = 1 and
-      some c: w.corrections |
-        c.target not in w.events or c.replacement not in w.events)
+    (#w.corrections = 1 and someCorrectionOpen[w])
       implies w.mode = MissingCorrectionEndpoint
 }
 
