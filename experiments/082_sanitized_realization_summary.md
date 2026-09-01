@@ -50,11 +50,13 @@ The Alloy model abstracts only the post-classification boundary.
 
 It retains:
 
-- three Plan identities;
-- three Event identities;
+- two Plan identities;
+- two Event identities;
 - one candidate for every Plan/Event pair;
 - one of the nine sanitized summary buckets for each candidate;
 - two worlds whose realization relations are partial matchings.
+
+This is the smallest useful scope for the question: two distinct complete matchings can disagree about provenance while the summary occupies at least two different buckets.
 
 The model does not duplicate the private parser, household values, dates, quantities, account-like coordinates, or the mechanics by which PR #156 computes each bucket. Those details are upstream of the information-loss question.
 
