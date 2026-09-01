@@ -79,6 +79,31 @@ The Dafny verifier is required to establish that:
 
 These are deliberately application-boundary properties. They are not new accounting laws.
 
+## Result
+
+The pinned Dafny `4.11.0` probe succeeded in CI.
+
+```text
+Dafny verification: 5 verified, 0 errors
+
+executed modes:
+RecordedQuantity
+SingleCorrectionEffectiveQuantity
+MissingCorrectionEndpoint
+FrontierRequired
+```
+
+So the narrow implementation result is positive:
+
+```text
+Alloy-shaped application distinction
+    + Lean-owned quantity semantics
+    ->
+small Dafny specification + verified executable gate
+```
+
+The Dafny source did not need Account, Budget, Plan, Series, persistence, canonical parsing, or a second implementation of quantity arithmetic.
+
 ## Toolchain containment
 
 The workflow pins Dafny `4.11.0` and uses it only for this experiment and its dedicated CI path.
@@ -91,9 +116,21 @@ CLI dependency:                    no
 private canonical data dependency: no
 ```
 
-If the probe teaches nothing beyond what Lean already expresses, the Dafny source and workflow can be removed without losing Core semantics.
+This containment matters because the first CI run also exposed a maintenance cost that is invisible in the small Dafny source itself. The official setup action currently brings supporting .NET and Node toolchain setup into the job, and the runner emitted deprecation warnings for some underlying action/runtime choices.
 
-If it proves unusually natural, a later checkpoint can ask whether verified application operations deserve a persistent Dafny role.
+So the current evidence is deliberately mixed:
+
+```text
+verified application source:
+    small and natural
+
+permanent toolchain footprint:
+    non-trivial
+```
+
+That is a reason to keep Dafny experimental for now rather than promote it immediately to a permanent LOAM dependency.
+
+If the probe is later removed, the Core semantics remain in Lean and the application distinction remains independently observed in Alloy.
 
 ## Non-goals
 
@@ -109,13 +146,8 @@ This experiment does not:
 
 ## Reading the result
 
-A successful probe would establish only this implementation result:
+The useful question after this probe is no longer whether Dafny *can* implement Application 001. It can.
 
-```text
-Alloy-shaped application distinction
-    + Lean-owned quantity semantics
-    ->
-small Dafny specification + verified executable gate
-```
+The next question is whether repeated application operations gain enough clarity from Dafny to justify carrying its toolchain permanently.
 
-The next decision would then be whether that gate provides enough additional clarity to justify keeping Dafny at all.
+A writer operation would be a stronger test than another read-only gate because it would ask whether Dafny remains natural when an admitted operation is allowed to change canonical state.
