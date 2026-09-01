@@ -7,7 +7,7 @@ package loam
 lean_lib Loam
 
 lean_exe loam where
-  root := `Loam.WriterCli
+  root := `Loam.Cli
 
 lean_exe loamShadowAudit where
   root := `Loam.ShadowAuditCli
