@@ -88,22 +88,86 @@ jobs:
           test "$actual_before" = "$actual_after"
           test "$plan_before" = "$plan_after"
 
-          grep -Fq 'LOAM private plan realization shadow' <<<"$output"
           grep -Fq 'plan records observed: 3' <<<"$output"
-          grep -Fq 'plan records with explicit plan-id: 3' <<<"$output"
           grep -Fq 'actual records observed: 5' <<<"$output"
-          grep -Fq 'actual records with explicit plan reference: 4' <<<"$output"
           grep -Fq 'actual plan references resolving to plan source: 3' <<<"$output"
           grep -Fq 'actual plan references missing from plan source: 1' <<<"$output"
           grep -Fq 'plans with no explicit actual reference: 1' <<<"$output"
           grep -Fq 'plans with exactly one explicit actual reference: 1' <<<"$output"
           grep -Fq 'plans with multiple explicit actual references: 1' <<<"$output"
+          grep -Fq 'matched explicit pairs compared: 3' <<<"$output"
+          grep -Fq '  after: exact=0 same-shape-quantity-different=3 shape-different=0' <<<"$output"
           grep -Fq 'private identities/content: withheld' <<<"$output"
           grep -Fq 'sources unchanged: yes' <<<"$output"
 
           ! grep -Fq 'private-secret' <<<"$output"
           ! grep -Fq 'private-plan-' <<<"$output"
           ! grep -Fq '50 unit' <<<"$output"
+
+      - name: Exercise full time by physical delta matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-plan-matrix-actual.XXXXXX.journal)"
+          plan="$(mktemp -t loam-plan-matrix-plan.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          for suffix in before-exact before-quantity before-shape same-exact same-quantity same-shape after-exact after-quantity after-shape; do
+            cat >>"$plan" <<EOF
+          2099-02-10 private-secret-plan-$suffix
+              ; plan-id: private-plan-$suffix
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+          done
+
+          cat >"$actual" <<'EOF'
+          2099-02-09 private-secret-actual-before-exact
+              ; plan-id: private-plan-before-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-09 private-secret-actual-before-quantity
+              ; plan-id: private-plan-before-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-09 private-secret-actual-before-shape
+              ; plan-id: private-plan-before-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          2099-02-10 private-secret-actual-same-exact
+              ; plan-id: private-plan-same-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-10 private-secret-actual-same-quantity
+              ; plan-id: private-plan-same-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-10 private-secret-actual-same-shape
+              ; plan-id: private-plan-same-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          2099-02-11 private-secret-actual-after-exact
+              ; plan-id: private-plan-after-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-11 private-secret-actual-after-quantity
+              ; plan-id: private-plan-after-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-11 private-secret-actual-after-shape
+              ; plan-id: private-plan-after-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          EOF
+
+          output="$(./tools/private-plan-realization-shadow "$actual" "$plan")"
+          grep -Fq 'matched explicit pairs compared: 9' <<<"$output"
+          grep -Fq '  before: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
+          grep -Fq '  same-day: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
+          grep -Fq '  after: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'locus:' <<<"$output"
 
       - name: Fail closed on duplicate Plan identity
         shell: bash
@@ -144,3 +208,37 @@ jobs:
           grep -Fq 'sources unchanged: yes' <<<"$output"
           ! grep -Fq 'private-duplicate-id' <<<"$output"
           ! grep -Fq 'private-secret' <<<"$output"
+
+      - name: Fail closed on unsupported linked physical shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-plan-actual-unsupported.XXXXXX.journal)"
+          plan="$(mktemp -t loam-plan-plan-unsupported.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          2099-03-01 private-secret-plan
+              ; plan-id: private-plan-unsupported
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+          cat >"$actual" <<'EOF'
+          2099-03-01 private-secret-actual
+              ; plan-id: private-plan-unsupported
+              locus:a 10.5 unit
+              locus:b -10.5 unit
+          EOF
+
+          set +e
+          output="$(./tools/private-plan-realization-shadow "$actual" "$plan" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -Fq 'reason: linked record has unsupported physical shape' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'private parser stderr: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+          ! grep -Fq 'private-plan-unsupported' <<<"$output"
+          ! grep -Fq '10.5' <<<"$output"
