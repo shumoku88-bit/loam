@@ -1,0 +1,146 @@
+name: Private Realization Summary Sufficiency
+
+on:
+  pull_request:
+    paths:
+      - 'tools/private-plan-realization-shadow'
+      - 'tools/private-plan-realization-summary-sufficiency.py'
+      - '.github/workflows/private-realization-summary-sufficiency.yml'
+  push:
+    branches:
+      - 'tool/private-realization-summary-sufficiency'
+      - main
+    paths:
+      - 'tools/private-plan-realization-shadow'
+      - 'tools/private-plan-realization-summary-sufficiency.py'
+      - '.github/workflows/private-realization-summary-sufficiency.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sufficiency:
+    name: Check sanitized joint-summary sufficiency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Exercise 3x3 one-anchor ambiguity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-sufficiency-actual.XXXXXX.journal)"
+          plan="$(mktemp -t loam-sufficiency-plan.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          for suffix in before-exact before-quantity before-shape same-exact same-quantity same-shape after-exact after-quantity after-shape; do
+            cat >>"$plan" <<EOF
+          2099-02-10 private-secret-plan-$suffix
+              ; plan-id: private-plan-$suffix
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+          done
+
+          cat >"$actual" <<'EOF'
+          2099-02-09 private-secret-actual-before-exact
+              ; plan-id: private-plan-before-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-09 private-secret-actual-before-quantity
+              ; plan-id: private-plan-before-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-09 private-secret-actual-before-shape
+              ; plan-id: private-plan-before-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          2099-02-10 private-secret-actual-same-exact
+              ; plan-id: private-plan-same-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-10 private-secret-actual-same-quantity
+              ; plan-id: private-plan-same-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-10 private-secret-actual-same-shape
+              ; plan-id: private-plan-same-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          2099-02-11 private-secret-actual-after-exact
+              ; plan-id: private-plan-after-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-11 private-secret-actual-after-quantity
+              ; plan-id: private-plan-after-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-02-11 private-secret-actual-after-shape
+              ; plan-id: private-plan-after-shape
+              locus:c 10 unit
+              locus:b -10 unit
+          EOF
+
+          output="$(python3 tools/private-plan-realization-summary-sufficiency.py "$actual" "$plan")"
+          grep -Fq 'active time buckets: 3' <<<"$output"
+          grep -Fq 'active physical-delta buckets: 3' <<<"$output"
+          grep -Fq 'marginals alone determine joint: no' <<<"$output"
+          grep -Fq 'single joint-cell anchors tested: 9' <<<"$output"
+          grep -Fq 'single joint-cell anchors sufficient: 0' <<<"$output"
+          grep -Fq 'every single joint-cell anchor insufficient: yes' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'locus:' <<<"$output"
+          ! grep -Fq '11 unit' <<<"$output"
+
+      - name: Exercise effective 2x2 one-anchor sufficiency
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-sufficiency-2x2-actual.XXXXXX.journal)"
+          plan="$(mktemp -t loam-sufficiency-2x2-plan.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          for suffix in before-exact before-quantity same-exact same-quantity; do
+            cat >>"$plan" <<EOF
+          2099-03-10 private-secret-plan-$suffix
+              ; plan-id: private-plan-$suffix
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+          done
+
+          cat >"$actual" <<'EOF'
+          2099-03-09 private-secret-actual-before-exact
+              ; plan-id: private-plan-before-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-03-09 private-secret-actual-before-quantity
+              ; plan-id: private-plan-before-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-03-10 private-secret-actual-same-exact
+              ; plan-id: private-plan-same-exact
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-03-10 private-secret-actual-same-quantity
+              ; plan-id: private-plan-same-quantity
+              locus:a 11 unit
+              locus:b -11 unit
+          EOF
+
+          output="$(python3 tools/private-plan-realization-summary-sufficiency.py "$actual" "$plan")"
+          grep -Fq 'active time buckets: 2' <<<"$output"
+          grep -Fq 'active physical-delta buckets: 2' <<<"$output"
+          grep -Fq 'marginals alone determine joint: no' <<<"$output"
+          grep -Fq 'single joint-cell anchors sufficient: 4' <<<"$output"
+          grep -Fq 'every single joint-cell anchor insufficient: no' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'locus:' <<<"$output"
+          ! grep -Fq '11 unit' <<<"$output"
