@@ -1,0 +1,54 @@
+name: Application 001 Dafny Probe
+
+on:
+  push:
+    paths:
+      - 'experiments/application_001_quantity_query_probe.dfy'
+      - 'experiments/application_001_dafny_probe.md'
+      - '.github/workflows/application-001-dafny-probe.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_001_quantity_query_probe.dfy'
+      - 'experiments/application_001_dafny_probe.md'
+      - '.github/workflows/application-001-dafny-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dafny-verified-query:
+    name: Dafny verified query probe
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pinned Dafny
+        uses: dafny-lang/setup-dafny-action@v1
+        with:
+          dafny-version: '4.11.0'
+
+      - name: Record Dafny version
+        run: dafny --version
+
+      - name: Verify Application 001
+        run: dafny verify experiments/application_001_quantity_query_probe.dfy
+
+      - name: Execute verified synthetic witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          dafny run --no-verify --target:cs \
+            experiments/application_001_quantity_query_probe.dfy \
+            | tee /tmp/application-001-dafny.out
+
+          cat > /tmp/expected-modes <<'EOF'
+          RecordedQuantity
+          SingleCorrectionEffectiveQuantity
+          MissingCorrectionEndpoint
+          FrontierRequired
+          EOF
+
+          grep -E '^(RecordedQuantity|SingleCorrectionEffectiveQuantity|MissingCorrectionEndpoint|FrontierRequired)$' \
+            /tmp/application-001-dafny.out > /tmp/actual-modes
+
+          diff -u /tmp/expected-modes /tmp/actual-modes
