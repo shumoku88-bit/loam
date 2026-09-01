@@ -53,6 +53,7 @@ PLAN_ID = re.compile(r"^;\s*plan-id\s*:\s*(\S(?:.*\S)?)\s*$")
 INTEGER = re.compile(r"^[+-]?\d+$")
 
 Posting = tuple[str, str, int]
+Coordinate = tuple[str, str]
 
 
 @dataclass
@@ -122,6 +123,10 @@ def refuse(reason: str) -> None:
     raise SystemExit(2)
 
 
+def coordinates(record: Record) -> Counter[Coordinate]:
+    return Counter((locus, measure) for locus, measure, _ in record.postings)
+
+
 def physical_delta(plan_record: Record, actual_record: Record) -> str:
     if (
         plan_record.unsupported_posting
@@ -136,12 +141,21 @@ def physical_delta(plan_record: Record, actual_record: Record) -> str:
     if plan_exact == actual_exact:
         return "exact"
 
-    plan_shape = Counter((locus, measure) for locus, measure, _ in plan_record.postings)
-    actual_shape = Counter((locus, measure) for locus, measure, _ in actual_record.postings)
-    if plan_shape == actual_shape:
+    if coordinates(plan_record) == coordinates(actual_record):
         return "quantity-different"
 
     return "shape-different"
+
+
+def coordinate_correspondence(plan_record: Record, actual_record: Record) -> str:
+    plan_shape = coordinates(plan_record)
+    actual_shape = coordinates(actual_record)
+    if plan_shape != actual_shape:
+        refuse("coordinate correspondence requested for different physical shape")
+
+    if all(count == 1 for count in plan_shape.values()):
+        return "unique"
+    return "ambiguous"
 
 
 def time_relation(plan_record: Record, actual_record: Record) -> str:
@@ -184,11 +198,15 @@ plans_one = sum(1 for key in plan_set if actual_ref_counts[key] == 1)
 plans_many = sum(1 for key in plan_set if actual_ref_counts[key] >= 2)
 
 matrix: Counter[tuple[str, str]] = Counter()
+effect_correspondence: Counter[str] = Counter()
 for plan_id, actual_record in actual_refs:
     plan_record = plan_records.get(plan_id)
     if plan_record is None:
         continue
-    matrix[(time_relation(plan_record, actual_record), physical_delta(plan_record, actual_record))] += 1
+    delta = physical_delta(plan_record, actual_record)
+    matrix[(time_relation(plan_record, actual_record), delta)] += 1
+    if delta == "quantity-different":
+        effect_correspondence[coordinate_correspondence(plan_record, actual_record)] += 1
 
 print("LOAM private plan realization shadow")
 print(f"plan records observed: {len(plan.records)}")
@@ -209,6 +227,10 @@ for timing in ("before", "same-day", "after"):
         f"same-shape-quantity-different={matrix[(timing, 'quantity-different')]} "
         f"shape-different={matrix[(timing, 'shape-different')]}"
     )
+print("quantity-different Effect correspondence by Locus/Measure coordinate:")
+print(f"  query-local unique: {effect_correspondence['unique']}")
+print(f"  query-local ambiguous: {effect_correspondence['ambiguous']}")
+print("  coordinate correspondence is not stable Effect identity")
 print("private identities/content: withheld")
 PY
 status=$?
