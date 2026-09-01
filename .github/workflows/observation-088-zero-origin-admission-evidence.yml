@@ -1,0 +1,103 @@
+name: Observation 088
+
+on:
+  pull_request:
+    paths:
+      - 'tla/ZeroOriginAdmissionEvidence.tla'
+      - 'tla/ZeroOriginAdmissionEvidence*.cfg'
+      - 'experiments/088_zero_origin_admission_evidence.md'
+      - '.github/workflows/observation-088-zero-origin-admission-evidence.yml'
+  push:
+    branches:
+      - main
+      - 'experiment/088-zero-origin-admission-evidence'
+    paths:
+      - 'tla/ZeroOriginAdmissionEvidence.tla'
+      - 'tla/ZeroOriginAdmissionEvidence*.cfg'
+      - 'experiments/088_zero_origin_admission_evidence.md'
+      - '.github/workflows/observation-088-zero-origin-admission-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Zero-origin admission evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check explicit zero-origin admission safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/ZeroOriginAdmissionEvidence.cfg \
+            tla/ZeroOriginAdmissionEvidence.tla \
+            2>&1 | tee /tmp/observation-088-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-088-positive.txt
+
+      - name: Reject transfer as zero proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/ZeroOriginAdmissionEvidenceTransferBoundary.cfg \
+            tla/ZeroOriginAdmissionEvidence.tla \
+            2>&1 | tee /tmp/observation-088-transfer.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'TransferFirstAppearanceProvesZero' /tmp/observation-088-transfer.txt
+          grep -Fq 'nonzero' /tmp/observation-088-transfer.txt
+
+      - name: Reject income as zero proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/ZeroOriginAdmissionEvidenceIncomeBoundary.cfg \
+            tla/ZeroOriginAdmissionEvidence.tla \
+            2>&1 | tee /tmp/observation-088-income.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'IncomeFirstAppearanceProvesZero' /tmp/observation-088-income.txt
+          grep -Fq 'nonzero' /tmp/observation-088-income.txt
+
+      - name: Require same-transfer admission ambiguity
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/ZeroOriginAdmissionEvidenceTransferSelectionBoundary.cfg \
+            tla/ZeroOriginAdmissionEvidence.tla \
+            2>&1 | tee /tmp/observation-088-selection.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'SameTransferFirstAppearanceDeterminesEnrollment' /tmp/observation-088-selection.txt
+          grep -Fq 'enrolled' /tmp/observation-088-selection.txt
+          grep -Fq 'transfer' /tmp/observation-088-selection.txt
