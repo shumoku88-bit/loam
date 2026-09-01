@@ -47,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/FirstEventAnchoredOrigin.cfg \
             tla/FirstEventAnchoredOrigin.tla \
             2>&1 | tee /tmp/observation-087-positive.txt
@@ -58,6 +59,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/FirstEventAnchoredOriginBirthWitness.cfg \
             tla/FirstEventAnchoredOrigin.tla \
             2>&1 | tee /tmp/observation-087-birth.txt
@@ -73,6 +75,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/FirstEventAnchoredOriginAutoBoundary.cfg \
             tla/FirstEventAnchoredOrigin.tla \
             2>&1 | tee /tmp/observation-087-auto.txt
@@ -87,6 +90,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/FirstEventAnchoredOriginPhysicalBoundary.cfg \
             tla/FirstEventAnchoredOrigin.tla \
             2>&1 | tee /tmp/observation-087-physical.txt
