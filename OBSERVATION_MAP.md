@@ -1,10 +1,13 @@
 # LOAM Observation Map
 
-This document is a compressed checkpoint after Observations 001–078 and the first operational private real-data quantity shadow run.
+This document is a compressed checkpoint after Observations 001–084, the operational private real-data quantity shadow, and the current private Plan-realization summary dogfood.
 
 It is not a final ontology, schema, or roadmap. Detailed evidence remains in the individual observation and experiment records. This map records the current terrain: what the observations have earned, what remains derived or overlay-like, what the Practical Lean Core carries, what real-data dogfood has actually exercised, and what LOAM has deliberately not promoted into domain meaning.
 
-The focused audit that closed the external-accounting-pressure sub-arc remains in [`experiments/066_071_practical_core_audit.md`](experiments/066_071_practical_core_audit.md).
+Two focused audits close important sub-arcs:
+
+- [`experiments/066_071_practical_core_audit.md`](experiments/066_071_practical_core_audit.md) closes the external-accounting-pressure audit;
+- [`experiments/079_084_context_relative_sufficiency_audit.md`](experiments/079_084_context_relative_sufficiency_audit.md) records the return of vocabulary-relative sufficiency in formal-result and privacy-safe observation work.
 
 ## 1. Arc so far
 
@@ -14,7 +17,9 @@ LOAM begins without assuming Account, Transaction, Budget, Envelope, Month, or R
 
 The early observations ask which structures survive when finite resources are distributed through time and purpose. Availability and envelope-like holdings can appear as projections; commitment and retained historical questions require more information than a current aggregate alone.
 
-### 018–029 — memory, provenance, correction, and resolution
+Observations 004–005 already expose a recurring law: the state worth retaining is shaped by the distinctions a future operation vocabulary can observe, not by a context-free notion of smallest summary.
+
+### 018–029 — memory, provenance, correction, resolution, and vocabulary-relative sufficiency
 
 Occurrence is separated from later interpretation:
 
@@ -25,6 +30,8 @@ how the current view interprets it
 ```
 
 Stable identity, append-only parentage, provenance, Correction, Resolution, conflict, and vocabulary-relative compression appear here. Later relations can change an effective view without erasing earlier facts.
+
+Observation 029 proves general vocabulary-inclusion laws in Lean. In particular, a summary sufficient for a richer vocabulary remains sufficient for a sub-vocabulary, while a newly admitted question may require more retained information only when it exposes a distinction the current summary collapses.
 
 ### 030–039 — generic Events, coordinates, and time
 
@@ -207,6 +214,86 @@ It must not carry:
 - persistent source mapping;
 - a claim that a later source occurrence is the same historical occurrence.
 
+### 079–084 — formal-result context and context-relative sufficiency
+
+This sub-arc moves the old vocabulary-relative sufficiency question to a new surface: formal-tool results, later implementation reuse, and privacy-safe observation.
+
+Observation 079 shows that a bare checker token is not self-interpreting:
+
+```text
+workflow SUCCESS
+    !=
+raw result
+    !=
+semantic interpretation
+```
+
+Observation 080 adds the checking regime itself. A bounded Alloy result, its finite scope, and a Lean theorem under explicit premises cannot be collapsed into one context-free `SUCCESS` fact:
+
+```text
+bounded no-counterexample
+    !=
+unbounded theorem
+```
+
+Observation 081 then moves from interpretation to reuse:
+
+```text
+retained formal result alone
+    -/->
+later applicability
+```
+
+Applicability depends on the later question being asked. The existing correction boundary gives concrete pressure: the same retained body of knowledge can justify recorded quantity, a single-correction projection, or a fail-closed result depending on the later correction shape.
+
+Observation 082 returns to the private Plan-realization observer. Its sanitized joint aggregate preserves useful structural pressure while deliberately losing identity provenance:
+
+```text
+privacy-safe structural summary
+    !=
+realization provenance
+```
+
+Observation 083 projects one step further. Separate marginals do not preserve their joint correlation:
+
+```text
+summary(A × B)
+    -> summary(A) + summary(B)
+
+summary(A) + summary(B)
+    -/-> summary(A × B)
+```
+
+Observation 084 asks whether one extra joint anchor repairs that loss. The answer is shape-dependent:
+
+```text
+2 × 2:
+  marginals + one joint anchor
+      -> whole joint table
+
+3 × 3:
+  marginals + one joint anchor
+      -/-> whole joint table
+```
+
+Lean proves the positive 2 × 2 integer law; Alloy and J expose the 3 × 3 negative boundary.
+
+The important checkpoint is that this is not a separate universal Summary theory. It is the earlier 004/005/029 law returning at another layer:
+
+```text
+004 / 005 / 029:
+future vocabulary
+    -> observable distinctions
+    -> sufficient retained state
+
+079–084:
+later question
+    -> distinctions that must survive
+    -> sufficient retained evidence
+```
+
+No generic `Summary`, `CheckReceipt`, `Applicability`, `Correlation`, `Anchor`, or proof/evidence kernel is earned.
+
 ## 2. Current Practical Core
 
 The practical Lean boundary remains deliberately concrete. It carries the neutral exact structures needed by real operations and proved queries, including:
@@ -235,6 +322,8 @@ observation
 
 Experimental vocabulary does not automatically become production vocabulary.
 
+Observations 079–084 add no Practical Core type. Their diagnostic tools operate outside canonical household state.
+
 ## 3. Derived views and overlays
 
 Coordinate totals are projections over Effects, not Effect identity.
@@ -250,11 +339,15 @@ Other useful views that have appeared without automatically earning canonical st
 - Plan completion / Series / refund readings when explicit relations are supplied;
 - historical/current valuation answers when the relevant observations are retained;
 - disposal and attribution views when their provenance relations are retained;
-- report-like readings over physical facts plus overlays.
+- report-like readings over physical facts plus overlays;
+- sanitized Plan-realization structural summaries;
+- query-local sufficiency readings over sanitized joint aggregates.
 
 Important overlays remain independent from the neutral physical core unless stronger practical pressure earns otherwise. These include AccountingRole, descriptive context, Plan realization, Series membership, refund provenance, valuation/basis relations, backing eligibility, policy attribution/provenance, and other application classifications.
 
 An overlay is not less real. It means its meaning is not determined by the physical placement and quantity relations currently retained.
+
+A summary is also not automatically canonical state. It may be deliberately sufficient for one later question while collapsing distinctions needed by another.
 
 ## 4. Persistence boundary
 
@@ -270,11 +363,15 @@ physical storage topology
 derived projections
 ```
 
-Observations 062–078 do not earn a Plan store, Series store, refund stream, disposal-provenance stream, policy-version stream, imported-identity sidecar, or generic metadata stream.
+Observations 062–084 do not earn a Plan store, Series store, refund stream, disposal-provenance stream, policy-version stream, imported-identity sidecar, generic metadata stream, formal-result database, or generic summary/evidence store.
 
 A new persistent structure should appear only when a practical operation must publish, reload, coordinate, correct, or query information that cannot otherwise be retained correctly.
 
+The 079–084 result sharpens that rule: persistence should be justified by a later distinction that observes the retained information, not by the mere availability of a compact schema.
+
 ## 5. Operational real-data shadow checkpoint
+
+### Quantity shadow
 
 `shadow-quantity` is the first operational entrance that runs a private canonical journal through the existing Practical Core without claiming imported continuity:
 
@@ -296,13 +393,51 @@ Properties of this entrance:
 - unsupported raw private source text is not echoed by the failure path;
 - header context, metadata, and include directives are counted as explicitly unprojected rather than silently given Core meaning.
 
-A first whole-file private run succeeded. For the same canonical snapshot, every non-zero Locus × Measure quantity aggregate produced by LOAM matched the corresponding native h-kernel accounting projection.
+A whole-file private run succeeded. For the same canonical snapshot, every non-zero Locus × Measure quantity aggregate produced by LOAM matched the corresponding native h-kernel accounting projection.
 
 That result establishes a real-data quantity-projection checkpoint. It does **not** establish parity for descriptive context, metadata meaning, Plan semantics, correction/relation continuity, imported stable identity, temporal report semantics, or every future source construct.
 
 The observed zero-only coordinate difference is currently a presentation/view distinction rather than evidence of a quantity mismatch: LOAM can retain a represented coordinate whose aggregate is exactly zero while the native report may omit zero rows.
 
-No private canonical values are part of this public checkpoint.
+### Explicit Plan-realization shadow
+
+A second private observer follows explicit Plan references without promoting Plan into Practical Core.
+
+Its privacy-safe output asks structural questions such as:
+
+- whether explicit references resolve;
+- whether the current snapshot pressures one-to-many realization;
+- how linked pairs distribute over a joint time × physical-delta shape;
+- whether quantity-different pairs have query-local unique or ambiguous Effect correspondence by existing coordinates.
+
+The observer keeps source mutation checks and withholds private identities/content. Its joint aggregate is deliberately diagnostic rather than canonical semantic state.
+
+Observation 082 proves why that distinction matters: the sanitized joint aggregate does not reconstruct the underlying realization provenance.
+
+### Summary-sufficiency dogfood
+
+After Observation 084, `private-plan-realization-summary-sufficiency.py` adds one more read-only diagnostic layer:
+
+```text
+private canonical source
+    -> private-plan-realization-shadow
+    -> sanitized joint aggregate
+    -> summary-sufficiency checker
+    -> structural sufficiency result
+```
+
+The outer checker consumes only the already-sanitized matrix and privacy/read-only confirmations. It does not reinterpret raw private canonical records.
+
+For the current private snapshot:
+
+- the separate marginals do not uniquely determine the observed joint aggregate;
+- no single observed joint-cell anchor is sufficient to make that aggregate unique.
+
+This is snapshot-specific reality pressure, not a universal minimum-evidence theorem.
+
+The public synthetic qualification includes both a fully active 3 × 3 ambiguous case and an effective 2 × 2 case where a single anchor is sufficient. The executable dogfood therefore preserves the shape distinction found in Observation 084 rather than hard-coding one answer.
+
+No private canonical values are part of these public checkpoints.
 
 ## 6. Deliberately unearned concepts
 
@@ -326,7 +461,12 @@ LOAM should not silently promote these into domain law without concrete pressure
 - policy identity/version/governance semantics without a retained practical question that observes them;
 - a complete executable historical policy snapshot by default;
 - tax-specific basis rules;
-- compaction semantics.
+- compaction semantics;
+- a generic `CheckReceipt`, `ReuseReceipt`, `Applicability`, `ProofDatabase`, or cross-tool `Evidence` object;
+- a universal `Summary`, `Anchor`, or `Correlation` primitive;
+- a universal observer algebra or fixed minimal-summary formula;
+- a general privacy framework merely because sanitized observations are useful;
+- a semantic-OS proof/evidence kernel inferred from the 079–084 sub-arc.
 
 These are not rejected forever. They are simply not earned yet.
 
@@ -336,13 +476,19 @@ These are not rejected forever. They are simply not earned yet.
 
 Use Alloy when the question is primarily structural: whether two worlds can share retained facts but differ in an answer, whether one relation is independent of another, whether a field is necessary, or whether a familiar noun can remain a projection.
 
+Observations 079, 081–084 use this role directly by asking whether projected-away coordinates permit two worlds to collide while differing in a later answer.
+
 ### J
 
 Use J when array shape, quotienting, projection, or information loss is the clearest form of the question. J is not a mandatory second implementation of every structural experiment.
 
+Observation 083 makes correlation loss visible as independent marginal reductions; Observation 084 exposes reconstruction in 2 × 2 and residual ambiguity in 3 × 3.
+
 ### Lean 4
 
-Use Lean when a discovered law deserves a general proof or when the Practical Core must embody an earned distinction. Observation 078 is a representative example: the safe stateless-shadow boundary is proved rather than inferred from implementation inspection.
+Use Lean when a discovered law deserves a general proof or when the Practical Core must embody an earned distinction.
+
+Observation 029 proves the general vocabulary-inclusion laws behind context-relative sufficiency. Observation 078 proves the safe stateless-shadow boundary. Observation 084 uses Lean only for the positive 2 × 2 arithmetic law, rather than treating a bounded search result as an unbounded theorem.
 
 ### TLA+ / TLC
 
@@ -364,9 +510,11 @@ The rule remains:
 
 > Using every tool is not a goal. A tool must earn its place in the question.
 
+Observation 080 adds one more caution: tool receipts must keep their checking contracts distinct. Agreement in CI status is not evidence that two tools established claims with the same epistemic strength.
+
 ## 8. Current checkpoint and next pressure
 
-The repository is now at a natural stopping point:
+The repository is now at another natural stopping point:
 
 ```text
 formal structural observations
@@ -374,10 +522,25 @@ formal structural observations
     -> practical CLI dogfood
     -> private whole-file stateless quantity shadow
     -> native non-zero quantity parity
+    -> private explicit-relation structural shadow
+    -> privacy-safe joint summary
+    -> query-relative summary sufficiency dogfood
 ```
 
 No new Core or persistence primitive is required by this checkpoint.
 
-The next useful practical pressure is not automatically Observation 079. Before extending semantics, a local/private parity harness could make the already-observed quantity agreement repeatable without putting canonical values into public CI or repository history.
+The 079–084 sub-arc also closes a loop with early LOAM:
 
-Only after repeated real-data use exposes a concrete missing retained question should LOAM reopen descriptive context, metadata, identity continuity, planning, policy, or another application semantic boundary.
+```text
+004 / 005 / 029
+  future vocabulary shapes sufficient retained state
+
+079–084
+  later question shapes sufficient retained evidence
+```
+
+The next useful pressure is therefore **not automatically Observation 085** and not a generic summary framework.
+
+A new Observation should begin when an actual later operation, human/AI reuse decision, or private shadow query exposes a distinction that current retained evidence collapses. At that point LOAM can ask exactly which information must survive for that concrete question.
+
+Until such pressure appears, the current context-relative sufficiency checkpoint is enough.
