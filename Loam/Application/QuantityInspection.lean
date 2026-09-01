@@ -1,3 +1,4 @@
+import Loam.Application.CorrectionFrontier
 import Loam.Core.CorrectionQuantity
 import Loam.Core.EventCorrectionMemory
 
@@ -16,25 +17,30 @@ small household-facing answer vocabulary without promoting that vocabulary
 into the Core.
 
 The operation is deliberately read-only. It does not load files, publish data,
-choose a correction frontier, or claim that a recorded/effective quantity is a
-balance or universally current state.
+or claim that a recorded/effective quantity is a balance or universally current
+state. For multiple corrections it exposes a quantity only when the correction
+facts justify one disjoint-path frontier; otherwise it refuses explicitly.
 -/
 
 inductive QuantityInspectionAnswer where
   | recorded (quantity : Quantity)
   | singleCorrectionEffective (quantity : Quantity)
+  | frontierEffective (quantity : Quantity)
   | missingCorrectionEndpoint
   | frontierRequired
 deriving Repr, DecidableEq
 
 /--
 Inspect one explicit locus/measure coordinate using only the correction
-semantics already retained by the Practical Core.
+semantics retained by the Practical Core and the qualified Application 007
+frontier law.
 
-Zero corrections exposes the recorded projection. Exactly one correction may
-expose the existing single-correction effective projection. A missing endpoint
-is an explicit refusal. Two or more correction facts require a frontier rather
-than an arbitrary winner.
+Zero corrections exposes the recorded projection. Exactly one correction keeps
+the existing single-correction projection, including its established self-
+relation behavior. Two or more corrections expose a frontier quantity only when
+they form closed, non-branching, non-merging, acyclic correction paths. Any
+unsupported multi-correction shape remains fail-closed rather than acquiring an
+arrival-order winner.
 -/
 def inspectQuantity
     (events : EventMemory)
@@ -49,7 +55,9 @@ def inspectQuantity
       | some quantity => .singleCorrectionEffective quantity
       | none => .missingCorrectionEndpoint
   | _ =>
-      .frontierRequired
+      match quantityAtCorrectionFrontier? events corrections locus measure with
+      | some quantity => .frontierEffective quantity
+      | none => .frontierRequired
 
 /-- With no correction facts, expose exactly the Core recorded projection. -/
 theorem inspectQuantity_noCorrections
@@ -90,16 +98,33 @@ theorem inspectQuantity_singleMissing
     inspectQuantity events corrections locus measure = .missingCorrectionEndpoint := by
   simp [inspectQuantity, hCorrections, hMissing]
 
-/-- Two or more correction facts refuse to invent a current frontier. -/
-theorem inspectQuantity_multiple
+/-- A qualified multi-correction frontier exposes exactly its derived quantity. -/
+theorem inspectQuantity_multipleEffective
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (first second : EventCorrection)
     (rest : List EventCorrection)
     (locus : LocusId)
     (measure : MeasureId)
-    (hCorrections : corrections.corrections = first :: second :: rest) :
+    (quantity : Quantity)
+    (hCorrections : corrections.corrections = first :: second :: rest)
+    (hEffective :
+      quantityAtCorrectionFrontier? events corrections locus measure = some quantity) :
+    inspectQuantity events corrections locus measure = .frontierEffective quantity := by
+  simp [inspectQuantity, hCorrections, hEffective]
+
+/-- An unsupported multi-correction shape remains an explicit frontier refusal. -/
+theorem inspectQuantity_multipleRequired
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (first second : EventCorrection)
+    (rest : List EventCorrection)
+    (locus : LocusId)
+    (measure : MeasureId)
+    (hCorrections : corrections.corrections = first :: second :: rest)
+    (hMissing :
+      quantityAtCorrectionFrontier? events corrections locus measure = none) :
     inspectQuantity events corrections locus measure = .frontierRequired := by
-  simp [inspectQuantity, hCorrections]
+  simp [inspectQuantity, hCorrections, hMissing]
 
 end Loam.Application
