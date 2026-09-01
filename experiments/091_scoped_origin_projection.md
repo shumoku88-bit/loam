@@ -82,9 +82,12 @@ origin quantity + scoped activity
 
 only when the coordinates match.
 
-## Expected executable witnesses
+## Observed executable result
 
-The probe checks:
+The branch-head Lean probe compiled successfully with the production
+`QuantityBasis` type as one adapter input.
+
+The executable witnesses were:
 
 ```text
 application-start basis 500
@@ -100,23 +103,33 @@ first-event origin 0
 = current 100
 ```
 
-So the arithmetic adapter can be shared.
+So the arithmetic adapter can be shared while the origin evidence remains
+sum-shaped and explicit.
 
-But it also checks a deliberately different input:
+The deliberately different input also compiled:
 
 ```text
 first-event origin 0
 + whole retained activity 140
-= 140
+= current 140
 ```
 
 where the specimen interprets 40 as pre-origin activity and 100 as post-origin
 activity.
 
-This does not mean the adapter is wrong. It means the adapter cannot decide
-which activity is in scope.
+The probe also checks that:
 
-## Qualified boundary if the Lean probe passes
+- a zero application-start basis still carries no origin Event identity;
+- first-event admission retains its stable origin Event identity;
+- a coordinate mismatch is refused with `none`.
+
+The initial CI attempt exposed only a build-root issue: the ordinary repository
+`lake build` target does not build `QuantityBasisMemory.olean`. The workflow was
+then aligned with the practical current-quantity slice by explicitly building
+`loamDailyQuantity` before checking the probe. No semantic or production source
+change was required.
+
+## Qualified boundary
 
 ```text
 QuantityBasis ───────────────┐
