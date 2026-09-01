@@ -1,0 +1,117 @@
+name: Observation 080
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/080_cross_tool_checking_regime.md'
+      - 'model/042_generic_revision_graph.als'
+      - 'Loam/Observation043.lean'
+      - '.github/workflows/cross-tool-checking-regime-observation.yml'
+  push:
+    branches:
+      - 'experiment/080-cross-tool-checking-regime'
+      - main
+    paths:
+      - 'experiments/080_cross_tool_checking_regime.md'
+      - 'model/042_generic_revision_graph.als'
+      - 'Loam/Observation043.lean'
+      - '.github/workflows/cross-tool-checking-regime-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-regimes:
+    name: Alloy bounded receipt and Lean theorem receipt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Re-run bounded Alloy settlement law
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j \
+            -o /tmp/alloy-output \
+            model/042_generic_revision_graph.als
+
+      - name: Require bounded Alloy receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path('/tmp/alloy-output/receipt.json').read_text())
+          commands = receipt['commands']
+
+          expected_sat = {
+              'genericForkPartialAndSettlement': True,
+              'SoleFrontierRequiresWholePriorFrontier': False,
+              'WholePriorFrontierIsEnoughToSettle': False,
+          }
+
+          wrong = []
+          for name, want_sat in expected_sat.items():
+              solutions = commands.get(name, {}).get('solution', [])
+              is_sat = bool(solutions)
+              label = 'SAT' if is_sat else 'UNSAT'
+              print(f'{name}: {label}')
+              if is_sat != want_sat:
+                  wrong.append((name, label, want_sat))
+
+          if wrong:
+              raise SystemExit(f'unexpected bounded Alloy receipt: {wrong}')
+          PY
+
+      - name: Set up and check Lean repository
+        uses: leanprover/lean-action@v1
+        with:
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          axiom-audit: true
+          use-github-cache: false
+
+      - name: Re-check Observation 043 theorem source
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean Loam/Observation043.lean
+
+      - name: Record regime-specific interpretations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat <<'EOF'
+          Observation 080 paired receipts
+          Alloy: assertion checks -> UNSAT counterexample in declared finite scope
+                 meaning: no counterexample found in that bounded scope
+          Lean:  theorem source accepted with explicit premises and no finite Node bound
+                 meaning: theorem checked under those premises
+          Workflow SUCCESS: both regime-specific receipts matched their expectations
+          EOF
