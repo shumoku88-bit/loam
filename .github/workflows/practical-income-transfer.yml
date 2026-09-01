@@ -36,6 +36,8 @@ jobs:
   build:
     name: Build and test income and transfer entrances
     runs-on: ubuntu-latest
+    env:
+      LOAM_DATA_DIR: scratch/dogfood
     steps:
       - uses: actions/checkout@v6
 
@@ -123,6 +125,7 @@ jobs:
           rm -rf scratch/dogfood
           printf '7\nbank\n5000\n' | ./tools/loam | tee /tmp/loam-menu-income.out
           grep -Fq '7. Record income' /tmp/loam-menu-income.out
+          grep -Fq 'Data: scratch/dogfood' /tmp/loam-menu-income.out
           grep -Fq 'Recorded: received 5000 jpy into bank.' /tmp/loam-menu-income.out
 
           printf '8\nbank\nwallet\n1200\n' | ./tools/loam | tee /tmp/loam-menu-transfer.out

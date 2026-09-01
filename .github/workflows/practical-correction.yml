@@ -46,6 +46,8 @@ jobs:
   build:
     name: Build and test compiled correction entrance
     runs-on: ubuntu-latest
+    env:
+      LOAM_DATA_DIR: scratch/dogfood
     steps:
       - uses: actions/checkout@v6
 
@@ -79,6 +81,7 @@ jobs:
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
 
           printf '4\n1\nwallet\n1280\n' | ./tools/loam | tee /tmp/loam-correction.out
+          grep -Fq 'Data: scratch/dogfood' /tmp/loam-correction.out
           grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
 
           expected_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\nEVENT\treplacement-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'

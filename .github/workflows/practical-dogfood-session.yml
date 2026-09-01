@@ -26,6 +26,8 @@ jobs:
   check:
     name: Keep practical dogfood session alive
     runs-on: ubuntu-latest
+    env:
+      LOAM_DATA_DIR: scratch/dogfood
     steps:
       - uses: actions/checkout@v6
       - name: Install Lean
@@ -41,6 +43,17 @@ jobs:
           use-github-cache: true
       - name: Build practical binaries
         run: lake build loam loamDailyQuantity
+      - name: Keep ordinary data outside the source repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf ../loam-data
+          printf 'q\n' | env -u LOAM_DATA_DIR ./tools/loam >"$RUNNER_TEMP/default-data.out"
+          test -d ../loam-data
+          grep -Fq 'Data: ../loam-data' "$RUNNER_TEMP/default-data.out"
+          test ! -e ../loam-data/memory.loam
+          test ! -e ../loam-data/basis.loam
+          rm -rf ../loam-data
       - name: Exercise persistent menu and fail-closed recovery
         shell: bash
         run: |
@@ -48,7 +61,6 @@ jobs:
           python3 - <<'PY'
           import shutil
           import subprocess
-          import sys
 
           def start_session():
               return subprocess.Popen(
@@ -90,7 +102,8 @@ jobs:
           shutil.rmtree("scratch/dogfood", ignore_errors=True)
           proc = start_session()
           transcript = []
-          read_until(proc, "> ", transcript)
+          first = read_until(proc, "> ", transcript)
+          assert "Data: scratch/dogfood" in first, "".join(transcript)
           send(proc, "9")
           read_until(proc, "Starting at? ", transcript)
           send(proc, "bank")
@@ -116,7 +129,8 @@ jobs:
           shutil.rmtree("scratch/dogfood", ignore_errors=True)
           proc = start_session()
           transcript = []
-          read_until(proc, "> ", transcript)
+          first = read_until(proc, "> ", transcript)
+          assert "Data: scratch/dogfood" in first, "".join(transcript)
           send(proc, "7")
           read_until(proc, "Received into? ", transcript)
           send(proc, "bank")
