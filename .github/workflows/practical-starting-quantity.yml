@@ -4,8 +4,12 @@ on:
   pull_request:
     paths:
       - 'Loam/Core/QuantityBasisMemory.lean'
+      - 'Loam/Core/QuantityBasisCorrectionMemory.lean'
       - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
       - 'Loam/QuantityBasisPersistence.lean'
+      - 'Loam/QuantityBasisCorrectionPersistence.lean'
+      - 'Loam/QuantityBasisCorrectionCli.lean'
       - 'Loam/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
@@ -15,8 +19,12 @@ on:
   push:
     paths:
       - 'Loam/Core/QuantityBasisMemory.lean'
+      - 'Loam/Core/QuantityBasisCorrectionMemory.lean'
       - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
       - 'Loam/QuantityBasisPersistence.lean'
+      - 'Loam/QuantityBasisCorrectionPersistence.lean'
+      - 'Loam/QuantityBasisCorrectionCli.lean'
       - 'Loam/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
@@ -47,51 +55,94 @@ jobs:
           use-github-cache: true
       - name: Build practical binaries
         run: lake build loam loamDailyQuantity
-      - name: Exercise anchored current quantity
+      - name: Exercise anchored current quantity and basis correction chain
         shell: bash
         run: |
           set -euo pipefail
           tmp="$(mktemp -d)"
           memory="$tmp/memory.loam"
-          corrections="$tmp/corrections.loam"
+          event_corrections="$tmp/event-corrections.loam"
           basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+
           printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           printf 'bank\n20000\n' | .lake/build/bin/loam income "$memory"
           printf 'bank\n5000\n' | .lake/build/bin/loam spend "$memory"
           printf 'bank\nwallet\n10000\n' | .lake/build/bin/loam transfer "$memory"
-          .lake/build/bin/loamDailyQuantity current "$memory" "$corrections" "$basis" >"$tmp/current.out"
-          grep -F 'bank: 105000 jpy' "$tmp/current.out"
-          grep -F 'wallet: 10000 jpy' "$tmp/current.out"
-          grep -F $'LOAM-QUANTITY-BASIS-MEMORY\t1' "$basis"
-          grep -F $'BASIS\tbasis-1\tbank\tjpy\t100000' "$basis"
-          grep -F $'BASIS\tbasis-2\twallet\tjpy\t0' "$basis"
-      - name: Refuse unanchored or ambiguous current quantity
+
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/before.out"
+          grep -F 'bank: 105000 jpy' "$tmp/before.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/before.out"
+
+          printf '1\n95000\n' | .lake/build/bin/loamDailyQuantity correct-starting-quantity "$basis" "$basis_corrections"
+          grep -F $'BASIS\tbasis-3\tbank\tjpy\t95000' "$basis"
+          grep -F $'CORRECTION\tbasis-correction-1\tbasis-1\tbasis-3' "$basis_corrections"
+
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/after-one.out"
+          grep -F 'bank: 100000 jpy' "$tmp/after-one.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/after-one.out"
+
+          set +e
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" >"$tmp/stale.out" 2>"$tmp/stale.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/stale.out"
+          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/stale.err"
+
+          printf '2\n97000\n' | .lake/build/bin/loamDailyQuantity correct-starting-quantity "$basis" "$basis_corrections"
+          grep -F $'BASIS\tbasis-4\tbank\tjpy\t97000' "$basis"
+          grep -F $'CORRECTION\tbasis-correction-2\tbasis-3\tbasis-4' "$basis_corrections"
+
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/after-two.out"
+          grep -F 'bank: 102000 jpy' "$tmp/after-two.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/after-two.out"
+
+          printf 'LOAM-QUANTITY-BASIS-CORRECTION-MEMORY\t1\nCORRECTION\tbasis-correction-2\tbasis-3\tbasis-4\nCORRECTION\tbasis-correction-1\tbasis-1\tbasis-3\n' >"$tmp/reversed-corrections.loam"
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$tmp/reversed-corrections.loam" >"$tmp/reversed.out"
+          diff -u "$tmp/after-two.out" "$tmp/reversed.out"
+
+      - name: Refuse unanchored or invalid basis frontier
         shell: bash
         run: |
           set -euo pipefail
           tmp="$(mktemp -d)"
           memory="$tmp/memory.loam"
-          corrections="$tmp/corrections.loam"
+          event_corrections="$tmp/event-corrections.loam"
           missing_basis="$tmp/missing-basis.loam"
           duplicate_basis="$tmp/duplicate-basis.loam"
+          shared_replacement="$tmp/shared-replacement.loam"
+
           printf 'bank\n100\n' | .lake/build/bin/loam income "$memory"
           set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$corrections" "$missing_basis" >"$tmp/missing.out" 2>"$tmp/missing.err"
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$missing_basis" >"$tmp/missing.out" 2>"$tmp/missing.err"
           status=$?
           set -e
           test "$status" -eq 1
           test ! -s "$tmp/missing.out"
           grep -F 'starting quantity missing for bank / jpy' "$tmp/missing.err"
+
           printf 'LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tbasis-a\tbank\tjpy\t100\nBASIS\tbasis-b\tbank\tjpy\t200\n' >"$duplicate_basis"
           set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$corrections" "$duplicate_basis" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$duplicate_basis" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
           status=$?
           set -e
           test "$status" -eq 1
           test ! -s "$tmp/duplicate.out"
-          grep -F 'multiple unresolved starting quantities for bank / jpy' "$tmp/duplicate.err"
-      - name: Refuse accidental replacement through setup
+          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/duplicate.err"
+
+          printf 'LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tbasis-a\tbank\tjpy\t100\nBASIS\tbasis-b\tbank\tjpy\t90\nBASIS\tbasis-c\tbank\tjpy\t95\n' >"$tmp/shared-bases.loam"
+          printf 'LOAM-QUANTITY-BASIS-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-a\tbasis-a\tbasis-c\nCORRECTION\tcorrection-b\tbasis-b\tbasis-c\n' >"$shared_replacement"
+          set +e
+          .lake/build/bin/loamDailyQuantity current "$tmp/no-events.loam" "$event_corrections" "$tmp/shared-bases.loam" "$shared_replacement" >"$tmp/shared.out" 2>"$tmp/shared.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/shared.out"
+          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/shared.err"
+
+      - name: Keep setup append-only and fail closed on malformed storage
         shell: bash
         run: |
           set -euo pipefail
@@ -105,7 +156,8 @@ jobs:
           set -e
           test "$status" -eq 1
           cmp "$tmp/before" "$basis"
-          grep -F 'basis revision is not available yet' "$tmp/duplicate.err"
+          grep -F 'use correct-starting-quantity' "$tmp/duplicate.err"
+
           printf 'BROKEN\n' >"$basis"
           cp "$basis" "$tmp/broken-before"
           set +e
@@ -115,6 +167,7 @@ jobs:
           test "$status" -eq 2
           cmp "$tmp/broken-before" "$basis"
           grep -F 'malformed or unsupported quantity-basis file' "$tmp/broken.err"
+
       - name: Exercise dogfood menu wiring
         shell: bash
         run: |
@@ -122,5 +175,9 @@ jobs:
           rm -rf scratch/dogfood
           printf '9\nbank\n100000\n' | ./tools/loam
           test -f scratch/dogfood/basis.loam
-          printf '10\n' | ./tools/loam >/tmp/loam-current-menu.out
-          grep -F 'bank: 100000 jpy' /tmp/loam-current-menu.out
+          printf '10\n' | ./tools/loam >/tmp/loam-current-menu-before.out
+          grep -F 'bank: 100000 jpy' /tmp/loam-current-menu-before.out
+          printf '11\n1\n90000\n' | ./tools/loam
+          test -f scratch/dogfood/basis-corrections.loam
+          printf '10\n' | ./tools/loam >/tmp/loam-current-menu-after.out
+          grep -F 'bank: 90000 jpy' /tmp/loam-current-menu-after.out
