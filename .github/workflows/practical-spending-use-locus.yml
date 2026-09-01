@@ -1,0 +1,145 @@
+name: Practical Spending Use Locus
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli.lean'
+      - 'Loam/CorrectionCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Core/**'
+      - 'Loam/Persistence.lean'
+      - 'Loam/DailyQuantityCli.lean'
+      - 'README.md'
+      - '.github/workflows/practical-spending-use-locus.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    paths:
+      - 'Loam/Cli.lean'
+      - 'Loam/CorrectionCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Core/**'
+      - 'Loam/Persistence.lean'
+      - 'Loam/DailyQuantityCli.lean'
+      - 'README.md'
+      - '.github/workflows/practical-spending-use-locus.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build and test two-locus spending entrance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build practical binaries
+        run: lake build loam loamDailyQuantity
+      - name: Record source and use as one neutral Event
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+
+          printf 'paypay\n297\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf '食費\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'paypay\n食費\n160\n' | .lake/build/bin/loam spend "$memory" | tee "$tmp/spend.out"
+          grep -F 'Recorded: spent 160 jpy from paypay for 食費.' "$tmp/spend.out"
+
+          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-160\nEFFECT\teffect-2\t食費\tjpy\t160'
+          test "$(cat "$memory")" = "$expected"
+
+          .lake/build/bin/loam review "$memory" >"$tmp/review.out"
+          grep -F 'paypay: -160 jpy' "$tmp/review.out"
+          grep -F '食費: 160 jpy' "$tmp/review.out"
+
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$corrections" "$basis" "$basis_corrections" >"$tmp/current.out"
+          grep -F 'paypay: 137 jpy' "$tmp/current.out"
+          grep -F '食費: 160 jpy' "$tmp/current.out"
+
+      - name: Keep missing use basis explicit and fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+
+          printf 'paypay\n297\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'paypay\n食費\n160\n' | .lake/build/bin/loam spend "$memory" >/dev/null
+
+          set +e
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$corrections" "$basis" "$basis_corrections" \
+            >"$tmp/current.out" 2>"$tmp/current.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/current.out"
+          grep -F 'starting quantity missing for 食費 / jpy' "$tmp/current.err"
+
+      - name: Correct historical one-effect spending into two loci append-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-160\n' >"$memory"
+          printf '1\npaypay\n食費\n160\n' | \
+            .lake/build/bin/loam correct "$memory" "$corrections" | tee "$tmp/correct.out"
+          grep -F 'Correction recorded: 160 jpy from paypay for 食費.' "$tmp/correct.out"
+
+          grep -F $'EVENT\trecord-1' "$memory"
+          grep -F $'EFFECT\teffect-1\tpaypay\tjpy\t-160' "$memory"
+          grep -F $'EVENT\treplacement-1' "$memory"
+          grep -F $'EFFECT\teffect-2\t食費\tjpy\t160' "$memory"
+          grep -F $'CORRECTION\tcorrection-1\trecord-1\treplacement-1' "$corrections"
+
+          .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
+          grep -F 'paypay: -160 jpy' "$tmp/effective.out"
+          grep -F '食費: 160 jpy' "$tmp/effective.out"
+
+      - name: Correct a new two-locus spending record without classifying its shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+
+          printf 'paypay\n食費\n160\n' | .lake/build/bin/loam spend "$memory" >/dev/null
+          printf '1\npaypay\n飲料\n150\n' | \
+            .lake/build/bin/loam correct "$memory" "$corrections" >/dev/null
+
+          .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
+          grep -F 'paypay: -150 jpy' "$tmp/effective.out"
+          grep -F '飲料: 150 jpy' "$tmp/effective.out"
+          if grep -Fq '食費:' "$tmp/effective.out"; then
+            echo 'corrected-away use locus must not remain in effective projection' >&2
+            exit 1
+          fi
