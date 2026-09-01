@@ -43,7 +43,9 @@ The first human-facing dogfood entrance currently under observation is:
 ./tools/loam spend MEMORY_FILE
 ```
 
-It asks only where payment came from and the positive JPY amount. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
+Ordinary interactive spending asks where payment came from, what Locus the amount was used for, and the positive JPY amount. It records one neutral Event with `source -q` and `use locus +q`; `Used for?` does not create an Expense Category primitive. Older two-line scripted input ending after source and amount remains accepted as the historical one-Effect compatibility shape.
+
+A use Locus is not silently given a zero starting basis. If `current` first encounters a newly used Locus, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
 
 A separate stateless shadow entrance can read one journal snapshot without changing it or creating LOAM persistence:
 
@@ -83,7 +85,7 @@ Observations 062–065 apply anonymized household pressure without forcing famil
 
 Observations 066–071 apply external accounting pressure and then close with a Practical Core audit. Valuation, acquisition basis, disposal provenance, policy-selected attribution, retained historical attribution, policy provenance, and historical policy definition remain distinct when the question can observe them, but the checkpoint earns no new Practical Core, Persistence, CLI, or wire-format primitive.
 
-Observations 072–078 begin a separate post-checkpoint real-data-shadow arc. They separate human descriptive context from physical quantity placement, distinguish Event-level and Effect-level context attachment, expose missing imported occurrence identity, require retained continuity rather than content/position-derived identity, reject permanent auxiliary identity stores as a default, keep reconciliation one-shot and fail closed, and finally prove that fresh run-local identity is safe for read-only queries whose retained answer is invariant under identity renaming.
+Observations 072–078 begin a separate post-checkpoint real-data-shadow arc. They separate human descriptive context from physical quantity placement, distinguish Event-level and Effect-level context attachment scopes, expose missing imported occurrence identity, require retained continuity rather than content/position-derived identity, reject permanent auxiliary identity stores as a default, keep reconciliation one-shot and fail closed, and finally prove that fresh run-local identity is safe for read-only queries whose retained answer is invariant under identity renaming.
 
 That last law now has an operational entrance: `shadow-quantity` can project a private canonical journal through the existing Practical Core with no source mutation, no sidecar, and no LOAM persistence. The first whole-file private run reached native non-zero quantity parity with h-kernel. This does not promote the unprojected source context or identity questions into Core semantics.
 
