@@ -1,0 +1,43 @@
+name: Application 004 Writer Ownership
+
+on:
+  push:
+    paths:
+      - 'experiments/application_004_writer_ownership.lean'
+      - 'experiments/application_004_writer_ownership.md'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Core/**'
+      - '.github/workflows/application-004-writer-ownership.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_004_writer_ownership.lean'
+      - 'experiments/application_004_writer_ownership.md'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Core/**'
+      - '.github/workflows/application-004-writer-ownership.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-004-writer-ownership-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: Qualify writer ownership scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+
+      - name: Run physical lost-update and ownership witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_004_writer_ownership.lean | tee /tmp/application-004.out
+          grep -Fq 'unsafe_stale_replace_loses_completed_update=true' /tmp/application-004.out
+          grep -Fq 'serial_ownership_scope_preserves_both_updates=true' /tmp/application-004.out
