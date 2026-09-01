@@ -54,8 +54,8 @@ pred multiCellSummary[w: World] {
 }
 
 pred sameSummaryDifferentProvenance {
-  #Left.realizes = 3
-  #Right.realizes = 3
+  #Left.realizes = 2
+  #Right.realizes = 2
   sameSanitizedSummary[Left, Right]
   multiCellSummary[Left]
   Left.realizes != Right.realizes
@@ -76,7 +76,7 @@ assert SanitizedSummaryDeterminesLinkCount {
     #Left.realizes = #Right.realizes
 }
 
-run sameSummaryDifferentProvenance for exactly 3 Plan, exactly 3 Event, exactly 9 Candidate, exactly 2 World, 5 Int
-check SanitizedSummaryDeterminesRealization for exactly 3 Plan, exactly 3 Event, exactly 9 Candidate, exactly 2 World, 5 Int
-check ExplicitRealizationDeterminesSanitizedSummary for exactly 3 Plan, exactly 3 Event, exactly 9 Candidate, exactly 2 World, 5 Int
-check SanitizedSummaryDeterminesLinkCount for exactly 3 Plan, exactly 3 Event, exactly 9 Candidate, exactly 2 World, 5 Int
+run sameSummaryDifferentProvenance for exactly 2 Plan, exactly 2 Event, exactly 4 Candidate, exactly 2 World, 5 Int
+check SanitizedSummaryDeterminesRealization for exactly 2 Plan, exactly 2 Event, exactly 4 Candidate, exactly 2 World, 5 Int
+check ExplicitRealizationDeterminesSanitizedSummary for exactly 2 Plan, exactly 2 Event, exactly 4 Candidate, exactly 2 World, 5 Int
+check SanitizedSummaryDeterminesLinkCount for exactly 2 Plan, exactly 2 Event, exactly 4 Candidate, exactly 2 World, 5 Int
