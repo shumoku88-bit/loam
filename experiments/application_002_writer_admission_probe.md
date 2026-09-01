@@ -100,6 +100,30 @@ stale + duplicate
     -> RefuseStaleSnapshot
 ```
 
+## Qualification result
+
+Pinned Dafny `4.11.0` verifies the probe successfully:
+
+```text
+6 verified, 0 errors
+```
+
+The executable synthetic witnesses also produce the four expected decisions in order.
+
+The same setup-path maintenance pressure observed in Application 001 appears again: the official Dafny action currently brings supporting .NET and Node setup into the CI job and emits runtime/action deprecation warnings on the current runner.
+
+So the writer-side evidence remains mixed:
+
+```text
+verified authorization boundary:
+    small and natural
+
+toolchain footprint:
+    non-trivial
+```
+
+This repetition strengthens the case for treating Dafny as an earned, operation-specific instrument rather than automatically promoting it to a permanent LOAM dependency.
+
 ## Meaning of `PublishCandidate`
 
 `PublishCandidate` is authorization evidence, not an IO action.
