@@ -9,7 +9,7 @@ on:
       - '.github/workflows/summary-correlation-loss-observation.yml'
   push:
     branches:
-      - 'ci/isolate-post-legacy-observations'
+      - 'experiment/083-summary-correlation-loss'
       - main
     paths:
       - 'experiments/083_summary_correlation_loss.als'
