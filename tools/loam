@@ -5,6 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 binary=".lake/build/bin/loam"
+daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
 shadow_binary=".lake/build/bin/loamShadowAudit"
 shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
 
@@ -17,6 +18,23 @@ binary_is_current() {
 
   for input in lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$binary" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+daily_quantity_binary_is_current() {
+  [[ -x "$daily_quantity_binary" ]] || return 1
+
+  for input in \
+    Loam/DailyQuantityCli.lean \
+    Loam/QuantityBasisPersistence.lean \
+    Loam/Application/CurrentQuantity.lean \
+    Loam/Core/QuantityBasisMemory.lean \
+    lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$daily_quantity_binary" ]]; then
       return 1
     fi
   done
@@ -74,6 +92,24 @@ run_loam() {
   fi
 }
 
+run_daily_quantity() {
+  if daily_quantity_binary_is_current; then
+    exec "$daily_quantity_binary" "$@"
+  fi
+
+  echo "Building LOAM daily quantity..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-daily-quantity-build.XXXXXX)"
+  if lake build loamDailyQuantity >"$build_log" 2>&1; then
+    rm -f "$build_log"
+    exec "$daily_quantity_binary" "$@"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    exit 1
+  fi
+}
+
 run_shadow_audit() {
   if shadow_binary_is_current; then
     exec "$shadow_binary" "$@"
@@ -120,9 +156,14 @@ if [[ "${1:-}" == "shadow-quantity" ]]; then
   run_shadow_quantity "$@"
 fi
 
+if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "current" ]]; then
+  run_daily_quantity "$@"
+fi
+
 if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
   correction_file="scratch/dogfood/corrections.loam"
+  basis_file="scratch/dogfood/basis.loam"
   mkdir -p "$(dirname "$memory_file")"
 
   cat <<'EOF'
@@ -137,6 +178,8 @@ What do you want to do?
 6. Review correction integrity
 7. Record income
 8. Transfer funds
+9. Set a starting quantity
+10. Show current quantities
 q. Quit
 EOF
   printf '> '
@@ -174,6 +217,12 @@ EOF
       ;;
     8)
       run_loam transfer "$memory_file"
+      ;;
+    9)
+      run_daily_quantity starting-quantity "$basis_file"
+      ;;
+    10)
+      run_daily_quantity current "$memory_file" "$correction_file" "$basis_file"
       ;;
     q|Q)
       exit 0
