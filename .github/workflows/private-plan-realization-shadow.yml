@@ -97,6 +97,9 @@ jobs:
           grep -Fq 'plans with multiple explicit actual references: 1' <<<"$output"
           grep -Fq 'matched explicit pairs compared: 3' <<<"$output"
           grep -Fq '  after: exact=0 same-shape-quantity-different=3 shape-different=0' <<<"$output"
+          grep -Fq '  query-local unique: 3' <<<"$output"
+          grep -Fq '  query-local ambiguous: 0' <<<"$output"
+          grep -Fq 'coordinate correspondence is not stable Effect identity' <<<"$output"
           grep -Fq 'private identities/content: withheld' <<<"$output"
           grep -Fq 'sources unchanged: yes' <<<"$output"
 
@@ -165,9 +168,43 @@ jobs:
           grep -Fq '  before: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
           grep -Fq '  same-day: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
           grep -Fq '  after: exact=1 same-shape-quantity-different=1 shape-different=1' <<<"$output"
+          grep -Fq '  query-local unique: 3' <<<"$output"
+          grep -Fq '  query-local ambiguous: 0' <<<"$output"
           ! grep -Fq 'private-secret' <<<"$output"
           ! grep -Fq 'private-plan-' <<<"$output"
           ! grep -Fq 'locus:' <<<"$output"
+
+      - name: Exercise ambiguous same-coordinate Effect correspondence
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-plan-effect-ambiguous-actual.XXXXXX.journal)"
+          plan="$(mktemp -t loam-plan-effect-ambiguous-plan.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          2099-04-01 private-secret-plan
+              ; plan-id: private-plan-effect-ambiguous
+              repeated:locus 10 unit
+              repeated:locus -10 unit
+          EOF
+          cat >"$actual" <<'EOF'
+          2099-04-01 private-secret-actual
+              ; plan-id: private-plan-effect-ambiguous
+              repeated:locus 11 unit
+              repeated:locus -11 unit
+          EOF
+
+          output="$(./tools/private-plan-realization-shadow "$actual" "$plan")"
+          grep -Fq 'matched explicit pairs compared: 1' <<<"$output"
+          grep -Fq '  same-day: exact=0 same-shape-quantity-different=1 shape-different=0' <<<"$output"
+          grep -Fq '  query-local unique: 0' <<<"$output"
+          grep -Fq '  query-local ambiguous: 1' <<<"$output"
+          grep -Fq 'coordinate correspondence is not stable Effect identity' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'repeated:locus' <<<"$output"
+          ! grep -Fq '11 unit' <<<"$output"
 
       - name: Fail closed on duplicate Plan identity
         shell: bash
