@@ -21,7 +21,7 @@ private def matchingBases
     (locus : LocusId)
     (measure : MeasureId) : List QuantityBasis :=
   memory.bases.filter fun basis =>
-    basis.coordinate = ⟨locus, measure⟩
+    decide (basis.coordinate = ⟨locus, measure⟩)
 
 private def addQuantities (left right : Quantity) : Quantity :=
   Quantity.ofQuanta (left.quanta + right.quanta)
