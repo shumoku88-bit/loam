@@ -1,0 +1,125 @@
+name: Practical Writer Ownership
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/WriterCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/CorrectionCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'experiments/practical_writer_ownership_holder.lean'
+      - '.github/workflows/practical-writer-ownership.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  qualify-production-writer-ownership:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build production CLI
+        run: lake build loam
+      - name: Observe production writer entrances waiting for ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bin='.lake/build/bin/loam'
+          memory='practical-writer-ownership-memory.loam'
+          event='practical-writer-ownership-event.loam'
+          correction='practical-writer-ownership-corrections.loam'
+          ready='practical-writer-ownership-ready'
+          holder_pid=''
+          writer_pid=''
+
+          cleanup() {
+            if [ -n "${writer_pid:-}" ]; then
+              kill -KILL "$writer_pid" 2>/dev/null || true
+              wait "$writer_pid" 2>/dev/null || true
+            fi
+            if [ -n "${holder_pid:-}" ]; then
+              kill -KILL "$holder_pid" 2>/dev/null || true
+              wait "$holder_pid" 2>/dev/null || true
+            fi
+            rm -f "$memory" "$event" "$correction" "$ready" \
+              "$memory.loam-writer-lock" \
+              /tmp/practical-writer-ownership-*.out
+          }
+          trap cleanup EXIT
+
+          start_holder() {
+            rm -f "$ready"
+            lean --run experiments/practical_writer_ownership_holder.lean \
+              "$memory" "$ready" \
+              > /tmp/practical-writer-ownership-holder.out 2>&1 &
+            holder_pid=$!
+            for _ in $(seq 1 200); do
+              if [ -f "$ready" ]; then
+                return 0
+              fi
+              sleep 0.05
+            done
+            cat /tmp/practical-writer-ownership-holder.out || true
+            echo 'ownership holder did not become ready' >&2
+            exit 1
+          }
+
+          require_writer_waiting() {
+            sleep 0.25
+            if kill -0 "$writer_pid" 2>/dev/null; then
+              echo 'writer_waited_for_ownership=true'
+            else
+              cat /tmp/practical-writer-ownership-writer.out || true
+              echo 'writer_waited_for_ownership=false' >&2
+              exit 1
+            fi
+          }
+
+          release_and_wait_writer() {
+            wait "$holder_pid"
+            holder_pid=''
+            wait "$writer_pid"
+            writer_pid=''
+            rm -f "$ready"
+          }
+
+          printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
+          "$bin" event create "$event" seed-event effect-1 cash jpy -100
+
+          start_holder
+          "$bin" event-memory add "$memory" "$event" \
+            > /tmp/practical-writer-ownership-writer.out 2>&1 &
+          writer_pid=$!
+          require_writer_waiting
+          release_and_wait_writer
+          "$bin" event-memory get "$memory" seed-event >/dev/null
+          echo 'event_memory_add_owned=true'
+
+          start_holder
+          printf 'cash\n50\n' | "$bin" spend "$memory" \
+            > /tmp/practical-writer-ownership-writer.out 2>&1 &
+          writer_pid=$!
+          require_writer_waiting
+          release_and_wait_writer
+          "$bin" event-memory get "$memory" record-1 >/dev/null
+          echo 'spend_owned=true'
+
+          start_holder
+          printf '1\ncash\n60\n' | "$bin" correct "$memory" "$correction" \
+            > /tmp/practical-writer-ownership-writer.out 2>&1 &
+          writer_pid=$!
+          require_writer_waiting
+          release_and_wait_writer
+          "$bin" event-memory get "$memory" replacement-1 >/dev/null
+          test -s "$correction"
+          echo 'correction_pair_owned=true'
