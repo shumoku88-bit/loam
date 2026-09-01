@@ -32,16 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
-      - name: Run Lean probe
+      - name: Install Lean
         uses: leanprover/lean-action@v1
-        with:
-          auto-config: false
-          build: false
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
-          run: lake env lean experiments/application_008_starting_quantity_basis.lean
+      - name: Run Lean probe
+        run: lake env lean experiments/application_008_starting_quantity_basis.lean
