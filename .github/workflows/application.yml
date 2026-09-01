@@ -1,0 +1,47 @@
+name: Lean Application
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
+      - 'Loam.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - '.github/workflows/application.yml'
+  push:
+    paths:
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
+      - 'Loam.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - '.github/workflows/application.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lean-application-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Lean application boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build application and umbrella
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Application Loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
