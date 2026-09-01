@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  printf '%s\n' 'usage: private-plan-realization-shadow ACTUAL_JOURNAL PLAN_JOURNAL' >&2
+  exit 2
+fi
+
+actual=$1
+plan=$2
+
+if [[ ! -f "$actual" || ! -f "$plan" ]]; then
+  printf '%s\n' 'LOAM private plan realization shadow: source file not found' >&2
+  exit 2
+fi
+
+umask 077
+
+tmp_root=${TMPDIR:-/tmp}
+tmpdir=$(mktemp -d "${tmp_root%/}/loam-plan-realization.XXXXXX")
+chmod 700 "$tmpdir"
+trap 'rm -rf "$tmpdir"' EXIT
+
+result="$tmpdir/result"
+parser_err="$tmpdir/parser.err"
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    printf '%s\n' 'LOAM private plan realization shadow: SHA-256 tool unavailable' >&2
+    return 2
+  fi
+}
+
+actual_before=$(sha256_file "$actual")
+plan_before=$(sha256_file "$plan")
+
+set +e
+python3 - "$actual" "$plan" >"$result" 2>"$parser_err" <<'PY'
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+import re
+import sys
+
+HEADER = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\s|$)")
+PLAN_ID = re.compile(r"^;\s*plan-id\s*:\s*(\S(?:.*\S)?)\s*$")
+
+@dataclass
+class Scan:
+    records: int
+    ids_by_record: list[list[str]]
+
+
+def scan(path: Path) -> Scan:
+    records = 0
+    ids_by_record: list[list[str]] = []
+    current: list[str] | None = None
+
+    with path.open("r", encoding="utf-8") as handle:
+        for raw in handle:
+            line = raw.rstrip("\n")
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            indented = len(line) != len(line.lstrip())
+            if not indented and HEADER.match(stripped):
+                records += 1
+                current = []
+                ids_by_record.append(current)
+                continue
+
+            if current is None:
+                continue
+
+            if indented:
+                match = PLAN_ID.match(stripped)
+                if match:
+                    current.append(match.group(1))
+
+    return Scan(records=records, ids_by_record=ids_by_record)
+
+
+def refuse(reason: str) -> None:
+    print("LOAM private plan realization shadow: REFUSED")
+    print(f"reason: {reason}")
+    print("private identities/content: withheld")
+    raise SystemExit(2)
+
+
+actual = scan(Path(sys.argv[1]))
+plan = scan(Path(sys.argv[2]))
+
+plan_multi = sum(1 for ids in plan.ids_by_record if len(ids) > 1)
+actual_multi = sum(1 for ids in actual.ids_by_record if len(ids) > 1)
+if plan_multi:
+    refuse("plan record has multiple plan-id fields")
+if actual_multi:
+    refuse("actual record has multiple plan-id fields")
+
+plan_ids = [ids[0] for ids in plan.ids_by_record if len(ids) == 1]
+actual_refs = [ids[0] for ids in actual.ids_by_record if len(ids) == 1]
+
+plan_id_counts = Counter(plan_ids)
+duplicate_plan_ids = sum(1 for count in plan_id_counts.values() if count > 1)
+if duplicate_plan_ids:
+    refuse("plan-id is not unique in plan source")
+
+plan_set = set(plan_ids)
+actual_ref_counts = Counter(actual_refs)
+
+matched_refs = sum(count for key, count in actual_ref_counts.items() if key in plan_set)
+dangling_refs = sum(count for key, count in actual_ref_counts.items() if key not in plan_set)
+plans_zero = sum(1 for key in plan_set if actual_ref_counts[key] == 0)
+plans_one = sum(1 for key in plan_set if actual_ref_counts[key] == 1)
+plans_many = sum(1 for key in plan_set if actual_ref_counts[key] >= 2)
+
+print("LOAM private plan realization shadow")
+print(f"plan records observed: {plan.records}")
+print(f"plan records with explicit plan-id: {len(plan_ids)}")
+print(f"actual records observed: {actual.records}")
+print(f"actual records with explicit plan reference: {len(actual_refs)}")
+print(f"actual plan references resolving to plan source: {matched_refs}")
+print(f"actual plan references missing from plan source: {dangling_refs}")
+print(f"plans with no explicit actual reference: {plans_zero}")
+print(f"plans with exactly one explicit actual reference: {plans_one}")
+print(f"plans with multiple explicit actual references: {plans_many}")
+print("private identities/content: withheld")
+PY
+status=$?
+set -e
+
+actual_after=$(sha256_file "$actual")
+plan_after=$(sha256_file "$plan")
+
+if [[ "$actual_before" != "$actual_after" || "$plan_before" != "$plan_after" ]]; then
+  printf '%s\n' 'LOAM private plan realization shadow: REFUSED'
+  printf '%s\n' 'sources unchanged: no'
+  printf '%s\n' 'private identities/content: withheld'
+  exit 2
+fi
+
+if [[ $status -ne 0 ]]; then
+  cat "$result"
+  printf '%s\n' 'sources unchanged: yes'
+  printf '%s\n' 'private parser stderr: withheld'
+  exit "$status"
+fi
+
+cat "$result"
+printf '%s\n' 'sources unchanged: yes'
