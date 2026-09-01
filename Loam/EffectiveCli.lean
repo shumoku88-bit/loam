@@ -30,6 +30,12 @@ private def loadCorrectionMemoryForView?
   else
     return Loam.Core.EventCorrectionMemory.ofCorrections? []
 
+private def quantityLine
+    (coordinate : Loam.Core.EffectCoordinate)
+    (quantity : Loam.Core.Quantity) : String :=
+  "  " ++ coordinate.locus.token ++ ": " ++
+    toString quantity.quanta ++ " " ++ coordinate.measure.token
+
 /--
 Print the recorded-mode answers supplied by the production Application boundary.
 The caller has already selected the no-correction presentation heading; this
@@ -44,9 +50,7 @@ private def printRecorded
         memory corrections coordinate.locus coordinate.measure with
     | .recorded quantity =>
         if quantity.quanta ≠ 0 then
-          IO.println
-            ("  " ++ coordinate.locus.token ++ ": " ++
-              toString quantity.quanta ++ " " ++ coordinate.measure.token)
+          IO.println (quantityLine coordinate quantity)
     | _ => return false
   return true
 
@@ -64,12 +68,33 @@ private def printSingleCorrection
         memory corrections coordinate.locus coordinate.measure with
     | .singleCorrectionEffective quantity =>
         if quantity.quanta ≠ 0 then
-          IO.println
-            ("  " ++ coordinate.locus.token ++ ": " ++
-              toString quantity.quanta ++ " " ++ coordinate.measure.token)
+          IO.println (quantityLine coordinate quantity)
     | .missingCorrectionEndpoint => return false
     | _ => return false
   return true
+
+/--
+Collect a qualified multi-correction frontier before printing anything.
+
+The Application frontier decision is coordinate-independent, but collecting all
+lines first keeps the CLI from producing a partial human-facing view even if an
+unexpected disagreement were introduced later.
+-/
+private def frontierLines?
+    (memory : Loam.Core.EventMemory)
+    (corrections : Loam.Core.EventCorrectionMemory) :
+    List Loam.Core.EffectCoordinate → Option (List String)
+  | [] => some []
+  | coordinate :: rest => do
+      match Loam.Application.inspectQuantity
+          memory corrections coordinate.locus coordinate.measure with
+      | .frontierEffective quantity =>
+          let later ← frontierLines? memory corrections rest
+          if quantity.quanta ≠ 0 then
+            return quantityLine coordinate quantity :: later
+          else
+            return later
+      | _ => none
 
 /--
 Show the narrow practical effective-quantity projection already earned by the
@@ -77,10 +102,11 @@ Application quantity-inspection boundary. Zero-valued coordinates remain part
 of the computed projection but are omitted from this ordinary human-facing
 view.
 
-The correction-count branch here selects presentation and prevents partial
-output for the unsupported multi-correction frontier. Per-coordinate quantity
-and refusal semantics come from `Loam.Application.inspectQuantity` rather than
-being recomputed in the CLI.
+Zero and one correction preserve the previously qualified presentation paths.
+Two or more corrections are shown only when the Application boundary can derive
+one correction frontier without using list position as authority. Unsupported
+branching, merging, cyclic, or referentially open shapes fail closed before any
+frontier quantities are printed.
 -/
 def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -116,8 +142,16 @@ def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := 
                   IO.eprintln "loam: correction references are not closed in event memory"
                   return 2
             | _ =>
-                IO.eprintln
-                  "loam: effective quantities unavailable: multiple corrections require a frontier projection"
-                return 1
+                match frontierLines? memory corrections coordinates with
+                | none =>
+                    IO.eprintln
+                      "loam: effective quantities unavailable: corrections do not justify one current frontier"
+                    return 1
+                | some lines =>
+                    IO.println
+                      "Effective quantities (correction-frontier projection; zero coordinates omitted):"
+                    for line in lines do
+                      IO.println line
+                    return 0
 
 end Loam.EffectiveCli
