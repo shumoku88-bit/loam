@@ -1,0 +1,144 @@
+name: Observation 084
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/084_query_shaped_joint_summary.lean'
+      - 'experiments/084_query_shaped_joint_summary.als'
+      - 'experiments/084_query_shaped_joint_summary.ijs'
+      - 'experiments/084_query_shaped_joint_summary.md'
+      - '.github/workflows/query-shaped-joint-summary-observation.yml'
+  push:
+    branches:
+      - 'experiment/084-query-shaped-joint-summary'
+      - main
+    paths:
+      - 'experiments/084_query_shaped_joint_summary.lean'
+      - 'experiments/084_query_shaped_joint_summary.als'
+      - 'experiments/084_query_shaped_joint_summary.ijs'
+      - 'experiments/084_query_shaped_joint_summary.md'
+      - '.github/workflows/query-shaped-joint-summary-observation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: 2x2 marginal-plus-anchor theorem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: false
+
+      - name: Check Observation 084 Lean theorem
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean experiments/084_query_shaped_joint_summary.lean
+
+  alloy:
+    name: 3x3 one-anchor ambiguity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Alloy
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Run Observation 084 Alloy model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/alloy-output
+          java -jar "$ALLOY_JAR" exec -f -s sat4j \
+            -o /tmp/alloy-output \
+            experiments/084_query_shaped_joint_summary.als
+
+      - name: Require shape-dependent boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path('/tmp/alloy-output/receipt.json').read_text())
+          commands = receipt['commands']
+          expected_sat = {
+              'sameMarginalsSameAnchorDifferentJoint': True,
+              'MarginalsPlusOneAnchorDetermineThreeByThreeJoint': True,
+          }
+
+          wrong = []
+          for name, want_sat in expected_sat.items():
+              solutions = commands.get(name, {}).get('solution', [])
+              is_sat = bool(solutions)
+              label = 'SAT' if is_sat else 'UNSAT'
+              print(f'{name}: {label}')
+              if is_sat != want_sat:
+                  wrong.append((name, label, want_sat))
+
+          if wrong:
+              raise SystemExit(f'unexpected Observation 084 receipt: {wrong}')
+          PY
+
+  j:
+    name: Array reconstruction and residual ambiguity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install J
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/j-linux64.tar.gz \
+            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
+          mkdir -p /tmp/j
+          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
+          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
+          test -n "$JCONSOLE"
+          chmod +x "$JCONSOLE"
+          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
+
+      - name: Execute J shape observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$JCONSOLE" experiments/084_query_shaped_joint_summary.ijs | tee /tmp/j-observation.txt
+          grep -Fq 'Observation 084 / query-shaped joint summary sufficiency' /tmp/j-observation.txt
+          grep -Fq '2x2 reconstruction exact:' /tmp/j-observation.txt
+          grep -Fq '3x3 same row marginals:' /tmp/j-observation.txt
+          grep -Fq '3x3 same column marginals:' /tmp/j-observation.txt
+          grep -Fq '3x3 same anchor:' /tmp/j-observation.txt
+          grep -Fq '3x3 same joint matrix:' /tmp/j-observation.txt
+          test "$(grep -Fx '1' /tmp/j-observation.txt | wc -l | tr -d ' ')" -ge 4
+          grep -Fxq '0' /tmp/j-observation.txt
