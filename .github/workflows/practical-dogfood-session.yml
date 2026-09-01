@@ -41,23 +41,101 @@ jobs:
           use-github-cache: true
       - name: Build practical binaries
         run: lake build loam loamDailyQuantity
-      - name: Exercise several menu actions in one process
+      - name: Exercise persistent menu and fail-closed recovery
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf scratch/dogfood
-          printf '9\nbank\n100000\n10\n11\n1\n90000\n10\nq\n' | ./tools/loam >"$RUNNER_TEMP/session.out"
-          test -f scratch/dogfood/basis.loam
-          test -f scratch/dogfood/basis-corrections.loam
-          grep -F '  bank: 100000 jpy' "$RUNNER_TEMP/session.out"
-          grep -F '  bank: 90000 jpy' "$RUNNER_TEMP/session.out"
-          test "$(grep -c '^What do you want to do?$' "$RUNNER_TEMP/session.out")" -ge 4
-      - name: Return to menu after a fail-closed current view
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf scratch/dogfood
-          printf '7\nbank\n100\n10\n9\nbank\n0\n10\nq\n' | ./tools/loam >"$RUNNER_TEMP/recover.out" 2>"$RUNNER_TEMP/recover.err"
-          grep -F 'starting quantity missing for bank / jpy' "$RUNNER_TEMP/recover.err"
-          grep -F '  bank: 100 jpy' "$RUNNER_TEMP/recover.out"
-          test "$(grep -c '^What do you want to do?$' "$RUNNER_TEMP/recover.out")" -ge 4
+          python3 - <<'PY'
+          import shutil
+          import subprocess
+          import sys
+
+          def start_session():
+              return subprocess.Popen(
+                  ["./tools/loam"],
+                  stdin=subprocess.PIPE,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT,
+                  text=True,
+                  bufsize=1,
+              )
+
+          def read_until(proc, marker, transcript):
+              chunk = ""
+              while marker not in chunk:
+                  ch = proc.stdout.read(1)
+                  if ch == "":
+                      transcript.append(chunk)
+                      raise RuntimeError(
+                          f"LOAM exited before marker {marker!r}\n" + "".join(transcript)
+                      )
+                  chunk += ch
+              transcript.append(chunk)
+              return chunk
+
+          def send(proc, text):
+              proc.stdin.write(text + "\n")
+              proc.stdin.flush()
+
+          def finish(proc, transcript):
+              proc.stdin.close()
+              transcript.append(proc.stdout.read())
+              status = proc.wait(timeout=10)
+              if status != 0:
+                  raise RuntimeError(
+                      f"LOAM session exited with {status}\n" + "".join(transcript)
+                  )
+              return "".join(transcript)
+
+          shutil.rmtree("scratch/dogfood", ignore_errors=True)
+          proc = start_session()
+          transcript = []
+          read_until(proc, "> ", transcript)
+          send(proc, "9")
+          read_until(proc, "Starting at? ", transcript)
+          send(proc, "bank")
+          read_until(proc, "Starting quantity? ", transcript)
+          send(proc, "100000")
+          read_until(proc, "> ", transcript)
+          send(proc, "10")
+          before = read_until(proc, "> ", transcript)
+          assert "  bank: 100000 jpy" in before, "".join(transcript)
+          send(proc, "11")
+          read_until(proc, "Select number: ", transcript)
+          send(proc, "1")
+          read_until(proc, "Correct starting quantity to? ", transcript)
+          send(proc, "90000")
+          read_until(proc, "> ", transcript)
+          send(proc, "10")
+          after = read_until(proc, "> ", transcript)
+          assert "  bank: 90000 jpy" in after, "".join(transcript)
+          send(proc, "q")
+          full = finish(proc, transcript)
+          assert full.count("What do you want to do?") >= 5, full
+
+          shutil.rmtree("scratch/dogfood", ignore_errors=True)
+          proc = start_session()
+          transcript = []
+          read_until(proc, "> ", transcript)
+          send(proc, "7")
+          read_until(proc, "Received into? ", transcript)
+          send(proc, "bank")
+          read_until(proc, "Amount? ", transcript)
+          send(proc, "100")
+          read_until(proc, "> ", transcript)
+          send(proc, "10")
+          failed = read_until(proc, "> ", transcript)
+          assert "starting quantity missing for bank / jpy" in failed, "".join(transcript)
+          send(proc, "9")
+          read_until(proc, "Starting at? ", transcript)
+          send(proc, "bank")
+          read_until(proc, "Starting quantity? ", transcript)
+          send(proc, "0")
+          read_until(proc, "> ", transcript)
+          send(proc, "10")
+          recovered = read_until(proc, "> ", transcript)
+          assert "  bank: 100 jpy" in recovered, "".join(transcript)
+          send(proc, "q")
+          full = finish(proc, transcript)
+          assert full.count("What do you want to do?") >= 5, full
+          PY
