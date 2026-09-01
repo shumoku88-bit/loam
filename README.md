@@ -67,6 +67,14 @@ The adapter receives the journal path as its first argument and emits already-ag
 
 On success or mismatch, the harness reports only structural status and coordinate counts. It does not print private locus names, measures, quantities, projection hashes, or a value diff. The adapter itself is intentionally local: LOAM does not make h-kernel's invocation or presentation format part of LOAM semantics. Public CI qualifies the harness only with synthetic data.
 
+To inspect the source shapes that the quantity shadow already recognizes without printing private coordinates or values, use the local summary wrapper:
+
+```text
+./tools/private-source-shape-summary CANONICAL_ROOT/actual.journal
+```
+
+It captures the ordinary shadow output in mode-0700 temporary storage, extracts only the existing structural evidence counts, verifies that the source did not change, and removes the captured output on exit. The summary reports projected Event/Effect counts and counts of header context, metadata lines, and include directives that remain explicitly unprojected. Those counts are observation pressure, not new domain semantics: they do not make description, metadata, include behavior, or familiar household nouns part of the Practical Core. Public CI exercises the wrapper only with synthetic data and checks that source text and quantities are withheld.
+
 ## Current map
 
 Observations 001–061 build the neutral physical core and the bounded persistence/publication protocols around Event, Effect, Locus, Measure, exact Quantity, Correction, Resolution, and explicit relation admission.

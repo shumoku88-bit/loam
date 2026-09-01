@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  printf '%s\n' 'usage: private-source-shape-summary JOURNAL' >&2
+  exit 2
+fi
+
+journal=$1
+
+if [[ ! -f "$journal" ]]; then
+  printf '%s\n' 'LOAM private source shape: source file not found' >&2
+  exit 2
+fi
+
+umask 077
+
+tmp_root=${TMPDIR:-/tmp}
+tmpdir=$(mktemp -d "${tmp_root%/}/loam-source-shape.XXXXXX")
+chmod 700 "$tmpdir"
+trap 'rm -rf "$tmpdir"' EXIT
+
+shadow_out="$tmpdir/shadow.out"
+shadow_err="$tmpdir/shadow.err"
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    printf '%s\n' 'LOAM private source shape: SHA-256 tool unavailable' >&2
+    return 2
+  fi
+}
+
+before=$(sha256_file "$journal")
+
+set +e
+./tools/loam shadow-quantity "$journal" >"$shadow_out" 2>"$shadow_err"
+status=$?
+set -e
+
+after=$(sha256_file "$journal")
+
+if [[ "$before" != "$after" ]]; then
+  printf '%s\n' 'LOAM private source shape: REFUSED'
+  printf '%s\n' 'source unchanged: no'
+  printf '%s\n' 'private source/value output: withheld'
+  exit 2
+fi
+
+if [[ $status -ne 0 ]]; then
+  printf '%s\n' 'LOAM private source shape: REFUSED'
+  printf '%s\n' 'source unchanged: yes'
+  printf '%s\n' 'private parser stderr: withheld'
+  exit "$status"
+fi
+
+read_count() {
+  local label=$1
+  local line value matches
+  matches=$(grep -F "  ${label}: " "$shadow_out" || true)
+  if [[ -z "$matches" ]] || [[ $(printf '%s\n' "$matches" | wc -l | tr -d ' ') -ne 1 ]]; then
+    return 1
+  fi
+  line=$matches
+  value=${line##*: }
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+  printf '%s' "$value"
+}
+
+if ! events=$(read_count 'events projected') ||
+   ! effects=$(read_count 'effects projected') ||
+   ! headers=$(read_count 'header contexts not projected') ||
+   ! metadata=$(read_count 'metadata lines not projected') ||
+   ! includes=$(read_count 'include directives not projected'); then
+  printf '%s\n' 'LOAM private source shape: REFUSED'
+  printf '%s\n' 'reason: unexpected shadow evidence format'
+  printf '%s\n' 'private source/value output: withheld'
+  exit 2
+fi
+
+printf '%s\n' 'LOAM private source shape summary'
+printf 'events projected: %s\n' "$events"
+printf 'effects projected: %s\n' "$effects"
+printf 'header contexts not projected: %s\n' "$headers"
+printf 'metadata lines not projected: %s\n' "$metadata"
+printf 'include directives not projected: %s\n' "$includes"
+printf '%s\n' 'source unchanged: yes'
+printf '%s\n' 'private source/value output: withheld'

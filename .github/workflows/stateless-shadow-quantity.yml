@@ -8,6 +8,7 @@ on:
       - 'Loam/Observation078.lean'
       - 'tools/loam'
       - 'tools/private-quantity-parity'
+      - 'tools/private-source-shape-summary'
       - 'lakefile.lean'
       - '.github/workflows/stateless-shadow-quantity.yml'
   push:
@@ -20,6 +21,7 @@ on:
       - 'Loam/Observation078.lean'
       - 'tools/loam'
       - 'tools/private-quantity-parity'
+      - 'tools/private-source-shape-summary'
       - 'lakefile.lean'
       - '.github/workflows/stateless-shadow-quantity.yml'
   workflow_dispatch:
@@ -85,6 +87,45 @@ jobs:
           grep -Fq 'locus:stock: 10 unit' <<<"$output"
 
           rm -f "$fixture"
+
+      - name: Qualify sanitized private source shape summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -t loam-source-shape-summary.XXXXXX.journal)"
+          trap 'rm -f "$fixture"' EXIT
+
+          cat >"$fixture" <<'EOF'
+          include private-secret-include.journal
+          ; private-secret-top-level-annotation
+
+          2099-01-01 * private-secret-opening-description
+              ; private-secret-event-metadata
+              private-secret-wallet 100 unit
+              private-secret-origin -100 unit
+          2099-01-02 private-secret-split-description
+              private-secret-wallet -40 unit
+              private-secret-food 40 unit
+          EOF
+
+          before="$(sha256sum "$fixture" | cut -d' ' -f1)"
+          output="$(./tools/private-source-shape-summary "$fixture")"
+          after="$(sha256sum "$fixture" | cut -d' ' -f1)"
+
+          test "$before" = "$after"
+          grep -Fq 'LOAM private source shape summary' <<<"$output"
+          grep -Fq 'events projected: 2' <<<"$output"
+          grep -Fq 'effects projected: 4' <<<"$output"
+          grep -Fq 'header contexts not projected: 2' <<<"$output"
+          grep -Fq 'metadata lines not projected: 2' <<<"$output"
+          grep -Fq 'include directives not projected: 1' <<<"$output"
+          grep -Fq 'source unchanged: yes' <<<"$output"
+          grep -Fq 'private source/value output: withheld' <<<"$output"
+
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq '100' <<<"$output"
+          ! grep -Fq -- '-100' <<<"$output"
+          ! grep -Fq -- '-40' <<<"$output"
 
       - name: Qualify private parity row entrance and sanitizer
         shell: bash
