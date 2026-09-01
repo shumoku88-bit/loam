@@ -1,0 +1,38 @@
+name: Application 008 Starting Quantity Basis
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_008_starting_quantity_basis.lean'
+      - 'experiments/application_008_starting_quantity_basis.md'
+      - '.github/workflows/application-008-starting-quantity-basis.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'experiments/application_008_starting_quantity_basis.lean'
+      - 'experiments/application_008_starting_quantity_basis.md'
+      - '.github/workflows/application-008-starting-quantity-basis.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-008-starting-quantity-basis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check starting quantity basis probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Run Lean probe
+        run: lake env lean experiments/application_008_starting_quantity_basis.lean
