@@ -1,0 +1,58 @@
+name: Lean Application Layer Probe
+
+on:
+  push:
+    paths:
+      - 'experiments/application_lean_layer_probe.lean'
+      - 'experiments/application_lean_layer_probe.md'
+      - '.github/workflows/application-lean-layer-probe.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_lean_layer_probe.lean'
+      - 'experiments/application_lean_layer_probe.md'
+      - '.github/workflows/application-lean-layer-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lean-application:
+    name: Lean application operation probe
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build existing Lean Core
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check and execute Lean application probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_lean_layer_probe.lean \
+            | tee /tmp/application-lean.out
+
+          cat > /tmp/expected-decisions <<'EOF'
+          RecordedQuantity
+          SingleCorrectionEffectiveQuantity
+          MissingCorrectionEndpoint
+          FrontierRequired
+          PublishCandidate
+          RefuseDuplicateEventIdentity
+          RefuseStaleSnapshot
+          EOF
+
+          grep -E '^(RecordedQuantity|SingleCorrectionEffectiveQuantity|MissingCorrectionEndpoint|FrontierRequired|PublishCandidate|RefuseDuplicateEventIdentity|RefuseStaleSnapshot)$' \
+            /tmp/application-lean.out > /tmp/actual-decisions
+
+          diff -u /tmp/expected-decisions /tmp/actual-decisions
