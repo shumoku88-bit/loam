@@ -5,17 +5,17 @@ on:
     paths:
       - 'experiments/083_summary_correlation_loss.als'
       - 'experiments/083_summary_correlation_loss.md'
-      - 'j/083_check.ijs'
-      - '.github/workflows/observation-083-summary-correlation.yml'
+      - 'experiments/083_summary_correlation_loss.ijs'
+      - '.github/workflows/summary-correlation-loss-observation.yml'
   push:
     branches:
-      - 'experiment/083-summary-correlation-loss'
+      - 'ci/isolate-post-legacy-observations'
       - main
     paths:
       - 'experiments/083_summary_correlation_loss.als'
       - 'experiments/083_summary_correlation_loss.md'
-      - 'j/083_check.ijs'
-      - '.github/workflows/observation-083-summary-correlation.yml'
+      - 'experiments/083_summary_correlation_loss.ijs'
+      - '.github/workflows/summary-correlation-loss-observation.yml'
   workflow_dispatch:
 
 permissions:
@@ -110,7 +110,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$JCONSOLE" j/083_check.ijs | tee /tmp/j-observation.txt
+          "$JCONSOLE" experiments/083_summary_correlation_loss.ijs | tee /tmp/j-observation.txt
           grep -Fq 'Observation 083 / separate marginals lose joint correlation' /tmp/j-observation.txt
           grep -Fq 'same row marginals:' /tmp/j-observation.txt
           grep -Fq 'same column marginals:' /tmp/j-observation.txt
