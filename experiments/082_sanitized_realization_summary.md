@@ -24,8 +24,6 @@ after              4            1                  0
 
 No private identities, dates, quantities, descriptions, loci, measures, or source metadata are copied into this observation.
 
-The new question is not whether the summary is useful. It clearly preserves structural pressure while protecting private source detail.
-
 The narrower question is:
 
 > If two worlds expose the same sanitized time × physical-delta summary, must they contain the same Plan → Actual realization provenance?
@@ -62,21 +60,32 @@ The model does not duplicate the private parser, household values, dates, quanti
 
 For each world, the sanitized summary is only the count of realized candidates in each of the nine buckets.
 
-### Expected witness
+## Observed result
 
-There should be a witness where:
+Alloy 6.2.0 + Sat4j produced:
+
+```text
+sameSummaryDifferentProvenance                 SAT
+SanitizedSummaryDeterminesRealization          SAT counterexample
+ExplicitRealizationDeterminesSanitizedSummary  UNSAT counterexample
+SanitizedSummaryDeterminesLinkCount            UNSAT counterexample
+```
+
+### 1. Same multi-cell summary can hide different provenance
+
+A witness exists in which both worlds have:
 
 ```text
 same nine bucket counts
-same number of realized links
+same realized-link count
 at least two occupied buckets
-
-but
-
-different Plan -> Actual realization links
 ```
 
-### Expected counterexample
+while retaining different Plan → Actual realization links.
+
+Observed: **SAT**.
+
+### 2. Sanitized summary does not reconstruct realization
 
 The assertion
 
@@ -86,25 +95,29 @@ same sanitized summary
 same realization relation
 ```
 
-should have a counterexample.
+has a counterexample.
 
-### Controls
+Observed: **SAT counterexample**.
 
-Two narrow controls should hold in the bounded model:
+So the privacy-safe matrix does not preserve which specific Plan was realized by which specific Actual Event.
 
-```text
-same explicit realization relation
-    -> same sanitized summary
+### 3. Fixed realization determines its summary
 
-same sanitized summary
-    -> same realized-link count
-```
+When the explicit realization relation is the same, the model found no counterexample in which the nine bucket counts differ.
 
-The second control matters because the intended loss is provenance, not simple cardinality corruption.
+Observed: **UNSAT counterexample**.
 
-## Expected boundary
+### 4. Summary still preserves total link cardinality
 
-If the model behaves as expected, Observation 082 earns only this distinction:
+When all nine bucket counts agree, the model found no counterexample in which the total number of realization links differs.
+
+Observed: **UNSAT counterexample**.
+
+The information loss is therefore narrower than simple cardinality loss: the aggregate can preserve how many links exist while forgetting which identities participate in each link.
+
+## Finding
+
+The earned boundary is:
 
 ```text
 privacy-safe structural summary
@@ -115,6 +128,15 @@ realization provenance
 A sanitized aggregate can preserve enough information to reveal real-data pressure without preserving enough information to reconstruct which Plan was realized by which Actual Event.
 
 That is desirable for the private dogfood tool, but it also means a later human/AI workflow must not silently promote such a summary into canonical semantic state.
+
+This extends the current information-loss observations without introducing a common receipt schema:
+
+```text
+079: result token alone loses interpretation
+080: claim/result without checking regime loses epistemic strength
+081: retained result without later-use context loses applicability
+082: sanitized aggregate can preserve structural pressure while losing provenance
+```
 
 ## Non-goals
 
