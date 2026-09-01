@@ -32,7 +32,7 @@ jobs:
           rm -f "$lock_path" "$ready_path"
           : > "$lock_path"
 
-          lake env lean --run experiments/application_005_native_writer_lock_holder.lean \
+          lean --run experiments/application_005_native_writer_lock_holder.lean \
             > /tmp/application-005-holder.out \
             2> /tmp/application-005-holder.err &
           holder_pid=$!
@@ -60,7 +60,7 @@ jobs:
             exit 1
           fi
 
-          while_alive="$(lake env lean --run experiments/application_005_native_writer_lock_try.lean)"
+          while_alive="$(lean --run experiments/application_005_native_writer_lock_try.lean)"
           echo "$while_alive"
           if printf '%s\n' "$while_alive" | grep -Fq 'exclusive_trylock_acquired=false'; then
             echo 'blocked_while_holder_alive=true'
@@ -73,7 +73,7 @@ jobs:
           wait "$holder_pid" 2>/dev/null || true
           holder_pid=''
 
-          after_death="$(lake env lean --run experiments/application_005_native_writer_lock_try.lean)"
+          after_death="$(lean --run experiments/application_005_native_writer_lock_try.lean)"
           echo "$after_death"
           if printf '%s\n' "$after_death" | grep -Fq 'exclusive_trylock_acquired=true'; then
             echo 'released_after_holder_death=true'
