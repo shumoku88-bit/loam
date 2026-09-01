@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'Loam/WriterOwnership.lean'
-      - 'Loam/WriterCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/Persistence.lean'
@@ -59,7 +58,8 @@ jobs:
 
           start_holder() {
             rm -f "$ready"
-            lean --run experiments/practical_writer_ownership_holder.lean \
+            LEAN_PATH='.lake/build/lib/lean' \
+              lean --run experiments/practical_writer_ownership_holder.lean \
               "$memory" "$ready" \
               > /tmp/practical-writer-ownership-holder.out 2>&1 &
             holder_pid=$!
