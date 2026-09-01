@@ -99,9 +99,20 @@ The physical first Event can otherwise be identical to the observe-only case.
 
 This operation is intentionally application-level and experiment-local. It is not a new Core primitive and is not yet a production command.
 
-## Positive safety
+## Observed TLC result
 
-The candidate specification checks:
+TLA+ tools 1.7.4 / TLC 2.19 explored the positive model completely:
+
+```text
+4 initial states
+202 states generated
+121 distinct states
+0 states left on queue
+depth 3
+no error
+```
+
+The checked safety properties were:
 
 - type safety;
 - unseen coordinates have no recorded activity or interpretation;
@@ -109,28 +120,28 @@ The candidate specification checks:
 - every enrolled coordinate really had zero quantity immediately before its first Event;
 - the resulting anchored current quantity matches modeled reality for admitted coordinates.
 
-Expected result:
-
-```text
-complete finite state graph
-no error
-```
-
 ## Boundary 1 — transfer does not prove zero
 
-A deliberately false invariant asks:
+The deliberately false invariant:
 
 ```text
 TransferFirstAppearanceProvesZero
 ```
 
-Expected result:
+failed as expected.
+
+TLC found a state where coordinate `b` was unseen while its modeled real quantity was already `1`. Its first observed operation was then `transfer`:
 
 ```text
-counterexample
-```
+before first observation
+  reality[b] = 1
 
-A coordinate may be unseen by LOAM, already carry nonzero real quantity, and then first appear through `transfer`.
+first operation
+  firstOp[b] = transfer
+  firstPrior[b] = nonzero
+  activity[b] = 1
+  reality[b] = 2
+```
 
 Therefore:
 
@@ -141,50 +152,65 @@ first transfer appearance
 
 ## Boundary 2 — income does not prove zero
 
-The same pressure applies to income.
-
-A deliberately false invariant asks:
+The deliberately false invariant:
 
 ```text
 IncomeFirstAppearanceProvesZero
 ```
 
-Expected result:
+also failed as expected.
+
+TLC found the corresponding witness with an unseen coordinate whose modeled real quantity was already `1` before its first `income` observation.
+
+Therefore:
 
 ```text
-counterexample
+first income appearance
+    -/-> zero immediately before income
 ```
-
-Receiving income into a newly observed coordinate does not prove that the coordinate was empty before receipt.
 
 ## Boundary 3 — even the same transfer verb and same physical first appearance do not determine admission
 
-The strongest boundary fixes both coordinates to the same human-facing verb and the same first physical signature.
-
-Both may have:
-
-```text
-firstOp = transfer
-prior = zero
-activity = 1
-reality after Event = 1
-```
-
-while one first appearance merely observes and the other carries explicit zero-origin admission evidence.
-
-A deliberately false invariant asks:
+The strongest deliberately false invariant was:
 
 ```text
 SameTransferFirstAppearanceDeterminesEnrollment
 ```
 
-Expected result:
+TLC found a three-state witness.
+
+Both coordinates begin at real zero. Coordinate `a` first appears through an ordinary observe-only transfer. Coordinate `b` then first appears through a transfer carrying explicit zero-origin admission evidence.
+
+The resulting physical and operation signatures are equal:
 
 ```text
-counterexample
+firstOp[a] = transfer
+firstOp[b] = transfer
+
+firstPrior[a] = zero
+firstPrior[b] = zero
+
+activity[a] = 1
+activity[b] = 1
+
+reality[a] = 1
+reality[b] = 1
 ```
 
-So even after adding the existing operation verb to the neutral Event shape:
+but interpretation differs:
+
+```text
+a
+  zeroEvidence = false
+  enrolled = false
+
+b
+  zeroEvidence = true
+  originKind = firstEvent
+  enrolled = true
+```
+
+So even after adding the existing operation verb to the neutral physical facts:
 
 ```text
 operation kind + physical first Event
@@ -193,9 +219,9 @@ operation kind + physical first Event
 
 The missing distinction is the admission premise itself.
 
-## Interpretation if qualified
+## Qualified boundary
 
-If all expected results hold, the candidate boundary becomes:
+The observed result is:
 
 ```text
 first appearance
@@ -203,6 +229,9 @@ first appearance
 
 ordinary transfer / income / spending verb
     -/-> exact-zero origin
+
+operation kind + physical first Event
+    -/-> anchored-current enrollment
 
 explicit zero-origin admission evidence
     -> can justify a first-event origin
@@ -215,9 +244,9 @@ unseen transfer destination
     -> silently create current coordinate at zero
 ```
 
-would be too strong.
+is too strong.
 
-A safer future operation would need to express something closer to:
+A safer future operation needs to express something closer to:
 
 ```text
 this coordinate begins empty here
@@ -234,11 +263,11 @@ It says only that one selected anchored-current question needs evidence for its 
 
 The neutral Event still retains only quantity effects. Operation vocabulary and origin-admission evidence remain application-level concerns.
 
-## Next pressure if qualified
+## Next pressure
 
-If admission evidence is required, restart-safe daily use creates a new question:
+Restart-safe daily use now creates a sharper question:
 
-> Must that admission evidence be persisted as its own typed fact, since the neutral Event and the human-facing verb alone cannot reconstruct it later?
+> Must zero-origin admission evidence be persisted as its own typed fact, since neither the neutral Event nor the human-facing verb can reconstruct it later?
 
 That is deliberately left for a later observation.
 
