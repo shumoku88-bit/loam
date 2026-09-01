@@ -110,4 +110,11 @@ def admittedQuantityBasisFrontier?
   else
     none
 
+/-- Empty raw basis and correction memories admit the empty current frontier. -/
+@[simp] theorem admittedQuantityBasisFrontier?_empty :
+    admittedQuantityBasisFrontier?
+      { bases := [], idNodup := by simp }
+      { corrections := [], idNodup := by simp } = some [] := by
+  rfl
+
 end Loam.Application
