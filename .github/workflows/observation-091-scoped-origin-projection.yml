@@ -1,0 +1,37 @@
+name: Observation 091
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/091_scoped_origin_projection.lean'
+      - 'experiments/091_scoped_origin_projection.md'
+      - '.github/workflows/observation-091-scoped-origin-projection.yml'
+      - 'Loam/Core/QuantityBasisMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  scoped-origin-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build current quantity slice
+        run: lake build loamDailyQuantity
+      - name: Check Observation 091 Lean probe
+        run: lake env lean experiments/091_scoped_origin_projection.lean
