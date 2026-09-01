@@ -80,7 +80,8 @@ shadow_quantity_binary_is_current() {
 
 run_loam() {
   if binary_is_current; then
-    exec "$binary" "$@"
+    "$binary" "$@"
+    return $?
   fi
 
   echo "Building LOAM..." >&2
@@ -88,17 +89,18 @@ run_loam() {
   build_log="$(mktemp -t loam-build.XXXXXX)"
   if lake build loam >"$build_log" 2>&1; then
     rm -f "$build_log"
-    exec "$binary" "$@"
+    "$binary" "$@"
   else
     cat "$build_log" >&2
     rm -f "$build_log"
-    exit 1
+    return 1
   fi
 }
 
 run_daily_quantity() {
   if daily_quantity_binary_is_current; then
-    exec "$daily_quantity_binary" "$@"
+    "$daily_quantity_binary" "$@"
+    return $?
   fi
 
   echo "Building LOAM daily quantity..." >&2
@@ -106,11 +108,11 @@ run_daily_quantity() {
   build_log="$(mktemp -t loam-daily-quantity-build.XXXXXX)"
   if lake build loamDailyQuantity >"$build_log" 2>&1; then
     rm -f "$build_log"
-    exec "$daily_quantity_binary" "$@"
+    "$daily_quantity_binary" "$@"
   else
     cat "$build_log" >&2
     rm -f "$build_log"
-    exit 1
+    return 1
   fi
 }
 
@@ -150,6 +152,10 @@ run_shadow_quantity() {
   fi
 }
 
+run_menu_action() {
+  "$@" || true
+}
+
 if [[ "${1:-}" == "shadow-audit" ]]; then
   shift
   run_shadow_audit "$@"
@@ -161,7 +167,8 @@ if [[ "${1:-}" == "shadow-quantity" ]]; then
 fi
 
 if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity" || "${1:-}" == "current" ]]; then
-  run_daily_quantity "$@"
+  run_daily_quantity "$@" || exit $?
+  exit 0
 fi
 
 if [[ $# -eq 0 ]]; then
@@ -171,7 +178,8 @@ if [[ $# -eq 0 ]]; then
   basis_correction_file="scratch/dogfood/basis-corrections.loam"
   mkdir -p "$(dirname "$memory_file")"
 
-  cat <<'EOF'
+  while true; do
+    cat <<'EOF'
 LOAM
 
 What do you want to do?
@@ -188,59 +196,65 @@ What do you want to do?
 11. Correct a starting quantity
 q. Quit
 EOF
-  printf '> '
-  IFS= read -r choice
+    printf '> '
+    if ! IFS= read -r choice; then
+      break
+    fi
 
-  case "$choice" in
-    1)
-      run_loam spend "$memory_file"
-      ;;
-    2)
-      if [[ ! -e "$memory_file" ]]; then
-        echo "Nothing recorded yet."
-        exit 0
-      fi
-      run_loam review "$memory_file"
-      ;;
-    3)
-      if [[ ! -e "$memory_file" ]]; then
-        echo "Nothing recorded yet."
-        exit 0
-      fi
-      run_loam summary "$memory_file"
-      ;;
-    4)
-      run_loam correct "$memory_file" "$correction_file"
-      ;;
-    5)
-      run_loam effective "$memory_file" "$correction_file"
-      ;;
-    6)
-      run_loam correction-integrity "$memory_file" "$correction_file"
-      ;;
-    7)
-      run_loam income "$memory_file"
-      ;;
-    8)
-      run_loam transfer "$memory_file"
-      ;;
-    9)
-      run_daily_quantity starting-quantity "$basis_file"
-      ;;
-    10)
-      run_daily_quantity current "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file"
-      ;;
-    11)
-      run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
-      ;;
-    q|Q)
-      exit 0
-      ;;
-    *)
-      echo "loam: choice not understood" >&2
-      exit 2
-      ;;
-  esac
+    case "$choice" in
+      1)
+        run_menu_action run_loam spend "$memory_file"
+        ;;
+      2)
+        if [[ ! -e "$memory_file" ]]; then
+          echo "Nothing recorded yet."
+        else
+          run_menu_action run_loam review "$memory_file"
+        fi
+        ;;
+      3)
+        if [[ ! -e "$memory_file" ]]; then
+          echo "Nothing recorded yet."
+        else
+          run_menu_action run_loam summary "$memory_file"
+        fi
+        ;;
+      4)
+        run_menu_action run_loam correct "$memory_file" "$correction_file"
+        ;;
+      5)
+        run_menu_action run_loam effective "$memory_file" "$correction_file"
+        ;;
+      6)
+        run_menu_action run_loam correction-integrity "$memory_file" "$correction_file"
+        ;;
+      7)
+        run_menu_action run_loam income "$memory_file"
+        ;;
+      8)
+        run_menu_action run_loam transfer "$memory_file"
+        ;;
+      9)
+        run_menu_action run_daily_quantity starting-quantity "$basis_file"
+        ;;
+      10)
+        run_menu_action run_daily_quantity current "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file"
+        ;;
+      11)
+        run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
+        ;;
+      q|Q)
+        break
+        ;;
+      *)
+        echo "loam: choice not understood" >&2
+        ;;
+    esac
+
+    echo
+  done
+
+  exit 0
 fi
 
 run_loam "$@"
