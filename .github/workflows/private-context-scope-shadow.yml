@@ -1,0 +1,127 @@
+name: Private Context Scope Shadow
+
+on:
+  pull_request:
+    paths:
+      - 'tools/private-context-scope-shadow.py'
+      - '.github/workflows/private-context-scope-shadow.yml'
+      - 'experiments/072_073_private_context_scope_dogfood.md'
+  push:
+    branches:
+      - 'tool/private-context-scope-shadow'
+      - main
+    paths:
+      - 'tools/private-context-scope-shadow.py'
+      - '.github/workflows/private-context-scope-shadow.yml'
+      - 'experiments/072_073_private_context_scope_dogfood.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    name: Check descriptive context scope boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Exercise transaction and posting context shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          journal="$(mktemp -t loam-private-context.XXXXXX.journal)"
+          trap 'rm -f "$journal"' EXIT
+
+          cat >"$journal" <<'EOF'
+          2099-01-01 private-secret-event-alpha
+              ; private-key-a: private-value-a
+              ; private-key-b: private-value-b
+              expenses:alpha 10 unit
+              assets:wallet -10 unit
+          2099-01-02 private-secret-event-beta
+              expenses:beta 7 unit
+              expenses:gamma 5 unit
+              assets:bank -12 unit
+          2099-01-03 private-secret-event-gamma
+              expenses:delta 8 unit
+              ; private-key-c: private-value-c
+              assets:wallet -8 unit ; private-inline-effect-note
+          EOF
+
+          before="$(sha256sum "$journal" | awk '{print $1}')"
+          output="$(python3 tools/private-context-scope-shadow.py "$journal")"
+          after="$(sha256sum "$journal" | awk '{print $1}')"
+          test "$before" = "$after"
+
+          grep -Fq 'transaction records observed: 3' <<<"$output"
+          grep -Fq 'records with nonempty header description: 3' <<<"$output"
+          grep -Fq 'records with transaction-block metadata comments: 2' <<<"$output"
+          grep -Fq 'transaction-block metadata comment lines observed: 3' <<<"$output"
+          grep -Fq 'posting lines observed: 7' <<<"$output"
+          grep -Fq 'records with three-or-more postings: 1' <<<"$output"
+          grep -Fq 'posting lines with inline comments: 1' <<<"$output"
+          grep -Fq 'records with posting inline comments: 1' <<<"$output"
+          grep -Fq 'human context ontology assigned: no' <<<"$output"
+          grep -Fq 'effect-level context inferred from source shape: no' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-key' <<<"$output"
+          ! grep -Fq 'private-value' <<<"$output"
+          ! grep -Fq 'private-inline' <<<"$output"
+          ! grep -Fq 'expenses:' <<<"$output"
+          ! grep -Fq 'assets:' <<<"$output"
+          ! grep -Fq '10 unit' <<<"$output"
+
+      - name: Ignore description values when structure is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          left="$(mktemp -t loam-private-context-left.XXXXXX.journal)"
+          right="$(mktemp -t loam-private-context-right.XXXXXX.journal)"
+          trap 'rm -f "$left" "$right"' EXIT
+
+          cat >"$left" <<'EOF'
+          2099-01-01 private-left-description
+              expenses:x 20 unit
+              assets:y -20 unit
+          EOF
+
+          cat >"$right" <<'EOF'
+          2099-01-01 completely-different-private-description
+              expenses:x 20 unit
+              assets:y -20 unit
+          EOF
+
+          left_output="$(python3 tools/private-context-scope-shadow.py "$left")"
+          right_output="$(python3 tools/private-context-scope-shadow.py "$right")"
+          test "$left_output" = "$right_output"
+          ! grep -Fq 'private-left' <<<"$left_output"
+          ! grep -Fq 'different-private' <<<"$right_output"
+
+      - name: Refuse transaction without postings
+        shell: bash
+        run: |
+          set -euo pipefail
+          journal="$(mktemp -t loam-private-context-refuse.XXXXXX.journal)"
+          trap 'rm -f "$journal"' EXIT
+
+          cat >"$journal" <<'EOF'
+          2099-01-01 private-secret-empty-event
+              ; private-key: private-value
+          EOF
+
+          set +e
+          output="$(python3 tools/private-context-scope-shadow.py "$journal" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -Fq 'LOAM private context scope shadow: REFUSED' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'private parser detail: withheld' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-key' <<<"$output"
+          ! grep -Fq 'private-value' <<<"$output"
