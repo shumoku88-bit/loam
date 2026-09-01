@@ -135,6 +135,8 @@ What do you want to do?
 4. Correct a spending record
 5. Show effective quantities
 6. Review correction integrity
+7. Record income
+8. Transfer funds
 q. Quit
 EOF
   printf '> '
@@ -166,6 +168,12 @@ EOF
       ;;
     6)
       run_loam correction-integrity "$memory_file" "$correction_file"
+      ;;
+    7)
+      run_loam income "$memory_file"
+      ;;
+    8)
+      run_loam transfer "$memory_file"
       ;;
     q|Q)
       exit 0

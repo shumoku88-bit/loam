@@ -17,6 +17,10 @@ private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
   "Record a JPY spend:\n" ++
   "  ./tools/loam spend scratch/dogfood/memory.loam\n\n" ++
+  "Record JPY income:\n" ++
+  "  ./tools/loam income scratch/dogfood/memory.loam\n\n" ++
+  "Move JPY between loci:\n" ++
+  "  ./tools/loam transfer scratch/dogfood/memory.loam\n\n" ++
   "Review recorded facts:\n" ++
   "  ./tools/loam review scratch/dogfood/memory.loam\n\n" ++
   "Show recorded quantities:\n" ++
@@ -412,6 +416,141 @@ def spendJpy (memoryPath : String) : IO UInt32 := do
         IO.eprintln "loam: payment source must be a nonempty single-line token"
         return 2
 
+/--
+Human-facing entrance for ordinary JPY income received at one locus.
+
+`income` is an interface verb only. The retained Core fact is one positive JPY
+Effect at the selected locus; no Income account, event-kind tag, or accounting
+role is promoted into the Practical Core. A later typed fact family may add
+such interpretation without changing this Event shape if daily use earns it.
+-/
+def incomeJpy (memoryPath : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk memoryPath
+  match ← loadEventMemoryForEntry? memoryFile with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some memory =>
+      let locusToken ← promptLine "Received into? "
+      if Loam.Persistence.validToken locusToken then
+        let amountText ← promptLine "Amount? "
+        match amountText.toInt? with
+        | none =>
+            IO.eprintln "loam: amount must be a positive integer"
+            return 2
+        | some amount =>
+            if amount > 0 then
+              match freshRecordEventId? memory with
+              | none =>
+                  IO.eprintln "loam: could not generate a fresh event identity"
+                  return 2
+              | some eventId =>
+                  let effect :=
+                    Loam.Core.Effect.ofQuantity
+                      ⟨"effect-1"⟩ ⟨locusToken⟩ ⟨"jpy"⟩
+                      (Loam.Core.Quantity.ofQuanta amount)
+                  match Loam.Core.Event.ofEffects? eventId [effect] with
+                  | none =>
+                      IO.eprintln "loam: could not admit generated event"
+                      return 2
+                  | some event =>
+                      match Loam.Core.EventMemory.add? memory event with
+                      | none =>
+                          IO.eprintln "loam: generated event identity already remembered"
+                          return 2
+                      | some updated =>
+                          if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                            IO.println
+                              ("Recorded: received " ++ toString amount ++ " jpy into " ++ locusToken ++ ".")
+                            return 0
+                          else
+                            IO.eprintln "loam: recorded event contains an unrepresentable identity token"
+                            return 2
+            else
+              IO.eprintln "loam: amount must be a positive integer"
+              return 2
+      else
+        IO.eprintln "loam: income destination must be a nonempty single-line token"
+        return 2
+
+/--
+Human-facing entrance for moving one positive JPY amount between two distinct
+loci.
+
+The adapter records one generic Event with two distinct Effects:
+
+`source -q` and `destination +q`.
+
+The equal-and-opposite shape is an entrance-level promise for this verb, not a
+new global conservation law for every LOAM Event. The Core still contains no
+primitive Transfer object, no debit/credit side, and no accounting role. The
+entrance also does not impose a nonnegative-source rule because LOAM has not yet
+earned a universal backing or overdraft policy.
+-/
+def transferJpy (memoryPath : String) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk memoryPath
+  match ← loadEventMemoryForEntry? memoryFile with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some memory =>
+      let sourceToken ← promptLine "Move from? "
+      if Loam.Persistence.validToken sourceToken then
+        let destinationToken ← promptLine "Move to? "
+        if Loam.Persistence.validToken destinationToken then
+          if sourceToken = destinationToken then
+            IO.eprintln "loam: transfer source and destination must differ"
+            return 2
+          else
+            let amountText ← promptLine "Amount? "
+            match amountText.toInt? with
+            | none =>
+                IO.eprintln "loam: amount must be a positive integer"
+                return 2
+            | some amount =>
+                if amount > 0 then
+                  match freshRecordEventId? memory with
+                  | none =>
+                      IO.eprintln "loam: could not generate a fresh event identity"
+                      return 2
+                  | some eventId =>
+                      let sourceEffect :=
+                        Loam.Core.Effect.ofQuantity
+                          ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
+                          (Loam.Core.Quantity.ofQuanta (-amount))
+                      let destinationEffect :=
+                        Loam.Core.Effect.ofQuantity
+                          ⟨"effect-2"⟩ ⟨destinationToken⟩ ⟨"jpy"⟩
+                          (Loam.Core.Quantity.ofQuanta amount)
+                      match Loam.Core.Event.ofEffects?
+                          eventId [sourceEffect, destinationEffect] with
+                      | none =>
+                          IO.eprintln "loam: could not admit generated event"
+                          return 2
+                      | some event =>
+                          match Loam.Core.EventMemory.add? memory event with
+                          | none =>
+                              IO.eprintln "loam: generated event identity already remembered"
+                              return 2
+                          | some updated =>
+                              if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                                IO.println
+                                  ("Recorded: moved " ++ toString amount ++ " jpy from " ++
+                                    sourceToken ++ " to " ++ destinationToken ++ ".")
+                                return 0
+                              else
+                                IO.eprintln "loam: recorded event contains an unrepresentable identity token"
+                                return 2
+                else
+                  IO.eprintln "loam: amount must be a positive integer"
+                  return 2
+        else
+          IO.eprintln "loam: transfer destination must be a nonempty single-line token"
+          return 2
+      else
+        IO.eprintln "loam: transfer source must be a nonempty single-line token"
+        return 2
+
 private def withMemoryOwnership
     (memoryPath : String)
     (action : IO UInt32) : IO UInt32 :=
@@ -438,6 +577,10 @@ def run (args : List String) : IO UInt32 :=
       return 0
   | ["spend", memoryPath] =>
       withMemoryOwnership memoryPath (spendJpy memoryPath)
+  | ["income", memoryPath] =>
+      withMemoryOwnership memoryPath (incomeJpy memoryPath)
+  | ["transfer", memoryPath] =>
+      withMemoryOwnership memoryPath (transferJpy memoryPath)
   | ["review", memoryPath] => reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
