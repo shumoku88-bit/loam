@@ -2,7 +2,7 @@
 
 ## Question
 
-Application 008 established a production starting quantity basis:
+Application 008 established the production starting quantity basis:
 
 ```text
 current coordinate quantity
@@ -10,9 +10,9 @@ current coordinate quantity
   + correction-aware Event quantity
 ```
 
-The basis means that quantity was already present when the selected application image began. It is deliberately not an Event.
+The basis means quantity was already present when the selected application image began. It is deliberately not an Event.
 
-Observations 087–089 then established a different way a coordinate may become relevant to anchored-current after the application has already begun:
+Observations 087–089 established another way a coordinate may become relevant to anchored-current after that application image has begun:
 
 ```text
 this coordinate is exactly zero immediately before Event E
@@ -21,24 +21,18 @@ and Event E is its first activity
 
 Restart-safe retention additionally needs the stable identity of `E`.
 
-Both constructions look like an origin for later current-quantity arithmetic. The question is therefore:
+Both constructions can play an algebraic origin role. Observation 090 asks whether that shared arithmetic shape means their evidence can be collapsed.
 
-> Do they have one common origin meaning, or does a common arithmetic shape still require distinct origin evidence?
+## Existing meanings retained
 
-This observation deliberately does not rename or generalize production `QuantityBasis`.
-
-## Existing production meaning
-
-`QuantityBasis` currently means:
+Production `QuantityBasis` means:
 
 ```text
 one exact quantity already present at one Locus × Measure coordinate
 when the selected application image begins
 ```
 
-Production current quantity then adds the selected basis to the effective Event contribution at that coordinate.
-
-First-event admission differs in its premise:
+First-event admission instead carries:
 
 ```text
 origin quantity = exact zero
@@ -46,19 +40,17 @@ origin boundary = immediately before one stable Event identity
 that Event = first activity at the coordinate
 ```
 
-So both can participate in the abstract arithmetic sentence:
+Both may participate in the abstract sentence:
 
 ```text
 current = origin quantity + activity after that origin
 ```
 
-but that sentence alone may erase why the origin is valid and where its boundary is.
+but that sentence alone does not say where the origin boundary is or why it is valid.
 
 ## Alloy probe
 
-The model retains only the structural distinction needed for this question.
-
-An experiment-local `OriginEvidence` has:
+The experiment-local `OriginEvidence` contains:
 
 ```text
 Coordinate
@@ -79,9 +71,9 @@ BeforeFirstEvent
   one stable origin Event
 ```
 
-A first-event origin Event must be among the retained Events of that World.
+A first-event origin Event must be retained in the corresponding World.
 
-The model then deliberately erases the boundary field and Event reference and compares only:
+The negative probe then erases boundary and Event-reference evidence and compares only:
 
 ```text
 same Coordinate
@@ -89,17 +81,20 @@ same origin quantity
 same retained Event snapshot
 ```
 
-## Boundary witness
+## Observed Alloy 6.2.0 + Sat4j result
 
-The smallest witness asks whether two Worlds can have exactly the same erased origin inputs while one means application-start and the other means first-event origin.
-
-Expected result:
+The receipt was:
 
 ```text
-sameZeroAnchorShapeDifferentBoundary    SAT
+sameZeroAnchorShapeDifferentBoundary             SAT
+ErasedOriginDeterminesBoundary                   SAT counterexample
+ZeroQuantityDeterminesFirstEventBoundary         SAT counterexample
+FirstEventOriginIsExactZero                      UNSAT counterexample
+ApplicationStartOriginHasNoEvent                 UNSAT counterexample
+FirstEventOriginReferencesRetainedEvent          UNSAT counterexample
 ```
 
-Both Worlds have:
+The first witness is the key one. Two Worlds can have:
 
 ```text
 same coordinate
@@ -107,7 +102,7 @@ origin quantity = zero
 same retained Event set
 ```
 
-but one keeps:
+while one keeps:
 
 ```text
 boundary = ApplicationStart
@@ -121,59 +116,48 @@ boundary = BeforeFirstEvent
 originEvent = E
 ```
 
-If this is SAT, a generic origin representation containing only coordinate plus quantity would lose provenance even when the arithmetic input is identical.
+So a representation that retains only coordinate plus origin quantity loses provenance even when the numeric input to later arithmetic is identical.
 
-The corresponding deliberately false universal assertion is:
+## Zero does not identify the boundary
 
-```text
-ErasedOriginDeterminesBoundary
-```
-
-Expected result:
-
-```text
-SAT counterexample
-```
-
-## Zero is not enough to identify first-event admission
-
-An explicit zero application-start basis is already meaningful in production. Therefore zero quantity by itself must not imply that the coordinate was born at a later Event.
-
-The deliberately false assertion is:
+The counterexample to:
 
 ```text
 ZeroQuantityDeterminesFirstEventBoundary
 ```
 
-Expected result:
+is directly relevant to the dogfood pressure that produced an explicit zero basis for a use locus.
 
 ```text
-SAT counterexample
+origin quantity = 0
 ```
 
-This is directly relevant to the dogfood pressure that produced `coffee = 0`: the numeric zero alone cannot tell us whether it is a truthful application-start basis or a first-event birth claim.
-
-## Positive shape checks
-
-The candidate distinction also checks:
+is compatible with an application-start basis. It does not by itself mean:
 
 ```text
-FirstEventOriginIsExactZero
-ApplicationStartOriginHasNoEvent
-FirstEventOriginReferencesRetainedEvent
+this coordinate was born immediately before Event E
 ```
 
-Expected result for each:
+Therefore a zero `QuantityBasis` cannot safely stand in for first-event admission merely because both begin current arithmetic from numeric zero.
+
+## Positive boundary checks
+
+The positive checks confirm the premises already earned by the earlier work:
 
 ```text
-UNSAT counterexample
+BeforeFirstEvent
+  -> exact-zero origin quantity
+  -> retained stable origin Event
+
+ApplicationStart
+  -> no origin Event
 ```
 
-These checks do not make either origin form a production type. They only preserve the premises already earned by Application 008 and Observations 087–089.
+No counterexample exists in the bounded model for those constraints.
 
-## Candidate interpretation
+## Finding
 
-If the expected results hold, the qualified boundary is:
+The qualified boundary is:
 
 ```text
 application-start basis
@@ -200,31 +184,39 @@ separate typed fact families
 
 or
 
-one explicit sum-shaped origin evidence family
+one explicit sum-shaped evidence family
     -> ApplicationStart | BeforeFirstEvent(EventId)
 ```
 
-This observation does not choose between them.
+Observation 090 does not choose between them.
 
 ## Important boundary
 
-A general `Origin`, `Anchor`, or `Account` abstraction is not earned merely because both forms share arithmetic.
+A general production `Origin` or `Anchor` abstraction is not earned merely because the two forms share arithmetic.
 
-The production `QuantityBasis` meaning should not be weakened from:
+The production `QuantityBasis` meaning should remain:
 
 ```text
 quantity already present at application-image start
 ```
 
-into a generic origin bag unless a later application requires that change.
+unless a later application earns a broader representation.
 
-Likewise first-event admission must not be simulated by inserting a zero `QuantityBasis`, because doing so would discard the stable Event boundary that Observation 089 showed restart-safe meaning may require.
+Likewise first-event admission must not be simulated by inserting a zero `QuantityBasis`, because doing so erases the stable Event boundary that Observation 089 showed restart-safe meaning may require.
+
+## Next pressure
+
+The remaining practical question is no longer whether the two origins are numerically similar. It is:
+
+> What is the smallest production boundary that lets existing `QuantityBasis` and a later first-event admission family feed one current projection without weakening either fact's meaning?
+
+That may be an application-level adapter rather than a new Core abstraction.
 
 ## Non-goals
 
 Observation 090 does not earn:
 
-- a production `Origin` type;
+- a production `Origin` or `Anchor` type;
 - a production admission fact;
 - a rename or generalization of `QuantityBasis`;
 - one combined persistence stream;
