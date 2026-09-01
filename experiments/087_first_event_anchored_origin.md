@@ -83,12 +83,16 @@ The candidate specification checks:
 - a first-event origin contributes exact zero, so current equals activity accumulated since that origin;
 - whenever a first-event origin is introduced, the coordinate was unseen with zero prior activity and the same transition records its first activity.
 
-Expected positive result:
+Observed with TLA+ tools 1.7.4 / TLC 2.19:
 
 ```text
+171 states generated
+75 distinct states
 complete finite state graph
 no error
 ```
+
+The bounded activity counter is deliberately finite. TLC deadlock checking is disabled for these runs because terminal states are expected exploration endpoints rather than protocol deadlocks.
 
 ## Reachability witness
 
@@ -98,13 +102,30 @@ A deliberately false invariant asks whether a first-event origin can never appea
 NoFirstEventOriginEverAppears
 ```
 
-Expected result:
+Observed:
 
 ```text
 counterexample
 ```
 
-The witness demonstrates that a coordinate can really move from unseen to anchored with a zero origin and first activity in one transition. This is the precise bounded form of "the new coordinate begins when first used."
+The witness reaches this transition directly from the initial state:
+
+```text
+AdmitAnchoredAtFirstEvent(a)
+
+before:
+  a unseen
+  activity[a] = 0
+  origin = none
+
+after:
+  a seen
+  activity[a] = 1
+  a enrolled
+  origin = firstEvent
+```
+
+So a coordinate can really move from unseen to anchored with a zero origin and first activity in one transition. This is the bounded temporal form of "the new coordinate begins when first used."
 
 ## Why first appearance alone is still insufficient
 
@@ -116,13 +137,24 @@ A second deliberately false invariant asks whether every first appearance is aut
 AutoEnrollAllFirstAppearancesMatchesSelection
 ```
 
-Expected result:
+Observed:
 
 ```text
 counterexample
 ```
 
-This protects the pressure exposed by the real use-shaped coordinate: first appearance is allowed to remain activity-only for the selected question.
+The witness reaches:
+
+```text
+ObserveOnly(a)
+
+seen     = {a, base}
+enrolled = {base}
+activity[a] = 1
+origin[a]   = none
+```
+
+So first appearance may remain activity-only for the selected question.
 
 ## Same physical first appearance, different enrollment
 
@@ -138,14 +170,27 @@ no application-origin basis
 
 while one first-appearance operation enrolls the coordinate and another does not.
 
-Expected boundary:
+Observed:
 
 ```text
 PhysicalFirstAppearanceDeterminesEnrollment
     counterexample
 ```
 
-So:
+The witness is especially direct:
+
+```text
+ObserveOnly(a)
+AdmitAnchoredAtFirstEvent(b)
+
+activity[a] = 1
+activity[b] = 1
+
+a not enrolled
+b enrolled with firstEvent origin
+```
+
+Therefore the qualified boundary is:
 
 ```text
 first appearance
@@ -157,9 +202,9 @@ first appearance
 
 The missing distinction belongs to the operation/query vocabulary, not to the neutral Event quantity shape alone.
 
-## Interpretation if qualified
+## Finding
 
-If all expected results hold, the candidate boundary is:
+Observation 087 qualifies the temporal candidate:
 
 ```text
 application-origin basis
@@ -171,7 +216,7 @@ first-event origin
 
 but only when a concrete operation simultaneously admits that coordinate to the anchored-current question.
 
-This would make the following practical future plausible without yet implementing it:
+This makes the following practical future plausible without yet implementing it:
 
 ```text
 new coordinate first used by an anchoring operation
@@ -180,18 +225,25 @@ new coordinate first used by an anchoring operation
   -> current begins from that Event
 ```
 
-It would *not* justify:
+It does **not** justify:
 
 ```text
 any new Locus appearing in any Event
   -> automatically current-like
 ```
 
-That universal rule remains too strong.
+That universal rule is refuted by the observe-only witness.
+
+In short:
+
+```text
+first use may determine when a coordinate is born for current
+concrete operation semantics must still determine whether it is born for current
+```
 
 ## Open pressure
 
-Even if this temporal candidate qualifies, production still needs to earn what concrete operation is allowed to admit a coordinate.
+Production still needs to earn what concrete operation is allowed to admit a coordinate.
 
 Possible later sources include:
 
