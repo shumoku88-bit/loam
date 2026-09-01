@@ -7,6 +7,7 @@ on:
       - 'Loam/Core/**'
       - 'Loam/Observation078.lean'
       - 'tools/loam'
+      - 'tools/private-quantity-parity'
       - 'lakefile.lean'
       - '.github/workflows/stateless-shadow-quantity.yml'
   push:
@@ -18,6 +19,7 @@ on:
       - 'Loam/Core/**'
       - 'Loam/Observation078.lean'
       - 'tools/loam'
+      - 'tools/private-quantity-parity'
       - 'lakefile.lean'
       - '.github/workflows/stateless-shadow-quantity.yml'
   workflow_dispatch:
@@ -83,6 +85,69 @@ jobs:
           grep -Fq 'locus:stock: 10 unit' <<<"$output"
 
           rm -f "$fixture"
+
+      - name: Qualify private parity row entrance and sanitizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -t loam-private-parity.XXXXXX.journal)"
+          adapter="$(mktemp -t loam-native-adapter.XXXXXX)"
+          mismatch_adapter="$(mktemp -t loam-native-mismatch.XXXXXX)"
+          trap 'rm -f "$fixture" "$adapter" "$mismatch_adapter"' EXIT
+
+          cat >"$fixture" <<'EOF'
+          2099-01-01 synthetic opening
+            locus:wallet 100 unit
+            locus:origin -100 unit
+          2099-01-02 synthetic split
+            locus:wallet -30 unit
+            locus:food 20 unit
+            locus:stock 10 unit
+          EOF
+
+          rows="$(./tools/loam shadow-quantity --parity-rows "$fixture")"
+          grep -Fq $'locus:wallet\tunit\t70' <<<"$rows"
+          grep -Fq $'locus:origin\tunit\t-100' <<<"$rows"
+          grep -Fq $'locus:food\tunit\t20' <<<"$rows"
+          grep -Fq $'locus:stock\tunit\t10' <<<"$rows"
+
+          cat >"$adapter" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          test -f "$1"
+          printf '%s\n' \
+            $'locus:stock\tunit\t10' \
+            $'locus:food\tunit\t20' \
+            $'locus:origin\tunit\t-100' \
+            $'locus:wallet\tunit\t70'
+          EOF
+          chmod +x "$adapter"
+
+          output="$(./tools/private-quantity-parity "$fixture" "$adapter")"
+          grep -Fq 'LOAM private quantity parity: PASS' <<<"$output"
+          grep -Fq 'non-zero coordinates: 4' <<<"$output"
+          grep -Fq 'source unchanged: yes' <<<"$output"
+          grep -Fq 'private coordinate/value output: withheld' <<<"$output"
+          ! grep -Fq 'locus:wallet' <<<"$output"
+
+          cat >"$mismatch_adapter" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          test -f "$1"
+          printf '%s\n' $'private-secret-locus\tunit\t999999'
+          EOF
+          chmod +x "$mismatch_adapter"
+
+          set +e
+          mismatch="$(./tools/private-quantity-parity "$fixture" "$mismatch_adapter" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 1
+          grep -Fq 'LOAM private quantity parity: MISMATCH' <<<"$mismatch"
+          grep -Fq 'private coordinate/value diff: withheld' <<<"$mismatch"
+          ! grep -Fq 'private-secret-locus' <<<"$mismatch"
+          ! grep -Fq '999999' <<<"$mismatch"
 
       - name: Fail closed on unsupported source lines
         shell: bash
