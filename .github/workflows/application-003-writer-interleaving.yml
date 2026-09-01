@@ -1,0 +1,83 @@
+name: Application 003 Writer Interleaving
+
+on:
+  push:
+    paths:
+      - 'experiments/application_003_writer_interleaving.tla'
+      - 'experiments/application_003_writer_*.cfg'
+      - 'experiments/application_003_writer_interleaving.md'
+      - '.github/workflows/application-003-writer-interleaving.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_003_writer_interleaving.tla'
+      - 'experiments/application_003_writer_*.cfg'
+      - 'experiments/application_003_writer_interleaving.md'
+      - '.github/workflows/application-003-writer-interleaving.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-003-writer-interleaving-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tlc:
+    name: Check writer interleavings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch pinned TLA+ tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          curl -fsSL \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar \
+            -o /tmp/tla2tools.jar
+          echo 'bee4a54f3ee3d4afc347c3240ec2d9e93b075104  /tmp/tla2tools.jar' | sha1sum -c -
+
+      - name: Confirm naive check-then-replace loses an admitted update
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd experiments
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config application_003_writer_naive.cfg \
+              application_003_writer_interleaving.tla
+          ) > /tmp/naive.out 2>&1
+          status=$?
+          set -e
+
+          cat /tmp/naive.out
+          if [ "$status" -eq 0 ]; then
+            echo 'expected the naive writer protocol to violate NoCompletedUpdateLost' >&2
+            exit 1
+          fi
+          grep -Fq 'NoCompletedUpdateLost' /tmp/naive.out
+          grep -Fq 'is violated' /tmp/naive.out
+
+      - name: Check revision-aware compare-and-swap protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_003_writer_cas.cfg \
+            application_003_writer_interleaving.tla
+
+      - name: Check exclusive lock protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_003_writer_lock.cfg \
+            application_003_writer_interleaving.tla
