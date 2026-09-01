@@ -1,0 +1,47 @@
+name: Application 009 Append Only Basis Revision
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_009_append_only_basis_revision.lean'
+      - 'experiments/application_009_append_only_basis_revision.md'
+      - '.github/workflows/application-009-append-only-basis-revision.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'experiments/application_009_append_only_basis_revision.lean'
+      - 'experiments/application_009_append_only_basis_revision.md'
+      - '.github/workflows/application-009-append-only-basis-revision.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-009-append-only-basis-revision-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check append-only basis revision probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Lean probe
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+          run: lake env lean experiments/application_009_append_only_basis_revision.lean
