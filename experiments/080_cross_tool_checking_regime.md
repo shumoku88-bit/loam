@@ -4,9 +4,9 @@
 
 Observation 079 showed that bare status tokens such as `SAT`, `UNSAT`, and workflow `SUCCESS` do not determine what was learned. It also showed, inside Alloy alone, that command mode is part of result interpretation.
 
-LOAM already contains a stronger historical pressure across two different formal regimes.
+LOAM already contains a stronger historical pressure across different formal regimes.
 
-Observation 042 asked a bounded Alloy model about the generic whole-frontier settlement law. Observation 043 then lifted that law into Lean without a finite node bound.
+Observation 042 asked a bounded Alloy model about generic whole-frontier settlement and ancestry laws. Observation 043 lifted the settlement equivalence into Lean without a finite node bound. Observation 044 then found an infinite Lean counterexample to an ancestry generalization that had no counterexample in Observation 042's finite Alloy scope.
 
 This observation asks:
 
@@ -16,16 +16,17 @@ This observation asks:
 
 No new household or revision semantics are introduced here.
 
-The experiment reuses two retained artifacts that already exist on `main`:
+The experiment reuses three retained artifacts that already exist on `main`:
 
 ```text
 model/042_generic_revision_graph.als
 Loam/Observation043.lean
+Loam/Observation044.lean
 ```
 
-They are useful precisely because LOAM already used them as two stages of one inquiry.
+They are useful precisely because LOAM already used them as successive stages of one inquiry.
 
-## The paired law
+## Case A — bounded support that later becomes an unbounded theorem
 
 Observation 042 checks both directions of the bounded settlement equivalence:
 
@@ -39,7 +40,7 @@ whole prior frontier parented
 sole later frontier
 ```
 
-Alloy checks those assertions up to its declared finite scope.
+Alloy found no counterexample for either assertion in the declared finite scope, up to 6 `Revision` atoms and 4 `View` atoms.
 
 Observation 043 states the corresponding equivalence as:
 
@@ -51,78 +52,140 @@ ConsumesWholeFrontier parent known newNode
 
 for an arbitrary `Node` type, under explicit premises including freshness, parent closure, parent selection from the prior frontier, and decidability of the new-node parent relation.
 
-## Two receipts that must not collapse
-
-The same law family therefore has two materially different formal receipts.
-
-### Alloy receipt
+The two receipts are materially different:
 
 ```text
-regime:      bounded counterexample search
-commands:    assertion checks
-raw result:  UNSAT counterexample
-scope:       up to 6 Revision / 4 View
-meaning:     no counterexample found in that bounded scope
+Alloy:
+  bounded assertion check + UNSAT counterexample
+  -> no counterexample found in the declared finite scope
+
+Lean:
+  accepted theorem source
+  -> theorem checked without a finite Node bound under explicit premises
 ```
 
-This is not an unbounded proof.
+Observation 043 did not merely rename the Alloy result. It strengthened the epistemic status by establishing a theorem under an explicit theorem contract.
 
-### Lean receipt
+## Case B — bounded support that fails to generalize
+
+Observation 042 also checked:
 
 ```text
-regime:      theorem elaboration / kernel checking
-raw result:  accepted theorem
-scope:       no finite Node bound
-premises:    explicit theorem hypotheses, including parent decidability
-meaning:     theorem established under those premises
+WholeSettlementPreservesPriorKnownAncestry
 ```
 
-This is not merely another spelling of Alloy `UNSAT`.
+under acyclicity and the one-revision-step conditions.
 
-## Experiment
+The bounded Alloy result was:
 
-Observation 080 runs both retained artifacts again in one dedicated workflow.
+```text
+UNSAT counterexample
+```
 
-The workflow must:
+within the declared finite scope.
 
-1. execute the Observation 042 Alloy model with Alloy 6.2.0 + Sat4j;
-2. require the generic witness to remain SAT;
-3. require both settlement-direction assertions to remain UNSAT for counterexamples in their declared bounded scope;
-4. compile `Loam/Observation043.lean` with the repository Lean toolchain;
-5. report one workflow `SUCCESS` only when both distinct formal receipts match those expectations.
+If that result token were retained without its regime and scope, it would be easy to misread it as support for an unrestricted law.
 
-The workflow intentionally does not translate either result into a generic `Proof`, `Evidence`, or `CheckReceipt` object.
+Observation 044 demonstrates why that compression is unsafe. Lean constructs an infinite old chain and proves:
 
-## Expected boundary
+```text
+acyclicityAloneDoesNotPreserveAncestry
+```
 
-If both tools succeed, then the following compression is unsafe for future interpretation:
+The counterexample is acyclic, parent-closed, uses a fresh settlement node, consumes the whole prior frontier vacuously, and still fails to preserve all prior-known nodes in the new tip's ancestry.
+
+Observation 044 then identifies the missing unbounded condition as `FrontierCovered`, proving:
+
+```text
+AllPriorKnownInAncestry
+    <->
+FrontierCovered
+```
+
+under exact whole-frontier settlement and the stated parent condition.
+
+So the stronger historical witness is:
+
+```text
+bounded Alloy: no counterexample found
+        !=
+unbounded claim established
+```
+
+and, in this concrete LOAM history, the attempted generalization is actually false.
+
+## Executed experiment
+
+Observation 080 runs the retained artifacts together in one dedicated workflow.
+
+The first exact-head execution required:
+
+```text
+genericForkPartialAndSettlement                 SAT
+SoleFrontierRequiresWholePriorFrontier          UNSAT counterexample
+WholePriorFrontierIsEnoughToSettle              UNSAT counterexample
+WholeSettlementPreservesPriorKnownAncestry      UNSAT counterexample
+```
+
+and then successfully:
+
+```text
+lake build
+leanchecker
+axiom-audit
+lake env lean Loam/Observation043.lean
+```
+
+The workflow was then tightened to re-check `Loam/Observation044.lean` explicitly as well.
+
+No new translation layer is inserted between Alloy and Lean. The workflow deliberately keeps their interpretations separate.
+
+## Result
+
+Observation 080 earns another negative boundary:
+
+> A formal result cannot safely shed its checking regime, bounded scope, or theorem premises merely because the claim family and workflow status are retained.
+
+Observation 079 established:
+
+```text
+raw result
+    !=
+semantic interpretation
+```
+
+Observation 080 extends that pressure across tools:
 
 ```text
 claim family + SUCCESS
+    !=
+what was established
 ```
 
-because it loses at least:
+The concrete reason is not only that Alloy and Lean use different result words. Their checking contracts answer different epistemic questions.
+
+For the settlement equivalence, bounded counterexample search and theorem checking agree directionally but establish different strengths.
+
+For ancestry preservation, the finite Alloy scope hides an infinite counterexample that Lean can state and verify directly.
+
+Therefore a future human/AI work surface that needs to revisit formal results must retain enough context to distinguish at least the relevant checking regime and the conditions under which its result should be interpreted.
+
+## What this does not earn
+
+This result does **not** yet earn a universal schema such as:
 
 ```text
-checking regime
-bounded scope or theorem premises
-formal interpretation of the raw result
+CheckReceipt
+Tool
+CheckingRegime
+Proof
+Evidence
+SemanticOS.Check
 ```
 
-The result should therefore extend Observation 079 from command-mode context to cross-tool regime context without yet designing a common cross-tool schema.
+It also does not establish one universal minimal set of receipt fields. Observation 079 already showed that retained information should be relative to the later question being asked.
 
-## Non-goals
-
-This observation does not claim:
-
-- that Alloy and Lean statements are definitionally identical;
-- that one tool is stronger or more trustworthy in every use;
-- that every Alloy result should later be proved in Lean;
-- that `Tool` or `CheckingRegime` deserves a Practical Core type;
-- that a universal semantic-OS `CHECK` primitive has been earned;
-- that workflow `SUCCESS` is useless operationally.
-
-The question is only whether later semantic interpretation survives after the regime-specific context is projected away.
+The current result only rules out a lossy compression that would identify bounded Alloy success, Lean theorem acceptance, and workflow success as one context-free semantic fact.
 
 ## Practical Core impact
 
@@ -135,3 +198,9 @@ None.
 - no revision-model change;
 - no theorem change;
 - no generic proof-object change.
+
+## Next pressure
+
+Do not build a cross-tool checking framework yet.
+
+The next useful question should come from another concrete place where a human or AI needs to *reuse* a retained formal result. Only then ask which coordinates must survive for that later use.
