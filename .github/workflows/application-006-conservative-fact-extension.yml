@@ -1,0 +1,20 @@
+name: Application 006 Conservative Fact Extension
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_006_conservative_fact_extension.lean'
+      - 'experiments/application_006_conservative_fact_extension.md'
+      - '.github/workflows/application-006-conservative-fact-extension.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Check conservative extension probe
+        run: lake env lean experiments/application_006_conservative_fact_extension.lean
