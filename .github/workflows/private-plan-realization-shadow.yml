@@ -1,0 +1,146 @@
+name: Private Plan Realization Shadow
+
+on:
+  pull_request:
+    paths:
+      - 'tools/private-plan-realization-shadow'
+      - '.github/workflows/private-plan-realization-shadow.yml'
+  push:
+    branches:
+      - 'tool/private-plan-realization-shadow'
+      - main
+    paths:
+      - 'tools/private-plan-realization-shadow'
+      - '.github/workflows/private-plan-realization-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    name: Sanitize explicit Plan realization shape
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Exercise one-to-one, repeated, missing, and unplanned shapes
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-plan-actual.XXXXXX.journal)"
+          plan="$(mktemp -t loam-plan-plan.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          include private-secret-accounts.journal
+
+          2099-01-01 private-secret-plan-alpha
+              ; plan-id: private-plan-alpha
+              private-secret-locus 10 unit
+              private-secret-origin -10 unit
+
+          2099-01-02 private-secret-plan-beta
+              ; plan-id: private-plan-beta
+              private-secret-locus 20 unit
+              private-secret-origin -20 unit
+
+          2099-01-03 private-secret-plan-gamma
+              ; plan-id: private-plan-gamma
+              private-secret-locus 30 unit
+              private-secret-origin -30 unit
+          EOF
+
+          cat >"$actual" <<'EOF'
+          include private-secret-accounts.journal
+
+          2099-01-04 private-secret-actual-alpha
+              ; plan-id: private-plan-alpha
+              private-secret-locus 11 unit
+              private-secret-origin -11 unit
+
+          2099-01-05 private-secret-actual-beta-first
+              ; plan-id: private-plan-beta
+              private-secret-locus 7 unit
+              private-secret-origin -7 unit
+
+          2099-01-06 private-secret-actual-beta-second
+              ; plan-id: private-plan-beta
+              private-secret-locus 13 unit
+              private-secret-origin -13 unit
+
+          2099-01-07 private-secret-actual-dangling
+              ; plan-id: private-plan-missing
+              private-secret-locus 40 unit
+              private-secret-origin -40 unit
+
+          2099-01-08 private-secret-unplanned
+              private-secret-locus 50 unit
+              private-secret-origin -50 unit
+          EOF
+
+          actual_before="$(sha256sum "$actual" | cut -d' ' -f1)"
+          plan_before="$(sha256sum "$plan" | cut -d' ' -f1)"
+          output="$(./tools/private-plan-realization-shadow "$actual" "$plan")"
+          actual_after="$(sha256sum "$actual" | cut -d' ' -f1)"
+          plan_after="$(sha256sum "$plan" | cut -d' ' -f1)"
+
+          test "$actual_before" = "$actual_after"
+          test "$plan_before" = "$plan_after"
+
+          grep -Fq 'LOAM private plan realization shadow' <<<"$output"
+          grep -Fq 'plan records observed: 3' <<<"$output"
+          grep -Fq 'plan records with explicit plan-id: 3' <<<"$output"
+          grep -Fq 'actual records observed: 5' <<<"$output"
+          grep -Fq 'actual records with explicit plan reference: 4' <<<"$output"
+          grep -Fq 'actual plan references resolving to plan source: 3' <<<"$output"
+          grep -Fq 'actual plan references missing from plan source: 1' <<<"$output"
+          grep -Fq 'plans with no explicit actual reference: 1' <<<"$output"
+          grep -Fq 'plans with exactly one explicit actual reference: 1' <<<"$output"
+          grep -Fq 'plans with multiple explicit actual references: 1' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq '50 unit' <<<"$output"
+
+      - name: Fail closed on duplicate Plan identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(mktemp -t loam-plan-actual-invalid.XXXXXX.journal)"
+          plan="$(mktemp -t loam-plan-plan-invalid.XXXXXX.journal)"
+          trap 'rm -f "$actual" "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          2099-01-01 private-secret-first
+              ; plan-id: private-duplicate-id
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-01-02 private-secret-second
+              ; plan-id: private-duplicate-id
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+
+          cat >"$actual" <<'EOF'
+          2099-01-03 private-secret-actual
+              ; plan-id: private-duplicate-id
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+
+          set +e
+          output="$(./tools/private-plan-realization-shadow "$actual" "$plan" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -Fq 'LOAM private plan realization shadow: REFUSED' <<<"$output"
+          grep -Fq 'reason: plan-id is not unique in plan source' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'private parser stderr: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+          ! grep -Fq 'private-duplicate-id' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
