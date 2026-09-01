@@ -1,4 +1,6 @@
 import Loam.Application.CurrentQuantity
+import Loam.QuantityBasisCorrectionCli
+import Loam.QuantityBasisCorrectionPersistence
 import Loam.QuantityBasisPersistence
 import Loam.WriterOwnership
 import Std
@@ -13,8 +15,10 @@ private def usage : String :=
   "LOAM daily quantity\n\n" ++
   "Set one JPY starting quantity:\n" ++
   "  ./tools/loam starting-quantity <basis-file>\n\n" ++
+  "Correct one starting quantity append-only:\n" ++
+  "  ./tools/loam correct-starting-quantity <basis-file> <basis-correction-file>\n\n" ++
   "Show anchored current quantities:\n" ++
-  "  ./tools/loam current <event-memory> <correction-memory> <basis-file>"
+  "  ./tools/loam current <event-memory> <event-correction-memory> <basis-file> [basis-correction-file]"
 
 private def promptLine (prompt : String) : IO String := do
   IO.print prompt
@@ -65,7 +69,7 @@ private def recordStartingJpyUnlocked (basisPath : String) : IO UInt32 := do
             let coordinate : EffectCoordinate := ⟨⟨locusToken⟩, ⟨"jpy"⟩⟩
             if coordinateAlreadyPresent memory coordinate then
               IO.eprintln
-                "loam: a starting quantity is already represented for this locus; basis revision is not available yet"
+                "loam: a starting quantity is already represented for this locus; use correct-starting-quantity"
               return 1
             else
               match freshBasisId? memory with
@@ -106,7 +110,7 @@ private def loadEventMemoryForView?
   else
     return EventMemory.ofEvents? []
 
-private def loadCorrectionMemoryForView?
+private def loadEventCorrectionMemoryForView?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
   if ← path.pathExists then
     Loam.Persistence.loadEventCorrectionMemory? path
@@ -119,6 +123,17 @@ private def loadBasisMemoryForView?
     Loam.Persistence.loadQuantityBasisMemory? path
   else
     return QuantityBasisMemory.ofBases? []
+
+private def loadBasisCorrectionMemoryForView?
+    (path? : Option String) : IO (Option QuantityBasisCorrectionMemory) := do
+  match path? with
+  | none => return QuantityBasisCorrectionMemory.ofCorrections? []
+  | some pathText =>
+      let path := System.FilePath.mk pathText
+      if ← path.pathExists then
+        Loam.Persistence.loadQuantityBasisCorrectionMemory? path
+      else
+        return QuantityBasisCorrectionMemory.ofCorrections? []
 
 private def addCoordinateIfAbsent
     (coordinates : List EffectCoordinate)
@@ -147,21 +162,22 @@ private def quantityLine (coordinate : EffectCoordinate) (quantity : Quantity) :
 private inductive CollectionResult where
   | lines (value : List String)
   | basisMissing (coordinate : EffectCoordinate)
-  | basisAmbiguous (coordinate : EffectCoordinate)
+  | basisFrontierRequired
   | missingEventCorrectionEndpoint
   | eventFrontierRequired
 
 private def collectCurrentLines
     (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (bases : QuantityBasisMemory) :
+    (eventCorrections : EventCorrectionMemory)
+    (bases : QuantityBasisMemory)
+    (basisCorrections : QuantityBasisCorrectionMemory) :
     List EffectCoordinate → CollectionResult
   | [] => .lines []
   | coordinate :: rest =>
-      match Loam.Application.inspectCurrentQuantity
-          events corrections bases coordinate.locus coordinate.measure with
+      match Loam.Application.inspectCurrentQuantityWithBasisCorrections
+          events eventCorrections bases basisCorrections coordinate.locus coordinate.measure with
       | .current quantity =>
-          match collectCurrentLines events corrections bases rest with
+          match collectCurrentLines events eventCorrections bases basisCorrections rest with
           | .lines later =>
               if quantity.quanta = 0 then
                 .lines later
@@ -169,69 +185,80 @@ private def collectCurrentLines
                 .lines (quantityLine coordinate quantity :: later)
           | other => other
       | .basisMissing => .basisMissing coordinate
-      | .basisAmbiguous => .basisAmbiguous coordinate
+      | .basisFrontierRequired => .basisFrontierRequired
       | .missingEventCorrectionEndpoint => .missingEventCorrectionEndpoint
       | .eventFrontierRequired => .eventFrontierRequired
 
 /--
-Show quantities anchored by an explicit starting basis and adjusted by the
-existing correction-aware Event projection. No row is printed until the whole
-view is admitted, so ambiguity cannot produce a partial current view.
+Show quantities anchored by an admitted starting-basis frontier and adjusted by
+the existing correction-aware Event projection. No row is printed until the
+whole view is admitted, so a broken relation cannot produce a partial current
+view.
 -/
 def showCurrentQuantities
-    (memoryPath correctionPath basisPath : String) : IO UInt32 := do
+    (memoryPath eventCorrectionPath basisPath : String)
+    (basisCorrectionPath? : Option String := none) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
-  let correctionFile := System.FilePath.mk correctionPath
+  let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
   let basisFile := System.FilePath.mk basisPath
   match ← loadEventMemoryForView? memoryFile with
   | none =>
       IO.eprintln "loam: malformed or unsupported event-memory file"
       return 2
   | some events =>
-      match ← loadCorrectionMemoryForView? correctionFile with
+      match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
           return 2
-      | some corrections =>
+      | some eventCorrections =>
           match ← loadBasisMemoryForView? basisFile with
           | none =>
               IO.eprintln "loam: malformed or unsupported quantity-basis file"
               return 2
           | some bases =>
-              let coordinates := eventCoordinates events (basisCoordinates bases)
-              match collectCurrentLines events corrections bases coordinates with
-              | .lines lines =>
-                  if coordinates.isEmpty then
-                    IO.println "No anchored current quantities."
-                  else
-                    IO.println
-                      "Current quantities (explicit starting basis + effective recorded changes; zero coordinates omitted):"
-                    for line in lines do IO.println line
-                  return 0
-              | .basisMissing coordinate =>
-                  IO.eprintln
-                    ("loam: current quantity unavailable: starting quantity missing for " ++
-                      coordinate.locus.token ++ " / " ++ coordinate.measure.token)
-                  return 1
-              | .basisAmbiguous coordinate =>
-                  IO.eprintln
-                    ("loam: current quantity unavailable: multiple unresolved starting quantities for " ++
-                      coordinate.locus.token ++ " / " ++ coordinate.measure.token)
-                  return 1
-              | .missingEventCorrectionEndpoint =>
-                  IO.eprintln "loam: current quantity unavailable: correction references are not closed"
-                  return 1
-              | .eventFrontierRequired =>
-                  IO.eprintln
-                    "loam: current quantity unavailable: event corrections do not justify one frontier"
-                  return 1
+              match ← loadBasisCorrectionMemoryForView? basisCorrectionPath? with
+              | none =>
+                  IO.eprintln "loam: malformed or unsupported quantity-basis correction file"
+                  return 2
+              | some basisCorrections =>
+                  let coordinates := eventCoordinates events (basisCoordinates bases)
+                  match collectCurrentLines
+                      events eventCorrections bases basisCorrections coordinates with
+                  | .lines lines =>
+                      if coordinates.isEmpty then
+                        IO.println "No anchored current quantities."
+                      else
+                        IO.println
+                          "Current quantities (starting-basis frontier + effective recorded changes; zero coordinates omitted):"
+                        for line in lines do IO.println line
+                      return 0
+                  | .basisMissing coordinate =>
+                      IO.eprintln
+                        ("loam: current quantity unavailable: starting quantity missing for " ++
+                          coordinate.locus.token ++ " / " ++ coordinate.measure.token)
+                      return 1
+                  | .basisFrontierRequired =>
+                      IO.eprintln
+                        "loam: current quantity unavailable: starting-quantity revisions do not justify one frontier"
+                      return 1
+                  | .missingEventCorrectionEndpoint =>
+                      IO.eprintln "loam: current quantity unavailable: correction references are not closed"
+                      return 1
+                  | .eventFrontierRequired =>
+                      IO.eprintln
+                        "loam: current quantity unavailable: event corrections do not justify one frontier"
+                      return 1
 
 /-- Dispatcher for the narrow daily quantity executable behind `tools/loam`. -/
 def run (args : List String) : IO UInt32 :=
   match args with
   | ["starting-quantity", basisPath] => recordStartingJpy basisPath
-  | ["current", memoryPath, correctionPath, basisPath] =>
-      showCurrentQuantities memoryPath correctionPath basisPath
+  | ["correct-starting-quantity", basisPath, basisCorrectionPath] =>
+      Loam.QuantityBasisCorrectionCli.correctStartingJpy basisPath basisCorrectionPath
+  | ["current", memoryPath, eventCorrectionPath, basisPath] =>
+      showCurrentQuantities memoryPath eventCorrectionPath basisPath
+  | ["current", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath] =>
+      showCurrentQuantities memoryPath eventCorrectionPath basisPath (some basisCorrectionPath)
   | _ => do
       IO.eprintln "loam: daily quantity command not understood"
       IO.eprintln usage
