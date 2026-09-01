@@ -40,6 +40,8 @@ jobs:
   check:
     name: Build and test starting quantity slice
     runs-on: ubuntu-latest
+    env:
+      LOAM_DATA_DIR: scratch/dogfood
     steps:
       - uses: actions/checkout@v6
       - name: Install Lean
