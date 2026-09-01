@@ -70,25 +70,25 @@ The model asks whether all of the following can hold simultaneously:
 - therefore the whole anchored-current query fails;
 - an `ActivityTotal` query selecting the same use coordinate is still answerable.
 
-Expected result:
+Observed:
 
 ```text
 dogfoodCurrentCanFailWhileActivityIsDefined  SAT
 ```
 
-If SAT, missing basis blocks one query vocabulary without making the Event-derived quantity itself unknowable.
+So missing basis can block one query vocabulary without making the Event-derived quantity itself unknowable.
 
 ## Same coordinate, two readings
 
 The second witness asks whether one coordinate with a non-zero basis and non-zero Event quantity can support both query modes while producing different answers.
 
-Expected result:
+Observed:
 
 ```text
 sameCoordinateSupportsBothReadings  SAT
 ```
 
-That would reject a tempting shortcut:
+This rejects a tempting shortcut:
 
 ```text
 coordinate identity
@@ -106,11 +106,11 @@ Missing: no basis at c
 Zeroed:  explicit basis 0 at c
 ```
 
-For an `ActivityTotal` query, both should produce the same quantity because the basis is irrelevant to that query.
+For an `ActivityTotal` query, both produce the same quantity because the basis is irrelevant to that query.
 
-For an `AnchoredCurrent` query, the explicit zero should change answerability from unavailable to available while leaving the numeric result equal to the activity total.
+For an `AnchoredCurrent` query, the explicit zero changes answerability from unavailable to available while leaving the numeric result equal to the activity total.
 
-Expected result:
+Observed:
 
 ```text
 explicitZeroEnablesCurrentWithoutChangingActivity  SAT
@@ -118,19 +118,24 @@ explicitZeroEnablesCurrentWithoutChangingActivity  SAT
 
 This is the exact shape of the dogfood discomfort: adding `0` may be a truthful explicit basis fact, but its main effect can be to satisfy a premise of one projection rather than to add new Event activity.
 
-## Expected checks
+## Observed Alloy result
+
+Alloy 6.2.0 + Sat4j produced the exact expected boundary:
 
 ```text
-AnchoredCurrentRequiresExplicitBasis  UNSAT counterexample
-ActivityValueIgnoresBasis             UNSAT counterexample
-CoordinateDeterminesProjectionMode    SAT counterexample
+dogfoodCurrentCanFailWhileActivityIsDefined       SAT
+sameCoordinateSupportsBothReadings                 SAT
+explicitZeroEnablesCurrentWithoutChangingActivity SAT
+AnchoredCurrentRequiresExplicitBasis               UNSAT counterexample
+ActivityValueIgnoresBasis                          UNSAT counterexample
+CoordinateDeterminesProjectionMode                 SAT counterexample
 ```
 
-The first two are definition-preservation checks. The third is intentionally false: two queries may select the same coordinate and ask different projection modes.
+The first three commands provide witnesses. The next two checks find no counterexample to the model's definition-preservation laws. The final check intentionally finds a counterexample: two queries may select the same coordinate while asking different projection modes.
 
-## Interpretation if qualified
+## Finding
 
-The likely boundary is:
+The qualified boundary is:
 
 ```text
 missing basis
@@ -150,13 +155,15 @@ coordinate role
 query mode
 ```
 
-This would mean the current dogfood friction should not be repaired by silently treating missing basis as zero.
+The current dogfood friction therefore should not be repaired by silently treating missing basis as zero.
 
-It would also mean that using basis presence itself as a hidden classification of coordinates is suspicious. A basis should remain evidence for an anchored quantity, not automatically become the reason a coordinate is called a holding, account, expense category, or any other domain noun.
+It also should not be repaired by treating basis presence itself as a hidden classification of coordinates. A basis remains evidence for an anchored quantity; it does not automatically make a coordinate a holding, account, expense category, or any other domain noun.
+
+The real-data `coffee = 0` step is therefore best understood as satisfying an `AnchoredCurrent` premise. It does **not** establish that the `coffee` coordinate intrinsically has holding semantics.
 
 ## What this observation does not yet decide
 
-Even if the model qualifies, it does not yet tell production exactly how to enumerate a future current view.
+The result does not yet tell production exactly how to enumerate a future current view.
 
 Possible later designs include:
 
