@@ -1,0 +1,111 @@
+name: Private Refund Provenance Pressure
+
+on:
+  pull_request:
+    paths:
+      - 'tools/private-refund-provenance-pressure.py'
+      - '.github/workflows/private-refund-provenance-pressure.yml'
+  push:
+    branches:
+      - 'tool/private-refund-provenance-pressure'
+      - main
+    paths:
+      - 'tools/private-refund-provenance-pressure.py'
+      - '.github/workflows/private-refund-provenance-pressure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pressure:
+    name: Check physical reversal provenance ambiguity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Exercise partial and exact reversal pressure
+        shell: bash
+        run: |
+          set -euo pipefail
+          journal="$(mktemp -t loam-private-refund.XXXXXX.journal)"
+          trap 'rm -f "$journal"' EXIT
+
+          cat >"$journal" <<'EOF'
+          2099-01-01 private-secret-source-a
+              expenses:alpha 100 unit
+              assets:wallet -100 unit
+          2099-01-02 private-secret-source-b
+              expenses:alpha 200 unit
+              assets:wallet -200 unit
+          2099-01-03 private-secret-partial-return
+              assets:wallet 50 unit
+              expenses:alpha -50 unit
+          2099-01-04 private-secret-exact-source
+              expenses:beta 30 unit
+              assets:bank -30 unit
+          2099-01-05 private-secret-exact-return
+              assets:bank 30 unit
+              expenses:beta -30 unit
+          2099-01-06 private-secret-transfer
+              assets:wallet 10 unit
+              assets:bank -10 unit
+          EOF
+
+          before="$(sha256sum "$journal" | awk '{print $1}')"
+          output="$(python3 tools/private-refund-provenance-pressure.py "$journal")"
+          after="$(sha256sum "$journal" | awk '{print $1}')"
+          test "$before" = "$after"
+
+          grep -Fq 'records observed: 6' <<<"$output"
+          grep -Fq 'two-posting records observed: 6' <<<"$output"
+          grep -Fq 'records with unsupported posting syntax: 0' <<<"$output"
+          grep -Fq 'expense-reversal-shaped records observed: 2' <<<"$output"
+          grep -Fq 'exact-opposite prior candidate count zero: 1' <<<"$output"
+          grep -Fq 'exact-opposite prior candidate count one: 1' <<<"$output"
+          grep -Fq 'exact-opposite prior candidate count multiple: 0' <<<"$output"
+          grep -Fq 'same-coordinate opposite-direction prior candidate count zero: 0' <<<"$output"
+          grep -Fq 'same-coordinate opposite-direction prior candidate count one: 1' <<<"$output"
+          grep -Fq 'same-coordinate opposite-direction prior candidate count multiple: 1' <<<"$output"
+          grep -Fq 'refund semantics assigned from reversal shape: no' <<<"$output"
+          grep -Fq 'source provenance inferred from physical candidates: no' <<<"$output"
+          grep -Fq 'descriptions used for classification: no' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'expenses:alpha' <<<"$output"
+          ! grep -Fq 'assets:wallet' <<<"$output"
+          ! grep -Fq '50 unit' <<<"$output"
+
+      - name: Ignore descriptions when physical shape is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          left="$(mktemp -t loam-private-refund-left.XXXXXX.journal)"
+          right="$(mktemp -t loam-private-refund-right.XXXXXX.journal)"
+          trap 'rm -f "$left" "$right"' EXIT
+
+          cat >"$left" <<'EOF'
+          2099-01-01 private-left-source
+              expenses:x 20 unit
+              assets:y -20 unit
+          2099-01-02 private-left-return
+              assets:y 10 unit
+              expenses:x -10 unit
+          EOF
+
+          cat >"$right" <<'EOF'
+          2099-01-01 completely-different-private-description
+              expenses:x 20 unit
+              assets:y -20 unit
+          2099-01-02 another-private-description
+              assets:y 10 unit
+              expenses:x -10 unit
+          EOF
+
+          left_output="$(python3 tools/private-refund-provenance-pressure.py "$left")"
+          right_output="$(python3 tools/private-refund-provenance-pressure.py "$right")"
+          test "$left_output" = "$right_output"
+          ! grep -Fq 'private-left' <<<"$left_output"
+          ! grep -Fq 'different-private' <<<"$right_output"
