@@ -1,4 +1,5 @@
 import Loam.Persistence
+import Loam.WriterOwnership
 import Loam.CorrectionCli
 import Loam.EffectiveCli
 import Loam.CorrectionIntegrityCli
@@ -271,8 +272,10 @@ Both files are fully admitted before publication. Duplicate Event identity
 therefore fails without changing the memory target. The final list position is
 persistence representation only and does not mean latest, later, causal, or
 more authoritative. Successful publication stages the complete encoded memory
-beside the target and then replaces the target with one filesystem rename; it
-does not serialize concurrent writers or claim power-loss durability.
+beside the target and then replaces the target with one filesystem rename. This
+helper itself does not acquire process ownership; the production command
+dispatcher holds EventMemory-anchored writer ownership across the complete
+load/prepare/admit/publish operation.
 -/
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -357,6 +360,8 @@ an intermediate Event file.
 The resulting Core fact remains the same neutral signed Effect. This entrance
 also does not pretend that the current Core can retain merchant, purpose, note,
 or other descriptive provenance that dogfooding has now shown users may expect.
+The production command dispatcher acquires EventMemory-anchored writer
+ownership before calling this entrance.
 -/
 def spendJpy (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -407,7 +412,19 @@ def spendJpy (memoryPath : String) : IO UInt32 := do
         IO.eprintln "loam: payment source must be a nonempty single-line token"
         return 2
 
-/-- Command dispatcher for the practical CLI surface. -/
+private def withMemoryOwnership
+    (memoryPath : String)
+    (action : IO UInt32) : IO UInt32 :=
+  Loam.WriterOwnership.withOwnership (System.FilePath.mk memoryPath) action
+
+/--
+Command dispatcher for the practical CLI surface.
+
+Writer commands acquire one EventMemory-anchored cross-process ownership scope
+before their existing implementation observes canonical state. For correction,
+that same ownership remains held across the complete relation-first
+Correction-then-Event publication sequence.
+-/
 def run (args : List String) : IO UInt32 :=
   match args with
   | [] => do
@@ -419,11 +436,13 @@ def run (args : List String) : IO UInt32 :=
   | ["help", "low-level"] => do
       IO.println lowLevelUsage
       return 0
-  | ["spend", memoryPath] => spendJpy memoryPath
+  | ["spend", memoryPath] =>
+      withMemoryOwnership memoryPath (spendJpy memoryPath)
   | ["review", memoryPath] => reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
-      Loam.CorrectionCli.correctSpend memoryPath correctionPath
+      withMemoryOwnership memoryPath
+        (Loam.CorrectionCli.correctSpend memoryPath correctionPath)
   | ["effective", memoryPath, correctionPath] =>
       Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
   | ["correction-integrity", memoryPath, correctionPath] =>
@@ -438,7 +457,8 @@ def run (args : List String) : IO UInt32 :=
   | ["event-memory", "quantity", path, locus, measure] =>
       showRememberedQuantity path locus measure
   | ["event-memory", "add", memoryPath, eventPath] =>
-      addRememberedEvent memoryPath eventPath
+      withMemoryOwnership memoryPath
+        (addRememberedEvent memoryPath eventPath)
   | _ => do
       IO.eprintln "loam: command not understood"
       IO.eprintln practicalUsage
