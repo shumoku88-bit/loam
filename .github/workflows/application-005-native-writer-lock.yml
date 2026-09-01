@@ -1,0 +1,83 @@
+name: Application 005 Native Writer Lock
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_005_native_writer_lock*'
+      - '.github/workflows/application-005-native-writer-lock.yml'
+      - 'lean-toolchain'
+      - 'lakefile.toml'
+  workflow_dispatch:
+
+jobs:
+  qualify-native-writer-lock:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Observe cross-process exclusion and holder-death release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          lock_path='application-005-writer.lock'
+          ready_path='application-005-holder-ready'
+          rm -f "$lock_path" "$ready_path"
+          : > "$lock_path"
+
+          lean --run experiments/application_005_native_writer_lock_holder.lean \
+            > /tmp/application-005-holder.out \
+            2> /tmp/application-005-holder.err &
+          holder_pid=$!
+
+          cleanup() {
+            if [ -n "${holder_pid:-}" ]; then
+              kill -KILL "$holder_pid" 2>/dev/null || true
+              wait "$holder_pid" 2>/dev/null || true
+            fi
+            rm -f "$lock_path" "$ready_path"
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 200); do
+            if [ -f "$ready_path" ]; then
+              break
+            fi
+            sleep 0.05
+          done
+
+          if [ ! -f "$ready_path" ]; then
+            cat /tmp/application-005-holder.out || true
+            cat /tmp/application-005-holder.err || true
+            echo 'holder did not acquire lock' >&2
+            exit 1
+          fi
+
+          while_alive="$(lean --run experiments/application_005_native_writer_lock_try.lean)"
+          echo "$while_alive"
+          if printf '%s\n' "$while_alive" | grep -Fq 'exclusive_trylock_acquired=false'; then
+            echo 'blocked_while_holder_alive=true'
+          else
+            echo 'blocked_while_holder_alive=false'
+            exit 1
+          fi
+
+          kill -KILL "$holder_pid"
+          wait "$holder_pid" 2>/dev/null || true
+          holder_pid=''
+
+          after_death="$(lean --run experiments/application_005_native_writer_lock_try.lean)"
+          echo "$after_death"
+          if printf '%s\n' "$after_death" | grep -Fq 'exclusive_trylock_acquired=true'; then
+            echo 'released_after_holder_death=true'
+          else
+            echo 'released_after_holder_death=false'
+            exit 1
+          fi
