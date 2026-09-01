@@ -1,0 +1,120 @@
+name: Private Plan Series Shadow
+
+on:
+  pull_request:
+    paths:
+      - 'tools/private-plan-series-shadow.py'
+      - '.github/workflows/private-plan-series-shadow.yml'
+  push:
+    branches:
+      - 'tool/private-plan-series-shadow'
+      - main
+    paths:
+      - 'tools/private-plan-series-shadow.py'
+      - '.github/workflows/private-plan-series-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    name: Check explicit Series / recurrence boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Exercise privacy-safe Series summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          plan="$(mktemp -t loam-private-series.XXXXXX.journal)"
+          trap 'rm -f "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          2099-01-01 private-secret-alpha-1
+              ; plan-id: private-plan-a1
+              ; series: private-series-alpha
+              ; recur: private-recur-monthly
+              locus:a 10 unit
+              locus:b -10 unit
+          2099-02-01 private-secret-alpha-2
+              ; plan-id: private-plan-a2
+              ; series: private-series-alpha
+              locus:a 11 unit
+              locus:b -11 unit
+          2099-01-02 private-secret-beta
+              ; plan-id: private-plan-b
+              ; series: private-series-beta
+              ; recur: private-recur-monthly
+              locus:c 20 unit
+              locus:d -20 unit
+          2099-01-03 private-secret-gamma
+              ; plan-id: private-plan-c
+              ; series: private-series-gamma
+              ; recur: private-recur-cycle
+              locus:e 30 unit
+              locus:f -30 unit
+          2099-03-01 private-secret-untagged-but-similar
+              ; plan-id: private-plan-untagged
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+
+          before="$(sha256sum "$plan" | awk '{print $1}')"
+          output="$(python3 tools/private-plan-series-shadow.py "$plan")"
+          after="$(sha256sum "$plan" | awk '{print $1}')"
+          test "$before" = "$after"
+
+          grep -Fq 'plan records observed: 5' <<<"$output"
+          grep -Fq 'plan records with explicit plan-id: 5' <<<"$output"
+          grep -Fq 'plan records with explicit series: 4' <<<"$output"
+          grep -Fq 'plan records without explicit series: 1' <<<"$output"
+          grep -Fq 'unique explicit series observed: 3' <<<"$output"
+          grep -Fq 'series with exactly one observed Plan member: 2' <<<"$output"
+          grep -Fq 'series with multiple observed Plan members: 1' <<<"$output"
+          grep -Fq 'plan records with explicit recurrence classification: 3' <<<"$output"
+          grep -Fq 'series-tagged Plans with explicit recurrence classification: 3' <<<"$output"
+          grep -Fq 'series-tagged Plans without explicit recurrence classification: 1' <<<"$output"
+          grep -Fq 'series spanning recurrence-present and recurrence-absent members: 1' <<<"$output"
+          grep -Fq 'series spanning multiple distinct explicit recurrence classifications: 0' <<<"$output"
+          grep -Fq 'explicit recurrence classifications shared by multiple series: 1' <<<"$output"
+          grep -Fq 'series membership inferred from Plan content: no' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'sources unchanged: yes' <<<"$output"
+
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'private-series-' <<<"$output"
+          ! grep -Fq 'private-recur-' <<<"$output"
+          ! grep -Fq 'locus:' <<<"$output"
+          ! grep -Fq '10 unit' <<<"$output"
+
+      - name: Refuse ambiguous multiple-Series metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          plan="$(mktemp -t loam-private-series-refuse.XXXXXX.journal)"
+          trap 'rm -f "$plan"' EXIT
+
+          cat >"$plan" <<'EOF'
+          2099-01-01 private-secret-ambiguous
+              ; plan-id: private-plan-ambiguous
+              ; series: private-series-one
+              ; series: private-series-two
+              locus:a 10 unit
+              locus:b -10 unit
+          EOF
+
+          set +e
+          output="$(python3 tools/private-plan-series-shadow.py "$plan" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -Fq 'LOAM private Plan Series shadow: REFUSED' <<<"$output"
+          grep -Fq 'private identities/content: withheld' <<<"$output"
+          grep -Fq 'private parser stderr: withheld' <<<"$output"
+          ! grep -Fq 'private-secret' <<<"$output"
+          ! grep -Fq 'private-plan-' <<<"$output"
+          ! grep -Fq 'private-series-' <<<"$output"
