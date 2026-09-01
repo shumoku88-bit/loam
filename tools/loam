@@ -172,16 +172,28 @@ if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity"
 fi
 
 if [[ $# -eq 0 ]]; then
-  memory_file="scratch/dogfood/memory.loam"
-  correction_file="scratch/dogfood/corrections.loam"
-  basis_file="scratch/dogfood/basis.loam"
-  basis_correction_file="scratch/dogfood/basis-corrections.loam"
-  mkdir -p "$(dirname "$memory_file")"
+  if [[ -n "${LOAM_DATA_DIR:-}" ]]; then
+    requested_data_dir="$LOAM_DATA_DIR"
+    data_label="$LOAM_DATA_DIR"
+  else
+    requested_data_dir="$root/../loam-data"
+    data_label="../loam-data"
+  fi
+
+  if ! mkdir -p "$requested_data_dir"; then
+    echo "loam: could not prepare data directory: $requested_data_dir" >&2
+    exit 2
+  fi
+  data_dir="$(cd "$requested_data_dir" && pwd)"
+
+  memory_file="$data_dir/memory.loam"
+  correction_file="$data_dir/corrections.loam"
+  basis_file="$data_dir/basis.loam"
+  basis_correction_file="$data_dir/basis-corrections.loam"
 
   while true; do
+    printf 'LOAM\nData: %s\n\n' "$data_label"
     cat <<'EOF'
-LOAM
-
 What do you want to do?
 1. Record spending
 2. Review what I recorded
