@@ -30,8 +30,12 @@ daily_quantity_binary_is_current() {
 
   for input in \
     Loam/DailyQuantityCli.lean \
+    Loam/QuantityBasisCorrectionCli.lean \
+    Loam/QuantityBasisCorrectionPersistence.lean \
     Loam/QuantityBasisPersistence.lean \
     Loam/Application/CurrentQuantity.lean \
+    Loam/Application/QuantityBasisFrontier.lean \
+    Loam/Core/QuantityBasisCorrectionMemory.lean \
     Loam/Core/QuantityBasisMemory.lean \
     lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$daily_quantity_binary" ]]; then
@@ -156,7 +160,7 @@ if [[ "${1:-}" == "shadow-quantity" ]]; then
   run_shadow_quantity "$@"
 fi
 
-if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "current" ]]; then
+if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity" || "${1:-}" == "current" ]]; then
   run_daily_quantity "$@"
 fi
 
@@ -164,6 +168,7 @@ if [[ $# -eq 0 ]]; then
   memory_file="scratch/dogfood/memory.loam"
   correction_file="scratch/dogfood/corrections.loam"
   basis_file="scratch/dogfood/basis.loam"
+  basis_correction_file="scratch/dogfood/basis-corrections.loam"
   mkdir -p "$(dirname "$memory_file")"
 
   cat <<'EOF'
@@ -180,6 +185,7 @@ What do you want to do?
 8. Transfer funds
 9. Set a starting quantity
 10. Show current quantities
+11. Correct a starting quantity
 q. Quit
 EOF
   printf '> '
@@ -222,7 +228,10 @@ EOF
       run_daily_quantity starting-quantity "$basis_file"
       ;;
     10)
-      run_daily_quantity current "$memory_file" "$correction_file" "$basis_file"
+      run_daily_quantity current "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file"
+      ;;
+    11)
+      run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
       ;;
     q|Q)
       exit 0
