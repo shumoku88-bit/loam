@@ -113,39 +113,52 @@ published => admitted
 
 Nor does it interpret set membership as a global state-machine phase. It asks whether those stronger implications are actually forced by the smaller structure.
 
-## Expected witnesses
+## Alloy result
 
-The bounded model should admit all of these worlds:
-
-1. a shadow projection that reaches `CHECK` and stops;
-2. a correction candidate that is admitted without publication;
-3. a correction fact that is published without admission;
-4. a correction that crosses both boundaries;
-5. two worlds with identical observed/proposed/checked coordinates but different admitted/published coordinates.
-
-The corresponding universal claims that checking forces admission/publication, or that admission and publication force each other, should therefore have counterexamples.
-
-The two dependency guards should remain unviolated:
+Alloy 6.2.0 with Sat4j produced every requested positive witness:
 
 ```text
-admitted ⊆ checked
-published ⊆ checked
+shadowStopsAtCheck                       SAT
+correctionAdmittedWithoutPublication     SAT
+correctionPublishedWithoutAdmission      SAT
+correctionCrossesBothBoundaries           SAT
+sameCheckedDifferentBoundaryState         SAT
 ```
 
-These guards are assumptions of this experiment, not newly earned LOAM law.
+It also found counterexamples to every attempted collapse of the boundaries:
 
-## What would count as a result?
+```text
+CheckForcesAdmission                     SAT counterexample
+CheckForcesPublication                   SAT counterexample
+AdmissionForcesPublication               SAT counterexample
+PublicationForcesAdmission               SAT counterexample
+CheckedStateDeterminesBoundaryState       SAT counterexample
+```
 
-If Alloy finds the expected witnesses and counterexamples, the five verbs survive only in a weaker form:
+The two dependency guards remained unviolated in the bounded scope:
+
+```text
+UncheckedAdmissionImpossible             UNSAT
+UncheckedPublicationImpossible           UNSAT
+```
+
+Those last two results validate the assumptions encoded in this model. They do not promote those assumptions into new general LOAM law.
+
+## Result
+
+The five verbs survive only in a weaker form than a pipeline:
 
 - `CHECK` is not semantic commitment;
 - `ADMIT` is semantic eligibility relative to a supplied world, not necessarily durable mutation;
 - `PUBLISH` is an external effect coordinate, not proof of semantic admission;
+- identical observed/proposed/checked information does not determine admitted/published state;
 - no universal `OBSERVE -> PROPOSE -> CHECK -> ADMIT -> PUBLISH` pipeline has been earned.
 
-That would be useful precisely because it prevents the five-word sketch from becoming a premature framework.
+The correction entrance makes the distinction practical rather than merely terminological. A candidate relation can be referentially closed against an in-memory candidate world before anything is durable, while a raw correction can be durably published and still remain outside the admitted view when its replacement Event is absent.
 
-If the bounded model cannot separate the coordinates under these pressures, the vocabulary should be revised rather than promoted.
+So `ADMIT` and `PUBLISH` are better treated as independent coordinates that an operation may cross in different ways. This observation does **not** establish which temporal ordering is safest for a general publication protocol.
+
+That negative result is useful: the five-word sketch does not become a new framework merely because it is convenient vocabulary.
 
 ## Practical Core impact
 
@@ -159,3 +172,9 @@ None.
 - no claim that Alloy establishes temporal protocol safety.
 
 This observation is only a structural audit of vocabulary against behavior LOAM already has.
+
+## Next pressure
+
+Do not add a generic five-stage runtime.
+
+If a concrete operation later needs a claim about publication/admission order across reachable states, make that temporal protocol the question and use TLA+ only then. Otherwise keep `ADMIT` and `PUBLISH` as descriptive coordinates rather than mandatory architecture.
