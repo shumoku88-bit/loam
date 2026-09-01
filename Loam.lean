@@ -1,12 +1,16 @@
 import Loam.Core
+import Loam.Application
 import Loam.Observations
 
 /-!
 # LOAM Lean umbrella
 
-`Loam.Core` is the practical implementation entry point.
+`Loam.Core` is the neutral practical implementation entry point.
+`Loam.Application` contains executable query-shaped operations that consume the
+Core directly without growing a parallel household domain model.
 `Loam.Observations` preserves the historical proof suite.
 
-Keeping both here retains the existing full `lake build` qualification while
-allowing practical code to depend only on the core.
+Keeping all three here retains the existing full `lake build` qualification
+while allowing practical code to depend on only the layer it actually needs.
+Persistence and CLI remain separate runtime boundaries.
 -/
