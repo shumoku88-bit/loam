@@ -65,9 +65,18 @@ The retained knowledge bundle is identical for every later question.
 
 The model asks whether forgetting the later correction shape forces one context-free reuse decision.
 
-### Expected witness
+## Executed result
 
-A current practical witness should exist in which:
+The first exact-head execution at
+`6d83759f62148d9d6020c8ec4be86ca3cdad6979` produced:
+
+```text
+currentPracticalBoundary                       SAT
+RetainedKnowledgeAloneDeterminesReuse          SAT counterexample
+RetainedKnowledgeAndShapeDetermineReuse        UNSAT counterexample
+```
+
+The witness retains the current practical split:
 
 ```text
 ZeroCorrections      -> reusable
@@ -75,37 +84,21 @@ SingleCorrection     -> reusable
 MultipleCorrections  -> not reusable
 ```
 
-### Expected counterexample
+The counterexample to `RetainedKnowledgeAloneDeterminesReuse` shows that the same retained knowledge bundle can participate in later questions with different reuse decisions.
 
-The assertion
+So projecting away the later question context loses applicability information.
 
-```text
-same retained knowledge
-    ->
-same reuse decision
-```
+The narrow control, `RetainedKnowledgeAndShapeDetermineReuse`, has no counterexample in this model. For this one already-existing practical boundary, retaining the modeled correction shape together with the same knowledge bundle recovers the modeled decision.
 
-should have a counterexample.
+That control does **not** establish `CorrectionShape` as a universal field for future formal-result receipts. It only shows that the deliberately removed later-use coordinate was sufficient for this specific test.
 
-### Narrow control
+## Result
 
-Within this deliberately small model, retaining both:
-
-```text
-retained knowledge + later correction shape
-```
-
-should determine the modeled reuse decision.
-
-This control is not a claim that `CorrectionShape` is a universal field for future formal-result receipts.
-
-## Expected boundary
-
-If the model behaves as expected, Observation 081 earns only this negative result:
+Observation 081 earns this negative boundary:
 
 > Applicability is not a property of a retained formal result alone. It is a relation between retained result context and the later question to which someone wants to apply it.
 
-That would extend the preceding observations:
+That extends the preceding observations:
 
 ```text
 079: result token alone loses interpretation
@@ -114,6 +107,18 @@ That would extend the preceding observations:
 ```
 
 A future human/AI work surface therefore cannot safely turn "proved before" or "observed before" into a context-free permission to reuse a conclusion.
+
+The useful retained object, if one is ever earned, may therefore need to preserve a relation closer to:
+
+```text
+retained formal result
+        -- applicable under -->
+later question context
+```
+
+rather than behaving as a flat bag of globally reusable facts.
+
+That is only a direction for later pressure, not a new Core abstraction.
 
 ## Non-goals
 
@@ -127,7 +132,7 @@ This observation does not earn:
 - a claim that the three correction shapes exhaust future correction semantics;
 - a semantic-OS kernel primitive.
 
-The current question is only whether PR #139's already-existing reuse boundary survives if the later question shape is projected away.
+The current result only establishes that PR #139's already-existing reuse boundary does not survive when the later question shape is projected away.
 
 ## Practical Core impact
 
