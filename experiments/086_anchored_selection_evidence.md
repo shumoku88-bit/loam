@@ -26,28 +26,15 @@ all-represented policy:
   select coordinates that have basis or Event activity
 ```
 
-Both are attractive, but each may collapse a distinction exposed by dogfood.
-
 The new question is:
 
 > Do starting-basis presence and Event presence contain enough information to determine which coordinates an anchored-current query should select?
 
-## Pressure
+## Model boundary
 
-Two basisless coordinates can have the same locally visible shape:
+Observation 086 deliberately does **not** introduce `Use`, `Holding`, `Expense`, `Account`, AccountingRole, or another intrinsic coordinate role.
 
-```text
-basis:    absent
-activity: present
-```
-
-Yet a later question may want different readings.
-
-One can be useful only as an activity coordinate for the current question. Another can be a coordinate whose current quantity became relevant only after the application origin, for example after quantity first moved into a newly used locus.
-
-Observation 086 deliberately does **not** name those coordinates `Use`, `Holding`, `Expense`, `Account`, or any other domain role.
-
-Instead, the model keeps only:
+The Alloy model keeps only:
 
 ```text
 Facts
@@ -90,50 +77,48 @@ basis absent + activity present
 
 but the question selects them differently.
 
-Expected:
+Observed:
 
 ```text
 samePhysicalSignatureDifferentSelection  SAT
 ```
 
-If SAT, a local classifier using only basis/activity presence cannot recover the query's selected set.
+So a local classifier using only basis/activity presence cannot reconstruct the query's selected set.
 
 ## Basis-only policy
 
-Selecting only basis-bearing coordinates has one pleasant law: every selected coordinate has the premise required by the anchored-current projection.
+Selecting only basis-bearing coordinates has one useful law: every selected coordinate already has the premise required by anchored-current projection.
 
-Expected check:
+Observed:
 
 ```text
 BasisOnlyQueriesAreAnswerable  UNSAT counterexample
 ```
 
-But basis-only selection can omit a basisless coordinate that the anchored question wants to include.
-
-Expected witness:
+But that safety comes from shrinking the selected set. The model also admits a basisless active coordinate which the anchored question wants to include:
 
 ```text
 basisOnlyCanHideSelectedBasislessActivity  SAT
 ```
 
-This captures the new-locus pressure. A coordinate can first become relevant after the application origin and therefore need not possess a starting basis merely because it participates in a later current question.
+This captures the new-locus pressure. A coordinate can first become relevant after the application origin, so basis presence alone cannot be the universal criterion for whether it belongs in a later anchored question.
 
-The observation does not yet decide how such a coordinate obtains an anchor, whether its first admitted Event can serve as an origin, or whether another fact is required. Those are later questions.
+The observation does not yet decide how such a coordinate obtains an anchor, whether its first admitted Event can establish an origin, or whether another fact is required.
 
 ## All-represented policy
 
 Selecting every coordinate with either basis or Event activity avoids silently hiding newly observed coordinates.
 
-But Observation 085 already showed the cost: an activity-only coordinate with no basis can make the entire anchored-current query unavailable.
+But it can pull a basisless activity coordinate into an anchored query and make the query unavailable.
 
-Expected witness/check:
+Observed:
 
 ```text
 allRepresentedCanForceMissingBasis  SAT
 AllRepresentedQueriesAreAnswerable  SAT counterexample
 ```
 
-So the two obvious enumeration policies pull in opposite directions:
+So the two obvious enumeration policies lose different information:
 
 ```text
 basis-only
@@ -142,32 +127,48 @@ basis-only
 
 all represented
   -> does not hide represented coordinates
-  -> may force missing-basis failure for coordinates the question did not need
+  -> may force missing-basis failure for a coordinate the question did not need
 ```
 
 ## Same facts, different questions
 
-The model also asks whether two anchored questions can share the exact same retained facts while selecting different coordinate sets.
+Two anchored questions can share the exact same retained physical facts while selecting different coordinate sets.
 
-Expected:
+Observed:
 
 ```text
 sameFactsDifferentAnchoredQuestions  SAT
 PhysicalFactsDetermineSelection      SAT counterexample
 ```
 
-This is the central independence claim:
+The central independence result is therefore:
 
 ```text
 basis presence + Event presence
     -/-> anchored-current selection
 ```
 
-The physical fact set can support more than one legitimate question surface.
+The same physical fact set can support more than one legitimate question surface.
 
-## Interpretation if qualified
+## Observed Alloy result
 
-If the expected results hold, Observation 085 and 086 compose into a sharper boundary:
+Alloy 6.2.0 + Sat4j produced the complete expected boundary:
+
+```text
+samePhysicalSignatureDifferentSelection       SAT
+basisOnlyCanHideSelectedBasislessActivity      SAT
+allRepresentedCanForceMissingBasis             SAT
+sameFactsDifferentAnchoredQuestions            SAT
+BasisOnlyQueriesAreAnswerable                  UNSAT counterexample
+AllRepresentedQueriesAreAnswerable             SAT counterexample
+PhysicalFactsDetermineSelection                SAT counterexample
+```
+
+The first four commands are positive witnesses. `BasisOnlyQueriesAreAnswerable` has no counterexample because selecting exactly the basis set trivially supplies basis for every selected coordinate. The final two checks intentionally fail: selecting every represented coordinate can be unanswerable, and retained physical facts do not determine one selected query set.
+
+## Finding
+
+Observation 085 and 086 compose into a sharper boundary:
 
 ```text
 085:
@@ -178,7 +179,7 @@ physical basis/activity presence does not determine
 which coordinates that query should select
 ```
 
-Therefore production should not silently use either of these as hidden ontology:
+Therefore none of these implications is earned:
 
 ```text
 has basis       -> current/holding coordinate
@@ -186,9 +187,19 @@ has Event       -> must appear in current
 no basis        -> activity-only coordinate
 ```
 
-Those implications are not earned.
+The current dogfood problem is not merely a missing-zero problem and not merely a filtering problem. It is a missing distinction between:
 
-A future production repair may need one of several shapes:
+```text
+what facts exist
+what projection is being asked
+which coordinates that projection selects
+```
+
+Those three layers should not be silently collapsed.
+
+## What this observation does not decide
+
+A future production repair may use one of several shapes:
 
 - explicit query selection;
 - an anchored-coordinate enrollment fact earned by practical operations;
@@ -198,13 +209,15 @@ A future production repair may need one of several shapes:
 
 Observation 086 does not choose among them.
 
+In particular, it does not earn a persistent generic `Query`, `Selection`, `HoldingRole`, or `UseRole` type merely because the experiment needed a selected set.
+
 ## Tool choice
 
 Alloy is sufficient because the question is structural indistinguishability:
 
-- can two coordinates have the same retained local evidence but differ in query selection;
-- can two questions share the same retained physical facts but select differently;
-- do the two obvious set-derived policies lose different information.
+- two coordinates can share retained local evidence but differ in query selection;
+- two questions can share retained physical facts but select differently;
+- the two obvious set-derived policies lose different information.
 
 No temporal ordering or concurrency law is involved, so TLA+ is not yet earned. No unbounded arithmetic theorem is being claimed, so Lean is unnecessary at this checkpoint.
 
