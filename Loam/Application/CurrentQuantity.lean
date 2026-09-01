@@ -81,8 +81,6 @@ theorem inspectCurrentQuantity_missingBasis
     inspectCurrentQuantity
       events corrections { bases := [], idNodup := by simp } locus measure =
       .basisMissing := by
-  simp [inspectCurrentQuantity, inspectCurrentQuantityWithBasisCorrections,
-    admittedQuantityBasisFrontier?, quantityBasisFrontierAdmissible,
-    quantityBasisFrontier, matchingBases]
+  simp [inspectCurrentQuantity, inspectCurrentQuantityWithBasisCorrections, matchingBases]
 
 end Loam.Application
