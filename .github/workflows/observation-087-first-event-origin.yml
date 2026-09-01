@@ -1,0 +1,98 @@
+name: Observation 087
+
+on:
+  pull_request:
+    paths:
+      - 'tla/FirstEventAnchoredOrigin.tla'
+      - 'tla/FirstEventAnchoredOrigin*.cfg'
+      - 'experiments/087_first_event_anchored_origin.md'
+      - '.github/workflows/observation-087-first-event-origin.yml'
+  push:
+    branches:
+      - main
+      - 'experiment/087-first-event-origin'
+    paths:
+      - 'tla/FirstEventAnchoredOrigin.tla'
+      - 'tla/FirstEventAnchoredOrigin*.cfg'
+      - 'experiments/087_first_event_anchored_origin.md'
+      - '.github/workflows/observation-087-first-event-origin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: First-event anchored origin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check first-event origin safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/FirstEventAnchoredOrigin.cfg \
+            tla/FirstEventAnchoredOrigin.tla \
+            2>&1 | tee /tmp/observation-087-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-087-positive.txt
+
+      - name: Require reachable first-event origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/FirstEventAnchoredOriginBirthWitness.cfg \
+            tla/FirstEventAnchoredOrigin.tla \
+            2>&1 | tee /tmp/observation-087-birth.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoFirstEventOriginEverAppears' /tmp/observation-087-birth.txt
+          grep -Fq 'firstEvent' /tmp/observation-087-birth.txt
+
+      - name: Reject universal auto-enrollment
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/FirstEventAnchoredOriginAutoBoundary.cfg \
+            tla/FirstEventAnchoredOrigin.tla \
+            2>&1 | tee /tmp/observation-087-auto.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'AutoEnrollAllFirstAppearancesMatchesSelection' /tmp/observation-087-auto.txt
+
+      - name: Require physical first-appearance ambiguity
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/FirstEventAnchoredOriginPhysicalBoundary.cfg \
+            tla/FirstEventAnchoredOrigin.tla \
+            2>&1 | tee /tmp/observation-087-physical.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'PhysicalFirstAppearanceDeterminesEnrollment' /tmp/observation-087-physical.txt
+          grep -Fq 'activity' /tmp/observation-087-physical.txt
+          grep -Fq 'enrolled' /tmp/observation-087-physical.txt
