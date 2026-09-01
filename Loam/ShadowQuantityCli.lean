@@ -200,14 +200,25 @@ private def printQuantities (memory : EventMemory) : IO Unit := do
             toString quantity.quanta ++ " " ++ coordinate.measure.token)
 
 /--
-Parse one journal snapshot without writing the source or any LOAM persistence.
+Emit a private comparison stream for the local parity harness.
 
-Every EventId and EffectKey created here is unique only within this invocation.
-The command is therefore limited to the identity-renaming-invariant recorded
-quantity projection established by Observation 078. It must not be reused for
-correction, relation, reconciliation, or cross-run identity lookup.
+Rows are deliberately plain and contain private locus / measure / quantity
+values, so this mode is intended only for capture into a private temporary file.
+Zero coordinates are omitted because the native accounting view may omit them.
+The harness sorts the rows before comparison, so this stream makes no ordering
+claim.
 -/
-def shadowQuantity (path : String) : IO UInt32 := do
+private def printParityRows (memory : EventMemory) : IO Unit := do
+  for coordinate in recordedCoordinates memory do
+    let quantity :=
+      EventMemory.quantityAtRecorded memory coordinate.locus coordinate.measure
+    if quantity.quanta != 0 then
+      IO.println
+        (coordinate.locus.token ++ "\t" ++
+          coordinate.measure.token ++ "\t" ++
+          toString quantity.quanta)
+
+private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt32 := do
   let source := System.FilePath.mk path
   if !(← source.pathExists) then
     IO.eprintln "loam: shadow quantity source file not found"
@@ -226,17 +237,37 @@ def shadowQuantity (path : String) : IO UInt32 := do
       IO.eprintln "loam: run-local Event identity collision"
       return 2
   | some memory =>
-      IO.println "LOAM stateless shadow quantity"
-      IO.println "source: read-only; persistence: none; sidecar: none"
-      printEvidence parsed.evidence
-      printQuantities memory
+      if parityRows then
+        printParityRows memory
+      else
+        IO.println "LOAM stateless shadow quantity"
+        IO.println "source: read-only; persistence: none; sidecar: none"
+        printEvidence parsed.evidence
+        printQuantities memory
       return 0
+
+/--
+Parse one journal snapshot without writing the source or any LOAM persistence.
+
+Every EventId and EffectKey created here is unique only within this invocation.
+The command is therefore limited to the identity-renaming-invariant recorded
+quantity projection established by Observation 078. It must not be reused for
+correction, relation, reconciliation, or cross-run identity lookup.
+-/
+def shadowQuantity (path : String) : IO UInt32 :=
+  shadowQuantityWithMode path false
+
+/-- Private machine-readable entrance used only by the local parity harness. -/
+def shadowQuantityParityRows (path : String) : IO UInt32 :=
+  shadowQuantityWithMode path true
 
 end Loam.ShadowQuantityCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
   | [path] => Loam.ShadowQuantityCli.shadowQuantity path
+  | ["--parity-rows", path] =>
+      Loam.ShadowQuantityCli.shadowQuantityParityRows path
   | _ => do
-      IO.eprintln "usage: shadow-quantity <journal-file>"
+      IO.eprintln "usage: shadow-quantity [--parity-rows] <journal-file>"
       return 2

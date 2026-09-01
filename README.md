@@ -57,6 +57,16 @@ The command prints source locus tokens and exact quantity results, so real canon
 
 A private whole-file dogfood run has now crossed this boundary successfully. Its non-zero locus × measure quantity projection matched the native h-kernel accounting projection for the same canonical snapshot. This is a quantity-projection checkpoint only: descriptive header context, metadata, include semantics, persistent imported identity, correction attachment, and other continuity-sensitive questions remain outside the result.
 
+That comparison can now be repeated locally without publishing the private projection. The harness accepts one private journal and one local native adapter:
+
+```text
+./tools/private-quantity-parity CANONICAL_ROOT/actual.journal /path/to/native-quantity-adapter
+```
+
+The adapter receives the journal path as its first argument and emits already-aggregated rows in the private contract `LOCUS<TAB>MEASURE<TAB>QUANTA`, with canonical signed integer `QUANTA`. The harness captures both the native stream and LOAM's `shadow-quantity --parity-rows` stream in mode-0700 temporary storage, removes zero coordinates, sorts the non-zero rows, and compares them locally. It verifies that the source file did not change during observation and deletes all captured rows on exit.
+
+On success or mismatch, the harness reports only structural status and coordinate counts. It does not print private locus names, measures, quantities, projection hashes, or a value diff. The adapter itself is intentionally local: LOAM does not make h-kernel's invocation or presentation format part of LOAM semantics. Public CI qualifies the harness only with synthetic data.
+
 ## Current map
 
 Observations 001–061 build the neutral physical core and the bounded persistence/publication protocols around Event, Effect, Locus, Measure, exact Quantity, Correction, Resolution, and explicit relation admission.

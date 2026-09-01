@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+set +x 2>/dev/null || true
+umask 077
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: private-quantity-parity JOURNAL NATIVE_ADAPTER [NATIVE_ARG...]
+
+NATIVE_ADAPTER is a local executable. The harness invokes it as:
+
+  NATIVE_ADAPTER JOURNAL [NATIVE_ARG...]
+
+It must write one already-aggregated non-zero quantity coordinate per line:
+
+  LOCUS<TAB>MEASURE<TAB>QUANTA
+
+QUANTA must be a canonical signed integer. The harness captures both private
+streams in mode-0700 temporary storage, compares them locally, never prints a
+coordinate/value diff, and deletes the temporary files on exit.
+EOF
+}
+
+if [[ $# -lt 2 ]]; then
+  usage
+  exit 2
+fi
+
+journal="$1"
+shift
+native_adapter="$1"
+shift
+
+if [[ ! -f "$journal" ]]; then
+  echo "loam parity: source journal not found" >&2
+  exit 2
+fi
+
+if [[ ! -x "$native_adapter" ]]; then
+  echo "loam parity: native adapter is not executable" >&2
+  exit 2
+fi
+
+file_digest() {
+  local path="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+  else
+    return 127
+  fi
+}
+
+validate_stream() {
+  local side="$1"
+  local path="$2"
+
+  if ! awk -F '\t' '
+    NF != 3 || $1 == "" || $2 == "" || $3 !~ /^(0|-?[1-9][0-9]*)$/ { bad = 1 }
+    END { exit bad }
+  ' "$path"; then
+    echo "loam parity: ${side} projection violated the private row contract" >&2
+    return 1
+  fi
+
+  if cut -f1,2 "$path" | LC_ALL=C sort | uniq -d | grep -q .; then
+    echo "loam parity: ${side} projection contains duplicate coordinates" >&2
+    return 1
+  fi
+}
+
+canonicalize_stream() {
+  local input="$1"
+  local output="$2"
+  awk -F '\t' '$3 != "0" { print $0 }' "$input" | LC_ALL=C sort >"$output"
+}
+
+if ! before_digest="$(file_digest "$journal")"; then
+  echo "loam parity: SHA-256 tool unavailable" >&2
+  exit 2
+fi
+
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/loam-private-parity.XXXXXX")"
+chmod 700 "$tmpdir"
+trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+
+loam_raw="$tmpdir/loam.rows"
+native_raw="$tmpdir/native.rows"
+loam_canonical="$tmpdir/loam.sorted"
+native_canonical="$tmpdir/native.sorted"
+
+if ! "$root/tools/loam" shadow-quantity --parity-rows "$journal" \
+    >"$loam_raw" 2>"$tmpdir/loam.stderr"; then
+  echo "loam parity: LOAM shadow projection failed; private stderr withheld" >&2
+  exit 2
+fi
+
+if ! "$native_adapter" "$journal" "$@" \
+    >"$native_raw" 2>"$tmpdir/native.stderr"; then
+  echo "loam parity: native projection failed; private stderr withheld" >&2
+  exit 2
+fi
+
+if ! after_digest="$(file_digest "$journal")"; then
+  echo "loam parity: could not verify source immutability" >&2
+  exit 2
+fi
+
+if [[ "$before_digest" != "$after_digest" ]]; then
+  echo "loam parity: REFUSED; source journal changed during observation" >&2
+  exit 2
+fi
+
+validate_stream "LOAM" "$loam_raw"
+validate_stream "native" "$native_raw"
+canonicalize_stream "$loam_raw" "$loam_canonical"
+canonicalize_stream "$native_raw" "$native_canonical"
+
+loam_count="$(wc -l <"$loam_canonical" | tr -d '[:space:]')"
+native_count="$(wc -l <"$native_canonical" | tr -d '[:space:]')"
+
+if cmp -s "$loam_canonical" "$native_canonical"; then
+  echo "LOAM private quantity parity: PASS"
+  echo "  non-zero coordinates: $loam_count"
+  echo "  source unchanged: yes"
+  echo "  private coordinate/value output: withheld"
+  exit 0
+fi
+
+echo "LOAM private quantity parity: MISMATCH" >&2
+echo "  LOAM non-zero coordinates: $loam_count" >&2
+echo "  native non-zero coordinates: $native_count" >&2
+echo "  private coordinate/value diff: withheld" >&2
+exit 1
