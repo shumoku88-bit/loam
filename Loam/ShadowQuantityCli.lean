@@ -1,4 +1,4 @@
-import Loam.Core.EventMemory
+import Loam.Application.QuantityInspection
 import Std
 
 namespace Loam.ShadowQuantityCli
@@ -178,6 +178,15 @@ private def recordedCoordinates (memory : EventMemory) : List EffectCoordinate :
         coordinates)
     []
 
+/--
+The stateless shadow has no retained correction facts. This value is application
+input, not a claim that the private source has globally solved correction
+continuity; correction-sensitive cross-run interpretation remains outside this
+entrance.
+-/
+private def emptyCorrectionMemory : EventCorrectionMemory :=
+  { corrections := [], idNodup := by simp }
+
 private def printEvidence (evidence : ParseEvidence) : IO Unit := do
   IO.println "Shadow source coverage:"
   IO.println ("  events projected: " ++ toString evidence.sourceEvents)
@@ -186,18 +195,26 @@ private def printEvidence (evidence : ParseEvidence) : IO Unit := do
   IO.println ("  metadata lines not projected: " ++ toString evidence.metadataLines)
   IO.println ("  include directives not projected: " ++ toString evidence.includeDirectives)
 
-private def printQuantities (memory : EventMemory) : IO Unit := do
+/--
+Run the production quantity-inspection Application boundary in its recorded
+mode. Returning `false` is a fail-closed guard against an unexpected mismatch
+between this entrance's empty-correction premise and the Application answer.
+-/
+private def printQuantities (memory : EventMemory) : IO Bool := do
   IO.println "Recorded quantity projection (stateless shadow; run-local identity discarded on exit):"
   let coordinates := recordedCoordinates memory
   match coordinates with
   | [] => IO.println "  (no quantity coordinates)"
   | _ =>
       for coordinate in coordinates do
-        let quantity :=
-          EventMemory.quantityAtRecorded memory coordinate.locus coordinate.measure
-        IO.println
-          ("  " ++ coordinate.locus.token ++ ": " ++
-            toString quantity.quanta ++ " " ++ coordinate.measure.token)
+        match Loam.Application.inspectQuantity
+            memory emptyCorrectionMemory coordinate.locus coordinate.measure with
+        | .recorded quantity =>
+            IO.println
+              ("  " ++ coordinate.locus.token ++ ": " ++
+                toString quantity.quanta ++ " " ++ coordinate.measure.token)
+        | _ => return false
+  return true
 
 /--
 Emit a private comparison stream for the local parity harness.
@@ -208,15 +225,18 @@ Zero coordinates are omitted because the native accounting view may omit them.
 The harness sorts the rows before comparison, so this stream makes no ordering
 claim.
 -/
-private def printParityRows (memory : EventMemory) : IO Unit := do
+private def printParityRows (memory : EventMemory) : IO Bool := do
   for coordinate in recordedCoordinates memory do
-    let quantity :=
-      EventMemory.quantityAtRecorded memory coordinate.locus coordinate.measure
-    if quantity.quanta != 0 then
-      IO.println
-        (coordinate.locus.token ++ "\t" ++
-          coordinate.measure.token ++ "\t" ++
-          toString quantity.quanta)
+    match Loam.Application.inspectQuantity
+        memory emptyCorrectionMemory coordinate.locus coordinate.measure with
+    | .recorded quantity =>
+        if quantity.quanta != 0 then
+          IO.println
+            (coordinate.locus.token ++ "\t" ++
+              coordinate.measure.token ++ "\t" ++
+              toString quantity.quanta)
+    | _ => return false
+  return true
 
 private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt32 := do
   let source := System.FilePath.mk path
@@ -237,22 +257,30 @@ private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt
       IO.eprintln "loam: run-local Event identity collision"
       return 2
   | some memory =>
-      if parityRows then
-        printParityRows memory
+      let inspected ←
+        if parityRows then
+          printParityRows memory
+        else
+          IO.println "LOAM stateless shadow quantity"
+          IO.println "source: read-only; persistence: none; sidecar: none"
+          printEvidence parsed.evidence
+          printQuantities memory
+      if inspected then
+        return 0
       else
-        IO.println "LOAM stateless shadow quantity"
-        IO.println "source: read-only; persistence: none; sidecar: none"
-        printEvidence parsed.evidence
-        printQuantities memory
-      return 0
+        IO.eprintln "loam: application quantity inspection disagreed with stateless recorded mode"
+        IO.eprintln "loam: no LOAM persistence was written"
+        return 2
 
 /--
 Parse one journal snapshot without writing the source or any LOAM persistence.
 
 Every EventId and EffectKey created here is unique only within this invocation.
 The command is therefore limited to the identity-renaming-invariant recorded
-quantity projection established by Observation 078. It must not be reused for
-correction, relation, reconciliation, or cross-run identity lookup.
+quantity projection established by Observation 078. The projection now passes
+through the production Application quantity-inspection boundary in its
+no-correction mode. Run-local identity must still not be reused for correction,
+relation, reconciliation, or cross-run identity lookup.
 -/
 def shadowQuantity (path : String) : IO UInt32 :=
   shadowQuantityWithMode path false
