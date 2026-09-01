@@ -43,24 +43,34 @@ python3 - "$actual" "$plan" >"$result" 2>"$parser_err" <<'PY'
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import sys
 
-HEADER = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\s|$)")
+HEADER = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:\s|$)")
 PLAN_ID = re.compile(r"^;\s*plan-id\s*:\s*(\S(?:.*\S)?)\s*$")
+INTEGER = re.compile(r"^[+-]?\d+$")
+
+Posting = tuple[str, str, int]
+
+
+@dataclass
+class Record:
+    date: str
+    plan_ids: list[str] = field(default_factory=list)
+    postings: list[Posting] = field(default_factory=list)
+    unsupported_posting: bool = False
+
 
 @dataclass
 class Scan:
-    records: int
-    ids_by_record: list[list[str]]
+    records: list[Record]
 
 
 def scan(path: Path) -> Scan:
-    records = 0
-    ids_by_record: list[list[str]] = []
-    current: list[str] | None = None
+    records: list[Record] = []
+    current: Record | None = None
 
     with path.open("r", encoding="utf-8") as handle:
         for raw in handle:
@@ -70,21 +80,39 @@ def scan(path: Path) -> Scan:
                 continue
 
             indented = len(line) != len(line.lstrip())
-            if not indented and HEADER.match(stripped):
-                records += 1
-                current = []
-                ids_by_record.append(current)
+            if not indented:
+                header = HEADER.match(stripped)
+                if header:
+                    current = Record(date=header.group(1))
+                    records.append(current)
+                else:
+                    current = None
                 continue
 
             if current is None:
                 continue
 
-            if indented:
-                match = PLAN_ID.match(stripped)
-                if match:
-                    current.append(match.group(1))
+            plan_id = PLAN_ID.match(stripped)
+            if plan_id:
+                current.plan_ids.append(plan_id.group(1))
+                continue
 
-    return Scan(records=records, ids_by_record=ids_by_record)
+            if stripped.startswith(";"):
+                continue
+
+            parts = stripped.split()
+            if len(parts) < 3 or not INTEGER.fullmatch(parts[-2]):
+                current.unsupported_posting = True
+                continue
+
+            locus = " ".join(parts[:-2])
+            if not locus:
+                current.unsupported_posting = True
+                continue
+
+            current.postings.append((locus, parts[-1], int(parts[-2])))
+
+    return Scan(records=records)
 
 
 def refuse(reason: str) -> None:
@@ -94,26 +122,60 @@ def refuse(reason: str) -> None:
     raise SystemExit(2)
 
 
+def physical_delta(plan_record: Record, actual_record: Record) -> str:
+    if (
+        plan_record.unsupported_posting
+        or actual_record.unsupported_posting
+        or not plan_record.postings
+        or not actual_record.postings
+    ):
+        refuse("linked record has unsupported physical shape")
+
+    plan_exact = Counter(plan_record.postings)
+    actual_exact = Counter(actual_record.postings)
+    if plan_exact == actual_exact:
+        return "exact"
+
+    plan_shape = Counter((locus, measure) for locus, measure, _ in plan_record.postings)
+    actual_shape = Counter((locus, measure) for locus, measure, _ in actual_record.postings)
+    if plan_shape == actual_shape:
+        return "quantity-different"
+
+    return "shape-different"
+
+
+def time_relation(plan_record: Record, actual_record: Record) -> str:
+    if actual_record.date < plan_record.date:
+        return "before"
+    if actual_record.date > plan_record.date:
+        return "after"
+    return "same-day"
+
+
 actual = scan(Path(sys.argv[1]))
 plan = scan(Path(sys.argv[2]))
 
-plan_multi = sum(1 for ids in plan.ids_by_record if len(ids) > 1)
-actual_multi = sum(1 for ids in actual.ids_by_record if len(ids) > 1)
-if plan_multi:
+if any(len(record.plan_ids) > 1 for record in plan.records):
     refuse("plan record has multiple plan-id fields")
-if actual_multi:
+if any(len(record.plan_ids) > 1 for record in actual.records):
     refuse("actual record has multiple plan-id fields")
 
-plan_ids = [ids[0] for ids in plan.ids_by_record if len(ids) == 1]
-actual_refs = [ids[0] for ids in actual.ids_by_record if len(ids) == 1]
-
-plan_id_counts = Counter(plan_ids)
-duplicate_plan_ids = sum(1 for count in plan_id_counts.values() if count > 1)
-if duplicate_plan_ids:
+plan_records = {
+    record.plan_ids[0]: record
+    for record in plan.records
+    if len(record.plan_ids) == 1
+}
+plan_id_count = sum(1 for record in plan.records if len(record.plan_ids) == 1)
+if len(plan_records) != plan_id_count:
     refuse("plan-id is not unique in plan source")
 
-plan_set = set(plan_ids)
-actual_ref_counts = Counter(actual_refs)
+actual_refs = [
+    (record.plan_ids[0], record)
+    for record in actual.records
+    if len(record.plan_ids) == 1
+]
+actual_ref_counts = Counter(plan_id for plan_id, _ in actual_refs)
+plan_set = set(plan_records)
 
 matched_refs = sum(count for key, count in actual_ref_counts.items() if key in plan_set)
 dangling_refs = sum(count for key, count in actual_ref_counts.items() if key not in plan_set)
@@ -121,16 +183,32 @@ plans_zero = sum(1 for key in plan_set if actual_ref_counts[key] == 0)
 plans_one = sum(1 for key in plan_set if actual_ref_counts[key] == 1)
 plans_many = sum(1 for key in plan_set if actual_ref_counts[key] >= 2)
 
+matrix: Counter[tuple[str, str]] = Counter()
+for plan_id, actual_record in actual_refs:
+    plan_record = plan_records.get(plan_id)
+    if plan_record is None:
+        continue
+    matrix[(time_relation(plan_record, actual_record), physical_delta(plan_record, actual_record))] += 1
+
 print("LOAM private plan realization shadow")
-print(f"plan records observed: {plan.records}")
-print(f"plan records with explicit plan-id: {len(plan_ids)}")
-print(f"actual records observed: {actual.records}")
+print(f"plan records observed: {len(plan.records)}")
+print(f"plan records with explicit plan-id: {plan_id_count}")
+print(f"actual records observed: {len(actual.records)}")
 print(f"actual records with explicit plan reference: {len(actual_refs)}")
 print(f"actual plan references resolving to plan source: {matched_refs}")
 print(f"actual plan references missing from plan source: {dangling_refs}")
 print(f"plans with no explicit actual reference: {plans_zero}")
 print(f"plans with exactly one explicit actual reference: {plans_one}")
 print(f"plans with multiple explicit actual references: {plans_many}")
+print(f"matched explicit pairs compared: {sum(matrix.values())}")
+print("time x physical delta:")
+for timing in ("before", "same-day", "after"):
+    print(
+        f"  {timing}: "
+        f"exact={matrix[(timing, 'exact')]} "
+        f"same-shape-quantity-different={matrix[(timing, 'quantity-different')]} "
+        f"shape-different={matrix[(timing, 'shape-different')]}"
+    )
 print("private identities/content: withheld")
 PY
 status=$?
