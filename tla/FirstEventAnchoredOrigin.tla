@@ -83,15 +83,19 @@ FirstEventOriginStartsFromZero ==
   \A c \in Coordinates :
     originKind[c] = FirstEventOrigin => Current(c) = activity[c]
 
-\* Temporal claim: a first-event origin can only be introduced on a transition
-\* where that coordinate was still unseen and had zero prior activity.
+\* Action-level claim: if a first-event origin is introduced, the coordinate
+\* was still unseen with zero prior activity, and this transition is its first
+\* appearance. The temporal property below places this action under [A]_vars.
+FirstEventOriginIntroductionOK ==
+  \A c \in NewCoordinates :
+    (originKind[c] = NoOrigin /\ originKind'[c] = FirstEventOrigin) =>
+      /\ c \notin seen
+      /\ activity[c] = 0
+      /\ c \in seen'
+      /\ activity'[c] = 1
+
 FirstEventOriginIntroducedAtFirstAppearance ==
-  [](\A c \in NewCoordinates :
-       (originKind[c] = NoOrigin /\ originKind'[c] = FirstEventOrigin) =>
-         /\ c \notin seen
-         /\ activity[c] = 0
-         /\ c \in seen'
-         /\ activity'[c] = 1)
+  [][FirstEventOriginIntroductionOK]_vars
 
 \* Witness boundary: false if a new anchored coordinate can really be born at
 \* its first Event rather than requiring an application-origin basis.
