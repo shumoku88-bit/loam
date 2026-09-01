@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
       - 'Loam/Core/**'
       - 'Loam/Observation078.lean'
       - 'tools/loam'
@@ -17,6 +19,8 @@ on:
       - main
     paths:
       - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
       - 'Loam/Core/**'
       - 'Loam/Observation078.lean'
       - 'tools/loam'
