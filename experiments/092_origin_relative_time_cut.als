@@ -25,7 +25,9 @@ fact RetainedSnapshot {
 fact ActualOrderIsStrictTotal {
   all w : World {
     no iden & w.actualBefore
-    w.actualBefore.w.actualBefore in w.actualBefore
+    all e1, e2, e3 : Event |
+      (e1->e2 in w.actualBefore and e2->e3 in w.actualBefore) implies
+        e1->e3 in w.actualBefore
     all disj e1, e2 : Event |
       e1->e2 in w.actualBefore or e2->e1 in w.actualBefore
   }
