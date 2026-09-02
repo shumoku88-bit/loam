@@ -80,7 +80,7 @@ pred representativeLocusRoutedActual {
   some ev: ActualEvent | {
     let effects = ev.~event |
       #effects >= 3 and
-      some effects & unmanagedEffects[Left] + effects & unroutedEffects[Left]
+      some ((effects & unmanagedEffects[Left]) + (effects & unroutedEffects[Left]))
 
     #((ev.~event).(managedEffects[Left])) >= 2
   }
@@ -111,11 +111,11 @@ pred explicitlyUnmanagedActual {
 
 assert RoutesWithoutValidDayDetermineSelectedRouting {
   Left.routes = Right.routes
-  implies {
+  implies (
     managedEffects[Left] = managedEffects[Right]
-    unmanagedEffects[Left] = unmanagedEffects[Right]
-    unroutedEffects[Left] = unroutedEffects[Right]
-  }
+    and unmanagedEffects[Left] = unmanagedEffects[Right]
+    and unroutedEffects[Left] = unroutedEffects[Right]
+  )
 }
 
 assert OneEventSinglePurposeAlwaysEnough {
@@ -125,11 +125,11 @@ assert OneEventSinglePurposeAlwaysEnough {
 
 assert RoutesAndValidDayDetermineSelectedRouting {
   Left.routes = Right.routes and Left.validOn = Right.validOn
-  implies {
+  implies (
     managedEffects[Left] = managedEffects[Right]
-    unmanagedEffects[Left] = unmanagedEffects[Right]
-    unroutedEffects[Left] = unroutedEffects[Right]
-  }
+    and unmanagedEffects[Left] = unmanagedEffects[Right]
+    and unroutedEffects[Left] = unroutedEffects[Right]
+  )
 }
 
 assert SelectedRoutingPartitionsEffects {
