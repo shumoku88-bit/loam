@@ -130,46 +130,72 @@ Expected: **SAT**.
 
 The distinction is derived from the replacement relation plus scheduled days.
 
-## Checks
+## Executed result
 
-The expected checks are:
-
-```text
-ClosedSummaryDeterminesLifecycleMeaning          SAT counterexample
-StatusKindsDetermineSuccessorProvenance          SAT counterexample
-DecodedLifecycleDeterminesSelectedViews          UNSAT counterexample
-TerminalKindsPartitionTerminal                   UNSAT counterexample
-TemporalViewsPartitionOpen                       UNSAT counterexample
-```
-
-The first two are deliberately false candidate compression laws. The last three are expected to hold in the bounded model.
-
-## What a successful observation would mean
-
-If all expected witnesses and checks hold, the useful compression is:
+Alloy 6.2.0 + Sat4j produced exactly the expected result set:
 
 ```text
-mutable Plan lifecycle state
-        is not required for these views
-
-one generic lifecycle evidence shape
-        + endpoint kind / absence
-        + scheduled day
-        + known-through horizon
-        -> selected lifecycle projections
+representativeLifecycle                       SAT
+futureEvidenceLeavesEarlierViewOpen            SAT
+sameOpenDifferentTerminalMeaning               SAT
+sameKindsDifferentSuccessorProvenance          SAT
+directionWithoutOperationKinds                 SAT
+ClosedSummaryDeterminesLifecycleMeaning        SAT counterexample
+StatusKindsDetermineSuccessorProvenance        SAT counterexample
+DecodedLifecycleDeterminesSelectedViews        UNSAT counterexample
+TerminalKindsPartitionTerminal                 UNSAT counterexample
+TemporalViewsPartitionOpen                     UNSAT counterexample
 ```
 
-It would also show that two tempting smaller summaries are too small:
+The exact-head Observation 105 workflow required this complete result set and completed successfully.
+
+## Finding
+
+The bounded result separates three levels of information.
+
+First, a mutable open/closed status is too small:
 
 ```text
-open / closed
-    loses terminal meaning
-
-completed / retired / superseded status sets
-    can still lose successor provenance
+same open set
+same terminal set
+    !=
+same completion / retirement / supersession meaning
 ```
 
-So the compact boundary would not be "store status". It would be "retain the relation that future questions actually observe, then derive status from it."
+Second, even keeping the status kinds is still too small when successor provenance matters:
+
+```text
+same completed identities
+same retired identities
+same superseded identities
+    !=
+same Scheduled -> Scheduled successor relation
+```
+
+Two worlds can therefore agree on every enum-like lifecycle status while disagreeing about which new occurrence replaced which old occurrence.
+
+Third, once the decoded relations are fixed, the selected household views are fixed in the bounded model:
+
+```text
+completion relation
++ retirement evidence
++ successor relation
++ scheduled day
++ query horizon
+    ->
+live / selected-day / overdue / due / upcoming
++ postpone / advance / same-day replacement
+```
+
+This means `postpone` and `advance` do not need to be retained operation kinds for these questions. They can be projected from successor direction in scheduled time.
+
+The future-evidence witness also preserves the known-through boundary: lifecycle evidence learned after the horizon does not retroactively close the earlier view.
+
+The useful compression is therefore not "store lifecycle status". It is:
+
+> Retain the relation that later questions observe, and derive status from it.
+
+Within this model, completion, cancellation, and replacement can share one generic lifecycle-evidence shape without losing the selected distinctions.
 
 ## Important boundaries
 
@@ -190,7 +216,7 @@ Observation 105 does not establish:
 
 Those distinctions should be earned by later household questions rather than folded into this experiment in advance.
 
-## Next pressure if this survives
+## Next pressure
 
 The natural follow-up is practical rather than ontological:
 
