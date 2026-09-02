@@ -230,5 +230,5 @@ jobs:
           printf 'wallet\tjpy\n' >"$LOAM_DATA_DIR/balance-view.tsv"
           printf 'basis-1\tpre-v1\n' >"$LOAM_DATA_DIR/basis-cut.tsv"
 
-          printf '10\nq\n' | ./tools/loam >"$LOAM_DATA_DIR/menu.out"
+          printf '8\nq\n' | ./tools/loam >"$LOAM_DATA_DIR/menu.out"
           grep -F 'wallet: 93 jpy' "$LOAM_DATA_DIR/menu.out"
