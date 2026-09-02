@@ -129,7 +129,7 @@ or:
 LearnedScopeMatchesValidScopeForLateEvents
 ```
 
-The expected counterexample is a retrospective Event:
+The intended counterexample is a retrospective Event:
 
 ```text
 now = 2
@@ -140,11 +140,68 @@ InValidScope(Event)   = FALSE
 InLearnedScope(Event) = TRUE
 ```
 
-If TLC finds this witness, learned time cannot replace valid time for this origin-membership query.
+## Observed TLC result
 
-## Interpretation boundary
+TLC 2.19 with TLA+ tools 1.7.4 produced:
 
-This observation does **not** claim that valid time is universally more important than learned time.
+```text
+positive model
+  192 states generated
+  192 distinct states
+  depth 6
+  no error
+
+LearnedScopeMatchesValidScopeForLateEvents
+  violated as intended
+  depth 4
+
+witness
+  now = 2
+  history = <<[
+    id      |-> "e0",
+    valid   |-> 0,
+    learned |-> 2
+  ]>>
+```
+
+The trace is exactly the pressure case:
+
+```text
+state 1  now = 0, no Event known
+state 2  now = 1, origin knowledge coordinate reached
+state 3  now = 2, still no Event known
+state 4  admit e0 with valid=0, learned=2
+```
+
+At state 4:
+
+```text
+valid-time relation
+  e0 < Origin
+
+learned-time relation
+  Origin < e0
+```
+
+So a learned-time post-origin cut would admit a retrospectively learned pre-origin Event that the valid-time cut excludes.
+
+## Interpretation
+
+The bounded conclusion is:
+
+> For a query defined as activity valid at or after a selected origin, learned time cannot substitute for valid time once retrospective admission is possible.
+
+Observation 035's two times now play two distinct roles at the quantity-origin boundary:
+
+```text
+learned time
+  when LOAM can first know the Event's classification
+
+valid time
+  which side of the selected origin the Event belongs to
+```
+
+This does **not** claim that valid time is universally more important than learned time.
 
 Learned time still answers a distinct and necessary question:
 
