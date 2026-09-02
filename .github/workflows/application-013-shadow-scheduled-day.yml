@@ -1,0 +1,226 @@
+name: Application 013 Shadow Scheduled Day
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'lakefile.lean'
+      - 'experiments/application_013_shadow_scheduled_day_reader.md'
+      - '.github/workflows/application-013-shadow-scheduled-day.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'lakefile.lean'
+      - 'experiments/application_013_shadow_scheduled_day_reader.md'
+      - '.github/workflows/application-013-shadow-scheduled-day.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-scheduled-day:
+    name: Build and test stateless scheduled day reader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build scheduled day reader
+        run: lake build loamShadowScheduledDay
+
+      - name: Select only open scheduled occurrences visible through horizon
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          plans="$tmp/plans.journal"
+          actual="$tmp/actual.journal"
+
+          cat >"$plans" <<'EOF'
+          include declarations.journal
+
+          2030-01-05 * stays open
+              ; plan-id: plan-open
+              ; recur: monthly
+              ; series: alpha
+              use-a      7 UNIT
+              locus-a   -7 UNIT
+
+          2030-01-05 * completed before horizon
+              ; plan-id: plan-completed
+              use-b      5 UNIT
+              locus-b   -5 UNIT
+
+          2030-01-05 * completion is later than horizon
+              ; plan-id: plan-late
+              use-c      4 UNIT
+              locus-c   -4 UNIT
+
+          2030-01-05 * cancelled before horizon
+              ; plan-id: plan-cancelled
+              ; cancelled-on: 2030-01-02
+              use-d      3 UNIT
+              locus-d   -3 UNIT
+
+          2030-01-05 * cancellation is later than horizon
+              ; plan-id: plan-cancel-later
+              ; cancelled-on: 2030-01-10
+              use-e      2 UNIT
+              locus-e   -2 UNIT
+
+          2030-01-05 * exact content match is not completion
+              ; plan-id: plan-content
+              use-f      9 UNIT
+              locus-f   -9 UNIT
+
+          2030-01-06 * another day
+              ; plan-id: plan-other-day
+              use-g      1 UNIT
+              locus-g   -1 UNIT
+          EOF
+
+          cat >"$actual" <<'EOF'
+          include declarations.journal
+
+          2030-01-03 * completed before horizon
+              ; plan-id: plan-completed
+              use-b      5 UNIT
+              locus-b   -5 UNIT
+
+          2030-01-10 * completion is later than horizon
+              ; plan-id: plan-late
+              use-c      4 UNIT
+              locus-c   -4 UNIT
+
+          2030-01-03 * exact content match is not linked
+              use-f      9 UNIT
+              locus-f   -9 UNIT
+          EOF
+
+          cp "$plans" "$tmp/plans.before"
+          cp "$actual" "$tmp/actual.before"
+
+          .lake/build/bin/loamShadowScheduledDay \
+            2030-01-03 2030-01-05 "$plans" "$actual" >"$tmp/early.out"
+
+          grep -F 'LOAM scheduled day 2030-01-05' "$tmp/early.out"
+          grep -F 'known through: 2030-01-03' "$tmp/early.out"
+          grep -F 'imported source ontology: none' "$tmp/early.out"
+          grep -F '2 include directive(s) were not followed' "$tmp/early.out"
+          grep -F -- '- * stays open' "$tmp/early.out"
+          grep -F -- '- * completion is later than horizon' "$tmp/early.out"
+          grep -F -- '- * cancellation is later than horizon' "$tmp/early.out"
+          grep -F -- '- * exact content match is not completion' "$tmp/early.out"
+
+          if grep -Fq 'completed before horizon' "$tmp/early.out"; then
+            echo 'visible completion did not close scheduled occurrence' >&2
+            exit 1
+          fi
+          if grep -Fq 'cancelled before horizon' "$tmp/early.out"; then
+            echo 'visible cancellation did not close scheduled occurrence' >&2
+            exit 1
+          fi
+          if grep -Fq 'another day' "$tmp/early.out"; then
+            echo 'another scheduled day leaked into selected day' >&2
+            exit 1
+          fi
+
+          .lake/build/bin/loamShadowScheduledDay \
+            2030-01-10 2030-01-05 "$plans" "$actual" >"$tmp/later.out"
+
+          grep -F -- '- * stays open' "$tmp/later.out"
+          grep -F -- '- * exact content match is not completion' "$tmp/later.out"
+          if grep -Fq 'completion is later than horizon' "$tmp/later.out"; then
+            echo 'completion visible at later horizon did not close occurrence' >&2
+            exit 1
+          fi
+          if grep -Fq 'cancellation is later than horizon' "$tmp/later.out"; then
+            echo 'retirement visible at later horizon did not close occurrence' >&2
+            exit 1
+          fi
+
+          cmp "$plans" "$tmp/plans.before"
+          cmp "$actual" "$tmp/actual.before"
+
+      - name: Fail closed on unsupported relation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          plans="$tmp/plans.journal"
+          unknown="$tmp/unknown-actual.journal"
+          conflict="$tmp/conflict-actual.journal"
+
+          cat >"$plans" <<'EOF'
+          2030-01-05 * one scheduled occurrence
+              ; plan-id: plan-one
+              use-a      7 UNIT
+              locus-a   -7 UNIT
+
+          2030-01-05 * retired occurrence
+              ; plan-id: plan-retired
+              ; superseded-on: 2030-01-04
+              ; superseded-by: plan-one
+              use-b      5 UNIT
+              locus-b   -5 UNIT
+          EOF
+
+          cat >"$unknown" <<'EOF'
+          2030-01-03 * unknown completion
+              ; plan-id: plan-missing
+              use-x      1 UNIT
+              locus-x   -1 UNIT
+          EOF
+
+          set +e
+          .lake/build/bin/loamShadowScheduledDay \
+            2030-01-03 2030-01-05 "$plans" "$unknown" \
+            >"$tmp/unknown.out" 2>"$tmp/unknown.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/unknown.out"
+          grep -F 'completion for unknown scheduled identity' "$tmp/unknown.err"
+
+          cat >"$conflict" <<'EOF'
+          2030-01-03 * conflicting completion
+              ; plan-id: plan-retired
+              use-b      5 UNIT
+              locus-b   -5 UNIT
+          EOF
+
+          set +e
+          .lake/build/bin/loamShadowScheduledDay \
+            2030-01-03 2030-01-05 "$plans" "$conflict" \
+            >"$tmp/conflict.out" 2>"$tmp/conflict.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/conflict.out"
+          grep -F 'both completion and retirement evidence' "$tmp/conflict.err"
+
+          set +e
+          .lake/build/bin/loamShadowScheduledDay \
+            2030-1-3 2030-01-05 "$plans" "$unknown" \
+            >"$tmp/date.out" 2>"$tmp/date.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/date.out"
+          grep -F 'coordinates must be YYYY-MM-DD' "$tmp/date.err"
