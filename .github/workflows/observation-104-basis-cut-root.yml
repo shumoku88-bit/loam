@@ -1,0 +1,38 @@
+name: Observation 104
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/104_basis_cut_by_occurrence_root.lean'
+      - 'experiments/104_basis_cut_by_occurrence_root.md'
+      - '.github/workflows/observation-104-basis-cut-root.yml'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  basis-cut-root:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build correction frontier slice
+        run: lake build Loam.Application.CorrectionFrontier
+      - name: Check Observation 104 Lean probe
+        run: lake env lean experiments/104_basis_cut_by_occurrence_root.lean
