@@ -1,0 +1,36 @@
+name: Observation 101
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/101_practical_core_compression.lean'
+      - 'experiments/101_practical_core_compression.md'
+      - '.github/workflows/observation-101-practical-core-compression.yml'
+      - 'Loam/Core/Quantity.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  practical-core-compression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 101 Lean probe
+        run: lake env lean experiments/101_practical_core_compression.lean
