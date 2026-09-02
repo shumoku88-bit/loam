@@ -89,40 +89,49 @@ One world contains:
 - one Capacity reallocation;
 - one Capacity release.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 2. The same signed Effects can support different household answers when plane changes
 
 The Flow / Effect atoms and quantities are world-independent. A Flow can be Actual in one world and Capacity in the other.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 This is the direct pressure against erasing semantic plane.
 
 ### 3. Capacity operation labels can be derived from endpoints
 
-Grant, reallocation, and release should all be witnessable without an operation-kind enum.
+Grant, reallocation, and release are all witnessable without an operation-kind enum.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-## Checks
+## Executed result
 
-Expected results:
+Alloy 6.2.0 + Sat4j, with exactly 4 Flows / 8 Effects / 2 Purposes / 2 Holdings / 2 Worlds and 6-bit Ints:
 
 ```text
-UntypedEffectMemoryDeterminesPlaneSensitiveAnswers      SAT counterexample
-ExplicitPlaneDeterminesSelectedAnswers                  UNSAT counterexample
-CapacityOperationKindsPartitionCapacityFlows            UNSAT counterexample
-PlaneSeparatesEffectOwnership                            UNSAT counterexample
+representativeMixedPlanes                              SAT
+sameSignedEffectsDifferentPlaneSensitiveAnswers        SAT
+capacityLabelsComeFromEndpoints                        SAT
+UntypedEffectMemoryDeterminesPlaneSensitiveAnswers     SAT counterexample
+ExplicitPlaneDeterminesSelectedAnswers                 UNSAT counterexample
+CapacityOperationKindsPartitionCapacityFlows           UNSAT counterexample
+PlaneSeparatesEffectOwnership                           UNSAT counterexample
 ```
 
-The first assertion is deliberately false. The same untyped signed Effects should not determine whether they belong to Actual or Capacity.
+The complete expected result set passed in CI.
 
-The remaining assertions ask whether retaining the plane is sufficient for the selected bounded answers and whether capacity labels are derivable from endpoints.
+The first execution attempt was blocked before solving because `releases` is an Alloy 6 temporal keyword. Renaming the helper to `capacityReleases` changed no model meaning. A second small syntactic clarification parenthesized the signed sum expression. The final exact-head run executed the model and expectation check successfully.
 
-## What a successful observation would mean
+## Finding
 
-If the expected witnesses and checks hold, the useful compression is:
+Within the bounded vocabulary, the same signed Flow / Effect representation can serve both Actual and Capacity evidence, but the semantic plane is independently observable.
+
+Keeping Flow and Effect atoms fixed while changing only `planeOf` can change which Effects contribute to Actual holdings and which contribute to Capacity. Therefore an untyped Effect memory is too small for these household questions.
+
+At the same time, once `planeOf` is fixed, Alloy found no counterexample where the selected Actual/Capacity answers or capacity endpoint labels differ.
+
+The useful compression is:
 
 ```text
 shared signed Effect algebra
@@ -138,9 +147,9 @@ stored grant / reallocation / release kind
     not required for the admitted endpoint shapes
 ```
 
-This would give LOAM a way to reuse the small Event / Effect machinery and possibly the movement interaction shape when Envelope capacity arrives, without allowing Entitlement transfers to change actual household holdings.
+So LOAM may be able to reuse the small Event / Effect arithmetic and movement interaction shape when Envelope capacity arrives without allowing Entitlement movement to alter physical household holdings.
 
-The result would not by itself earn a `Plane` type in Practical Core. The independently observable distinction could be represented in several ways.
+The independently observable distinction does not itself earn a Practical Core `Plane` type. A tag, disjoint namespace, typed wrapper, separate authority stream, or another information-equivalent representation could preserve it.
 
 ## Important boundaries
 
@@ -162,7 +171,7 @@ Observation 106 does not establish:
 
 Those questions remain separate pressure points.
 
-## Next pressure if this survives
+## Next pressure
 
 The whole-household map points next to historical routing:
 
