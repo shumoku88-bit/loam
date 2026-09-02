@@ -84,7 +84,7 @@ fun reallocations[w: World]: set Flow {
   }
 }
 
-fun releases[w: World]: set Flow {
+fun capacityReleases[w: World]: set Flow {
   { f: capacityFlows[w] |
     sourceNode[f] in Purpose and targetNode[f] = Unallocated
   }
@@ -97,7 +97,7 @@ pred representativeMixedPlanes {
   }
   some grants[Left]
   some reallocations[Left]
-  some releases[Left]
+  some capacityReleases[Left]
 }
 
 pred sameSignedEffectsDifferentPlaneSensitiveAnswers {
@@ -112,7 +112,7 @@ pred sameSignedEffectsDifferentPlaneSensitiveAnswers {
 pred capacityLabelsComeFromEndpoints {
   some grants[Left]
   some reallocations[Left]
-  some releases[Left]
+  some capacityReleases[Left]
 }
 
 assert UntypedEffectMemoryDeterminesPlaneSensitiveAnswers {
@@ -126,16 +126,16 @@ assert ExplicitPlaneDeterminesSelectedAnswers {
     capacityEffects[Left] = capacityEffects[Right]
     grants[Left] = grants[Right]
     reallocations[Left] = reallocations[Right]
-    releases[Left] = releases[Right]
+    capacityReleases[Left] = capacityReleases[Right]
   }
 }
 
 assert CapacityOperationKindsPartitionCapacityFlows {
   all w: World | {
-    capacityFlows[w] = grants[w] + reallocations[w] + releases[w]
+    capacityFlows[w] = grants[w] + reallocations[w] + capacityReleases[w]
     no grants[w] & reallocations[w]
-    no grants[w] & releases[w]
-    no reallocations[w] & releases[w]
+    no grants[w] & capacityReleases[w]
+    no reallocations[w] & capacityReleases[w]
   }
 }
 
