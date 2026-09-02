@@ -104,32 +104,68 @@ origin quantity + scoped activity
 
 No Event quantity field is rewritten by the temporal correction.
 
-## Positive boundary
+## Observed TLA+ result
 
-The positive model asks TLC to preserve:
+TLA+ tools 1.7.4 / TLC 2.19 completed the positive bounded exploration with no error:
+
+```text
+8 states generated
+8 distinct states found
+0 states left on queue
+complete state graph depth: 6
+```
+
+The explored history preserved all intended safety properties:
 
 - type safety;
 - no retained Event or temporal evidence before its learned time;
 - closed same-Event temporal correction references;
 - at most one temporal frontier fact per Event at each knowledge time;
-- missing temporal evidence does not invent a quantity answer;
-- after the correction is retained:
-  - `CurrentQuantityAnswersAt(1, e0) = {100}`;
-  - `CurrentQuantityAnswersAt(2, e0) = {100}`;
-  - `CurrentQuantityAnswersAt(3, e0) = {0}`;
+- missing temporal evidence invents no quantity answer;
 - `EventAmount(e0)` remains exactly `100`;
-- the retained Event, temporal facts, and corrections only grow.
+- retained Event, temporal facts, and Corrections only grow.
+
+Once `c0` is retained, the same final append-only history reconstructs:
+
+```text
+CurrentQuantityAnswersAt(1, e0) = {100}
+CurrentQuantityAnswersAt(2, e0) = {100}
+CurrentQuantityAnswersAt(3, e0) = {0}
+```
+
+The counterexample trace reaches the correction without replacing `e0`:
+
+```text
+knowledge time 1
+  retainedEvents = {e0}
+  retainedFacts  = {t0}
+
+knowledge time 3, before correction
+  retainedEvents = {e0}
+  retainedFacts  = {t0}
+
+knowledge time 3, after correction
+  retainedEvents      = {e0}
+  retainedFacts       = {t0, t1}
+  retainedCorrections = {c0}
+```
+
+So the quantity change in this projection comes from corrected scope membership, not Event mutation.
 
 ## Deliberate boundary
 
-The stronger claim is:
+The stronger claim was:
 
 ```text
 retain only the final temporal frontier
   -> enough to reconstruct the earlier as-known quantity
 ```
 
-The boundary configuration asks TLC to reject that claim.
+TLC rejected it as expected:
+
+```text
+Invariant FinalTemporalFrontierCanReconstructPastQuantity is violated.
+```
 
 After correction, the final temporal frontier is only:
 
@@ -145,30 +181,43 @@ Filtering only that final frontier back to time 1 therefore yields no temporal a
 as-known at 1 = 100
 ```
 
-If the intended counterexample is reachable, then:
+So the bounded model supports:
 
 ```text
 final temporal frontier
   != enough historical information for past quantity projection
 ```
 
-## Qualified interpretation
+## Finding
 
-A successful receipt would support only this narrow statement:
+The observed model supports this qualified composition:
 
 ```text
 immutable Event quantity
 + append-only temporal evidence
 + append-only temporal correction
 + origin-relative scoped projection
-  can yield
-    earlier current = 100
-    later current   = 0
+  ->
+    earlier as-known current = 100
+    later   as-known current = 0
 ```
 
 without rewriting the Event quantity itself.
 
-It would also show that historical as-known quantity depends on retained temporal history, not only the final temporal frontier.
+This connects the earlier time observations back to the quantity pressure first exposed by Observation 091:
+
+```text
+quantity fact
+  says how much activity the Event carries
+
+temporal evidence
+  says whether that activity belongs in this selected origin-relative scope
+
+current projection
+  composes the two
+```
+
+Historical as-known quantity therefore depends on retained temporal history, not only the final temporal frontier.
 
 This does **not** mean a temporal correction changes what physically happened. It changes the currently admitted temporal interpretation used by this selected projection.
 
