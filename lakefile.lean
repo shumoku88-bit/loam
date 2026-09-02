@@ -9,6 +9,9 @@ lean_lib Loam
 lean_exe loam where
   root := `Loam.Cli
 
+lean_exe loamMovement where
+  root := `Loam.MovementCli
+
 lean_exe loamDailyQuantity where
   root := `Loam.DailyQuantityCli
 

@@ -1,0 +1,83 @@
+name: Practical Movement
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Core/**'
+      - 'tools/loam-movement'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-movement.yml'
+  push:
+    paths:
+      - 'Loam/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Core/**'
+      - 'tools/loam-movement'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-movement.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-movement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  movement:
+    name: Build and test balanced movement entrance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build movement entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Record split payment as one Event
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
+            | ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+          grep -Fq 'Recorded movement: 1000 jpy.' /tmp/loam-movement.out
+
+          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
+          test "$(cat "$memory")" = "$expected"
+
+      - name: Refuse unequal movement without publication
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          if printf 'paypay\n800\n\ngroceries\n799\n\n' \
+              | ./tools/loam-movement "$memory" >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
+            echo 'expected unequal movement totals to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'movement totals differ: from 800 jpy, to 799 jpy' /tmp/loam-movement.err
+          test ! -e "$memory"
