@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Cli.lean'
       - 'Loam/CorrectionCli.lean'
+      - 'Loam/MovementEntry.lean'
       - 'Loam/Application/**'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'Loam/Cli.lean'
       - 'Loam/CorrectionCli.lean'
+      - 'Loam/MovementEntry.lean'
       - 'Loam/Application/**'
       - 'Loam/Core/**'
       - 'Loam/Persistence.lean'
@@ -133,7 +135,7 @@ jobs:
           corrections="$tmp/corrections.loam"
 
           printf 'paypay\n食費\n160\n' | .lake/build/bin/loam spend "$memory" >/dev/null
-          printf '1\npaypay\n飲料\n150\n' | \
+          printf '1\npaypay\n150\n\n飲料\n150\n\n' | \
             .lake/build/bin/loam correct "$memory" "$corrections" >/dev/null
 
           .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"

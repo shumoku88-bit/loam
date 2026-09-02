@@ -1,18 +1,10 @@
+import Loam.MovementEntry
 import Loam.Persistence
 import Loam.WriterOwnership
-import Std
 
 namespace Loam.MovementCli
 
 set_option autoImplicit false
-
-/-- Prompt for one line while keeping the movement entrance interactive. -/
-private def promptLine (prompt : String) : IO String := do
-  IO.print prompt
-  let stdout ← IO.getStdout
-  stdout.flush
-  let stdin ← IO.getStdin
-  return (← stdin.getLine).trimAsciiEnd.toString
 
 /--
 Search the same bounded operational Event-id namespace used by the practical CLI.
@@ -38,46 +30,6 @@ private def loadEventMemoryForEntry?
     return Loam.Core.EventMemory.ofEvents? []
 
 /--
-Collect one nonempty side of a human-entered movement.
-
-`negative` only controls the interface-level sign assigned to the Effects created
-by this entrance. No source/destination role is retained in Core beyond the
-ordinary signed quantity Effects themselves.
--/
-private partial def collectSide
-    (label : String)
-    (negative : Bool)
-    (nextIndex : Nat)
-    (effects : List Loam.Core.Effect)
-    (total : Int)
-    (count : Nat) :
-    IO (Except String (Nat × List Loam.Core.Effect × Int)) := do
-  let locusToken ← promptLine (label ++ " locus (blank when done)? ")
-  if locusToken.isEmpty then
-    if count = 0 then
-      return Except.error ("loam: at least one " ++ label.toLower ++ " locus is required")
-    else
-      return Except.ok (nextIndex, effects, total)
-  else if !Loam.Persistence.validToken locusToken then
-    return Except.error ("loam: " ++ label.toLower ++ " locus must be a nonempty single-line token")
-  else
-    let amountText ← promptLine (label ++ " amount? ")
-    match amountText.toInt? with
-    | none =>
-        return Except.error "loam: movement amount must be a positive integer"
-    | some amount =>
-        if amount <= 0 then
-          return Except.error "loam: movement amount must be a positive integer"
-        else
-          let signedAmount := if negative then -amount else amount
-          let effect :=
-            Loam.Core.Effect.ofQuantity
-              ⟨"effect-" ++ toString nextIndex⟩ ⟨locusToken⟩ ⟨"jpy"⟩
-              (Loam.Core.Quantity.ofQuanta signedAmount)
-          collectSide label negative (nextIndex + 1)
-            (effects ++ [effect]) (total + amount) (count + 1)
-
-/--
 Record one balanced human-facing JPY movement with one or more FROM loci and one
 or more TO loci.
 
@@ -99,43 +51,32 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       return 2
   | some memory =>
       IO.println "Record one movement. Add FROM entries, then TO entries."
-      match ← collectSide "From" true 1 [] 0 0 with
+      match ← Loam.MovementEntry.collectMovementEffects with
       | Except.error message =>
           IO.eprintln message
           return 2
-      | Except.ok (nextIndex, fromEffects, fromTotal) =>
-          match ← collectSide "To" false nextIndex fromEffects 0 0 with
-          | Except.error message =>
-              IO.eprintln message
+      | Except.ok (effects, total) =>
+          match freshRecordEventId? memory with
+          | none =>
+              IO.eprintln "loam: could not generate a fresh event identity"
               return 2
-          | Except.ok (_, effects, toTotal) =>
-              if fromTotal != toTotal then
-                IO.eprintln
-                  ("loam: movement totals differ: from " ++ toString fromTotal ++
-                    " jpy, to " ++ toString toTotal ++ " jpy")
-                return 2
-              else
-                match freshRecordEventId? memory with
-                | none =>
-                    IO.eprintln "loam: could not generate a fresh event identity"
-                    return 2
-                | some eventId =>
-                    match Loam.Core.Event.ofEffects? eventId effects with
-                    | none =>
-                        IO.eprintln "loam: could not admit generated movement event"
+          | some eventId =>
+              match Loam.Core.Event.ofEffects? eventId effects with
+              | none =>
+                  IO.eprintln "loam: could not admit generated movement event"
+                  return 2
+              | some event =>
+                  match Loam.Core.EventMemory.add? memory event with
+                  | none =>
+                      IO.eprintln "loam: generated event identity already remembered"
+                      return 2
+                  | some updated =>
+                      if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                        IO.println ("Recorded movement: " ++ toString total ++ " jpy.")
+                        return 0
+                      else
+                        IO.eprintln "loam: recorded event contains an unrepresentable identity token"
                         return 2
-                    | some event =>
-                        match Loam.Core.EventMemory.add? memory event with
-                        | none =>
-                            IO.eprintln "loam: generated event identity already remembered"
-                            return 2
-                        | some updated =>
-                            if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                              IO.println ("Recorded movement: " ++ toString fromTotal ++ " jpy.")
-                              return 0
-                            else
-                              IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                              return 2
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
