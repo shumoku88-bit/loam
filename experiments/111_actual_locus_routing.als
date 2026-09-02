@@ -106,7 +106,7 @@ pred currentRouteCanMisreadEarlierActual {
 }
 
 pred explicitlyUnmanagedActual {
-  some e: unmanagedEffects[Left]
+  some unmanagedEffects[Left]
 }
 
 assert RoutesWithoutValidDayDetermineSelectedRouting {
