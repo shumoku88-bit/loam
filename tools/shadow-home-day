@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 4 ]; then
+  echo "usage: bash tools/shadow-home-day <known-through> <selected-day> <plan-journal> <actual-journal>" >&2
+  exit 2
+fi
+
+known_through=$1
+selected_day=$2
+plan_path=$3
+actual_path=$4
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd -P)
+
+absolute_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *)
+      dir=$(dirname -- "$1")
+      base=$(basename -- "$1")
+      abs_dir=$(CDPATH= cd -- "$dir" && pwd -P) || return 1
+      printf '%s/%s\n' "$abs_dir" "$base"
+      ;;
+  esac
+}
+
+plan_source=$(absolute_path "$plan_path") || {
+  echo "loam: shadow home day plan source directory not found" >&2
+  exit 2
+}
+actual_source=$(absolute_path "$actual_path") || {
+  echo "loam: shadow home day actual source directory not found" >&2
+  exit 2
+}
+
+if [ ! -f "$plan_source" ] || [ ! -f "$actual_source" ]; then
+  echo "loam: shadow home day source file not found" >&2
+  exit 2
+fi
+
+cd "$repo_root"
+lake build loamShadowDay loamShadowScheduledDay >/dev/null
+
+printf 'LOAM household day %s\n' "$selected_day"
+printf 'known through: %s\n' "$known_through"
+printf 'composition: read-only qualified projections; persistence: none\n\n'
+
+printf 'Actual:\n'
+"$repo_root/.lake/build/bin/loamShadowDay" "$selected_day" "$actual_source"
+actual_status=$?
+if [ "$actual_status" -ne 0 ]; then
+  exit "$actual_status"
+fi
+
+printf '\nScheduled:\n'
+"$repo_root/.lake/build/bin/loamShadowScheduledDay" \
+  "$known_through" "$selected_day" "$plan_source" "$actual_source"
