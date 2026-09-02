@@ -105,7 +105,49 @@ any temporal conflict
 
 The divergent `Before / After` conflict should reject that claim because it produces quantity candidates `{0, 100}`.
 
-If both counterexamples are reachable, the useful boundary becomes:
+## Observed TLA+ 1.7.4 result
+
+The positive bounded exploration completed successfully:
+
+```text
+Model checking completed. No error has been found.
+10 states generated
+10 distinct states found
+0 states left on queue
+depth 7
+```
+
+At knowledge time 2 the same retained history contains both kinds of temporal conflict:
+
+```text
+e0 frontier = {t1, t2}
+positions   = {Before, After}
+quantity candidates = {0, 100}
+quantity answer      = unavailable
+
+e1 frontier = {u1, u2}
+positions   = {After, After}
+quantity candidates = {100}
+quantity answer      = 100
+```
+
+The blanket blocking claim was rejected as expected:
+
+```text
+Invariant AnyTemporalConflictBlocksQuantity is violated.
+```
+
+The counterexample reaches the knowledge-time-2 state with both sibling conflicts retained. `e1` is still a structural temporal conflict, but both unresolved candidates map to quantity `100`.
+
+The blanket availability claim was also rejected as expected:
+
+```text
+Invariant AnyTemporalConflictStillYieldsQuantity is violated.
+```
+
+The counterexample reaches the same knowledge-time-2 state. `e0` has unresolved `Before / After` candidates that map to distinct quantities `0` and `100`, so no unique quantity answer exists.
+
+The useful boundary is therefore narrower than either blanket rule:
 
 ```text
 temporal conflict
@@ -115,6 +157,10 @@ quantity ambiguity
   depends on whether unresolved temporal candidates
   disagree under the selected quantity projection
 ```
+
+A later explicit Resolution can settle the divergent `e0` conflict and restore quantity `100`, while the convergent `e1` temporal conflict may remain unresolved even though this selected quantity projection is already determined.
+
+This does not erase or settle the underlying temporal conflict. It only shows that a coarser projection can sometimes be determined even when richer retained meaning remains unresolved.
 
 ## Why TLA+ is earned
 
