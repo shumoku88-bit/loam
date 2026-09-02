@@ -1,4 +1,5 @@
 import Loam.Application.CapacityInspection
+import Loam.Core.Effect
 
 open Loam.Core
 open Loam.Application
