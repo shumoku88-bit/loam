@@ -1,0 +1,198 @@
+# Observation 093 — Which time places an Event relative to an origin?
+
+## Question
+
+Observation 092 found that one selected quantity origin does not need a global total Event chronology merely to derive its post-origin activity scope. Information as weak as an origin-relative `Before / At / After` cut is sufficient in the bounded model.
+
+Observation 035 had already separated two temporal coordinates:
+
+```text
+valid time    = when an observation applies
+learned time  = when that observation becomes available to the system
+```
+
+The new question is therefore narrower:
+
+> When a retained Event is learned retrospectively, which coordinate determines whether it belongs before or after a selected quantity origin?
+
+## Pressure case
+
+Use a selected origin with:
+
+```text
+Origin valid   = 1
+Origin learned = 1
+```
+
+Then admit an Event later:
+
+```text
+Event
+  valid   = 0
+  learned = 2
+```
+
+The same Event has two different apparent relations to the origin:
+
+```text
+by valid time
+  Event < Origin
+
+by learned time
+  Origin < Event
+```
+
+The experiment asks whether learned-time placement can substitute for valid-time placement when the query means:
+
+```text
+activity whose validity lies at or after this origin
+```
+
+## Model
+
+`OriginScopeValidVsLearned.tla` keeps only:
+
+- one fixed origin coordinate;
+- append-only Event observation history;
+- unique Event identity;
+- `valid <= learned` as in Observation 035;
+- no correction, conflict, quantity arithmetic, wall-clock type, or production persistence.
+
+Observation is allowed only once the selected origin is already known. This isolates retrospective admission after origin selection rather than reopening origin discovery.
+
+## Two candidate scopes
+
+The model derives:
+
+```text
+InValidScope(Event)
+  = Event.valid >= Origin.valid
+
+InLearnedScope(Event)
+  = Event.learned >= Origin.learned
+```
+
+and makes both knowledge-sensitive:
+
+```text
+KnownValidMembers(history, knowledgeTime)
+KnownLearnedMembers(history, knowledgeTime)
+```
+
+An Event cannot appear in either known set before it has been learned.
+
+So the distinction is not:
+
+```text
+valid time knows the Event earlier
+```
+
+It does not.
+
+The distinction is:
+
+```text
+learned time decides when classification becomes available
+valid time decides which side of the origin the Event belongs to
+```
+
+if the query is about valid activity relative to that origin.
+
+## Positive properties
+
+The primary TLC run checks:
+
+1. type correctness;
+2. Event identity remains unique;
+3. validity never lies after learning;
+4. observation does not precede origin knowledge in this experiment;
+5. neither candidate scope can know an Event before learning;
+6. a pre-origin valid Event never enters the valid-time post-origin scope;
+7. a post-origin valid Event enters that scope once learned;
+8. a retrospectively learned pre-origin Event remains outside that scope;
+9. history only extends.
+
+## Deliberately strong boundary
+
+The boundary invariant says:
+
+```text
+for every Event learned after the origin was learned,
+learned-time scope membership
+=
+valid-time scope membership
+```
+
+or:
+
+```text
+LearnedScopeMatchesValidScopeForLateEvents
+```
+
+The expected counterexample is a retrospective Event:
+
+```text
+now = 2
+Event.valid = 0
+Event.learned = 2
+
+InValidScope(Event)   = FALSE
+InLearnedScope(Event) = TRUE
+```
+
+If TLC finds this witness, learned time cannot replace valid time for this origin-membership query.
+
+## Interpretation boundary
+
+This observation does **not** claim that valid time is universally more important than learned time.
+
+Learned time still answers a distinct and necessary question:
+
+```text
+when could LOAM first have known or acted on this Event?
+```
+
+A later admission can therefore change the system's present knowledge without changing the Event's valid-time relation to the selected origin.
+
+Likewise, this observation does not yet decide how a human supplies valid time, how coarse coordinates handle ties, or whether production Events themselves receive any temporal field.
+
+Observation 092 already showed that a scalar time coordinate is not automatically the minimal representation for one origin query.
+
+## Why TLA+ is earned
+
+The important distinction appears through arrival:
+
+```text
+origin already known
+advance knowledge time
+admit retrospective Event
+```
+
+The Event was not available before admission, then becomes known while remaining validly before the origin.
+
+That changing knowledge state is exactly the part Alloy does not add to Observation 092's static information-sufficiency result.
+
+## Non-goals
+
+Observation 093 does not earn:
+
+- a production Event `validTime` field;
+- a production Event `learnedTime` field;
+- wall-clock or calendar semantics;
+- timestamp uniqueness;
+- storage order as time;
+- a global Event chronology;
+- correction semantics for temporal coordinates;
+- automatic origin reassignment after retrospective admission;
+- a CurrentQuantity production change.
+
+## Practical Core impact
+
+None.
+
+- no Core change;
+- no Application production change;
+- no Persistence change;
+- no CLI change;
+- no wire-format change;
+- no private household values committed.
