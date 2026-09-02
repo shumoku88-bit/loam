@@ -20,3 +20,6 @@ lean_exe loamShadowAudit where
 
 lean_exe loamShadowQuantity where
   root := `Loam.ShadowQuantityCli
+
+lean_exe loamShadowDay where
+  root := `Loam.ShadowDayCli

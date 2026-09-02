@@ -1,0 +1,128 @@
+name: Application 012 Shadow Day
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ShadowDayCli.lean'
+      - 'lakefile.lean'
+      - 'experiments/application_012_shadow_day_reader.md'
+      - '.github/workflows/application-012-shadow-day.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/ShadowDayCli.lean'
+      - 'lakefile.lean'
+      - 'experiments/application_012_shadow_day_reader.md'
+      - '.github/workflows/application-012-shadow-day.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-day:
+    name: Build and test stateless recorded day reader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build shadow day reader
+        run: lake build loamShadowDay
+
+      - name: Read only one synthetic recorded day
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          source="$tmp/source.journal"
+          before="$tmp/source.before"
+
+          cat >"$source" <<'EOF'
+          include declarations.journal
+
+          2030-01-02 * first occurrence
+              locus-a    -7 UNIT
+              use-a       7 UNIT
+
+          2030-01-02 * second occurrence
+              locus-b    -5 UNIT
+              use-b       5 UNIT
+
+          2030-01-03 * other day
+              locus-c    -3 UNIT
+              use-c       3 UNIT
+          EOF
+          cp "$source" "$before"
+
+          .lake/build/bin/loamShadowDay 2030-01-02 "$source" >"$tmp/day.out"
+
+          grep -F 'LOAM recorded day 2030-01-02' "$tmp/day.out"
+          grep -F 'imported source ontology: none' "$tmp/day.out"
+          grep -F '1 include directive(s) were not followed' "$tmp/day.out"
+          grep -F -- '- * first occurrence' "$tmp/day.out"
+          grep -F -- '- * second occurrence' "$tmp/day.out"
+          grep -F 'locus-a: -7 UNIT' "$tmp/day.out"
+          grep -F 'use-b: 5 UNIT' "$tmp/day.out"
+          if grep -Fq 'other day' "$tmp/day.out"; then
+            echo 'another day leaked into selected day' >&2
+            exit 1
+          fi
+          if grep -Fq 'locus-c:' "$tmp/day.out"; then
+            echo 'another day quantity leaked into selected day' >&2
+            exit 1
+          fi
+
+          cmp "$source" "$before"
+
+      - name: Fail closed on malformed request or source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          valid="$tmp/valid.journal"
+          broken="$tmp/broken.journal"
+
+          cat >"$valid" <<'EOF'
+          2030-01-02 * one occurrence
+              locus-a    -1 UNIT
+              use-a       1 UNIT
+          EOF
+
+          set +e
+          .lake/build/bin/loamShadowDay 2030-1-2 "$valid" >"$tmp/date.out" 2>"$tmp/date.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/date.out"
+          grep -F 'shadow day must be YYYY-MM-DD' "$tmp/date.err"
+
+          cat >"$broken" <<'EOF'
+          this is not a supported header
+              locus-a    1 UNIT
+          EOF
+
+          cp "$broken" "$tmp/broken.before"
+          set +e
+          .lake/build/bin/loamShadowDay 2030-01-02 "$broken" >"$tmp/broken.out" 2>"$tmp/broken.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/broken.out"
+          grep -F 'refused malformed or unsupported source lines' "$tmp/broken.err"
+          grep -F 'no LOAM persistence was written' "$tmp/broken.err"
+          cmp "$broken" "$tmp/broken.before"
