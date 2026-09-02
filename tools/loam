@@ -209,12 +209,6 @@ if [[ "${1:-}" == "movement" ]]; then
   exec "$root/tools/loam-movement" "$@"
 fi
 
-if [[ "${1:-}" == "spend" || "${1:-}" == "income" || "${1:-}" == "transfer" ]]; then
-  echo "loam: command not understood" >&2
-  echo "loam: record value flow with './tools/loam movement MEMORY_FILE'" >&2
-  exit 2
-fi
-
 if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
   print_help
   exit 0
