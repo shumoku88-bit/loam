@@ -1,0 +1,72 @@
+name: Observation 097
+
+on:
+  pull_request:
+    paths:
+      - 'tla/TemporalCorrectionConflict.tla'
+      - 'tla/TemporalCorrectionConflict.cfg'
+      - 'tla/TemporalCorrectionConflictBoundary.cfg'
+      - 'experiments/097_temporal_correction_conflict.md'
+      - '.github/workflows/observation-097-temporal-correction-conflict.yml'
+  push:
+    branches:
+      - 'experiment/097-temporal-correction-conflict'
+      - main
+    paths:
+      - 'tla/TemporalCorrectionConflict.tla'
+      - 'tla/TemporalCorrectionConflict.cfg'
+      - 'tla/TemporalCorrectionConflictBoundary.cfg'
+      - 'experiments/097_temporal_correction_conflict.md'
+      - '.github/workflows/observation-097-temporal-correction-conflict.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Temporal correction sibling conflict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check temporal sibling-conflict safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalCorrectionConflict.cfg \
+            tla/TemporalCorrectionConflict.tla \
+            2>&1 | tee /tmp/observation-097-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-097-positive.txt
+
+      - name: Require learned-latest policy boundary counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalCorrectionConflictBoundary.cfg \
+            tla/TemporalCorrectionConflict.tla \
+            2>&1 | tee /tmp/observation-097-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'LearnedLatestEqualsStructuralCurrent' /tmp/observation-097-boundary.txt
+          grep -Fq 'Invariant' /tmp/observation-097-boundary.txt
