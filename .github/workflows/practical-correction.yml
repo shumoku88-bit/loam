@@ -7,6 +7,7 @@ on:
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
       - 'Loam/CorrectionCli.lean'
+      - 'Loam/MovementCli.lean'
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
@@ -23,6 +24,7 @@ on:
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
       - 'Loam/CorrectionCli.lean'
+      - 'Loam/MovementCli.lean'
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
@@ -212,3 +214,30 @@ jobs:
             exit 1
           fi
           grep -Fq 'corrections do not justify one current frontier' /tmp/loam-open-refusal.out
+
+          # Real dogfood shape: a split PayPay + points movement is selectable
+          # through the primary menu and corrected with the same FROM/TO adapter.
+          cat >"$memory_file" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	record-1
+          EFFECT	effect-1	point	jpy	-59
+          EFFECT	effect-2	paypay	jpy	-101
+          EFFECT	effect-3	can-coffee	jpy	160
+          EOF
+          rm -f "$correction_file"
+
+          printf '4\n1\npaypay\n111\npoint\n49\n\ncan-coffee\n160\n\nq\n' | ./tools/loam | tee /tmp/loam-movement-correction.out
+          grep -Fq '4. Correct a movement' /tmp/loam-movement-correction.out
+          grep -Fq '1. [record-1]' /tmp/loam-movement-correction.out
+          grep -Fq 'Enter the corrected movement. Add FROM entries, then TO entries.' /tmp/loam-movement-correction.out
+          grep -Fq 'Correction recorded: record-1 -> replacement-1 (160 jpy).' /tmp/loam-movement-correction.out
+
+          expected_movement_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpoint\tjpy\t-59\nEFFECT\teffect-2\tpaypay\tjpy\t-101\nEFFECT\teffect-3\tcan-coffee\tjpy\t160\nEVENT\treplacement-1\nEFFECT\teffect-1\tpaypay\tjpy\t-111\nEFFECT\teffect-2\tpoint\tjpy\t-49\nEFFECT\teffect-3\tcan-coffee\tjpy\t160'
+          test "$(cat "$memory_file")" = "$expected_movement_memory"
+          expected_movement_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\trecord-1\treplacement-1'
+          test "$(cat "$correction_file")" = "$expected_movement_corrections"
+
+          .lake/build/bin/loam effective "$memory_file" "$correction_file" | tee /tmp/loam-movement-effective.out
+          grep -Fq 'paypay: -111 jpy' /tmp/loam-movement-effective.out
+          grep -Fq 'point: -49 jpy' /tmp/loam-movement-effective.out
+          grep -Fq 'can-coffee: 160 jpy' /tmp/loam-movement-effective.out
