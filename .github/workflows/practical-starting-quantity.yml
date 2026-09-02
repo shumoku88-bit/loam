@@ -7,6 +7,7 @@ on:
       - 'Loam/Core/QuantityBasisCorrectionMemory.lean'
       - 'Loam/Application/CurrentQuantity.lean'
       - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/BalanceViewConfig.lean'
       - 'Loam/QuantityBasisPersistence.lean'
       - 'Loam/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/QuantityBasisCorrectionCli.lean'
@@ -22,6 +23,7 @@ on:
       - 'Loam/Core/QuantityBasisCorrectionMemory.lean'
       - 'Loam/Application/CurrentQuantity.lean'
       - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/BalanceViewConfig.lean'
       - 'Loam/QuantityBasisPersistence.lean'
       - 'Loam/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/QuantityBasisCorrectionCli.lean'
@@ -135,6 +137,59 @@ jobs:
           test ! -s "$tmp/current.out"
           grep -F 'starting quantity missing for can-coffee / jpy' "$tmp/current.err"
 
+      - name: Select balances with replaceable current view config
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          event_corrections="$tmp/event-corrections.loam"
+          basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+          view="$tmp/balance-view.tsv"
+
+          printf 'wallet\n100\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'reserve\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'use\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tpurchase\nEFFECT\tsource\twallet\tjpy\t-7\nEFFECT\tuse\tuse\tjpy\t7\n' >"$memory"
+
+          printf 'wallet\tjpy\nreserve\tjpy\nwallet\tjpy\n' >"$view"
+          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/selected.out"
+          grep -F 'wallet: 93 jpy' "$tmp/selected.out"
+          grep -F 'reserve: 0 jpy' "$tmp/selected.out"
+          if grep -Fq 'use:' "$tmp/selected.out"; then
+            echo 'basis-bearing use coordinate leaked into configured balance view' >&2
+            exit 1
+          fi
+          test "$(grep -Fc 'wallet: 93 jpy' "$tmp/selected.out")" -eq 1
+
+          printf 'use\tjpy\nwallet\tjpy\n' >"$view"
+          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/replaced.out"
+          grep -F 'use: 7 jpy' "$tmp/replaced.out"
+          grep -F 'wallet: 93 jpy' "$tmp/replaced.out"
+          if grep -Fq 'reserve:' "$tmp/replaced.out"; then
+            echo 'old balance selection survived config replacement' >&2
+            exit 1
+          fi
+
+          printf 'broken-row\n' >"$view"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/broken-view.out" 2>"$tmp/broken-view.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/broken-view.out"
+          grep -F 'malformed or unsupported balance-view config' "$tmp/broken-view.err"
+
+          printf 'unknown\tjpy\n' >"$view"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/unanchored-view.out" 2>"$tmp/unanchored-view.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/unanchored-view.out"
+          grep -F 'starting balance missing for unknown / jpy' "$tmp/unanchored-view.err"
+
       - name: Refuse unanchored or invalid basis frontier
         shell: bash
         run: |
@@ -207,10 +262,16 @@ jobs:
           rm -rf scratch/dogfood
           printf '9\nbank\n100000\n' | ./tools/loam
           test -f scratch/dogfood/basis.loam
+
+          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-empty.out
+          grep -F '10. Show balances' /tmp/loam-balance-menu-empty.out
+          grep -F 'No balances are selected in the current balance view.' /tmp/loam-balance-menu-empty.out
+
+          printf 'bank\tjpy\n' > scratch/dogfood/balance-view.tsv
           printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
-          grep -F '10. Show balances' /tmp/loam-balance-menu-before.out
           grep -F 'Balances (starting balance + effective recorded changes):' /tmp/loam-balance-menu-before.out
           grep -F 'bank: 100000 jpy' /tmp/loam-balance-menu-before.out
+
           printf '11\n1\n90000\n' | ./tools/loam
           test -f scratch/dogfood/basis-corrections.loam
           printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
