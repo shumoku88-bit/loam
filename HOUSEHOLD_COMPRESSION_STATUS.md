@@ -1,8 +1,8 @@
 # LOAM household compression status
 
-Status: checkpoint attached to the whole-household evidence graph
+Status: qualified cross-capability checkpoint before practical Lean ownership
 
-This file keeps qualified observations separate from currently unqualified specimens so the research map does not silently turn expected results into established design.
+This file keeps the whole-household compression results separate from production design. A bounded observation can justify an information boundary without forcing one particular Lean type, persistence file, or UI noun.
 
 ## Qualified cross-capability observations
 
@@ -10,22 +10,21 @@ This file keeps qualified observations separate from currently unqualified speci
 
 Qualified on PR #237.
 
-The bounded result supports a compact Scheduled lifecycle shape where completion, retirement, and replacement can be decoded from explicit lifecycle relation evidence rather than a stored mutable status. A coarse open/closed summary and even a completed/retired/superseded status set lose successor provenance.
+A mutable open/closed summary is too small, and even completed/retired/superseded status sets lose successor provenance. Explicit completion, retirement, and successor relation evidence plus scheduled time and the query horizon determine the selected lifecycle views in the bounded model.
 
-Practical implementation remains deferred until the whole-household compression pass is complete.
+User-facing `postpone`, `advance`, and same-day replacement are projections from successor direction rather than retained operation kinds.
 
 ### Observation 106 — Actual / Capacity movement plane
 
-Qualified on PR #239.
+Qualified on PR #239, final exact head `5ff7134fb65766a650f5e6162735104e09f27c78`.
 
-One signed Effect algebra can be reused across Actual value movement and Capacity / Entitlement movement, but the semantic plane cannot be erased. Endpoint shape can derive grant / reallocation / release labels for the admitted Capacity vocabulary.
-
-Current boundary:
+One signed Effect algebra can be reused across Actual value movement and Capacity / Entitlement movement, but the semantic plane cannot be erased.
 
 ```text
 shared Effect algebra      yes
 shared semantic meaning    no
-stored operation-kind enum not required by the bounded answers
+stored grant / reallocation / release kind
+                           not required by the bounded answers
 ```
 
 ### Observation 107 — shared historical routing shape
@@ -34,8 +33,6 @@ Qualified on PR #240, final exact head `3fc5d3c7f5a9eb3ba4ffa85fd3ca673986a75407
 
 One historical `subject -> purpose-or-none` record shape can serve Actual-side and Scheduled-side routing, but subject meaning remains necessary. Current routing alone loses historical answers. An explicit later no-purpose record can make a subject unmanaged without rewriting earlier routing.
 
-Current boundary:
-
 ```text
 shared routing history shape     yes
 current-only routing table       too small
@@ -43,102 +40,181 @@ subject meaning erased           too small
 history + subject meaning        sufficient for selected bounded projections
 ```
 
-Observations 106 and 107 therefore expose the same wider compression pattern:
-
-> Reuse algebra and evidence mechanics where possible, but keep the semantic partition when erasing it changes household answers.
-
-## Unqualified specimens
-
 ### Observation 108 — Scheduled + routing -> Commitment
 
-Draft PR #241 contains the Alloy specimen and note.
+Qualified on PR #241, final exact head `11d99bbdc79cacf59a000ebfb4a726c03301b141`.
 
-Question:
+The exact-head Observation 108 workflow executed Alloy 6.2.0 + Sat4j and its expected-result checker successfully after the result note was updated.
 
-> Once Scheduled expectation, lifecycle evidence, and historical Purpose routing already survive, does practical Envelope Commitment require a separately retained Commitment fact?
+The two smaller candidates both had counterexamples:
 
-The model pressures managed, explicitly-unmanaged, and unrouted commitment; overdue-open behavior; period end-exclusive horizon; and later-known terminal evidence not rewriting an earlier observation.
+```text
+Scheduled + lifecycle without routing
+    too small
 
-**No result is established yet.** New GitHub Actions workflow creation was blocked by connector safety checks and the available execution environment could not obtain Alloy 6.2.0. The PR remains Draft and unqualified.
+Scheduled + routing without lifecycle
+    too small
+```
+
+The selected Commitment view was determined by:
+
+```text
+Scheduled quantity-bearing claims
++ lifecycle history
++ historical routing
++ query day / period horizon
+```
+
+No separately retained `Commitment` fact was required for managed, explicitly-unmanaged, or unrouted Commitment in the bounded view. Overdue open claims remained commitments; later-known terminal evidence did not rewrite earlier observation; and period end-exclusive was preserved.
+
+Observation 013 remains intact: physical Actual history does not determine intention. Observation 108 identifies Scheduled evidence as the concrete independent intentional source for this practical projection.
 
 ### Observation 109 — Attention lifecycle boundary
 
-Draft PR #242 contains the Alloy specimen and note.
+Qualified on PR #242, final exact head `6088f55643713431364a1b82bb94c0e9878d7dec`.
 
-Current HRA / h-kernel reality pressure says an Issue relation such as realization or continuation is append-only provenance and does not itself close the Issue. Issue lifecycle also distinguishes Resolved from Dropped and NoDueDate from DueUndetermined.
+The exact-head Observation 109 workflow executed Alloy 6.2.0 + Sat4j and its expected-result checker successfully after the result note was updated.
 
-Observation 109 therefore pressures the tempting over-compression:
+Scheduled and Attention can reuse source / target / known-through relation mechanics, but they cannot share one target-decoded lifecycle semantics.
 
 ```text
-Scheduled relation target -> lifecycle meaning
-Attention relation target -> same lifecycle meaning
+shared relation mechanics                         yes
+universal relation-implies-closure law             no
+Attention relation provenance                      independent from closure
+closed boolean                                     too small
+optional due date                                  too small
 ```
 
-The candidate boundary is instead:
+An Attention item can relate to a Movement and remain open, or continue as a later Attention identity while the earlier item remains open. `Resolved` vs `Dropped` and `NoDueDate` vs `DueUndetermined` remain independently visible distinctions in the selected household view.
+
+## Cross-observation pattern
+
+Observations 105–109 converge on one repeated compression boundary:
+
+> Reuse algebra, history shape, and temporal mechanics where the household questions do not distinguish them. Preserve the semantic partition whenever erasing it merges worlds that the household questions distinguish.
+
+This rules out both extremes:
 
 ```text
-shared source / target / known-through mechanics     potentially reusable
-one universal target-decoded lifecycle algebra       likely too small
-Attention relation provenance                         independent from closure
-closed boolean                                         potentially too small
-optional due date                                      potentially too small
+copy every HRA / h-kernel domain object
+    too much structure by default
+
+universal Thing / Fact / Relation / Status record
+    too little semantic separation
 ```
 
-**These are hypotheses, not findings, until the exact Alloy specimen is executed.**
+The compact target is a small number of independently observable semantic families over shared low-level mechanics.
 
-## Current candidate minimum vocabulary
+## Qualified minimum-vocabulary checkpoint
 
-Only qualified results should constrain this list. Unqualified observations are marked as pressure, not accepted structure.
+The current observations justify retaining these semantic families or information-equivalent distinctions:
 
 ```text
-quantity-bearing evidence
-  Actual movement
-  Capacity movement        [semantic plane required by Obs 106]
-  Scheduled expectation    [lifecycle structure pressured by Obs 105]
+quantity-bearing occurrence evidence
+  Actual
+  Scheduled
+  Capacity
 
-other independently observed evidence
-  Quantity basis / cut / correction
-  explicit semantic relations
-  historical routing       [shared shape + subject meaning, Obs 107]
-  temporal coordinates
-  replaceable current policy
-  backing topology         [still largely unobserved]
-  Attention                [distinct-plane pressure; Obs 109 pending]
+starting observation evidence
+  QuantityBasis / correction / cut
+
+attention evidence
+  Attention identity/content
+  explicit due meaning
+  explicit closure meaning
+
+cross-cutting evidence
+  stable identity
+  explicit semantic relation provenance
+  historical routing + subject meaning
+  temporal coordinates / knowledge horizons
 ```
 
-The following remain projection candidates rather than retained fact families:
+This list is an information boundary, not a proposed Lean sum type.
+
+Shared mechanics may sit underneath multiple families:
 
 ```text
-balance
-history windows
-overdue / upcoming
+signed Effect algebra
+relation source / target / learned-time scaffolding
+historical latest-visible selection
+exact quantity arithmetic
+append-oriented identity and correction mechanics
+```
+
+But a generic helper does not earn generic canonical semantics.
+
+## Projection candidates after qualification
+
+The following still do not require their own retained fact families under the current evidence:
+
+```text
+spend / income / transfer operation kinds
+Plan open / completed / postponed / advanced status
+capacity grant / reallocation / release operation kinds
+current routing table
 consumption
 fulfillment
-commitment                 [Obs 108 pending]
+commitment
 remaining
 headroom
-backing position
-spending pace
+history windows
+overdue / due / upcoming
 statement sections
 calendar
 home
 ```
 
-## Research gate before practical Lean implementation
+Several of these still require implementation and arithmetic qualification. The claim is only that their information can be owned by smaller upstream evidence rather than duplicated as canonical state.
 
-Do not implement Scheduled, Capacity, routing, Commitment, or Attention as a new practical ownership graph merely because a source system already has those nouns.
+## Orthogonal overlays and unresolved seams
 
-The next gate is:
+The minimum checkpoint should not absorb every later household concern.
+
+These remain deliberately outside the qualified core boundary until a concrete operation requires them:
 
 ```text
-qualify Observation 108
-qualify Observation 109
-        |
-        v
-review minimum independently observable vocabulary
-        |
-        v
-only then choose Lean ownership / persistence boundaries
+replaceable current policy
+  balance-view selection
+  statement roles
+  cycle / report focus
+
+backing topology
+  still a separate funding question
+
+recurrence / Series generation
+  grouping provenance has earlier observation pressure,
+  but practical generation remains deferred
+
+Purpose identity representation
+  routing requires a Purpose coordinate,
+  but the current pass does not decide whether its token namespace
+  should be shared with or distinct from Locus
+
+Attention relation vocabulary
+  relation provenance is independent,
+  but the exact durable meanings such as concerns / planned-as / funded-by
+  should be earned by practical operations rather than universalized now
 ```
 
-If either pending Alloy observation produces a counterexample, update the candidate vocabulary before practical implementation rather than patching the production design afterward.
+These open seams are reasons to keep extension conservative, not reasons to enlarge the initial practical ownership graph.
+
+## Gate reached
+
+The research gate set before Observations 108 and 109 is now satisfied:
+
+```text
+105 Scheduled lifecycle         qualified
+106 Actual / Capacity algebra   qualified
+107 historical routing         qualified
+108 Commitment projection      qualified
+109 Attention boundary         qualified
+        |
+        v
+whole-household minimum-vocabulary reduction
+        reached
+```
+
+The next step may now move toward Lean ownership and persistence, but it should begin with the smallest vertical slice that exercises the qualified boundaries. Do not build all HRA / h-kernel packages at once, and do not add a universal metadata or relation framework.
+
+`HOUSEHOLD_MINIMUM_VOCABULARY.md` records the resulting implementation-facing reduction separately.
