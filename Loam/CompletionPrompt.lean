@@ -23,15 +23,15 @@ def knownLoci (memory : Loam.Core.EventMemory) : List String :=
     []
 
 /--
-Return previously observed Locus tokens whose text begins with a typed prefix.
+Return previously observed Locus tokens whose text begins with the typed text.
 No candidates are exposed until two characters have been entered. Matching is
 case-sensitive and does not reinterpret or rank Loci.
 -/
-def candidatesForPrefix (known : List String) (prefix : String) : List String :=
-  if prefix.length < 2 then
+def candidatesForPrefix (known : List String) (typed : String) : List String :=
+  if typed.length < 2 then
     []
   else
-    known.filter (fun token => token.startsWith prefix)
+    known.filter (fun token => token.startsWith typed)
 
 example : candidatesForPrefix ["smbc", "food", "tobacco"] "s" = [] := by decide
 example : candidatesForPrefix ["smbc", "food", "tobacco"] "sm" = ["smbc"] := by decide
@@ -87,7 +87,7 @@ private def dropLastChar (text : String) : String :=
 private def candidateText (known : List String) (input : String) : String :=
   match (candidatesForPrefix known input).take 4 with
   | [] => ""
-  | matches => "  " ++ String.intercalate "  " matches
+  | found => "  " ++ String.intercalate "  " found
 
 private def redraw
     (stdout : IO.FS.Stream)
