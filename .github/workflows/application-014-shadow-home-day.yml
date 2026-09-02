@@ -1,0 +1,112 @@
+name: Application 014 Shadow Home Day
+
+on:
+  pull_request:
+    paths:
+      - 'tools/shadow-home-day'
+      - 'Loam/ShadowDayCli.lean'
+      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'experiments/application_014_shadow_home_day_composition.md'
+      - '.github/workflows/application-014-shadow-home-day.yml'
+      - 'lakefile.lean'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/shadow-home-day'
+      - 'Loam/ShadowDayCli.lean'
+      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'experiments/application_014_shadow_home_day_composition.md'
+      - '.github/workflows/application-014-shadow-home-day.yml'
+      - 'lakefile.lean'
+
+jobs:
+  compose-qualified-day-views:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+
+      - name: Compose actual and scheduled views without a shared domain model
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+
+          cat > "$tmp/actual.journal" <<'EOF'
+          include accounts.journal
+
+          2034-01-02 market
+              assets:wallet -7 JPY
+              uses:food 7 JPY
+          EOF
+
+          cat > "$tmp/plan.journal" <<'EOF'
+          include accounts.journal
+
+          2034-01-02 network
+              ; plan-id: planned-network-1
+              ; series: deliberately-ignored
+              uses:network 11 JPY
+              assets:wallet -11 JPY
+          EOF
+
+          actual_before=$(sha256sum "$tmp/actual.journal")
+          plan_before=$(sha256sum "$tmp/plan.journal")
+
+          bash tools/shadow-home-day \
+            2034-01-01 \
+            2034-01-02 \
+            "$tmp/plan.journal" \
+            "$tmp/actual.journal" > "$tmp/out"
+
+          grep -Fx 'LOAM household day 2034-01-02' "$tmp/out"
+          grep -Fx 'known through: 2034-01-01' "$tmp/out"
+          grep -Fx 'Actual:' "$tmp/out"
+          grep -Fx -- '- market' "$tmp/out"
+          grep -Fx 'Scheduled:' "$tmp/out"
+          grep -Fx -- '- network' "$tmp/out"
+          grep -Fx '    uses:food: 7 JPY' "$tmp/out"
+          grep -Fx '    uses:network: 11 JPY' "$tmp/out"
+
+          test "$actual_before" = "$(sha256sum "$tmp/actual.journal")"
+          test "$plan_before" = "$(sha256sum "$tmp/plan.journal")"
+
+      - name: Preserve fail-closed child semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+
+          cat > "$tmp/actual.journal" <<'EOF'
+          2034-01-02 broken
+              not-a-posting
+          EOF
+
+          cat > "$tmp/plan.journal" <<'EOF'
+          2034-01-02 network
+              ; plan-id: planned-network-1
+              uses:network 11 JPY
+              assets:wallet -11 JPY
+          EOF
+
+          set +e
+          bash tools/shadow-home-day \
+            2034-01-01 2034-01-02 \
+            "$tmp/plan.journal" "$tmp/actual.journal" \
+            > "$tmp/out" 2> "$tmp/err"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -F 'shadow day refused malformed or unsupported source lines' "$tmp/err"
+          ! grep -Fx 'Scheduled:' "$tmp/out"
