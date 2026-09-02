@@ -27,7 +27,7 @@ fact BalancedSignedFlowShape {
     #f.~flow = 2
     one e: f.~flow | e.quantity < 0
     one e: f.~flow | e.quantity > 0
-    sum e: f.~flow | e.quantity = 0
+    (sum e: f.~flow | e.quantity) = 0
     all disj e1, e2: f.~flow | e1.node != e2.node
   }
 }
