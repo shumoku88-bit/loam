@@ -36,12 +36,12 @@ or more TO loci.
 The entrance requires the two entered totals to agree, then persists one generic
 Event containing negative Effects for the FROM side and positive Effects for the
 TO side. This is an adapter-level shape only. It does not add Account,
-ExpenseCategory, EventKind, debit/credit, Transfer, or a global conservation law
-to Core.
+ExpenseCategory, EventKind, debit/credit, Transfer, Income, Spending, or a global
+conservation law to Core.
 
-The command is intentionally additive beside the existing `spend`, `income`, and
-`transfer` entrances while split-payment dogfood establishes whether those
-specialized verbs can later become thin shortcuts over this shape.
+Daily recording deliberately uses this one entrance for purchases, transfers,
+income, split payments, and other value flows. Their later interpretation comes
+from the loci and projections rather than from a recording-time transaction kind.
 -/
 def recordMovement (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -81,7 +81,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
-  "  ./tools/loam-movement MEMORY_FILE\n\n" ++
+  "  ./tools/loam movement MEMORY_FILE\n\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
