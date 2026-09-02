@@ -35,9 +35,12 @@ daily_quantity_binary_is_current() {
   for input in \
     Loam/DailyQuantityCli.lean \
     Loam/BalanceViewConfig.lean \
+    Loam/BasisCutPersistence.lean \
     Loam/QuantityBasisCorrectionCli.lean \
     Loam/QuantityBasisCorrectionPersistence.lean \
     Loam/QuantityBasisPersistence.lean \
+    Loam/Application/BasisCut.lean \
+    Loam/Application/CorrectionFrontier.lean \
     Loam/Application/CurrentQuantity.lean \
     Loam/Application/QuantityBasisFrontier.lean \
     Loam/Core/QuantityBasisCorrectionMemory.lean \
@@ -200,6 +203,7 @@ if [[ $# -eq 0 ]]; then
   basis_file="$data_dir/basis.loam"
   basis_correction_file="$data_dir/basis-corrections.loam"
   balance_view_file="$data_dir/balance-view.tsv"
+  basis_cut_file="$data_dir/basis-cut.tsv"
 
   while true; do
     printf 'LOAM\nData: %s\n\n' "$data_label"
@@ -260,7 +264,7 @@ EOF
         run_menu_action run_daily_quantity starting-quantity "$basis_file"
         ;;
       10)
-        run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file" "$balance_view_file"
+        run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file" "$balance_view_file" "$basis_cut_file"
         ;;
       11)
         run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
