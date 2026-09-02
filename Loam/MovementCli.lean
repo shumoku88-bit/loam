@@ -78,6 +78,30 @@ private partial def collectSide
             (effects ++ [effect]) (total + amount) (count + 1)
 
 /--
+Collect the shared human-facing shape for one balanced JPY movement.
+
+Both ordinary recording and movement correction use this adapter so they cannot
+drift into different FROM/TO conventions. Equality is still only an entrance
+rule. The returned Core Effects retain signed quantities, not source/destination
+roles.
+-/
+def collectMovementEffects : IO (Except String (List Loam.Core.Effect × Int)) := do
+  match ← collectSide "From" true 1 [] 0 0 with
+  | Except.error message =>
+      return Except.error message
+  | Except.ok (nextIndex, fromEffects, fromTotal) =>
+      match ← collectSide "To" false nextIndex fromEffects 0 0 with
+      | Except.error message =>
+          return Except.error message
+      | Except.ok (_, effects, toTotal) =>
+          if fromTotal != toTotal then
+            return Except.error
+              ("loam: movement totals differ: from " ++ toString fromTotal ++
+                " jpy, to " ++ toString toTotal ++ " jpy")
+          else
+            return Except.ok (effects, fromTotal)
+
+/--
 Record one balanced human-facing JPY movement with one or more FROM loci and one
 or more TO loci.
 
@@ -99,43 +123,32 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       return 2
   | some memory =>
       IO.println "Record one movement. Add FROM entries, then TO entries."
-      match ← collectSide "From" true 1 [] 0 0 with
+      match ← collectMovementEffects with
       | Except.error message =>
           IO.eprintln message
           return 2
-      | Except.ok (nextIndex, fromEffects, fromTotal) =>
-          match ← collectSide "To" false nextIndex fromEffects 0 0 with
-          | Except.error message =>
-              IO.eprintln message
+      | Except.ok (effects, total) =>
+          match freshRecordEventId? memory with
+          | none =>
+              IO.eprintln "loam: could not generate a fresh event identity"
               return 2
-          | Except.ok (_, effects, toTotal) =>
-              if fromTotal != toTotal then
-                IO.eprintln
-                  ("loam: movement totals differ: from " ++ toString fromTotal ++
-                    " jpy, to " ++ toString toTotal ++ " jpy")
-                return 2
-              else
-                match freshRecordEventId? memory with
-                | none =>
-                    IO.eprintln "loam: could not generate a fresh event identity"
-                    return 2
-                | some eventId =>
-                    match Loam.Core.Event.ofEffects? eventId effects with
-                    | none =>
-                        IO.eprintln "loam: could not admit generated movement event"
+          | some eventId =>
+              match Loam.Core.Event.ofEffects? eventId effects with
+              | none =>
+                  IO.eprintln "loam: could not admit generated movement event"
+                  return 2
+              | some event =>
+                  match Loam.Core.EventMemory.add? memory event with
+                  | none =>
+                      IO.eprintln "loam: generated event identity already remembered"
+                      return 2
+                  | some updated =>
+                      if ← Loam.Persistence.saveEventMemory? memoryFile updated then
+                        IO.println ("Recorded movement: " ++ toString total ++ " jpy.")
+                        return 0
+                      else
+                        IO.eprintln "loam: recorded event contains an unrepresentable identity token"
                         return 2
-                    | some event =>
-                        match Loam.Core.EventMemory.add? memory event with
-                        | none =>
-                            IO.eprintln "loam: generated event identity already remembered"
-                            return 2
-                        | some updated =>
-                            if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                              IO.println ("Recorded movement: " ++ toString fromTotal ++ " jpy.")
-                              return 0
-                            else
-                              IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                              return 2
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
