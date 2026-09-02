@@ -51,7 +51,8 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       return 2
   | some memory =>
       IO.println "Record one movement. Add FROM entries, then TO entries."
-      match ← Loam.MovementEntry.collectMovementEffects with
+      let knownLoci := Loam.CompletionPrompt.knownLoci memory
+      match ← Loam.MovementEntry.collectMovementEffects knownLoci with
       | Except.error message =>
           IO.eprintln message
           return 2
