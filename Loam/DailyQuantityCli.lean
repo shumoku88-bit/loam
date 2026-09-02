@@ -1,4 +1,5 @@
 import Loam.Application.CurrentQuantity
+import Loam.BalanceViewConfig
 import Loam.QuantityBasisCorrectionCli
 import Loam.QuantityBasisCorrectionPersistence
 import Loam.QuantityBasisPersistence
@@ -17,8 +18,8 @@ private def usage : String :=
   "  ./tools/loam starting-quantity <basis-file>\n\n" ++
   "Correct one starting quantity append-only:\n" ++
   "  ./tools/loam correct-starting-quantity <basis-file> <basis-correction-file>\n\n" ++
-  "Show tracked balances only:\n" ++
-  "  ./tools/loam balances <event-memory> <event-correction-memory> <basis-file> [basis-correction-file]\n\n" ++
+  "Show balances, optionally selected by one replaceable view config:\n" ++
+  "  ./tools/loam balances <event-memory> <event-correction-memory> <basis-file> [basis-correction-file] [balance-view-file]\n\n" ++
   "Show anchored current quantities:\n" ++
   "  ./tools/loam current <event-memory> <event-correction-memory> <basis-file> [basis-correction-file]"
 
@@ -142,6 +143,10 @@ private def addCoordinateIfAbsent
     (coordinate : EffectCoordinate) : List EffectCoordinate :=
   if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
 
+private def normalizeCoordinates
+    (coordinates : List EffectCoordinate) : List EffectCoordinate :=
+  coordinates.foldl addCoordinateIfAbsent []
+
 private def basisCoordinatesFrom (bases : List QuantityBasis) : List EffectCoordinate :=
   bases.foldl
     (fun coordinates basis => addCoordinateIfAbsent coordinates basis.coordinate)
@@ -260,14 +265,18 @@ def showCurrentQuantities
                       return 1
 
 /--
-Show only coordinates retained by the admitted starting-basis frontier. This is
-an application-facing balance view: a use locus that appears only in Events is
-not silently promoted into a tracked balance, while an explicitly anchored zero
-balance remains visible.
+Show an application-facing balance view.
+
+Without a balance-view path this preserves the earlier compatibility behavior
+and selects the admitted starting-basis frontier. With a balance-view path, the
+current replaceable config selects the coordinates instead. Quantity evidence
+still comes only from the admitted basis plus correction-aware Event projection;
+config presence never invents a basis, a zero quantity, or an accounting role.
 -/
 def showBalances
     (memoryPath eventCorrectionPath basisPath : String)
-    (basisCorrectionPath? : Option String := none) : IO UInt32 := do
+    (basisCorrectionPath? : Option String := none)
+    (balanceViewPath? : Option String := none) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
   let basisFile := System.FilePath.mk basisPath
@@ -297,33 +306,49 @@ def showBalances
                         "loam: balances unavailable: starting-balance revisions do not justify one frontier"
                       return 1
                   | some frontier =>
-                      let coordinates := basisCoordinatesFrom frontier
-                      match collectCurrentLines
-                          events eventCorrections bases basisCorrections true coordinates with
-                      | .lines lines =>
-                          if coordinates.isEmpty then
-                            IO.println
-                              "No balances are being tracked. Set a starting balance before recording changes you want included."
-                          else
-                            IO.println "Balances (starting balance + effective recorded changes):"
-                            for line in lines do IO.println line
-                          return 0
-                      | .basisMissing coordinate =>
-                          IO.eprintln
-                            ("loam: balances unavailable: starting balance missing for " ++
-                              coordinate.locus.token ++ " / " ++ coordinate.measure.token)
-                          return 1
-                      | .basisFrontierRequired =>
-                          IO.eprintln
-                            "loam: balances unavailable: starting-balance revisions do not justify one frontier"
-                          return 1
-                      | .missingEventCorrectionEndpoint =>
-                          IO.eprintln "loam: balances unavailable: correction references are not closed"
-                          return 1
-                      | .eventFrontierRequired =>
-                          IO.eprintln
-                            "loam: balances unavailable: event corrections do not justify one frontier"
-                          return 1
+                      let coordinates? ←
+                        match balanceViewPath? with
+                        | none =>
+                            pure (some (basisCoordinatesFrom frontier))
+                        | some pathText =>
+                            match ← Loam.BalanceViewConfig.load? (System.FilePath.mk pathText) with
+                            | none => pure none
+                            | some selected => pure (some (normalizeCoordinates selected))
+                      match coordinates? with
+                      | none =>
+                          IO.eprintln "loam: malformed or unsupported balance-view config"
+                          return 2
+                      | some coordinates =>
+                          match collectCurrentLines
+                              events eventCorrections bases basisCorrections true coordinates with
+                          | .lines lines =>
+                              if coordinates.isEmpty then
+                                match balanceViewPath? with
+                                | none =>
+                                    IO.println
+                                      "No balances are being tracked. Set a starting balance before recording changes you want included."
+                                | some _ =>
+                                    IO.println "No balances are selected in the current balance view."
+                              else
+                                IO.println "Balances (starting balance + effective recorded changes):"
+                                for line in lines do IO.println line
+                              return 0
+                          | .basisMissing coordinate =>
+                              IO.eprintln
+                                ("loam: balances unavailable: starting balance missing for " ++
+                                  coordinate.locus.token ++ " / " ++ coordinate.measure.token)
+                              return 1
+                          | .basisFrontierRequired =>
+                              IO.eprintln
+                                "loam: balances unavailable: starting-balance revisions do not justify one frontier"
+                              return 1
+                          | .missingEventCorrectionEndpoint =>
+                              IO.eprintln "loam: balances unavailable: correction references are not closed"
+                              return 1
+                          | .eventFrontierRequired =>
+                              IO.eprintln
+                                "loam: balances unavailable: event corrections do not justify one frontier"
+                              return 1
 
 /-- Dispatcher for the narrow daily quantity executable behind `tools/loam`. -/
 def run (args : List String) : IO UInt32 :=
@@ -335,6 +360,9 @@ def run (args : List String) : IO UInt32 :=
       showBalances memoryPath eventCorrectionPath basisPath
   | ["balances", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath] =>
       showBalances memoryPath eventCorrectionPath basisPath (some basisCorrectionPath)
+  | ["balances", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath, balanceViewPath] =>
+      showBalances memoryPath eventCorrectionPath basisPath
+        (some basisCorrectionPath) (some balanceViewPath)
   | ["current", memoryPath, eventCorrectionPath, basisPath] =>
       showCurrentQuantities memoryPath eventCorrectionPath basisPath
   | ["current", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath] =>
