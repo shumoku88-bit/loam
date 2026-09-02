@@ -105,6 +105,36 @@ jobs:
           .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$tmp/reversed-corrections.loam" >"$tmp/reversed.out"
           diff -u "$tmp/after-two.out" "$tmp/reversed.out"
 
+      - name: Show only explicitly anchored balances
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          event_corrections="$tmp/event-corrections.loam"
+          basis="$tmp/basis.loam"
+
+          printf 'paypay\n1000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'point\n59\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-101\nEFFECT\teffect-2\tpoint\tjpy\t-59\nEFFECT\teffect-3\tcan-coffee\tjpy\t160\n' >"$memory"
+
+          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" >"$tmp/balances.out"
+          grep -F 'Balances (starting balance + effective recorded changes):' "$tmp/balances.out"
+          grep -F 'paypay: 899 jpy' "$tmp/balances.out"
+          grep -F 'point: 0 jpy' "$tmp/balances.out"
+          if grep -Fq 'can-coffee:' "$tmp/balances.out"; then
+            echo 'use-only locus leaked into balance view' >&2
+            exit 1
+          fi
+
+          set +e
+          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" >"$tmp/current.out" 2>"$tmp/current.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/current.out"
+          grep -F 'starting quantity missing for can-coffee / jpy' "$tmp/current.err"
+
       - name: Refuse unanchored or invalid basis frontier
         shell: bash
         run: |
@@ -177,9 +207,11 @@ jobs:
           rm -rf scratch/dogfood
           printf '9\nbank\n100000\n' | ./tools/loam
           test -f scratch/dogfood/basis.loam
-          printf '10\n' | ./tools/loam >/tmp/loam-current-menu-before.out
-          grep -F 'bank: 100000 jpy' /tmp/loam-current-menu-before.out
+          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
+          grep -F '10. Show balances' /tmp/loam-balance-menu-before.out
+          grep -F 'Balances (starting balance + effective recorded changes):' /tmp/loam-balance-menu-before.out
+          grep -F 'bank: 100000 jpy' /tmp/loam-balance-menu-before.out
           printf '11\n1\n90000\n' | ./tools/loam
           test -f scratch/dogfood/basis-corrections.loam
-          printf '10\n' | ./tools/loam >/tmp/loam-current-menu-after.out
-          grep -F 'bank: 90000 jpy' /tmp/loam-current-menu-after.out
+          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
+          grep -F 'bank: 90000 jpy' /tmp/loam-balance-menu-after.out

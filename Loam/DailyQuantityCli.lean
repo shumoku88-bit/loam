@@ -17,6 +17,8 @@ private def usage : String :=
   "  ./tools/loam starting-quantity <basis-file>\n\n" ++
   "Correct one starting quantity append-only:\n" ++
   "  ./tools/loam correct-starting-quantity <basis-file> <basis-correction-file>\n\n" ++
+  "Show tracked balances only:\n" ++
+  "  ./tools/loam balances <event-memory> <event-correction-memory> <basis-file> [basis-correction-file]\n\n" ++
   "Show anchored current quantities:\n" ++
   "  ./tools/loam current <event-memory> <event-correction-memory> <basis-file> [basis-correction-file]"
 
@@ -140,10 +142,13 @@ private def addCoordinateIfAbsent
     (coordinate : EffectCoordinate) : List EffectCoordinate :=
   if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
 
-private def basisCoordinates (memory : QuantityBasisMemory) : List EffectCoordinate :=
-  memory.bases.foldl
+private def basisCoordinatesFrom (bases : List QuantityBasis) : List EffectCoordinate :=
+  bases.foldl
     (fun coordinates basis => addCoordinateIfAbsent coordinates basis.coordinate)
     []
+
+private def basisCoordinates (memory : QuantityBasisMemory) : List EffectCoordinate :=
+  basisCoordinatesFrom memory.bases
 
 private def eventCoordinates
     (memory : EventMemory)
@@ -170,17 +175,22 @@ private def collectCurrentLines
     (events : EventMemory)
     (eventCorrections : EventCorrectionMemory)
     (bases : QuantityBasisMemory)
-    (basisCorrections : QuantityBasisCorrectionMemory) :
+    (basisCorrections : QuantityBasisCorrectionMemory)
+    (includeZero : Bool) :
     List EffectCoordinate → CollectionResult
   | [] => .lines []
   | coordinate :: rest =>
       match Loam.Application.inspectCurrentQuantityWithBasisCorrections
           events eventCorrections bases basisCorrections coordinate.locus coordinate.measure with
       | .current quantity =>
-          match collectCurrentLines events eventCorrections bases basisCorrections rest with
+          match collectCurrentLines
+              events eventCorrections bases basisCorrections includeZero rest with
           | .lines later =>
               if quantity.quanta = 0 then
-                .lines later
+                if includeZero then
+                  .lines (quantityLine coordinate quantity :: later)
+                else
+                  .lines later
               else
                 .lines (quantityLine coordinate quantity :: later)
           | other => other
@@ -223,7 +233,7 @@ def showCurrentQuantities
               | some basisCorrections =>
                   let coordinates := eventCoordinates events (basisCoordinates bases)
                   match collectCurrentLines
-                      events eventCorrections bases basisCorrections coordinates with
+                      events eventCorrections bases basisCorrections false coordinates with
                   | .lines lines =>
                       if coordinates.isEmpty then
                         IO.println "No anchored current quantities."
@@ -249,12 +259,82 @@ def showCurrentQuantities
                         "loam: current quantity unavailable: event corrections do not justify one frontier"
                       return 1
 
+/--
+Show only coordinates retained by the admitted starting-basis frontier. This is
+an application-facing balance view: a use locus that appears only in Events is
+not silently promoted into a tracked balance, while an explicitly anchored zero
+balance remains visible.
+-/
+def showBalances
+    (memoryPath eventCorrectionPath basisPath : String)
+    (basisCorrectionPath? : Option String := none) : IO UInt32 := do
+  let memoryFile := System.FilePath.mk memoryPath
+  let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
+  let basisFile := System.FilePath.mk basisPath
+  match ← loadEventMemoryForView? memoryFile with
+  | none =>
+      IO.eprintln "loam: malformed or unsupported event-memory file"
+      return 2
+  | some events =>
+      match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
+      | none =>
+          IO.eprintln "loam: malformed or unsupported correction-memory file"
+          return 2
+      | some eventCorrections =>
+          match ← loadBasisMemoryForView? basisFile with
+          | none =>
+              IO.eprintln "loam: malformed or unsupported quantity-basis file"
+              return 2
+          | some bases =>
+              match ← loadBasisCorrectionMemoryForView? basisCorrectionPath? with
+              | none =>
+                  IO.eprintln "loam: malformed or unsupported quantity-basis correction file"
+                  return 2
+              | some basisCorrections =>
+                  match Loam.Application.admittedQuantityBasisFrontier? bases basisCorrections with
+                  | none =>
+                      IO.eprintln
+                        "loam: balances unavailable: starting-balance revisions do not justify one frontier"
+                      return 1
+                  | some frontier =>
+                      let coordinates := basisCoordinatesFrom frontier
+                      match collectCurrentLines
+                          events eventCorrections bases basisCorrections true coordinates with
+                      | .lines lines =>
+                          if coordinates.isEmpty then
+                            IO.println
+                              "No balances are being tracked. Set a starting balance before recording changes you want included."
+                          else
+                            IO.println "Balances (starting balance + effective recorded changes):"
+                            for line in lines do IO.println line
+                          return 0
+                      | .basisMissing coordinate =>
+                          IO.eprintln
+                            ("loam: balances unavailable: starting balance missing for " ++
+                              coordinate.locus.token ++ " / " ++ coordinate.measure.token)
+                          return 1
+                      | .basisFrontierRequired =>
+                          IO.eprintln
+                            "loam: balances unavailable: starting-balance revisions do not justify one frontier"
+                          return 1
+                      | .missingEventCorrectionEndpoint =>
+                          IO.eprintln "loam: balances unavailable: correction references are not closed"
+                          return 1
+                      | .eventFrontierRequired =>
+                          IO.eprintln
+                            "loam: balances unavailable: event corrections do not justify one frontier"
+                          return 1
+
 /-- Dispatcher for the narrow daily quantity executable behind `tools/loam`. -/
 def run (args : List String) : IO UInt32 :=
   match args with
   | ["starting-quantity", basisPath] => recordStartingJpy basisPath
   | ["correct-starting-quantity", basisPath, basisCorrectionPath] =>
       Loam.QuantityBasisCorrectionCli.correctStartingJpy basisPath basisCorrectionPath
+  | ["balances", memoryPath, eventCorrectionPath, basisPath] =>
+      showBalances memoryPath eventCorrectionPath basisPath
+  | ["balances", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath] =>
+      showBalances memoryPath eventCorrectionPath basisPath (some basisCorrectionPath)
   | ["current", memoryPath, eventCorrectionPath, basisPath] =>
       showCurrentQuantities memoryPath eventCorrectionPath basisPath
   | ["current", memoryPath, eventCorrectionPath, basisPath, basisCorrectionPath] =>
