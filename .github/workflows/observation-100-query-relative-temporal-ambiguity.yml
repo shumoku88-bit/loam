@@ -1,0 +1,88 @@
+name: Observation 100
+
+on:
+  pull_request:
+    paths:
+      - 'tla/QueryRelativeTemporalAmbiguity.tla'
+      - 'tla/QueryRelativeTemporalAmbiguity.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg'
+      - 'experiments/100_query_relative_temporal_ambiguity.md'
+      - '.github/workflows/observation-100-query-relative-temporal-ambiguity.yml'
+  push:
+    branches:
+      - 'experiment/100-query-relative-temporal-ambiguity'
+      - main
+    paths:
+      - 'tla/QueryRelativeTemporalAmbiguity.tla'
+      - 'tla/QueryRelativeTemporalAmbiguity.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg'
+      - 'experiments/100_query_relative_temporal_ambiguity.md'
+      - '.github/workflows/observation-100-query-relative-temporal-ambiguity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Query-relative temporal ambiguity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check query-relative temporal ambiguity safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/QueryRelativeTemporalAmbiguity.cfg \
+            tla/QueryRelativeTemporalAmbiguity.tla \
+            2>&1 | tee /tmp/observation-100-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-100-positive.txt
+
+      - name: Require convergent-conflict counterexample to blanket blocking
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg \
+            tla/QueryRelativeTemporalAmbiguity.tla \
+            2>&1 | tee /tmp/observation-100-blocks-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'Invariant AnyTemporalConflictBlocksQuantity is violated.' /tmp/observation-100-blocks-boundary.txt
+
+      - name: Require divergent-conflict counterexample to blanket availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg \
+            tla/QueryRelativeTemporalAmbiguity.tla \
+            2>&1 | tee /tmp/observation-100-yields-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'Invariant AnyTemporalConflictStillYieldsQuantity is violated.' /tmp/observation-100-yields-boundary.txt
