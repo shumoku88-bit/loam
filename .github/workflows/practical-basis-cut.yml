@@ -1,0 +1,234 @@
+name: Practical Basis Cut
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/BasisCutPersistence.lean'
+      - 'Loam/DailyQuantityCli.lean'
+      - 'tools/loam'
+      - 'experiments/application_011_basis_cut.md'
+      - '.github/workflows/practical-basis-cut.yml'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/Core/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/BasisCutPersistence.lean'
+      - 'Loam/DailyQuantityCli.lean'
+      - 'tools/loam'
+      - 'experiments/application_011_basis_cut.md'
+      - '.github/workflows/practical-basis-cut.yml'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/Core/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build and test basis cut
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build practical binaries
+        run: lake build loam loamDailyQuantity
+      - name: Keep one cut stable across both correction families
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          event_corrections="$tmp/corrections.loam"
+          basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+          view="$tmp/balance-view.tsv"
+          cut="$tmp/basis-cut.tsv"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	pre-v1
+          EFFECT	pre-v1-effect	wallet	jpy	-10
+          EVENT	pre-v2
+          EFFECT	pre-v2-effect	wallet	jpy	-12
+          EVENT	later
+          EFFECT	later-effect	wallet	jpy	-7
+          EOF
+          cat >"$event_corrections" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	pre-v1	pre-v2
+          EOF
+          cat >"$basis" <<'EOF'
+          LOAM-QUANTITY-BASIS-MEMORY	1
+          BASIS	basis-1	wallet	jpy	100
+          EOF
+          printf 'wallet\tjpy\n' >"$view"
+          printf 'basis-1\tpre-v1\n' >"$cut"
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/first.out"
+          grep -F 'wallet: 93 jpy' "$tmp/first.out"
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" \
+            >"$tmp/no-cut.out"
+          grep -F 'wallet: 81 jpy' "$tmp/no-cut.out"
+
+          cat >>"$memory" <<'EOF'
+          EVENT	pre-v3
+          EFFECT	pre-v3-effect	wallet	jpy	-9
+          EOF
+          cat >>"$event_corrections" <<'EOF'
+          CORRECTION	c2	pre-v2	pre-v3
+          EOF
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/event-corrected.out"
+          grep -F 'wallet: 93 jpy' "$tmp/event-corrected.out"
+
+          cat >>"$basis" <<'EOF'
+          BASIS	basis-2	wallet	jpy	95
+          EOF
+          cat >"$basis_corrections" <<'EOF'
+          LOAM-QUANTITY-BASIS-CORRECTION-MEMORY	1
+          CORRECTION	bc1	basis-1	basis-2
+          EOF
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/both-corrected.out"
+          grep -F 'wallet: 88 jpy' "$tmp/both-corrected.out"
+
+          cat >"$tmp/reversed-event-corrections.loam" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c2	pre-v2	pre-v3
+          CORRECTION	c1	pre-v1	pre-v2
+          EOF
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$tmp/reversed-event-corrections.loam" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/reversed.out"
+          diff -u "$tmp/both-corrected.out" "$tmp/reversed.out"
+
+      - name: Fail closed on malformed or non-root cut evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          event_corrections="$tmp/corrections.loam"
+          basis="$tmp/basis.loam"
+          basis_corrections="$tmp/basis-corrections.loam"
+          view="$tmp/balance-view.tsv"
+          cut="$tmp/basis-cut.tsv"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	pre-v1
+          EFFECT	e1	wallet	jpy	-10
+          EVENT	pre-v2
+          EFFECT	e2	wallet	jpy	-12
+          EVENT	later
+          EFFECT	e3	wallet	jpy	-7
+          EOF
+          cat >"$event_corrections" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	pre-v1	pre-v2
+          EOF
+          cat >"$basis" <<'EOF'
+          LOAM-QUANTITY-BASIS-MEMORY	1
+          BASIS	basis-1	wallet	jpy	100
+          BASIS	basis-2	wallet	jpy	95
+          EOF
+          cat >"$basis_corrections" <<'EOF'
+          LOAM-QUANTITY-BASIS-CORRECTION-MEMORY	1
+          CORRECTION	bc1	basis-1	basis-2
+          EOF
+          printf 'wallet\tjpy\n' >"$view"
+
+          printf 'basis-2\tpre-v1\n' >"$cut"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/interior-basis.out" 2>"$tmp/interior-basis.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/interior-basis.out"
+          grep -F 'basis-cut roots are not admitted' "$tmp/interior-basis.err"
+
+          printf 'basis-1\tpre-v2\n' >"$cut"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/interior-event.out" 2>"$tmp/interior-event.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/interior-event.out"
+          grep -F 'basis-cut roots are not admitted' "$tmp/interior-event.err"
+
+          printf 'broken-row\n' >"$cut"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" "$cut" \
+            >"$tmp/malformed.out" 2>"$tmp/malformed.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/malformed.out"
+          grep -F 'malformed or unsupported basis-cut file' "$tmp/malformed.err"
+
+      - name: Exercise menu wiring
+        shell: bash
+        env:
+          LOAM_DATA_DIR: scratch/basis-cut-dogfood
+        run: |
+          set -euo pipefail
+          rm -rf "$LOAM_DATA_DIR"
+          mkdir -p "$LOAM_DATA_DIR"
+          cat >"$LOAM_DATA_DIR/memory.loam" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	pre-v1
+          EFFECT	e1	wallet	jpy	-10
+          EVENT	pre-v2
+          EFFECT	e2	wallet	jpy	-12
+          EVENT	later
+          EFFECT	e3	wallet	jpy	-7
+          EOF
+          cat >"$LOAM_DATA_DIR/corrections.loam" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	pre-v1	pre-v2
+          EOF
+          cat >"$LOAM_DATA_DIR/basis.loam" <<'EOF'
+          LOAM-QUANTITY-BASIS-MEMORY	1
+          BASIS	basis-1	wallet	jpy	100
+          EOF
+          printf 'wallet\tjpy\n' >"$LOAM_DATA_DIR/balance-view.tsv"
+          printf 'basis-1\tpre-v1\n' >"$LOAM_DATA_DIR/basis-cut.tsv"
+
+          printf '10\nq\n' | ./tools/loam >"$LOAM_DATA_DIR/menu.out"
+          grep -F 'wallet: 93 jpy' "$LOAM_DATA_DIR/menu.out"
