@@ -1,0 +1,70 @@
+name: Observation 093
+
+on:
+  pull_request:
+    paths:
+      - 'tla/OriginScopeValidVsLearned.tla'
+      - 'tla/OriginScopeValidVsLearned.cfg'
+      - 'tla/OriginScopeValidVsLearnedBoundary.cfg'
+      - 'experiments/093_origin_scope_valid_vs_learned.md'
+      - '.github/workflows/observation-093-origin-scope-valid-vs-learned.yml'
+  push:
+    branches:
+      - 'experiment/092-origin-relative-time-cut'
+      - main
+    paths:
+      - 'tla/OriginScopeValidVsLearned.tla'
+      - 'tla/OriginScopeValidVsLearned.cfg'
+      - 'tla/OriginScopeValidVsLearnedBoundary.cfg'
+      - 'experiments/093_origin_scope_valid_vs_learned.md'
+      - '.github/workflows/observation-093-origin-scope-valid-vs-learned.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Valid time vs learned time at origin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check valid-time origin scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/OriginScopeValidVsLearned.cfg \
+            tla/OriginScopeValidVsLearned.tla \
+            2>&1 | tee /tmp/observation-093-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-093-positive.txt
+
+      - name: Require learned-time scope counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/OriginScopeValidVsLearnedBoundary.cfg \
+            tla/OriginScopeValidVsLearned.tla \
+            2>&1 | tee /tmp/observation-093-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'LearnedScopeMatchesValidScopeForLateEvents' /tmp/observation-093-boundary.txt
+          grep -Fq 'Invariant' /tmp/observation-093-boundary.txt
