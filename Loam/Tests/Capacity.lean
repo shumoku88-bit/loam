@@ -44,10 +44,11 @@ private def release? : Option CapacityMovement :=
     [capacityChange (.purpose groceries) (-10),
      capacityChange .unallocated 10]
 
-private def physicalMovement? : Option (BalancedMovement LocusId) :=
-  BalancedMovement.ofChanges? yen
-    [{ coordinate := LocusId.mk "bank", quantity := Quantity.ofQuanta (-75) },
-     { coordinate := LocusId.mk "wallet", quantity := Quantity.ofQuanta 75 }]
+private def physicalMovement? :
+    Option (Loam.Core.BalancedMovement Loam.Core.LocusId) :=
+  Loam.Core.BalancedMovement.ofChanges? yen
+    [{ coordinate := Loam.Core.LocusId.mk "bank", quantity := Quantity.ofQuanta (-75) },
+     { coordinate := Loam.Core.LocusId.mk "wallet", quantity := Quantity.ofQuanta 75 }]
 
 private def unbalancedCapacity? : Option (BalancedMovement CapacityCoordinate) :=
   BalancedMovement.ofChanges? yen
