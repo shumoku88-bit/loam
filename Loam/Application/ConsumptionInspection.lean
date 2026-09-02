@@ -10,7 +10,7 @@ open Loam.Core
 
 set_option autoImplicit false
 
-variable {Time : Type}
+variable {Time : Type} [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)]
 
 /-!
 # Consumption and Remaining inspection
@@ -35,7 +35,6 @@ Sums the signed quantity of effects matching the queried Measure whose Locus rou
 to the queried Purpose at `validOn`.
 -/
 def eventConsumptionAt
-    [LinearOrder Time]
     (event : Event)
     (validOn : Time)
     (routing : RoutingHistory LocusId Time)
@@ -58,7 +57,6 @@ Fails closed (`none`) if any Event in `events` lacks valid coordinate evidence
 in `validities`.
 -/
 def consumptionAtRecorded?
-    [LinearOrder Time]
     (events : EventMemory)
     (validities : ActualValidityMemory Time)
     (routing : RoutingHistory LocusId Time)
@@ -80,7 +78,6 @@ Combines retained capacity movements with recorded actual consumption.
 Fails closed (`none`) if consumption cannot be determined.
 -/
 def remainingAtRecorded?
-    [LinearOrder Time]
     (movements : List CapacityMovement)
     (events : EventMemory)
     (validities : ActualValidityMemory Time)

@@ -1,4 +1,4 @@
-name: Capacity Slice A2
+name: Practical Slice A2
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Tests/Capacity.lean'
       - 'Loam/Tests/ActualRoutingConsumption.lean'
-      - '.github/workflows/capacity-slice-a2.yml'
+      - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -34,7 +34,7 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Tests/Capacity.lean'
       - 'Loam/Tests/ActualRoutingConsumption.lean'
-      - '.github/workflows/capacity-slice-a2.yml'
+      - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -44,12 +44,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: capacity-slice-a2-${{ github.ref }}
+  group: practical-slice-a2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
-    name: Build typed capacity and actual routing consumption boundary
+    name: Build typed practical boundary with actual routing consumption
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

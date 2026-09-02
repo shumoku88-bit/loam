@@ -18,10 +18,10 @@ Remaining
 ## Boundaries implemented
 
 1. **Event structure remains date-free**:
-   Observations 092–094 established that Event identity does not contain an inherent calendar/date field. Actual occurrence validity is therefore represented as separate typed evidence (`ActualValidity (Time : Type)` and `ActualValidityMemory (Time : Type)`), linking an `EventId` to a valid coordinate.
+   Observations 092–094 did not earn a built-in production Event temporal field. Actual occurrence validity is therefore represented as separate typed evidence (`ActualValidity (Time : Type)` and `ActualValidityMemory (Time : Type)`), linking an `EventId` to a valid coordinate.
 
 2. **Polymorphic linear order for time**:
-   No calendar parser, timezone, or Gregorian date framework is introduced. Route selection requires only a minimal `LinearOrder Time` parameter for latest-visible selection.
+   No calendar parser, timezone, or Gregorian date framework is introduced. Route selection requires only standard linear order comparison on `Time` for latest-visible selection.
 
 3. **Shared Purpose coordinate without registry**:
    `PurposeId` is placed in `Loam.Core.Purpose`, shared cleanly by `Loam.Core.Capacity` and `Loam.Core.HistoricalRouting`. No Purpose registry is introduced.
