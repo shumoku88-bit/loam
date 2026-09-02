@@ -1,0 +1,71 @@
+name: Observation 098
+
+on:
+  pull_request:
+    paths:
+      - 'tla/TemporalConflictResolutionHistory.tla'
+      - 'tla/TemporalConflictResolutionHistory.cfg'
+      - 'tla/TemporalConflictResolutionHistoryBoundary.cfg'
+      - 'experiments/098_temporal_conflict_resolution_history.md'
+      - '.github/workflows/observation-098-temporal-conflict-resolution-history.yml'
+  push:
+    branches:
+      - 'experiment/098-temporal-conflict-resolution-history'
+      - main
+    paths:
+      - 'tla/TemporalConflictResolutionHistory.tla'
+      - 'tla/TemporalConflictResolutionHistory.cfg'
+      - 'tla/TemporalConflictResolutionHistoryBoundary.cfg'
+      - 'experiments/098_temporal_conflict_resolution_history.md'
+      - '.github/workflows/observation-098-temporal-conflict-resolution-history.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Temporal conflict resolution history
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check append-only temporal conflict resolution safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalConflictResolutionHistory.cfg \
+            tla/TemporalConflictResolutionHistory.tla \
+            2>&1 | tee /tmp/observation-098-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-098-positive.txt
+
+      - name: Require final-frontier historical-conflict loss counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalConflictResolutionHistoryBoundary.cfg \
+            tla/TemporalConflictResolutionHistory.tla \
+            2>&1 | tee /tmp/observation-098-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'Invariant FinalFrontierCanReconstructHistoricalConflict is violated.' /tmp/observation-098-boundary.txt
