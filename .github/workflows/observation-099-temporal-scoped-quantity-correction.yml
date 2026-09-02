@@ -1,0 +1,71 @@
+name: Observation 099
+
+on:
+  pull_request:
+    paths:
+      - 'tla/TemporalScopedQuantityCorrection.tla'
+      - 'tla/TemporalScopedQuantityCorrection.cfg'
+      - 'tla/TemporalScopedQuantityCorrectionBoundary.cfg'
+      - 'experiments/099_temporal_scoped_quantity_correction.md'
+      - '.github/workflows/observation-099-temporal-scoped-quantity-correction.yml'
+  push:
+    branches:
+      - 'experiment/099-temporal-scoped-quantity-correction'
+      - main
+    paths:
+      - 'tla/TemporalScopedQuantityCorrection.tla'
+      - 'tla/TemporalScopedQuantityCorrection.cfg'
+      - 'tla/TemporalScopedQuantityCorrectionBoundary.cfg'
+      - 'experiments/099_temporal_scoped_quantity_correction.md'
+      - '.github/workflows/observation-099-temporal-scoped-quantity-correction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: Temporal scoped quantity correction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check temporal scoped quantity safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalScopedQuantityCorrection.cfg \
+            tla/TemporalScopedQuantityCorrection.tla \
+            2>&1 | tee /tmp/observation-099-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-099-positive.txt
+
+      - name: Require final-frontier historical-quantity loss counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/TemporalScopedQuantityCorrectionBoundary.cfg \
+            tla/TemporalScopedQuantityCorrection.tla \
+            2>&1 | tee /tmp/observation-099-boundary.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'Invariant FinalTemporalFrontierCanReconstructPastQuantity is violated.' /tmp/observation-099-boundary.txt
