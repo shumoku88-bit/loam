@@ -45,7 +45,7 @@ h0.parents = {t1, t2}
 r0: e0 -> d1
 ```
 
-The intended current frontier becomes:
+The current frontier becomes:
 
 ```text
 {r0}
@@ -107,16 +107,25 @@ or
 a known Resolution parent relation
 ```
 
-So the same retained final history should derive:
+So the same retained final history derives:
 
 ```text
 FrontierAt(3) = {t1, t2}
 FrontierAt(4) = {r0}
 ```
 
-## Expected positive boundary
+## Observed TLA+ result
 
-The positive model asks TLC to preserve:
+TLA+ tools 1.7.4 / TLC 2.19 completed the positive bounded exploration with no error:
+
+```text
+15 states generated
+15 distinct states found
+0 states left on queue
+complete state graph depth: 9
+```
+
+The reachable state graph preserved:
 
 - type safety;
 - no retained knowledge before its learned time;
@@ -126,45 +135,68 @@ The positive model asks TLC to preserve:
 - `{t1, t2}` after both sibling Corrections and before Resolution;
 - `{r0}` after Resolution;
 - historical `FrontierAt(3) = {t1, t2}` even after Resolution is retained;
-- all conflicting facts and Corrections remain retained after Resolution.
+- all conflicting facts and Corrections remaining retained after Resolution.
 
-## Deliberate boundary
-
-The stronger claim is:
+The deliberate stronger claim was:
 
 ```text
 retain only the final current frontier
   -> enough to reconstruct the earlier unresolved view
 ```
 
-The boundary configuration asks TLC to reject it.
-
-At the resolved final state:
+TLC rejected it as expected:
 
 ```text
-final frontier = {r0}
+Invariant FinalFrontierCanReconstructHistoricalConflict is violated.
 ```
 
-Filtering only that final frontier back to knowledge time 3 yields no candidate because `r0` is learned at time 4.
+The counterexample reaches the full history:
 
-But the complete append-only retained history should still reconstruct:
+```text
+knowledge time 3
+  retainedFacts       = {t0, t1, t2}
+  retainedCorrections = {c1, c2}
+  retainedResolutions = {}
+
+knowledge time 4 after Resolution
+  retainedFacts       = {t0, t1, t2, r0}
+  retainedCorrections = {c1, c2}
+  retainedResolutions = {h0}
+```
+
+At the final state:
 
 ```text
 FrontierAt(3) = {t1, t2}
+FrontierAt(4) = {r0}
 ```
 
-If this counterexample is reachable, then:
+Filtering only the final frontier `{r0}` back to knowledge time 3 yields no candidate because `r0` was not learned until time 4. The full append-only retained history still reconstructs the earlier unresolved frontier.
+
+## Finding
+
+The bounded model supports this qualified distinction:
+
+```text
+later Resolution
+  -> settled current frontier
+
+later Resolution
+  -/-> erase the earlier unresolved as-known view
+```
+
+and:
 
 ```text
 resolved current frontier
   != historical unresolved knowledge
 ```
 
-and conflict history itself is information worth retaining when `as-known` questions matter.
+So conflict history is itself information that must remain available if historical `as-known` questions matter.
 
 ## Interpretation boundary
 
-A successful receipt would support only this qualified statement:
+The observed receipt supports only this qualified statement:
 
 ```text
 append-only temporal facts
@@ -176,7 +208,9 @@ append-only temporal facts
     later settled view
 ```
 
-It would not establish where Resolution authority comes from or whether `r0` carries the objectively correct valid day.
+It does not establish where Resolution authority comes from or whether `r0` carries the objectively correct valid day.
+
+The result aligns the temporal case with Observation 023 while adding the learned-time requirement that the earlier conflict remain reconstructible after settlement.
 
 ## Non-goals
 
