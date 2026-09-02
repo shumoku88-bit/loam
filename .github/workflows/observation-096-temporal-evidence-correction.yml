@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/TemporalEvidenceCorrection.cfg \
             tla/TemporalEvidenceCorrection.tla \
             2>&1 | tee /tmp/observation-096-positive.txt
@@ -60,6 +61,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
             -config tla/TemporalEvidenceCorrectionBoundary.cfg \
             tla/TemporalEvidenceCorrection.tla \
             2>&1 | tee /tmp/observation-096-boundary.txt
