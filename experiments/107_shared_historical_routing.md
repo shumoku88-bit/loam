@@ -32,7 +32,7 @@ The model has one routing evidence type:
 RoutingEvidence
   subject
   effectiveOn
-  purpose? 
+  purpose?
 ```
 
 A missing `purpose` on an explicit evidence record means the subject is explicitly unmanaged / not routed from that effective day.
@@ -106,9 +106,35 @@ The first two candidate compression laws are deliberately too small.
 
 The third asks whether one shared historical routing relation plus explicit subject meaning is sufficient for the selected bounded projections.
 
-## What a successful observation would mean
+## Alloy result
 
-If the expected results hold, LOAM could potentially reuse one small historical routing implementation shape across Consumption and Scheduled Fulfillment / Commitment without collapsing the domain distinction:
+Alloy 6.2.0 with Sat4j produced exactly the expected boundary:
+
+```text
+representativeSharedHistory                                     SAT
+sameCurrentRoutingDifferentHistory                              SAT
+sameRoutingEvidenceDifferentSubjectMeaning                      SAT
+managedThenExplicitlyUnmanaged                                  SAT
+CurrentRoutingDeterminesHistoricalRouting                       SAT counterexample
+SharedRoutingEvidenceDeterminesTypedAnswersWithoutSubjectKind   SAT counterexample
+ExplicitHistoryAndSubjectKindDetermineTypedAnswers              UNSAT counterexample
+LatestRouteIsUnique                                             UNSAT counterexample
+```
+
+The first CI attempt did not reach the solver because the specimen used Alloy temporal keywords as local identifiers. Renaming those locals changed no modeled relation or expected result. The corrected exact-head run executed the Alloy model and the expected-result qualification successfully.
+
+The result preserves two distinct pieces of information:
+
+```text
+historical route evidence
+subject meaning
+```
+
+Neither the current route alone nor route history with the subject meaning erased is sufficient for the selected answers.
+
+## Observed compression boundary
+
+The bounded observation supports this smaller shape:
 
 ```text
 shared time-indexed routing evidence
@@ -124,7 +150,9 @@ separate routing algebra for each subject kind
     not required by these bounded answers
 ```
 
-That would be a cross-capability compression, not a claim that Expense routing and Scheduled routing are the same semantic relation.
+So Actual Consumption routing and Scheduled Fulfillment / Commitment routing can share an implementation shape without becoming the same semantic relation.
+
+This repeats the boundary seen in Observation 106: reuse the small structure, but retain the independently observable semantic distinction.
 
 ## Important boundaries
 
@@ -143,9 +171,9 @@ Observation 107 does not establish:
 
 Existing LOAM temporal observations already show that valid and learned coordinates can matter independently. This experiment keeps only the effective-day pressure needed for the cross-capability routing question.
 
-## Next pressure if this survives
+## Next pressure
 
-The next high-value cross-capability question is then concrete:
+The next high-value cross-capability question is now concrete:
 
 > Once an open Scheduled occurrence and its historical Purpose routing are retained, does Envelope Commitment require any additional canonical commitment fact?
 
