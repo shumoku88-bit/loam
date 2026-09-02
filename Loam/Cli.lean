@@ -15,17 +15,14 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
 
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
-  "Record a JPY spend:\n" ++
-  "  ./tools/loam spend scratch/dogfood/memory.loam\n\n" ++
-  "Record JPY income:\n" ++
-  "  ./tools/loam income scratch/dogfood/memory.loam\n\n" ++
-  "Move JPY between loci:\n" ++
-  "  ./tools/loam transfer scratch/dogfood/memory.loam\n\n" ++
+  "Daily recording uses the movement entrance:\n" ++
+  "  ./tools/loam movement MEMORY_FILE\n\n" ++
   "Review recorded facts:\n" ++
-  "  ./tools/loam review scratch/dogfood/memory.loam\n\n" ++
+  "  ./tools/loam review MEMORY_FILE\n\n" ++
   "Show recorded quantities:\n" ++
-  "  ./tools/loam summary scratch/dogfood/memory.loam\n\n" ++
-  "The final path is the memory file LOAM reads or writes.\n" ++
+  "  ./tools/loam summary MEMORY_FILE\n\n" ++
+  "Correct a recorded movement append-only:\n" ++
+  "  ./tools/loam correct MEMORY_FILE CORRECTION_FILE\n\n" ++
   "For lower-level commands:\n" ++
   "  ./tools/loam help low-level"
 
@@ -71,11 +68,7 @@ def showAmount (path : String) : IO UInt32 := do
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/--
-Create one complete event from caller-supplied effect tuples and persist it in
-one write. This command does not provide an incremental effect-append surface.
-An already existing target path is refused rather than intentionally replaced.
--/
+/-- Create one complete Event from caller-supplied effect tuples. -/
 def createEvent
     (path : String) (eventToken : String) (effectArgs : List String) : IO UInt32 := do
   match parseEffects effectArgs with
@@ -92,18 +85,13 @@ def createEvent
           if ← filePath.pathExists then
             IO.eprintln "loam: target event file already exists"
             return 2
+          else if ← Loam.Persistence.saveEvent? filePath event then
+            return 0
           else
-            if ← Loam.Persistence.saveEvent? filePath event then
-              return 0
-            else
-              IO.eprintln "loam: event contains an unrepresentable identity token"
-              return 2
+            IO.eprintln "loam: event contains an unrepresentable identity token"
+            return 2
 
-/--
-Read one persisted event and project exact quanta at an explicit locus/measure
-coordinate. The source event remains detailed; this command only exposes the
-read-only `Event.quantityAt` projection.
--/
+/-- Project exact quanta from one persisted Event at an explicit coordinate. -/
 def showEventQuantity
     (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
   let filePath := System.FilePath.mk path
@@ -120,11 +108,7 @@ def showEventQuantity
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/--
-Read one persisted Event memory and retrieve one Event by stable identity.
-The command exposes no storage index and therefore adds no `first`, `latest`,
-temporal, causal, priority, authority, or posting-order semantics.
--/
+/-- Retrieve one remembered Event by stable identity. -/
 def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk path
   if ← memoryFile.pathExists then
@@ -149,14 +133,7 @@ def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/--
-Read one persisted Event memory and project the exact aggregate of all recorded
-facts at one explicit locus/measure coordinate.
-
-This command deliberately exposes `EventMemory.quantityAtRecorded`. It does not
-claim correction, reversal, current-state, effective-state, temporal, or
-accounting semantics, and therefore is not named `balance`.
--/
+/-- Project the exact aggregate of all recorded facts at one coordinate. -/
 def showRememberedQuantity
     (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk path
@@ -177,16 +154,8 @@ def showRememberedQuantity
 private def addCoordinateIfAbsent
     (coordinates : List Loam.Core.EffectCoordinate)
     (coordinate : Loam.Core.EffectCoordinate) : List Loam.Core.EffectCoordinate :=
-  if coordinate ∈ coordinates then
-    coordinates
-  else
-    coordinates ++ [coordinate]
+  if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
 
-/--
-Collect every locus/measure coordinate that is actually represented in memory.
-The retained list order is only a display convenience inherited from the current
-persistence representation and carries no time, priority, or accounting meaning.
--/
 private def recordedCoordinates
     (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=
   memory.events.foldl
@@ -196,15 +165,7 @@ private def recordedCoordinates
         coordinates)
     []
 
-/--
-Show one small report-like projection of EventMemory without introducing an
-Account, Balance, Report, or other accounting primitive.
-
-For each coordinate that occurs in recorded Effects, the displayed value is
-exactly `EventMemory.quantityAtRecorded`. Zero totals remain visible. No
-correction, reversal, effective-state, valuation, or temporal semantics are
-applied. Display row order is not semantic.
--/
+/-- Show recorded quantities without adding correction or balance semantics. -/
 def showRecordedQuantitySummary (path : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk path
   if ← memoryFile.pathExists then
@@ -213,12 +174,11 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
         IO.eprintln "loam: malformed or unsupported event-memory file"
         return 2
     | some memory =>
-        let coordinates := recordedCoordinates memory
-        match coordinates with
+        match recordedCoordinates memory with
         | [] =>
             IO.println "No recorded quantities."
             return 0
-        | _ =>
+        | coordinates =>
             IO.println "Recorded quantities (all recorded facts; display order has no time meaning):"
             for coordinate in coordinates do
               let quantity :=
@@ -232,15 +192,7 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/--
-Show every Event currently represented in one Event memory without interpreting
-representation order as time, causality, priority, or authority.
-
-This is a human-facing inspection entrance, not a chronological history. It
-prints only facts the current Practical Core actually retains; descriptive
-context such as merchant or purpose is therefore absent unless a future
-observation earns a representation for it.
--/
+/-- Show all remembered Events without interpreting representation order as time. -/
 def reviewRememberedEvents (path : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk path
   if ← memoryFile.pathExists then
@@ -269,18 +221,7 @@ def reviewRememberedEvents (path : String) : IO UInt32 := do
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/--
-Add one already-complete persisted Event to an existing Event memory.
-
-Both files are fully admitted before publication. Duplicate Event identity
-therefore fails without changing the memory target. The final list position is
-persistence representation only and does not mean latest, later, causal, or
-more authoritative. Successful publication stages the complete encoded memory
-beside the target and then replaces the target with one filesystem rename. This
-helper itself does not acquire process ownership; the production command
-dispatcher holds EventMemory-anchored writer ownership across the complete
-load/prepare/admit/publish operation.
--/
+/-- Add one already-complete persisted Event under caller-held writer ownership. -/
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let eventFile := System.FilePath.mk eventPath
@@ -312,323 +253,12 @@ def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
                   IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
                   return 2
 
-/-- Prompt for one line while keeping the practical entrance interactive. -/
-private def promptLine (prompt : String) : IO String := do
-  IO.print prompt
-  let stdout ← IO.getStdout
-  stdout.flush
-  let stdin ← IO.getStdin
-  return (← stdin.getLine).trimAsciiEnd.toString
-
-/--
-Search a bounded deterministic namespace for an unused Event identity.
-
-The numeric suffix is only an operational collision-avoidance device for the
-CLI. It does not make Event-memory representation order temporal or semantic.
-With `n` remembered Events, checking `n + 1` distinct candidates guarantees at
-least one candidate is not already used.
--/
-private def freshRecordEventIdFrom
-    (memory : Loam.Core.EventMemory) : Nat → Nat → Option Loam.Core.EventId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.EventId := ⟨"record-" ++ toString index⟩
-      match Loam.Core.EventMemory.findById? memory candidate with
-      | none => some candidate
-      | some _ => freshRecordEventIdFrom memory (index + 1) fuel
-
-private def freshRecordEventId? (memory : Loam.Core.EventMemory) : Option Loam.Core.EventId :=
-  freshRecordEventIdFrom memory 1 (memory.events.length + 1)
-
-/--
-Load an existing Event memory for a human-facing entry, or begin from the
-already-admitted empty memory when the target does not yet exist. A malformed
-existing target is never silently replaced.
--/
-private def loadEventMemoryForEntry?
-    (path : System.FilePath) : IO (Option Loam.Core.EventMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventMemory? path
-  else
-    return Loam.Core.EventMemory.ofEvents? []
-
-private def spendEntry?
-    (useOrAmount amountText : String) : Option (Option String × Int) :=
-  match amountText.toInt? with
-  | some amount => some (some useOrAmount, amount)
-  | none =>
-      if amountText.isEmpty then
-        match useOrAmount.toInt? with
-        | some amount => some (none, amount)
-        | none => none
-      else
-        none
-
-/--
-Human-facing entrance for one ordinary JPY spend from one locus toward one
-human-selected use locus.
-
-The ordinary interactive path supplies `Paid from?`, `Used for?`, and a positive
-amount. The adapter records one generic Event with two distinct Effects:
-
-`payment source -q` and `use locus +q`.
-
-`Used for?` therefore does not create an Expense Category primitive or attach a
-free-form description to Event. It selects another neutral Locus. The
-entrance-level equal-and-opposite shape is not promoted into a global Event law,
-and the Core still does not know which Locus is an asset, expense, account, or
-category.
-
-Older two-line scripted callers that end stdin after `Paid from?` and the amount
-remain accepted as the historical one-Effect shape. That compatibility path is
-selected only when the third line reaches EOF/empty input and the second line is
-a positive integer; ordinary interactive dogfood therefore uses the two-Effect
-shape.
-
-A new use locus is also not silently given a zero starting basis. The anchored
-`current` projection continues to distinguish an explicit zero basis from an
-unknown one. The production command dispatcher acquires EventMemory-anchored
-writer ownership before calling this entrance.
--/
-def spendJpy (memoryPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  match ← loadEventMemoryForEntry? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      let sourceToken ← promptLine "Paid from? "
-      if Loam.Persistence.validToken sourceToken then
-        let useOrAmount ← promptLine "Used for? "
-        let amountText ← promptLine "Amount? "
-        match spendEntry? useOrAmount amountText with
-        | none =>
-            IO.eprintln "loam: amount must be a positive integer"
-            return 2
-        | some (useToken?, amount) =>
-            if amount > 0 then
-              match useToken? with
-              | some useToken =>
-                  if !Loam.Persistence.validToken useToken then
-                    IO.eprintln "loam: use locus must be a nonempty single-line token"
-                    return 2
-                  else if sourceToken = useToken then
-                    IO.eprintln "loam: spending source and use locus must differ"
-                    return 2
-                  else
-                    match freshRecordEventId? memory with
-                    | none =>
-                        IO.eprintln "loam: could not generate a fresh event identity"
-                        return 2
-                    | some eventId =>
-                        let sourceEffect :=
-                          Loam.Core.Effect.ofQuantity
-                            ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
-                            (Loam.Core.Quantity.ofQuanta (-amount))
-                        let useEffect :=
-                          Loam.Core.Effect.ofQuantity
-                            ⟨"effect-2"⟩ ⟨useToken⟩ ⟨"jpy"⟩
-                            (Loam.Core.Quantity.ofQuanta amount)
-                        match Loam.Core.Event.ofEffects? eventId [sourceEffect, useEffect] with
-                        | none =>
-                            IO.eprintln "loam: could not admit generated event"
-                            return 2
-                        | some event =>
-                            match Loam.Core.EventMemory.add? memory event with
-                            | none =>
-                                IO.eprintln "loam: generated event identity already remembered"
-                                return 2
-                            | some updated =>
-                                if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                                  IO.println
-                                    ("Recorded: spent " ++ toString amount ++ " jpy from " ++
-                                      sourceToken ++ " for " ++ useToken ++ ".")
-                                  return 0
-                                else
-                                  IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                                  return 2
-              | none =>
-                  match freshRecordEventId? memory with
-                  | none =>
-                      IO.eprintln "loam: could not generate a fresh event identity"
-                      return 2
-                  | some eventId =>
-                      let effect :=
-                        Loam.Core.Effect.ofQuantity
-                          ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
-                          (Loam.Core.Quantity.ofQuanta (-amount))
-                      match Loam.Core.Event.ofEffects? eventId [effect] with
-                      | none =>
-                          IO.eprintln "loam: could not admit generated event"
-                          return 2
-                      | some event =>
-                          match Loam.Core.EventMemory.add? memory event with
-                          | none =>
-                              IO.eprintln "loam: generated event identity already remembered"
-                              return 2
-                          | some updated =>
-                              if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                                IO.println
-                                  ("Recorded: spent " ++ toString amount ++ " jpy from " ++ sourceToken ++ ".")
-                                return 0
-                              else
-                                IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                                return 2
-            else
-              IO.eprintln "loam: amount must be a positive integer"
-              return 2
-      else
-        IO.eprintln "loam: payment source must be a nonempty single-line token"
-        return 2
-
-/--
-Human-facing entrance for ordinary JPY income received at one locus.
-
-`income` is an interface verb only. The retained Core fact is one positive JPY
-Effect at the selected locus; no Income account, event-kind tag, or accounting
-role is promoted into the Practical Core. A later typed fact family may add
-such interpretation without changing this Event shape if daily use earns it.
--/
-def incomeJpy (memoryPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  match ← loadEventMemoryForEntry? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      let locusToken ← promptLine "Received into? "
-      if Loam.Persistence.validToken locusToken then
-        let amountText ← promptLine "Amount? "
-        match amountText.toInt? with
-        | none =>
-            IO.eprintln "loam: amount must be a positive integer"
-            return 2
-        | some amount =>
-            if amount > 0 then
-              match freshRecordEventId? memory with
-              | none =>
-                  IO.eprintln "loam: could not generate a fresh event identity"
-                  return 2
-              | some eventId =>
-                  let effect :=
-                    Loam.Core.Effect.ofQuantity
-                      ⟨"effect-1"⟩ ⟨locusToken⟩ ⟨"jpy"⟩
-                      (Loam.Core.Quantity.ofQuanta amount)
-                  match Loam.Core.Event.ofEffects? eventId [effect] with
-                  | none =>
-                      IO.eprintln "loam: could not admit generated event"
-                      return 2
-                  | some event =>
-                      match Loam.Core.EventMemory.add? memory event with
-                      | none =>
-                          IO.eprintln "loam: generated event identity already remembered"
-                          return 2
-                      | some updated =>
-                          if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                            IO.println
-                              ("Recorded: received " ++ toString amount ++ " jpy into " ++ locusToken ++ ".")
-                            return 0
-                          else
-                            IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                            return 2
-            else
-              IO.eprintln "loam: amount must be a positive integer"
-              return 2
-      else
-        IO.eprintln "loam: income destination must be a nonempty single-line token"
-        return 2
-
-/--
-Human-facing entrance for moving one positive JPY amount between two distinct
-loci.
-
-The adapter records one generic Event with two distinct Effects:
-
-`source -q` and `destination +q`.
-
-The equal-and-opposite shape is an entrance-level promise for this verb, not a
-new global conservation law for every LOAM Event. The Core still contains no
-primitive Transfer object, no debit/credit side, and no accounting role. The
-entrance also does not impose a nonnegative-source rule because LOAM has not yet
-earned a universal backing or overdraft policy.
--/
-def transferJpy (memoryPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  match ← loadEventMemoryForEntry? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      let sourceToken ← promptLine "Move from? "
-      if Loam.Persistence.validToken sourceToken then
-        let destinationToken ← promptLine "Move to? "
-        if Loam.Persistence.validToken destinationToken then
-          if sourceToken = destinationToken then
-            IO.eprintln "loam: transfer source and destination must differ"
-            return 2
-          else
-            let amountText ← promptLine "Amount? "
-            match amountText.toInt? with
-            | none =>
-                IO.eprintln "loam: amount must be a positive integer"
-                return 2
-            | some amount =>
-                if amount > 0 then
-                  match freshRecordEventId? memory with
-                  | none =>
-                      IO.eprintln "loam: could not generate a fresh event identity"
-                      return 2
-                  | some eventId =>
-                      let sourceEffect :=
-                        Loam.Core.Effect.ofQuantity
-                          ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
-                          (Loam.Core.Quantity.ofQuanta (-amount))
-                      let destinationEffect :=
-                        Loam.Core.Effect.ofQuantity
-                          ⟨"effect-2"⟩ ⟨destinationToken⟩ ⟨"jpy"⟩
-                          (Loam.Core.Quantity.ofQuanta amount)
-                      match Loam.Core.Event.ofEffects?
-                          eventId [sourceEffect, destinationEffect] with
-                      | none =>
-                          IO.eprintln "loam: could not admit generated event"
-                          return 2
-                      | some event =>
-                          match Loam.Core.EventMemory.add? memory event with
-                          | none =>
-                              IO.eprintln "loam: generated event identity already remembered"
-                              return 2
-                          | some updated =>
-                              if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                                IO.println
-                                  ("Recorded: moved " ++ toString amount ++ " jpy from " ++
-                                    sourceToken ++ " to " ++ destinationToken ++ ".")
-                                return 0
-                              else
-                                IO.eprintln "loam: recorded event contains an unrepresentable identity token"
-                                return 2
-                else
-                  IO.eprintln "loam: amount must be a positive integer"
-                  return 2
-        else
-          IO.eprintln "loam: transfer destination must be a nonempty single-line token"
-          return 2
-      else
-        IO.eprintln "loam: transfer source must be a nonempty single-line token"
-        return 2
-
 private def withMemoryOwnership
     (memoryPath : String)
     (action : IO UInt32) : IO UInt32 :=
   Loam.WriterOwnership.withOwnership (System.FilePath.mk memoryPath) action
 
-/--
-Command dispatcher for the practical CLI surface.
-
-Writer commands acquire one EventMemory-anchored cross-process ownership scope
-before their existing implementation observes canonical state. For correction,
-that same ownership remains held across the complete relation-first
-Correction-then-Event publication sequence.
--/
+/-- Command dispatcher below the separate movement recording entrance. -/
 def run (args : List String) : IO UInt32 :=
   match args with
   | [] => do
@@ -640,12 +270,6 @@ def run (args : List String) : IO UInt32 :=
   | ["help", "low-level"] => do
       IO.println lowLevelUsage
       return 0
-  | ["spend", memoryPath] =>
-      withMemoryOwnership memoryPath (spendJpy memoryPath)
-  | ["income", memoryPath] =>
-      withMemoryOwnership memoryPath (incomeJpy memoryPath)
-  | ["transfer", memoryPath] =>
-      withMemoryOwnership memoryPath (transferJpy memoryPath)
   | ["review", memoryPath] => reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>

@@ -164,6 +164,32 @@ run_shadow_quantity() {
   fi
 }
 
+print_help() {
+  cat <<'EOF'
+LOAM practical dogfood
+
+Record one balanced JPY movement:
+  ./tools/loam movement MEMORY_FILE
+
+Review recorded facts:
+  ./tools/loam review MEMORY_FILE
+
+Show recorded quantities:
+  ./tools/loam summary MEMORY_FILE
+
+Correct a movement append-only:
+  ./tools/loam correct MEMORY_FILE CORRECTION_FILE
+
+Starting quantities and balance projections:
+  ./tools/loam starting-quantity BASIS_FILE
+  ./tools/loam correct-starting-quantity BASIS_FILE BASIS_CORRECTION_FILE
+  ./tools/loam balances EVENT_MEMORY EVENT_CORRECTIONS BASIS_FILE [BASIS_CORRECTIONS] [BALANCE_VIEW] [BASIS_CUT]
+
+For lower-level commands:
+  ./tools/loam help low-level
+EOF
+}
+
 run_menu_action() {
   "$@" || true
 }
@@ -176,6 +202,16 @@ fi
 if [[ "${1:-}" == "shadow-quantity" ]]; then
   shift
   run_shadow_quantity "$@"
+fi
+
+if [[ "${1:-}" == "movement" ]]; then
+  shift
+  exec "$root/tools/loam-movement" "$@"
+fi
+
+if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
+  print_help
+  exit 0
 fi
 
 if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity" || "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
@@ -215,11 +251,9 @@ What do you want to do?
 4. Correct a movement
 5. Show effective quantities
 6. Review correction integrity
-7. Record income
-8. Transfer funds
-9. Set a starting balance
-10. Show balances
-11. Correct a starting balance
+7. Set a starting balance
+8. Show balances
+9. Correct a starting balance
 q. Quit
 EOF
     printf '> '
@@ -255,18 +289,12 @@ EOF
         run_menu_action run_loam correction-integrity "$memory_file" "$correction_file"
         ;;
       7)
-        run_menu_action run_loam income "$memory_file"
-        ;;
-      8)
-        run_menu_action run_loam transfer "$memory_file"
-        ;;
-      9)
         run_menu_action run_daily_quantity starting-quantity "$basis_file"
         ;;
-      10)
+      8)
         run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file" "$balance_view_file" "$basis_cut_file"
         ;;
-      11)
+      9)
         run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
         ;;
       q|Q)
