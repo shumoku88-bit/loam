@@ -62,6 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-018-positive-states \
             -config tla/ProvenanceWithoutResourceIdentity.cfg \
             tla/ProvenanceWithoutResourceIdentity.tla \
             2>&1 | tee /tmp/observation-018-positive.txt
@@ -73,6 +74,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-018-explanation-states \
             -config tla/ProvenanceWithoutResourceIdentityExplanationBoundary.cfg \
             tla/ProvenanceWithoutResourceIdentity.tla \
             2>&1 | tee /tmp/observation-018-explanation.txt
@@ -88,6 +90,7 @@ jobs:
           set -euo pipefail
           set +e
           java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-018-undo-states \
             -config tla/ProvenanceWithoutResourceIdentityUndoBoundary.cfg \
             tla/ProvenanceWithoutResourceIdentity.tla \
             2>&1 | tee /tmp/observation-018-undo.txt
