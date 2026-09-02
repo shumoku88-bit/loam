@@ -79,9 +79,29 @@ The experiment asks for these results:
 6. The explicit cut agrees with the Event-relative scope.
 7. `validDay + cut` determines both selected queries in the bounded model.
 
+## Observed Alloy result
+
+Alloy 6.2.0 with Sat4j produced the intended result set:
+
+```text
+sameDayOriginBoundaryWitness             SAT
+sameValidDayDifferentPostOrigin          SAT
+sameDateAndCutDifferentGlobalOrder       SAT
+ValidDayDeterminesDayProjection          UNSAT counterexample
+ValidDayDeterminesPostOrigin             SAT counterexample
+CutMatchesPostOrigin                     UNSAT counterexample
+ValidDayAndCutDetermineBothQueries       UNSAT counterexample
+```
+
+So the bounded model admits an intra-day origin boundary, and the same calendar-day assignment can require different post-origin answers. Calendar-day validity therefore does not determine the Event-relative current scope.
+
+At the same time, the day projection is fixed entirely by `validDay`, and adding the local origin-relative cut is sufficient for both selected queries.
+
+The SAT witness with the same `validDay + cut` but a different global order shows that these selected queries still do not consume the complete ordering among Events on the same side of Origin.
+
 ## Interpretation boundary
 
-If the expected receipt holds, the observation supports a query-relative view of temporal granularity:
+The observed receipt supports a query-relative view of temporal granularity:
 
 ```text
 calendar-day validity
@@ -112,7 +132,7 @@ without the human knowing or caring whether it occurred at `10:03:14`.
 
 If a particular first-event origin on that same date needs a before/after distinction, forcing invented precision into every Event would preserve more order than the human actually observed.
 
-The experiment therefore asks whether LOAM can avoid converting uncertainty into fake timestamp precision.
+The experiment therefore shows, in this bounded vocabulary, that LOAM can avoid converting uncertainty into fake timestamp precision.
 
 ## Non-goals
 
