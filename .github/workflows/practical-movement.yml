@@ -96,3 +96,24 @@ jobs:
           test "$status" = '2'
           grep -Fq 'movement totals differ: from 800 jpy, to 799 jpy' /tmp/loam-movement.err
           test ! -e "$memory"
+
+      - name: Avoid repeated cached primary builds
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
+
+          rm -f .lake/build/.loam-wrapper-build-stamp
+          ./tools/loam summary "$memory" >/tmp/loam-summary-initial.out 2>/tmp/loam-summary-initial.err
+          grep -Fq 'Building LOAM...' /tmp/loam-summary-initial.err
+
+          touch Loam/MovementCli.lean
+          ./tools/loam summary "$memory" >/tmp/loam-summary-refresh.out 2>/tmp/loam-summary-refresh.err
+          grep -Fq 'Building LOAM...' /tmp/loam-summary-refresh.err
+
+          ./tools/loam summary "$memory" >/tmp/loam-summary-repeat.out 2>/tmp/loam-summary-repeat.err
+          if grep -Fq 'Building LOAM...' /tmp/loam-summary-repeat.err; then
+            echo 'expected successful cached build to refresh wrapper stamp' >&2
+            exit 1
+          fi
