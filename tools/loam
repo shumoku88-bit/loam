@@ -5,19 +5,23 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 binary=".lake/build/bin/loam"
+binary_stamp=".lake/build/.loam-wrapper-build-stamp"
 daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
+daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
 shadow_binary=".lake/build/bin/loamShadowAudit"
+shadow_stamp=".lake/build/.loam-shadow-audit-wrapper-build-stamp"
 shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
+shadow_quantity_stamp=".lake/build/.loam-shadow-quantity-wrapper-build-stamp"
 
 binary_is_current() {
-  [[ -x "$binary" ]] || return 1
+  [[ -x "$binary" && -e "$binary_stamp" ]] || return 1
 
-  if find Loam -type f -name '*.lean' -newer "$binary" -print -quit | grep -q .; then
+  if find Loam -type f -name '*.lean' -newer "$binary_stamp" -print -quit | grep -q .; then
     return 1
   fi
 
   for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$binary" ]]; then
+    if [[ -e "$input" && "$input" -nt "$binary_stamp" ]]; then
       return 1
     fi
   done
@@ -26,7 +30,7 @@ binary_is_current() {
 }
 
 daily_quantity_binary_is_current() {
-  [[ -x "$daily_quantity_binary" ]] || return 1
+  [[ -x "$daily_quantity_binary" && -e "$daily_quantity_stamp" ]] || return 1
 
   for input in \
     Loam/DailyQuantityCli.lean \
@@ -38,7 +42,7 @@ daily_quantity_binary_is_current() {
     Loam/Core/QuantityBasisCorrectionMemory.lean \
     Loam/Core/QuantityBasisMemory.lean \
     lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$daily_quantity_binary" ]]; then
+    if [[ -e "$input" && "$input" -nt "$daily_quantity_stamp" ]]; then
       return 1
     fi
   done
@@ -47,10 +51,10 @@ daily_quantity_binary_is_current() {
 }
 
 shadow_binary_is_current() {
-  [[ -x "$shadow_binary" ]] || return 1
+  [[ -x "$shadow_binary" && -e "$shadow_stamp" ]] || return 1
 
   for input in Loam/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$shadow_binary" ]]; then
+    if [[ -e "$input" && "$input" -nt "$shadow_stamp" ]]; then
       return 1
     fi
   done
@@ -59,18 +63,18 @@ shadow_binary_is_current() {
 }
 
 shadow_quantity_binary_is_current() {
-  [[ -x "$shadow_quantity_binary" ]] || return 1
+  [[ -x "$shadow_quantity_binary" && -e "$shadow_quantity_stamp" ]] || return 1
 
-  if [[ Loam/ShadowQuantityCli.lean -nt "$shadow_quantity_binary" ]]; then
+  if [[ Loam/ShadowQuantityCli.lean -nt "$shadow_quantity_stamp" ]]; then
     return 1
   fi
 
-  if find Loam/Core -type f -name '*.lean' -newer "$shadow_quantity_binary" -print -quit | grep -q .; then
+  if find Loam/Core -type f -name '*.lean' -newer "$shadow_quantity_stamp" -print -quit | grep -q .; then
     return 1
   fi
 
   for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$shadow_quantity_binary" ]]; then
+    if [[ -e "$input" && "$input" -nt "$shadow_quantity_stamp" ]]; then
       return 1
     fi
   done
@@ -88,6 +92,7 @@ run_loam() {
   local build_log
   build_log="$(mktemp -t loam-build.XXXXXX)"
   if lake build loam >"$build_log" 2>&1; then
+    touch "$binary_stamp"
     rm -f "$build_log"
     "$binary" "$@"
   else
@@ -107,6 +112,7 @@ run_daily_quantity() {
   local build_log
   build_log="$(mktemp -t loam-daily-quantity-build.XXXXXX)"
   if lake build loamDailyQuantity >"$build_log" 2>&1; then
+    touch "$daily_quantity_stamp"
     rm -f "$build_log"
     "$daily_quantity_binary" "$@"
   else
@@ -125,6 +131,7 @@ run_shadow_audit() {
   local build_log
   build_log="$(mktemp -t loam-shadow-build.XXXXXX)"
   if lake build loamShadowAudit >"$build_log" 2>&1; then
+    touch "$shadow_stamp"
     rm -f "$build_log"
     exec "$shadow_binary" "$@"
   else
@@ -143,6 +150,7 @@ run_shadow_quantity() {
   local build_log
   build_log="$(mktemp -t loam-shadow-quantity-build.XXXXXX)"
   if lake build loamShadowQuantity >"$build_log" 2>&1; then
+    touch "$shadow_quantity_stamp"
     rm -f "$build_log"
     exec "$shadow_quantity_binary" "$@"
   else
