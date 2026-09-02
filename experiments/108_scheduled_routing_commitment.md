@@ -89,31 +89,46 @@ no route evidence visible
 
 This matters because current household behavior distinguishes an explicit decision not to Envelope-manage a claim from a claim that has not yet been routed.
 
-## Probes
+## Executed result
 
-The model asks for witnesses that exercise:
+Alloy 6.2.0 / Sat4j executed the exact PR #241 model on head `261853ea39780a19fc9bdf30dc7d79b81be7ea3e`.
 
-- managed, unmanaged, and unrouted open claims in one observation;
-- an overdue open claim that still contributes;
-- lifecycle evidence changing commitment while routing stays fixed;
-- routing evidence changing commitment while lifecycle stays fixed;
-- a later-known terminal fact not rewriting an earlier commitment view;
-- a due date exactly at period end-exclusive being excluded.
+The witnesses were:
 
-All are expected **SAT**.
+```text
+representativeCommitmentView                         SAT
+lifecycleDifferenceChangesCommitment                 SAT
+routingDifferenceChangesCommitment                   SAT
+lateTerminalDoesNotRewriteEarlierCommitment          SAT
+overdueOpenStillCommits                              SAT
+endExclusiveHorizonExcludesScheduledClaim            SAT
+```
 
-## Determinacy checks
+The determinacy and partition checks were:
 
-Two deliberately-too-small candidates are tested first:
+```text
+ScheduledLifecycleWithoutRoutingDeterminesCommitment SAT counterexample
+ScheduledRoutingWithoutLifecycleDeterminesCommitment SAT counterexample
+ScheduledLifecycleAndRoutingDetermineCommitment      UNSAT counterexample
+CommitmentPartitionsOpenHorizonClaims                UNSAT counterexample
+PeriodEndExclusiveNeverCommits                       UNSAT counterexample
+```
+
+The GitHub Actions qualification required both Alloy execution and the explicit expected-result checker to succeed. Both steps completed successfully.
+
+## Finding
+
+The two deliberately smaller summaries both lose information:
 
 ```text
 Scheduled + lifecycle without routing
+    too small
+
 Scheduled + routing without lifecycle
+    too small
 ```
 
-Both are expected to have SAT counterexamples.
-
-The full candidate is:
+Within this bounded household vocabulary, the selected Commitment view is determined by:
 
 ```text
 Scheduled quantity-bearing claims
@@ -122,23 +137,18 @@ Scheduled quantity-bearing claims
 + query day / period horizon
 ```
 
-With those inputs equal, the model asks whether two worlds can disagree on any of:
+No separately retained `Commitment` fact was required to distinguish the admitted managed, explicitly unmanaged, and unrouted answers.
 
-```text
-managed Commitment
-explicitly unmanaged Commitment
-unrouted Commitment
-```
+The result does not say that commitment-bearing intention disappeared. Observation 013 remains intact: physical Actual history alone cannot determine intention. Here the already-independent Scheduled expectation is the concrete intentional evidence from which the selected commitment projection is read.
 
-Expected: **UNSAT counterexample**.
+The bounded result also preserves practical temporal distinctions:
 
-The model also checks that the three commitment outcomes partition every open in-horizon claim and that the period end-exclusive boundary is respected.
+- overdue-but-open Scheduled claims still contribute;
+- terminal evidence learned later does not rewrite an earlier observation;
+- a claim due exactly at the period end-exclusive boundary does not contribute;
+- managed, explicitly unmanaged, and unrouted outcomes partition the open in-horizon claims.
 
-## Expected compression boundary
-
-If the checks hold, the useful result is not that commitment disappeared. Its intentional information is still real.
-
-The result would instead be:
+A compact reading is therefore:
 
 ```text
 physical Actual history determines Commitment
@@ -151,10 +161,8 @@ lifecycle or routing may be erased
     no
 
 additional canonical Commitment fact
-    not required by the selected practical view
+    not required by the selected bounded practical view
 ```
-
-This preserves Observations 013-015. It identifies Scheduled evidence as a concrete owner of the intention that those observations proved must exist somewhere.
 
 ## Important boundaries
 
@@ -174,9 +182,9 @@ Observation 108 does not establish:
 
 The `Claim` scaffold exists specifically to avoid deciding that last routing-subject question too early.
 
-## Next pressure if this survives
+## Next pressure
 
-If Scheduled + lifecycle + routing determines the selected Commitment view, the next whole-household seam is Attention / Issue:
+The next whole-household seam is Attention / Issue:
 
 > Can Issue realization, closure, and continuation reuse the same small lifecycle relation shape as Scheduled without collapsing Attention into Scheduled financial intent?
 
