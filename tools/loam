@@ -195,7 +195,7 @@ if [[ $# -eq 0 ]]; then
     printf 'LOAM\nData: %s\n\n' "$data_label"
     cat <<'EOF'
 What do you want to do?
-1. Record spending
+1. Record movement
 2. Review what I recorded
 3. Show recorded quantities
 4. Correct a spending record
@@ -215,7 +215,7 @@ EOF
 
     case "$choice" in
       1)
-        run_menu_action run_loam spend "$memory_file"
+        run_menu_action "$root/tools/loam-movement" "$memory_file"
         ;;
       2)
         if [[ ! -e "$memory_file" ]]; then
