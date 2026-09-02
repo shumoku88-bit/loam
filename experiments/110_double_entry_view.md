@@ -44,17 +44,9 @@ positive signed Effect -> Debit
 negative signed Effect -> Credit
 ```
 
-This convention matches the representative ledger shapes already used by Observation 062:
+This convention matches the representative ledger shapes already used by Observation 062.
 
-```text
-Asset +q / Expense +q / Liability repayment +q
-    debit-side presentation
-
-Asset -q / Income -q / Equity -q / liability creation -q
-    credit-side presentation
-```
-
-The question is whether the debit / credit side adds any independently observable information once signed Effects are retained.
+The question is whether debit / credit side adds any independently observable information once signed Effects are retained.
 
 ### Holding projection
 
@@ -91,77 +83,86 @@ The model then separates two questions:
 1. Is the boundary **quantity** determined by the physical basis quantities?
 2. Is the boundary **accounting meaning** such as Equity / Income / Liability determined by those physical quantities?
 
-The expected pressure is that the quantity is forced by closure, while the semantic explanation is not.
+## Executed result
 
-## Probes
+The first CI attempt stopped before solving because an exact scope was applied to subset signature `HoldingLocus`. Changing it from a subset signature to an ordinary `extends Locus` specimen changed only the scope declaration, not the research question or selected projections.
 
-### 1. Representative derived accounting view
-
-The specimen contains:
-
-- balanced multi-Effect Movement;
-- holding and non-holding Loci;
-- explicit QuantityBasis;
-- a derived closing boundary posting;
-- one possible Equity interpretation of that boundary.
-
-Expected: **SAT**.
-
-### 2. Balanced Movement can change selected holdings
-
-A whole Movement remains zero-total while the sum of its Effects on selected holding Loci is non-zero.
-
-Expected: **SAT**.
-
-This prevents confusing bookkeeping closure with conservation of one projection.
-
-### 3. Debit / credit side can stay fixed while AccountingRole changes
-
-Two worlds retain the same signed Effects and therefore the same debit / credit presentation, while assigning different accounting roles to Loci.
-
-Expected: **SAT**.
-
-This keeps the Observation 049 distinction visible:
+Alloy 6.2.0 + Sat4j then produced exactly the expected result set:
 
 ```text
-posting polarity
-    !=
-accounting statement meaning
+representativeDerivedAccountingView                  SAT
+balancedMovementCanChangeHoldingProjection            SAT
+sameDebitCreditSidesDifferentAccountingRoles          SAT
+sameBasisDifferentBoundaryMeaning                     SAT
+SignedEffectsDetermineDebitCreditSide                 UNSAT counterexample
+DebitCreditSidesPartitionMovementEffects              UNSAT counterexample
+BasisDeterminesBoundaryQuantity                       UNSAT counterexample
+PhysicalBasisDeterminesBoundaryAccountingMeaning      SAT counterexample
+DerivedOpeningViewRemainsBalanced                     UNSAT counterexample
 ```
 
-### 4. Same physical basis can support different opening explanations
+The complete expected-result checker passed in CI on executable head `87299d7d561683722c1974c810abbe45d3331d36`.
 
-Two worlds have the same QuantityBasis and the same forced boundary quantity, but choose different accounting meanings for the boundary.
+## Finding
 
-Expected: **SAT**.
+The bounded result separates the mathematical closure from the semantic explanation.
 
-A physical starting observation therefore need not contain the historical claim “this came from Equity”.
+### 1. Debit / credit polarity is a projection here
 
-## Checks
-
-Expected results:
+Once the selected signed-Effect convention is fixed:
 
 ```text
-SignedEffectsDetermineDebitCreditSide              UNSAT counterexample
-DebitCreditSidesPartitionMovementEffects           UNSAT counterexample
-BasisDeterminesBoundaryQuantity                     UNSAT counterexample
-PhysicalBasisDeterminesBoundaryAccountingMeaning    SAT counterexample
-DerivedOpeningViewRemainsBalanced                   UNSAT counterexample
+positive Effect -> Debit
+negative Effect -> Credit
 ```
 
-The first check asks whether faithful debit / credit presentation is already fixed by Effect sign.
+Alloy found no world in which the same signed Effects require different debit / credit sides. The two sides also partition the non-zero Movement Effects.
 
-The second checks that debit and credit sides partition the non-zero Movement Effects.
+So a stored posting-side bit carries no additional information for this admitted view.
 
-The third asks whether the quantity needed to close a basis-only accounting view is uniquely forced.
+This does **not** make debit / credit intrinsic Core meaning. It says the accounting presentation is recoverable when that convention is selected.
 
-The fourth deliberately asks too much: physical basis quantities should not determine their accounting explanation.
+### 2. Whole closure does not imply projection closure
 
-The fifth preserves the derived closing equation.
+All admitted Movements are zero-total, yet Alloy found a witness where the selected holding Effects have a non-zero sum.
 
-## Compression boundary sought
+Therefore:
 
-If the expected result survives Alloy, the useful boundary would be:
+```text
+whole Movement is balanced
+    does not imply
+selected household holdings do not change
+```
+
+This is exactly what an income-like or expense-like movement needs: the complete recorded relation can close while the holding projection gains or loses quantity.
+
+### 3. Basis determines the closing quantity
+
+With physical QuantityBasis fixed, Alloy found no counterexample in which two derived accounting views require different boundary quantities.
+
+The quantity needed to close the opening accounting view is therefore determined by the basis quantities in this bounded model.
+
+That boundary amount need not be retained as another canonical fact.
+
+### 4. Basis does not determine the accounting explanation
+
+Keeping the same physical basis, same closing quantity, and same physical Locus roles, Alloy found a counterexample where the accounting meaning of the boundary differs.
+
+So:
+
+```text
+physical starting quantity
+    -> closing amount
+
+physical starting quantity
+    -/-> Equity meaning
+```
+
+A conventional opening Equity posting can be a valid accounting interpretation without becoming a historical claim that LOAM must pretend to have observed.
+
+## Compression boundary
+
+The useful result is:
 
 ```text
 balanced signed Movement
@@ -176,15 +177,24 @@ QuantityBasis
     != unique accounting meaning for that boundary
 ```
 
-That would make double-entry neither LOAM's rejected opposite nor its hidden ontology.
+Double-entry is therefore neither LOAM's rejected opposite nor its hidden ontology in this bounded result.
 
-Instead it would be a strong derived view whose conservation structure can be recovered where the evidence earns it, while accounting explanation remains an explicit semantic overlay when later questions observe that distinction.
+It can be a strong **derived accounting view** whose conservation and checking structure is recovered from evidence where possible, while accounting explanation remains an explicit semantic overlay when household questions observe that distinction.
 
-## Why this may matter later
+## Why this matters for the next practical slice
 
-This shape also leaves room for a more abstract observation without importing category-theory vocabulary into production code prematurely.
+The result lets practical Capacity / routing work continue without first converting LOAM into a conventional chart-of-accounts system.
 
-If several projections preserve the same conservation law, or if different projection paths are expected to produce the same answer, those can later be tested as composition / commutation questions. Observation 110 only establishes the concrete household boundary first.
+At the same time, future accounting projections can preserve a very strong invariant:
+
+```text
+admitted balanced Movement
+    -> closed signed accounting view
+```
+
+That invariant can later become a Lean law if a practical reusable boundary earns it.
+
+It also leaves room for a more abstract observation later. If several projections preserve the same closure, or if different projection paths should yield the same answer, those can be tested as composition / commutation questions without importing category-theory vocabulary into production code prematurely.
 
 ## Important boundaries
 
@@ -203,4 +213,4 @@ Observation 110 does not establish:
 - that AccountingRole is final or metaphysically primitive;
 - a categorical model of LOAM.
 
-The experiment asks only whether double-entry closure and posting polarity can be reconstructed from the selected practical evidence while preserving the already-earned distinction between physical starting observation and accounting explanation.
+The experiment establishes only the bounded separation between recoverable double-entry closure and independently chosen accounting meaning.
