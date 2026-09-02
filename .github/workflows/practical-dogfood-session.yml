@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/loam'
+      - 'tools/loam-movement'
       - '.github/workflows/practical-dogfood-session.yml'
       - 'Loam/**'
       - 'lakefile.lean'
@@ -12,6 +13,7 @@ on:
   push:
     paths:
       - 'tools/loam'
+      - 'tools/loam-movement'
       - '.github/workflows/practical-dogfood-session.yml'
       - 'Loam/**'
       - 'lakefile.lean'
@@ -42,7 +44,7 @@ jobs:
           axiom-audit: false
           use-github-cache: true
       - name: Build practical binaries
-        run: lake build loam loamDailyQuantity
+        run: lake build loam loamMovement loamDailyQuantity
       - name: Keep ordinary data outside the source repository
         shell: bash
         run: |
@@ -55,7 +57,7 @@ jobs:
           test ! -e ../loam-data/basis.loam
           test ! -e ../loam-data/balance-view.tsv
           rm -rf ../loam-data
-      - name: Exercise persistent menu and fail-closed recovery
+      - name: Exercise persistent movement-only menu and fail-closed recovery
         shell: bash
         run: |
           set -euo pipefail
@@ -111,23 +113,23 @@ jobs:
           transcript = []
           first = read_until(proc, "> ", transcript)
           assert "Data: scratch/dogfood" in first, "".join(transcript)
-          send(proc, "9")
+          send(proc, "7")
           read_until(proc, "Starting at? ", transcript)
           send(proc, "bank")
           read_until(proc, "Starting quantity? ", transcript)
           send(proc, "100000")
           read_until(proc, "> ", transcript)
           select_bank_balance()
-          send(proc, "10")
+          send(proc, "8")
           before = read_until(proc, "> ", transcript)
           assert "  bank: 100000 jpy" in before, "".join(transcript)
-          send(proc, "11")
+          send(proc, "9")
           read_until(proc, "Select number: ", transcript)
           send(proc, "1")
           read_until(proc, "Correct starting quantity to? ", transcript)
           send(proc, "90000")
           read_until(proc, "> ", transcript)
-          send(proc, "10")
+          send(proc, "8")
           after = read_until(proc, "> ", transcript)
           assert "  bank: 90000 jpy" in after, "".join(transcript)
           send(proc, "q")
@@ -139,29 +141,38 @@ jobs:
           transcript = []
           first = read_until(proc, "> ", transcript)
           assert "Data: scratch/dogfood" in first, "".join(transcript)
-          send(proc, "7")
-          read_until(proc, "Received into? ", transcript)
-          send(proc, "bank")
-          read_until(proc, "Amount? ", transcript)
+
+          send(proc, "1")
+          read_until(proc, "From locus (blank when done)? ", transcript)
+          send(proc, "income-source")
+          read_until(proc, "From amount? ", transcript)
           send(proc, "100")
+          read_until(proc, "From locus (blank when done)? ", transcript)
+          send(proc, "")
+          read_until(proc, "To locus (blank when done)? ", transcript)
+          send(proc, "bank")
+          read_until(proc, "To amount? ", transcript)
+          send(proc, "100")
+          read_until(proc, "To locus (blank when done)? ", transcript)
+          send(proc, "")
           read_until(proc, "> ", transcript)
 
-          send(proc, "10")
+          send(proc, "8")
           unselected = read_until(proc, "> ", transcript)
           assert "No balances are selected in the current balance view." in unselected, "".join(transcript)
 
           select_bank_balance()
-          send(proc, "10")
+          send(proc, "8")
           unanchored = read_until(proc, "> ", transcript)
           assert "loam: balances unavailable: starting balance missing for bank / jpy" in unanchored, "".join(transcript)
 
-          send(proc, "9")
+          send(proc, "7")
           read_until(proc, "Starting at? ", transcript)
           send(proc, "bank")
           read_until(proc, "Starting quantity? ", transcript)
           send(proc, "0")
           read_until(proc, "> ", transcript)
-          send(proc, "10")
+          send(proc, "8")
           recovered = read_until(proc, "> ", transcript)
           assert "  bank: 100 jpy" in recovered, "".join(transcript)
           send(proc, "q")
