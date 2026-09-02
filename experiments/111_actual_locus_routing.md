@@ -246,12 +246,12 @@ That is smaller than importing Expense Account objects and avoids per-Effect cla
 
 ## Practical realization in Practical Slice A2
 
-Following this qualification, Practical Slice A2 (`Loam.Core.ActualRoutingConsumption`, `Loam.Core.ActualValidity`, `Loam.Core.HistoricalRouting`) realized this boundary in `main`:
+Following this qualification, Practical Slice A2 (`Loam.Core.HistoricalRouting`, `Loam.Core.ActualValidity`, and `Loam.Application.ConsumptionInspection`) realized this boundary in `main`:
 
 - **Occurrence validity as separate typed evidence**: Observations 092–094 did not earn a built-in production Event temporal field, and Observation 111 earned an independently observable Actual-valid coordinate for historical Consumption routing. Rather than modifying the date-free `Event` Core, occurrence validity is represented as separate typed evidence:
   `ActualValidity (Time : Type)` / `ActualValidityMemory (Time : Type)`
   linking `EventId` to a valid `Time` coordinate. This observation did not prove that `Event` can never have a time field; separate evidence is currently the minimal practical realization that survives.
-- **Historical routing**: Represented as `RoutingHistory (LocusId Time : Type)` with explicit three-way `RoutingStatus` (`managed`, `unmanaged`, `unrouted`).
-- **Pure projections**: `Consumption` and `Remaining` are computed as pure projections over this evidence without introducing stored canonical facts.
+- **Historical routing**: Represented generically as `RoutingHistory (Subject : Type) (Time : Type)` in `Loam.Core.HistoricalRouting` and applied on the Actual side as `RoutingHistory LocusId Time`, with explicit three-way `RoutingStatus` (`managed`, `unmanaged`, `unrouted`).
+- **Pure projections**: `Consumption` (`eventConsumptionAt`, `consumptionAtRecorded?`) and `Remaining` (`remainingAtRecorded?`) are computed in `Loam.Application.ConsumptionInspection` as pure projections over this evidence without introducing stored canonical facts.
 
 See `experiments/111_practical_slice_a2.md` for the concrete Lean implementation details.

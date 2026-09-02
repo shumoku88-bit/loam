@@ -183,7 +183,7 @@ That question should remain separate from this algebra-reuse observation.
 
 Practical Slice A1 realized this boundary in `main`:
 - `CapacityCoordinate` (`PurposeId` or `unallocated`) is explicitly separated from physical `LocusId`.
-- `BalancedMovement CapacityCoordinate` and `CapacityMovement` implement the typed capacity boundary without altering physical holdings (`Loam.Core.Capacity`).
-- `Entitlement` is a pure projection over capacity movements.
+- `Loam.Core.Capacity` (`CapacityMovement`, `CapacityCoordinate`) and `Loam.Core.BalancedMovement` implement the typed capacity boundary without altering physical holdings.
+- `Entitlement` is a pure projection over capacity movements (`Loam.Application.CapacityInspection`).
 
 See `experiments/106_practical_slice_a1.md` for details.

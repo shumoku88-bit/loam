@@ -254,8 +254,8 @@ Practical Slice A reached in main
 ```
 
 Practical Slice A has now been implemented and merged into `main`:
-- **Slice A1** (PR #244): Typed capacity movement boundary (`Loam.Core.Capacity`, `Loam.Core.CapacityMovement`, `Loam.Core.BalancedMovement`, `Entitlement` projection).
-- **Slice A2** (PR #248): Historical Actual routing and capacity consumption (`Loam.Core.HistoricalRouting`, `Loam.Core.ActualValidity`, `Loam.Core.ActualRoutingConsumption`, pure projections `Consumption` and `Remaining`).
+- **Slice A1** (PR #244): Typed capacity movement boundary (`Loam.Core.Capacity` (`CapacityMovement`, `CapacityCoordinate`), `Loam.Core.BalancedMovement`, `Entitlement` projection).
+- **Slice A2** (PR #248): Historical Actual routing, Consumption, and Remaining (`Loam.Core.HistoricalRouting`, `Loam.Core.ActualValidity`, and `Loam.Application.ConsumptionInspection` with pure projections `Consumption` and `Remaining`).
 
 Subsequent directions (B–E) remain a qualified conceptual order rather than a rigid roadmap; their concrete sequence and shapes will continue to be governed by real household dogfood pressure and formal observations.
 

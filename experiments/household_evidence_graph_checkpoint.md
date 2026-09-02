@@ -57,4 +57,4 @@ This sequence was subsequently executed and qualified:
 - Observation 110 qualified the derived double-entry accounting view.
 - Observation 111 qualified the Actual Locus routing boundary with occurrence validity.
 
-Practical Slice A (A1 capacity movement boundary and A2 historical Actual routing and consumption) has since been integrated into `main`. Subsequent directions continue to follow real dogfood pressure and formal qualification rather than an ungrounded expansion.
+Practical Slice A (A1 capacity movement boundary and A2 historical Actual routing, Consumption, and Remaining) has since been integrated into `main`. Subsequent directions continue to follow real dogfood pressure and formal qualification rather than an ungrounded expansion.

@@ -420,8 +420,8 @@ E. compose the existing projections
 ```
 
 Slice A has reached practical realization in `main`:
-- **Slice A1** (PR #244): Typed capacity movement boundary (`Loam.Core.Capacity`, `Loam.Core.CapacityMovement`, `Loam.Core.BalancedMovement`, `Entitlement` projection).
-- **Slice A2** (PR #248): Historical Actual routing and capacity consumption (`Loam.Core.HistoricalRouting`, `Loam.Core.ActualValidity`, `Loam.Core.ActualRoutingConsumption`, pure projections `Consumption` and `Remaining`).
+- **Slice A1** (PR #244): Typed capacity movement boundary (`Loam.Core.Capacity` (`CapacityMovement`, `CapacityCoordinate`), `Loam.Core.BalancedMovement`, `Entitlement` projection).
+- **Slice A2** (PR #248): Historical Actual routing, Consumption, and Remaining (`Loam.Core.HistoricalRouting`, `Loam.Core.ActualValidity`, and `Loam.Application.ConsumptionInspection` with pure projections `Consumption` and `Remaining`).
 
 Slices B–E remain qualified conceptual directions, not a frozen implementation roadmap. LOAM will not force them into premature practical implementation; their concrete order and shapes will continue to follow real dogfood pressure and formal observations.
 
