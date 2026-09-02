@@ -39,15 +39,17 @@ LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`.
 ./tools/loam
 ```
 
-The first human-facing dogfood entrance currently under observation is:
+Household recording now has one human-facing entrance:
 
 ```text
-./tools/loam spend MEMORY_FILE
+./tools/loam movement MEMORY_FILE
 ```
 
-Ordinary interactive spending asks where payment came from, what Locus the amount was used for, and the positive JPY amount. It records one neutral Event with `source -q` and `use locus +q`; `Used for?` does not create an Expense Category primitive. Older two-line scripted input ending after source and amount remains accepted as the historical one-Effect compatibility shape.
+Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
-A use Locus is not silently given a zero starting basis. If `current` first encounters a newly used Locus, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
+Purchases, transfers, income, split payments, and other value flows use this same entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
+
+A Locus is not silently given a zero starting basis. If `current` encounters a recorded Locus without basis evidence, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. The replaceable balance view can select only the loci intended for a household balance display without turning Locus into an Account primitive. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
 
 A separate stateless shadow entrance can read one journal snapshot without changing it or creating LOAM persistence:
 
