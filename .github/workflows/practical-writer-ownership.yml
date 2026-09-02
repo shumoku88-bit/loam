@@ -5,8 +5,11 @@ on:
     paths:
       - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli.lean'
+      - 'Loam/MovementCli.lean'
+      - 'Loam/MovementEntry.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/Persistence.lean'
+      - 'tools/loam-movement'
       - 'experiments/practical_writer_ownership_holder.lean'
       - '.github/workflows/practical-writer-ownership.yml'
       - 'lakefile.lean'
@@ -26,14 +29,15 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install Lean
         uses: leanprover/lean-action@v1
-      - name: Build production CLI
-        run: lake build loam
+      - name: Build production CLIs
+        run: lake build loam loamMovement
       - name: Observe production writer entrances waiting for ownership
         shell: bash
         run: |
           set -euo pipefail
 
           bin='.lake/build/bin/loam'
+          movement_bin='.lake/build/bin/loamMovement'
           memory='practical-writer-ownership-memory.loam'
           event='practical-writer-ownership-event.loam'
           correction='practical-writer-ownership-corrections.loam'
@@ -105,17 +109,21 @@ jobs:
           "$bin" event-memory get "$memory" seed-event >/dev/null
           echo 'event_memory_add_owned=true'
 
+          # Start the daily-recording specimen from an empty admitted memory so
+          # the following correction has exactly one selectable movement.
+          printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
+
           start_holder
-          printf 'cash\n50\n' | "$bin" spend "$memory" \
+          printf 'cash\n50\n\nfood\n50\n\n' | "$movement_bin" "$memory" \
             > /tmp/practical-writer-ownership-writer.out 2>&1 &
           writer_pid=$!
           require_writer_waiting
           release_and_wait_writer
           "$bin" event-memory get "$memory" record-1 >/dev/null
-          echo 'spend_owned=true'
+          echo 'movement_owned=true'
 
           start_holder
-          printf '1\ncash\n60\n' | "$bin" correct "$memory" "$correction" \
+          printf '1\ncash\n60\n\nfood\n60\n\n' | "$bin" correct "$memory" "$correction" \
             > /tmp/practical-writer-ownership-writer.out 2>&1 &
           writer_pid=$!
           require_writer_waiting
