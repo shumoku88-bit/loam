@@ -1,6 +1,8 @@
 import Loam.Core.Quantity
 import Loam.Core.Measure
 import Loam.Core.Effect
+import Loam.Core.BalancedMovement
+import Loam.Core.Capacity
 import Loam.Core.Event
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
