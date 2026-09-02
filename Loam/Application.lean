@@ -1,5 +1,6 @@
 import Loam.Application.QuantityInspection
 import Loam.Application.CapacityInspection
+import Loam.Application.ConsumptionInspection
 
 namespace Loam
 

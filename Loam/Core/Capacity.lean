@@ -1,4 +1,5 @@
 import Loam.Core.BalancedMovement
+import Loam.Core.Purpose
 
 namespace Loam.Core
 
@@ -16,11 +17,6 @@ This file therefore introduces no `Plane` enum and does not reuse `LocusId` as a
 Purpose by convention. The shared part is the algebra underneath the typed
 wrapper.
 -/
-
-/-- Stable identity for one household purpose coordinate. -/
-structure PurposeId where
-  token : String
-deriving Repr, DecidableEq
 
 /--
 The current minimal capacity coordinate.
