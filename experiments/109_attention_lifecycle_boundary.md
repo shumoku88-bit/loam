@@ -69,90 +69,79 @@ NoDueDate
 DueUndetermined
 ```
 
-## Probes
+## Executed result
 
-### 1. The same source-target record shape can appear on both planes
+Alloy 6.2.0 / Sat4j executed the exact PR #242 model on head `9dd591b0b86a76462c0475ac847923dbf8f06065`.
 
-A Scheduled occurrence and an Attention item both point to a Movement through the same `RelationEvidence` shape.
-
-The Scheduled occurrence is closed by its relation, while the Attention item remains open because it has no closure evidence.
-
-Expected: **SAT**.
-
-This would show that representation shape can be reused while lifecycle semantics remain source-specific.
-
-### 2. Attention relation history does not determine Attention lifecycle
-
-Two worlds retain exactly the same Attention / Scheduled relation evidence but differ in Attention closure evidence.
-
-One therefore keeps an Attention item open while the other closes it.
-
-Expected: **SAT**.
-
-This is direct pressure against treating `IssueRealizedAs Movement` or `IssueContinuedAs Attention` as an automatic lifecycle transition.
-
-### 3. Closed/open alone loses Resolved vs Dropped
-
-Two worlds agree on which Attention items are closed but disagree on why one closed:
+All representative witnesses were SAT:
 
 ```text
-Resolved
-Dropped
+representativeSharedShape                    SAT
+sameAttentionRelationsDifferentLifecycle     SAT
+sameClosedAttentionDifferentDisposition      SAT
+sameOptionalDueDateDifferentMeaning          SAT
+attentionRelationToMovementDoesNotClose      SAT
+attentionContinuationDoesNotClose            SAT
 ```
 
-Expected: **SAT**.
-
-A generic boolean `closed` summary is therefore too small if the household UI preserves this distinction.
-
-### 4. Optional date alone loses no-date vs unknown-date
-
-Two worlds show no concrete due date for the same Attention item, but one explicitly says `NoDueDate` while the other says `DueUndetermined`.
-
-Expected: **SAT**.
-
-This pressures retention of the three-way due meaning already used in HRA / h-kernel rather than encoding due as only `Maybe Day`.
-
-### 5. Movement realization provenance need not close Attention
-
-An Attention item has a relation to a Movement and remains open.
-
-Expected: **SAT**.
-
-### 6. Continuation provenance need not close Attention
-
-An earlier Attention item points to a later Attention item and still remains open.
-
-Expected: **SAT**.
-
-This follows current h-kernel semantics where relation reference admission is independent from Issue status.
-
-## Checks
-
-Expected results:
+The deliberately over-compressed checks all had SAT counterexamples:
 
 ```text
-GenericTargetRelationClosesAttention                         SAT counterexample
-AttentionRelationsDetermineLifecycle                         SAT counterexample
-ClosedAttentionDeterminesDisposition                         SAT counterexample
-OptionalDueDateDeterminesDueMeaning                          SAT counterexample
-ExplicitAttentionClosureAndDueDetermineAttentionView         UNSAT counterexample
-ScheduledRelationTargetIsTerminal                            UNSAT counterexample
+GenericTargetRelationClosesAttention         SAT counterexample
+AttentionRelationsDetermineLifecycle         SAT counterexample
+ClosedAttentionDeterminesDisposition         SAT counterexample
+OptionalDueDateDeterminesDueMeaning          SAT counterexample
 ```
 
-The first four are deliberately over-compressed candidates.
+The candidate positive boundaries had no counterexample:
 
-The fifth asks whether explicit Attention closure evidence plus explicit due meaning is sufficient for the selected lifecycle/due view. The sixth preserves the much narrower Scheduled interpretation inside this bounded model.
+```text
+ExplicitAttentionClosureAndDueDetermineAttentionView UNSAT counterexample
+ScheduledRelationTargetIsTerminal                    UNSAT counterexample
+```
 
-## Compression boundary sought
+The GitHub Actions qualification required both Alloy execution and the explicit expected-result checker to succeed. Both completed successfully.
 
-If the expected boundary survives Alloy, the useful result is not `Scheduled == Attention`.
+## Finding
 
-It is closer to:
+The shared source-target-time record shape does **not** imply one shared lifecycle semantics.
+
+Within this bounded vocabulary:
+
+```text
+shared relation mechanics
+  source / target / known-through
+      can be reused structurally
+
+Scheduled relation
+      may be terminal lifecycle evidence
+
+Attention relation
+      is provenance and does not itself close Attention
+```
+
+The SAT witnesses make the distinction concrete. An Attention item can relate to a Movement and remain open. It can also continue as a later Attention identity while the earlier item remains open. Therefore relation endpoint shape alone cannot decide Attention closure.
+
+Attention also retains two independently visible distinctions that generic optional summaries erase:
+
+```text
+closed
+  does not determine
+Resolved vs Dropped
+
+Maybe Day
+  does not determine
+NoDueDate vs DueUndetermined
+```
+
+Explicit Attention closure evidence together with explicit due meaning was sufficient for the selected bounded Attention lifecycle/due view.
+
+The resulting compression boundary is:
 
 ```text
 shared structural helper for
   source / target / known-through relation evidence
-        yes, potentially
+        yes, within the selected mechanics
 
 one universal target-decoded lifecycle algebra
         no
@@ -167,7 +156,7 @@ Attention optional due date only
         too small
 ```
 
-That would make `Attention` a genuinely distinct semantic plane even if implementation scaffolding can be reused.
+This repeats the pattern from Observations 106 and 107: implementation mechanics can be shared without erasing semantic partitions that change household answers.
 
 ## Why this matters for compactness
 
@@ -180,9 +169,9 @@ Thing
   closed?
 ```
 
-looks compact but erases distinctions that current household behavior actually observes.
+is too small in the information-theoretic sense used by these observations. It identifies worlds that the admitted household UI must distinguish.
 
-The stronger compact design would instead reuse low-level mechanics only where the meanings agree:
+The stronger compact design is instead:
 
 ```text
 shared identity / relation / temporal machinery
@@ -191,7 +180,7 @@ Scheduled semantic rules
 Attention semantic rules
 ```
 
-This matches the pattern exposed by Observations 106 and 107: share algebra or history shape where possible, but keep the semantic partition that changes answers.
+Compactness comes from removing duplicated mechanics, not from merging independently observable meanings.
 
 ## Important boundaries
 
@@ -210,16 +199,12 @@ Observation 109 does not establish:
 
 It asks only what information must remain distinct for the selected lifecycle, relation, and due questions.
 
-## Qualification status
+## Next step
 
-The Alloy specimen is present but is **not yet solver-qualified** for the same environment reason currently affecting Observation 108: creation of a new GitHub Actions workflow was blocked by connector safety checks, and the available execution container cannot obtain the Alloy 6.2.0 distribution from external hosts.
+Observation 109 closes the last large semantic-plane comparison in the current whole-household compression pass.
 
-Do not treat the expected SAT / UNSAT boundary as an established result until Alloy 6.2.0 + Sat4j has executed this exact model.
+The next step is not another feature-shaped observation by default. It is to place Observations 105–109 back onto the whole-household evidence graph and ask:
 
-## Next pressure if the boundary survives
+> What is the smallest independently observable vocabulary now justified, which mechanics can be shared beneath it, and which familiar HRA / h-kernel nouns remain projections rather than canonical facts?
 
-The remaining cross-capability question is then less about lifecycle and more about relation vocabulary:
-
-> Which Issue / Attention relations are independently observable household facts, and which user-facing relation names can be derived from endpoint kinds without creating a universal relation ontology?
-
-After that, the whole-household survey should be ready for a candidate minimum canonical vocabulary pass before practical Lean implementation.
+Only after that reduction should practical Lean ownership and persistence boundaries be chosen.
