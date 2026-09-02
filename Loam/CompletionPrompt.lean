@@ -33,10 +33,10 @@ def candidatesForPrefix (known : List String) (typed : String) : List String :=
   else
     known.filter (fun token => token.startsWith typed)
 
-example : candidatesForPrefix ["smbc", "food", "tobacco"] "s" = [] := by decide
-example : candidatesForPrefix ["smbc", "food", "tobacco"] "sm" = ["smbc"] := by decide
-example : candidatesForPrefix ["smbc", "food", "tobacco"] "fo" = ["food"] := by decide
-example : candidatesForPrefix ["smbc", "food", "tobacco"] "ta" = ["tobacco"] := by decide
+example : candidatesForPrefix ["smbc", "food", "tobacco"] "s" = [] := by native_decide
+example : candidatesForPrefix ["smbc", "food", "tobacco"] "sm" = ["smbc"] := by native_decide
+example : candidatesForPrefix ["smbc", "food", "tobacco"] "fo" = ["food"] := by native_decide
+example : candidatesForPrefix ["smbc", "food", "tobacco"] "ta" = ["tobacco"] := by native_decide
 
 private def promptLine (prompt : String) : IO String := do
   IO.print prompt
