@@ -68,22 +68,45 @@ Events valid on Day D
 
 It does not expose physical storage topology as part of the query vocabulary.
 
-## Expected boundaries
+## Observed Alloy result
 
-The experiment asks whether Alloy can show:
+Alloy 6.2.0 with Sat4j produced the intended bounded result set:
 
-1. an embedded relation and an attached relation can encode the same Event-to-Day mapping;
-2. when the relation is the same, the selected day query is the same;
-3. stable Event payload does not by itself determine the temporal answer;
-4. an Event may remain retained while its valid day is still unknown;
-5. a later attached fact can move one Event from `Unknown` to a known day while preserving an already-known temporal answer for another Event;
-6. missing attachment remains `Unknown` rather than inventing a day.
+```text
+equivalentEncodingWitness                    SAT
+lateTemporalLearningWitness                  SAT
+sameCoreDifferentTemporalAnswer              SAT
+unknownTimeRetainsEventWitness               SAT
+EqualTemporalRelationGivesEqualDayProjection UNSAT counterexample
+AttachmentPreservesKnownTemporalAnswers      UNSAT counterexample
+EventCoreDeterminesTemporalAnswer             SAT counterexample
+MissingAttachmentInventsNoDay                UNSAT counterexample
+```
+
+The witnesses show all of the following can coexist in the bounded model:
+
+1. an embedded relation and an attached relation encode the same Event-to-Day mapping;
+2. stable Event core coexists with different temporal answers;
+3. `E0` remains a retained Event while its valid day is unknown;
+4. a later attachment makes `E0` known without changing its Event payload;
+5. the already-known `E1 -> D1` answer survives that extension.
+
+The assertions found no counterexample to these selected laws:
+
+```text
+same Event->Day relation
+  -> same day projection
+
+preserved attachment for an already-known Event
+  -> preserved temporal answer
+
+missing attachment
+  -> no invented valid day
+```
 
 ## Interpretation boundary
 
-If those results hold, the selected temporal vocabulary does not force valid time to be physically embedded inside Event.
-
-That would support this qualified statement:
+The bounded result supports this qualified separation:
 
 ```text
 Event core
@@ -93,11 +116,15 @@ EventId + temporal evidence
   can determine valid-day projection
 ```
 
-It would also connect naturally to Application 006's conservative typed-fact extension result: later canonical information may be added without retroactively changing the meaning of existing Event/Correction facts or old projections.
+For the selected query vocabulary, physical embedding is not observable once the derived Event-to-Day relation is the same. So the query does not force valid time to live inside Event.
+
+The result also shows a retained Event can move from temporal `Unknown` to a known valid day by extending an attachment layer while its Event payload remains unchanged in the model.
+
+This connects naturally to Application 006's conservative typed-fact extension result: later canonical information may be added without retroactively changing the meaning of existing Event/Correction facts or old projections.
 
 But this observation does **not** prove that an external fact family is universally better. An embedded representation may still be valid for a different vocabulary or implementation boundary.
 
-The experiment asks only whether embedding is semantically forced by the selected queries.
+The experiment establishes only that embedding is not semantically forced by the selected queries.
 
 ## Important boundary
 
