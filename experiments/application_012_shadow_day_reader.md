@@ -23,7 +23,7 @@ Application 012 therefore asks a deliberately narrow question:
 The new executable is:
 
 ```text
-lake exe loamShadowDay -- YYYY-MM-DD PATH/TO/actual.journal
+lake exe loamShadowDay YYYY-MM-DD PATH/TO/actual.journal
 ```
 
 It is a read-only source adapter, not an importer.
