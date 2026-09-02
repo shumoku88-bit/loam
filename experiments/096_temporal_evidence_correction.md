@@ -95,47 +95,77 @@ DaysAt(k, event)
 
 This is deliberately different from throwing away superseded facts and retaining only the final current frontier.
 
-## Expected positive boundary
+## Observed TLC 1.7.4 receipt
 
-The positive model asks TLC to preserve:
+The positive configuration completed successfully:
+
+```text
+Model checking completed. No error has been found.
+8 states generated
+8 distinct states found
+0 states left on queue
+depth 6
+```
+
+The checked boundaries include:
 
 - type safety;
 - no retained knowledge before its learned time;
 - closed correction references;
-- correction target and replacement refer to the same Event;
+- target and replacement refer to the same Event;
 - replacement is learned with the correction and after the target;
 - at most one admitted temporal fact per Event at every knowledge time;
-- append-only fact and correction retention;
+- fact and correction retention are append-only;
 - after correction, current knowledge resolves to `d1`;
-- after correction, historical `as-known` views still reconstruct `d2` at times 1 and 2 and `d1` at time 3.
+- the retained history still reconstructs `d2` at knowledge times 1 and 2 and `d1` at time 3.
 
-## Deliberate boundary
+The first CI attempt stopped on a bounded terminal branch that advanced to `now = 3` without learning any temporal fact. That was a TLC deadlock report, not a safety counterexample. The workflow was changed to use `-deadlock` for this bounded exploration; the TLA+ model and semantic claims were not changed.
 
-The stronger claim is:
+## Deliberate boundary observed
+
+The stronger claim was:
 
 ```text
 retain only the final current frontier
   -> enough to reconstruct past knowledge
 ```
 
-The boundary configuration asks TLC to reject that claim.
+TLC rejected it as expected:
 
-Once `t0` is removed from the current frontier and only `t1` remains, filtering the current frontier back to knowledge time 1 yields no temporal answer because `t1` was not learned until time 3.
+```text
+Invariant CurrentFrontierCanReconstructPastKnowledge is violated.
+```
 
-The full append-only retained history can still answer `d2` at time 1.
+The counterexample reaches:
 
-So, if the expected counterexample is reachable:
+```text
+State 3
+  now = 1
+  retainedFacts = {t0}
+  retainedCorrections = {}
+
+State 6
+  now = 3
+  retainedFacts = {t0, t1}
+  retainedCorrections = {c0}
+```
+
+At the final state the current frontier excludes `t0` and admits `t1`, so current knowledge answers `d1`.
+
+But if only that final frontier were retained, filtering it back to knowledge time 1 yields no answer because `t1` was not learned until time 3. The full append-only retained history still reconstructs the historical `d2` answer.
+
+So the observed boundary is:
 
 ```text
 current frontier
   != historical retained knowledge
 ```
 
-and dropping superseded temporal evidence would erase a fact about what LOAM previously knew.
+Dropping superseded temporal evidence can erase a fact about what LOAM previously knew even when the current answer remains correct.
 
 ## Interpretation boundary
 
-If the expected receipt holds, it supports only this qualified statement:
+The bounded observation supports this qualified statement:
 
 ```text
 append-only temporal fact history
