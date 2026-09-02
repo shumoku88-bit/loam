@@ -11,7 +11,9 @@ binary_is_current() {
   [[ -x "$binary" && -e "$binary_stamp" ]] || return 1
 
   for input in \
+    Loam/CompletionPrompt.lean \
     Loam/MovementCli.lean \
+    Loam/MovementEntry.lean \
     Loam/Persistence.lean \
     Loam/WriterOwnership.lean \
     lakefile.lean lake-manifest.json lean-toolchain; do
