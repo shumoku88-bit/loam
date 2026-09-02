@@ -94,7 +94,7 @@ LatestLearnedFrontierAt(k, e0)
 
 The second projection is deliberately treated as a candidate policy, not as built-in authority.
 
-## Expected positive boundary
+## Positive boundary
 
 The positive model asks TLC to preserve:
 
@@ -108,18 +108,45 @@ The positive model asks TLC to preserve:
 - learned order does not remove `t1` from the frontier;
 - the latest-learned selector can still identify `{t2}` as a separate derived candidate.
 
-## Deliberate boundary
+## Observed TLA+ result
 
-The stronger claim is:
+TLA+ tools 1.7.4 / TLC 2.19 completed the positive bounded exploration with no error:
+
+```text
+10 states generated
+10 distinct states found
+0 states left on queue
+complete state graph depth: 7
+```
+
+The model therefore preserved the intended temporal sibling-conflict boundary throughout the reachable state graph.
+
+The deliberate stronger claim was:
 
 ```text
 latest learned terminal candidate
   = structural current frontier
 ```
 
-The boundary configuration asks TLC to reject that claim once the later sibling appears.
+TLC rejected it as expected:
 
-If the intended counterexample is reachable, the final state should have:
+```text
+Invariant LearnedLatestEqualsStructuralCurrent is violated.
+```
+
+The counterexample reaches:
+
+```text
+knowledge time 2
+  retainedFacts       = {t0, t1}
+  retainedCorrections = {c1}
+
+knowledge time 3
+  retainedFacts       = {t0, t1, t2}
+  retainedCorrections = {c1, c2}
+```
+
+At the final state the model derives:
 
 ```text
 structural frontier
@@ -129,23 +156,27 @@ latest learned candidate
   {t2}
 ```
 
-That would mean:
+So the later learned sibling is identifiable as later knowledge, but that ordering does not structurally remove the earlier terminal sibling.
+
+## Finding
+
+The bounded model supports this qualified distinction:
 
 ```text
 learned later
-  can identify a later-known sibling
+  -> later-known candidate
 
 learned later
-  -/-> authority over a sibling conflict
+  -/-> authority over a sibling correction conflict
 ```
 
-unless LOAM explicitly adds a last-learned-wins policy or another authority/resolution fact.
+A last-learned-wins projection can be defined, but it is narrower than the correction frontier once sibling Corrections coexist. Treating it as the current answer therefore requires additional policy or authority semantics.
 
 ## Interpretation boundary
 
-A successful receipt would not prove that last-learned-wins is an invalid application policy.
+This result does not prove that last-learned-wins is an invalid application policy.
 
-It would show only that such a policy is **additional semantics**. The correction relation plus learned-time metadata do not need to erase the other terminal candidate by themselves.
+It shows only that such a policy is **additional semantics**. The correction relation plus learned-time metadata do not erase the other terminal candidate by themselves.
 
 This keeps the existing distinctions aligned:
 
@@ -159,6 +190,8 @@ correction graph
 authority / resolution
   = a separate question
 ```
+
+The result also aligns the temporal case with Observation 022 rather than creating a special chronological winner rule for time evidence.
 
 ## Non-goals
 
