@@ -3,6 +3,7 @@ name: Practical Movement
 on:
   pull_request:
     paths:
+      - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
@@ -15,6 +16,7 @@ on:
       - '.github/workflows/practical-movement.yml'
   push:
     paths:
+      - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
