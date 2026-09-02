@@ -1,0 +1,35 @@
+name: Observation 103
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/103_replaceable_balance_config.lean'
+      - 'experiments/103_replaceable_balance_config.md'
+      - '.github/workflows/observation-103-replaceable-balance-config.yml'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Core/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  replaceable-balance-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build current quantity slice
+        run: lake build loamDailyQuantity
+      - name: Check Observation 103 Lean probe
+        run: lake env lean experiments/103_replaceable_balance_config.lean
