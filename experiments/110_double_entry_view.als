@@ -7,7 +7,7 @@ abstract sig AccountingRole {}
 one sig AssetRole, LiabilityRole, EquityRole, IncomeRole, ExpenseRole extends AccountingRole {}
 
 sig Locus {}
-sig HoldingLocus in Locus {}
+sig HoldingLocus extends Locus {}
 
 sig Movement {}
 
