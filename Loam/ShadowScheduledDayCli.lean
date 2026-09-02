@@ -78,9 +78,9 @@ private def headerParts? (trimmed : String) : Option (String × String) :=
       else
         none
 
-private def metadataValue? (trimmed prefix : String) : Option String :=
-  if trimmed.startsWith prefix then
-    let value := (trimmed.drop prefix.length).trimAsciiStart.toString
+private def metadataValue? (trimmed marker : String) : Option String :=
+  if trimmed.startsWith marker then
+    let value := (trimmed.drop marker.length).trimAsciiStart.toString
     let value := value.trimAsciiEnd.toString
     if value.isEmpty then none else some value
   else
@@ -150,13 +150,14 @@ private def scanPlanLines
         | some (day, context) =>
             let closed := finalizePlan state
             let eventIndex := closed.nextEventIndex
+            let nextPending : PendingPlan :=
+              { eventIndex := eventIndex
+                lineNo := lineNo
+                day := day
+                context := context }
             scanPlanLines rest (lineNo + 1)
               { closed with
-                current := some
-                  { eventIndex := eventIndex
-                    lineNo := lineNo
-                    day := day
-                    context := context }
+                current := some nextPending
                 nextEventIndex := eventIndex + 1 }
         | none =>
             scanPlanLines rest (lineNo + 1)
@@ -174,8 +175,8 @@ private def scanPlanLines
                     scanPlanLines rest (lineNo + 1)
                       { state with errorLines := lineNo :: state.errorLines }
                   else
-                    scanPlanLines rest (lineNo + 1)
-                      { state with current := some { pending with planId := some value } }
+                    let updated := { pending with planId := some value }
+                    scanPlanLines rest (lineNo + 1) { state with current := some updated }
               | none =>
                   match metadataValue? trimmed "; cancelled-on:" with
                   | some day =>
@@ -183,9 +184,9 @@ private def scanPlanLines
                         scanPlanLines rest (lineNo + 1)
                           { state with errorLines := lineNo :: state.errorLines }
                       else
-                        scanPlanLines rest (lineNo + 1)
-                          { state with current := some
-                              { pending with retirement := some (.cancellation day) } }
+                        let updated :=
+                          { pending with retirement := some (.cancellation day) }
+                        scanPlanLines rest (lineNo + 1) { state with current := some updated }
                   | none =>
                       match metadataValue? trimmed "; superseded-on:" with
                       | some day =>
@@ -193,9 +194,9 @@ private def scanPlanLines
                             scanPlanLines rest (lineNo + 1)
                               { state with errorLines := lineNo :: state.errorLines }
                           else
-                            scanPlanLines rest (lineNo + 1)
-                              { state with current := some
-                                  { pending with retirement := some (.supersession day) } }
+                            let updated :=
+                              { pending with retirement := some (.supersession day) }
+                            scanPlanLines rest (lineNo + 1) { state with current := some updated }
                       | none =>
                           scanPlanLines rest (lineNo + 1) state
             else
@@ -244,8 +245,9 @@ private def scanActualLines
         match headerParts? trimmed with
         | some (day, _) =>
             let closed := finalizeActual state
+            let nextPending : PendingActual := { lineNo := lineNo, day := day }
             scanActualLines rest (lineNo + 1)
-              { closed with current := some { lineNo := lineNo, day := day } }
+              { closed with current := some nextPending }
         | none =>
             scanActualLines rest (lineNo + 1)
               { state with errorLines := lineNo :: state.errorLines }
@@ -262,8 +264,8 @@ private def scanActualLines
                     scanActualLines rest (lineNo + 1)
                       { state with errorLines := lineNo :: state.errorLines }
                   else
-                    scanActualLines rest (lineNo + 1)
-                      { state with current := some { pending with planId := some value } }
+                    let updated := { pending with planId := some value }
+                    scanActualLines rest (lineNo + 1) { state with current := some updated }
               | none => scanActualLines rest (lineNo + 1) state
             else
               -- Actual bodies are deliberately outside this query. Only explicit
