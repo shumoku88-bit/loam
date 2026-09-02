@@ -22,30 +22,6 @@ private def targetsEvent : List Loam.Core.EventCorrection → Loam.Core.EventId 
       else
         targetsEvent rest id
 
-private def equalOppositeJpyPair : List Loam.Core.Effect → Bool
-  | [left, right] =>
-      left.measure.token == "jpy" &&
-      right.measure.token == "jpy" &&
-      left.quantity.quanta != 0 &&
-      right.quantity.quanta != 0 &&
-      left.quantity.quanta + right.quantity.quanta == 0
-  | _ => false
-
-/--
-Candidate shape for the historical human-directed spending correction entrance.
-
-Historical one-Effect records remain selectable. New ordinary spending records
-are two-Effect equal-and-opposite JPY pairs. A transfer has the same neutral
-physical pair shape, so inclusion here does not classify an Event as spending;
-the human explicitly chooses the record they intend to correct.
--/
-private def correctableEvents
-    (events : Loam.Core.EventMemory)
-    (corrections : Loam.Core.EventCorrectionMemory) : List Loam.Core.Event :=
-  events.events.filter fun event =>
-    (event.effects.length == 1 || equalOppositeJpyPair event.effects) &&
-      !(targetsEvent corrections.corrections event.id)
-
 private def summarizeMovementEffects :
     List Loam.Core.Effect → Option (Int × Bool × Bool)
   | [] => some (0, false, false)
@@ -57,10 +33,9 @@ private def summarizeMovementEffects :
         | none => none
         | some (total, hasNegative, hasPositive) =>
             let quantity := effect.quantity.quanta
-            some
-              ( total + quantity,
-                hasNegative || quantity < 0,
-                hasPositive || quantity > 0 )
+            let nextNegative := if quantity < 0 then true else hasNegative
+            let nextPositive := if quantity > 0 then true else hasPositive
+            some (total + quantity, nextNegative, nextPositive)
 
 /--
 Recognize only the shape admitted by the practical balanced-movement entrance:
@@ -74,11 +49,17 @@ private def balancedJpyMovement (effects : List Loam.Core.Effect) : Bool :=
   | some (total, hasNegative, hasPositive) =>
       total == 0 && hasNegative && hasPositive
 
-private def correctableMovements
+/--
+The primary correction entrance accepts current balanced movements plus the
+historical one-Effect record shape retained for compatibility. Selecting a
+balanced Event does not classify it as spending, transfer, or any other kind;
+the human is selecting the fact they intend to replace.
+-/
+private def correctableRecords
     (events : Loam.Core.EventMemory)
     (corrections : Loam.Core.EventCorrectionMemory) : List Loam.Core.Event :=
   events.events.filter fun event =>
-    balancedJpyMovement event.effects &&
+    (event.effects.length == 1 || balancedJpyMovement event.effects) &&
       !(targetsEvent corrections.corrections event.id)
 
 private def printCandidates : Nat → List Loam.Core.Event → IO Unit
@@ -142,20 +123,113 @@ private def spendEntry?
         none
 
 /--
-Human-facing entrance for correcting one user-selected spend-shaped recorded
-Event without rewriting the original Event.
+Collect the historical one-Effect correction input, while retaining the later
+interactive source/use form for old spend-shaped records. The returned String is
+the compatibility success message used after publication.
+-/
+private def collectHistoricalReplacement :
+    IO (Except String (List Loam.Core.Effect × Int × String)) := do
+  let sourceToken ← promptLine "Paid from? "
+  if !Loam.Persistence.validToken sourceToken then
+    return Except.error "loam: payment source must be a nonempty single-line token"
+  else
+    let useOrAmount ← promptLine "Used for? "
+    let amountText ← promptLine "Amount? "
+    match spendEntry? useOrAmount amountText with
+    | none =>
+        return Except.error "loam: amount must be a positive integer"
+    | some (useToken?, amount) =>
+        if amount <= 0 then
+          return Except.error "loam: amount must be a positive integer"
+        else
+          let useTokenValid :=
+            match useToken? with
+            | none => true
+            | some useToken => Loam.Persistence.validToken useToken
+          let useTokenDiffers :=
+            match useToken? with
+            | none => true
+            | some useToken => sourceToken != useToken
+          if !useTokenValid then
+            return Except.error "loam: use locus must be a nonempty single-line token"
+          else if !useTokenDiffers then
+            return Except.error "loam: spending source and use locus must differ"
+          else
+            let sourceEffect :=
+              Loam.Core.Effect.ofQuantity
+                ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
+                (Loam.Core.Quantity.ofQuanta (-amount))
+            match useToken? with
+            | none =>
+                return Except.ok
+                  ( [sourceEffect], amount,
+                    "Correction recorded: " ++ toString amount ++
+                      " jpy from " ++ sourceToken ++ "." )
+            | some useToken =>
+                let useEffect :=
+                  Loam.Core.Effect.ofQuantity
+                    ⟨"effect-2"⟩ ⟨useToken⟩ ⟨"jpy"⟩
+                    (Loam.Core.Quantity.ofQuanta amount)
+                return Except.ok
+                  ( [sourceEffect, useEffect], amount,
+                    "Correction recorded: " ++ toString amount ++
+                      " jpy from " ++ sourceToken ++ " for " ++ useToken ++ "." )
 
-The selected original remains in EventMemory. The corrected interpretation is a
-new Event, connected by one explicit EventCorrection in a separate raw relation
-stream. The relation stream is published first; until its replacement Event is
-also present, referential admission keeps the dangling relation semantically
-inactive. No arrival-order or last-write-wins rule is introduced.
+/--
+Append one replacement Event and one explicit EventCorrection without rewriting
+the selected Event. The relation stream is published first; until its replacement
+Event is also present, referential admission keeps the dangling relation
+semantically inactive. No arrival-order or last-write-wins rule is introduced.
+-/
+private def publishReplacement
+    (memoryFile correctionFile : System.FilePath)
+    (events : Loam.Core.EventMemory)
+    (corrections : Loam.Core.EventCorrectionMemory)
+    (target : Loam.Core.Event)
+    (effects : List Loam.Core.Effect) : IO (Except String Loam.Core.EventId) := do
+  match freshReplacementEventId? events, freshCorrectionId? corrections with
+  | some replacementId, some correctionId =>
+      match Loam.Core.Event.ofEffects? replacementId effects with
+      | none =>
+          return Except.error "loam: could not admit replacement event"
+      | some replacement =>
+          let correction : Loam.Core.EventCorrection := {
+            id := correctionId
+            target := target.id
+            replacement := replacement.id
+          }
+          match Loam.Core.EventMemory.add? events replacement,
+              Loam.Core.EventCorrectionMemory.add? corrections correction with
+          | some updatedEvents, some updatedCorrections =>
+              if Loam.Core.EventCorrection.referencesPresent updatedEvents correction then
+                if ← Loam.Persistence.saveEventCorrectionMemory? correctionFile updatedCorrections then
+                  if ← Loam.Persistence.saveEventMemory? memoryFile updatedEvents then
+                    return Except.ok replacement.id
+                  else
+                    return Except.error
+                      "loam: replacement event was not published; the correction remains inactive until its referenced event is present"
+                else
+                  return Except.error "loam: correction contains an unrepresentable identity token"
+              else
+                return Except.error "loam: internal correction references are not closed"
+          | _, _ =>
+              return Except.error "loam: could not append correction facts"
+  | _, _ =>
+      return Except.error "loam: could not generate fresh correction identities"
 
-Ordinary interactive correction now records `payment source -q` and `use locus
-+q`. Historical two-line scripted input ending after source and amount remains a
-one-Effect compatibility path. Structural candidate shape alone does not prove
-that a two-Effect Event was spending rather than transfer; the human selection
-at this entrance supplies that intent.
+/--
+Human-facing entrance for correcting one user-selected recorded fact without
+rewriting the original Event.
+
+Balanced JPY movements are re-entered through the exact same FROM/TO adapter as
+ordinary movement recording. Historical one-Effect records retain their old
+correction input for compatibility. In both cases the original remains in raw
+EventMemory and the replacement is related by one append-only EventCorrection.
+The movement equality rule remains an interface rule rather than a Core Event
+invariant.
+
+The function name `correctSpend` is retained for command compatibility while the
+primary practical menu evolves from the older spending-only entrance.
 -/
 def correctSpend (memoryPath correctionPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -174,7 +248,7 @@ def correctSpend (memoryPath correctionPath : String) : IO UInt32 := do
             IO.eprintln "loam: malformed or unsupported correction-memory file"
             return 2
         | some corrections =>
-            let candidates := correctableEvents events corrections
+            let candidates := correctableRecords events corrections
             match candidates with
             | [] =>
                 IO.println "No compatible records are available to correct."
@@ -196,191 +270,40 @@ def correctSpend (memoryPath correctionPath : String) : IO UInt32 := do
                         IO.eprintln "loam: choose one of the displayed numbers"
                         return 2
                     | some target =>
-                        let sourceToken ← promptLine "Paid from? "
-                        if Loam.Persistence.validToken sourceToken then
-                          let useOrAmount ← promptLine "Used for? "
-                          let amountText ← promptLine "Amount? "
-                          match spendEntry? useOrAmount amountText with
-                          | none =>
-                              IO.eprintln "loam: amount must be a positive integer"
+                        if target.effects.length == 1 then
+                          match ← collectHistoricalReplacement with
+                          | Except.error message =>
+                              IO.eprintln message
                               return 2
-                          | some (useToken?, amount) =>
-                              if amount > 0 then
-                                let useTokenValid :=
-                                  match useToken? with
-                                  | none => true
-                                  | some useToken => Loam.Persistence.validToken useToken
-                                let useTokenDiffers :=
-                                  match useToken? with
-                                  | none => true
-                                  | some useToken => sourceToken != useToken
-                                if !useTokenValid then
-                                  IO.eprintln "loam: use locus must be a nonempty single-line token"
+                          | Except.ok (effects, _, successMessage) =>
+                              match ← publishReplacement
+                                  memoryFile correctionFile events corrections target effects with
+                              | Except.error message =>
+                                  IO.eprintln message
                                   return 2
-                                else if !useTokenDiffers then
-                                  IO.eprintln "loam: spending source and use locus must differ"
-                                  return 2
-                                else
-                                  match freshReplacementEventId? events, freshCorrectionId? corrections with
-                                  | some replacementId, some correctionId =>
-                                      let sourceEffect :=
-                                        Loam.Core.Effect.ofQuantity
-                                          ⟨"effect-1"⟩ ⟨sourceToken⟩ ⟨"jpy"⟩
-                                          (Loam.Core.Quantity.ofQuanta (-amount))
-                                      let effects :=
-                                        match useToken? with
-                                        | none => [sourceEffect]
-                                        | some useToken =>
-                                            let useEffect :=
-                                              Loam.Core.Effect.ofQuantity
-                                                ⟨"effect-2"⟩ ⟨useToken⟩ ⟨"jpy"⟩
-                                                (Loam.Core.Quantity.ofQuanta amount)
-                                            [sourceEffect, useEffect]
-                                      match Loam.Core.Event.ofEffects? replacementId effects with
-                                      | none =>
-                                          IO.eprintln "loam: could not admit replacement event"
-                                          return 2
-                                      | some replacement =>
-                                          let correction : Loam.Core.EventCorrection := {
-                                            id := correctionId
-                                            target := target.id
-                                            replacement := replacement.id
-                                          }
-                                          match Loam.Core.EventMemory.add? events replacement,
-                                              Loam.Core.EventCorrectionMemory.add? corrections correction with
-                                          | some updatedEvents, some updatedCorrections =>
-                                              if Loam.Core.EventCorrection.referencesPresent updatedEvents correction then
-                                                if ← Loam.Persistence.saveEventCorrectionMemory? correctionFile updatedCorrections then
-                                                  if ← Loam.Persistence.saveEventMemory? memoryFile updatedEvents then
-                                                    match useToken? with
-                                                    | none =>
-                                                        IO.println
-                                                          ("Correction recorded: " ++ toString amount ++
-                                                            " jpy from " ++ sourceToken ++ ".")
-                                                    | some useToken =>
-                                                        IO.println
-                                                          ("Correction recorded: " ++ toString amount ++
-                                                            " jpy from " ++ sourceToken ++ " for " ++ useToken ++ ".")
-                                                    IO.println
-                                                      "Recorded quantities still include original and replacement facts; effective quantities are a separate projection."
-                                                    return 0
-                                                  else
-                                                    IO.eprintln
-                                                      "loam: replacement event was not published; the correction remains inactive until its referenced event is present"
-                                                    return 2
-                                                else
-                                                  IO.eprintln "loam: correction contains an unrepresentable identity token"
-                                                  return 2
-                                              else
-                                                IO.eprintln "loam: internal correction references are not closed"
-                                                return 2
-                                          | _, _ =>
-                                              IO.eprintln "loam: could not append correction facts"
-                                              return 2
-                                  | _, _ =>
-                                      IO.eprintln "loam: could not generate fresh correction identities"
-                                      return 2
-                              else
-                                IO.eprintln "loam: amount must be a positive integer"
-                                return 2
+                              | Except.ok _ =>
+                                  IO.println successMessage
+                                  IO.println
+                                    "Recorded quantities still include original and replacement facts; effective quantities are a separate projection."
+                                  return 0
                         else
-                          IO.eprintln "loam: payment source must be a nonempty single-line token"
-                          return 2
-
-/--
-Correct one user-selected balanced JPY movement without rewriting its original
-Event.
-
-Selection recognizes only the same signed JPY shape admitted by the practical
-movement entrance. The replacement is entered through that same FROM/TO adapter,
-then appended as a generic Event and connected by the existing explicit
-EventCorrection relation. Neither the candidate predicate nor the equality check
-becomes a Core Event invariant.
--/
-def correctMovement (memoryPath correctionPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let correctionFile := System.FilePath.mk correctionPath
-  if !(← memoryFile.pathExists) then
-    IO.eprintln "loam: nothing recorded yet"
-    return 2
-  else
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
-        return 2
-    | some events =>
-        match ← loadCorrectionMemoryForEntry? correctionFile with
-        | none =>
-            IO.eprintln "loam: malformed or unsupported correction-memory file"
-            return 2
-        | some corrections =>
-            let candidates := correctableMovements events corrections
-            match candidates with
-            | [] =>
-                IO.println "No movements are available to correct."
-                return 0
-            | _ =>
-                IO.println "Which movement should be corrected?"
-                printCandidates 1 candidates
-                let selectionText ← promptLine "Select number: "
-                match selectionText.toNat? with
-                | none =>
-                    IO.eprintln "loam: choose one of the displayed numbers"
-                    return 2
-                | some 0 =>
-                    IO.eprintln "loam: choose one of the displayed numbers"
-                    return 2
-                | some selection =>
-                    match getAt? candidates (selection - 1) with
-                    | none =>
-                        IO.eprintln "loam: choose one of the displayed numbers"
-                        return 2
-                    | some target =>
-                        IO.println "Enter the corrected movement. Add FROM entries, then TO entries."
-                        match ← Loam.MovementCli.collectMovementEffects with
-                        | Except.error message =>
-                            IO.eprintln message
-                            return 2
-                        | Except.ok (effects, total) =>
-                            match freshReplacementEventId? events, freshCorrectionId? corrections with
-                            | some replacementId, some correctionId =>
-                                match Loam.Core.Event.ofEffects? replacementId effects with
-                                | none =>
-                                    IO.eprintln "loam: could not admit replacement movement"
-                                    return 2
-                                | some replacement =>
-                                    let correction : Loam.Core.EventCorrection := {
-                                      id := correctionId
-                                      target := target.id
-                                      replacement := replacement.id
-                                    }
-                                    match Loam.Core.EventMemory.add? events replacement,
-                                        Loam.Core.EventCorrectionMemory.add? corrections correction with
-                                    | some updatedEvents, some updatedCorrections =>
-                                        if Loam.Core.EventCorrection.referencesPresent updatedEvents correction then
-                                          if ← Loam.Persistence.saveEventCorrectionMemory? correctionFile updatedCorrections then
-                                            if ← Loam.Persistence.saveEventMemory? memoryFile updatedEvents then
-                                              IO.println
-                                                ("Correction recorded: " ++ target.id.token ++ " -> " ++
-                                                  replacement.id.token ++ " (" ++ toString total ++ " jpy).")
-                                              IO.println
-                                                "The original remains recorded; balance and effective views use the correction relation."
-                                              return 0
-                                            else
-                                              IO.eprintln
-                                                "loam: replacement event was not published; the correction remains inactive until its referenced event is present"
-                                              return 2
-                                          else
-                                            IO.eprintln "loam: correction contains an unrepresentable identity token"
-                                            return 2
-                                        else
-                                          IO.eprintln "loam: internal correction references are not closed"
-                                          return 2
-                                    | _, _ =>
-                                        IO.eprintln "loam: could not append correction facts"
-                                        return 2
-                            | _, _ =>
-                                IO.eprintln "loam: could not generate fresh correction identities"
-                                return 2
+                          IO.println "Enter the corrected movement. Add FROM entries, then TO entries."
+                          match ← Loam.MovementCli.collectMovementEffects with
+                          | Except.error message =>
+                              IO.eprintln message
+                              return 2
+                          | Except.ok (effects, total) =>
+                              match ← publishReplacement
+                                  memoryFile correctionFile events corrections target effects with
+                              | Except.error message =>
+                                  IO.eprintln message
+                                  return 2
+                              | Except.ok replacementId =>
+                                  IO.println
+                                    ("Correction recorded: " ++ target.id.token ++ " -> " ++
+                                      replacementId.token ++ " (" ++ toString total ++ " jpy).")
+                                  IO.println
+                                    "The original remains recorded; balance and effective views use the correction relation."
+                                  return 0
 
 end Loam.CorrectionCli
