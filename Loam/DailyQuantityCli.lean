@@ -360,7 +360,7 @@ def showBalances
                                     | some _ =>
                                         IO.println "No balances are selected in the current balance view."
                                   else
-                                    IO.println "Balances (starting balance + post-basis effective recorded changes):"
+                                    IO.println "Balances (starting balance + effective recorded changes):"
                                     for line in lines do IO.println line
                                   return 0
                               | .basisMissing coordinate =>
