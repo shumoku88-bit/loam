@@ -98,11 +98,11 @@ pred sameRoutingEvidenceDifferentSubjectMeaning {
 }
 
 pred managedThenExplicitlyUnmanaged {
-  some s: Subject, before, after: Day | {
-    ord/lt[before, after]
-    some routedPurposeAt[Left, s, before]
-    no routedPurposeAt[Left, s, after]
-    some r: latestRoute[Left, s, after] | no r.purpose
+  some s: Subject, earlierDay, laterDay: Day | {
+    ord/lt[earlierDay, laterDay]
+    some routedPurposeAt[Left, s, earlierDay]
+    no routedPurposeAt[Left, s, laterDay]
+    some r: latestRoute[Left, s, laterDay] | no r.purpose
   }
 }
 
