@@ -159,9 +159,52 @@ LatestRouteIsUnique
 
 Expected: UNSAT counterexamples.
 
-## Interpretation boundary
+## Observed Alloy 6.2.0 / Sat4j result
 
-If the expected matrix qualifies, the bounded conclusion will be:
+The solver produced the complete expected matrix:
+
+```text
+representativeLocusRoutedActual                 SAT
+sameRoutesDifferentValidDayDifferentRouting     SAT
+oneEventNeedsMultiplePurposes                   SAT
+currentRouteCanMisreadEarlierActual             SAT
+explicitlyUnmanagedActual                       SAT
+RoutesWithoutValidDayDetermineSelectedRouting   SAT counterexample
+OneEventSinglePurposeAlwaysEnough               SAT counterexample
+RoutesAndValidDayDetermineSelectedRouting       UNSAT counterexample
+SelectedRoutingPartitionsEffects                UNSAT counterexample
+LatestRouteIsUnique                             UNSAT counterexample
+```
+
+The expected-result checker passed in GitHub Actions run `33656024181` on branch head `f25afdcfff8a1736ecd6a26e1ef3495743661be2`.
+
+Two syntax-only corrections preceded the semantic run: the assertion implication bodies were parenthesized explicitly, and a witness for nonempty unmanaged Effects was written as `some unmanagedEffects[Left]`. Neither correction changed the modeled information boundary or expected results.
+
+### What the witnesses show
+
+The same routing history can produce a different selected Actual routing answer when only the Actual valid coordinate changes. Routing history therefore does not determine Consumption classification without an occurrence-valid coordinate.
+
+One Actual Event can contain Effects that route to more than one Purpose. A single Event-level Purpose would therefore erase a selected household answer.
+
+The route visible at the final day can differ from the route visible at the Actual occurrence's valid coordinate. Applying current policy backward can rewrite earlier Consumption meaning.
+
+An explicit no-Purpose routing record is reachable and remains distinct from no routing evidence.
+
+### What the checks show
+
+Within the bounded selected vocabulary:
+
+```text
+Locus routing history
++ Actual valid coordinate
+    -> managed / explicitly unmanaged / unrouted per-Effect routing view
+```
+
+The three-way view partitions all Effects, and the latest visible route is unique under the one-route-per-Locus/day admission premise.
+
+## Qualified boundary
+
+The bounded conclusion is:
 
 ```text
 historical Locus routing
@@ -173,17 +216,20 @@ routing history without occurrence validity
 
 one Event -> one Purpose
     too small
+
+current route applied backward
+    can rewrite historical meaning
 ```
 
-This would **not** prove that Effect-level routing is universally unnecessary. A future question could observe a distinction between two Effects at the same Locus. Observation 052 already warns against erasing Effect identity.
+This does **not** prove that Effect-level routing is universally unnecessary. A future question could observe a distinction between two Effects at the same Locus. Observation 052 already warns against erasing Effect identity.
 
-The narrower result would say only that the selected Consumption-routing question does not need an Effect-specific route record when Locus history plus occurrence validity already determines its answer.
+The narrower result is only that the selected Consumption-routing question does not need an Effect-specific route record when Locus history plus occurrence validity already determines its answer.
 
-Likewise, `validOn` in this model is information, not a proposed production field. Observations 092–094 explicitly did not earn a universal Event date/timestamp representation. A successful Observation 111 would earn the need for an Actual-valid coordinate in this concrete downstream question, while leaving its production ownership and representation for the next practical design step.
+Likewise, `validOn` in this model is information, not a proposed production field. Observations 092–094 explicitly did not earn a universal Event date/timestamp representation. Observation 111 now earns the need for an Actual-valid coordinate in this concrete downstream question, while leaving its production ownership and representation for the next practical design step.
 
-## Product implication if qualified
+## Product implication
 
-A likely practical boundary would become:
+A likely practical boundary becomes:
 
 ```text
 Actual
@@ -198,4 +244,4 @@ Consumption
 
 That is smaller than importing Expense Account objects and avoids per-Effect classification duplication for the selected view.
 
-No Practical Core change is proposed in this observation.
+No Practical Core change is made by this observation.
