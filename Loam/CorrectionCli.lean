@@ -1,6 +1,6 @@
 import Loam.Core.RelationAdmission
 import Loam.Persistence
-import Loam.MovementCli
+import Loam.MovementEntry
 import Std
 
 namespace Loam.CorrectionCli
@@ -288,7 +288,7 @@ def correctSpend (memoryPath correctionPath : String) : IO UInt32 := do
                                   return 0
                         else
                           IO.println "Enter the corrected movement. Add FROM entries, then TO entries."
-                          match ← Loam.MovementCli.collectMovementEffects with
+                          match ← Loam.MovementEntry.collectMovementEffects with
                           | Except.error message =>
                               IO.eprintln message
                               return 2
