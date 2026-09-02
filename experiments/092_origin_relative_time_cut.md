@@ -103,9 +103,9 @@ postByCut(origin)
 
 No quantity arithmetic is needed here. Observation 091 already exposed the arithmetic boundary. Observation 092 isolates only Event membership in the scoped activity set.
 
-## Expected Alloy witnesses
+## Alloy commands
 
-The model asks for these positive witnesses:
+The positive witnesses are:
 
 ```text
 injectiveTimeWitness
@@ -132,11 +132,9 @@ one Event tied with Origin
 
 The second witness tests the boundary that a timestamp-like coordinate with ties cannot necessarily decide which tied Event is before or after the origin.
 
-The final witness asks whether two worlds can have the same origin-relative cut while disagreeing about the order of `X` and `Y` on the same side of the origin. If SAT, global chronology carries more information than this one query consumes.
+The final witness asks whether two worlds can have the same origin-relative cut while disagreeing about the order of `X` and `Y` on the same side of the origin.
 
-## Expected assertions
-
-The model checks:
+The assertions are:
 
 ```text
 UnorderedSnapshotDeterminesPostOrigin
@@ -146,7 +144,27 @@ OriginRelativeCutMatchesScope
 OriginRelativeCutDeterminesPostOrigin
 ```
 
-The intended boundary is:
+## Observed Alloy 6.2.0 + Sat4j result
+
+After correcting the experiment's strict-order transitivity predicate to state the three-Event implication explicitly, the receipt is:
+
+```text
+injectiveTimeWitness                         SAT
+sameUnorderedSnapshotDifferentPostOrigin    SAT
+sameCoarseTimeDifferentPostOrigin           SAT
+sameCutDifferentGlobalOrder                 SAT
+UnorderedSnapshotDeterminesPostOrigin       SAT counterexample
+CoarseTimeDeterminesPostOrigin              SAT counterexample
+InjectiveMonotoneTimeDeterminesPostOrigin   UNSAT counterexample
+OriginRelativeCutMatchesScope               UNSAT counterexample
+OriginRelativeCutDeterminesPostOrigin       UNSAT counterexample
+```
+
+The first attempt exposed a model-writing defect rather than a semantic result: relational composition used for transitivity was parsed as an empty incompatible join, allowing cycles. The explicit transitivity formula removed that defect; the corrected exact-head receipt above is the observed result.
+
+## Qualified boundary
+
+Within this bounded model:
 
 ```text
 unordered retained Events
@@ -156,18 +174,23 @@ coarse temporal coordinate with ties
     -/-> post-origin scope
 
 injective monotone temporal coordinate
-    -> post-origin scope        [bounded, strong premise]
+    -> post-origin scope        [strong premise]
 
 origin-relative before/at/after cut
-    -> post-origin scope        [bounded]
+    -> post-origin scope
 ```
 
-while:
+At the same time:
 
 ```text
-origin-relative cut
-    -/-> one global total chronology
+same origin-relative cut
+    + different order among Events on the same side
+    is reachable
 ```
+
+So a global total chronology carries distinctions that this one-origin current query does not consume.
+
+The result does **not** say the origin-relative cut should be a canonical stored fact. It says only that information of that strength is sufficient for this scoped question, while unordered Events and a non-injective scalar time coordinate are not.
 
 ## Why Alloy is earned here
 
@@ -183,7 +206,7 @@ TLA+ may be earned later when admission, late recording, correction, or clock mo
 
 ## Important interpretation boundary
 
-Even if the bounded result favors an origin-relative cut for this one query, it does **not** imply dates or times are unnecessary for LOAM.
+This bounded result does **not** imply dates or times are unnecessary for LOAM.
 
 Human-facing questions such as:
 
@@ -197,9 +220,11 @@ when did I learn this?
 
 can require temporal coordinates that this one-origin cut cannot answer.
 
-The question here is deliberately smaller:
+The narrower result is:
 
-> Must the first-event current projection itself force a global timestamp or total chronology into Event?
+> The first-event current projection does not, by itself, force a global timestamp or total chronology into Event.
+
+Some retained evidence must still be strong enough to derive the relevant origin-relative membership. Observation 092 does not decide whether that evidence should ultimately be a valid-time coordinate, an explicit order relation, a selected temporal window, or something else.
 
 ## Non-goals
 
