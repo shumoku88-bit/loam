@@ -77,6 +77,25 @@ To inspect the source shapes that the quantity shadow already recognizes without
 
 It captures the ordinary shadow output in mode-0700 temporary storage, extracts only the existing structural evidence counts, verifies that the source did not change, and removes the captured output on exit. The summary reports projected Event/Effect counts and counts of header context, metadata lines, and include directives that remain explicitly unprojected. Those counts are observation pressure, not new domain semantics: they do not make description, metadata, include behavior, or familiar household nouns part of the Practical Core. Public CI exercises the wrapper only with synthetic data and checks that source text and quantities are withheld.
 
+## Current household dogfood checkpoint
+
+LOAM has now crossed a second practical boundary beyond the first stateless quantity shadow.
+
+The current household-facing slice includes:
+
+- correction-aware practical balances with explicit `QuantityBasis`;
+- replaceable balance selection that does not treat basis presence as hidden Account classification;
+- an explicit correction-root basis cut for occurrences already reflected in a basis observation;
+- a read-only recorded-day view over an external canonical journal;
+- a separate scheduled-day view using explicit completion / retirement evidence and a known-through horizon;
+- a terminal composition that shows recorded and scheduled answers for the same selected day without introducing a canonical Home or Day model.
+
+The external household source remains read-only pressure. Its Account, Plan, recurrence, Series, and report vocabulary are not automatically imported into LOAM Core.
+
+During the current dual-dogfood period, the HRA canonical household source remains the authority for household truth while LOAM remains the reconstruction experiment and comparison target.
+
+See [`HOUSEHOLD_CHECKPOINT.md`](HOUSEHOLD_CHECKPOINT.md) for the compact current checkpoint after Observation 104 and Applications 010–014.
+
 ## Current map
 
 Observations 001–061 build the neutral physical core and the bounded persistence/publication protocols around Event, Effect, Locus, Measure, exact Quantity, Correction, Resolution, and explicit relation admission.
@@ -85,11 +104,13 @@ Observations 062–065 apply anonymized household pressure without forcing famil
 
 Observations 066–071 apply external accounting pressure and then close with a Practical Core audit. Valuation, acquisition basis, disposal provenance, policy-selected attribution, retained historical attribution, policy provenance, and historical policy definition remain distinct when the question can observe them, but the checkpoint earns no new Practical Core, Persistence, CLI, or wire-format primitive.
 
-Observations 072–078 begin a separate post-checkpoint real-data-shadow arc. They separate human descriptive context from physical quantity placement, distinguish Event-level and Effect-level context attachment scopes, expose missing imported occurrence identity, require retained continuity rather than content/position-derived identity, reject permanent auxiliary identity stores as a default, keep reconciliation one-shot and fail closed, and finally prove that fresh run-local identity is safe for read-only queries whose retained answer is invariant under identity renaming.
+Observations 072–084 establish the first private real-data shadow boundary, run-local identity for identity-renaming-invariant queries, and the return of context-relative sufficiency in formal-result and privacy-safe observation work.
 
-That last law now has an operational entrance: `shadow-quantity` can project a private canonical journal through the existing Practical Core with no source mutation, no sidecar, and no LOAM persistence. The first whole-file private run reached native non-zero quantity parity with h-kernel. This does not promote the unprojected source context or identity questions into Core semantics.
+The integrated [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) currently records that history through Observation 084 in detail.
 
-See [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) for the integrated checkpoint of earned structure, deliberate non-commitments, and the current dogfood boundary.
+Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The current compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](HOUSEHOLD_CHECKPOINT.md).
+
+The latest practical result is not a claim that familiar household concepts are permanently unnecessary. It is evidence that several useful household questions can already be answered by small retained facts / relations, question-specific projections, and terminal composition without importing the source application's ontology wholesale.
 
 ## Observation 001 — A World Before Envelopes
 
