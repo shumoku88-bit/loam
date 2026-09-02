@@ -130,7 +130,7 @@ jobs:
           fi
           grep -Fq 'malformed or unsupported event-memory file' /tmp/loam-cli.err
 
-      - name: Keep specialized recording verbs retired
+      - name: Keep specialized recording verbs absent
         shell: bash
         run: |
           set -euo pipefail
@@ -142,9 +142,15 @@ jobs:
           fi
 
           for verb in spend income transfer; do
-            if ./tools/loam "$verb" /tmp/retired-memory.loam >/tmp/loam-retired.out 2>/tmp/loam-retired.err; then
-              echo "retired recording verb unexpectedly succeeded: $verb" >&2
+            if ./tools/loam "$verb" /tmp/absent-memory.loam >/tmp/loam-absent.out 2>/tmp/loam-absent.err; then
+              echo "absent recording verb unexpectedly succeeded through wrapper: $verb" >&2
               exit 1
             fi
-            grep -Fq "record value flow with './tools/loam movement MEMORY_FILE'" /tmp/loam-retired.err
+            grep -Fq 'loam: command not understood' /tmp/loam-absent.err
+
+            if .lake/build/bin/loam "$verb" /tmp/absent-memory.loam >/tmp/loam-direct-absent.out 2>/tmp/loam-direct-absent.err; then
+              echo "absent recording verb unexpectedly succeeded through compiled CLI: $verb" >&2
+              exit 1
+            fi
+            grep -Fq 'loam: command not understood' /tmp/loam-direct-absent.err
           done
