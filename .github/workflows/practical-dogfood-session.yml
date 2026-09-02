@@ -53,12 +53,14 @@ jobs:
           grep -Fq 'Data: ../loam-data' "$RUNNER_TEMP/default-data.out"
           test ! -e ../loam-data/memory.loam
           test ! -e ../loam-data/basis.loam
+          test ! -e ../loam-data/balance-view.tsv
           rm -rf ../loam-data
       - name: Exercise persistent menu and fail-closed recovery
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
+          from pathlib import Path
           import shutil
           import subprocess
 
@@ -99,6 +101,11 @@ jobs:
                   )
               return "".join(transcript)
 
+          def select_bank_balance():
+              Path("scratch/dogfood/balance-view.tsv").write_text(
+                  "bank\tjpy\n", encoding="utf-8"
+              )
+
           shutil.rmtree("scratch/dogfood", ignore_errors=True)
           proc = start_session()
           transcript = []
@@ -110,6 +117,7 @@ jobs:
           read_until(proc, "Starting quantity? ", transcript)
           send(proc, "100000")
           read_until(proc, "> ", transcript)
+          select_bank_balance()
           send(proc, "10")
           before = read_until(proc, "> ", transcript)
           assert "  bank: 100000 jpy" in before, "".join(transcript)
@@ -137,9 +145,16 @@ jobs:
           read_until(proc, "Amount? ", transcript)
           send(proc, "100")
           read_until(proc, "> ", transcript)
+
           send(proc, "10")
-          untracked = read_until(proc, "> ", transcript)
-          assert "No balances are being tracked. Set a starting balance before recording changes you want included." in untracked, "".join(transcript)
+          unselected = read_until(proc, "> ", transcript)
+          assert "No balances are selected in the current balance view." in unselected, "".join(transcript)
+
+          select_bank_balance()
+          send(proc, "10")
+          unanchored = read_until(proc, "> ", transcript)
+          assert "loam: balances unavailable: starting balance missing for bank / jpy" in unanchored, "".join(transcript)
+
           send(proc, "9")
           read_until(proc, "Starting at? ", transcript)
           send(proc, "bank")
@@ -151,5 +166,5 @@ jobs:
           assert "  bank: 100 jpy" in recovered, "".join(transcript)
           send(proc, "q")
           full = finish(proc, transcript)
-          assert full.count("What do you want to do?") >= 5, full
+          assert full.count("What do you want to do?") >= 6, full
           PY
