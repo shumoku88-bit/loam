@@ -46,8 +46,8 @@ private def release? : Option CapacityMovement :=
 
 private def physicalMovement? : Option (BalancedMovement LocusId) :=
   BalancedMovement.ofChanges? yen
-    [{ coordinate := ⟨"bank"⟩, quantity := Quantity.ofQuanta (-75) },
-     { coordinate := ⟨"wallet"⟩, quantity := Quantity.ofQuanta 75 }]
+    [{ coordinate := LocusId.mk "bank", quantity := Quantity.ofQuanta (-75) },
+     { coordinate := LocusId.mk "wallet", quantity := Quantity.ofQuanta 75 }]
 
 private def unbalancedCapacity? : Option (BalancedMovement CapacityCoordinate) :=
   BalancedMovement.ofChanges? yen
