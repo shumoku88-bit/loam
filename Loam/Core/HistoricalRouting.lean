@@ -84,7 +84,7 @@ def ofEntries? [DecidableEq Subject] [DecidableEq Time]
     ofEntries? [entry] = some { entries := [entry], coordinateNodup := by simp } := by
   simp [ofEntries?]
 
-variable [DecidableEq Subject] [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)]
+variable [DecidableEq Subject] [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)] [Std.IsLinearOrder Time]
 
 private def combineLatest
     (subject : Subject) (validOn : Time)
@@ -122,12 +122,11 @@ def statusAt
       | some purpose => .managed purpose
       | none => .unmanaged
 
+omit [Std.IsLinearOrder Time] in
 @[simp] theorem statusAt_empty
     (subject : Subject) (validOn : Time) :
     statusAt ({ entries := [], coordinateNodup := by simp } : RoutingHistory Subject Time) subject validOn = .unrouted := by
   simp [statusAt, findLatestVisible?]
-
-variable [IsLinearOrder Time]
 
 private theorem combineLatest_swap
     (subject : Subject) (validOn : Time)

@@ -1,3 +1,4 @@
+import Init.Data.Order
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidity
 import Loam.Core.HistoricalRouting
@@ -7,10 +8,11 @@ import Loam.Application.CapacityInspection
 namespace Loam.Application
 
 open Loam.Core
+open Std (IsLinearOrder)
 
 set_option autoImplicit false
 
-variable {Time : Type} [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)]
+variable {Time : Type} [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)] [Std.IsLinearOrder Time]
 
 /-!
 # Consumption and Remaining inspection
