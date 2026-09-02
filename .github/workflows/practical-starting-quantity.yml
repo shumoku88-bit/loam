@@ -12,7 +12,10 @@ on:
       - 'Loam/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/QuantityBasisCorrectionCli.lean'
       - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/MovementCli.lean'
+      - 'Loam/MovementEntry.lean'
       - 'tools/loam'
+      - 'tools/loam-movement'
       - 'lakefile.lean'
       - '.github/workflows/practical-starting-quantity.yml'
       - 'lean-toolchain'
@@ -28,7 +31,10 @@ on:
       - 'Loam/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/QuantityBasisCorrectionCli.lean'
       - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/MovementCli.lean'
+      - 'Loam/MovementEntry.lean'
       - 'tools/loam'
+      - 'tools/loam-movement'
       - 'lakefile.lean'
       - '.github/workflows/practical-starting-quantity.yml'
       - 'lean-toolchain'
@@ -57,9 +63,11 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
       - name: Build practical binaries
-        run: lake build loam loamDailyQuantity
-      - name: Exercise anchored current quantity and basis correction chain
+        run: lake build loamMovement loamDailyQuantity
+
+      - name: Derive current quantities from basis plus balanced movements
         shell: bash
         run: |
           set -euo pipefail
@@ -71,73 +79,31 @@ jobs:
 
           printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'bank\n20000\n' | .lake/build/bin/loam income "$memory"
-          printf 'bank\n5000\n' | .lake/build/bin/loam spend "$memory"
-          printf 'bank\nwallet\n10000\n' | .lake/build/bin/loam transfer "$memory"
+          printf 'pension\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'food\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
 
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/before.out"
+          printf 'pension\n20000\n\nbank\n20000\n\n' | .lake/build/bin/loamMovement "$memory"
+          printf 'bank\n5000\n\nfood\n5000\n\n' | .lake/build/bin/loamMovement "$memory"
+          printf 'bank\n10000\n\nwallet\n10000\n\n' | .lake/build/bin/loamMovement "$memory"
+
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/before.out"
           grep -F 'bank: 105000 jpy' "$tmp/before.out"
           grep -F 'wallet: 10000 jpy' "$tmp/before.out"
+          grep -F 'pension: -20000 jpy' "$tmp/before.out"
+          grep -F 'food: 5000 jpy' "$tmp/before.out"
 
-          printf '1\n95000\n' | .lake/build/bin/loamDailyQuantity correct-starting-quantity "$basis" "$basis_corrections"
-          grep -F $'BASIS\tbasis-3\tbank\tjpy\t95000' "$basis"
-          grep -F $'CORRECTION\tbasis-correction-1\tbasis-1\tbasis-3' "$basis_corrections"
+          printf '1\n95000\n' | .lake/build/bin/loamDailyQuantity \
+            correct-starting-quantity "$basis" "$basis_corrections"
 
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/after-one.out"
-          grep -F 'bank: 100000 jpy' "$tmp/after-one.out"
-          grep -F 'wallet: 10000 jpy' "$tmp/after-one.out"
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/after.out"
+          grep -F 'bank: 100000 jpy' "$tmp/after.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/after.out"
+          grep -F 'pension: -20000 jpy' "$tmp/after.out"
+          grep -F 'food: 5000 jpy' "$tmp/after.out"
 
-          set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" >"$tmp/stale.out" 2>"$tmp/stale.err"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$tmp/stale.out"
-          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/stale.err"
-
-          printf '2\n97000\n' | .lake/build/bin/loamDailyQuantity correct-starting-quantity "$basis" "$basis_corrections"
-          grep -F $'BASIS\tbasis-4\tbank\tjpy\t97000' "$basis"
-          grep -F $'CORRECTION\tbasis-correction-2\tbasis-3\tbasis-4' "$basis_corrections"
-
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$basis_corrections" >"$tmp/after-two.out"
-          grep -F 'bank: 102000 jpy' "$tmp/after-two.out"
-          grep -F 'wallet: 10000 jpy' "$tmp/after-two.out"
-
-          printf 'LOAM-QUANTITY-BASIS-CORRECTION-MEMORY\t1\nCORRECTION\tbasis-correction-2\tbasis-3\tbasis-4\nCORRECTION\tbasis-correction-1\tbasis-1\tbasis-3\n' >"$tmp/reversed-corrections.loam"
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" "$tmp/reversed-corrections.loam" >"$tmp/reversed.out"
-          diff -u "$tmp/after-two.out" "$tmp/reversed.out"
-
-      - name: Show only explicitly anchored balances
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmp="$(mktemp -d)"
-          memory="$tmp/memory.loam"
-          event_corrections="$tmp/event-corrections.loam"
-          basis="$tmp/basis.loam"
-
-          printf 'paypay\n1000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'point\n59\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-101\nEFFECT\teffect-2\tpoint\tjpy\t-59\nEFFECT\teffect-3\tcan-coffee\tjpy\t160\n' >"$memory"
-
-          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" >"$tmp/balances.out"
-          grep -F 'Balances (starting balance + effective recorded changes):' "$tmp/balances.out"
-          grep -F 'paypay: 899 jpy' "$tmp/balances.out"
-          grep -F 'point: 0 jpy' "$tmp/balances.out"
-          if grep -Fq 'can-coffee:' "$tmp/balances.out"; then
-            echo 'use-only locus leaked into balance view' >&2
-            exit 1
-          fi
-
-          set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$basis" >"$tmp/current.out" 2>"$tmp/current.err"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$tmp/current.out"
-          grep -F 'starting quantity missing for can-coffee / jpy' "$tmp/current.err"
-
-      - name: Select balances with replaceable current view config
+      - name: Keep balance view distinct from all recorded loci
         shell: bash
         run: |
           set -euo pipefail
@@ -148,49 +114,26 @@ jobs:
           basis_corrections="$tmp/basis-corrections.loam"
           view="$tmp/balance-view.tsv"
 
-          printf 'wallet\n100\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'reserve\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'use\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
-          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tpurchase\nEFFECT\tsource\twallet\tjpy\t-7\nEFFECT\tuse\tuse\tjpy\t7\n' >"$memory"
+          printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'pension\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
+          printf 'food\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
 
-          printf 'wallet\tjpy\nreserve\tjpy\nwallet\tjpy\n' >"$view"
-          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/selected.out"
-          grep -F 'wallet: 93 jpy' "$tmp/selected.out"
-          grep -F 'reserve: 0 jpy' "$tmp/selected.out"
-          if grep -Fq 'use:' "$tmp/selected.out"; then
-            echo 'basis-bearing use coordinate leaked into configured balance view' >&2
-            exit 1
-          fi
-          test "$(grep -Fc 'wallet: 93 jpy' "$tmp/selected.out")" -eq 1
+          printf 'pension\n20000\n\nbank\n20000\n\n' | .lake/build/bin/loamMovement "$memory"
+          printf 'bank\n5000\n\nfood\n5000\n\n' | .lake/build/bin/loamMovement "$memory"
+          printf 'bank\n10000\n\nwallet\n10000\n\n' | .lake/build/bin/loamMovement "$memory"
 
-          printf 'use\tjpy\nwallet\tjpy\n' >"$view"
-          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/replaced.out"
-          grep -F 'use: 7 jpy' "$tmp/replaced.out"
-          grep -F 'wallet: 93 jpy' "$tmp/replaced.out"
-          if grep -Fq 'reserve:' "$tmp/replaced.out"; then
-            echo 'old balance selection survived config replacement' >&2
+          printf 'bank\tjpy\nwallet\tjpy\n' >"$view"
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/balances.out"
+          grep -F 'bank: 105000 jpy' "$tmp/balances.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/balances.out"
+          if grep -Eq 'pension:|food:' "$tmp/balances.out"; then
+            echo 'non-balance locus leaked into configured balance view' >&2
             exit 1
           fi
 
-          printf 'broken-row\n' >"$view"
-          set +e
-          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/broken-view.out" 2>"$tmp/broken-view.err"
-          status=$?
-          set -e
-          test "$status" -eq 2
-          test ! -s "$tmp/broken-view.out"
-          grep -F 'malformed or unsupported balance-view config' "$tmp/broken-view.err"
-
-          printf 'unknown\tjpy\n' >"$view"
-          set +e
-          .lake/build/bin/loamDailyQuantity balances "$memory" "$event_corrections" "$basis" "$basis_corrections" "$view" >"$tmp/unanchored-view.out" 2>"$tmp/unanchored-view.err"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$tmp/unanchored-view.out"
-          grep -F 'starting balance missing for unknown / jpy' "$tmp/unanchored-view.err"
-
-      - name: Refuse unanchored or invalid basis frontier
+      - name: Refuse current projection when a recorded locus has no basis
         shell: bash
         run: |
           set -euo pipefail
@@ -198,36 +141,16 @@ jobs:
           memory="$tmp/memory.loam"
           event_corrections="$tmp/event-corrections.loam"
           missing_basis="$tmp/missing-basis.loam"
-          duplicate_basis="$tmp/duplicate-basis.loam"
-          shared_replacement="$tmp/shared-replacement.loam"
 
-          printf 'bank\n100\n' | .lake/build/bin/loam income "$memory"
+          printf 'source\n100\n\nbank\n100\n\n' | .lake/build/bin/loamMovement "$memory"
           set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$missing_basis" >"$tmp/missing.out" 2>"$tmp/missing.err"
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$event_corrections" "$missing_basis" >"$tmp/missing.out" 2>"$tmp/missing.err"
           status=$?
           set -e
           test "$status" -eq 1
           test ! -s "$tmp/missing.out"
-          grep -F 'starting quantity missing for bank / jpy' "$tmp/missing.err"
-
-          printf 'LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tbasis-a\tbank\tjpy\t100\nBASIS\tbasis-b\tbank\tjpy\t200\n' >"$duplicate_basis"
-          set +e
-          .lake/build/bin/loamDailyQuantity current "$memory" "$event_corrections" "$duplicate_basis" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$tmp/duplicate.out"
-          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/duplicate.err"
-
-          printf 'LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tbasis-a\tbank\tjpy\t100\nBASIS\tbasis-b\tbank\tjpy\t90\nBASIS\tbasis-c\tbank\tjpy\t95\n' >"$tmp/shared-bases.loam"
-          printf 'LOAM-QUANTITY-BASIS-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-a\tbasis-a\tbasis-c\nCORRECTION\tcorrection-b\tbasis-b\tbasis-c\n' >"$shared_replacement"
-          set +e
-          .lake/build/bin/loamDailyQuantity current "$tmp/no-events.loam" "$event_corrections" "$tmp/shared-bases.loam" "$shared_replacement" >"$tmp/shared.out" 2>"$tmp/shared.err"
-          status=$?
-          set -e
-          test "$status" -eq 1
-          test ! -s "$tmp/shared.out"
-          grep -F 'starting-quantity revisions do not justify one frontier' "$tmp/shared.err"
+          grep -F 'starting quantity missing for source / jpy' "$tmp/missing.err"
 
       - name: Keep setup append-only and fail closed on malformed storage
         shell: bash
@@ -237,8 +160,10 @@ jobs:
           basis="$tmp/basis.loam"
           printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           cp "$basis" "$tmp/before"
+
           set +e
-          printf 'bank\n99999\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
+          printf 'bank\n99999\n' | .lake/build/bin/loamDailyQuantity \
+            starting-quantity "$basis" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
           status=$?
           set -e
           test "$status" -eq 1
@@ -248,31 +173,33 @@ jobs:
           printf 'BROKEN\n' >"$basis"
           cp "$basis" "$tmp/broken-before"
           set +e
-          printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis" >"$tmp/broken.out" 2>"$tmp/broken.err"
+          printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity \
+            starting-quantity "$basis" >"$tmp/broken.out" 2>"$tmp/broken.err"
           status=$?
           set -e
           test "$status" -eq 2
           cmp "$tmp/broken-before" "$basis"
           grep -F 'malformed or unsupported quantity-basis file' "$tmp/broken.err"
 
-      - name: Exercise dogfood menu wiring
+      - name: Exercise simplified dogfood menu wiring
         shell: bash
         run: |
           set -euo pipefail
           rm -rf scratch/dogfood
-          printf '9\nbank\n100000\n' | ./tools/loam
+
+          printf '7\nbank\n100000\n' | ./tools/loam
           test -f scratch/dogfood/basis.loam
 
-          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-empty.out
-          grep -F '10. Show balances' /tmp/loam-balance-menu-empty.out
+          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-empty.out
+          grep -F '8. Show balances' /tmp/loam-balance-menu-empty.out
           grep -F 'No balances are selected in the current balance view.' /tmp/loam-balance-menu-empty.out
 
           printf 'bank\tjpy\n' > scratch/dogfood/balance-view.tsv
-          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
+          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
           grep -F 'Balances (starting balance + effective recorded changes):' /tmp/loam-balance-menu-before.out
           grep -F 'bank: 100000 jpy' /tmp/loam-balance-menu-before.out
 
-          printf '11\n1\n90000\n' | ./tools/loam
+          printf '9\n1\n90000\n' | ./tools/loam
           test -f scratch/dogfood/basis-corrections.loam
-          printf '10\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
+          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
           grep -F 'bank: 90000 jpy' /tmp/loam-balance-menu-after.out
