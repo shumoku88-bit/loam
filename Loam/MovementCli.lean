@@ -1,18 +1,10 @@
+import Loam.MovementEntry
 import Loam.Persistence
 import Loam.WriterOwnership
-import Std
 
 namespace Loam.MovementCli
 
 set_option autoImplicit false
-
-/-- Prompt for one line while keeping the movement entrance interactive. -/
-private def promptLine (prompt : String) : IO String := do
-  IO.print prompt
-  let stdout ← IO.getStdout
-  stdout.flush
-  let stdin ← IO.getStdin
-  return (← stdin.getLine).trimAsciiEnd.toString
 
 /--
 Search the same bounded operational Event-id namespace used by the practical CLI.
@@ -38,70 +30,6 @@ private def loadEventMemoryForEntry?
     return Loam.Core.EventMemory.ofEvents? []
 
 /--
-Collect one nonempty side of a human-entered movement.
-
-`negative` only controls the interface-level sign assigned to the Effects created
-by this entrance. No source/destination role is retained in Core beyond the
-ordinary signed quantity Effects themselves.
--/
-private partial def collectSide
-    (label : String)
-    (negative : Bool)
-    (nextIndex : Nat)
-    (effects : List Loam.Core.Effect)
-    (total : Int)
-    (count : Nat) :
-    IO (Except String (Nat × List Loam.Core.Effect × Int)) := do
-  let locusToken ← promptLine (label ++ " locus (blank when done)? ")
-  if locusToken.isEmpty then
-    if count = 0 then
-      return Except.error ("loam: at least one " ++ label.toLower ++ " locus is required")
-    else
-      return Except.ok (nextIndex, effects, total)
-  else if !Loam.Persistence.validToken locusToken then
-    return Except.error ("loam: " ++ label.toLower ++ " locus must be a nonempty single-line token")
-  else
-    let amountText ← promptLine (label ++ " amount? ")
-    match amountText.toInt? with
-    | none =>
-        return Except.error "loam: movement amount must be a positive integer"
-    | some amount =>
-        if amount <= 0 then
-          return Except.error "loam: movement amount must be a positive integer"
-        else
-          let signedAmount := if negative then -amount else amount
-          let effect :=
-            Loam.Core.Effect.ofQuantity
-              ⟨"effect-" ++ toString nextIndex⟩ ⟨locusToken⟩ ⟨"jpy"⟩
-              (Loam.Core.Quantity.ofQuanta signedAmount)
-          collectSide label negative (nextIndex + 1)
-            (effects ++ [effect]) (total + amount) (count + 1)
-
-/--
-Collect the shared human-facing shape for one balanced JPY movement.
-
-Both ordinary recording and movement correction use this adapter so they cannot
-drift into different FROM/TO conventions. Equality is still only an entrance
-rule. The returned Core Effects retain signed quantities, not source/destination
-roles.
--/
-def collectMovementEffects : IO (Except String (List Loam.Core.Effect × Int)) := do
-  match ← collectSide "From" true 1 [] 0 0 with
-  | Except.error message =>
-      return Except.error message
-  | Except.ok (nextIndex, fromEffects, fromTotal) =>
-      match ← collectSide "To" false nextIndex fromEffects 0 0 with
-      | Except.error message =>
-          return Except.error message
-      | Except.ok (_, effects, toTotal) =>
-          if fromTotal != toTotal then
-            return Except.error
-              ("loam: movement totals differ: from " ++ toString fromTotal ++
-                " jpy, to " ++ toString toTotal ++ " jpy")
-          else
-            return Except.ok (effects, fromTotal)
-
-/--
 Record one balanced human-facing JPY movement with one or more FROM loci and one
 or more TO loci.
 
@@ -123,7 +51,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       return 2
   | some memory =>
       IO.println "Record one movement. Add FROM entries, then TO entries."
-      match ← collectMovementEffects with
+      match ← Loam.MovementEntry.collectMovementEffects with
       | Except.error message =>
           IO.eprintln message
           return 2
