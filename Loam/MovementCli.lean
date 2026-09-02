@@ -139,7 +139,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
-  "  ./tools/loam movement MEMORY_FILE\n\n" ++
+  "  ./tools/loam-movement MEMORY_FILE\n\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
