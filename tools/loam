@@ -342,24 +342,28 @@ EOF
         fi
         ;;
       4)
-        cat <<'EOF'
+        if [[ -t 0 ]]; then
+          cat <<'EOF'
 What needs correction?
 1. Movement
 2. Date
 EOF
-        printf '> '
-        if IFS= read -r correction_choice; then
-          case "$correction_choice" in
-            1)
-              run_menu_action run_loam correct "$memory_file" "$correction_file"
-              ;;
-            2)
-              run_menu_action run_loam correct-date "$memory_file" "$correction_file"
-              ;;
-            *)
-              echo "loam: correction choice not understood" >&2
-              ;;
-          esac
+          printf '> '
+          if IFS= read -r correction_choice; then
+            case "$correction_choice" in
+              1)
+                run_menu_action run_loam correct "$memory_file" "$correction_file"
+                ;;
+              2)
+                run_menu_action run_loam correct-date "$memory_file" "$correction_file"
+                ;;
+              *)
+                echo "loam: correction choice not understood" >&2
+                ;;
+            esac
+          fi
+        else
+          run_menu_action run_loam correct "$memory_file" "$correction_file"
         fi
         ;;
       5)
