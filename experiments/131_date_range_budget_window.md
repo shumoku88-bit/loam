@@ -87,7 +87,7 @@ This is intentionally small. It does not claim that every future budget view has
 
 `Monthly` and `CustomSame` are distinct query-context identities but resolve to the same endpoints and the same Capacity authority.
 
-Expected result:
+Qualified result:
 
 ```text
 different selector/context identity
@@ -96,7 +96,7 @@ different selector/context identity
     -> same selected projection
 ```
 
-If that holds, the selected answer does not need a canonical Cycle identity in this specimen.
+So the selected answer does not need a canonical Cycle identity in this specimen.
 
 ## Pressure 2: overlapping views without copying facts
 
@@ -126,7 +126,7 @@ and included in:
 Next [4,6)
 ```
 
-so adjacent ranges should not double count the boundary.
+The half-open adjacency check found no counterexample, so adjacent ranges do not double count the selected boundary facts in this bounded specimen.
 
 ## Pressure 4: DateRange is not Capacity authority
 
@@ -140,16 +140,14 @@ But Capacity differs:
 
 so Remaining and Headroom differ.
 
-The deliberately too-strong claim is therefore:
+Alloy found the expected counterexample to:
 
 ```text
 DateRange alone
     -> full budget answer
 ```
 
-Observation 131 expects Alloy to reject that claim.
-
-This would not restore a Cycle object. It would establish a smaller separation:
+This does not restore a Cycle object. It establishes the smaller separation:
 
 ```text
 DateRange selection
@@ -157,9 +155,9 @@ DateRange selection
 Capacity authority
 ```
 
-## Qualification targets
+## Qualified Alloy result
 
-Expected witnesses:
+Alloy 6.2.0 + Sat4j:
 
 ```text
 differentLabelsCollapseToSameRangeProjection          SAT
@@ -167,25 +165,18 @@ selectedScheduledChangesWithRange                      SAT
 boundaryBelongsToNextNotMonthly                        SAT
 sameFactAppearsInOverlappingWindowsWithoutCopy         SAT
 sameRangeDifferentCapacityChangesBudgetAnswer          SAT
+
+DateRangeDeterminesTemporalSelection                   UNSAT counterexample
+HalfOpenAdjacentWindowsDoNotDoubleCount                UNSAT counterexample
+DateRangeAloneDeterminesFullBudgetProjection           SAT counterexample
+DateRangePlusCapacityDeterminesBudgetProjection        UNSAT counterexample
 ```
 
-Expected no counterexample:
+The first executable head also exposed one model-only redundant inequality between two disjoint singleton signatures. That assertion was removed before final qualification; it carried no semantic information.
 
-```text
-DateRangeDeterminesTemporalSelection                    UNSAT counterexample
-HalfOpenAdjacentWindowsDoNotDoubleCount                 UNSAT counterexample
-DateRangePlusCapacityDeterminesBudgetProjection         UNSAT counterexample
-```
+## Finding
 
-Expected counterexample to the aggressive compression:
-
-```text
-DateRangeAloneDeterminesFullBudgetProjection            SAT counterexample
-```
-
-## Interpretation if qualified
-
-The useful compression would be:
+The useful compression survives:
 
 ```text
 Monthly / pension / half-year / custom selector
@@ -194,14 +185,29 @@ Monthly / pension / half-year / custom selector
 [start,end)
 + canonical temporal evidence
     -> temporal inclusion
-
-[start,end)
-+ independent Capacity authority
-+ included Actual / Scheduled
-    -> selected budget projection
 ```
 
-So a household may have several simultaneous views without canonical facts being copied into several cycle containers.
+No canonical Cycle identity was needed for the selected Actual / Scheduled membership, overlapping views, or adjacent half-open boundary behavior.
+
+For the selected budget projection, one more independent authority remains:
+
+```text
+[start,end)
++ Capacity authority
++ included Actual / Scheduled
+    -> Consumption / Commitment / Remaining / Headroom
+```
+
+So the qualified boundary is:
+
+```text
+Cycle identity                  not earned
+selector label                  not needed after range resolution
+DateRange endpoints             sufficient for temporal membership
+Capacity authority              independently required for budget answer
+```
+
+A household may therefore have several simultaneous views without canonical facts being copied into several cycle containers.
 
 A future UI may still expose friendly selector names such as `month`, `pension period`, or `six months`. Those names can remain range-generating application policy rather than canonical budget objects if later observations do not find missing information.
 
