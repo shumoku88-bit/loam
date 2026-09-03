@@ -10,6 +10,8 @@ capacity_binary=".lake/build/bin/loamCapacity"
 capacity_stamp=".lake/build/.loam-capacity-wrapper-build-stamp"
 daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
 daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
+open_scheduled_binary=".lake/build/bin/loamOpenScheduled"
+open_scheduled_stamp=".lake/build/.loam-open-scheduled-wrapper-build-stamp"
 shadow_binary=".lake/build/bin/loamShadowAudit"
 shadow_stamp=".lake/build/.loam-shadow-audit-wrapper-build-stamp"
 shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
@@ -71,6 +73,22 @@ daily_quantity_binary_is_current() {
     Loam/Core/QuantityBasisMemory.lean \
     lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$daily_quantity_stamp" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+open_scheduled_binary_is_current() {
+  [[ -x "$open_scheduled_binary" && -e "$open_scheduled_stamp" ]] || return 1
+
+  if find Loam -type f -name '*.lean' -newer "$open_scheduled_stamp" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$open_scheduled_stamp" ]]; then
       return 1
     fi
   done
@@ -170,6 +188,26 @@ run_daily_quantity() {
   fi
 }
 
+run_open_scheduled() {
+  if open_scheduled_binary_is_current; then
+    "$open_scheduled_binary" "$@"
+    return $?
+  fi
+
+  echo "Building LOAM open scheduled view..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-open-scheduled-build.XXXXXX)"
+  if lake build loamOpenScheduled >"$build_log" 2>&1; then
+    touch "$open_scheduled_stamp"
+    rm -f "$build_log"
+    "$open_scheduled_binary" "$@"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    return 1
+  fi
+}
+
 run_shadow_audit() {
   if shadow_binary_is_current; then
     exec "$shadow_binary" "$@"
@@ -221,6 +259,9 @@ Move JPY spending capacity:
 Show spending capacity:
   ./tools/loam capacity show CAPACITY_FILE
 
+Show open scheduled movements:
+  ./tools/loam open-scheduled SCHEDULED_FILE MEMORY_FILE
+
 Review recorded facts:
   ./tools/loam review MEMORY_FILE
 
@@ -268,6 +309,12 @@ if [[ "${1:-}" == "capacity" ]]; then
   exit 0
 fi
 
+if [[ "${1:-}" == "open-scheduled" ]]; then
+  shift
+  run_open_scheduled "$@" || exit $?
+  exit 0
+fi
+
 if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
   print_help
   exit 0
@@ -300,6 +347,7 @@ if [[ $# -eq 0 ]]; then
   balance_view_file="$data_dir/balance-view.tsv"
   basis_cut_file="$data_dir/basis-cut.tsv"
   capacity_file="$data_dir/capacity.loam"
+  scheduled_file="$data_dir/scheduled.loam"
 
   while true; do
     printf 'LOAM\nData: %s\n\n' "$data_label"
@@ -316,6 +364,7 @@ What do you want to do?
 9. Correct a starting balance
 10. Move spending capacity
 11. Show spending capacity
+12. Show open scheduled movements
 q. Quit
 EOF
     printf '> '
@@ -386,6 +435,9 @@ EOF
         ;;
       11)
         run_menu_action run_capacity show "$capacity_file"
+        ;;
+      12)
+        run_menu_action run_open_scheduled "$scheduled_file" "$memory_file"
         ;;
       q|Q)
         break
