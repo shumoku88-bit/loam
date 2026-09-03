@@ -6,6 +6,7 @@ import Loam.ActualValidityCorrectionCli
 import Loam.EffectiveCli
 import Loam.CorrectionIntegrityCli
 import Loam.ScheduledCli
+import Loam.ScheduledLifecycleCli
 import Std
 
 namespace Loam.Cli
@@ -23,7 +24,8 @@ private def practicalUsage : String :=
   "Scheduled movements:\n" ++
   "  ./tools/loam scheduled SCHEDULED_FILE\n" ++
   "  ./tools/loam scheduled show SCHEDULED_FILE\n" ++
-  "  ./tools/loam scheduled complete SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID\n\n" ++
+  "  ./tools/loam scheduled complete SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID\n" ++
+  "  ./tools/loam scheduled cancel SCHEDULED_FILE SCHEDULED_ID\n\n" ++
   "Review recorded facts:\n" ++
   "  ./tools/loam review MEMORY_FILE\n\n" ++
   "Show recorded quantities:\n" ++
@@ -284,7 +286,9 @@ def run (args : List String) : IO UInt32 :=
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
   | ["scheduled", "complete", scheduledPath, memoryPath, scheduledToken] =>
-      Loam.ScheduledCli.completeScheduled scheduledPath memoryPath scheduledToken
+      Loam.ScheduledLifecycleCli.completeScheduled scheduledPath memoryPath scheduledToken
+  | ["scheduled", "cancel", scheduledPath, scheduledToken] =>
+      Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledToken
   | ["review", memoryPath] => Loam.ReviewCli.reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
@@ -302,7 +306,7 @@ def run (args : List String) : IO UInt32 :=
   | ["event", "quantity", path, locus, measure] =>
       showEventQuantity path locus measure
   | ["event-memory", "get", path, eventToken] =>
-      showRememberedEvent path eventToken
+      showRememberedEvent memoryPath eventPath
   | ["event-memory", "quantity", path, locus, measure] =>
       showRememberedQuantity path locus measure
   | ["event-memory", "add", memoryPath, eventPath] =>
