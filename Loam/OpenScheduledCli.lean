@@ -147,3 +147,11 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
                         return 0
 
 end Loam.OpenScheduledCli
+
+def main (args : List String) : IO UInt32 :=
+  match args with
+  | [scheduledPath, memoryPath] =>
+      Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
+  | _ => do
+      IO.eprintln "Usage: loamOpenScheduled SCHEDULED_FILE MEMORY_FILE"
+      return 2
