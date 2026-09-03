@@ -1,5 +1,7 @@
 # Observation 127 — Does quantity-free Backing topology determine funded Capacity?
 
+Status: qualified bounded Alloy observation
+
 ## Household question
 
 Observation 126 asks whether Capacity plus eligible holdings are enough to answer which purposes are backed. Its bounded scaffold assigns each whole Holding to at most one Purpose.
@@ -110,34 +112,55 @@ Each Holding's total Backing shares may not exceed its physical quantity.
 
 This is only bounded scaffolding. It is not a proposed production representation.
 
-## Qualification target
+## Executed result
 
-Expected witnesses:
-
-```text
-oneHoldingCanFullyBackTwoPurposes              SAT
-sameTopologyDifferentApportionment             SAT
-sameTopologySameTotalDifferentFunding          SAT
-partialBackingAppearsWithoutCapacityChange     SAT
-identicalSharesRecoverSameAnswer               SAT
-```
-
-Expected counterexamples:
+Alloy 6.2.0 + Sat4j:
 
 ```text
+oneHoldingCanFullyBackTwoPurposes                   SAT
+sameTopologyDifferentApportionment                  SAT
+sameTopologySameTotalDifferentFunding               SAT
+partialBackingAppearsWithoutCapacityChange          SAT
+identicalSharesRecoverSameAnswer                    SAT
 TopologyDeterminesPurposeFunding                    SAT counterexample
 TopologyAndUsedQuantityDeterminePurposeFunding      SAT counterexample
-```
-
-And once quantity-bearing share evidence itself is fixed:
-
-```text
 QuantitySharesDetermineSelectedFunding              UNSAT counterexample
 ```
 
-## Expected compression boundary
+The complete expected result set passed in CI on the PR merge ref against current `main`.
 
-If qualified:
+## Finding
+
+The selected bounded answer requires more than quantity-free Backing topology.
+
+`Full` and `Skew` agree on:
+
+```text
+Capacity
+Holding quantity
+Eligibility
+Bank -> Food topology
+Bank -> Travel topology
+total quantity used from Bank = 10
+```
+
+but differ on funded Capacity:
+
+```text
+Full:
+  Food   6 / 6 funded
+  Travel 4 / 4 funded
+  total funded = 10
+
+Skew:
+  Food   4 / 6 funded
+  Travel 4 / 4 funded
+  total funded = 8
+```
+
+The extra 2 units directed toward Travel in `Skew` cannot fund more than Travel's 4-unit Capacity claim, while Food remains under-backed.
+
+So the compression boundary is:
 
 ```text
 Backing topology
@@ -145,7 +168,7 @@ Backing topology
 Backing apportionment
 ```
 
-More concretely:
+and more concretely:
 
 ```text
 Capacity
@@ -159,20 +182,26 @@ Capacity
 per-Purpose backed / funded amount
 ```
 
-Information equivalent to quantity-bearing Backing apportionment is required for the selected answer.
+Information equivalent to quantity-bearing Backing apportionment is independently observable for the selected household answer.
 
-This would parallel, but not merge with, Observation 120's Scheduled-realization result:
+`QuantitySharesDetermineSelectedFunding` has no bounded counterexample, and the explicit `Full` / `Copy` witness demonstrates an inhabited same-share pair with the same selected funded answer.
+
+## Relationship to Observation 120
+
+Observation 120 found a parallel pressure in Scheduled realization:
 
 ```text
 relation topology says which things correspond
 quantity evidence says how much passes through that correspondence
 ```
 
-The same structural pressure appearing in two semantic domains does **not** yet earn a generic relation framework. Capacity Backing and Scheduled realization retain different household meanings.
+Observation 127 finds the same structural pressure independently in Capacity Backing.
 
-## Product interpretation if qualified
+That repetition is interesting, but it does **not** earn a generic relation framework. Scheduled realization and Capacity Backing retain different household authority and different downstream questions.
 
-The likely practical consequence is not "store envelope balances".
+## Product interpretation
+
+The practical consequence is not "store envelope balances".
 
 A smaller candidate remains:
 
@@ -180,8 +209,8 @@ A smaller candidate remains:
 Capacity evidence
 + physical holdings
 + eligibility
-+ Backing evidence
-    -> funded / under-backed projection
++ quantity-bearing Backing evidence
+    -> backed / funded / under-backed projection
 ```
 
 So a future envelope-like UI could potentially show:
@@ -195,7 +224,9 @@ Food
 
 without turning `funded`, `gap`, or an Envelope balance into independently retained truth.
 
-That UI shape is only a downstream consequence to test later. Observation 127 changes no practical surface.
+This matters for daily use because Capacity may express what the household intends to permit while Backing answers whether that permission is physically supported by the selected holdings. Those meanings should not be collapsed merely because both eventually appear as numbers in one budget screen.
+
+Observation 127 changes no practical surface yet.
 
 ## Boundaries
 
@@ -214,4 +245,4 @@ Observation 127 does not establish:
 - ownership, Agent, legal-access, or institution semantics;
 - Practical Core, persistence, CLI, or canonical household-data changes.
 
-The question is only whether quantity-free Backing topology preserves enough information for per-Purpose funded Capacity.
+The qualified result is only that quantity-free Backing topology does not preserve enough information for per-Purpose funded Capacity in this bounded specimen.
