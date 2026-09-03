@@ -15,6 +15,8 @@ LOAM is an experimental household system whose current job is to discover the sm
 - **Share mechanics without erasing meaning.** Reuse algebra, relation shape, routing history, or temporal machinery when possible, but preserve semantic partitions whenever removing one changes an independently observable answer.
 - **Keep projections as projections.** Reports, labels, statuses, summaries, and convenience views should not become canonical state unless an observation demonstrates that the upstream evidence is insufficient.
 - **Formal tools are observational instruments.** Alloy, TLA+, Lean, and other tools should expose information boundaries and laws. Do not promote an unqualified hypothesis into production vocabulary merely because it is elegant.
+- **The repository is project memory.** If an insight should affect future development, record it in the repository before relying on it. Standing policy belongs in policy or philosophy docs, qualified findings belong in observation records, and executable expectations belong in tests or CI. Conversation memory is not project state.
+- **Check semantic neighbors after each change.** After adding or changing a practical capability, follow its consequences through the nearest relevant semantic boundaries rather than qualifying the edited function in isolation. Prefer a focused one- or two-hop composition check over a speculative whole-system audit.
 - **Delete freely.** Code volume, abstraction count, historical implementation effort, and compatibility are not reasons to keep a weaker design.
 
 ## Decision preference
@@ -37,3 +39,27 @@ Freedom to break things is not freedom to change them arbitrarily.
 A destructive change should be explainable by a stronger model, a real dogfood observation, a qualified formal result, or a substantial simplification. Do not churn names and formats for novelty alone.
 
 If LOAM later gains external users or a stable public data contract, compatibility must be introduced as a newly explicit product requirement. Do not assume that requirement in advance.
+
+## Local composition discipline
+
+A change may be implemented locally, but qualification should follow the household meaning far enough to catch nearby seams.
+
+For each practical change:
+
+1. name the household answer or evidence boundary that changed;
+2. trace one or two meaningful hops through whichever adjacent concerns actually apply, such as correction or lifecycle, temporal evidence, routing or classification, persistence and recovery, or downstream projections;
+3. ask whether the new path bypasses an existing correction frontier, creates a second source of semantic authority, turns a projection into stored state, or leaves writer and recovery behavior inconsistent with the derived answer;
+4. when a concrete seam appears, record it in the repository and qualify it with the smallest appropriate observation, test, or CI specimen before fixing it in a focused change;
+5. stop when no concrete ambiguity remains. Do not restart a broad inventory merely because more relationships could theoretically be inspected.
+
+The intended rhythm is:
+
+```text
+small practical change
+    -> nearby composition check
+    -> concrete seam, if any
+    -> focused observation or executable test
+    -> small correction
+```
+
+This keeps LOAM attentive to whole-system coherence without turning every change into an endless audit.
