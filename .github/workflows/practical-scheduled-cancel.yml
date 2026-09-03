@@ -1,0 +1,173 @@
+name: Practical Scheduled Cancel
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/ScheduledLifecycleCli.lean'
+      - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledCli.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Cli.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-cancel.yml'
+  push:
+    paths:
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/ScheduledLifecycleCli.lean'
+      - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledCli.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Cli.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-cancel.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-cancel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cancel:
+    name: Build and test Scheduled cancellation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical LOAM entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Cancel by appending retirement evidence
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          retirements="$scheduled.retirements"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	paypay	-1000
+          CHANGE	rent	1000
+          SCHEDULED	scheduled-2	2026-09-15	jpy
+          CHANGE	paypay	-800
+          CHANGE	utilities	800
+          SCHEDULED	scheduled-3	2026-09-20	jpy
+          CHANGE	yucho	-3000
+          CHANGE	investment	3000
+          EOF
+
+          before="$(sha256sum "$scheduled")"
+          ./tools/loam scheduled cancel "$scheduled" scheduled-1 \
+            >/tmp/loam-scheduled-cancel-1.out
+          after="$(sha256sum "$scheduled")"
+
+          test "$before" = "$after"
+          grep -Fq 'Cancelled scheduled movement: scheduled-1 on 2026-09-10.' \
+            /tmp/loam-scheduled-cancel-1.out
+          expected_retirement=$'LOAM-SCHEDULED-RETIREMENT-MEMORY\t1\nRETIREMENT\tscheduled-1'
+          test "$(cat "$retirements")" = "$expected_retirement"
+
+          printf '%s\n' "$tmp_dir" > /tmp/loam-scheduled-cancel-dir
+
+      - name: Refuse a second cancellation without mutation
+        shell: bash
+        run: |
+          tmp_dir="$(cat /tmp/loam-scheduled-cancel-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          retirements="$scheduled.retirements"
+
+          before="$(sha256sum "$scheduled" "$retirements")"
+          if ./tools/loam scheduled cancel "$scheduled" scheduled-1 \
+              >/tmp/loam-scheduled-cancel-repeat.out 2>/tmp/loam-scheduled-cancel-repeat.err; then
+            echo 'expected second cancellation to be refused' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'Scheduled movement already cancelled: scheduled-1.' \
+            /tmp/loam-scheduled-cancel-repeat.out
+          after="$(sha256sum "$scheduled" "$retirements")"
+          test "$before" = "$after"
+
+      - name: Refuse cancellation when completion publication already claimed the identity
+        shell: bash
+        run: |
+          tmp_dir="$(cat /tmp/loam-scheduled-cancel-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          completions="$scheduled.completions"
+          retirements="$scheduled.retirements"
+
+          cat >"$completions" <<'EOF'
+          LOAM-SCHEDULED-COMPLETION-MEMORY	1
+          COMPLETION	scheduled-2	scheduled-completion:scheduled-2
+          EOF
+
+          before="$(sha256sum "$scheduled" "$completions" "$retirements")"
+          if ./tools/loam scheduled cancel "$scheduled" scheduled-2 \
+              >/tmp/loam-scheduled-cancel-completion.out 2>/tmp/loam-scheduled-cancel-completion.err; then
+            echo 'expected completion evidence to block cancellation' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'Scheduled movement has retained completion evidence and cannot be cancelled: scheduled-2.' \
+            /tmp/loam-scheduled-cancel-completion.out
+          after="$(sha256sum "$scheduled" "$completions" "$retirements")"
+          test "$before" = "$after"
+          if grep -Fq $'RETIREMENT\tscheduled-2' "$retirements"; then
+            echo 'cancellation competed with retained completion evidence' >&2
+            exit 1
+          fi
+
+      - name: Refuse completion after cancellation
+        shell: bash
+        run: |
+          tmp_dir="$(cat /tmp/loam-scheduled-cancel-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+          retirements="$scheduled.retirements"
+
+          ./tools/loam scheduled cancel "$scheduled" scheduled-3 \
+            >/tmp/loam-scheduled-cancel-3.out
+          grep -Fq $'RETIREMENT\tscheduled-3' "$retirements"
+
+          if ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-3 \
+              >/tmp/loam-scheduled-cancel-complete.out 2>/tmp/loam-scheduled-cancel-complete.err; then
+            echo 'expected cancelled Scheduled identity to refuse completion' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'Scheduled movement already cancelled: scheduled-3.' \
+            /tmp/loam-scheduled-cancel-complete.out
+          test ! -e "$memory"
+          test ! -e "$memory.actual-validity"
+          if grep -Fq $'COMPLETION\tscheduled-3' "$scheduled.completions"; then
+            echo 'completion evidence was published after cancellation' >&2
+            exit 1
+          fi
