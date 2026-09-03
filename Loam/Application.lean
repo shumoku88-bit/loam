@@ -2,6 +2,7 @@ import Loam.Application.QuantityInspection
 import Loam.Application.CapacityInspection
 import Loam.Application.ConsumptionInspection
 import Loam.Application.ActualValidityFrontier
+import Loam.Application.AttentionInspection
 
 namespace Loam
 
