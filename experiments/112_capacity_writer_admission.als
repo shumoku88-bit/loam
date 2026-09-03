@@ -47,19 +47,20 @@ fun sent[w: World, p: Purpose, d: Day]: set Movement {
 }
 
 fun purposeBalance[w: World, p: Purpose, d: Day]: one Int {
-  #(received[w, p, d]) - #(sent[w, p, d])
+  sub[#(received[w, p, d]), #(sent[w, p, d])]
 }
 
 fun unallocatedBalance[w: World, d: Day]: one Int {
-  #({ m: Movement |
-      m.target = Unallocated and
-      m.(w.effectiveOn) in through[d]
-    })
-  -
-  #({ m: Movement |
-      m.source = Unallocated and
-      m.(w.effectiveOn) in through[d]
-    })
+  sub[
+    #({ m: Movement |
+        m.target = Unallocated and
+        m.(w.effectiveOn) in through[d]
+      }),
+    #({ m: Movement |
+        m.source = Unallocated and
+        m.(w.effectiveOn) in through[d]
+      })
+  ]
 }
 
 pred purposeStockValid[w: World] {
