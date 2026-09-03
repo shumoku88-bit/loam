@@ -9,6 +9,7 @@ on:
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
+      - 'Loam/MovementUi.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
@@ -27,6 +28,7 @@ on:
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
+      - 'Loam/MovementUi.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
@@ -75,6 +77,13 @@ jobs:
 
           printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+          grep -Fq 'Movement draft' /tmp/loam-movement.out
+          grep -Fq '[?] occurrence date' /tmp/loam-movement.out
+          grep -Fq 'outstanding: occurrence date, balanced FROM / TO movement' /tmp/loam-movement.out
+          grep -Fq '[ok] occurrence date: 2026-09-02' /tmp/loam-movement.out
+          grep -Fq 'outstanding: balanced FROM / TO movement' /tmp/loam-movement.out
+          grep -Fq '[ok] balanced movement: 1000 jpy' /tmp/loam-movement.out
+          grep -Fq 'ready to request admission' /tmp/loam-movement.out
           grep -Fq 'Admission preview' /tmp/loam-movement.out
           grep -Fq 'movement: 1000 jpy' /tmp/loam-movement.out
           grep -Fq 'date: 2026-09-02' /tmp/loam-movement.out
@@ -97,6 +106,56 @@ jobs:
           grep -Fq '2026-09-02  [record-1]' /tmp/loam-review.out
           grep -Fq 'paypay: -800 jpy' /tmp/loam-review.out
           grep -Fq 'groceries: 1000 jpy' /tmp/loam-review.out
+
+      - name: Re-admit a completed draft against current memory
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          fifo="$tmp_dir/draft-input"
+          first_out="$tmp_dir/first.out"
+          first_err="$tmp_dir/first.err"
+          second_out="$tmp_dir/second.out"
+          mkfifo "$fifo"
+
+          LOAM_OCCURRENCE_DATE=2026-09-02 \
+            ./tools/loam-movement "$memory" <"$fifo" >"$first_out" 2>"$first_err" &
+          first_pid=$!
+          exec 3>"$fifo"
+          printf 'paypay\n' >&3
+
+          reached_amount=0
+          for _ in $(seq 1 300); do
+            if grep -Fq 'From amount?' "$first_out"; then
+              reached_amount=1
+              break
+            fi
+            if ! kill -0 "$first_pid" 2>/dev/null; then
+              cat "$first_out" >&2 || true
+              cat "$first_err" >&2 || true
+              echo 'first movement exited before waiting for amount' >&2
+              exit 1
+            fi
+            sleep 0.1
+          done
+          test "$reached_amount" = '1'
+
+          printf 'cash\n1\n\ncoffee\n1\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-02 timeout 15 \
+                ./tools/loam-movement "$memory" >"$second_out"
+          grep -Fq 'event: record-1' "$second_out"
+          grep -Fq 'validity fact: validity-1' "$second_out"
+
+          printf '2\n\ncoffee\n2\n\n' >&3
+          exec 3>&-
+          wait "$first_pid"
+
+          grep -Fq 'event: record-2' "$first_out"
+          grep -Fq 'validity fact: validity-2' "$first_out"
+          grep -Fq 'Recorded movement: 2 jpy. Date: 2026-09-02.' "$first_out"
+          grep -Fq $'EVENT\trecord-1' "$memory"
+          grep -Fq $'EVENT\trecord-2' "$memory"
 
       - name: Scripted primary menu defaults to host-local today
         shell: bash
