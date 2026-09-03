@@ -35,3 +35,6 @@ lean_exe loamShadowScheduledDay where
 
 lean_exe loamHistoricalPrepare where
   root := `Loam.Cli.HistoricalPrepareCli
+
+lean_exe loamHistoricalPublish where
+  root := `Loam.Cli.HistoricalPublishCli
