@@ -63,6 +63,29 @@ private def loadEventMemoryForEntry?
     return Loam.Core.EventMemory.ofEvents? []
 
 /--
+Expose only the admission boundaries that the practical movement entrance has
+actually crossed before publication. This is deliberately not a generic proof
+UI and does not claim balance sufficiency, accounting roles, or a Core-wide
+conservation law.
+-/
+private def showAdmissionPreview
+    (total : Int)
+    (validOn : String)
+    (eventId : Loam.Core.EventId)
+    (factId : Loam.Core.ActualValidityFactId) : IO Unit := do
+  IO.println ""
+  IO.println "Admission preview"
+  IO.println ("  movement: " ++ toString total ++ " jpy")
+  IO.println ("  date: " ++ validOn)
+  IO.println ("  event: " ++ eventId.token)
+  IO.println ("  validity fact: " ++ factId.token)
+  IO.println "  [ok] movement totals agree"
+  IO.println "  [ok] effect identities admitted"
+  IO.println "  [ok] Event identity admitted in memory"
+  IO.println "  [ok] validity fact identity admitted in retained history"
+  IO.println "  ready to publish"
+
+/--
 Record one balanced human-facing JPY movement with one occurrence date and one
 or more FROM / TO loci.
 
@@ -115,6 +138,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
                           }
                           match Loam.Core.EventMemory.add? memory event, history.addFact? fact with
                           | some updatedEvents, some updatedHistory =>
+                              showAdmissionPreview total validOn eventId factId
                               if ← Loam.Persistence.saveActualValidityHistory?
                                   validityFile updatedHistory then
                                 if ← Loam.Persistence.saveEventMemory? memoryFile updatedEvents then
