@@ -1,6 +1,6 @@
 # Observation 144 — Exact conversion and retained residual
 
-Status: **experiment under qualification**
+Status: **qualified experiment**
 
 ## Question
 
@@ -95,7 +95,19 @@ So splitting does not break exact conversion if the residual information is reta
 
 The theorem intentionally does **not** normalize the sum of split residuals. In the concrete specimen the split residual sum equals the denominator itself. That is exactly the next policy boundary: if callers demand only whole target quanta, some carry / placement / rounding choice must decide where that accumulated residual becomes visible.
 
-## Qualified candidate if Lean accepts the probe
+## Qualified result
+
+Lean 4.33.1 accepts the complete probe:
+
+```text
+exact_conversion
+residual_lt_denominator
+split_preserves_exact_scaled_quantity
+```
+
+and all closed `1 / 3` pressure examples, including the explicit inequality between aggregate and independently truncated split whole quantities.
+
+The qualified boundary is:
 
 ```text
 selected exact Measure relation
@@ -111,11 +123,11 @@ whole target quanta + residual
     -> exact scaled conservation under splitting
 ```
 
-This would keep arithmetic distinct from the semantic authority questions in Observations 142–143.
+So exactness does not require a floating-point or currency-specific primitive. It requires that integer projection not silently erase the residual information that distinguishes aggregate from independently split conversion.
 
 ## Relationship to existing Allocation core
 
-`Loam.Core.Allocation` already uses quotient + remainder to preserve indivisible quantity exactly when dividing one total across recipients. Observation 144 tests the same mathematical pressure in a relation-conversion setting without promoting new production types.
+`Loam.Core.Allocation` already uses quotient + remainder to preserve indivisible quantity exactly when dividing one total across recipients. Observation 144 finds the same mathematical pressure in a relation-conversion setting without promoting new production types.
 
 The conceptual resemblance is useful:
 
@@ -150,7 +162,7 @@ Those are separate semantic or arithmetic questions.
 
 ## Not earned by this observation
 
-Even if qualified, Observation 144 does not establish canonical:
+Observation 144 does not establish canonical:
 
 - `ExchangeRate`;
 - `Money` or `Currency` arithmetic;
@@ -162,11 +174,16 @@ Even if qualified, Observation 144 does not establish canonical:
 
 The experiment-local `whole` and `residual` functions are mathematical probes only.
 
+## Qualification
+
+- initial executable head `f3cde1ebac0e2554efd71da84f2be7ffdd52d25a` — Observation 144 SUCCESS
+- initial run `33779465131`, job `100729286187` — Lean proof check SUCCESS
+
 ## Tool choice
 
 **Lean.**
 
-The question is no longer static distinguishability. It is an arithmetic law over all natural quantities in the model:
+The question is an arithmetic law over all natural quantities in the model:
 
 ```text
 exact decomposition
@@ -174,6 +191,6 @@ bounded remainder
 split conservation
 ```
 
-Alloy would only sample bounded integers. Lean can establish the conservation statement generally.
+Alloy would only sample bounded integers. Lean establishes the conservation statement generally.
 
 A later observation may use Lean again if a specific rounding / carry rule is actually demanded. Alloy or TLA+ would become relevant only if residual ownership, authority, or temporal publication becomes the question.
