@@ -16,7 +16,7 @@ abstract sig World {
 one sig Left, Right extends World {}
 
 fun allocated[w: World, s: Scheduled, a: Actual]: one Int {
-  sum q: Int | s->a->q in w.shares
+  sum a.(s.(w.shares))
 }
 
 fun realized[w: World, s: Scheduled]: one Int {
@@ -28,7 +28,7 @@ fun used[w: World, a: Actual]: one Int {
 }
 
 pred linked[w: World, s: Scheduled, a: Actual] {
-  some q: Int | s->a->q in w.shares
+  some a.(s.(w.shares))
 }
 
 fun topology[w: World]: Scheduled -> Actual {
