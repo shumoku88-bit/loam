@@ -7,13 +7,11 @@ on:
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/ScheduledPersistence.lean'
       - 'Loam/ScheduledCli.lean'
-      - 'Loam/Core.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
-      - 'tools/loam'
-      - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
       - '.github/workflows/practical-scheduled.yml'
@@ -23,13 +21,11 @@ on:
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/ScheduledPersistence.lean'
       - 'Loam/ScheduledCli.lean'
-      - 'Loam/Core.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/WriterOwnership.lean'
-      - 'tools/loam'
-      - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
       - '.github/workflows/practical-scheduled.yml'
@@ -49,21 +45,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build practical Scheduled entrance
+      - name: Build practical LOAM executable
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: loamScheduled
+          build-args: loam
           test: false
           lint: false
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-
-      - name: Build practical Core
-        run: lake build Loam
 
       - name: Record and show two scheduled movements
         shell: bash
