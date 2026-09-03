@@ -5,8 +5,11 @@ on:
     paths:
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledCompletionUi.lean'
       - 'Loam/ScheduledCli.lean'
+      - 'Loam/ScheduledLifecycleCli.lean'
       - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/MovementEntry.lean'
@@ -22,8 +25,11 @@ on:
     paths:
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledCompletionUi.lean'
       - 'Loam/ScheduledCli.lean'
+      - 'Loam/ScheduledLifecycleCli.lean'
       - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/MovementEntry.lean'
@@ -87,6 +93,9 @@ jobs:
           SCHEDULED	scheduled-4	2026-09-25	jpy
           CHANGE	paypay	-400
           CHANGE	coffee	400
+          SCHEDULED	scheduled-5	2026-09-27	jpy
+          CHANGE	paypay	-300
+          CHANGE	service	300
           EOF
 
           printf 'paypay\n950\n\nrent\n950\n\n' \
@@ -94,6 +103,14 @@ jobs:
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-1 \
                 >/tmp/loam-scheduled-complete-1.out
 
+          grep -Fq 'Scheduled completion' /tmp/loam-scheduled-complete-1.out
+          grep -Fq 'action: Complete' /tmp/loam-scheduled-complete-1.out
+          grep -Fq '[?] Actual date' /tmp/loam-scheduled-complete-1.out
+          grep -Fq 'outstanding: Actual date, Actual movement' /tmp/loam-scheduled-complete-1.out
+          grep -Fq '[ok] Actual date: 2026-09-11' /tmp/loam-scheduled-complete-1.out
+          grep -Fq 'outstanding: Actual movement' /tmp/loam-scheduled-complete-1.out
+          grep -Fq '[ok] Actual movement: 950 jpy' /tmp/loam-scheduled-complete-1.out
+          grep -Fq 'ready to request admission' /tmp/loam-scheduled-complete-1.out
           grep -Fq 'scheduled-1' /tmp/loam-scheduled-complete-1.out
           grep -Fq 'paypay: -1000 jpy' /tmp/loam-scheduled-complete-1.out
           grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' \
@@ -156,6 +173,9 @@ jobs:
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-2 \
                 >/tmp/loam-scheduled-complete-2.out
 
+          grep -Fq 'action: Resume completion' /tmp/loam-scheduled-complete-2.out
+          grep -Fq '[ok] completion relation retained' /tmp/loam-scheduled-complete-2.out
+          grep -Fq 'outstanding: Actual date, Actual movement' /tmp/loam-scheduled-complete-2.out
           grep -Fq 'Completed scheduled movement: scheduled-2 -> scheduled-completion:scheduled-2, 700 jpy. Date: 2026-09-16.' \
             /tmp/loam-scheduled-complete-2.out
           test "$(grep -Fc $'COMPLETION\tscheduled-2\tscheduled-completion:scheduled-2' "$completions")" = '1'
@@ -186,6 +206,9 @@ jobs:
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-3 \
                 >/tmp/loam-scheduled-complete-3.out
 
+          grep -Fq 'action: Resume completion' /tmp/loam-scheduled-complete-3.out
+          grep -Fq '[ok] Actual date: 2026-09-21 (retained)' /tmp/loam-scheduled-complete-3.out
+          grep -Fq 'outstanding: Actual movement' /tmp/loam-scheduled-complete-3.out
           grep -Fq 'Using retained Actual date from interrupted completion: 2026-09-21' \
             /tmp/loam-scheduled-complete-3.out
           grep -Fq 'Completed scheduled movement: scheduled-3 -> scheduled-completion:scheduled-3, 2800 jpy. Date: 2026-09-21.' \
@@ -193,6 +216,68 @@ jobs:
           test "$(grep -Fc $'FACT\tscheduled-completion-validity:scheduled-3\tscheduled-completion:scheduled-3\t2026-09-21' "$validity")" = '1'
           if grep -Fq '2026-09-30' "$validity"; then
             echo 'retry replaced retained completion date' >&2
+            exit 1
+          fi
+
+      - name: Reject stale completion draft after concurrent cancellation
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+          completions="$scheduled.completions"
+          retirements="$scheduled.retirements"
+          fifo="$tmp_dir/scheduled-5-input"
+          complete_out="$tmp_dir/scheduled-5-complete.out"
+          complete_err="$tmp_dir/scheduled-5-complete.err"
+          cancel_out="$tmp_dir/scheduled-5-cancel.out"
+          mkfifo "$fifo"
+
+          LOAM_OCCURRENCE_DATE=2026-09-28 \
+            ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-5 \
+              <"$fifo" >"$complete_out" 2>"$complete_err" &
+          complete_pid=$!
+          exec 3>"$fifo"
+          printf 'paypay\n' >&3
+
+          reached_amount=0
+          for _ in $(seq 1 300); do
+            if grep -Fq 'From amount?' "$complete_out"; then
+              reached_amount=1
+              break
+            fi
+            if ! kill -0 "$complete_pid" 2>/dev/null; then
+              cat "$complete_out" >&2 || true
+              cat "$complete_err" >&2 || true
+              echo 'completion exited before waiting for movement input' >&2
+              exit 1
+            fi
+            sleep 0.1
+          done
+          test "$reached_amount" = '1'
+
+          timeout 15 ./tools/loam scheduled cancel "$scheduled" scheduled-5 >"$cancel_out"
+          grep -Fq 'Cancelled scheduled movement: scheduled-5 on 2026-09-27.' "$cancel_out"
+
+          printf '300\n\nservice\n300\n\n' >&3
+          exec 3>&-
+          if wait "$complete_pid"; then
+            echo 'expected stale completion draft to be refused after cancellation' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '1'
+          grep -Fq 'Scheduled movement changed while the completion draft was open: scheduled-5 is now cancelled.' \
+            "$complete_out"
+          grep -Fq $'RETIREMENT\tscheduled-5' "$retirements"
+          if grep -Fq $'COMPLETION\tscheduled-5\t' "$completions"; then
+            echo 'stale completion relation was published after cancellation' >&2
+            exit 1
+          fi
+          if grep -Fq $'EVENT\tscheduled-completion:scheduled-5' "$memory"; then
+            echo 'stale completion Event was published after cancellation' >&2
             exit 1
           fi
 
