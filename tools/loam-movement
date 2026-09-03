@@ -13,6 +13,7 @@ binary_is_current() {
   for input in \
     Loam/ActualDate.lean \
     Loam/Persistence/ActualValidityPersistence.lean \
+    Loam/Persistence/EventDescriptionPersistence.lean \
     Loam/CompletionPrompt.lean \
     Loam/Cli/MovementCli.lean \
     Loam/MovementEntry.lean \
