@@ -53,8 +53,8 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Build Core and Application
-        run: lake build Loam Loam.Application
+      - name: Build Core, Application, and date runtime dependencies
+        run: lake build Loam Loam.Application loamMovement
       - name: Compile practical date-correction entrance
         run: lake env lean Loam/ActualValidityCorrectionCli.lean
       - name: Exercise date-correction frontier
