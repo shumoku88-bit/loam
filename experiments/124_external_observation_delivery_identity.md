@@ -52,7 +52,31 @@ Observation A may be delivered twice. Observation B may instead arrive as the se
 
 The source identities are bounded scaffolding. They do not assert that every bank provider exposes a stable transaction ID. The semantic point is only that information equivalent to source identity or explicit delivery-to-observation correspondence is required if retry and same-content multiplicity must remain distinguishable.
 
-## Reachable histories
+## Executed result
+
+TLC on executable head `6ca00e4818f2d75a766a185d663f352d197dccf0` qualified the complete target.
+
+Positive invariants all completed with no error:
+
+```text
+TypeOK
+StoredCountMatchesSourceIdentity
+DeliveryCountMatchesAttempts
+KnownIdentityRequiresDelivery
+RetryPreservesSingleObservation
+DistinctKeysRemainDistinct
+```
+
+All deliberately-too-strong boundaries were violated as expected:
+
+```text
+NoRetryHistory
+NoDistinctSameContentHistory
+IdenticalPayloadDeliveriesAlwaysOneObservation
+IdenticalPayloadDeliveriesAlwaysTwoObservations
+```
+
+So both histories are reachable.
 
 ### Retry
 
@@ -82,39 +106,11 @@ same-payload
 same-payload
 ```
 
-If both are reachable, payload content and delivery count alone are insufficient to decide retained observation multiplicity.
+The payload stream and delivery count therefore do not determine retained observation multiplicity.
 
-## Qualification target
+## Finding
 
-Positive invariants must hold:
-
-```text
-TypeOK
-StoredCountMatchesSourceIdentity
-DeliveryCountMatchesAttempts
-KnownIdentityRequiresDelivery
-RetryPreservesSingleObservation
-DistinctKeysRemainDistinct
-```
-
-Dedicated boundary configurations are deliberately too strong and must fail:
-
-```text
-NoRetryHistory
-NoDistinctSameContentHistory
-IdenticalPayloadDeliveriesAlwaysOneObservation
-IdenticalPayloadDeliveriesAlwaysTwoObservations
-```
-
-Expected interpretation:
-
-- violation of `NoRetryHistory` shows repeated delivery can leave one retained observation;
-- violation of `NoDistinctSameContentHistory` shows equal content can still represent two distinct source observations;
-- violating both `IdenticalPayloadDeliveriesAlwaysOneObservation` and `...AlwaysTwoObservations` shows the identical payload stream does not determine observation multiplicity.
-
-## Expected compression boundary
-
-If qualified:
+The bounded compression boundary is:
 
 ```text
 delivery attempt
@@ -133,7 +129,19 @@ payload content
 retained observation count
 ```
 
-A minimal ingest boundary therefore needs information equivalent to:
+Neither simplistic rule survives:
+
+```text
+same payload twice -> always one observation
+```
+
+nor:
+
+```text
+same payload twice -> always two observations
+```
+
+For the selected question, a minimal ingest boundary needs information equivalent to:
 
 ```text
 source observation identity
@@ -143,15 +151,15 @@ explicit delivery -> retained-observation correspondence
 
 when the source contract and household questions require replay to be distinguishable from genuine same-content multiplicity.
 
-This does not imply that a provider-supplied ID is universally trustworthy or stable. Pending -> posted providers may replace identifiers, and sources without stable identity may require adapter-local provenance or later reconciliation policy. Observation 124 only rejects content-only deduplication as a generally sufficient semantic rule.
+This does not imply that a provider-supplied ID is universally trustworthy or stable. Pending -> posted providers may replace identifiers, and sources without stable identity may require adapter-local provenance or later reconciliation policy. Observation 124 rejects content-only deduplication as a generally sufficient semantic rule, not every content heuristic as an application aid.
 
 ## Neighboring boundaries
 
 - Observation 121 separates external observation authority from household Actual authority and shows reconciliation is not reconstructible from record content alone.
 - Observation 123 separates source pending/posted lifecycle from Actual lifecycle and retains source provenance when current projection is too small.
-- Observation 124 stays one layer earlier: before reconciliation, can source delivery itself be collapsed into source observation identity?
+- Observation 124 stays one layer earlier: before reconciliation, source delivery itself cannot be collapsed into source observation identity when replay and genuine same-content multiplicity must remain distinguishable.
 
-Together these pressures suggest three distinct notions that must not be casually collapsed:
+Together these pressures expose three distinct notions:
 
 ```text
 delivery attempt
@@ -159,7 +167,7 @@ external source observation
 household Actual
 ```
 
-No generic provenance framework is earned yet.
+Their mechanics may later share implementation pieces, but their semantic authorities should not be collapsed merely for storage convenience. No generic provenance framework is earned yet.
 
 ## Boundaries
 
