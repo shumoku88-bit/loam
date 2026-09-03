@@ -201,7 +201,7 @@ assert ActualPhysicalDefinitionDeterminesFundingProjection {
     sameActualPhysicalDefinition[w1, w2]
     implies
     (remaining[w1, Food] = remaining[w2, Food] and
-     assetQuantityAfter[w1] = assetQuantityAfter[w2, AssetRole] and
+     assetQuantityAfter[w1] = assetQuantityAfter[w2] and
      liabilityQuantityAfter[w1] = liabilityQuantityAfter[w2] and
      netFundingPositionAfter[w1] = netFundingPositionAfter[w2])
 }
