@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.Persistence.ActualValidityPersistence
+import Loam.Persistence.EventDescriptionPersistence
 import Loam.CompletionPrompt
 import Loam.MovementEntry
 import Loam.Persistence.ScheduledCompletionPersistence
@@ -34,6 +35,33 @@ private def loadEventMemoryOrEmpty?
     Loam.Persistence.loadEventMemory? path
   else
     return EventMemory.ofEvents? []
+
+private def loadEventDescriptionMemoryOrEmpty?
+    (path : System.FilePath) : IO (Option EventDescriptionMemory) := do
+  if ← path.pathExists then
+    Loam.Persistence.loadEventDescriptionMemory? path
+  else
+    return some EventDescriptionMemory.empty
+
+/--
+Collect optional EventDescription text for one Scheduled completion draft.
+
+Interactive terminals expose the same small human-recognition field as ordinary
+Movement recording. Redirected/scripted callers retain no description unless
+`LOAM_DESCRIPTION` is explicitly supplied. Empty text means no description.
+-/
+private def practicalDescription : IO (Option String) := do
+  match ← IO.getEnv "LOAM_DESCRIPTION" with
+  | some text =>
+      if text.isEmpty then return none else return some text
+  | none =>
+      let stdin ← IO.getStdin
+      let stdout ← IO.getStdout
+      if (← stdin.isTty) && (← stdout.isTty) then
+        let text ← promptLine "Description (optional): "
+        if text.isEmpty then return none else return some text
+      else
+        return none
 
 private def freshScheduledIdFrom
     (memory : ScheduledMemory String) : Nat → Nat → Option ScheduledId
@@ -184,13 +212,16 @@ Human-entered completion material prepared before mutation ownership is acquired
 
 The expected Actual identity and relation-presence bit are preflight observations,
 not authority. Activation re-reads current evidence and refuses incompatible
-changes before publishing.
+changes before publishing. A retained EventDescription is likewise preflight
+supporting evidence and cannot be replaced on retry.
 -/
 structure CompletionDraft where
   actual : EventId
   completionRetained : Bool
   validOn : String
   dateSource : CompletionDateSource
+  description : Option String
+  descriptionRetained : Bool
   effects : List Effect
   total : Int
 
@@ -225,8 +256,9 @@ Prepare one completion draft without holding Scheduled or EventMemory writer
 ownership across human think time.
 
 The read-only snapshot supplies expectation context, known-Locus hints, and any
-retained completion/date evidence. It is deliberately not publication authority;
-activation re-reads all canonical evidence under writer ownership.
+retained completion/date/description evidence. It is deliberately not
+publication authority; activation re-reads all canonical evidence under writer
+ownership.
 -/
 def prepareCompletionDraft
     (scheduledPath memoryPath scheduledToken : String) :
@@ -236,6 +268,7 @@ def prepareCompletionDraft
   let completionFile :=
     Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
   let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
+  let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
 
   if !(← scheduledFile.pathExists) then
     IO.eprintln ("loam: file not found: " ++ scheduledPath)
@@ -271,112 +304,138 @@ def prepareCompletionDraft
                           IO.eprintln "loam: malformed or unsupported actual-validity history"
                           return Except.error 2
                       | some history =>
-                          let existingCompletion :=
-                            ScheduledCompletionMemory.findByScheduled? completionMemory scheduledId
-                          let completionRetained :=
-                            match existingCompletion with
-                            | some _ => true
-                            | none => false
-                          let actualId :=
-                            match existingCompletion with
-                            | some completion => completion.actual
-                            | none => completionEventId scheduledId
-                          let factId := completionValidityFactId scheduledId
-                          let existingFact := history.findFactById? factId
-
-                          match EventMemory.findById? eventMemory actualId with
-                          | some _ =>
-                              match existingCompletion with
-                              | some _ =>
-                                  IO.println
-                                    ("Scheduled movement already completed: " ++
-                                      scheduledId.token ++ " -> " ++ actualId.token ++ ".")
-                                  return Except.error 1
-                              | none =>
-                                  IO.eprintln
-                                    "loam: completion Event identity already exists without the expected completion relation"
-                                  return Except.error 2
+                          match ← loadEventDescriptionMemoryOrEmpty? descriptionFile with
                           | none =>
-                              if !completionRetained &&
-                                  (historyMentionsEvent history actualId ||
-                                    (ScheduledCompletionMemory.findByActual? completionMemory actualId).isSome) then
-                                IO.eprintln
-                                  "loam: generated completion Event identity collides with retained evidence"
-                                return Except.error 2
-                              else
-                                let retainedDateResult : Except String (Option String) :=
-                                  match existingFact with
-                                  | some fact =>
-                                      if fact.event = actualId then
-                                        Except.ok (some fact.validOn)
-                                      else
-                                        Except.error
-                                          "loam: retained completion-date identity points to another Event"
-                                  | none =>
-                                      if historyMentionsEvent history actualId then
-                                        Except.error
-                                          "loam: completion Event identity already has unrelated date evidence"
-                                      else
-                                        Except.ok none
-                                match retainedDateResult with
-                                | Except.error message =>
-                                    IO.eprintln message
-                                    return Except.error 2
-                                | Except.ok retainedDate =>
-                                    IO.println "Scheduled expectation:"
-                                    printOccurrence occurrence
-                                    let initialProgress : Loam.ScheduledCompletionUi.Progress := {
-                                      completionRetained := completionRetained
-                                      actualDate := retainedDate
-                                      dateRetained := retainedDate.isSome
-                                    }
-                                    showCompletionProgress initialProgress
+                              IO.eprintln "loam: malformed or unsupported event-description memory"
+                              return Except.error 2
+                          | some descriptions =>
+                              let existingCompletion :=
+                                ScheduledCompletionMemory.findByScheduled? completionMemory scheduledId
+                              let completionRetained :=
+                                match existingCompletion with
+                                | some _ => true
+                                | none => false
+                              let actualId :=
+                                match existingCompletion with
+                                | some completion => completion.actual
+                                | none => completionEventId scheduledId
+                              let factId := completionValidityFactId scheduledId
+                              let existingFact := history.findFactById? factId
+                              let retainedDescription :=
+                                EventDescriptionMemory.findText? descriptions actualId
 
-                                    let dateResult ←
-                                      match retainedDate with
-                                      | some day =>
-                                          IO.println
-                                            ("Using retained Actual date from interrupted completion: " ++ day)
-                                          pure (Except.ok (day, CompletionDateSource.retained))
+                              match EventMemory.findById? eventMemory actualId with
+                              | some _ =>
+                                  match existingCompletion with
+                                  | some _ =>
+                                      IO.println
+                                        ("Scheduled movement already completed: " ++
+                                          scheduledId.token ++ " -> " ++ actualId.token ++ ".")
+                                      return Except.error 1
+                                  | none =>
+                                      IO.eprintln
+                                        "loam: completion Event identity already exists without the expected completion relation"
+                                      return Except.error 2
+                              | none =>
+                                  if !completionRetained &&
+                                      (historyMentionsEvent history actualId ||
+                                        retainedDescription.isSome ||
+                                        (ScheduledCompletionMemory.findByActual?
+                                          completionMemory actualId).isSome) then
+                                    IO.eprintln
+                                      "loam: generated completion Event identity collides with retained evidence"
+                                    return Except.error 2
+                                  else
+                                    let retainedDateResult : Except String (Option String) :=
+                                      match existingFact with
+                                      | some fact =>
+                                          if fact.event = actualId then
+                                            Except.ok (some fact.validOn)
+                                          else
+                                            Except.error
+                                              "loam: retained completion-date identity points to another Event"
                                       | none =>
-                                          match ← Loam.ActualDate.practicalOccurrenceDate with
-                                          | Except.error message => pure (Except.error message)
-                                          | Except.ok day =>
-                                              let withDate := {
-                                                initialProgress with
-                                                actualDate := some day
-                                                dateRetained := false
-                                              }
-                                              showCompletionProgress withDate
-                                              pure (Except.ok (day, CompletionDateSource.entered))
-                                    match dateResult with
+                                          if historyMentionsEvent history actualId then
+                                            Except.error
+                                              "loam: completion Event identity already has unrelated date evidence"
+                                          else
+                                            Except.ok none
+                                    match retainedDateResult with
                                     | Except.error message =>
                                         IO.eprintln message
                                         return Except.error 2
-                                    | Except.ok (validOn, dateSource) =>
-                                        IO.println
-                                          "Enter what actually happened. Add FROM entries, then TO entries."
-                                        match ← Loam.MovementEntry.collectMovementEffectsWithDefaults
-                                            (knownCompletionLoci scheduledMemory eventMemory)
-                                            occurrence.movement with
-                                        | Except.error message =>
-                                            IO.eprintln message
-                                            return Except.error 2
-                                        | Except.ok (effects, total) =>
-                                            showCompletionProgress {
-                                              completionRetained := completionRetained
-                                              actualDate := some validOn
-                                              dateRetained := decide (dateSource = .retained)
-                                              movementTotal := some total
-                                            }
-                                            return Except.ok {
-                                              actual := actualId
-                                              completionRetained := completionRetained
-                                              validOn := validOn
-                                              dateSource := dateSource
-                                              effects := effects
-                                              total := total
-                                            }
+                                    | Except.ok retainedDate =>
+                                        if retainedDescription.isSome && retainedDate.isNone then
+                                          IO.eprintln
+                                            "loam: retained completion description lacks prior completion-date evidence"
+                                          return Except.error 2
+                                        else
+                                          IO.println "Scheduled expectation:"
+                                          printOccurrence occurrence
+                                          let initialProgress : Loam.ScheduledCompletionUi.Progress := {
+                                            completionRetained := completionRetained
+                                            actualDate := retainedDate
+                                            dateRetained := retainedDate.isSome
+                                          }
+                                          showCompletionProgress initialProgress
+
+                                          let dateResult ←
+                                            match retainedDate with
+                                            | some day =>
+                                                IO.println
+                                                  ("Using retained Actual date from interrupted completion: " ++ day)
+                                                pure (Except.ok (day, CompletionDateSource.retained))
+                                            | none =>
+                                                match ← Loam.ActualDate.practicalOccurrenceDate with
+                                                | Except.error message => pure (Except.error message)
+                                                | Except.ok day =>
+                                                    let withDate := {
+                                                      initialProgress with
+                                                      actualDate := some day
+                                                      dateRetained := false
+                                                    }
+                                                    showCompletionProgress withDate
+                                                    pure (Except.ok (day, CompletionDateSource.entered))
+                                          match dateResult with
+                                          | Except.error message =>
+                                              IO.eprintln message
+                                              return Except.error 2
+                                          | Except.ok (validOn, dateSource) =>
+                                              let descriptionResult ←
+                                                match retainedDescription with
+                                                | some text =>
+                                                    IO.println
+                                                      ("Using retained Actual description from interrupted completion: " ++ text)
+                                                    pure (some text, true)
+                                                | none =>
+                                                    let description ← practicalDescription
+                                                    pure (description, false)
+                                              let (description, descriptionRetained) := descriptionResult
+                                              IO.println
+                                                "Enter what actually happened. Add FROM entries, then TO entries."
+                                              match ← Loam.MovementEntry.collectMovementEffectsWithDefaults
+                                                  (knownCompletionLoci scheduledMemory eventMemory)
+                                                  occurrence.movement with
+                                              | Except.error message =>
+                                                  IO.eprintln message
+                                                  return Except.error 2
+                                              | Except.ok (effects, total) =>
+                                                  showCompletionProgress {
+                                                    completionRetained := completionRetained
+                                                    actualDate := some validOn
+                                                    dateRetained := decide (dateSource = .retained)
+                                                    movementTotal := some total
+                                                  }
+                                                  return Except.ok {
+                                                    actual := actualId
+                                                    completionRetained := completionRetained
+                                                    validOn := validOn
+                                                    dateSource := dateSource
+                                                    description := description
+                                                    descriptionRetained := descriptionRetained
+                                                    effects := effects
+                                                    total := total
+                                                  }
 
 private def completeScheduledWithDraftUnlocked
     (scheduledPath memoryPath scheduledToken : String)
@@ -386,6 +445,7 @@ private def completeScheduledWithDraftUnlocked
   let completionFile :=
     Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
   let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
+  let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
 
   if !(← scheduledFile.pathExists) then
     IO.eprintln ("loam: file not found: " ++ scheduledPath)
@@ -421,127 +481,183 @@ private def completeScheduledWithDraftUnlocked
                           IO.eprintln "loam: malformed or unsupported actual-validity history"
                           return 2
                       | some history =>
-                          let existingCompletion :=
-                            ScheduledCompletionMemory.findByScheduled? completionMemory scheduledId
-                          let actualId :=
-                            match existingCompletion with
-                            | some completion => completion.actual
-                            | none => completionEventId scheduledId
-                          let factId := completionValidityFactId scheduledId
-                          let existingFact := history.findFactById? factId
-
-                          if actualId != draft.actual then
-                            IO.eprintln
-                              "loam: Scheduled completion state changed while the draft was open; refresh and retry"
-                            return 1
-                          else if draft.completionRetained && existingCompletion.isNone then
-                            IO.eprintln
-                              "loam: retained completion evidence changed while the draft was open; refresh and retry"
-                            return 1
-                          else
-                            match EventMemory.findById? eventMemory actualId with
-                            | some _ =>
+                          match ← loadEventDescriptionMemoryOrEmpty? descriptionFile with
+                          | none =>
+                              IO.eprintln "loam: malformed or unsupported event-description memory"
+                              return 2
+                          | some descriptions =>
+                              let existingCompletion :=
+                                ScheduledCompletionMemory.findByScheduled? completionMemory scheduledId
+                              let actualId :=
                                 match existingCompletion with
+                                | some completion => completion.actual
+                                | none => completionEventId scheduledId
+                              let factId := completionValidityFactId scheduledId
+                              let existingFact := history.findFactById? factId
+                              let existingDescription :=
+                                EventDescriptionMemory.findText? descriptions actualId
+
+                              if actualId != draft.actual then
+                                IO.eprintln
+                                  "loam: Scheduled completion state changed while the draft was open; refresh and retry"
+                                return 1
+                              else if draft.completionRetained && existingCompletion.isNone then
+                                IO.eprintln
+                                  "loam: retained completion evidence changed while the draft was open; refresh and retry"
+                                return 1
+                              else
+                                match EventMemory.findById? eventMemory actualId with
                                 | some _ =>
-                                    IO.println
-                                      ("Scheduled movement already completed: " ++
-                                        scheduledId.token ++ " -> " ++ actualId.token ++ ".")
-                                    return 1
-                                | none =>
-                                    IO.eprintln
-                                      "loam: completion Event identity already exists without the expected completion relation"
-                                    return 2
-                            | none =>
-                                if existingCompletion.isNone &&
-                                    (historyMentionsEvent history actualId ||
-                                      (ScheduledCompletionMemory.findByActual? completionMemory actualId).isSome) then
-                                  IO.eprintln
-                                    "loam: generated completion Event identity collides with retained evidence"
-                                  return 2
-                                else
-                                  let dateAdmission : Except String Bool :=
-                                    match existingFact with
-                                    | some fact =>
-                                        if fact.event != actualId then
-                                          Except.error
-                                            "loam: retained completion-date identity points to another Event"
-                                        else if fact.validOn != draft.validOn then
-                                          Except.error
-                                            "loam: Actual date changed while the completion draft was open; refresh and retry"
-                                        else
-                                          Except.ok true
+                                    match existingCompletion with
+                                    | some _ =>
+                                        IO.println
+                                          ("Scheduled movement already completed: " ++
+                                            scheduledId.token ++ " -> " ++ actualId.token ++ ".")
+                                        return 1
                                     | none =>
-                                        if historyMentionsEvent history actualId then
-                                          Except.error
-                                            "loam: completion Event identity already has unrelated date evidence"
-                                        else
-                                          match draft.dateSource with
-                                          | .retained =>
+                                        IO.eprintln
+                                          "loam: completion Event identity already exists without the expected completion relation"
+                                        return 2
+                                | none =>
+                                    if existingCompletion.isNone &&
+                                        (historyMentionsEvent history actualId ||
+                                          existingDescription.isSome ||
+                                          (ScheduledCompletionMemory.findByActual?
+                                            completionMemory actualId).isSome) then
+                                      IO.eprintln
+                                        "loam: generated completion Event identity collides with retained evidence"
+                                      return 2
+                                    else
+                                      let dateAdmission : Except String Bool :=
+                                        match existingFact with
+                                        | some fact =>
+                                            if fact.event != actualId then
                                               Except.error
-                                                "loam: retained Actual date disappeared while the completion draft was open; refresh and retry"
-                                          | .entered => Except.ok false
-                                  match dateAdmission with
-                                  | Except.error message =>
-                                      IO.eprintln message
-                                      return 1
-                                  | Except.ok dateAlreadyRetained =>
-                                      match Event.ofEffects? actualId draft.effects with
-                                      | none =>
-                                          IO.eprintln "loam: could not admit generated completion Event"
-                                          return 2
-                                      | some event =>
-                                          let completion : ScheduledCompletion := {
-                                            scheduled := scheduledId
-                                            actual := actualId
-                                          }
-                                          let fact : ActualValidityFact String := {
-                                            id := factId
-                                            event := actualId
-                                            validOn := draft.validOn
-                                          }
-                                          let updatedCompletions? :=
-                                            match existingCompletion with
-                                            | some _ => some completionMemory
-                                            | none => completionMemory.add? completion
-                                          let updatedHistory? :=
-                                            if dateAlreadyRetained then
-                                              some history
+                                                "loam: retained completion-date identity points to another Event"
+                                            else if fact.validOn != draft.validOn then
+                                              Except.error
+                                                "loam: Actual date changed while the completion draft was open; refresh and retry"
                                             else
-                                              history.addFact? fact
-                                          match updatedCompletions?, updatedHistory?,
-                                              EventMemory.add? eventMemory event with
-                                          | some updatedCompletions, some updatedHistory,
-                                              some updatedEvents =>
-                                              match existingCompletion with
+                                              Except.ok true
+                                        | none =>
+                                            if historyMentionsEvent history actualId then
+                                              Except.error
+                                                "loam: completion Event identity already has unrelated date evidence"
+                                            else
+                                              match draft.dateSource with
+                                              | .retained =>
+                                                  Except.error
+                                                    "loam: retained Actual date disappeared while the completion draft was open; refresh and retry"
+                                              | .entered => Except.ok false
+                                      match dateAdmission with
+                                      | Except.error message =>
+                                          IO.eprintln message
+                                          return 1
+                                      | Except.ok dateAlreadyRetained =>
+                                          let descriptionAdmission : Except String Bool :=
+                                            if draft.descriptionRetained then
+                                              match draft.description with
                                               | none =>
-                                                  if !(← Loam.Persistence.saveScheduledCompletionMemory?
-                                                      completionFile updatedCompletions) then
-                                                    IO.eprintln
-                                                      "loam: completion relation could not be published"
-                                                    return 2
-                                              | some _ => pure ()
-                                              if !dateAlreadyRetained then
-                                                if !(← Loam.Persistence.saveActualValidityHistory?
-                                                    validityFile updatedHistory) then
-                                                  IO.eprintln
-                                                    "loam: Actual date was not published; the already-published completion relation remains inert"
+                                                  Except.error
+                                                    "loam: retained Actual description draft is internally inconsistent"
+                                              | some expected =>
+                                                  match existingDescription with
+                                                  | none =>
+                                                      Except.error
+                                                        "loam: retained Actual description disappeared while the completion draft was open; refresh and retry"
+                                                  | some current =>
+                                                      if current = expected then
+                                                        Except.ok true
+                                                      else
+                                                        Except.error
+                                                          "loam: Actual description changed while the completion draft was open; refresh and retry"
+                                            else
+                                              match existingDescription with
+                                              | none => Except.ok false
+                                              | some _ =>
+                                                  Except.error
+                                                    "loam: Actual description changed while the completion draft was open; refresh and retry"
+                                          match descriptionAdmission with
+                                          | Except.error message =>
+                                              IO.eprintln message
+                                              return 1
+                                          | Except.ok descriptionAlreadyRetained =>
+                                              match Event.ofEffects? actualId draft.effects with
+                                              | none =>
+                                                  IO.eprintln "loam: could not admit generated completion Event"
                                                   return 2
-                                              if ← Loam.Persistence.saveEventMemory?
-                                                  memoryFile updatedEvents then
-                                                IO.println
-                                                  ("Completed scheduled movement: " ++
-                                                    scheduledId.token ++ " -> " ++ actualId.token ++
-                                                    ", " ++ toString draft.total ++ " jpy. Date: " ++
-                                                    draft.validOn ++ ".")
-                                                return 0
-                                              else
-                                                IO.eprintln
-                                                  "loam: Actual Event was not published; retained completion/date evidence remains inert until that EventId exists"
-                                                return 2
-                                          | _, _, _ =>
-                                              IO.eprintln
-                                                "loam: could not append completion, Actual date, and Event evidence"
-                                              return 2
+                                              | some event =>
+                                                  let completion : ScheduledCompletion := {
+                                                    scheduled := scheduledId
+                                                    actual := actualId
+                                                  }
+                                                  let fact : ActualValidityFact String := {
+                                                    id := factId
+                                                    event := actualId
+                                                    validOn := draft.validOn
+                                                  }
+                                                  let updatedCompletions? :=
+                                                    match existingCompletion with
+                                                    | some _ => some completionMemory
+                                                    | none => completionMemory.add? completion
+                                                  let updatedHistory? :=
+                                                    if dateAlreadyRetained then
+                                                      some history
+                                                    else
+                                                      history.addFact? fact
+                                                  let updatedDescriptions? :=
+                                                    if descriptionAlreadyRetained then
+                                                      some descriptions
+                                                    else
+                                                      match draft.description with
+                                                      | none => some descriptions
+                                                      | some text =>
+                                                          EventDescriptionMemory.ofEntries?
+                                                            (descriptions.entries ++
+                                                              [{ event := actualId, text := text }])
+                                                  match updatedCompletions?, updatedHistory?,
+                                                      updatedDescriptions?, EventMemory.add? eventMemory event with
+                                                  | some updatedCompletions, some updatedHistory,
+                                                      some updatedDescriptions, some updatedEvents =>
+                                                      match existingCompletion with
+                                                      | none =>
+                                                          if !(← Loam.Persistence.saveScheduledCompletionMemory?
+                                                              completionFile updatedCompletions) then
+                                                            IO.eprintln
+                                                              "loam: completion relation could not be published"
+                                                            return 2
+                                                      | some _ => pure ()
+                                                      if !dateAlreadyRetained then
+                                                        if !(← Loam.Persistence.saveActualValidityHistory?
+                                                            validityFile updatedHistory) then
+                                                          IO.eprintln
+                                                            "loam: Actual date was not published; the already-published completion relation remains inert"
+                                                          return 2
+                                                      if !descriptionAlreadyRetained then
+                                                        match draft.description with
+                                                        | none => pure ()
+                                                        | some _ =>
+                                                            if !(← Loam.Persistence.saveEventDescriptionMemory?
+                                                                descriptionFile updatedDescriptions) then
+                                                              IO.eprintln
+                                                                "loam: Actual description was not published; the already-published completion/date evidence remains inert"
+                                                              return 2
+                                                      if ← Loam.Persistence.saveEventMemory?
+                                                          memoryFile updatedEvents then
+                                                        IO.println
+                                                          ("Completed scheduled movement: " ++
+                                                            scheduledId.token ++ " -> " ++ actualId.token ++
+                                                            ", " ++ toString draft.total ++ " jpy. Date: " ++
+                                                            draft.validOn ++ ".")
+                                                        return 0
+                                                      else
+                                                        IO.eprintln
+                                                          "loam: Actual Event was not published; retained completion/date/description evidence remains inert until that EventId exists"
+                                                        return 2
+                                                  | _, _, _, _ =>
+                                                      IO.eprintln
+                                                        "loam: could not append completion, Actual date, description, and Event evidence"
+                                                      return 2
 
 /--
 Activate one already-prepared Scheduled completion draft against current
