@@ -193,8 +193,8 @@ This keeps the DateRange boundary law consistent with Observation 131.
 - executable PR merge ref `6fc3c2a4806e345960ade931a7479439b0f87c8e`
 - base `main` `1672e83786b01c71f80d06bb56e03ffa29efe9c1`
 - executable-head Observation 136: SUCCESS
-- result-note final head `616570cf6f6aba5fea750dddf44e28b0c981f95d`
-- final-head Observation 136: SUCCESS
+- result-note head `616570cf6f6aba5fea750dddf44e28b0c981f95d`: SUCCESS
+- final qualification head `9e87af23f873298f4f484b813ed30e1b63756656`: SUCCESS
 - final-head solver execution and expected-result checker: SUCCESS
 
 ## Boundaries
