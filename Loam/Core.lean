@@ -6,6 +6,7 @@ import Loam.Core.HistoricalRouting
 import Loam.Core.ActualValidity
 import Loam.Core.BalancedMovement
 import Loam.Core.Capacity
+import Loam.Core.CapacityMemory
 import Loam.Core.Event
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection

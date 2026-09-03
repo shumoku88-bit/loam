@@ -6,6 +6,8 @@ cd "$root"
 
 binary=".lake/build/bin/loam"
 binary_stamp=".lake/build/.loam-wrapper-build-stamp"
+capacity_binary=".lake/build/bin/loamCapacity"
+capacity_stamp=".lake/build/.loam-capacity-wrapper-build-stamp"
 daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
 daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
 shadow_binary=".lake/build/bin/loamShadowAudit"
@@ -22,6 +24,28 @@ binary_is_current() {
 
   for input in lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$binary_stamp" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+capacity_binary_is_current() {
+  [[ -x "$capacity_binary" && -e "$capacity_stamp" ]] || return 1
+
+  for input in \
+    Loam/CapacityCli.lean \
+    Loam/CapacityPersistence.lean \
+    Loam/Application/CapacityInspection.lean \
+    Loam/Core/BalancedMovement.lean \
+    Loam/Core/Capacity.lean \
+    Loam/Core/CapacityMemory.lean \
+    Loam/Core/Purpose.lean \
+    Loam/Persistence.lean \
+    Loam/WriterOwnership.lean \
+    lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$capacity_stamp" ]]; then
       return 1
     fi
   done
@@ -106,6 +130,26 @@ run_loam() {
   fi
 }
 
+run_capacity() {
+  if capacity_binary_is_current; then
+    "$capacity_binary" "$@"
+    return $?
+  fi
+
+  echo "Building LOAM spending capacity..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-capacity-build.XXXXXX)"
+  if lake build loamCapacity >"$build_log" 2>&1; then
+    touch "$capacity_stamp"
+    rm -f "$build_log"
+    "$capacity_binary" "$@"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    return 1
+  fi
+}
+
 run_daily_quantity() {
   if daily_quantity_binary_is_current; then
     "$daily_quantity_binary" "$@"
@@ -171,6 +215,12 @@ LOAM practical dogfood
 Record one balanced JPY movement:
   ./tools/loam movement MEMORY_FILE
 
+Move JPY spending capacity:
+  ./tools/loam capacity CAPACITY_FILE
+
+Show spending capacity:
+  ./tools/loam capacity show CAPACITY_FILE
+
 Review recorded facts:
   ./tools/loam review MEMORY_FILE
 
@@ -209,6 +259,12 @@ if [[ "${1:-}" == "movement" ]]; then
   exec "$root/tools/loam-movement" "$@"
 fi
 
+if [[ "${1:-}" == "capacity" ]]; then
+  shift
+  run_capacity "$@" || exit $?
+  exit 0
+fi
+
 if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
   print_help
   exit 0
@@ -240,6 +296,7 @@ if [[ $# -eq 0 ]]; then
   basis_correction_file="$data_dir/basis-corrections.loam"
   balance_view_file="$data_dir/balance-view.tsv"
   basis_cut_file="$data_dir/basis-cut.tsv"
+  capacity_file="$data_dir/capacity.loam"
 
   while true; do
     printf 'LOAM\nData: %s\n\n' "$data_label"
@@ -254,6 +311,8 @@ What do you want to do?
 7. Set a starting balance
 8. Show balances
 9. Correct a starting balance
+10. Move spending capacity
+11. Show spending capacity
 q. Quit
 EOF
     printf '> '
@@ -296,6 +355,12 @@ EOF
         ;;
       9)
         run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
+        ;;
+      10)
+        run_menu_action run_capacity "$capacity_file"
+        ;;
+      11)
+        run_menu_action run_capacity show "$capacity_file"
         ;;
       q|Q)
         break
