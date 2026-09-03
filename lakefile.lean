@@ -7,7 +7,7 @@ package loam
 lean_lib Loam
 
 lean_exe loam where
-  root := `Loam.PrimaryCli
+  root := `Loam.Cli
 
 lean_exe loamMovement where
   root := `Loam.MovementCli
