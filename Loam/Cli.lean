@@ -306,7 +306,7 @@ def run (args : List String) : IO UInt32 :=
   | ["event", "quantity", path, locus, measure] =>
       showEventQuantity path locus measure
   | ["event-memory", "get", path, eventToken] =>
-      showRememberedEvent memoryPath eventPath
+      showRememberedEvent path eventToken
   | ["event-memory", "quantity", path, locus, measure] =>
       showRememberedQuantity path locus measure
   | ["event-memory", "add", memoryPath, eventPath] =>
