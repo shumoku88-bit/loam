@@ -73,8 +73,8 @@ jobs:
           memory="$tmp_dir/memory.loam"
           validity="$memory.actual-validity"
 
-          printf '2026-09-02\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
-            | ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+          printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
 
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
@@ -88,13 +88,13 @@ jobs:
           grep -Fq 'paypay: -800 jpy' /tmp/loam-review.out
           grep -Fq 'groceries: 1000 jpy' /tmp/loam-review.out
 
-      - name: Empty date accepts host-local today through primary menu
+      - name: Scripted primary menu defaults to host-local today
         shell: bash
         run: |
           data_dir="$(mktemp -d)"
           today="$(date +%Y-%m-%d)"
 
-          printf '1\n\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
+          printf '1\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
             | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out
           grep -Fq '1. Record movement' /tmp/loam-menu.out
           grep -Fq "Recorded movement: 1000 jpy. Date: $today." /tmp/loam-menu.out
@@ -115,14 +115,15 @@ jobs:
           ./tools/loam review "$memory" >/tmp/loam-undated-review.out
           grep -Fq 'date unknown  [record-1]' /tmp/loam-undated-review.out
 
-      - name: Refuse invalid calendar date without publication
+      - name: Refuse invalid scripted calendar date without publication
         shell: bash
         run: |
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
 
-          if printf '2026-02-29\n' \
-              | ./tools/loam-movement "$memory" >/tmp/loam-date.out 2>/tmp/loam-date.err; then
+          if printf 'paypay\n1\n\ncoffee\n1\n\n' \
+              | LOAM_OCCURRENCE_DATE=2026-02-29 ./tools/loam-movement "$memory" \
+                >/tmp/loam-date.out 2>/tmp/loam-date.err; then
             echo 'expected invalid occurrence date to fail' >&2
             exit 1
           else
@@ -139,8 +140,9 @@ jobs:
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
 
-          if printf '2026-09-02\npaypay\n800\n\ngroceries\n799\n\n' \
-              | ./tools/loam-movement "$memory" >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
+          if printf 'paypay\n800\n\ngroceries\n799\n\n' \
+              | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" \
+                >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
             echo 'expected unequal movement totals to fail' >&2
             exit 1
           else
