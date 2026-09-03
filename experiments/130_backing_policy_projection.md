@@ -1,5 +1,7 @@
 # Observation 130 — Can current Backing be a policy projection instead of retained state?
 
+Status: qualified bounded Alloy observation
+
 ## Question
 
 Observation 129 established:
@@ -96,55 +98,9 @@ Both policies assign exactly the same nine physical units. No stored Backing sta
 
 `CoveragePolicyCopy` has the same definition as `CoveragePolicy` under a distinct policy identity so that sufficiency is checked on an inhabited equal-definition pair rather than only one singleton.
 
-## Pressure 1: can current Backing state disappear?
+## Executed result
 
-The positive candidate says yes, but only conditionally:
-
-```text
-current facts
-+ fixed deterministic policy definition
-    -> one selected current Backing projection
-```
-
-The model therefore checks that equal policy definitions over the same current facts cannot disagree on:
-
-```text
-Backing
-Backed
-Funded
-Gap
-```
-
-and that projected Backing conserves every Holding quantity.
-
-## Pressure 2: did Backing really disappear, or did authority move?
-
-The household facts are identical in `AffinityWorld` and `CoverageWorld`.
-
-Only policy differs.
-
-Yet Travel is:
-
-```text
-AffinityPolicy: Gap 1
-CoveragePolicy: Gap 0
-```
-
-and the selected Cash backing coordinates differ as well.
-
-Therefore if Alloy finds those worlds, then:
-
-```text
-current household facts alone
-    do not determine
-current Backing / Gap
-```
-
-The policy is not merely an optimization implementation detail. It selects a household answer.
-
-## Qualification targets
-
-Expected witnesses:
+Alloy 6.2.0 + Sat4j:
 
 ```text
 backingCanBeProjectedWithoutStoredState                 SAT
@@ -152,54 +108,117 @@ sameCurrentFactsDifferentPolicyDifferentGap             SAT
 sameCurrentFactsDifferentPolicyDifferentHoldingAnswer   SAT
 coveragePolicyClosesCurrentGap                           SAT
 inhabitedSameDefinitionCopy                              SAT
-```
 
-Expected counterexamples to policy-free derivation:
-
-```text
 CurrentFactsAloneDetermineBacking                       SAT counterexample
 CurrentFactsAloneDetermineGap                           SAT counterexample
-```
 
-Expected sufficiency / conservation checks for the current-state candidate:
-
-```text
 CurrentFactsPlusPolicyDefinitionDetermineProjection     UNSAT counterexample
 ProjectedBackingConservesHoldings                       UNSAT counterexample
 ```
 
-## Interpretation if qualified
+The complete expected-result checker passed on the PR merge ref against `main`.
 
-The strongest useful conclusion would be narrower than “Backing is unnecessary.”
+## Finding 1: retained current Backing state can disappear in the selected bounded view
 
-It would be:
+The model contains no retained Backing relation. Nevertheless, once current facts and one deterministic policy definition are fixed, the selected current projection is fixed.
+
+The inhabited `CoveragePolicy` / `CoveragePolicyCopy` pair confirms that equal policy definitions produce equal:
+
+```text
+Holding x Purpose Backing
+Backed
+Funded
+Gap
+```
+
+and the policy-derived allocation conserves every physical Holding quantity.
+
+So the selected bounded result supports:
+
+```text
+current Holdings
++ current Remaining
++ deterministic Backing policy definition
+    -> current Backing projection
+```
+
+without a separately retained current Backing state.
+
+## Finding 2: the semantic authority did not disappear
+
+The same current household facts under different policies produce different household answers:
+
+```text
+AffinityPolicy
+  Travel Gap = 1
+
+CoveragePolicy
+  Travel Gap = 0
+```
+
+The selected Cash backing coordinates also differ.
+
+Therefore:
+
+```text
+current household facts alone
+    do not determine
+current Backing / Gap
+```
+
+A Backing policy that selects between these worlds is not merely an implementation optimization. It carries information-equivalent allocation authority for the selected current answer.
+
+The compression is therefore not:
+
+```text
+Backing disappears completely
+```
+
+but rather:
 
 ```text
 retained current Backing state
-    may be unnecessary
-for the selected current-only projection
+    -> potentially removable
 
-IF
-an explicit deterministic Backing policy is accepted as authority
+Backing allocation authority
+    -> still required, here carried by policy
 ```
 
-That is a genuine code-reduction candidate because LOAM may avoid a mutable Backing store, Backing writer, and a second update after every Actual.
+## Product interpretation
 
-But the semantic distinction has not vanished:
+This opens a genuinely smaller implementation path for ordinary envelope-style use.
+
+LOAM may be able to avoid:
 
 ```text
-Backing allocation authority
+mutable current Backing store
+Backing update after every Actual
+stored Funded
+stored Gap
 ```
 
-has moved into the policy definition.
+and instead calculate the current budget screen from:
 
-So the next design question would become whether that policy may safely be replaceable application configuration, or whether user-authored / historical Backing intent forces durable provenance.
+```text
+Holdings
+Capacity / Remaining
+Actual consumption
+selected Backing policy
+```
+
+But policy choice must be visible in the design because changing policy can change whether a purpose appears under-backed without changing any household Actual.
+
+This does not imply that a user should see a complicated policy editor. A future practical surface could use one small explicit household rule if dogfood shows that it is stable and understandable.
 
 ## Relationship to Observation 071
 
 Observation 071 already established, in another domain, that current policy definition is not automatically sufficient historical provenance when policy behavior changes through time.
 
-Observation 130 therefore does not claim that a current Backing policy can reconstruct historical Backing answers. It only asks whether **current Backing state** can be omitted for a selected current budget view.
+Observation 130 therefore does not claim that a current Backing policy can reconstruct historical Backing answers. It only qualifies omission of **retained current Backing state** for the selected current budget view.
+
+The next pressure is therefore narrower and practical:
+
+> Can one small replaceable current Backing policy serve household use, or does user-authored allocation intent make the policy itself historical/canonical evidence?
 
 ## Boundaries
 
@@ -216,4 +235,4 @@ Observation 130 does not establish:
 - ownership / Agent semantics;
 - Practical Core, persistence, CLI, or canonical household-data changes.
 
-The question is only whether retained **current** Backing state can be compressed into a deterministic policy projection without losing the selected current answers, and whether doing so merely transfers semantic authority into that policy.
+The qualified result is only that retained **current** Backing state can be compressed into a deterministic policy projection for the selected bounded answers, while the missing semantic authority reappears in the policy definition rather than vanishing.
