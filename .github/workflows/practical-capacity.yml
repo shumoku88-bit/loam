@@ -69,9 +69,16 @@ jobs:
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "$tmpdir"' EXIT
           capacity="$tmpdir/capacity.loam"
+          rejected="$tmpdir/rejected.log"
 
           printf 'unallocated\nfood\n100\n' | .lake/build/bin/loamCapacity "$capacity"
           printf 'food\ngroceries\n40\n' | .lake/build/bin/loamCapacity "$capacity"
+
+          if printf 'food\ngroceries\n61\n' | .lake/build/bin/loamCapacity "$capacity" >"$rejected" 2>&1; then
+            echo 'capacity entrance admitted a named-source overdraft' >&2
+            exit 1
+          fi
+          grep -F 'insufficient current entitlement' "$rejected"
 
           output="$(.lake/build/bin/loamCapacity show "$capacity")"
           printf '%s\n' "$output"
