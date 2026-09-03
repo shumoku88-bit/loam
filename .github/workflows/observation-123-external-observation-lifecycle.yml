@@ -1,0 +1,92 @@
+name: Observation 123
+
+on:
+  pull_request:
+    paths:
+      - 'tla/ExternalObservationLifecycle.tla'
+      - 'tla/ExternalObservationLifecycle*.cfg'
+      - 'experiments/123_external_observation_lifecycle.md'
+      - '.github/workflows/observation-123-external-observation-lifecycle.yml'
+  push:
+    branches:
+      - 'experiment/123-external-observation-lifecycle'
+      - main
+    paths:
+      - 'tla/ExternalObservationLifecycle.tla'
+      - 'tla/ExternalObservationLifecycle*.cfg'
+      - 'experiments/123_external_observation_lifecycle.md'
+      - '.github/workflows/observation-123-external-observation-lifecycle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ external observation lifecycle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check source lifecycle safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/ExternalObservationLifecycle.cfg \
+            tla/ExternalObservationLifecycle.tla \
+            2>&1 | tee /tmp/observation-123-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-123-positive.txt
+
+      - name: Require distinct reachable histories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          require_boundary() {
+            cfg="$1"
+            invariant="$2"
+            output="/tmp/observation-123-${invariant}.txt"
+
+            set +e
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -config "tla/${cfg}" \
+              tla/ExternalObservationLifecycle.tla \
+              2>&1 | tee "$output"
+            status=${PIPESTATUS[0]}
+            set -e
+
+            test "$status" -ne 0
+            grep -Fq "$invariant" "$output"
+            grep -Fq 'Invariant' "$output"
+          }
+
+          require_boundary \
+            ExternalObservationLifecyclePendingHistoryBoundary.cfg \
+            NoPendingThenPostedHistory
+
+          require_boundary \
+            ExternalObservationLifecycleDirectPostedBoundary.cfg \
+            NoDirectPostedHistory
+
+          require_boundary \
+            ExternalObservationLifecycleDualSupportBoundary.cfg \
+            NoDualSourceSupport
+
+          require_boundary \
+            ExternalObservationLifecycleQuantityDriftBoundary.cfg \
+            NoQuantityDriftSupport
