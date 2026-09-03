@@ -5,6 +5,7 @@ import Loam.CorrectionCli
 import Loam.ActualValidityCorrectionCli
 import Loam.EffectiveCli
 import Loam.CorrectionIntegrityCli
+import Loam.ScheduledCli
 import Std
 
 namespace Loam.Cli
@@ -19,6 +20,9 @@ private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
   "Daily recording uses the movement entrance:\n" ++
   "  ./tools/loam movement MEMORY_FILE\n\n" ++
+  "Scheduled movements:\n" ++
+  "  ./tools/loam scheduled SCHEDULED_FILE\n" ++
+  "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review recorded facts:\n" ++
   "  ./tools/loam review MEMORY_FILE\n\n" ++
   "Show recorded quantities:\n" ++
@@ -274,6 +278,10 @@ def run (args : List String) : IO UInt32 :=
   | ["help", "low-level"] => do
       IO.println lowLevelUsage
       return 0
+  | ["scheduled", scheduledPath] =>
+      Loam.ScheduledCli.recordScheduled scheduledPath
+  | ["scheduled", "show", scheduledPath] =>
+      Loam.ScheduledCli.showScheduled scheduledPath
   | ["review", memoryPath] => Loam.ReviewCli.reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
