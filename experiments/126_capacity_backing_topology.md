@@ -70,7 +70,13 @@ Bank   -> Food
 Points -> Travel
 ```
 
-So both purposes are fully backed.
+So both purposes are fully backed:
+
+```text
+Food funded   = 6 / 6
+Travel funded = 4 / 4
+total funded  = 10
+```
 
 ### Right
 
@@ -79,37 +85,46 @@ Bank   -> Travel
 Points -> Food
 ```
 
-The household still has exactly the same Capacity and exactly the same eligible total, but Food has only 4 units backing a 6-unit Capacity claim.
-
-Travel has 6 units behind a 4-unit claim.
-
-## Qualification target
-
-Expected witnesses:
+The household still has exactly the same Capacity and exactly the same eligible total, but the selected answers become:
 
 ```text
-backingTopologyChangesPurposeFunding             SAT
-capacityCanRemainUnderbacked                      SAT
-backingCanExceedCapacity                          SAT
-sameAggregateFundingDifferentPurposeAnswer        SAT
+Food funded   = 4 / 6   -- under-backed
+Travel funded = 4 / 4   -- 6 units support a 4-unit claim
+total funded  = 8
 ```
 
-Expected counterexamples:
+The extra 2 units behind Travel do not repair Food merely because household aggregate eligible quantity equals aggregate Capacity.
+
+## Executed result
+
+Alloy 6.2.0 + Sat4j:
 
 ```text
-CapacityAndEligibilityDeterminePurposeFunding     SAT counterexample
-AggregateEligibleQuantityDeterminesTotalFunded    SAT counterexample
+backingTopologyChangesPurposeFunding              SAT
+capacityCanRemainUnderbacked                       SAT
+backingCanExceedCapacity                           SAT
+sameAggregateFundingDifferentPurposeAnswer         SAT
+CapacityAndEligibilityDeterminePurposeFunding      SAT counterexample
+AggregateEligibleQuantityDeterminesTotalFunded     SAT counterexample
+ExplicitBackingDeterminesSelectedFunding           UNSAT counterexample
 ```
 
-And once explicit Backing topology itself is fixed:
+The expected-result checker passed the complete result set.
+
+## Finding
+
+The bounded counterexample keeps identical:
 
 ```text
-ExplicitBackingDeterminesSelectedFunding          UNSAT counterexample
+Capacity
+physical holding quantities
+eligibility
+total eligible quantity
 ```
 
-## Expected compression boundary
+while changing only the holding-to-Purpose Backing relation. The funded answer changes anyway.
 
-If qualified:
+So the selected vocabulary supports this separation:
 
 ```text
 Capacity authority
@@ -117,21 +132,7 @@ Capacity authority
 Backing support
 ```
 
-and:
-
-```text
-Capacity
-+ physical holdings
-+ eligibility
-
-    do not determine
-
-per-Purpose funded / under-backed answers
-```
-
-The selected answer additionally needs information equivalent to Backing correspondence.
-
-This would extend Observation 048 without replacing it:
+and, extending Observation 048:
 
 ```text
 physical holding
@@ -140,6 +141,26 @@ eligible holding
     !=
 Backing of a particular Capacity claim
 ```
+
+The strongest aggregate result is:
+
+```text
+total Capacity = 10
+total eligible = 10
+```
+
+in both worlds, yet:
+
+```text
+Left total funded  = 10
+Right total funded = 8
+```
+
+Therefore aggregate eligible quantity is too small for the selected per-Purpose funded / under-backed answer.
+
+Information equivalent to Backing correspondence remains independently observable once the household asks which Capacity claim is supported by which eligible holding.
+
+Once explicit Backing topology is held fixed, Alloy finds no bounded counterexample to the selected funded projection.
 
 ## Important restraint
 
@@ -163,14 +184,14 @@ A real household may need:
 - historical Backing changes;
 - liquidity, ownership, legal-access, or institution-specific restrictions.
 
-Those pressures may require quantity-bearing Backing evidence or a different representation. Observation 126 asks only whether aggregate eligible holdings can replace topology for the selected funded answer.
+Those pressures may require quantity-bearing Backing evidence or a different representation. Observation 126 establishes only that aggregate eligible holdings cannot replace topology for the selected funded answer.
 
 ## Neighboring boundaries
 
 - Observation 048: physical holding does not determine allocation eligibility.
 - Observation 106: Capacity is a semantic plane distinct from Actual.
 - Observation 113: Scheduled reservation mirrors are not needed for the selected Headroom composition.
-- Observation 126: asks whether eligible holdings and Capacity still leave an independent Backing seam.
+- Observation 126: eligible holdings and Capacity still leave an independent Backing seam.
 
 No generic resource / entitlement / collateral framework is earned by this observation.
 
