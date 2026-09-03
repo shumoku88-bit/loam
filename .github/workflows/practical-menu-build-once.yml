@@ -59,7 +59,7 @@ jobs:
 
           printf 'q\n' | ./tools/loam >"$RUNNER_TEMP/first-menu.out" 2>&1
 
-          test "$(grep -Fc 'Building LOAM practical session...' "$RUNNER_TEMP/first-menu.out")" -eq 1
+          test "$(grep -Fc 'Building LOAM...' "$RUNNER_TEMP/first-menu.out")" -eq 1
           test -x .lake/build/bin/loam
           test -x .lake/build/bin/loamMovement
           test -x .lake/build/bin/loamCapacity
@@ -89,7 +89,7 @@ jobs:
           touch Loam/Core/Quantity.lean
           printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/stale-menu.out" 2>&1
 
-          test "$(grep -Fc 'Building LOAM practical session...' "$RUNNER_TEMP/stale-menu.out")" -eq 1
+          test "$(grep -Fc 'Building LOAM...' "$RUNNER_TEMP/stale-menu.out")" -eq 1
           if grep -Eq 'Building LOAM (spending capacity|daily quantity|open scheduled view|movement)' "$RUNNER_TEMP/stale-menu.out"; then
             cat "$RUNNER_TEMP/stale-menu.out"
             exit 1
