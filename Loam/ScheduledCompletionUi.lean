@@ -23,13 +23,15 @@ inductive Action where
 /--
 Small read-only progress surface for one Scheduled completion interaction.
 
-The relation/date fields describe retained evidence observed during preflight.
-`movementTotal` exists only while the current human-entered draft is in memory.
-Nothing here is persisted as household state.
+`actualDate` may be absent, newly entered for this draft, or observed from
+retained publication evidence. `dateRetained` records only that provenance for
+the UI; it is not a household status fact. `movementTotal` likewise exists only
+while the current human-entered draft is in memory.
 -/
 structure Progress where
   completionRetained : Bool := false
-  retainedDate : Option String := none
+  actualDate : Option String := none
+  dateRetained : Bool := false
   movementTotal : Option Int := none
   deriving Repr
 
@@ -42,10 +44,10 @@ def actionLabel : Action → String
   | .complete => "Complete"
   | .resumeCompletion => "Resume completion"
 
-/-- Remaining draft inputs implied by the currently retained evidence. -/
+/-- Remaining draft inputs implied by the current preflight/draft state. -/
 def obligations (progress : Progress) : List Obligation :=
   let dateNeed :=
-    match progress.retainedDate with
+    match progress.actualDate with
     | none => [Obligation.actualDate]
     | some _ => []
   let movementNeed :=
@@ -75,13 +77,16 @@ example :
 
 example :
     obligations
-        ({ completionRetained := true, retainedDate := some "2026-09-21" } : Progress) =
+        ({ completionRetained := true,
+           actualDate := some "2026-09-21",
+           dateRetained := true } : Progress) =
       [.actualMovement] := by native_decide
 
 example :
     obligations
         ({ completionRetained := true,
-           retainedDate := some "2026-09-21",
+           actualDate := some "2026-09-21",
+           dateRetained := true,
            movementTotal := some 2800 } : Progress) = [] := by native_decide
 
 end Loam.ScheduledCompletionUi
