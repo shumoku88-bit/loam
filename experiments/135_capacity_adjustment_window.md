@@ -114,62 +114,92 @@ generated Capacity over authority DateRange
 
 The month specimen distinguishes the two.
 
-## Qualification targets
+## Executed result
 
-Expected witnesses:
+Alloy 6.2.0 + Sat4j:
 
 ```text
-preViewAdjustmentCarriesIntoSubview                 SAT
-sameViewDifferentAuthorityDifferentAnswer           SAT
-adjustmentAtViewEndIsExcluded                       SAT
-laterSubviewIncludesBoundaryAdjustment              SAT
-equalDefinitionCopySameAnswer                       SAT
+preViewAdjustmentCarriesIntoSubview                      SAT
+sameViewDifferentAuthorityDifferentAnswer                SAT
+adjustmentAtViewEndIsExcluded                            SAT
+laterSubviewIncludesBoundaryAdjustment                   SAT
+equalDefinitionCopySameAnswer                            SAT
+
+ViewRangeFormulaAndTimedAdjustmentsDetermineCapacityAtEnd SAT counterexample
+OnlyViewLocalAdjustmentsDetermineCapacityAtEnd            SAT counterexample
+AuthorityViewFormulaAndTimedAdjustmentsDetermineCapacityAtEnd UNSAT counterexample
+AdjacentSubviewCapacitySnapshotsComposeByAddition         SAT counterexample
 ```
 
-Expected counterexamples to deliberately too-strong assumptions:
+The PR merge-ref qualification used current `main` after PR #296 (`1672e83786b01c71f80d06bb56e03ffa29efe9c1`) and completed successfully with both Alloy execution and the expected-result checker passing.
+
+## Finding
+
+The visible range is not enough to identify the selected Capacity state.
+
+The bounded month witness gives:
 
 ```text
-ViewRangeFormulaAndTimedAdjustmentsDetermineCapacityAtEnd  SAT counterexample
-OnlyViewLocalAdjustmentsDetermineCapacityAtEnd              SAT counterexample
-AdjacentSubviewCapacitySnapshotsComposeByAddition           SAT counterexample
+same visible range [2,3)
+same formula definition
+same timed Capacity adjustments
+
+authority = pension [0,4)
+  -> Food 8 / Travel 6
+
+authority = month [2,3)
+  -> Food 10 / Travel 4
 ```
 
-Expected no counterexample for the smaller bounded candidate:
+So the stronger compression is false:
 
 ```text
-AuthorityViewFormulaAndTimedAdjustmentsDetermineCapacityAtEnd  UNSAT counterexample
-```
-
-## Interpretation if qualified
-
-The useful boundary would be:
-
-```text
-visible DateRange alone
-    too small for selected Capacity state
-
-visible DateRange
+view DateRange
 + formula definition
 + timed Capacity adjustments
-    still too small when authority origin differs
+    do not determine
+Capacity-at-view-end
+```
 
+Filtering only movements whose effective day lies inside the visible range is also too small. The day-1 `Food -2 / Travel +2` decision remains in force during `[2,3)` even though it is not local to that visible range.
+
+The smaller bounded candidate survives:
+
+```text
 authority DateRange
-+ visible DateRange
++ view DateRange
 + formula definition
 + timed Capacity adjustments
-    -> selected Capacity-at-view-end answer
+    -> Capacity-at-view-end
 ```
 
-This would not restore a canonical `Cycle` object. Both `authority` and `view` can remain ordinary half-open DateRanges supplied as query/application context.
+No counterexample was found once the information-equivalent authority endpoints, view endpoints, formula definition, and timed adjustments were fixed.
 
-For example:
+The half-open boundary also behaves coherently: the day-3 adjustment is excluded from `[2,3)` and included in the later `[2,4)` view.
+
+A second compression fails as well:
 
 ```text
-ordinary operation:
+Capacity snapshot over first subview
++ Capacity snapshot over second subview
+    != in general
+Capacity snapshot over whole range
+```
+
+Capacity reallocations are state changes that carry forward. The same earlier decision may therefore be visible in multiple later snapshots; those snapshots are not independent flow quantities to add.
+
+## Product interpretation
+
+This does not restore a canonical `Cycle` object.
+
+Both roles can remain ordinary half-open DateRanges supplied by application/query context:
+
+```text
+ordinary pension operation:
   authority = current pension period
   view      = current pension period
 
-monthly lens on that same budget:
+monthly lens on the same pension budget:
   authority = current pension period
   view      = this month intersected with that period
 
@@ -178,9 +208,14 @@ independent monthly budget:
   view      = this month
 ```
 
-The distinction is semantic role in the query, not a new household object identity.
+The distinction is therefore not necessarily a new household noun. It is a distinction between two questions asked with the same DateRange mechanics:
 
-The observation would also show why subrange Capacity snapshots are not generally additive. A reallocation is retained state change, so the same prior adjustment can be reflected in several later snapshots without representing several independent units of Capacity authority.
+```text
+which interval owns the Capacity authority?
+which interval am I currently looking at?
+```
+
+Observation 112 already established that effective time is independently observable for selected Capacity-history questions. Observation 135 adds practical budget-view pressure for that same information distinction without choosing a production representation.
 
 ## Boundaries
 
