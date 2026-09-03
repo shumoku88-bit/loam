@@ -113,12 +113,18 @@ ReconcilePosted ==
        actualQuantity
      >>
 
+\* This observation is about reachability, not termination/liveness.  An
+\* explicit stutter keeps terminal source states legal for TLC deadlock checks.
+Idle ==
+  UNCHANGED vars
+
 Next ==
   \/ ObservePending
   \/ ObservePostedDirect
   \/ ObservePostedAfterPending
   \/ ReconcilePending
   \/ ReconcilePosted
+  \/ Idle
 
 Spec == Init /\ [][Next]_vars
 
