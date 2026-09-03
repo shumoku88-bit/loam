@@ -75,6 +75,16 @@ jobs:
 
           printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+          grep -Fq 'Admission preview' /tmp/loam-movement.out
+          grep -Fq 'movement: 1000 jpy' /tmp/loam-movement.out
+          grep -Fq 'date: 2026-09-02' /tmp/loam-movement.out
+          grep -Fq 'event: record-1' /tmp/loam-movement.out
+          grep -Fq 'validity fact: validity-1' /tmp/loam-movement.out
+          grep -Fq '[ok] movement totals agree' /tmp/loam-movement.out
+          grep -Fq '[ok] effect identities admitted' /tmp/loam-movement.out
+          grep -Fq '[ok] Event identity admitted in memory' /tmp/loam-movement.out
+          grep -Fq '[ok] validity fact identity admitted in retained history' /tmp/loam-movement.out
+          grep -Fq 'ready to publish' /tmp/loam-movement.out
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
 
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
