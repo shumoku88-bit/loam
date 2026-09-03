@@ -1,4 +1,5 @@
 import Loam.Persistence
+import Loam.ReviewCli
 import Loam.WriterOwnership
 import Loam.CorrectionCli
 import Loam.EffectiveCli
@@ -270,7 +271,7 @@ def run (args : List String) : IO UInt32 :=
   | ["help", "low-level"] => do
       IO.println lowLevelUsage
       return 0
-  | ["review", memoryPath] => reviewRememberedEvents memoryPath
+  | ["review", memoryPath] => Loam.ReviewCli.reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
       withMemoryOwnership memoryPath
