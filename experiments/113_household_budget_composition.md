@@ -291,7 +291,7 @@ From this point, a local observation or practical slice should include one expli
 4. identify downstream projections that consume the result;
 5. check whether the new slice creates duplicated retained truth or a synchronization obligation with an existing family.
 
-The purpose is not to reopen the entire household survey every time. It is a bounded integration pressure pass around the new seam.
+This is not a new full inventory. The pass stays local to the new seam and its neighboring already-built capabilities.
 
 ## Practical consequence
 
