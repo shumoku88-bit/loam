@@ -16,6 +16,7 @@ binary_is_current() {
     Loam/CompletionPrompt.lean \
     Loam/MovementCli.lean \
     Loam/MovementEntry.lean \
+    Loam/MovementUi.lean \
     Loam/Persistence.lean \
     Loam/WriterOwnership.lean \
     lakefile.lean lake-manifest.json lean-toolchain; do
