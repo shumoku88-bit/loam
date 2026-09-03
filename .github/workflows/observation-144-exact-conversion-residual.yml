@@ -1,0 +1,35 @@
+name: Observation 144
+
+on:
+  push:
+    branches:
+      - experiment/144-exact-conversion-residual
+  pull_request:
+    paths:
+      - 'experiments/144_exact_conversion_residual.lean'
+      - 'experiments/144_exact_conversion_residual.md'
+      - '.github/workflows/observation-144-exact-conversion-residual.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  exact-conversion-residual:
+    name: Lean exact conversion residual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 144 Lean proof
+        run: lake env lean experiments/144_exact_conversion_residual.lean
