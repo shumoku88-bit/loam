@@ -4,6 +4,7 @@ import Loam.Core.ActualValidity
 import Loam.Core.HistoricalRouting
 import Loam.Core.Capacity
 import Loam.Application.CapacityInspection
+import Loam.Application.CorrectionFrontier
 
 namespace Loam.Application
 
@@ -29,6 +30,12 @@ If any remembered Event lacks valid coordinate evidence, consumption fails
 closed (`none`). Route selection uses the route visible at each Event's valid
 coordinate rather than current routing. Effects in different Measures are
 isolated and do not mix.
+
+Once Event correction evidence exists, current household answers must first
+project the admitted Event correction frontier. The raw-memory functions remain
+available as the lower-level projection over an already-selected EventMemory;
+`consumptionAtCorrectionFrontier?` and `remainingAtCorrectionFrontier?` are the
+correction-aware composition boundary.
 -/
 
 /--
@@ -53,7 +60,8 @@ def eventConsumptionAt
       0
 
 /--
-Project recorded Actual consumption for one Purpose and Measure.
+Project recorded Actual consumption for one Purpose and Measure from an already
+selected EventMemory.
 
 Fails closed (`none`) if any Event in `events` lacks valid coordinate evidence
 in `validities`.
@@ -73,7 +81,25 @@ def consumptionAtRecorded?
   return Quantity.ofQuanta quanta
 
 /--
-Project remaining capacity authority:
+Project current Actual consumption after applying the admitted Event correction
+frontier.
+
+Superseded Events remain in raw memory but do not contribute to this answer.
+The replacement Event must have its own current Actual-valid coordinate in
+`validities`; this function does not infer one from the correction target.
+-/
+def consumptionAtCorrectionFrontier?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  let frontier ← correctionFrontierMemory? events corrections
+  consumptionAtRecorded? frontier validities routing purpose measure
+
+/--
+Project remaining capacity authority from an already selected EventMemory:
   Remaining = Entitlement - Consumption
 
 Combines retained capacity movements with recorded actual consumption.
@@ -87,6 +113,26 @@ def remainingAtRecorded?
     (purpose : PurposeId)
     (measure : MeasureId) : Option Quantity := do
   let consumption ← consumptionAtRecorded? events validities routing purpose measure
+  let entitlement := entitlementAt movements purpose measure
+  return Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
+
+/--
+Project Remaining after first selecting the admitted Event correction frontier.
+
+Capacity remains independent authority evidence. Event correction changes which
+Actual facts contribute to Consumption; it does not mutate Capacity.
+-/
+def remainingAtCorrectionFrontier?
+    (movements : List CapacityMovement)
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  let consumption ←
+    consumptionAtCorrectionFrontier?
+      events corrections validities routing purpose measure
   let entitlement := entitlementAt movements purpose measure
   return Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
 
