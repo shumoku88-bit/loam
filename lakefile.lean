@@ -7,13 +7,10 @@ package loam
 lean_lib Loam
 
 lean_exe loam where
-  root := `Loam.Cli
+  root := `Loam.PrimaryCli
 
 lean_exe loamMovement where
   root := `Loam.MovementCli
-
-lean_exe loamReview where
-  root := `Loam.ReviewCli
 
 lean_exe loamCapacity where
   root := `Loam.CapacityCli
