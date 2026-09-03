@@ -88,9 +88,11 @@ The Alloy model asks whether:
 10. a Capacity change necessarily implies Purpose replacement;
 11. range-local descriptive and Capacity evidence remain unambiguous inside the covered horizon.
 
-## Expected result
+## Executed result
 
-Expected SAT witnesses:
+Alloy 6.2.0 + Sat4j produced the expected result set on PR #302.
+
+SAT witnesses:
 
 ```text
 stablePurposeCrossesBoundary
@@ -102,7 +104,7 @@ exactBoundarySelectsLaterEvidence
 noPurposeLifecycleStateNeededInSpecimen
 ```
 
-Expected SAT counterexamples:
+SAT counterexamples:
 
 ```text
 PurposeIdentityDeterminesOneTimelessLabel
@@ -111,18 +113,44 @@ NameChangeRequiresPurposeReplacement
 CapacityChangeRequiresPurposeReplacement
 ```
 
-Expected UNSAT counterexamples:
+UNSAT counterexamples:
 
 ```text
 TimedDescriptionIsUnambiguousWithinCoveredHorizon
 TimedCapacityIsUnambiguousWithinCoveredHorizon
 ```
 
-Qualification is pending exact-head Observation 138 CI.
+The exact-head Observation 138 workflow required this complete result set and completed successfully before this qualification note was recorded.
 
-## Candidate interpretation
+## Finding
 
-If the expected result qualifies, the smallest candidate is:
+The bounded result rejects the idea that a changing household purpose needs a new identity merely because one of its visible properties changed.
+
+The specimen admits all three independently:
+
+```text
+same Purpose + new name + new Capacity
+same Purpose + same name + new Capacity
+same Purpose + new name + same Capacity
+```
+
+Therefore:
+
+```text
+name change
+    does not imply
+Purpose replacement
+
+Capacity change
+    does not imply
+Purpose replacement
+```
+
+The half-open DateRange boundary remains sufficient to choose the later local evidence exactly at the boundary. Earlier descriptive evidence also remains available for an earlier coordinate, so a later human label need not rewrite historical presentation.
+
+Most importantly, the specimen needs no `PurposeVersion`, no `EnvelopeVersion`, no canonical Cycle, and no open/closed state for Purpose. The stable Purpose remains a coordinate while time-local authority and presentation vary around it.
+
+The smallest qualified candidate is:
 
 ```text
 stable Purpose identity
@@ -131,33 +159,22 @@ stable Purpose identity
     -> historical/current presentation
 ```
 
-rather than:
+or, as coordinate-shaped projections:
 
 ```text
-PurposeVersion
-EnvelopeVersion
-CycleEnvelope
-Open / Closed Purpose state
+Name(t)
+Capacity(t)
 ```
 
-The intended coordinate view is:
-
-```text
-Purpose identity persists
-
-Name(t)      changes by time-local descriptive evidence
-Capacity(t)  changes by time-local authority evidence
-```
-
-The Purpose itself does not need to become a mutable record whose fields are overwritten.
+around one stable Purpose identity.
 
 ## Important restraint
 
-Even a successful model does **not** earn canonical Purpose-description storage.
+This result does **not** earn canonical Purpose-description storage.
 
-If household dogfood only needs a current display label, historical name evidence may be unnecessary. If historical presentation later matters, some retained evidence must exist because a changed human label cannot be reconstructed from stable `PurposeId` plus Capacity facts alone.
+`PurposeDescription` in the Alloy file is observation vocabulary only. If household dogfood needs only a current display label, historical name evidence may never need to enter Practical Core. If a future workflow must answer "what was this purpose called at that historical coordinate?", then some retained descriptive evidence will be required because stable identity and Capacity evidence do not contain that human label.
 
-That future evidence should be introduced only when practical pressure requires preserving the historical answer.
+That is an evidence-storage pressure, not evidence for a versioned Purpose object.
 
 This observation therefore proposes no production changes and earns none of the following:
 
