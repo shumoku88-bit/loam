@@ -1,0 +1,82 @@
+name: Observation 141
+
+on:
+  push:
+    branches:
+      - experiment/141-recognition-publication-correction
+  pull_request:
+    paths:
+      - 'tla/RecognitionPublicationCorrection.tla'
+      - 'tla/RecognitionPublicationCorrection.cfg'
+      - 'tla/RecognitionPublicationCorrectionDivergence.cfg'
+      - 'tla/RecognitionPublicationCorrectionFrontierLoss.cfg'
+      - 'experiments/141_recognition_publication_correction.md'
+      - '.github/workflows/observation-141-recognition-publication-correction.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tla-recognition-publication-correction:
+    name: TLA+ recognition publication correction
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          show-download-progress: false
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check append-only recognition publication safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/RecognitionPublicationCorrection.cfg \
+            tla/RecognitionPublicationCorrection.tla \
+            2>&1 | tee /tmp/observation-141-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-141-positive.txt
+
+      - name: Require published-versus-restated divergence counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/RecognitionPublicationCorrectionDivergence.cfg \
+            tla/RecognitionPublicationCorrection.tla \
+            2>&1 | tee /tmp/observation-141-divergence.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'PublishedProjectionAlwaysEqualsCurrent' /tmp/observation-141-divergence.txt
+          grep -Fq 'Invariant' /tmp/observation-141-divergence.txt
+
+      - name: Require final-frontier publication-loss counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config tla/RecognitionPublicationCorrectionFrontierLoss.cfg \
+            tla/RecognitionPublicationCorrection.tla \
+            2>&1 | tee /tmp/observation-141-frontier-loss.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'CurrentFrontierCanReconstructPublished' /tmp/observation-141-frontier-loss.txt
+          grep -Fq 'Invariant' /tmp/observation-141-frontier-loss.txt
