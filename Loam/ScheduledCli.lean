@@ -225,20 +225,15 @@ private def completeScheduledUnlocked
 
                           match EventMemory.findById? eventMemory actualId with
                           | some _ =>
-                              match existingCompletion, existingFact with
-                              | some _, some fact =>
-                                  if fact.event = actualId then
-                                    IO.println
-                                      ("Scheduled movement already completed: " ++
-                                        scheduledId.token ++ " -> " ++ actualId.token ++ ".")
-                                    return 1
-                                  else
-                                    IO.eprintln
-                                      "loam: completion Event exists but retained completion-date evidence points elsewhere"
-                                    return 2
-                              | _, _ =>
+                              match existingCompletion with
+                              | some _ =>
+                                  IO.println
+                                    ("Scheduled movement already completed: " ++
+                                      scheduledId.token ++ " -> " ++ actualId.token ++ ".")
+                                  return 1
+                              | none =>
                                   IO.eprintln
-                                    "loam: completion Event identity already exists without the expected completion evidence"
+                                    "loam: completion Event identity already exists without the expected completion relation"
                                   return 2
                           | none =>
                               if existingCompletion.isNone &&
