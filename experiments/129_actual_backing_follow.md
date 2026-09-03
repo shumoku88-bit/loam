@@ -1,5 +1,7 @@
 # Observation 129 — Does Actual spending determine how Backing follows?
 
+Status: qualified bounded Alloy observation
+
 ## Question
 
 Observation 128 left a compact candidate for budget mechanics:
@@ -15,9 +17,9 @@ That still leaves an important practical question before LOAM grows a Backing wr
 
 > When an Actual spend reduces a physical Holding and is routed to one budget Purpose, does the Backing allocation follow automatically from that Actual, or is another piece of authority required?
 
-This matters directly for ordinary envelope-style use. A useful tool should not require a second manual entry after every purchase if the Backing consequence is already determined. But it also should not silently invent a Backing history that the evidence does not determine.
+A useful tool should not require a second manual entry after every purchase if the Backing consequence is already determined. But it also should not silently invent a Backing history that the evidence does not determine.
 
-Observation 129 therefore tries to refute the strongest automatic-follow rule before introducing any production Backing type.
+Observation 129 therefore attacks the strongest automatic-follow rule before introducing any production Backing type.
 
 ## Fixed household specimen
 
@@ -65,11 +67,11 @@ Remaining
   Travel = 4
 ```
 
-The Actual, its spending Holding, and its Purpose routing are fixed in every post-spend world.
+The Actual, its spending Holding, its Purpose routing, the prior Backing, the post-Actual holdings, and Remaining are fixed for every post-spend world.
 
-## Why the obvious local rule is under pressure
+## Why the obvious local rule fails
 
-A tempting rule is:
+A tempting automatic rule is:
 
 ```text
 Actual spends 1 from Bank for Food
@@ -77,7 +79,7 @@ Actual spends 1 from Bank for Food
 Bank x Food Backing decreases by 1
 ```
 
-But this specimen begins with:
+But the specimen begins with:
 
 ```text
 Bank x Food Backing = 0
@@ -85,7 +87,7 @@ Bank x Food Backing = 0
 
 so the local rule would require `-1` Backing.
 
-The Actual itself is still perfectly ordinary. Therefore any general rule that says spending must always consume Backing from exactly the same `(Holding, Purpose)` coordinate is too strong for this household state.
+Alloy confirms that the candidate `samePurposeLocalAutoFollowAdmissible` is UNSAT in this fixed household state. The Actual itself is ordinary; what fails is the attempted universal coupling law.
 
 ## Two admissible Backing responses
 
@@ -103,7 +105,7 @@ Cash
   Travel 0
 ```
 
-Every remaining physical unit is still assigned, but the selected budget projection is:
+Every remaining physical unit is still assigned, but:
 
 ```text
 Food   Remaining 5, Backed 6, Gap 0
@@ -131,41 +133,28 @@ Food   Remaining 5, Backed 5, Gap 0
 Travel Remaining 4, Backed 4, Gap 0
 ```
 
-Both post-spend worlds are physically admissible and fully assign the same post-Actual holdings. They differ only in how Backing is allowed to respond.
+Both post-spend worlds are physically admissible and fully assign exactly the same post-Actual holdings.
 
-## Qualification target
+## Executed result
 
-Expected witnesses:
-
-```text
-twoValidBackingResponsesSameActual       SAT
-sameActualDifferentBudgetGap              SAT
-globalRebalanceCanRestoreCoverage         SAT
-inhabitedPostBackingCopy                   SAT
-```
-
-The naive local same-purpose auto-follow candidate should be impossible in this fixed specimen:
+Alloy 6.2.0 + Sat4j:
 
 ```text
-samePurposeLocalAutoFollowAdmissible       UNSAT
+twoValidBackingResponsesSameActual                    SAT
+sameActualDifferentBudgetGap                           SAT
+globalRebalanceCanRestoreCoverage                      SAT
+samePurposeLocalAutoFollowAdmissible                    UNSAT
+inhabitedPostBackingCopy                               SAT
+ActualAndPriorBackingDeterminePostBacking              SAT counterexample
+ActualAndPriorBackingDetermineBudgetGap                SAT counterexample
+ExplicitPostBackingDeterminesSelectedProjection        UNSAT counterexample
 ```
 
-Expected counterexamples to automatic derivation:
+The complete expected result set passed in CI on the PR merge ref against `main`.
 
-```text
-ActualAndPriorBackingDeterminePostBacking  SAT counterexample
-ActualAndPriorBackingDetermineBudgetGap    SAT counterexample
-```
+## Finding
 
-Once the post-spend Backing allocation itself is fixed:
-
-```text
-ExplicitPostBackingDeterminesSelectedProjection  UNSAT counterexample
-```
-
-## What would the expected result mean?
-
-If qualified, the strong rule fails:
+The strong automatic-follow hypothesis is false in the bounded specimen:
 
 ```text
 Actual
@@ -182,7 +171,7 @@ post-Actual Backing allocation
 
 and therefore do not determine every Backing / Gap answer.
 
-The useful separation would be:
+The selected separation is:
 
 ```text
 Actual consumption
@@ -190,9 +179,15 @@ Actual consumption
 Backing evolution
 ```
 
-But that would **not** yet prove that LOAM must persist a new Backing movement for every spend.
+The counterexample is not caused by unassigned money. Every post-spend Holding unit is assigned in both worlds. The difference is the household choice about whether and how to rebalance support across `(Holding, Purpose)` coordinates.
 
-Another smaller design remains possible:
+Once the post-spend Backing allocation itself is fixed, Alloy finds no bounded counterexample for the selected `Backed / FundedRemaining / Gap` projection. `Rebalanced` and `CopyRebalanced` keep this sufficiency check inhabited.
+
+## What this does not force
+
+This result does **not** prove that every purchase needs a second manual Backing entry.
+
+A smaller implementation remains possible:
 
 ```text
 prior Backing
@@ -201,23 +196,33 @@ prior Backing
     -> post Backing
 ```
 
-or Backing may remain a replaceable current allocation if historical Backing questions never require durable provenance.
+For example, a policy could automatically preserve coverage when possible, prefer the spending Holding, or expose a choice only when several admissible responses remain.
 
-Those are later questions. Observation 129 only tests whether Actual evidence by itself supplies the missing choice.
+But such a policy would be additional authority. It cannot be presented as something already contained in the Actual evidence.
 
-## Practical product consequence if qualified
+Another possibility is that Backing remains replaceable current allocation rather than durable historical evidence if later household questions never need historical Backing provenance. Observation 129 does not decide that question.
 
-A future budget UI should not silently assume that this operation:
+## Practical product consequence
+
+A future budget UI can still make ordinary spending nearly frictionless. The result only says the convenience layer must know when it is applying policy rather than merely replaying evidence.
+
+For example:
 
 ```text
 Pay 1 from Bank for Food
 ```
 
-has exactly one Backing interpretation in every household state.
+may automatically update the budget under a selected policy in the common case, while an ambiguous or policy-sensitive case can be surfaced rather than silently forging one canonical history.
 
-A practical system may still make the common case effortless. For example it could apply an explicit policy, or prompt only when the automatic candidate is underdetermined or inadmissible.
+This preserves the product goal:
 
-The important constraint is that convenience should not be mistaken for canonical evidence.
+```text
+simple operation for the user
+small retained vocabulary underneath
+no duplicate EnvelopeBalance / Gap truth
+```
+
+without pretending that Actual and Backing are the same authority.
 
 ## Boundaries
 
@@ -226,7 +231,7 @@ Observation 129 does not establish:
 - a production Backing writer;
 - that every spend needs a separate manual Backing entry;
 - a Backing policy type;
-- automatic rebalancing priorities;
+- which automatic rebalancing policy is desirable;
 - historical Backing persistence;
 - whether Backing is current policy, durable evidence, or reconstructible from finer evidence;
 - credit / liabilities / negative holdings;
@@ -234,4 +239,4 @@ Observation 129 does not establish:
 - ownership / Agent semantics;
 - Practical Core, persistence, CLI, or canonical household-data changes.
 
-The question is only whether Actual spending and Purpose routing uniquely determine the Backing response in the selected bounded household state.
+The qualified result is only that Actual spending and Purpose routing do not uniquely determine the Backing response in the selected bounded household state.
