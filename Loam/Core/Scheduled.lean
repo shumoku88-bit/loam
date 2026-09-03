@@ -1,5 +1,5 @@
 import Loam.Core.BalancedMovement
-import Loam.Core.Event
+import Loam.Core.Effect
 
 namespace Loam.Core
 
