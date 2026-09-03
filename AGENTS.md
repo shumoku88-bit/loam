@@ -19,6 +19,20 @@ LOAM is an experimental household system whose current job is to discover the sm
 - **Check semantic neighbors after each change.** After adding or changing a practical capability, follow its consequences through the nearest relevant semantic boundaries rather than qualifying the edited function in isolation. Prefer a focused one- or two-hop composition check over a speculative whole-system audit.
 - **Delete freely.** Code volume, abstraction count, historical implementation effort, and compatibility are not reasons to keep a weaker design.
 
+## Formal tool selection
+
+Read the `Method` section of `README.md` as the full tool-selection policy. When choosing an instrument for a new observation, use the smallest subset that gives a distinct answer:
+
+- **Alloy** for structural possibility, distinguishability, sufficiency, and bounded counterexamples.
+- **J** for finite arrays, quotient geometry, projection/loss, exhaustive shape, and representation experiments.
+- **Lean 4** for general laws worth retaining and for production semantics in the Practical Core/Application path.
+- **TLA+ / TLC** for temporal behavior, state transitions, reachable histories, and operation-order questions.
+- **Apalache** only when symbolic TLA+ checking or an inductive-invariant argument adds a distinct result.
+- **SPIN / Promela** for concrete process interleavings and protocol-order races where scheduling is the pressure point.
+- **miniKanren** only for genuinely relational or backwards-search questions that the active core cannot express clearly enough.
+
+Do not introduce an optional tool merely because it is available or has been used before. State what the current toolset cannot answer clearly enough and what distinct result the added tool should provide. If two tools answer the same question in the same way, prefer the smaller combination.
+
 ## Decision preference
 
 When two designs answer the same household questions, prefer in this order:
