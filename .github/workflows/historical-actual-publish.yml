@@ -1,0 +1,57 @@
+name: Historical Actual Publisher Dry Run
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/HistoricalPublisher.lean'
+      - 'Loam/Cli/HistoricalPublishCli.lean'
+      - 'tools/historical-publish-qualification.sh'
+      - '.github/workflows/historical-actual-publish.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/HistoricalPublisher.lean'
+      - 'Loam/Cli/HistoricalPublishCli.lean'
+      - 'tools/historical-publish-qualification.sh'
+      - '.github/workflows/historical-actual-publish.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-verify:
+    name: Publish and verify production-format candidate in scratch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build prepare and publish binaries
+        run: lake build loamHistoricalPrepare loamHistoricalPublish loamDailyQuantity
+
+      - name: Run publish qualification on scratch copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools/historical-publish-qualification.sh \
+            .lake/build/bin/loamHistoricalPrepare \
+            .lake/build/bin/loamHistoricalPublish \
+            .lake/build/bin/loamDailyQuantity \
+            "$RUNNER_TEMP/historical-publish-rehearsal"
