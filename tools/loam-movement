@@ -11,6 +11,8 @@ binary_is_current() {
   [[ -x "$binary" && -e "$binary_stamp" ]] || return 1
 
   for input in \
+    Loam/ActualDate.lean \
+    Loam/ActualValidityPersistence.lean \
     Loam/CompletionPrompt.lean \
     Loam/MovementCli.lean \
     Loam/MovementEntry.lean \
