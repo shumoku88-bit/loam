@@ -76,9 +76,9 @@ Expense    +12
 Selected post-Actual projection:
 
 ```text
-Asset quantity      8
-Liability quantity  0
-Net funding position 8
+Asset quantity        8
+Liability quantity    0
+Net funding position  8
 ```
 
 ### Liability-funded world
@@ -92,9 +92,9 @@ Expense    +12
 Selected post-Actual projection:
 
 ```text
-Asset quantity      20
-Liability quantity  12
-Net funding position 8
+Asset quantity        20
+Liability quantity    12
+Net funding position   8
 ```
 
 The worlds therefore deliberately share both:
@@ -136,7 +136,7 @@ Expected: **no**.
 
 This tests whether an aggregate net-worth-like answer is still too compressed for the selected question.
 
-### 3. Does different funding force different next Capacity?
+### 3. Different funding under one next Capacity
 
 The two worlds deliberately retain the same next Capacity authority:
 
@@ -146,7 +146,7 @@ Next Food Capacity = 10
 
 while their physical funding composition differs.
 
-Expected: the claim that different funding composition *must* create a different next Capacity is false.
+The SAT witness `sameBoundaryCapacityDifferentFundingPressure` is enough to demonstrate that these can coexist. No artificial assertion is needed to force a contradiction.
 
 This preserves the separation:
 
@@ -192,10 +192,9 @@ equalPhysicalDefinitionDifferentIdentitySameAnswer     SAT
 and the following assertion results:
 
 ```text
-NegativeRemainingDeterminesFundingComposition               SAT counterexample
-NegativeRemainingAndNetPositionDetermineFundingComposition SAT counterexample
-DifferentFundingCompositionRequiresDifferentNextCapacity   SAT counterexample
-ActualPhysicalDefinitionDeterminesFundingProjection         UNSAT counterexample
+NegativeRemainingDeterminesFundingComposition                SAT counterexample
+NegativeRemainingAndNetPositionDetermineFundingComposition  SAT counterexample
+ActualPhysicalDefinitionDeterminesFundingProjection          UNSAT counterexample
 ```
 
 ## Interpretation gate
