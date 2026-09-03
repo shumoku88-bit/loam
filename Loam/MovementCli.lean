@@ -56,20 +56,29 @@ private def occurrenceDate : IO (Except String String) := do
         return validateOccurrenceDate entered
 
 /--
-Search the same bounded operational Event-id namespace used by the practical CLI.
-The numeric suffix is collision avoidance only and has no temporal meaning.
+Search the bounded operational Event-id namespace used by the practical CLI.
+A candidate must be unused by both Event memory and retained validity evidence,
+so an orphan validity left by an interrupted validity-first publication cannot
+block a later retry. The numeric suffix is collision avoidance only and has no
+temporal meaning.
 -/
 private def freshRecordEventIdFrom
-    (memory : Loam.Core.EventMemory) : Nat → Nat → Option Loam.Core.EventId
+    (memory : Loam.Core.EventMemory)
+    (validities : Loam.Core.ActualValidityMemory String) :
+    Nat → Nat → Option Loam.Core.EventId
   | _, 0 => none
   | index, fuel + 1 =>
       let candidate : Loam.Core.EventId := ⟨"record-" ++ toString index⟩
-      match Loam.Core.EventMemory.findById? memory candidate with
-      | none => some candidate
-      | some _ => freshRecordEventIdFrom memory (index + 1) fuel
+      match Loam.Core.EventMemory.findById? memory candidate,
+          Loam.Core.ActualValidityMemory.findByEventId? validities candidate with
+      | none, none => some candidate
+      | _, _ => freshRecordEventIdFrom memory validities (index + 1) fuel
 
-private def freshRecordEventId? (memory : Loam.Core.EventMemory) : Option Loam.Core.EventId :=
-  freshRecordEventIdFrom memory 1 (memory.events.length + 1)
+private def freshRecordEventId?
+    (memory : Loam.Core.EventMemory)
+    (validities : Loam.Core.ActualValidityMemory String) : Option Loam.Core.EventId :=
+  freshRecordEventIdFrom memory validities 1
+    (memory.events.length + validities.entries.length + 1)
 
 private def loadEventMemoryForEntry?
     (path : System.FilePath) : IO (Option Loam.Core.EventMemory) := do
@@ -117,7 +126,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
                   IO.eprintln message
                   return 2
               | Except.ok (effects, total) =>
-                  match freshRecordEventId? memory with
+                  match freshRecordEventId? memory validities with
                   | none =>
                       IO.eprintln "loam: could not generate a fresh event identity"
                       return 2
