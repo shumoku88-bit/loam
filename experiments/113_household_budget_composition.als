@@ -111,20 +111,21 @@ pred completionTransition[
     a: ActualFact,
     c: Completion] {
   Before.capacities = After.capacities
-  some Before.capacities
-  all cap: Before.capacities | cap.purpose = p
 
-  no Before.actuals
-  After.actuals = a
+  a not in Before.actuals
+  After.actuals = Before.actuals + a
 
-  Before.scheduled = s
-  After.scheduled = s
+  Before.scheduled = After.scheduled
+  s in Before.scheduled
 
-  no Before.completions
-  After.completions = c
+  c not in Before.completions
+  After.completions = Before.completions + c
 
-  no Before.retirements
-  no After.retirements
+  Before.retirements = After.retirements
+
+  s not in Before.completions.scheduledFact
+  s not in Before.retirements.retired
+
   no Before.reservations
   no After.reservations
 
@@ -157,25 +158,24 @@ pred cancellationTransition[
     s: ScheduledFact,
     r: Retirement] {
   Before.capacities = After.capacities
-  some Before.capacities
-  all cap: Before.capacities | cap.purpose = p
-
   Before.actuals = After.actuals
-  no Before.actuals
 
-  Before.scheduled = s
-  After.scheduled = s
+  Before.scheduled = After.scheduled
+  s in Before.scheduled
 
-  no Before.completions
-  no After.completions
+  Before.completions = After.completions
 
-  no Before.retirements
-  After.retirements = r
-  r.retired = s
+  r not in Before.retirements
+  After.retirements = Before.retirements + r
+
+  s not in Before.completions.scheduledFact
+  s not in Before.retirements.retired
 
   no Before.reservations
   no After.reservations
+
   s.purpose = p
+  r.retired = s
 }
 
 pred cancellationWitness {
@@ -186,11 +186,7 @@ pred cancellationWitness {
 pred scheduledChangesHeadroomWithoutChangingRemaining {
   some p: Purpose, s: ScheduledFact | {
     Left.capacities = Right.capacities
-    some Left.capacities
-    all cap: Left.capacities | cap.purpose = p
-
     Left.actuals = Right.actuals
-    no Left.actuals
 
     no Left.scheduled
     Right.scheduled = s
@@ -211,8 +207,6 @@ pred scheduledChangesHeadroomWithoutChangingRemaining {
 pred actualChangesRemainingWithoutChangingEntitlement {
   some p: Purpose, a: ActualFact | {
     Left.capacities = Right.capacities
-    some Left.capacities
-    all cap: Left.capacities | cap.purpose = p
 
     no Left.actuals
     Right.actuals = a
@@ -238,7 +232,6 @@ pred reservationDriftWitness {
 
     Left.scheduled = s
     s.purpose = p
-    no Left.actuals
     no Left.completions
     no Left.retirements
 
@@ -301,19 +294,19 @@ assert MirroredReservationAddsNoInformation {
     implies reservationHeadroom[w, p] = headroom[w, p]
 }
 
-run equalCompletionWitness for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run underActualCompletionWitness for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run overActualCompletionWitness for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run cancellationWitness for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run scheduledChangesHeadroomWithoutChangingRemaining for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run actualChangesRemainingWithoutChangingEntitlement for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-run reservationDriftWitness for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
+run equalCompletionWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run underActualCompletionWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run overActualCompletionWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run cancellationWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run scheduledChangesHeadroomWithoutChangingRemaining for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run actualChangesRemainingWithoutChangingEntitlement for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run reservationDriftWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
 
-check CapacityAloneDeterminesEntitlement for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check CapacityAndActualDetermineRemaining for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check CompletionHeadroomDeltaMatchesExpectedMinusActual for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check CancellationPreservesRemaining for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check CancellationReleasesCommitmentIntoHeadroom for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check HouseholdEvidenceDeterminesDerivedHeadroom for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check HouseholdEvidenceDeterminesReservationHeadroom for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
-check MirroredReservationAddsNoInformation for 4 but exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World
+check CapacityAloneDeterminesEntitlement for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check CapacityAndActualDetermineRemaining for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check CompletionHeadroomDeltaMatchesExpectedMinusActual for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check CancellationPreservesRemaining for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check CancellationReleasesCommitmentIntoHeadroom for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check HouseholdEvidenceDeterminesDerivedHeadroom for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check HouseholdEvidenceDeterminesReservationHeadroom for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+check MirroredReservationAddsNoInformation for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
