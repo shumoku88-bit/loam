@@ -1,6 +1,6 @@
 # Observation 145 — Residual placement authority
 
-Status: **experiment under qualification**
+Status: **qualified experiment**
 
 ## Question
 
@@ -51,9 +51,11 @@ Each world represents the same aggregate exact quantity. The difference is only 
 
 The model also includes a world with all candidate pieces retained but no placement definition.
 
-## Positive witnesses
+## Qualified result
 
-Expected SAT:
+Alloy 6.2.0 + Sat4j confirms the intended boundary.
+
+The positive witnesses are SAT:
 
 ```text
 sameExactResidualSeveralPlacements
@@ -62,34 +64,14 @@ noPlacementAuthorityLeavesCarrierUnselected
 equalPlacementMeaningDifferentIdentitySameCarrier
 ```
 
-These witnesses ask whether:
+So the same symmetric exact evidence admits A, B, and C as possible visible carriers. Keeping the retained evidence identical while changing only the experiment-local placement definition selects different carriers. With no placement definition, the candidate set remains visible and no carrier is silently invented.
 
-- the same symmetric exact residual evidence admits several carrier candidates;
-- identical retained arithmetic evidence can coexist with different visible placements when placement authority differs;
-- without placement authority, the candidate set can remain uncollapsed rather than silently choosing one piece;
-- identity-distinct placement definitions with the same carrier meaning produce the same selected carrier.
-
-## Deliberately too-strong boundaries
-
-### Exact residual evidence alone determines one carrier
+Both deliberately too-strong claims have counterexamples:
 
 ```text
 ExactResidualEvidenceAloneDeterminesOneCarrier
-```
-
-Expected: **SAT counterexample**.
-
-The candidate world retains A, B, and C with equal whole/residual evidence but has no placement authority. Arithmetic conservation tells us that one target quantum exists at aggregate scale; it does not name a recipient.
-
-### Equal retained evidence forces equal placement
-
-```text
 SameRetainedEvidenceForcesSameCarrier
 ```
-
-Expected: **SAT counterexample**.
-
-AWorld, BWorld, and CWorld retain the same arithmetic evidence while selecting different carriers under different placement definitions.
 
 Therefore:
 
@@ -99,31 +81,20 @@ exact arithmetic
 visible carry placement
 ```
 
-## Bounded sufficiency checks
-
-### Equal placement meaning determines the carrier
+The bounded sufficiency checks have no counterexample:
 
 ```text
 EqualPlacementMeaningDeterminesCarrier
-```
-
-Expected: **UNSAT counterexample**.
-
-Inside the exact specimen, two worlds with the same retained evidence and the same carrier meaning cannot produce different selected carriers.
-
-### Selected carrier comes from the candidate set and remains scalar
-
-```text
 SelectedCarrierComesFromCandidatesAndIsScalar
 ```
 
-Expected: **UNSAT counterexample**.
+Inside this specimen, equal placement meaning determines the same carrier, and a selected carrier remains one scalar member of the retained candidate set.
 
-The placement layer may select one retained candidate. It may not manufacture an unrelated recipient or select several recipients for the single carry quantum.
+Identity-distinct placement definitions with the same carrier meaning also produce the same selected carrier. Durable placement-policy identity is therefore not earned by this observation.
 
-## Interpretation gate
+## Qualified candidate
 
-If these results qualify, the smaller candidate becomes:
+The smaller candidate is:
 
 ```text
 exact conversion arithmetic
@@ -145,7 +116,7 @@ exact conversion arithmetic
     -> one uniquely determined split placement
 ```
 
-This would make placement authority observable only when a caller demands a per-piece integral presentation. Aggregate exact queries can remain authority-free.
+Placement authority becomes observable only when a caller demands one per-piece integral presentation. Aggregate exact queries can remain authority-free.
 
 ## Relationship to `Loam.Core.Allocation`
 
@@ -153,7 +124,7 @@ This would make placement authority observable only when a caller demands a per-
 
 Observation 145 treats that as a useful precedent, not as evidence that conversion residuals should reuse the same production type.
 
-The common mathematical pressure may be:
+The common mathematical pressure is now supported as:
 
 ```text
 conservation determines quantity
@@ -183,7 +154,7 @@ Those are separate pressure points.
 
 ## Not earned by this observation
 
-Even if qualified, Observation 145 does not establish canonical:
+Observation 145 does not establish canonical:
 
 - `RoundingPolicy`;
 - persistent `Residual`;
@@ -194,6 +165,14 @@ Even if qualified, Observation 145 does not establish canonical:
 - any Practical Core change.
 
 The experiment-local `PlacementDefinition` is only evidence that one selected per-piece integral answer requires information equivalent to placement authority in this symmetric specimen. It does not establish durable policy identity.
+
+## Qualification
+
+- pre-qualification scaffold head `e1b6578ae53672188c36c180f00b6224a829ac94` stopped before solver execution because a Lean-style block comment was invalid Alloy syntax;
+- corrected executable head `29898310515c0a95be0b180eceba9a9b572be204` — Observation 145 SUCCESS;
+- run `33780610802`, job `100733060219` — Alloy execution + expected-result checker SUCCESS.
+
+The syntax-only scaffold failure is not semantic evidence; qualification starts at the corrected executable head.
 
 ## Tool choice
 
