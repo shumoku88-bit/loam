@@ -1,6 +1,6 @@
 # Observation 140 — Recognition as a coordinate projection
 
-Status: **experiment under qualification**
+Status: **qualified expected result**
 
 ## Question
 
@@ -98,7 +98,7 @@ invoice coordinate
     -> recognised amount by query DateRange
 ```
 
-Expected: **false**.
+Qualified result: **false in the bounded specimen**.
 
 The immediate and spread worlds hold all of that evidence fixed while producing:
 
@@ -112,7 +112,7 @@ later service periods:
   Spread    = 9
 ```
 
-If Alloy finds that witness, operational timing evidence is insufficient by itself.
+Operational timing evidence is therefore insufficient by itself.
 
 ### 2. Payment time is not universally recognition time
 
@@ -124,7 +124,7 @@ recognition happens where payment happens
 
 The spread world keeps recognising 3 at C2, C3, and C4 after payment at C1.
 
-Expected: a bounded counterexample to the rule that the payment coordinate contains all recognition.
+Qualified result: Alloy finds the expected bounded counterexample to the rule that the payment coordinate contains all recognition.
 
 ### 3. Recognition need not be represented as one scalar time
 
@@ -152,7 +152,7 @@ timing / obligation evidence
 
 `ImmediateDefinition` and `ImmediateDefinitionCopy` are different atoms with the same experiment-local definition.
 
-Expected: the same recognised answer for every selected DateRange.
+Qualified result: they produce the same recognised answer for every selected DateRange.
 
 So even if an independent recognition definition is needed, this observation does not establish that a stable recognition-policy identity belongs in the Practical Core.
 
@@ -160,7 +160,7 @@ So even if an independent recognition definition is needed, this observation doe
 
 Both bounded definitions recognise exactly the original quantity over the full service range.
 
-Expected: no bounded counterexample to:
+Qualified result: no bounded counterexample to:
 
 ```text
 sum recognised over whole service range = quantity
@@ -168,28 +168,36 @@ sum recognised over whole service range = quantity
 
 This is only a specimen invariant, not yet a universal accounting law. Amendments, refunds, partial service, taxes, foreign exchange, and cancellation are outside this observation.
 
-## Expected commands
+## Qualified command results
 
-The workflow requires these witnesses:
+Alloy 6.2.0 + Sat4j matched the expected boundary:
 
 ```text
 sameTimingEvidenceDifferentRecognitionProjection  SAT
 recognitionCanRemainAfterPaymentCoordinate         SAT
 equalDefinitionDifferentIdentitySameProjection    SAT
-```
 
-and these assertion results:
-
-```text
 TimingEvidenceDeterminesRecognitionProjection      SAT counterexample
 PaymentCoordinateContainsAllRecognition            SAT counterexample
 RecognitionDefinitionDeterminesProjection          UNSAT counterexample
 WholeServiceRecognitionConservesQuantity           UNSAT counterexample
 ```
 
+Executable qualification head:
+
+```text
+b73a8de5b9d51853f8086abd55568bfe331ba1c6
+```
+
+Qualification job:
+
+```text
+100715239957  SUCCESS
+```
+
 ## Interpretation gate
 
-If qualification matches the expected result, the bounded conclusion will be:
+The bounded conclusion is:
 
 ```text
 invoice / payment / due / service timing
@@ -204,13 +212,13 @@ recognition
     can be distributed across coordinates
 ```
 
-The observation may therefore support thinking of recognition as a **time-coordinate accounting projection**, rather than as another lifecycle timestamp attached to an Event.
+The observation therefore supports thinking of recognition as a **time-coordinate accounting projection**, rather than as another lifecycle timestamp attached to an Event.
 
-But the result must remain bounded. It does not establish a universal accrual model or require deferred-accounting machinery in household use.
+But the result remains bounded. It does not establish a universal accrual model or require deferred-accounting machinery in household use.
 
 ## Not earned by this observation
 
-Even if qualification succeeds, it does not establish:
+This observation does not establish:
 
 - canonical `Invoice`;
 - canonical `DeferredExpense` or `DeferredRevenue`;
@@ -229,13 +237,13 @@ The invoice / due / payment names in this specimen are experiment-local pressure
 
 ## Tool choice
 
-**Alloy first.**
+**Alloy first** was sufficient for this question.
 
-The immediate question is static information independence:
+The qualified pressure is static information independence:
 
 - hold operational timing evidence fixed;
 - vary only the recognition definition;
-- ask whether period accounting answers can diverge;
-- then ask whether equal recognition definitions produce equal selected projections.
+- period accounting answers diverge;
+- equal recognition definitions produce equal selected projections.
 
 TLA+ becomes relevant later only if publication, amendment, cancellation, or period-close ordering becomes the hard question.
