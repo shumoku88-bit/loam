@@ -1,7 +1,7 @@
 import Loam.Persistence
-import Loam.ScheduledCompletionPersistence
-import Loam.ScheduledPersistence
-import Loam.ScheduledRetirementPersistence
+import Loam.Persistence.ScheduledCompletionPersistence
+import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledRetirementPersistence
 import Std
 
 namespace Loam.OpenScheduledCli

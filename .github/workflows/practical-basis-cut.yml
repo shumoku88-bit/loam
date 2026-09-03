@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Application/BasisCut.lean'
-      - 'Loam/BasisCutPersistence.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
       - 'Loam/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'
@@ -19,7 +19,7 @@ on:
   push:
     paths:
       - 'Loam/Application/BasisCut.lean'
-      - 'Loam/BasisCutPersistence.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
       - 'Loam/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'

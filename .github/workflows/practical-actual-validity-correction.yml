@@ -5,7 +5,7 @@ on:
     paths:
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
-      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/ActualValidityCorrectionCli.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/MovementCli.lean'
@@ -24,7 +24,7 @@ on:
     paths:
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
-      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/ActualValidityCorrectionCli.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/MovementCli.lean'

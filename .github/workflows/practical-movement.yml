@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/ActualDate.lean'
-      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
@@ -23,7 +23,7 @@ on:
   push:
     paths:
       - 'Loam/ActualDate.lean'
-      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'

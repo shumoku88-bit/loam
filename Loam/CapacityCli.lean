@@ -1,5 +1,5 @@
 import Loam.Application.CapacityInspection
-import Loam.CapacityPersistence
+import Loam.Persistence.CapacityPersistence
 import Loam.WriterOwnership
 import Std
 
