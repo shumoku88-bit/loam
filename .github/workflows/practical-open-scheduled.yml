@@ -3,7 +3,7 @@ name: Practical Open Scheduled
 on:
   pull_request:
     paths:
-      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
@@ -19,7 +19,7 @@ on:
       - '.github/workflows/practical-open-scheduled.yml'
   push:
     paths:
-      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledCompletion.lean'

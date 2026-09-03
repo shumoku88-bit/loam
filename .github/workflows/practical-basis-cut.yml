@@ -5,7 +5,7 @@ on:
     paths:
       - 'Loam/Application/BasisCut.lean'
       - 'Loam/Persistence/BasisCutPersistence.lean'
-      - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'
       - '.github/workflows/practical-basis-cut.yml'
@@ -20,7 +20,7 @@ on:
     paths:
       - 'Loam/Application/BasisCut.lean'
       - 'Loam/Persistence/BasisCutPersistence.lean'
-      - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'
       - '.github/workflows/practical-basis-cut.yml'

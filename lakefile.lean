@@ -10,25 +10,25 @@ lean_exe loam where
   root := `Loam.Cli
 
 lean_exe loamMovement where
-  root := `Loam.MovementCli
+  root := `Loam.Cli.MovementCli
 
 lean_exe loamCapacity where
-  root := `Loam.CapacityCli
+  root := `Loam.Cli.CapacityCli
 
 lean_exe loamDailyQuantity where
-  root := `Loam.DailyQuantityCli
+  root := `Loam.Cli.DailyQuantityCli
 
 lean_exe loamOpenScheduled where
-  root := `Loam.OpenScheduledCli
+  root := `Loam.Cli.OpenScheduledCli
 
 lean_exe loamShadowAudit where
-  root := `Loam.ShadowAuditCli
+  root := `Loam.Cli.ShadowAuditCli
 
 lean_exe loamShadowQuantity where
-  root := `Loam.ShadowQuantityCli
+  root := `Loam.Cli.ShadowQuantityCli
 
 lean_exe loamShadowDay where
-  root := `Loam.ShadowDayCli
+  root := `Loam.Cli.ShadowDayCli
 
 lean_exe loamShadowScheduledDay where
-  root := `Loam.ShadowScheduledDayCli
+  root := `Loam.Cli.ShadowScheduledDayCli

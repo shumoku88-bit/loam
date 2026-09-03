@@ -37,8 +37,8 @@ capacity_binary_is_current() {
   [[ -x "$capacity_binary" && -e "$capacity_stamp" ]] || return 1
 
   for input in \
-    Loam/CapacityCli.lean \
-    Loam/CapacityPersistence.lean \
+    Loam/Cli/CapacityCli.lean \
+    Loam/Persistence/CapacityPersistence.lean \
     Loam/Application/CapacityInspection.lean \
     Loam/Core/BalancedMovement.lean \
     Loam/Core/Capacity.lean \
@@ -59,12 +59,12 @@ daily_quantity_binary_is_current() {
   [[ -x "$daily_quantity_binary" && -e "$daily_quantity_stamp" ]] || return 1
 
   for input in \
-    Loam/DailyQuantityCli.lean \
+    Loam/Cli/DailyQuantityCli.lean \
     Loam/BalanceViewConfig.lean \
-    Loam/BasisCutPersistence.lean \
-    Loam/QuantityBasisCorrectionCli.lean \
-    Loam/QuantityBasisCorrectionPersistence.lean \
-    Loam/QuantityBasisPersistence.lean \
+    Loam/Persistence/BasisCutPersistence.lean \
+    Loam/Cli/QuantityBasisCorrectionCli.lean \
+    Loam/Persistence/QuantityBasisCorrectionPersistence.lean \
+    Loam/Persistence/QuantityBasisPersistence.lean \
     Loam/Application/BasisCut.lean \
     Loam/Application/CorrectionFrontier.lean \
     Loam/Application/CurrentQuantity.lean \
@@ -99,7 +99,7 @@ open_scheduled_binary_is_current() {
 shadow_binary_is_current() {
   [[ -x "$shadow_binary" && -e "$shadow_stamp" ]] || return 1
 
-  for input in Loam/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
+  for input in Loam/Cli/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$shadow_stamp" ]]; then
       return 1
     fi
@@ -111,7 +111,7 @@ shadow_binary_is_current() {
 shadow_quantity_binary_is_current() {
   [[ -x "$shadow_quantity_binary" && -e "$shadow_quantity_stamp" ]] || return 1
 
-  if [[ Loam/ShadowQuantityCli.lean -nt "$shadow_quantity_stamp" ]]; then
+  if [[ Loam/Cli/ShadowQuantityCli.lean -nt "$shadow_quantity_stamp" ]]; then
     return 1
   fi
 

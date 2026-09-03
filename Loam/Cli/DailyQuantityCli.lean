@@ -2,7 +2,7 @@ import Loam.Application.BasisCut
 import Loam.Application.CurrentQuantity
 import Loam.BalanceViewConfig
 import Loam.Persistence.BasisCutPersistence
-import Loam.QuantityBasisCorrectionCli
+import Loam.Cli.QuantityBasisCorrectionCli
 import Loam.Persistence.QuantityBasisCorrectionPersistence
 import Loam.Persistence.QuantityBasisPersistence
 import Loam.WriterOwnership

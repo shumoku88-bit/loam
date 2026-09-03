@@ -5,9 +5,9 @@ on:
     paths:
       - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli.lean'
-      - 'Loam/MovementCli.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'Loam/MovementEntry.lean'
-      - 'Loam/CorrectionCli.lean'
+      - 'Loam/Cli/CorrectionCli.lean'
       - 'Loam/Persistence.lean'
       - 'tools/loam-movement'
       - 'experiments/practical_writer_ownership_holder.lean'

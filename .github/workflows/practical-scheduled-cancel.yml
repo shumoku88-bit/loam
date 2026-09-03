@@ -5,9 +5,9 @@ on:
     paths:
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
-      - 'Loam/ScheduledLifecycleCli.lean'
+      - 'Loam/Cli/ScheduledLifecycleCli.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
-      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli.lean'
@@ -19,9 +19,9 @@ on:
     paths:
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
-      - 'Loam/ScheduledLifecycleCli.lean'
+      - 'Loam/Cli/ScheduledLifecycleCli.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
-      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli.lean'

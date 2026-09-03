@@ -3,7 +3,7 @@ name: Observation 074
 on:
   pull_request:
     paths:
-      - 'Loam/ShadowAuditCli.lean'
+      - 'Loam/Cli/ShadowAuditCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - 'experiments/074_private_shadow_projection_boundary.md'
@@ -13,7 +13,7 @@ on:
       - 'experiment/074-private-shadow-projection'
       - main
     paths:
-      - 'Loam/ShadowAuditCli.lean'
+      - 'Loam/Cli/ShadowAuditCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - 'experiments/074_private_shadow_projection_boundary.md'

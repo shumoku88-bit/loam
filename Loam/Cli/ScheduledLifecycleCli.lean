@@ -1,4 +1,4 @@
-import Loam.ScheduledCli
+import Loam.Cli.ScheduledCli
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
 import Loam.Persistence.ScheduledRetirementPersistence

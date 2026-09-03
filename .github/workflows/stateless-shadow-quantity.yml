@@ -3,7 +3,7 @@ name: Stateless Shadow Quantity
 on:
   pull_request:
     paths:
-      - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Core/**'
@@ -18,7 +18,7 @@ on:
       - feat/stateless-shadow-quantity
       - main
     paths:
-      - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Core/**'

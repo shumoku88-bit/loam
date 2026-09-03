@@ -5,10 +5,10 @@ on:
     paths:
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
-      - 'Loam/ReviewCli.lean'
+      - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
-      - 'Loam/MovementCli.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'Loam/MovementUi.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Persistence.lean'
@@ -24,10 +24,10 @@ on:
     paths:
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
-      - 'Loam/ReviewCli.lean'
+      - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
-      - 'Loam/MovementCli.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'Loam/MovementUi.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Persistence.lean'
@@ -233,7 +233,7 @@ jobs:
           ./tools/loam summary "$memory" >/tmp/loam-summary-initial.out 2>/tmp/loam-summary-initial.err
           grep -Fq 'Building LOAM...' /tmp/loam-summary-initial.err
 
-          touch Loam/MovementCli.lean
+          touch Loam/Cli/MovementCli.lean
           ./tools/loam summary "$memory" >/tmp/loam-summary-refresh.out 2>/tmp/loam-summary-refresh.err
           grep -Fq 'Building LOAM...' /tmp/loam-summary-refresh.err
 

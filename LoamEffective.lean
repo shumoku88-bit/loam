@@ -1,4 +1,4 @@
-import Loam.EffectiveCli
+import Loam.Cli.EffectiveCli
 
 
 def main (args : List String) : IO UInt32 :=

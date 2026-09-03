@@ -6,11 +6,11 @@ on:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
-      - 'Loam/CorrectionCli.lean'
-      - 'Loam/MovementCli.lean'
+      - 'Loam/Cli/CorrectionCli.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
-      - 'Loam/EffectiveCli.lean'
-      - 'Loam/CorrectionIntegrityCli.lean'
+      - 'Loam/Cli/EffectiveCli.lean'
+      - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Application/**'
       - 'Loam/Core/**'
@@ -24,11 +24,11 @@ on:
       - 'LoamCorrection.lean'
       - 'LoamEffective.lean'
       - 'LoamCorrectionIntegrity.lean'
-      - 'Loam/CorrectionCli.lean'
-      - 'Loam/MovementCli.lean'
+      - 'Loam/Cli/CorrectionCli.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
-      - 'Loam/EffectiveCli.lean'
-      - 'Loam/CorrectionIntegrityCli.lean'
+      - 'Loam/Cli/EffectiveCli.lean'
+      - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Application/**'
       - 'Loam/Core/**'
@@ -118,7 +118,7 @@ jobs:
 
           # A source update may require one rebuild, but successful rebuild chatter
           # must not leak Lean linter warnings into the practical menu surface.
-          touch Loam/EffectiveCli.lean
+          touch Loam/Cli/EffectiveCli.lean
           printf '5\n' | ./tools/loam 2>&1 | tee /tmp/loam-rebuild.out
           grep -Fq 'Building LOAM...' /tmp/loam-rebuild.out
           if grep -Fq 'warning:' /tmp/loam-rebuild.out; then
