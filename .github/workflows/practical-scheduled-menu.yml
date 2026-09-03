@@ -1,0 +1,148 @@
+name: Practical Scheduled Menu
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
+      - 'Loam/Cli/ScheduledLifecycleCli.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-menu.yml'
+  push:
+    branches:
+      - 'feat/scheduled-practical-continuation-menu'
+      - main
+    paths:
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
+      - 'Loam/Cli/ScheduledLifecycleCli.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-menu.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-menu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  menu:
+    name: Build and test Scheduled daily menu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Scheduled menu entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamOpenScheduled
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Preserve non-interactive open view
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	paypay	-1000
+          CHANGE	rent	1000
+          SCHEDULED	scheduled-2	2026-10-10	jpy
+          CHANGE	paypay	-1000
+          CHANGE	rent	1000
+          EOF
+
+          .lake/build/bin/loamOpenScheduled "$scheduled" "$memory" </dev/null \
+            >"$tmp_dir/noninteractive.out"
+
+          grep -Fq 'Open scheduled movements (ordered by scheduled date):' \
+            "$tmp_dir/noninteractive.out"
+          grep -Fq '2026-09-10  [scheduled-1]' "$tmp_dir/noninteractive.out"
+          grep -Fq '2026-10-10  [scheduled-2]' "$tmp_dir/noninteractive.out"
+          if grep -Fq 'What do you want to do?' "$tmp_dir/noninteractive.out"; then
+            echo 'non-interactive open-scheduled unexpectedly entered the menu' >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$tmp_dir" > /tmp/loam-scheduled-menu-dir
+
+      - name: Record Actual from menu and reveal remaining future schedule
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(cat /tmp/loam-scheduled-menu-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'r\nscheduled-1\npaypay\n950\n\nrent\n950\n\nb\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-11 \
+              .lake/build/bin/loamOpenScheduled menu "$scheduled" "$memory" \
+                >"$tmp_dir/menu.out"
+
+          grep -Fq 'Scheduled movements' "$tmp_dir/menu.out"
+          grep -Fq 'a. Add scheduled movement' "$tmp_dir/menu.out"
+          grep -Fq 'r. Record what actually happened' "$tmp_dir/menu.out"
+          grep -Fq 'x. Cancel scheduled movement' "$tmp_dir/menu.out"
+          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' \
+            "$tmp_dir/menu.out"
+
+          awk '
+            found { print }
+            /Completed scheduled movement:/ { found = 1 }
+          ' "$tmp_dir/menu.out" >"$tmp_dir/after-completion.out"
+
+          grep -Fq '2026-10-10  [scheduled-2]' "$tmp_dir/after-completion.out"
+          if grep -Fq '2026-09-10  [scheduled-1]' "$tmp_dir/after-completion.out"; then
+            echo 'realized Scheduled occurrence remained in the refreshed open view' >&2
+            exit 1
+          fi
+
+          grep -Fq $'COMPLETION\tscheduled-1\tscheduled-completion:scheduled-1' \
+            "$scheduled.completions"
+          grep -Fq $'EVENT\tscheduled-completion:scheduled-1' "$memory"
+
+      - name: Cancel from menu and refresh the open set
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(cat /tmp/loam-scheduled-menu-dir)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'x\nscheduled-2\nb\n' \
+            | .lake/build/bin/loamOpenScheduled menu "$scheduled" "$memory" \
+                >"$tmp_dir/cancel-menu.out"
+
+          grep -Fq 'Cancelled scheduled movement: scheduled-2 on 2026-10-10.' \
+            "$tmp_dir/cancel-menu.out"
+          grep -Fq 'No open scheduled movements.' "$tmp_dir/cancel-menu.out"
+          grep -Fq $'RETIREMENT\tscheduled-2' "$scheduled.retirements"
