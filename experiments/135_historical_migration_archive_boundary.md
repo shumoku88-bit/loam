@@ -92,7 +92,7 @@ Ordinary household queries observe strictly canonical state; they do not accept,
 `actual.journal` contains 558 transactions (~100 KB). Storing a secondary parsed copy of the 544 evidence items adds zero source information beyond the snapshot itself, while creating an unwanted generic metadata schema in LOAM. Any future extraction can be performed deterministically on demand.
 
 ### 6. No Ongoing Dependency on External Repositories
-Storing only an external Git commit SHA would leave LOAM's provenance vulnerable to external repository availability. Physical inclusion of `actual.journal.snapshot` inside LOAM's data boundary guarantees a complete, self-contained authority transfer.
+Storing only an external Git commit SHA would leave LOAM's provenance vulnerable to external repository availability. Physical inclusion of `actual.journal.snapshot` inside LOAM's data boundary makes the retained Actual-local admission provenance self-contained and removes ongoing dependency on the external repository.
 
 ## Formal Verification (Lean 4)
 
