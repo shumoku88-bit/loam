@@ -356,8 +356,9 @@ def prepareCompletionDraft
                                     | Except.ok (validOn, dateSource) =>
                                         IO.println
                                           "Enter what actually happened. Add FROM entries, then TO entries."
-                                        match ← Loam.MovementEntry.collectMovementEffects
-                                            (knownCompletionLoci scheduledMemory eventMemory) with
+                                        match ← Loam.MovementEntry.collectMovementEffectsWithDefaults
+                                            (knownCompletionLoci scheduledMemory eventMemory)
+                                            occurrence.movement with
                                         | Except.error message =>
                                             IO.eprintln message
                                             return Except.error 2

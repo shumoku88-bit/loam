@@ -19,6 +19,7 @@ on:
   push:
     branches:
       - 'feat/scheduled-practical-continuation-menu'
+      - 'feat/scheduled-actual-prefill'
       - main
     paths:
       - 'Loam/Cli/OpenScheduledCli.lean'
@@ -146,3 +147,37 @@ jobs:
             "$tmp_dir/cancel-menu.out"
           grep -Fq 'No open scheduled movements.' "$tmp_dir/cancel-menu.out"
           grep -Fq $'RETIREMENT\tscheduled-2' "$scheduled.retirements"
+
+      - name: Keep Scheduled loci and edit only changed Actual amounts in a terminal
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+          out="$tmp_dir/tty-defaults.out"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	paypay	-1000
+          CHANGE	rent	1000
+          EOF
+
+          printf 'r\nscheduled-1\n2026-09-11\n\n950\n\n\n950\n\nb\n' \
+            | script -qefc ".lake/build/bin/loamOpenScheduled menu '$scheduled' '$memory'" /dev/null \
+              >"$out"
+
+          grep -Fq 'Press Enter to keep each scheduled movement value; type only what changed.' "$out"
+          grep -Fq 'From locus [paypay] (Enter keeps, - removes):' "$out"
+          grep -Fq 'From amount [1000]:' "$out"
+          grep -Fq 'To locus [rent] (Enter keeps, - removes):' "$out"
+          grep -Fq 'To amount [1000]:' "$out"
+          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' "$out"
+
+          grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-950' "$memory"
+          grep -Fq $'EFFECT\teffect-2\trent\tjpy\t950' "$memory"
+          if grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-1000' "$memory"; then
+            echo 'terminal defaults copied the Scheduled amount after the user edited it' >&2
+            exit 1
+          fi
