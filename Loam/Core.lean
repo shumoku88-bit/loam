@@ -21,6 +21,7 @@ import Loam.Core.CorrectionQuantity
 import Loam.Core.Rate
 import Loam.Core.Allocation
 import Loam.Core.RecipientAssignment
+import Loam.Core.EventDescription
 
 namespace Loam
 

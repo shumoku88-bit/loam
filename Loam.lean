@@ -1,6 +1,7 @@
 import Loam.Core
 import Loam.Application
 import Loam.Observations
+import Loam.Persistence.EventDescriptionPersistence
 
 /-!
 # LOAM Lean umbrella
