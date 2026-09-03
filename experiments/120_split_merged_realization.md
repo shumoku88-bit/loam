@@ -1,5 +1,7 @@
 # Observation 120 — Can Scheduled realization survive split and merged fulfillment?
 
+Status: qualified bounded Alloy observation
+
 ## Household question
 
 LOAM already retains explicit Scheduled -> Actual realization evidence because matching date, amount, Locus shape, or description does not determine which Actual occurrence realizes which expectation.
@@ -16,7 +18,7 @@ one Actual
 
 Its source comment explicitly leaves split and merged realization as future pressure rather than widening the first writer speculatively.
 
-That pressure is now worth observing directly.
+That pressure is now observed directly.
 
 Real household shapes include:
 
@@ -57,7 +59,7 @@ ScheduledId -> EventId
 
 with uniqueness on both endpoints.
 
-This candidate should fail to represent both:
+This candidate cannot represent both:
 
 ```text
 1 Scheduled -> N Actual
@@ -122,7 +124,7 @@ SplitTen 10
     -> ActualFour 4
 ```
 
-The expected realized quantity is 10.
+The realized quantity is 10.
 
 ### Merged completion
 
@@ -132,7 +134,7 @@ MergeThree 3 --+
 MergeTwo   2 --+
 ```
 
-The expected attribution is 3 + 2 = 5.
+The attribution is 3 + 2 = 5.
 
 If both Scheduled endpoints consume the whole Actual endpoint merely because they are linked, each reads 5 and the shared Actual is double-counted across expectations.
 
@@ -188,11 +190,11 @@ Right:
   AmbigFour fulfilled
 ```
 
-If Alloy admits both worlds, endpoint topology alone cannot determine per-Scheduled realized quantity or fulfillment.
+This is the counterexample that distinguishes relation topology from realization apportionment.
 
-## Qualification target
+## Executed result
 
-The workflow checks the following expected result set:
+Alloy 6.2.0 + Sat4j produced the complete expected result set on executable model head `61d1839167c9bf54228c2dea964d0219c7193411`:
 
 ```text
 splitWitness                              SAT
@@ -210,13 +212,13 @@ QuantitySharesDetermineRealizedQuantity   UNSAT counterexample
 QuantitySharesDetermineFulfillment        UNSAT counterexample
 ```
 
-The final interpretation should be accepted only after the exact-head Alloy workflow confirms this result set.
+The first CI attempt stopped before solving because the initial `allocated` helper used a quantified Boolean membership expression where Alloy's `sum` operator required an integer expression. Replacing that lookup with relational joins changed only model syntax, not the selected evidence, specimen worlds, or research question. The corrected run passed both Alloy execution and the expected-result checker.
 
-## Expected finding if qualified
+## Finding
 
-If the target results hold, the current one-to-one boundary will have done its job: it stayed small until a concrete household distinction required more.
+The current one-to-one boundary did its job: it stayed small until a concrete household distinction required more.
 
-The expected compression boundary is then:
+The qualified compression boundary is:
 
 ```text
 one-to-one ScheduledCompletion
@@ -232,9 +234,19 @@ endpoint evidence
     -> fulfilled / partial projection
 ```
 
-This would **not** earn a mutable completion status.
+The split and merged witnesses are both reachable, while adding the current one-to-one uniqueness law makes each corresponding witness UNSAT.
 
-Instead, fulfillment remains a projection from retained realization evidence:
+More importantly, merely removing uniqueness is not sufficient. Alloy admits two worlds with identical Scheduled / Actual endpoint facts and identical many-to-many relation topology but different per-Scheduled realized quantities and different fulfilled / partial answers.
+
+The merged whole-Actual witness also shows why treating every linked Actual as wholly realizing every linked Scheduled is not a valid substitute: one Actual quantity 5 would be counted as 5 for each of the expected quantities 3 and 2.
+
+Once realization-share information is fixed, Alloy finds no bounded counterexample in which per-Scheduled realized quantity or fulfillment differs.
+
+## Lifecycle consequence
+
+This result does **not** earn a mutable completion status.
+
+Once partial realization exists, the presence of any realization edge is no longer equivalent to completion. Fulfillment can remain a projection from retained realization evidence:
 
 ```text
 realized quantity = expected quantity
@@ -244,11 +256,29 @@ realized quantity < expected quantity
     -> partial
 ```
 
-The observation also would not automatically earn a generic `Allocation` family. It would establish only that some representation of the missing apportionment distinction is independently observable when one Actual can realize multiple Scheduled expectations or when an Actual endpoint is only partly attributable to an expectation.
+So the pressure is on the granularity of realization provenance, not on storing another status bit.
+
+## Representation consequence
+
+Observation 120 does not automatically earn a generic `Allocation` or `RealizationShare` fact family.
+
+It establishes a smaller information result:
+
+> When one Actual can be shared across Scheduled expectations, quantity-free ScheduledId <-> EventId topology loses an independently observable distinction.
+
+A practical representation could satisfy that distinction in several ways, for example:
+
+```text
+quantity-bearing realization share
+finer-grained independently identified Actual / Scheduled Effects
+another attribution coordinate with equivalent information
+```
+
+The next practical writer should not choose among those forms until ordinary household pressure requires split / merged completion.
 
 ## Neighboring LOAM boundaries
 
-This observation is intentionally adjacent to, rather than a replacement for, earlier results:
+This observation is adjacent to, rather than a replacement for, earlier results:
 
 - Observation 063 established that realization linkage itself cannot be inferred from matching Scheduled and Actual content.
 - Observation 105 established that Scheduled lifecycle provenance cannot be collapsed to a mutable status.
@@ -256,9 +286,9 @@ This observation is intentionally adjacent to, rather than a replacement for, ea
 - Observation 113 composes Actual, Scheduled, and Capacity without retained reservation state.
 - Observation 114 requires Consumption to use the effective Actual frontier after correction.
 
-If split / merged realization is qualified, a later practical design must still compose with those frontiers rather than reading raw endpoints.
+A later practical design must still compose with those frontiers rather than reading raw endpoints.
 
-In particular, this observation does not decide whether a realization share should attach to:
+In particular, this observation does not decide whether realization apportionment should attach to:
 
 ```text
 raw Actual Event
@@ -286,4 +316,4 @@ This observation does not establish:
 - a new Capacity reservation mechanism;
 - a universal fulfillment ontology.
 
-It asks only whether the first one-to-one realization boundary and a quantity-free many-to-many endpoint topology retain enough information for split, merged, and partial Scheduled realization.
+It establishes only that the first one-to-one realization boundary and a quantity-free many-to-many endpoint topology are too small for the selected split, merged, and partial Scheduled realization answers, while information-equivalent apportionment is sufficient in the bounded model.
