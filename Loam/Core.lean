@@ -8,8 +8,6 @@ import Loam.Core.ActualValidityHistory
 import Loam.Core.BalancedMovement
 import Loam.Core.Capacity
 import Loam.Core.CapacityMemory
-import Loam.Core.Scheduled
-import Loam.Core.ScheduledMemory
 import Loam.Core.Event
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
