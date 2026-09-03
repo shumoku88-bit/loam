@@ -1,0 +1,106 @@
+name: Practical Menu Build Once
+
+on:
+  pull_request:
+    paths:
+      - 'tools/loam'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-menu-build-once.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/loam'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-menu-build-once.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build the practical menu once per source state
+    runs-on: ubuntu-latest
+    env:
+      LOAM_DATA_DIR: scratch/menu-build
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: First menu launch builds all practical binaries once
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$LOAM_DATA_DIR"
+          rm -f \
+            .lake/build/.loam-menu-build-stamp \
+            .lake/build/.loam-wrapper-build-stamp \
+            .lake/build/.loam-movement-wrapper-build-stamp \
+            .lake/build/.loam-capacity-wrapper-build-stamp \
+            .lake/build/.loam-daily-quantity-wrapper-build-stamp \
+            .lake/build/.loam-open-scheduled-wrapper-build-stamp
+
+          printf 'q\n' | ./tools/loam >"$RUNNER_TEMP/first-menu.out" 2>&1
+
+          test "$(grep -Fc 'Building LOAM practical session...' "$RUNNER_TEMP/first-menu.out")" -eq 1
+          test -x .lake/build/bin/loam
+          test -x .lake/build/bin/loamMovement
+          test -x .lake/build/bin/loamCapacity
+          test -x .lake/build/bin/loamDailyQuantity
+          test -x .lake/build/bin/loamOpenScheduled
+          test -e .lake/build/.loam-menu-build-stamp
+          test -e .lake/build/.loam-wrapper-build-stamp
+          test -e .lake/build/.loam-movement-wrapper-build-stamp
+          test -e .lake/build/.loam-capacity-wrapper-build-stamp
+          test -e .lake/build/.loam-daily-quantity-wrapper-build-stamp
+          test -e .lake/build/.loam-open-scheduled-wrapper-build-stamp
+
+      - name: Menu actions do not trigger per-command rebuilds
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/warm-menu.out" 2>&1
+          if grep -Fq 'Building LOAM' "$RUNNER_TEMP/warm-menu.out"; then
+            cat "$RUNNER_TEMP/warm-menu.out"
+            exit 1
+          fi
+
+      - name: A changed Lean source causes one grouped rebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch Loam/Core/Quantity.lean
+          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/stale-menu.out" 2>&1
+
+          test "$(grep -Fc 'Building LOAM practical session...' "$RUNNER_TEMP/stale-menu.out")" -eq 1
+          if grep -Eq 'Building LOAM (spending capacity|daily quantity|open scheduled view|movement)' "$RUNNER_TEMP/stale-menu.out"; then
+            cat "$RUNNER_TEMP/stale-menu.out"
+            exit 1
+          fi
+
+      - name: Rebuilt menu stays warm
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/rewarmed-menu.out" 2>&1
+          if grep -Fq 'Building LOAM' "$RUNNER_TEMP/rewarmed-menu.out"; then
+            cat "$RUNNER_TEMP/rewarmed-menu.out"
+            exit 1
+          fi
