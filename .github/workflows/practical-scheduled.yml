@@ -83,6 +83,28 @@ jobs:
           grep -Fq '2026-09-15  [scheduled-2]' /tmp/loam-scheduled-show.out
           grep -Fq 'investment: 3000 jpy' /tmp/loam-scheduled-show.out
 
+      - name: Preserve distinct direct obligation loci
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+
+          printf '2026-09-20\nbank\n1200\n\nnetwork-service\n1200\n\n' \
+            | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-subject-1.out
+          printf '2026-09-20\nbank\n1200\n\nmobile-service\n1200\n\n' \
+            | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-subject-2.out
+
+          expected=$'LOAM-SCHEDULED-MEMORY\t1\nSCHEDULED\tscheduled-1\t2026-09-20\tjpy\nCHANGE\tbank\t-1200\nCHANGE\tnetwork-service\t1200\nSCHEDULED\tscheduled-2\t2026-09-20\tjpy\nCHANGE\tbank\t-1200\nCHANGE\tmobile-service\t1200'
+          test "$(cat "$scheduled")" = "$expected"
+
+          ./tools/loam scheduled show "$scheduled" >/tmp/loam-scheduled-subject-show.out
+          grep -Fq 'network-service: 1200 jpy' /tmp/loam-scheduled-subject-show.out
+          grep -Fq 'mobile-service: 1200 jpy' /tmp/loam-scheduled-subject-show.out
+          if grep -Fq 'communications' /tmp/loam-scheduled-subject-show.out; then
+            echo 'scheduled subject qualification unexpectedly introduced category classification' >&2
+            exit 1
+          fi
+
       - name: Refuse invalid date and unequal movement without publication
         shell: bash
         run: |
