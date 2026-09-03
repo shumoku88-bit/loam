@@ -61,7 +61,6 @@ jobs:
               'equalPhysicalDefinitionDifferentIdentitySameAnswer': True,
               'NegativeRemainingDeterminesFundingComposition': True,
               'NegativeRemainingAndNetPositionDetermineFundingComposition': True,
-              'DifferentFundingCompositionRequiresDifferentNextCapacity': True,
               'ActualPhysicalDefinitionDeterminesFundingProjection': False,
           }
 
