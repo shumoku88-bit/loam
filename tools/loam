@@ -6,12 +6,15 @@ cd "$root"
 
 binary=".lake/build/bin/loam"
 binary_stamp=".lake/build/.loam-wrapper-build-stamp"
+movement_binary=".lake/build/bin/loamMovement"
+movement_stamp=".lake/build/.loam-movement-wrapper-build-stamp"
 capacity_binary=".lake/build/bin/loamCapacity"
 capacity_stamp=".lake/build/.loam-capacity-wrapper-build-stamp"
 daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
 daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
 open_scheduled_binary=".lake/build/bin/loamOpenScheduled"
 open_scheduled_stamp=".lake/build/.loam-open-scheduled-wrapper-build-stamp"
+menu_build_stamp=".lake/build/.loam-menu-build-stamp"
 shadow_binary=".lake/build/bin/loamShadowAudit"
 shadow_stamp=".lake/build/.loam-shadow-audit-wrapper-build-stamp"
 shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
@@ -94,6 +97,57 @@ open_scheduled_binary_is_current() {
   done
 
   return 0
+}
+
+menu_binaries_are_current() {
+  [[ -x "$binary" && -x "$movement_binary" && -x "$capacity_binary" && \
+     -x "$daily_quantity_binary" && -x "$open_scheduled_binary" ]] || return 1
+
+  for stamp in \
+    "$menu_build_stamp" \
+    "$binary_stamp" \
+    "$movement_stamp" \
+    "$capacity_stamp" \
+    "$daily_quantity_stamp" \
+    "$open_scheduled_stamp"; do
+    [[ -e "$stamp" ]] || return 1
+  done
+
+  if find Loam -type f -name '*.lean' -newer "$menu_build_stamp" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in tools/loam tools/loam-movement lakefile.lean lake-manifest.json lean-toolchain; do
+    if [[ -e "$input" && "$input" -nt "$menu_build_stamp" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+prepare_menu_binaries() {
+  if menu_binaries_are_current; then
+    return 0
+  fi
+
+  echo "Building LOAM..." >&2
+  local build_log
+  build_log="$(mktemp -t loam-menu-build.XXXXXX)"
+  if lake build loam loamMovement loamCapacity loamDailyQuantity loamOpenScheduled >"$build_log" 2>&1; then
+    touch \
+      "$binary_stamp" \
+      "$movement_stamp" \
+      "$capacity_stamp" \
+      "$daily_quantity_stamp" \
+      "$open_scheduled_stamp" \
+      "$menu_build_stamp"
+    rm -f "$build_log"
+  else
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    return 1
+  fi
 }
 
 shadow_binary_is_current() {
@@ -326,6 +380,8 @@ if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity"
 fi
 
 if [[ $# -eq 0 ]]; then
+  prepare_menu_binaries || exit 1
+
   if [[ -n "${LOAM_DATA_DIR:-}" ]]; then
     requested_data_dir="$LOAM_DATA_DIR"
     data_label="$LOAM_DATA_DIR"
