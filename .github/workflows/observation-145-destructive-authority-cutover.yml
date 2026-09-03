@@ -1,0 +1,56 @@
+name: Observation 145
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation145.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/145_destructive_authority_cutover.md'
+      - '.github/workflows/observation-145-destructive-authority-cutover.yml'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/EventDescription.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Observations/Observation145.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/145_destructive_authority_cutover.md'
+      - '.github/workflows/observation-145-destructive-authority-cutover.yml'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/EventDescription.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  destructive-cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check destructive authority cutover protocol
+        run: lake build Loam.Observations.Observation145
