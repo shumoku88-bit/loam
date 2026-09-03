@@ -227,7 +227,7 @@ jobs:
           rm -f "$correction_file"
 
           printf '4\n1\npaypay\n111\npoint\n49\n\ncan-coffee\n160\n\nq\n' | ./tools/loam | tee /tmp/loam-movement-correction.out
-          grep -Fq '4. Correct a movement' /tmp/loam-movement-correction.out
+          grep -Fq '4. Correct a record' /tmp/loam-movement-correction.out
           grep -Fq '1. [record-1]' /tmp/loam-movement-correction.out
           grep -Fq 'Enter the corrected movement. Add FROM entries, then TO entries.' /tmp/loam-movement-correction.out
           grep -Fq 'Correction recorded: record-1 -> replacement-1 (160 jpy).' /tmp/loam-movement-correction.out

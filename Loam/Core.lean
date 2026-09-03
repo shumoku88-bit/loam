@@ -4,6 +4,7 @@ import Loam.Core.Effect
 import Loam.Core.Purpose
 import Loam.Core.HistoricalRouting
 import Loam.Core.ActualValidity
+import Loam.Core.ActualValidityHistory
 import Loam.Core.BalancedMovement
 import Loam.Core.Capacity
 import Loam.Core.CapacityMemory

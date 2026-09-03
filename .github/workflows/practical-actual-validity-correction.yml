@@ -1,0 +1,124 @@
+name: Practical Actual Validity Correction
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ActualValidityHistory.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/ActualValidityCorrectionCli.lean'
+      - 'Loam/MovementCli.lean'
+      - 'Loam/ReviewCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/Tests/ActualValidityCorrection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application.lean'
+      - 'tools/loam'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-actual-validity-correction.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Core/ActualValidityHistory.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/ActualValidityCorrectionCli.lean'
+      - 'Loam/MovementCli.lean'
+      - 'Loam/ReviewCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/Tests/ActualValidityCorrection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application.lean'
+      - 'tools/loam'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-actual-validity-correction.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-actual-validity-correction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build and test append-only date correction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build practical binaries and semantic layers
+        run: lake build Loam Loam.Application loam loamMovement
+      - name: Exercise date-correction frontier
+        run: lake env lean --run Loam/Tests/ActualValidityCorrection.lean
+      - name: Record, correct, and re-correct one occurrence date
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          validity="$memory.actual-validity"
+
+          printf 'paypay\n160\n\ncoffee\n160\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-03 .lake/build/bin/loamMovement "$memory" \
+              >"$tmp/record.out"
+
+          .lake/build/bin/loam review "$memory" >"$tmp/review-before.out"
+          grep -Fq '2026-09-03  [record-1]' "$tmp/review-before.out"
+
+          printf '1\n2026-09-02\n' \
+            | .lake/build/bin/loam correct-date "$memory" "$corrections" \
+              >"$tmp/correct-once.out"
+          grep -Fq 'Date corrected: 2026-09-03 -> 2026-09-02.' "$tmp/correct-once.out"
+
+          .lake/build/bin/loam review "$memory" >"$tmp/review-once.out"
+          grep -Fq '2026-09-02  [record-1]' "$tmp/review-once.out"
+          if grep -Fq '2026-09-03  [record-1]' "$tmp/review-once.out"; then
+            echo 'superseded occurrence date remained current' >&2
+            exit 1
+          fi
+
+          printf '1\n2026-09-01\n' \
+            | .lake/build/bin/loam correct-date "$memory" "$corrections" \
+              >"$tmp/correct-twice.out"
+          grep -Fq 'Date corrected: 2026-09-02 -> 2026-09-01.' "$tmp/correct-twice.out"
+
+          .lake/build/bin/loam review "$memory" >"$tmp/review-twice.out"
+          grep -Fq '2026-09-01  [record-1]' "$tmp/review-twice.out"
+
+          expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t2026-09-03\nFACT\tvalidity-2\trecord-1\t2026-09-02\nFACT\tvalidity-3\trecord-1\t2026-09-01\nCORRECTION\tvalidity-correction-1\tvalidity-1\tvalidity-2\nCORRECTION\tvalidity-correction-2\tvalidity-2\tvalidity-3'
+          test "$(cat "$validity")" = "$expected"
+
+      - name: Add the first date to an older undated record
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
+
+          printf '1\n2026-09-02\n' \
+            | .lake/build/bin/loam correct-date "$memory" "$corrections" \
+              >"$tmp/date-old.out"
+          grep -Fq 'Date recorded: 2026-09-02.' "$tmp/date-old.out"
+
+          .lake/build/bin/loam review "$memory" >"$tmp/review-old.out"
+          grep -Fq '2026-09-02  [record-1]' "$tmp/review-old.out"

@@ -55,30 +55,52 @@ private def occurrenceDate : IO (Except String String) := do
         let entered ← promptLine "Date (YYYY-MM-DD): "
         return validateOccurrenceDate entered
 
+private def historyMentionsEvent
+    (history : Loam.Core.ActualValidityHistory String)
+    (id : Loam.Core.EventId) : Bool :=
+  history.facts.any fun fact => decide (fact.event = id)
+
 /--
 Search the bounded operational Event-id namespace used by the practical CLI.
-A candidate must be unused by both Event memory and retained validity evidence,
-so an orphan validity left by an interrupted validity-first publication cannot
-block a later retry. The numeric suffix is collision avoidance only and has no
-temporal meaning.
+A candidate must be unused by both Event memory and retained validity history,
+so an orphan validity fact left by an interrupted validity-first publication
+cannot be reused accidentally. Numeric suffixes are collision avoidance only.
 -/
 private def freshRecordEventIdFrom
     (memory : Loam.Core.EventMemory)
-    (validities : Loam.Core.ActualValidityMemory String) :
+    (history : Loam.Core.ActualValidityHistory String) :
     Nat → Nat → Option Loam.Core.EventId
   | _, 0 => none
   | index, fuel + 1 =>
       let candidate : Loam.Core.EventId := ⟨"record-" ++ toString index⟩
-      match Loam.Core.EventMemory.findById? memory candidate,
-          Loam.Core.ActualValidityMemory.findByEventId? validities candidate with
-      | none, none => some candidate
-      | _, _ => freshRecordEventIdFrom memory validities (index + 1) fuel
+      match Loam.Core.EventMemory.findById? memory candidate with
+      | none =>
+          if historyMentionsEvent history candidate then
+            freshRecordEventIdFrom memory history (index + 1) fuel
+          else
+            some candidate
+      | some _ => freshRecordEventIdFrom memory history (index + 1) fuel
 
 private def freshRecordEventId?
     (memory : Loam.Core.EventMemory)
-    (validities : Loam.Core.ActualValidityMemory String) : Option Loam.Core.EventId :=
-  freshRecordEventIdFrom memory validities 1
-    (memory.events.length + validities.entries.length + 1)
+    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.EventId :=
+  freshRecordEventIdFrom memory history 1
+    (memory.events.length + history.facts.length + 1)
+
+private def freshValidityFactIdFrom
+    (history : Loam.Core.ActualValidityHistory String) :
+    Nat → Nat → Option Loam.Core.ActualValidityFactId
+  | _, 0 => none
+  | index, fuel + 1 =>
+      let candidate : Loam.Core.ActualValidityFactId :=
+        ⟨"validity-" ++ toString index⟩
+      match history.findFactById? candidate with
+      | none => some candidate
+      | some _ => freshValidityFactIdFrom history (index + 1) fuel
+
+private def freshValidityFactId?
+    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.ActualValidityFactId :=
+  freshValidityFactIdFrom history 1 (history.facts.length + 1)
 
 private def loadEventMemoryForEntry?
     (path : System.FilePath) : IO (Option Loam.Core.EventMemory) := do
@@ -91,9 +113,9 @@ private def loadEventMemoryForEntry?
 Record one balanced human-facing JPY movement with one occurrence date and one
 or more FROM / TO loci.
 
-The occurrence date is retained as separate `ActualValidity String` evidence;
-`Event` remains date-free. Interactive empty date input accepts the host-local
-current day, while backdated recording accepts an explicit ISO date.
+The occurrence date is retained as an identified append-only Actual-validity
+fact; `Event` remains date-free. Interactive empty date input accepts the
+host-local current day, while backdated recording accepts an explicit ISO date.
 
 The entrance requires the two entered totals to agree, then persists one generic
 Event containing negative Effects for the FROM side and positive Effects for the
@@ -109,11 +131,11 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       IO.eprintln "loam: malformed or unsupported event-memory file"
       return 2
   | some memory =>
-      match ← Loam.Persistence.loadActualValidityMemoryOrEmpty? validityFile with
+      match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
       | none =>
-          IO.eprintln "loam: malformed or unsupported actual-validity file"
+          IO.eprintln "loam: malformed or unsupported actual-validity history"
           return 2
-      | some validities =>
+      | some history =>
           IO.println "Record one movement. Add FROM entries, then TO entries."
           match ← occurrenceDate with
           | Except.error message =>
@@ -126,22 +148,22 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
                   IO.eprintln message
                   return 2
               | Except.ok (effects, total) =>
-                  match freshRecordEventId? memory validities with
-                  | none =>
-                      IO.eprintln "loam: could not generate a fresh event identity"
-                      return 2
-                  | some eventId =>
+                  match freshRecordEventId? memory history, freshValidityFactId? history with
+                  | some eventId, some factId =>
                       match Loam.Core.Event.ofEffects? eventId effects with
                       | none =>
                           IO.eprintln "loam: could not admit generated movement event"
                           return 2
                       | some event =>
-                          match Loam.Core.EventMemory.add? memory event,
-                              Loam.Core.ActualValidityMemory.ofEntries?
-                                (validities.entries ++ [{ event := eventId, validOn := validOn }]) with
-                          | some updatedEvents, some updatedValidities =>
-                              if ← Loam.Persistence.saveActualValidityMemory?
-                                  validityFile updatedValidities then
+                          let fact : Loam.Core.ActualValidityFact String := {
+                            id := factId
+                            event := eventId
+                            validOn := validOn
+                          }
+                          match Loam.Core.EventMemory.add? memory event, history.addFact? fact with
+                          | some updatedEvents, some updatedHistory =>
+                              if ← Loam.Persistence.saveActualValidityHistory?
+                                  validityFile updatedHistory then
                                 if ← Loam.Persistence.saveEventMemory? memoryFile updatedEvents then
                                   IO.println
                                     ("Recorded movement: " ++ toString total ++
@@ -149,7 +171,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
                                   return 0
                                 else
                                   IO.eprintln
-                                    "loam: event was not published; its already-published date evidence remains inert until that EventId exists"
+                                    "loam: event was not published; its already-published date fact remains inert until that EventId exists"
                                   return 2
                               else
                                 IO.eprintln "loam: occurrence date evidence could not be published"
@@ -157,6 +179,9 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
                           | _, _ =>
                               IO.eprintln "loam: could not append movement and occurrence-date evidence"
                               return 2
+                  | _, _ =>
+                      IO.eprintln "loam: could not generate fresh recording identities"
+                      return 2
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
