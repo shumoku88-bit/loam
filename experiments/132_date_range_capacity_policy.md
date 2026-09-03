@@ -102,9 +102,9 @@ The total authority remains 8.
 
 No Cycle identity participates in the calculation.
 
-## Qualification targets
+## Executed result
 
-Expected witnesses:
+Alloy 6.2.0 + Sat4j:
 
 ```text
 equalDefinitionDifferentIdentitySameAnswer              SAT
@@ -112,26 +112,69 @@ sameFormulaDifferentRangeChangesBase                     SAT
 sameRangeDifferentFormulaChangesBase                     SAT
 retainedReallocationChangesAllocationWithoutNewCycle     SAT
 formulaSwitchAndAdjustmentCoexist                        SAT
-```
 
-Expected counterexamples to deliberately too-strong compression:
-
-```text
 DateRangeAloneDeterminesGeneratedCapacity                SAT counterexample
 DateRangeAndFormulaDetermineFinalCapacity                SAT counterexample
-```
 
-Expected no counterexample for the smaller candidate:
-
-```text
 FormulaDefinitionAndRangeDetermineGeneratedBase          UNSAT counterexample
 RangeFormulaAndAdjustmentsDetermineFinalCapacity         UNSAT counterexample
 RetainedAdjustmentConservesSelectedTotal                 UNSAT counterexample
 ```
 
-## Interpretation if qualified
+The expected-result checker passed on the PR merge ref against current `main`.
 
-A useful current candidate would be:
+## Finding
+
+The first aggressive compression is false:
+
+```text
+DateRange alone
+    does not determine
+base Capacity
+```
+
+The same `[0,2)` range can use `FixedFormula` or `DailyFormula` and produce different Capacity. DateRange therefore remains temporal input rather than allocation authority.
+
+The second aggressive compression is also false:
+
+```text
+DateRange
++ Capacity formula
+    do not determine
+final Capacity
+```
+
+`DailyShort` and `DailyShortAdjusted` use the same range and the same formula, but the retained `Food -2 / Travel +2` adjustment changes the selected final allocation.
+
+So a formula cannot replace explicit Capacity decisions without losing household information.
+
+The smaller candidate survived the bounded checks:
+
+```text
+DateRange
++ formula definition
+    -> generated base Capacity
+
+DateRange
++ formula definition
++ retained Capacity adjustment evidence
+    -> final Capacity
+```
+
+An identity-distinct copy of the same formula definition produced the same answer on an equal range. In this specimen, formula identity itself carries no additional selected answer once the definition is fixed.
+
+The selected Purpose-to-Purpose adjustment also preserved total generated authority while changing its allocation.
+
+The qualified boundary is therefore:
+
+```text
+Cycle identity / budget-kind object    not earned
+DateRange                              temporal input
+Capacity formula definition            base-allocation authority
+retained Capacity movements            explicit adjustment authority
+```
+
+This supports a compact application composition such as:
 
 ```text
 friendly selector
@@ -148,7 +191,7 @@ generated base Capacity
 final Capacity
 ```
 
-This would leave several familiar nouns as application configuration or projections rather than canonical household objects:
+Several familiar nouns can remain application configuration or projections rather than canonical household objects:
 
 ```text
 MonthlyBudget
@@ -157,38 +200,7 @@ HalfYearBudget
 BudgetCycle
 ```
 
-But it would not remove Capacity authority itself.
-
-The formula definition would carry one kind of authority: how a selected range receives its base Capacity. Retained Capacity movement evidence would continue to carry explicit household decisions such as reallocation.
-
-So the desired compression is not:
-
-```text
-formula replaces Capacity evidence
-```
-
-but rather:
-
-```text
-formula supplies a base
-existing Capacity mechanics preserve explicit adjustments
-```
-
-## What would count as failure?
-
-The small candidate should be rejected if fixing:
-
-```text
-DateRange endpoints
-+ formula definition
-+ retained adjustment evidence
-```
-
-still leaves different selected final-Capacity answers in the bounded model.
-
-Likewise, if useful range formulas require embedding particular Cycle identities or range endpoints inside every formula definition, then the design may only have renamed the Cycle object rather than removed it.
-
-The current scaffold avoids that by making formula definitions range-generic and passing the DateRange as an input.
+But Capacity authority itself does not disappear. The formula supplies a base; existing Capacity mechanics preserve explicit household adjustments.
 
 ## Boundaries
 
