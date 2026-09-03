@@ -57,9 +57,49 @@ The Alloy model asks whether:
 6. two worlds can have the same completion/replacement lifecycle and the same Scheduled facts while differing only in continuation provenance;
 7. continuation alone leaves the source Scheduled live until independent terminal evidence exists.
 
-## Expected interpretation
+## Executed result
 
-If the model behaves as expected, the useful boundary is:
+Alloy 6.2.0 + Sat4j produced the expected result set:
+
+```text
+completedOccurrenceCanHaveLinkedNext          SAT
+precreatedFutureChainBeforeCompletion          SAT
+precreatedFutureChainSurvivesCompletion        SAT
+completionPlusReplacementAsNext                UNSAT
+oneSimilarFutureStillNeedsProvenance            SAT
+sameLifecycleDifferentContinuation              SAT
+StructuralFutureDeterminesContinuation          SAT counterexample
+ContinuationDoesNotCloseSource                  UNSAT counterexample
+```
+
+The exact-head Observation 122 workflow required this complete result set and completed successfully.
+
+## Finding
+
+The result separates three meanings that a daily UI could otherwise blur.
+
+First, realization and next-occurrence provenance are compatible:
+
+```text
+Scheduled A -> Actual A
+Scheduled A -> Scheduled B
+```
+
+A completed occurrence can therefore still point to an already-retained future occurrence.
+
+Second, several future occurrences can already form a continuation chain before the current occurrence is paid, and that chain remains valid after completion. Therefore:
+
+```text
+pay current occurrence
+    does not imply
+create exactly one new future occurrence now
+```
+
+The household may pre-create a longer horizon and simply consume it over time.
+
+Third, Observation 105's replacement edge cannot carry this meaning unchanged. Under its already-earned lifecycle semantics, completion and replacement are competing terminal claims for the same source, while continuation must be able to coexist with completion.
+
+The information boundary is therefore:
 
 ```text
 future Scheduled similarity
@@ -71,23 +111,36 @@ Observation-105 replacement
 post-completion continuation
 ```
 
-A future practical UI could then safely distinguish:
+Even when there is exactly one later Scheduled fact with the same retained movement shape, two otherwise lifecycle-equivalent worlds can disagree about whether it is the linked next occurrence. Date and movement similarity do not reconstruct that provenance.
+
+Continuation also does not close the current occurrence by itself. It may be retained ahead of time while the source remains live until independent completion/replacement/retirement evidence arrives.
+
+## UI consequence
+
+A future practical UI now has a sound distinction to project:
 
 ```text
 linked next occurrence already exists
-    -> show it after completion
+    -> show it after realization
+    -> do not ask the user to replenish it again
 
 no linked next occurrence
     -> optionally offer "Add next scheduled movement"
 ```
 
-But absence of a linked next occurrence would not mean:
+The second case is only an offer. Absence of a linked next occurrence does **not** establish that recurrence ended, and this observation gives no reason to auto-generate a future occurrence after every payment.
+
+This also leaves room for both household styles:
 
 ```text
-recurrence ended
-```
+just-in-time
+    complete September
+    -> add October when useful
 
-and would not require automatic generation.
+pre-filled horizon
+    September -> October -> November -> December already linked
+    -> completing September simply reveals October as the next retained occurrence
+```
 
 ## Deliberate boundary
 
@@ -103,7 +156,7 @@ This observation does **not** introduce:
 - a Practical Core `ScheduledContinuation` type;
 - persistence or CLI changes.
 
-A relation type should be added only if the solver shows that the provenance distinction is independently observable and later dogfood actually needs to retain it.
+The solver establishes that continuation provenance is independently observable. A retained Practical Core relation should still wait until a practical Scheduled UI or dogfood workflow actually needs to preserve that answer.
 
 ## Tool choice
 
