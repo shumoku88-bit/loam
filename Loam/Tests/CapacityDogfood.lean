@@ -43,6 +43,15 @@ def main : IO Unit := do
     (CapacityMemory.ofMovements? [allocation])
     "capacity memory rejected one movement"
 
+  expect (canMoveCapacityFrom memory0.movements .unallocated yen 1000000)
+    "unallocated was incorrectly treated as finite stock"
+  expect (canMoveCapacityFrom memory0.movements (.purpose food) yen 100)
+    "purpose could not provide its exact current entitlement"
+  expect (!(canMoveCapacityFrom memory0.movements (.purpose food) yen 101))
+    "purpose could provide more than its current entitlement"
+  expect (!(canMoveCapacityFrom memory0.movements (.purpose food) yen 0))
+    "zero current movement quantity was admitted"
+
   expect (CapacityMemory.add? memory0 allocation).isNone
     "capacity memory admitted duplicate stable movement identity"
 
@@ -56,6 +65,10 @@ def main : IO Unit := do
     "food entitlement did not include reallocation"
   expect ((entitlementAt memory.movements groceries yen).quanta == 40)
     "groceries entitlement did not include reallocation"
+  expect (canMoveCapacityFrom memory.movements (.purpose food) yen 60)
+    "purpose could not provide its exact post-reallocation entitlement"
+  expect (!(canMoveCapacityFrom memory.movements (.purpose food) yen 61))
+    "purpose could overdraw its post-reallocation entitlement"
 
   let encoded ← requireSome
     (Loam.Persistence.encodeCapacityMemory? memory)

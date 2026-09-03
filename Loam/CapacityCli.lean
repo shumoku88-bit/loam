@@ -115,19 +115,23 @@ private def recordCapacityUnlocked (capacityPath : String) : IO UInt32 := do
                           IO.eprintln "loam: capacity movement requires a positive amount and distinct endpoints"
                           return 2
                       | some movement =>
-                          match CapacityMemory.add? memory movement with
-                          | none =>
-                              IO.eprintln "loam: generated capacity identity already remembered"
-                              return 2
-                          | some updated =>
-                              if ← Loam.Persistence.saveCapacityMemory? capacityFile updated then
-                                IO.println
-                                  ("Recorded capacity movement: " ++ fromText ++ " -> " ++ toText ++
-                                    " = " ++ toString quanta ++ " jpy.")
-                                return 0
-                              else
-                                IO.eprintln "loam: capacity movement contains an unrepresentable identity token"
+                          if canMoveCapacityFrom memory.movements fromCoordinate ⟨"jpy"⟩ quanta then
+                            match CapacityMemory.add? memory movement with
+                            | none =>
+                                IO.eprintln "loam: generated capacity identity already remembered"
                                 return 2
+                            | some updated =>
+                                if ← Loam.Persistence.saveCapacityMemory? capacityFile updated then
+                                  IO.println
+                                    ("Recorded capacity movement: " ++ fromText ++ " -> " ++ toText ++
+                                      " = " ++ toString quanta ++ " jpy.")
+                                  return 0
+                                else
+                                  IO.eprintln "loam: capacity movement contains an unrepresentable identity token"
+                                  return 2
+                          else
+                            IO.eprintln "loam: capacity source has insufficient current entitlement"
+                            return 2
 
 /-- Record one JPY capacity movement under capacity-file writer ownership. -/
 def recordCapacity (capacityPath : String) : IO UInt32 :=
