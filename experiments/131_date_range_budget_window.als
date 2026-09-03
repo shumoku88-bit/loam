@@ -110,7 +110,6 @@ fact ValidWindows {
 }
 
 pred differentLabelsCollapseToSameRangeProjection {
-  Monthly != CustomSame
   Monthly.start = CustomSame.start
   Monthly.end = CustomSame.end
   capacityAt[Monthly, Food] = capacityAt[CustomSame, Food]
