@@ -73,6 +73,8 @@ jobs:
               'scheduledChangesHeadroomWithoutChangingRemaining': True,
               'actualChangesRemainingWithoutChangingEntitlement': True,
               'reservationDriftWitness': True,
+              'contextualCompletionWitness': True,
+              'contextualCancellationWitness': True,
               'CapacityAloneDeterminesEntitlement': False,
               'CapacityAndActualDetermineRemaining': False,
               'CompletionHeadroomDeltaMatchesExpectedMinusActual': False,
