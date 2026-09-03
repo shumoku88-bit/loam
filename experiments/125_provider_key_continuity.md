@@ -43,7 +43,7 @@ PostedObs
 
 The provider keys are distinct by construction.
 
-Two worlds retain the exact same observations, provider keys, stages, and visible source shape. They may differ only in explicit source-continuity evidence:
+Two worlds retain the exact same observations, provider keys, stages, and visible source shape. They differ only in explicit source-continuity evidence:
 
 ```text
 Left:
@@ -55,33 +55,41 @@ no continuity edge
 
 The model derives source lifecycle starts from that continuity relation.
 
-## Qualification target
+## Alloy 6.2.0 / Sat4j result
 
-Expected witnesses:
-
-```text
-linkedAcrossProviderKeyChange             SAT
-sameSourceEvidenceDifferentContinuity     SAT
-providerKeyWouldSplitLinkedLifecycle      SAT
-```
-
-Expected counterexamples:
+Observation 125 completed **SUCCESS** on executable head `78707947b40bcc1bd10f8ea46947b637f66f22b4`.
 
 ```text
-DifferentProviderKeysImplyDifferentLifecycles   SAT counterexample
-ProviderFactsDetermineContinuity                SAT counterexample
-ProviderFactsDetermineLifecycleCount            SAT counterexample
+linkedAcrossProviderKeyChange                    SAT
+sameSourceEvidenceDifferentContinuity            SAT
+providerKeyWouldSplitLinkedLifecycle             SAT
+DifferentProviderKeysImplyDifferentLifecycles    SAT counterexample
+ProviderFactsDetermineContinuity                 SAT counterexample
+ProviderFactsDetermineLifecycleCount             SAT counterexample
+ExplicitContinuityDeterminesLifecycleCount       UNSAT counterexample
 ```
 
-And once explicit continuity itself is fixed:
+The bounded witnesses establish both of these worlds over the same provider facts:
 
 ```text
-ExplicitContinuityDeterminesLifecycleCount      UNSAT counterexample
+P != Q
+PendingObs -> PostedObs
+=> one source lifecycle
 ```
 
-## Expected compression boundary
+and:
 
-If qualified:
+```text
+P != Q
+no continuity edge
+=> two source lifecycles
+```
+
+So provider key, stage, and visible source shape do not determine continuity or lifecycle multiplicity.
+
+Once explicit continuity itself is fixed, the selected lifecycle-count projection is determined in this bounded model.
+
+## Qualified compression boundary
 
 ```text
 provider key
@@ -103,13 +111,15 @@ or
 source lifecycle count
 ```
 
-Information equivalent to an explicit continuity / supersession correspondence is independently observable when a provider may replace keys across pending -> posted evolution.
+Information equivalent to explicit continuity / supersession correspondence is independently observable when a provider may replace keys across pending -> posted evolution.
 
-This does not mean provider IDs are useless. They remain valuable source evidence and may be stable for some adapters. The result would only reject this stronger rule:
+This does not make provider IDs useless. They remain valuable source-observation evidence and may be stable for some adapters. The result rejects only the stronger rule:
 
 ```text
 provider key equality is the universal source-lifecycle identity law
 ```
+
+Treating provider key directly as lifecycle identity would split the qualified linked `P -> Q` specimen into two lifecycles.
 
 ## Neighboring boundaries
 
