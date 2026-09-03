@@ -115,47 +115,56 @@ Travel  5
 
 This is experiment scaffolding for a partial boundary rule. It is not a proposed user-facing policy language.
 
-## Qualification targets
+## Executed result
 
-Expected witnesses:
-
-```text
-resetAndCarryProduceDifferentNextCapacity               SAT
-selectiveCarryProducesThirdAnswer                       SAT
-boundaryAdjustmentBelongsToNextAuthority                SAT
-equalPolicyDefinitionDifferentIdentitySameAnswer        SAT
-```
-
-Expected counterexamples to deliberately too-strong assumptions:
+Alloy 6.2.0 + Sat4j on the PR merge ref against `main`:
 
 ```text
-RangesFormulaAndTimedAdjustmentsDetermineNextCapacity   SAT counterexample
-EveryBoundaryResetsPriorAdjustments                      SAT counterexample
-EveryBoundaryCarriesAllPriorAdjustments                  SAT counterexample
+resetAndCarryProduceDifferentNextCapacity                SAT
+selectiveCarryProducesThirdAnswer                        SAT
+boundaryAdjustmentBelongsToNextAuthority                 SAT
+equalPolicyDefinitionDifferentIdentitySameAnswer         SAT
+RangesFormulaAndTimedAdjustmentsDetermineNextCapacity    SAT counterexample
+EveryBoundaryResetsPriorAdjustments                       SAT counterexample
+EveryBoundaryCarriesAllPriorAdjustments                   SAT counterexample
+BoundaryPolicyDefinitionDeterminesNextCapacity            UNSAT counterexample
+BoundaryPoliciesPreserveSelectedTotal                     UNSAT counterexample
 ```
 
-Expected no counterexample for the smaller candidate:
+The expected-result checker passed with the same classification.
+
+## Finding
+
+The bounded evidence establishes that adjacent DateRanges, one formula definition, and the same timed Capacity adjustments do not determine next-authority Capacity by themselves.
+
+The same next range and local day-2 adjustment can yield:
 
 ```text
-BoundaryPolicyDefinitionDeterminesNextCapacity           UNSAT counterexample
-BoundaryPoliciesPreserveSelectedTotal                    UNSAT counterexample
+Reset
+  Food 11 / Travel 3
+
+Carry all
+  Food 10 / Travel 4
+
+Selective
+  Food 9 / Travel 5
 ```
 
-## Interpretation if qualified
+So cross-boundary treatment of earlier Capacity adjustments is independently meaningful authority.
 
-The expected boundary is:
+Neither universal rule survives:
 
 ```text
-adjacent DateRanges
-+ formula definition
-+ timed Capacity adjustments
-    do not determine
-next-authority Capacity
+every boundary resets
 ```
 
-because reset, full carry, and selective carry are all distinguishable interpretations of the same retained evidence.
+nor:
 
-But if a boundary policy definition is also fixed:
+```text
+every boundary carries everything
+```
+
+But once the boundary policy definition is fixed, Alloy found no bounded counterexample for the selected next-authority Capacity answer:
 
 ```text
 next authority DateRange
@@ -166,17 +175,25 @@ next authority DateRange
     -> selected Capacity state
 ```
 
-then a canonical Cycle identity is still not earned.
+An identity-distinct policy with an equal carry definition produced the same selected answer. Policy identity itself is therefore not earned in this specimen once the definition is fixed.
 
-Friendly application presets may say `reset`, `carry`, or something more household-specific, but the selected semantics can remain an ordinary deterministic definition.
+All three bounded policies also preserve the selected total Capacity because every retained adjustment is balanced across Purpose coordinates.
 
-An identity-distinct policy with the same carry definition is included to test whether policy identity itself adds information in this bounded specimen.
+This does not restore a canonical `Cycle` object. `authority` and `view` remain ordinary half-open DateRanges, while boundary semantics remain an explicit deterministic definition supplied as application/query authority.
 
 ## Important distinction
 
 A boundary adjustment effective exactly at `next.start` is local to the next half-open authority. It is not carried from the previous authority.
 
 This keeps the DateRange boundary law consistent with Observation 131.
+
+## Qualification
+
+- executable-model head `2b7115a5e81977807f7061fb67305639420b3276`
+- PR merge ref `6fc3c2a4806e345960ade931a7479439b0f87c8e`
+- base `main` `1672e83786b01c71f80d06bb56e03ffa29efe9c1`
+- Observation 136 solver execution: SUCCESS
+- expected-result checker: SUCCESS
 
 ## Boundaries
 
