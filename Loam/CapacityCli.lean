@@ -149,7 +149,13 @@ private def rememberedPurposes (memory : CapacityMemory) : List PurposeId :=
         purposes)
     []
 
-/-- Show JPY entitlement as a projection over retained capacity evidence. -/
+/--
+Show JPY entitlement at remembered Purpose coordinates.
+
+The internal `unallocated` coordinate is deliberately not rendered as a
+household balance. It is the balancing boundary outside named purposes, not an
+independently asserted quantity of spendable money.
+-/
 def showCapacity (capacityPath : String) : IO UInt32 := do
   let capacityFile := System.FilePath.mk capacityPath
   match ← loadCapacityMemoryForView? capacityFile with
@@ -158,13 +164,16 @@ def showCapacity (capacityPath : String) : IO UInt32 := do
       return 2
   | some memory =>
       let yen : MeasureId := ⟨"jpy"⟩
-      IO.println "Spending capacity (derived from retained movements):"
-      let unallocated := capacityAt memory.movements .unallocated yen
-      IO.println ("  unallocated: " ++ toString unallocated.quanta ++ " jpy")
-      for purpose in rememberedPurposes memory do
-        let quantity := entitlementAt memory.movements purpose yen
-        IO.println ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
-      return 0
+      match rememberedPurposes memory with
+      | [] =>
+          IO.println "No spending-purpose capacity."
+          return 0
+      | purposes =>
+          IO.println "Spending capacity (derived from retained movements):"
+          for purpose in purposes do
+            let quantity := entitlementAt memory.movements purpose yen
+            IO.println ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
+          return 0
 
 /-- Command dispatcher for the first practical Capacity entrance. -/
 def run (args : List String) : IO UInt32 :=
