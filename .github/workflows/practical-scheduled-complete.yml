@@ -217,5 +217,5 @@ jobs:
             status=$?
           fi
           test "$status" = '2'
-          grep -Fq 'completion Event identity already exists without the expected completion evidence' \
+          grep -Fq 'completion Event identity already exists without the expected completion relation' \
             /tmp/loam-scheduled-complete-collision.err
