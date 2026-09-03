@@ -1,0 +1,71 @@
+name: Observation 118
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/118_ui_stale_admission_safe.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_cancel.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_complete.pml'
+      - 'experiments/118_ui_stale_admission.md'
+      - '.github/workflows/observation-118-ui-stale-admission.yml'
+  push:
+    branches:
+      - 'experiment/118-ui-stale-admission'
+      - main
+    paths:
+      - 'experiments/118_ui_stale_admission_safe.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_cancel.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_complete.pml'
+      - 'experiments/118_ui_stale_admission.md'
+      - '.github/workflows/observation-118-ui-stale-admission.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spin:
+    name: SPIN stale UI admission
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install SPIN
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y spin
+          spin -V
+
+      - name: Verify activation-time re-admission is safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/118_ui_stale_admission_safe.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'errors:[[:space:]]+0' <<<"$output"
+
+      - name: Require stale Cancel counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/118_ui_stale_admission_unsafe_cancel.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'assertion violated|errors:[[:space:]]+[1-9][0-9]*' <<<"$output"
+          if grep -Eq 'errors:[[:space:]]+0' <<<"$output"; then
+            echo 'expected stale Cancel to conflict with retained completion claim'
+            exit 1
+          fi
+
+      - name: Require stale Complete counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(spin -run experiments/118_ui_stale_admission_unsafe_complete.pml 2>&1 || true)"
+          printf '%s\n' "$output"
+          grep -Eq 'assertion violated|errors:[[:space:]]+[1-9][0-9]*' <<<"$output"
+          if grep -Eq 'errors:[[:space:]]+0' <<<"$output"; then
+            echo 'expected stale Complete to conflict with retained retirement evidence'
+            exit 1
+          fi
