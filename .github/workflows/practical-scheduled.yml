@@ -1,0 +1,136 @@
+name: Practical Scheduled
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled.yml'
+  push:
+    paths:
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scheduled:
+    name: Build and test scheduled movement entrance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical LOAM executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Record and show two scheduled movements
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+
+          printf '2026-09-10\npaypay\n800\npoint\n200\n\nrent\n1000\n\n' \
+            | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-1.out
+          grep -Fq 'Scheduled movement recorded: scheduled-1 on 2026-09-10 = 1000 jpy.' /tmp/loam-scheduled-1.out
+
+          printf '2026-09-15\nyucho\n3000\n\ninvestment\n3000\n\n' \
+            | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-2.out
+          grep -Fq 'Scheduled movement recorded: scheduled-2 on 2026-09-15 = 3000 jpy.' /tmp/loam-scheduled-2.out
+
+          expected=$'LOAM-SCHEDULED-MEMORY\t1\nSCHEDULED\tscheduled-1\t2026-09-10\tjpy\nCHANGE\tpaypay\t-800\nCHANGE\tpoint\t-200\nCHANGE\trent\t1000\nSCHEDULED\tscheduled-2\t2026-09-15\tjpy\nCHANGE\tyucho\t-3000\nCHANGE\tinvestment\t3000'
+          test "$(cat "$scheduled")" = "$expected"
+
+          ./tools/loam scheduled show "$scheduled" >/tmp/loam-scheduled-show.out
+          grep -Fq '2026-09-10  [scheduled-1]' /tmp/loam-scheduled-show.out
+          grep -Fq 'paypay: -800 jpy' /tmp/loam-scheduled-show.out
+          grep -Fq 'point: -200 jpy' /tmp/loam-scheduled-show.out
+          grep -Fq 'rent: 1000 jpy' /tmp/loam-scheduled-show.out
+          grep -Fq '2026-09-15  [scheduled-2]' /tmp/loam-scheduled-show.out
+          grep -Fq 'investment: 3000 jpy' /tmp/loam-scheduled-show.out
+
+      - name: Refuse invalid date and unequal movement without publication
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+
+          if printf '2026-02-29\npaypay\n1\n\ncoffee\n1\n\n' \
+              | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-date.out 2>/tmp/loam-scheduled-date.err; then
+            echo 'expected invalid scheduled date to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'scheduled date must be a real calendar date in YYYY-MM-DD form' /tmp/loam-scheduled-date.err
+          test ! -e "$scheduled"
+
+          if printf '2026-09-10\npaypay\n10\n\ncoffee\n9\n\n' \
+              | ./tools/loam scheduled "$scheduled" >/tmp/loam-scheduled-balance.out 2>/tmp/loam-scheduled-balance.err; then
+            echo 'expected unequal scheduled movement to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'movement totals differ: from 10 jpy, to 9 jpy' /tmp/loam-scheduled-balance.err
+          test ! -e "$scheduled"
+
+      - name: Refuse duplicate scheduled identity on reload
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	paypay	-1
+          CHANGE	coffee	1
+          SCHEDULED	scheduled-1	2026-09-11	jpy
+          CHANGE	paypay	-1
+          CHANGE	coffee	1
+          EOF
+
+          if ./tools/loam scheduled show "$scheduled" >/tmp/loam-scheduled-dup.out 2>/tmp/loam-scheduled-dup.err; then
+            echo 'expected duplicate scheduled identity to fail closed' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'malformed or unsupported scheduled file' /tmp/loam-scheduled-dup.err
