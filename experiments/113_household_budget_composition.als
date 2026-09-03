@@ -153,6 +153,13 @@ pred overActualCompletionWitness {
     a.amount > s.amount
 }
 
+pred contextualCompletionWitness {
+  some p: Purpose, s: ScheduledFact, a: ActualFact, c: Completion |
+    completionTransition[p, s, a, c] and
+    some Before.actuals and
+    some (Before.scheduled - s)
+}
+
 pred cancellationTransition[
     p: Purpose,
     s: ScheduledFact,
@@ -181,6 +188,13 @@ pred cancellationTransition[
 pred cancellationWitness {
   some p: Purpose, s: ScheduledFact, r: Retirement |
     cancellationTransition[p, s, r]
+}
+
+pred contextualCancellationWitness {
+  some p: Purpose, s: ScheduledFact, r: Retirement |
+    cancellationTransition[p, s, r] and
+    some Before.actuals and
+    some (Before.scheduled - s)
 }
 
 pred scheduledChangesHeadroomWithoutChangingRemaining {
@@ -301,6 +315,8 @@ run cancellationWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1
 run scheduledChangesHeadroomWithoutChangingRemaining for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
 run actualChangesRemainingWithoutChangingEntitlement for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
 run reservationDriftWitness for exactly 1 Purpose, exactly 1 CapacityFact, exactly 1 ActualFact, exactly 1 ScheduledFact, exactly 1 Completion, exactly 1 Retirement, exactly 4 World, 4 Int
+run contextualCompletionWitness for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
+run contextualCancellationWitness for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
 
 check CapacityAloneDeterminesEntitlement for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
 check CapacityAndActualDetermineRemaining for exactly 2 Purpose, exactly 2 CapacityFact, exactly 2 ActualFact, exactly 2 ScheduledFact, exactly 2 Completion, exactly 2 Retirement, exactly 4 World, 6 Int
