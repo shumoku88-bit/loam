@@ -9,7 +9,7 @@ abstract sig Scheduled {
 one sig Payment, Funding, Transfer extends Scheduled {}
 
 abstract sig World {
-  open: set Scheduled,
+  activeScheduled: set Scheduled,
   selected: set Locus,
   eligible: set Locus
 }
@@ -28,15 +28,15 @@ fun selectedImpact[w: World, s: Scheduled]: one Int {
 }
 
 fun selectedOpenImpact[w: World]: one Int {
-  sum s: w.open | selectedImpact[w, s]
+  sum s: w.activeScheduled | selectedImpact[w, s]
 }
 
 fun eligibleOpenImpact[w: World]: one Int {
-  sum s: w.open | impactOn[s, w.eligible]
+  sum s: w.activeScheduled | impactOn[s, w.eligible]
 }
 
 pred sameOpen[a, b: World] {
-  a.open = b.open
+  a.activeScheduled = b.activeScheduled
 }
 
 fact SpecimenMovements {
@@ -64,7 +64,7 @@ fact EligibilityIsASeparateSelection {
 }
 
 pred balanceViewReadsRelativeDirectionWithoutAccountTypes {
-  Left.open = Payment + Funding + Transfer
+  Left.activeScheduled = Payment + Funding + Transfer
   Left.selected = Bank + Wallet
 
   selectedImpact[Left, Payment] < 0
@@ -76,8 +76,8 @@ pred balanceViewReadsRelativeDirectionWithoutAccountTypes {
 }
 
 pred sameScheduledCanReadDifferentlyThroughDifferentViews {
-  Left.open = Payment
-  Right.open = Payment
+  Left.activeScheduled = Payment
+  Right.activeScheduled = Payment
 
   Left.selected = Bank
   Right.selected = Rent
@@ -88,7 +88,7 @@ pred sameScheduledCanReadDifferentlyThroughDifferentViews {
 
 pred sameViewCanStillDifferInEligibilitySensitiveImpact {
   sameOpen[Left, Right]
-  Left.open = Payment + Funding
+  Left.activeScheduled = Payment + Funding
   Left.selected = Bank + Rent
   Right.selected = Left.selected
 
