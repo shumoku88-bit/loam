@@ -15,6 +15,28 @@ PREPARED bundle.  This module never constructs candidates or issues identity.
 It recognizes only the phase shapes qualified by Observation 145, holds the
 existing EventMemory writer lock for the whole operation, and refuses every
 other physical state.
+
+## Source authority boundary and operational quiescence precondition
+
+- Source is a pre-authority-commit qualification input only:
+    - Before invoking real publisher: freeze HRA writes and verify current
+      SHA matches the approved source SHA.
+    - Pre-commit (before E1): live source SHA must match manifest SOURCE-SHA256.
+      Source missing or drifting before E1 aborts publication without committing E1.
+    - Post-commit (after E1): LOAM becomes the sole Actual authority.  External
+      source is never read again.  Recovery relies entirely on sealed PREPARED,
+      the archived destination snapshot S1, manifest, and final canonical state.
+    - Completed state (after Receipt + PREPARED cleanup): verification is
+      entirely self-contained in LOAM (`Receipt` + archived snapshot + canonical files).
+      External source can be missing, modified, or renamed without affecting LOAM.
+
+## Product boundary
+
+This is one-time cutover machinery.  It does NOT implement:
+- generic import frameworks
+- permanent HRA connectors
+- source synchronization
+- cross-system distributed transaction frameworks
 -/
 
 namespace Loam.HistoricalPublisher
@@ -157,9 +179,9 @@ private def maybeHoldForLockQualification : IO Unit := do
       | none => pure ()
   | none => pure ()
 
-private def verifyCandidateProduction
+private def verifySealedCandidate
     (manifest : Manifest)
-    (candidateRoot source : System.FilePath) : IO (Except String Unit) := do
+    (candidateRoot : System.FilePath) : IO (Except String Unit) := do
   if manifest.candidates.map (·.1) != candidatePaths then
     return ← fail "manifest CANDIDATE rows are not the exact publisher candidate set"
   for row in manifest.candidates do
@@ -169,18 +191,12 @@ private def verifyCandidateProduction
       "scheduled.loam.completions", receiptRelPath] do
     if !(← pathAbsent (candidateRoot / name)) then
       return ← fail s!"candidate path must be physically ABSENT: {name}"
-  let (sourceBytes, sourceSha) ←
-    match ← fingerprintFile? source with
-    | none => return ← fail "source file missing"
-    | some pair => pure pair
-  if sourceSha != manifest.sourceSha256 || sourceBytes.size != manifest.sourceBytes then
-    return ← fail "SOURCE-DRIFT: current source differs from PREPARED"
   let snapshot ←
     match ← fingerprintFile? (candidateRoot / "historical-admission/actual.journal.snapshot") with
     | none => return ← fail "candidate snapshot missing"
     | some pair => pure pair
-  if snapshot.1 != sourceBytes || snapshot.2 != sourceSha then
-    return ← fail "candidate snapshot is not the exact current source"
+  if snapshot.2 != manifest.sourceSha256 || snapshot.1.size != manifest.sourceBytes then
+    return ← fail "candidate snapshot does not match manifest source fingerprint"
   let events ←
     match ← loadEventMemory? (candidateRoot / "memory.loam") with
     | none => return ← fail "production loader rejected candidate EventMemory"
@@ -252,6 +268,16 @@ private def verifyCandidateProduction
         if actual != expected then
           return ← fail "candidate CurrentQuantity parity mismatch"
     | _ => return ← fail "candidate CurrentQuantity unavailable"
+  return Except.ok ()
+
+private def verifyLiveSourceStillQualified
+    (manifest : Manifest) (source : System.FilePath) : IO (Except String Unit) := do
+  let (sourceBytes, sourceSha) ←
+    match ← fingerprintFile? source with
+    | none => return ← fail "live source file missing before authority commit"
+    | some pair => pure pair
+  if sourceSha != manifest.sourceSha256 || sourceBytes.size != manifest.sourceBytes then
+    return ← fail "SOURCE-DRIFT: live source differs from PREPARED before authority commit"
   return Except.ok ()
 
 private def verifyUnchanged
@@ -418,7 +444,7 @@ private def completionTimestamp (marker : System.FilePath) : IO String := do
   return utcStampOfEpochSeconds metadata.modified.sec.toNat.toUInt64
 
 private def publishRemaining
-    (phase : PhysicalPhase)
+    (_phase : PhysicalPhase)
     (manifestSha : String)
     (manifest : Manifest)
     (bundle candidateRoot destination : System.FilePath) : IO (Except String Unit) := do
@@ -468,7 +494,7 @@ private def publishRemaining
   return Except.ok ()
 
 private def completeWithoutPrepared
-    (source destination : System.FilePath) (approvedSha : String) : IO (Except String RestartAction) := do
+    (destination : System.FilePath) (approvedSha : String) : IO (Except String RestartAction) := do
   if !(validSha256Text approvedSha) then return ← fail "invalid approved manifest SHA-256"
   let receiptBytes ←
     match ← fingerprintFile? (destination / receiptRelPath) with
@@ -483,16 +509,25 @@ private def completeWithoutPrepared
         | some rows => pure rows
   if rows[0]?.map (·.2) != some approvedSha then
     return ← fail "receipt does not bind caller-approved PREPARED manifest SHA-256"
-  let sourceSha ←
-    match ← fingerprintFile? source with
-    | none => return ← fail "source missing during completed-state verification"
-    | some pair => pure pair.2
-  if rows[1]?.map (·.2) != some sourceSha then
-    return ← fail "completed receipt source fingerprint mismatch"
+  let receiptSourceSha ←
+    match rows[1]?.map (·.2) with
+    | none => return ← fail "receipt SOURCE-SNAPSHOT-SHA256 missing"
+    | some value => pure value
+  let receiptArchivedSha ←
+    match rows[7]?.map (·.2) with
+    | none => return ← fail "receipt ARCHIVED-SNAPSHOT-SHA256 missing"
+    | some value => pure value
+  if receiptSourceSha != receiptArchivedSha then
+    return ← fail "receipt source SHA does not match receipt archived snapshot SHA"
+  let actualArchivedSha ←
+    match ← fingerprintFile? (destination / "historical-admission/actual.journal.snapshot") with
+    | none => return ← fail "completed archived snapshot missing: historical-admission/actual.journal.snapshot"
+    | some (_, sha) => pure sha
+  if actualArchivedSha != receiptArchivedSha then
+    return ← fail "completed archived snapshot SHA does not match receipt"
   for pair in [
       (3, "memory.loam"), (4, "memory.loam.actual-validity"),
-      (5, "memory.loam.descriptions"), (6, "basis.loam"),
-      (7, "historical-admission/actual.journal.snapshot")] do
+      (5, "memory.loam.descriptions"), (6, "basis.loam")] do
     let expected ←
       match rows[pair.1]?.map (·.2) with
       | none => return ← fail "receipt final fingerprint row missing"
@@ -511,7 +546,7 @@ private def publishLocked
     (approvedSha : String) : IO (Except String RestartAction) := do
   maybeHoldForLockQualification
   if !(← bundle.pathExists) then
-    return ← completeWithoutPrepared source destination approvedSha
+    return ← completeWithoutPrepared destination approvedSha
   if !validSha256Text approvedSha then return ← fail "invalid approved manifest SHA-256"
   let (manifestBytes, manifestSha) ←
     match ← fingerprintFile? (bundle / "manifest") with
@@ -530,7 +565,7 @@ private def publishLocked
   if manifest.sourcePath != source.toString || manifest.destinationRoot != destination.toString then
     return ← fail "requested source/destination do not match PREPARED manifest"
   let candidateRoot := bundle / "candidate-root"
-  match ← verifyCandidateProduction manifest candidateRoot source with
+  match ← verifySealedCandidate manifest candidateRoot with
   | Except.error message => return ← fail message
   | Except.ok () => pure ()
   match ← verifyUnchanged manifest candidateRoot destination with
@@ -580,16 +615,22 @@ private def publishLocked
     catch e => return ← fail s!"could not retire PREPARED: {e}"
     maybeCrashAfter "prepared-cleanup"
     return Except.ok .recoverReceiptOnly
-  let action :=
+  let isPreCommit :=
     match phase with
-    | .initial | .afterValidity | .afterDescription | .afterBasis | .afterSnapshot =>
-        RestartAction.resumePreCommitPublication
-    | .afterEvent | .afterCorrections | .afterCut =>
-        RestartAction.resumePostCommitRetirement
-  match action with
-  | .resumePreCommitPublication => IO.println "restart: ResumePreCommitPublication"
-  | .resumePostCommitRetirement => IO.println "restart: ResumePostCommitRetirement"
-  | _ => pure ()
+    | .initial | .afterValidity | .afterDescription | .afterBasis | .afterSnapshot => true
+    | .afterEvent | .afterCorrections | .afterCut => false
+  if isPreCommit then
+    match ← verifyLiveSourceStillQualified manifest source with
+    | Except.error message => return ← fail message
+    | Except.ok () => pure ()
+    IO.println "restart: ResumePreCommitPublication"
+  else
+    IO.println "restart: ResumePostCommitRetirement"
+  let action :=
+    if isPreCommit then
+      RestartAction.resumePreCommitPublication
+    else
+      RestartAction.resumePostCommitRetirement
   match ← publishRemaining phase manifestSha manifest bundle candidateRoot destination with
   | Except.error message => return ← fail message
   | Except.ok () => return Except.ok action
@@ -597,6 +638,8 @@ private def publishLocked
 /--
 Publish or recover one approved PREPARED bundle while holding the existing
 EventMemory sibling writer lock.  No candidate construction occurs here.
+The `source` path is checked strictly prior to authority commit (pre-commit);
+post-commit recovery and completed verification are fully self-contained in LOAM.
 -/
 def publish
     (bundle source destination : System.FilePath)

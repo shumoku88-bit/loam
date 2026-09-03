@@ -5,6 +5,10 @@ import Loam.HistoricalPublisher
 
 The sole publication entrance requires caller approval of the exact PREPARED
 manifest digest.  It never prepares a candidate or issues identity.
+
+Note: the `current-actual.journal` source argument is a pre-authority-commit
+qualification input only.  Post-commit recovery and completed verification
+are fully self-contained in LOAM and never read the external source.
 -/
 
 namespace Loam.Cli.HistoricalPublishCli

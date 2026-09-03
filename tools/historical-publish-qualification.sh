@@ -91,6 +91,7 @@ source_before="$(shasum -a 256 "$source" | awk '{print $1}')"
 mkdir "$root/template-destination" "$root/template-prepared"
 cp -a "$dest/." "$root/template-destination/"
 cp -a "$bundle/." "$root/template-prepared/"
+cp -a "$source" "$root/template-source"
 identity_before="$(find "$root/template-prepared/candidate-root" -type f -print0 | sort -z | xargs -0 shasum -a 256 | awk '{print $1}' | shasum -a 256 | awk '{print $1}')"
 scheduled_before="$(shasum -a 256 "$dest/scheduled.loam" | awk '{print $1}')"
 view_before="$(shasum -a 256 "$dest/balance-view.tsv" | awk '{print $1}')"
@@ -105,6 +106,7 @@ reset_case() {
   mkdir -p "$dest" "$bundle"
   cp -a "$root/template-destination/." "$dest/"
   cp -a "$root/template-prepared/." "$bundle/"
+  cp -a "$root/template-source" "$source"
 }
 
 run_crash_case() {
@@ -217,6 +219,99 @@ if "$publish_bin" publish "$bundle" "$source" "$dest" "$(printf '0%.0s' {1..64})
   echo "FAIL: manifest approval mismatch accepted" >&2; exit 1
 fi
 echo "PASS: all unknown/mixed and approval negative specimens refused"
+
+# Source authority boundary specimens:
+# 1. Precommit source missing refuses without committing E1
+reset_case
+set +e
+LOAM_HISTORICAL_PUBLISH_CRASH_AFTER=s1 \
+  "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >/dev/null 2>&1
+[[ $? -eq 86 ]] || exit 1
+set -e
+rm "$source"
+if "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/precommit-source-missing.out" 2>&1; then
+  echo "FAIL: precommit source missing was accepted" >&2; exit 1
+fi
+dest_e="$(shasum -a 256 "$dest/memory.loam" | awk '{print $1}')"
+dest_e_orig="$(shasum -a 256 "$root/template-destination/memory.loam" | awk '{print $1}')"
+[[ "$dest_e" == "$dest_e_orig" ]] || { echo "FAIL: E1 was committed despite missing source" >&2; exit 1; }
+echo "PASS: precommit source missing refuses without committing E1"
+
+# 2. Postcommit source missing recovers to full completion
+reset_case
+set +e
+LOAM_HISTORICAL_PUBLISH_CRASH_AFTER=e1 \
+  "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >/dev/null 2>&1
+[[ $? -eq 86 ]] || exit 1
+set -e
+rm "$source"
+"$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/restart-e1-no-source.out" 2>&1
+grep -Fq "ResumePostCommitRetirement" "$root/restart-e1-no-source.out" || {
+  echo "FAIL: post-E1 restart without source did not report ResumePostCommitRetirement" >&2
+  cat "$root/restart-e1-no-source.out" >&2
+  exit 1
+}
+[[ ! -e "$bundle" ]] || { echo "FAIL: post-E1 restart left PREPARED" >&2; exit 1; }
+[[ ! -e "$dest/corrections.loam" && ! -e "$dest/basis-cut.tsv" ]] || {
+  echo "FAIL: post-E1 restart did not retire old streams" >&2; exit 1;
+}
+echo "PASS: postcommit source missing recovers to full completion"
+
+# 3. Postcommit source changed recovers to full completion
+reset_case
+set +e
+LOAM_HISTORICAL_PUBLISH_CRASH_AFTER=e1 \
+  "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >/dev/null 2>&1
+[[ $? -eq 86 ]] || exit 1
+set -e
+printf "drift after authority commit\n" >>"$source"
+"$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/restart-e1-drift-source.out" 2>&1
+grep -Fq "ResumePostCommitRetirement" "$root/restart-e1-drift-source.out" || {
+  echo "FAIL: post-E1 restart with modified source did not report ResumePostCommitRetirement" >&2
+  cat "$root/restart-e1-drift-source.out" >&2
+  exit 1
+}
+[[ ! -e "$bundle" ]] || { echo "FAIL: post-E1 restart left PREPARED" >&2; exit 1; }
+echo "PASS: postcommit source drift recovers to full completion"
+
+# 4. RecoverReceiptOnly without source completes
+reset_case
+set +e
+LOAM_HISTORICAL_PUBLISH_CRASH_AFTER=final-verified \
+  "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >/dev/null 2>&1
+[[ $? -eq 86 ]] || exit 1
+set -e
+rm "$source"
+"$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/restart-receipt-no-source.out" 2>&1
+grep -Fq "RecoverReceiptOnly" "$root/restart-receipt-no-source.out" || {
+  echo "FAIL: final-verified restart without source did not report RecoverReceiptOnly" >&2
+  cat "$root/restart-receipt-no-source.out" >&2
+  exit 1
+}
+[[ ! -e "$bundle" ]] || { echo "FAIL: final-verified restart left PREPARED" >&2; exit 1; }
+echo "PASS: RecoverReceiptOnly without source completes"
+
+# 5. Completed state verification without source
+reset_case
+"$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/first-complete.out" 2>&1
+[[ ! -e "$bundle" ]] || { echo "FAIL: first publish left PREPARED" >&2; exit 1; }
+rm "$source"
+"$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/complete-no-source.out" 2>&1
+grep -Fq "RestartAction.complete" "$root/complete-no-source.out" || {
+  echo "FAIL: completed state without source did not report complete" >&2
+  cat "$root/complete-no-source.out" >&2
+  exit 1
+}
+echo "PASS: completed state verification without source"
+
+# 6. Completed state with damaged archived snapshot refuses
+cp "$root/template-source" "$source"
+printf "damaged-archived-snapshot\n" >>"$dest/historical-admission/actual.journal.snapshot"
+if "$publish_bin" publish "$bundle" "$source" "$dest" "$manifest_sha" >"$root/damaged-snapshot.out" 2>&1; then
+  echo "FAIL: completed state with damaged archived snapshot was accepted" >&2
+  exit 1
+fi
+echo "PASS: completed state with damaged archived snapshot refuses"
 
 # Two processes contend for the existing OS writer lock.  The second cannot
 # inspect/publish until the deliberately held first process exits.
