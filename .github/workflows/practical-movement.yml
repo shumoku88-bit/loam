@@ -3,6 +3,8 @@ name: Practical Movement
 on:
   pull_request:
     paths:
+      - 'Loam/ActualDate.lean'
+      - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
@@ -17,6 +19,8 @@ on:
       - '.github/workflows/practical-movement.yml'
   push:
     paths:
+      - 'Loam/ActualDate.lean'
+      - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
@@ -58,31 +62,57 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Record split payment as one Event
+      - name: Record backdated split payment with separate validity evidence
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          validity="$memory.actual-validity"
+
+          printf '2026-09-02\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
+            | ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+          grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
+
+          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
+          test "$(cat "$memory")" = "$expected"
+
+          expected_validity=$'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t2026-09-02'
+          test "$(cat "$validity")" = "$expected_validity"
+
+      - name: Empty date accepts host-local today through primary menu
+        shell: bash
+        run: |
+          data_dir="$(mktemp -d)"
+          today="$(date +%Y-%m-%d)"
+
+          printf '1\n\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
+            | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out
+          grep -Fq '1. Record movement' /tmp/loam-menu.out
+          grep -Fq "Recorded movement: 1000 jpy. Date: $today." /tmp/loam-menu.out
+
+          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
+          test "$(cat "$data_dir/memory.loam")" = "$expected"
+
+          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t%s' "$today")"
+          test "$(cat "$data_dir/memory.loam.actual-validity")" = "$expected_validity"
+
+      - name: Refuse invalid calendar date without publication
         shell: bash
         run: |
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
 
-          printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
-            | ./tools/loam-movement "$memory" >/tmp/loam-movement.out
-          grep -Fq 'Recorded movement: 1000 jpy.' /tmp/loam-movement.out
-
-          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
-          test "$(cat "$memory")" = "$expected"
-
-      - name: Record split payment through primary menu
-        shell: bash
-        run: |
-          data_dir="$(mktemp -d)"
-
-          printf '1\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
-            | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out
-          grep -Fq '1. Record movement' /tmp/loam-menu.out
-          grep -Fq 'Recorded movement: 1000 jpy.' /tmp/loam-menu.out
-
-          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
-          test "$(cat "$data_dir/memory.loam")" = "$expected"
+          if printf '2026-02-29\n' \
+              | ./tools/loam-movement "$memory" >/tmp/loam-date.out 2>/tmp/loam-date.err; then
+            echo 'expected invalid occurrence date to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          test "$status" = '2'
+          grep -Fq 'date must be a real calendar date in YYYY-MM-DD form' /tmp/loam-date.err
+          test ! -e "$memory"
+          test ! -e "$memory.actual-validity"
 
       - name: Refuse unequal movement without publication
         shell: bash
@@ -90,7 +120,7 @@ jobs:
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
 
-          if printf 'paypay\n800\n\ngroceries\n799\n\n' \
+          if printf '2026-09-02\npaypay\n800\n\ngroceries\n799\n\n' \
               | ./tools/loam-movement "$memory" >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
             echo 'expected unequal movement totals to fail' >&2
             exit 1
@@ -100,6 +130,7 @@ jobs:
           test "$status" = '2'
           grep -Fq 'movement totals differ: from 800 jpy, to 799 jpy' /tmp/loam-movement.err
           test ! -e "$memory"
+          test ! -e "$memory.actual-validity"
 
       - name: Avoid repeated cached primary builds
         shell: bash
