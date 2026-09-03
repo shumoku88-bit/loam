@@ -28,10 +28,12 @@ private def loadEventCorrectionMemoryOrEmpty?
   else
     return Loam.Core.EventCorrectionMemory.ofCorrections? []
 
-private def currentFactForEvent?
-    (facts : List (Loam.Core.ActualValidityFact String))
-    (eventId : Loam.Core.EventId) : Option (Loam.Core.ActualValidityFact String) :=
-  facts.find? fun fact => fact.event = eventId
+private def currentFactForEvent? :
+    List (Loam.Core.ActualValidityFact String) →
+    Loam.Core.EventId → Option (Loam.Core.ActualValidityFact String)
+  | [], _ => none
+  | fact :: rest, eventId =>
+      if fact.event = eventId then some fact else currentFactForEvent? rest eventId
 
 private def renderCurrentDate
     (facts : List (Loam.Core.ActualValidityFact String))
@@ -107,16 +109,8 @@ private def appendDateChange?
       }
       withFact.addCorrection? correction
 
-/--
-Set or correct one current Event occurrence date without rewriting Event payload.
-
-When a current validity fact already exists, one replacement fact and one
-correction relation are appended in the same validity-history publication. If
-an older pre-date Event has no current validity fact, the operation simply adds
-its first dated fact. Repeated date correction therefore forms an explicit
-correction chain rather than a last-write-wins list.
--/
-def correctDate (memoryPath correctionPath : String) : IO UInt32 := do
+private def correctDateUnderOwnership
+    (memoryPath correctionPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let eventCorrectionFile := System.FilePath.mk correctionPath
   let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
@@ -213,16 +207,27 @@ def correctDate (memoryPath correctionPath : String) : IO UInt32 := do
                                                 IO.eprintln "loam: date evidence could not be published"
                                                 return 2
 
+/--
+Set or correct one current Event occurrence date without rewriting Event payload.
+
+The entrance owns the Event-memory writer boundary itself, so direct and primary
+CLI callers cannot accidentally bypass serialization. When a current validity
+fact exists, one replacement fact and one correction relation are appended in
+one validity-history publication. An older pre-date Event simply receives its
+first identified validity fact.
+-/
+def correctDate (memoryPath correctionPath : String) : IO UInt32 :=
+  Loam.WriterOwnership.withOwnership
+    (System.FilePath.mk memoryPath)
+    (correctDateUnderOwnership memoryPath correctionPath)
+
 private def usage : String :=
   "Correct one occurrence date append-only:\n" ++
   "  ./tools/loam correct-date MEMORY_FILE CORRECTION_FILE"
 
 def run (args : List String) : IO UInt32 :=
   match args with
-  | [memoryPath, correctionPath] =>
-      Loam.WriterOwnership.withOwnership
-        (System.FilePath.mk memoryPath)
-        (correctDate memoryPath correctionPath)
+  | [memoryPath, correctionPath] => correctDate memoryPath correctionPath
   | _ => do
       IO.eprintln usage
       return 2
