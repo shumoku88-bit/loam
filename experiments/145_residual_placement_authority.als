@@ -50,13 +50,11 @@ fact SymmetricOneCarrySpecimen {
   ACopyWorld.placement = PlaceACopy
 }
 
-/--
-Observation 144 already proved the arithmetic outside this bounded model:
-three independent 1/3 conversions may expose three residual units whose
-normalized aggregate contains one target quantum. In this symmetric specimen,
-any retained piece is therefore a mathematically admissible carrier for that
-one visible quantum.
--/
+// Observation 144 already proved the arithmetic outside this bounded model:
+// three independent 1/3 conversions may expose three residual units whose
+// normalized aggregate contains one target quantum. In this symmetric specimen,
+// any retained piece is therefore a mathematically admissible carrier for that
+// one visible quantum.
 fun candidateCarriers[w : World] : set Piece {
   w.retained
 }
