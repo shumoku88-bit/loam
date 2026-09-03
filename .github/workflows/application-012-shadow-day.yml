@@ -3,7 +3,7 @@ name: Application 012 Shadow Day
 on:
   pull_request:
     paths:
-      - 'Loam/ShadowDayCli.lean'
+      - 'Loam/Cli/ShadowDayCli.lean'
       - 'lakefile.lean'
       - 'experiments/application_012_shadow_day_reader.md'
       - '.github/workflows/application-012-shadow-day.yml'
@@ -11,7 +11,7 @@ on:
       - 'lake-manifest.json'
   push:
     paths:
-      - 'Loam/ShadowDayCli.lean'
+      - 'Loam/Cli/ShadowDayCli.lean'
       - 'lakefile.lean'
       - 'experiments/application_012_shadow_day_reader.md'
       - '.github/workflows/application-012-shadow-day.yml'

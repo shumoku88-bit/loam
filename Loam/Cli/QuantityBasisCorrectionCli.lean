@@ -1,6 +1,6 @@
 import Loam.Application.QuantityBasisFrontier
-import Loam.QuantityBasisCorrectionPersistence
-import Loam.QuantityBasisPersistence
+import Loam.Persistence.QuantityBasisCorrectionPersistence
+import Loam.Persistence.QuantityBasisPersistence
 import Loam.WriterOwnership
 import Std
 

@@ -3,14 +3,14 @@ name: Practical Open Scheduled
 on:
   pull_request:
     paths:
-      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Core/ScheduledRetirement.lean'
-      - 'Loam/ScheduledCompletionPersistence.lean'
-      - 'Loam/ScheduledPersistence.lean'
-      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
       - 'lakefile.lean'
@@ -19,14 +19,14 @@ on:
       - '.github/workflows/practical-open-scheduled.yml'
   push:
     paths:
-      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Core/ScheduledRetirement.lean'
-      - 'Loam/ScheduledCompletionPersistence.lean'
-      - 'Loam/ScheduledPersistence.lean'
-      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'Loam/Persistence.lean'
       - 'tools/loam'
       - 'lakefile.lean'

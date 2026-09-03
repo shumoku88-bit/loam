@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - 'tools/shadow-home-day'
-      - 'Loam/ShadowDayCli.lean'
-      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'Loam/Cli/ShadowDayCli.lean'
+      - 'Loam/Cli/ShadowScheduledDayCli.lean'
       - 'experiments/application_014_shadow_home_day_composition.md'
       - '.github/workflows/application-014-shadow-home-day.yml'
       - 'lakefile.lean'
@@ -13,8 +13,8 @@ on:
     branches: [main]
     paths:
       - 'tools/shadow-home-day'
-      - 'Loam/ShadowDayCli.lean'
-      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'Loam/Cli/ShadowDayCli.lean'
+      - 'Loam/Cli/ShadowScheduledDayCli.lean'
       - 'experiments/application_014_shadow_home_day_composition.md'
       - '.github/workflows/application-014-shadow-home-day.yml'
       - 'lakefile.lean'

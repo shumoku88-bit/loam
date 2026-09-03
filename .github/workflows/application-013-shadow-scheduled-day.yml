@@ -3,7 +3,7 @@ name: Application 013 Shadow Scheduled Day
 on:
   pull_request:
     paths:
-      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'Loam/Cli/ShadowScheduledDayCli.lean'
       - 'lakefile.lean'
       - 'experiments/application_013_shadow_scheduled_day_reader.md'
       - '.github/workflows/application-013-shadow-scheduled-day.yml'
@@ -11,7 +11,7 @@ on:
       - 'lake-manifest.json'
   push:
     paths:
-      - 'Loam/ShadowScheduledDayCli.lean'
+      - 'Loam/Cli/ShadowScheduledDayCli.lean'
       - 'lakefile.lean'
       - 'experiments/application_013_shadow_scheduled_day_reader.md'
       - '.github/workflows/application-013-shadow-scheduled-day.yml'

@@ -1,12 +1,12 @@
 import Loam.Persistence
-import Loam.ReviewCli
+import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
-import Loam.CorrectionCli
-import Loam.ActualValidityCorrectionCli
-import Loam.EffectiveCli
-import Loam.CorrectionIntegrityCli
-import Loam.ScheduledCli
-import Loam.ScheduledLifecycleCli
+import Loam.Cli.CorrectionCli
+import Loam.Cli.ActualValidityCorrectionCli
+import Loam.Cli.EffectiveCli
+import Loam.Cli.CorrectionIntegrityCli
+import Loam.Cli.ScheduledCli
+import Loam.Cli.ScheduledLifecycleCli
 import Std
 
 namespace Loam.Cli

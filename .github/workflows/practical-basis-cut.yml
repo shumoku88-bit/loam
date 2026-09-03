@@ -4,8 +4,8 @@ on:
   pull_request:
     paths:
       - 'Loam/Application/BasisCut.lean'
-      - 'Loam/BasisCutPersistence.lean'
-      - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'
       - '.github/workflows/practical-basis-cut.yml'
@@ -19,8 +19,8 @@ on:
   push:
     paths:
       - 'Loam/Application/BasisCut.lean'
-      - 'Loam/BasisCutPersistence.lean'
-      - 'Loam/DailyQuantityCli.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
       - 'tools/loam'
       - 'experiments/application_011_basis_cut.md'
       - '.github/workflows/practical-basis-cut.yml'

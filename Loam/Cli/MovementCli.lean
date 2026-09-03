@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.ActualValidityPersistence
+import Loam.Persistence.ActualValidityPersistence
 import Loam.MovementEntry
 import Loam.MovementUi
 import Loam.Persistence

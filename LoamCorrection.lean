@@ -1,4 +1,4 @@
-import Loam.CorrectionCli
+import Loam.Cli.CorrectionCli
 
 
 def main (args : List String) : IO UInt32 :=

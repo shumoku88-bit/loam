@@ -1,10 +1,11 @@
-import Loam.Observation008
-import Loam.Observation011
-import Loam.Observation029
-import Loam.Observation043
-import Loam.Observation044
-import Loam.Observation045
-import Loam.Observation046
+import Loam.Observations.Observation008
+import Loam.Observations.Observation011
+import Loam.Observations.Observation029
+import Loam.Observations.Observation043
+import Loam.Observations.Observation044
+import Loam.Observations.Observation045
+import Loam.Observations.Observation046
+import Loam.Observations.Observation078
 
 /-!
 # Historical Lean observations

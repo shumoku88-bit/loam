@@ -1,4 +1,4 @@
-import Loam.CorrectionIntegrityCli
+import Loam.Cli.CorrectionIntegrityCli
 
 
 def main (args : List String) : IO UInt32 :=

@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.ActualValidityPersistence
+import Loam.Persistence.ActualValidityPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence

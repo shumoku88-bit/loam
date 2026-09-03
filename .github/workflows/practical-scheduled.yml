@@ -5,8 +5,8 @@ on:
     paths:
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
-      - 'Loam/ScheduledPersistence.lean'
-      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/ActualDate.lean'
@@ -19,8 +19,8 @@ on:
     paths:
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
-      - 'Loam/ScheduledPersistence.lean'
-      - 'Loam/ScheduledCli.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Cli/ScheduledCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/ActualDate.lean'

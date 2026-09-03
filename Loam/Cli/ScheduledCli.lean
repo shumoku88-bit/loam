@@ -1,10 +1,10 @@
 import Loam.ActualDate
-import Loam.ActualValidityPersistence
+import Loam.Persistence.ActualValidityPersistence
 import Loam.CompletionPrompt
 import Loam.MovementEntry
-import Loam.ScheduledCompletionPersistence
+import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.ScheduledCompletionUi
-import Loam.ScheduledPersistence
+import Loam.Persistence.ScheduledPersistence
 import Loam.WriterOwnership
 import Std
 

@@ -1,7 +1,7 @@
-import Loam.ScheduledCli
-import Loam.ScheduledCompletionPersistence
-import Loam.ScheduledPersistence
-import Loam.ScheduledRetirementPersistence
+import Loam.Cli.ScheduledCli
+import Loam.Persistence.ScheduledCompletionPersistence
+import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledRetirementPersistence
 import Loam.WriterOwnership
 import Std
 

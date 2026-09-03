@@ -3,11 +3,11 @@ name: Stateless Shadow Quantity
 on:
   pull_request:
     paths:
-      - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Core/**'
-      - 'Loam/Observation078.lean'
+      - 'Loam/Observations/Observation078.lean'
       - 'tools/loam'
       - 'tools/private-quantity-parity'
       - 'tools/private-source-shape-summary'
@@ -18,11 +18,11 @@ on:
       - feat/stateless-shadow-quantity
       - main
     paths:
-      - 'Loam/ShadowQuantityCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Core/**'
-      - 'Loam/Observation078.lean'
+      - 'Loam/Observations/Observation078.lean'
       - 'tools/loam'
       - 'tools/private-quantity-parity'
       - 'tools/private-source-shape-summary'
