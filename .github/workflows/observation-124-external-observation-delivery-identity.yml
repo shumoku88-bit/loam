@@ -1,0 +1,79 @@
+name: Observation 124
+
+on:
+  pull_request:
+    paths:
+      - 'tla/ExternalObservationDeliveryIdentity.tla'
+      - 'tla/ExternalObservationDeliveryIdentity*.cfg'
+      - 'experiments/124_external_observation_delivery_identity.md'
+      - '.github/workflows/observation-124-external-observation-delivery-identity.yml'
+  push:
+    branches:
+      - 'experiment/124-external-observation-delivery-identity'
+      - main
+    paths:
+      - 'tla/ExternalObservationDeliveryIdentity.tla'
+      - 'tla/ExternalObservationDeliveryIdentity*.cfg'
+      - 'experiments/124_external_observation_delivery_identity.md'
+      - '.github/workflows/observation-124-external-observation-delivery-identity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tla:
+    name: TLA+ external observation delivery identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check identity-aware ingest invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -config tla/ExternalObservationDeliveryIdentity.cfg \
+            tla/ExternalObservationDeliveryIdentity.tla \
+            2>&1 | tee /tmp/observation-124-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-124-positive.txt
+
+      - name: Require retry and same-content-distinct histories
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_boundary() {
+            cfg="$1"
+            invariant="$2"
+            out="/tmp/observation-124-${cfg}.txt"
+            set +e
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -config "tla/${cfg}.cfg" \
+              tla/ExternalObservationDeliveryIdentity.tla \
+              2>&1 | tee "$out"
+            status=${PIPESTATUS[0]}
+            set -e
+            test "$status" -ne 0
+            grep -Fq "$invariant" "$out"
+            grep -Fq 'Invariant' "$out"
+          }
+
+          run_boundary ExternalObservationDeliveryIdentityRetryBoundary NoRetryHistory
+          run_boundary ExternalObservationDeliveryIdentityDistinctBoundary NoDistinctSameContentHistory
+          run_boundary ExternalObservationDeliveryIdentityAlwaysOneBoundary IdenticalPayloadDeliveriesAlwaysOneObservation
+          run_boundary ExternalObservationDeliveryIdentityAlwaysTwoBoundary IdenticalPayloadDeliveriesAlwaysTwoObservations
