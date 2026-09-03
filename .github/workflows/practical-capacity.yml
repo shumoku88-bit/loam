@@ -1,0 +1,80 @@
+name: Practical Capacity
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/CapacityPersistence.lean'
+      - 'Loam/CapacityCli.lean'
+      - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-capacity.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/CapacityPersistence.lean'
+      - 'Loam/CapacityCli.lean'
+      - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-capacity.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-capacity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build and exercise capacity entrance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Capacity executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamCapacity
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Capacity memory and persistence check
+        shell: bash
+        run: lake env lean --run Loam/Tests/CapacityDogfood.lean
+
+      - name: Exercise practical capacity entrance
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          capacity="$tmpdir/capacity.loam"
+
+          printf 'unallocated\nfood\n100\n' | .lake/build/bin/loamCapacity "$capacity"
+          printf 'food\ngroceries\n40\n' | .lake/build/bin/loamCapacity "$capacity"
+
+          output="$(.lake/build/bin/loamCapacity show "$capacity")"
+          printf '%s\n' "$output"
+          grep -F 'unallocated: -100 jpy' <<<"$output"
+          grep -F 'food: 60 jpy' <<<"$output"
+          grep -F 'groceries: 40 jpy' <<<"$output"
