@@ -2,6 +2,7 @@ import Loam.Persistence
 import Loam.ReviewCli
 import Loam.WriterOwnership
 import Loam.CorrectionCli
+import Loam.ActualValidityCorrectionCli
 import Loam.EffectiveCli
 import Loam.CorrectionIntegrityCli
 import Std
@@ -24,6 +25,8 @@ private def practicalUsage : String :=
   "  ./tools/loam summary MEMORY_FILE\n\n" ++
   "Correct a recorded movement append-only:\n" ++
   "  ./tools/loam correct MEMORY_FILE CORRECTION_FILE\n\n" ++
+  "Correct a recorded occurrence date append-only:\n" ++
+  "  ./tools/loam correct-date MEMORY_FILE CORRECTION_FILE\n\n" ++
   "For lower-level commands:\n" ++
   "  ./tools/loam help low-level"
 
@@ -276,6 +279,8 @@ def run (args : List String) : IO UInt32 :=
   | ["correct", memoryPath, correctionPath] =>
       withMemoryOwnership memoryPath
         (Loam.CorrectionCli.correctSpend memoryPath correctionPath)
+  | ["correct-date", memoryPath, correctionPath] =>
+      Loam.ActualValidityCorrectionCli.correctDate memoryPath correctionPath
   | ["effective", memoryPath, correctionPath] =>
       Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
   | ["correction-integrity", memoryPath, correctionPath] =>
