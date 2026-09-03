@@ -86,7 +86,8 @@ jobs:
           CHANGE	bank	-400
           CHANGE	cancelled-subject	400
           SCHEDULED	scheduled-interrupted	2026-09-15	jpy
-          CHANGE	bank	-250
+          CHANGE	bank	-200
+          CHANGE	points	-50
           CHANGE	interrupted-subject	250
           EOF
 
@@ -115,6 +116,19 @@ jobs:
           grep -Fq 'scheduled-interrupted' /tmp/loam-open-scheduled.out
           grep -Fq 'scheduled-late' /tmp/loam-open-scheduled.out
 
+          # One-source / one-destination expectations may be rendered as one
+          # human movement without inventing account or transaction-kind semantics.
+          grep -Fq 'bank -> early-subject: 100 jpy' /tmp/loam-open-scheduled.out
+          grep -Fq 'bank -> late-subject: 300 jpy' /tmp/loam-open-scheduled.out
+
+          # Split funding must remain fully visible rather than being collapsed
+          # into a misleading single arrow.
+          grep -Fq '  FROM' /tmp/loam-open-scheduled.out
+          grep -Fq '    bank: 200 jpy' /tmp/loam-open-scheduled.out
+          grep -Fq '    points: 50 jpy' /tmp/loam-open-scheduled.out
+          grep -Fq '  TO' /tmp/loam-open-scheduled.out
+          grep -Fq '    interrupted-subject: 250 jpy' /tmp/loam-open-scheduled.out
+
           if grep -Fq 'scheduled-completed' /tmp/loam-open-scheduled.out; then
             echo 'effective completion remained open' >&2
             exit 1
@@ -133,3 +147,4 @@ jobs:
           printf '12\nq\n' | LOAM_DATA_DIR="$tmp_dir" ./tools/loam > /tmp/loam-open-scheduled-menu.out
           grep -Fq '12. Show open scheduled movements' /tmp/loam-open-scheduled-menu.out
           grep -Fq 'scheduled-early' /tmp/loam-open-scheduled-menu.out
+          grep -Fq 'bank -> early-subject: 100 jpy' /tmp/loam-open-scheduled-menu.out

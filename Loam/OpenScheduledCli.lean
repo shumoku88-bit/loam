@@ -74,12 +74,68 @@ private def sortByScheduledDay
     List (ScheduledOccurrence String) :=
   occurrences.foldr insertByScheduledDay []
 
+private def fromChanges
+    (occurrence : ScheduledOccurrence String) :
+    List (MovementChange LocusId) :=
+  occurrence.movement.changes.filter fun change => change.quantity.quanta < 0
+
+private def toChanges
+    (occurrence : ScheduledOccurrence String) :
+    List (MovementChange LocusId) :=
+  occurrence.movement.changes.filter fun change => change.quantity.quanta > 0
+
+private def zeroChanges
+    (occurrence : ScheduledOccurrence String) :
+    List (MovementChange LocusId) :=
+  occurrence.movement.changes.filter fun change => change.quantity.quanta = 0
+
+private def printMagnitude
+    (indent : String)
+    (change : MovementChange LocusId)
+    (amount : Int)
+    (measure : MeasureId) : IO Unit := do
+  IO.println
+    (indent ++ change.coordinate.token ++ ": " ++
+      toString amount ++ " " ++ measure.token)
+
+/-!
+The practical view may translate signed quantities into FROM / TO language
+without adding Account, income, expense, debit, credit, or transaction-kind
+semantics to Core. Negative and positive are already explicit in the admitted
+BalancedMovement.
+
+A simple one-source / one-destination movement gets a compact arrow. Any split
+movement keeps every coordinate visible in separate FROM / TO groups. Zero
+changes, if retained, are shown explicitly rather than silently discarded.
+-/
+private def printMovement (occurrence : ScheduledOccurrence String) : IO Unit := do
+  let sources := fromChanges occurrence
+  let destinations := toChanges occurrence
+  let zeros := zeroChanges occurrence
+  match sources, destinations, zeros with
+  | [source], [destination], [] =>
+      IO.println
+        ("  " ++ source.coordinate.token ++ " -> " ++ destination.coordinate.token ++ ": " ++
+          toString destination.quantity.quanta ++ " " ++ occurrence.measure.token)
+  | _, _, _ =>
+      if !sources.isEmpty then
+        IO.println "  FROM"
+        for change in sources do
+          printMagnitude "    " change (-change.quantity.quanta) occurrence.measure
+      if !destinations.isEmpty then
+        IO.println "  TO"
+        for change in destinations do
+          printMagnitude "    " change change.quantity.quanta occurrence.measure
+      if !zeros.isEmpty then
+        IO.println "  ZERO"
+        for change in zeros do
+          printMagnitude "    " change 0 occurrence.measure
+      if occurrence.movement.changes.isEmpty then
+        IO.println "  (no quantity changes)"
+
 private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit := do
   IO.println (occurrence.scheduledOn ++ "  [" ++ occurrence.id.token ++ "]")
-  for change in occurrence.movement.changes do
-    IO.println
-      ("  " ++ change.coordinate.token ++ ": " ++
-        toString change.quantity.quanta ++ " " ++ occurrence.measure.token)
+  printMovement occurrence
 
 /--
 Show Scheduled occurrences whose expectation remains open.
