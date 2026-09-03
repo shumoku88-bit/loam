@@ -8,6 +8,7 @@ on:
       - 'LoamCorrectionIntegrity.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/MovementCli.lean'
+      - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
@@ -25,6 +26,7 @@ on:
       - 'LoamCorrectionIntegrity.lean'
       - 'Loam/CorrectionCli.lean'
       - 'Loam/MovementCli.lean'
+      - 'Loam/ActualValidityPersistence.lean'
       - 'Loam/EffectiveCli.lean'
       - 'Loam/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
@@ -79,6 +81,7 @@ jobs:
           mkdir -p scratch/dogfood
           memory_file="scratch/dogfood/memory.loam"
           correction_file="scratch/dogfood/corrections.loam"
+          validity_file="${memory_file}.actual-validity"
 
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
 
@@ -224,7 +227,7 @@ jobs:
           EFFECT	effect-2	paypay	jpy	-101
           EFFECT	effect-3	can-coffee	jpy	160
           EOF
-          rm -f "$correction_file"
+          rm -f "$correction_file" "$validity_file"
 
           printf '4\n1\npaypay\n111\npoint\n49\n\ncan-coffee\n160\n\nq\n' | ./tools/loam | tee /tmp/loam-movement-correction.out
           grep -Fq '4. Correct a record' /tmp/loam-movement-correction.out
@@ -241,3 +244,53 @@ jobs:
           grep -Fq 'paypay: -111 jpy' /tmp/loam-movement-effective.out
           grep -Fq 'point: -49 jpy' /tmp/loam-movement-effective.out
           grep -Fq 'can-coffee: 160 jpy' /tmp/loam-movement-effective.out
+
+          # A dated movement correction publishes the replacement's own date fact
+          # before the replacement Event. Force Event-memory staging to fail after
+          # relation/date publication, then verify the same relation and date fact
+          # are reused on retry instead of creating a sibling correction.
+          cat >"$memory_file" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	record-1
+          EFFECT	effect-1	point	jpy	-59
+          EFFECT	effect-2	paypay	jpy	-101
+          EFFECT	effect-3	coffee	jpy	160
+          EOF
+          rm -f "$correction_file"
+          cat >"$validity_file" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          FACT	validity-1	record-1	2026-09-01
+          EOF
+          rm -rf "${memory_file}.loam-stage"
+          mkdir "${memory_file}.loam-stage"
+
+          if printf '1\npaypay\n111\npoint\n49\n\ncoffee\n160\n\n' |
+              .lake/build/bin/loam correct "$memory_file" "$correction_file" \
+                > /tmp/loam-correction-interrupted.out 2>&1; then
+            echo 'forced Event publication failure must interrupt correction' >&2
+            exit 1
+          fi
+
+          expected_retry_correction=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\trecord-1\treplacement-1'
+          test "$(cat "$correction_file")" = "$expected_retry_correction"
+          expected_retry_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t2026-09-01\nFACT\tvalidity-2\treplacement-1\t2026-09-01'
+          test "$(cat "$validity_file")" = "$expected_retry_validity"
+          if grep -Fq $'EVENT\treplacement-1' "$memory_file"; then
+            echo 'replacement Event must remain unpublished at the forced failure point' >&2
+            exit 1
+          fi
+
+          rm -rf "${memory_file}.loam-stage"
+          printf '1\npaypay\n111\npoint\n49\n\ncoffee\n160\n\n' |
+            .lake/build/bin/loam correct "$memory_file" "$correction_file" |
+            tee /tmp/loam-correction-retry.out
+          grep -Fq 'Correction recorded: record-1 -> replacement-1 (160 jpy).' /tmp/loam-correction-retry.out
+
+          test "$(cat "$correction_file")" = "$expected_retry_correction"
+          test "$(cat "$validity_file")" = "$expected_retry_validity"
+          grep -Fq $'EVENT\treplacement-1' "$memory_file"
+
+          printf '0\n' |
+            .lake/build/bin/loam correct-date "$memory_file" "$correction_file" \
+              > /tmp/loam-replacement-date.out 2>&1 || true
+          grep -Fq '2026-09-01  [replacement-1]' /tmp/loam-replacement-date.out
