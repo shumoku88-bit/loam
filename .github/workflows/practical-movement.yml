@@ -5,6 +5,8 @@ on:
     paths:
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/PrimaryCli.lean'
+      - 'Loam/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
@@ -21,6 +23,8 @@ on:
     paths:
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/PrimaryCli.lean'
+      - 'Loam/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementCli.lean'
@@ -62,7 +66,7 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Record backdated split payment with separate validity evidence
+      - name: Record and review backdated split payment
         shell: bash
         run: |
           tmp_dir="$(mktemp -d)"
@@ -78,6 +82,11 @@ jobs:
 
           expected_validity=$'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t2026-09-02'
           test "$(cat "$validity")" = "$expected_validity"
+
+          ./tools/loam review "$memory" >/tmp/loam-review.out
+          grep -Fq '2026-09-02  [record-1]' /tmp/loam-review.out
+          grep -Fq 'paypay: -800 jpy' /tmp/loam-review.out
+          grep -Fq 'groceries: 1000 jpy' /tmp/loam-review.out
 
       - name: Empty date accepts host-local today through primary menu
         shell: bash
@@ -95,6 +104,16 @@ jobs:
 
           expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t%s' "$today")"
           test "$(cat "$data_dir/memory.loam.actual-validity")" = "$expected_validity"
+
+      - name: Older undated records remain visible without guessed dates
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
+
+          ./tools/loam review "$memory" >/tmp/loam-undated-review.out
+          grep -Fq 'date unknown  [record-1]' /tmp/loam-undated-review.out
 
       - name: Refuse invalid calendar date without publication
         shell: bash
