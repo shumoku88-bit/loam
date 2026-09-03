@@ -13,17 +13,9 @@ friendly selector
     -> final Capacity projection
 ```
 
-A household may still want several views at once. For example:
+A household may still want several views at once, such as a pension period, a monthly view, and a six-month view. These windows can overlap heavily and reuse the same Actual / Scheduled evidence.
 
-```text
-pension period
-monthly view
-six-month view
-```
-
-These windows can overlap heavily and reuse the same Actual / Scheduled evidence.
-
-The next question is therefore:
+The question is:
 
 > Does simultaneous multi-window budgeting require canonical `OperatingBudget`, `ForecastBudget`, or budget-role objects, or can all windows remain ordinary projections while one selected DateRange+Capacity context is supplied only when a scalar operating answer is requested?
 
@@ -50,7 +42,7 @@ ScheduledShared  day 2  quantity 4
 ScheduledLater   day 4  quantity 5
 ```
 
-`ActualShared` and `ScheduledShared` therefore belong simultaneously to the pension, month, and half-year views without being copied.
+`ActualShared` and `ScheduledShared` belong simultaneously to the pension, month, and half-year views without being copied.
 
 ## Application selection scaffold
 
@@ -78,68 +70,95 @@ UsePensionMinimal:
   selected = Pension
 ```
 
-Thus the same visible set can answer a different operating question when selection changes, while adding unselected views need not change the selected answer.
+The selected bounded answers are:
 
-## Qualification targets
+```text
+UsePension Food headroom = 13
+UseMonth   Food headroom = 3
+```
 
-Expected witnesses:
+Adding unselected views does not change the Pension-selected answer.
+
+## Executed result
+
+Alloy 6.2.0 + Sat4j:
 
 ```text
 overlappingViewsReuseSameEvidence                         SAT
 sameVisibleViewsDifferentSelectionDifferentOperatingAnswer SAT
 extraUnselectedViewsDoNotChangeSelectedAnswer             SAT
 equalSelectedDefinitionDifferentIdentitySameAnswer        SAT
-```
 
-Expected counterexamples to deliberately too-strong assumptions:
-
-```text
 SummingOverlappingViewConsumptionEqualsUnion              SAT counterexample
 SummingOverlappingViewCommitmentEqualsUnion               SAT counterexample
 VisibleViewSetDeterminesOperatingHeadroom                  SAT counterexample
-```
-
-Expected no counterexample for the smaller candidate:
-
-```text
 SelectedViewDefinitionDeterminesOperatingHeadroom         UNSAT counterexample
 ```
 
-## Interpretation if qualified
+The shared day-2 Actual has quantity 3. Both Pension and Month views independently report that quantity. Adding those two projection totals counts 6, while the union of the retained Actual facts still contains only quantity 3. The same issue appears for the shared Scheduled quantity 4.
 
-The useful candidate would be:
+So:
+
+```text
+overlapping projections
+    are not
+an additive partition of household evidence
+```
+
+## Finding
+
+Multiple overlapping views can coexist over one retained evidence set:
 
 ```text
 same household evidence
   -> pension projection
   -> monthly projection
   -> six-month projection
-
-views may coexist
-views are not an additive partition when ranges overlap
-
-when one operating answer is requested:
-  selected DateRange + Capacity definition
-      -> selected answer
 ```
 
-This would not mean only one view is "real" or that longer views must be forecasts. Each view can be a valid answer to its own temporal question. It would mean only that the set of visible projections does not itself create one larger pool of Capacity.
+No source fact needs to be copied into a cycle container or view-specific ledger.
 
-If the selected query context is sufficient, canonical role families such as:
+But the visible view set does not determine one scalar operating answer. Two dashboards with exactly the same visible Pension / Month / Half views produce different Food headroom solely because one selects Pension and the other selects Month.
+
+Therefore:
 
 ```text
-OperatingBudget
-ForecastBudget
-PlanningBudget
+visible views alone
+    do not determine
+selected operating answer
 ```
 
-would remain unearned for this question. Friendly labels may stay application configuration.
+The smaller candidate survives the bounded check:
 
-## What would count as failure?
+```text
+selected DateRange endpoints
++ selected Capacity definition
++ retained Actual / Scheduled evidence
+    -> selected Consumption / Commitment / Remaining / Headroom
+```
 
-The small candidate should be rejected if fixing the selected view's information-equivalent DateRange and Capacity still leaves different selected Consumption / Commitment / Headroom answers.
+An identity-distinct copy of the selected Pension view with equal endpoints and Capacity gives the same selected answer. Merely adding unselected views also leaves the selected answer unchanged.
 
-Likewise, if merely adding an unselected view changes the selected answer, then projections are not independent enough for this design.
+So the qualified boundary is:
+
+```text
+many overlapping budget views                 allowed
+copying canonical evidence per view            unnecessary
+adding overlapping projection totals           invalid in general
+selected operating context                     independently required for a scalar operating query
+canonical OperatingBudget / ForecastBudget     not earned
+canonical budget-role identity                  not earned
+```
+
+This does not mean only one view is real, and it does not classify longer windows as forecast-only. Each view remains a valid answer to its own temporal question. Selection matters only when the application asks one operating question rather than displaying several answers side by side.
+
+A selected view can therefore remain query/application configuration in this bounded question, analogous to other replaceable views, rather than becoming new household truth.
+
+## Qualification
+
+- executable-model head `6f7dbdfdb07133c6ed3ad6bbeec93754c3f1825b` — Observation 133 SUCCESS on the PR merge ref against current `main` (`093cff1fbb6cb40362c6e7ceb1f622edd4158001`)
+- solver execution and expected-result checker both SUCCESS
+- this result note is followed by an exact-final-head rerun before qualification is considered complete
 
 ## Boundaries
 
@@ -154,4 +173,4 @@ Observation 133 does not establish:
 - Backing interaction across overlapping windows;
 - UI layout, persistence, or canonical household-data changes.
 
-In particular, this observation asks whether multiple projections can coexist safely. It does not assert that Capacity values from arbitrary formulas are additive across disjoint or overlapping ranges.
+In particular, this observation does not assert that Capacity values from arbitrary formulas are additive across disjoint or overlapping ranges. That composition law remains a separate question.
