@@ -6,6 +6,8 @@ open Loam.Core
 
 set_option autoImplicit false
 
+variable {Time : Type}
+
 private def targetUsed
     (history : ActualValidityHistory Time)
     (id : ActualValidityFactId) : Bool :=
@@ -112,12 +114,13 @@ def admittedActualValidityMemory?
 
 @[simp] theorem admittedActualValidityMemory?_empty :
     admittedActualValidityMemory?
-      {
+      ({
         facts := []
         factIdNodup := by simp
         corrections := []
         correctionIdNodup := by simp
-      } = some { entries := [], eventNodup := by simp } := by
+      } : ActualValidityHistory Time) =
+      some { entries := [], eventNodup := by simp } := by
   rfl
 
 end Loam.Application
