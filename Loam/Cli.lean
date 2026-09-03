@@ -22,7 +22,8 @@ private def practicalUsage : String :=
   "  ./tools/loam movement MEMORY_FILE\n\n" ++
   "Scheduled movements:\n" ++
   "  ./tools/loam scheduled SCHEDULED_FILE\n" ++
-  "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
+  "  ./tools/loam scheduled show SCHEDULED_FILE\n" ++
+  "  ./tools/loam scheduled complete SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID\n\n" ++
   "Review recorded facts:\n" ++
   "  ./tools/loam review MEMORY_FILE\n\n" ++
   "Show recorded quantities:\n" ++
@@ -282,6 +283,8 @@ def run (args : List String) : IO UInt32 :=
       Loam.ScheduledCli.recordScheduled scheduledPath
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
+  | ["scheduled", "complete", scheduledPath, memoryPath, scheduledToken] =>
+      Loam.ScheduledCli.completeScheduled scheduledPath memoryPath scheduledToken
   | ["review", memoryPath] => Loam.ReviewCli.reviewRememberedEvents memoryPath
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>

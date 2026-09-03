@@ -8,53 +8,6 @@ namespace Loam.MovementCli
 
 set_option autoImplicit false
 
-private def promptLine (prompt : String) : IO String := do
-  IO.print prompt
-  let stdout ← IO.getStdout
-  stdout.flush
-  let stdin ← IO.getStdin
-  return (← stdin.getLine).trimAsciiEnd.toString
-
-private def validateOccurrenceDate (text : String) : Except String String :=
-  if Loam.ActualDate.validIsoDate text then
-    Except.ok text
-  else
-    Except.error "loam: date must be a real calendar date in YYYY-MM-DD form"
-
-private def defaultOccurrenceDate : IO (Except String String) := do
-  match ← Loam.ActualDate.todayIso? with
-  | some today => return Except.ok today
-  | none =>
-      return Except.error
-        "loam: could not determine the local date; set LOAM_OCCURRENCE_DATE=YYYY-MM-DD"
-
-/--
-Choose the practical occurrence date with no unnecessary scripted input.
-
-On a real terminal the user sees `Date [today]:` and may press Enter for today
-or enter another ISO day. Redirected/scripted callers do not consume an extra
-stdin line: they may set `LOAM_OCCURRENCE_DATE`, otherwise the host-local current
-day is used. This keeps interactive backdating explicit without breaking the
-existing movement stream shape used by automation.
--/
-private def occurrenceDate : IO (Except String String) := do
-  let stdin ← IO.getStdin
-  if !(← stdin.isTty) then
-    match ← IO.getEnv "LOAM_OCCURRENCE_DATE" with
-    | some configured => return validateOccurrenceDate configured
-    | none => defaultOccurrenceDate
-  else
-    match ← Loam.ActualDate.todayIso? with
-    | some today =>
-        let entered ← promptLine ("Date [" ++ today ++ "]: ")
-        if entered.isEmpty then
-          return Except.ok today
-        else
-          return validateOccurrenceDate entered
-    | none =>
-        let entered ← promptLine "Date (YYYY-MM-DD): "
-        return validateOccurrenceDate entered
-
 private def historyMentionsEvent
     (history : Loam.Core.ActualValidityHistory String)
     (id : Loam.Core.EventId) : Bool :=
@@ -137,7 +90,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
           return 2
       | some history =>
           IO.println "Record one movement. Add FROM entries, then TO entries."
-          match ← occurrenceDate with
+          match ← Loam.ActualDate.practicalOccurrenceDate with
           | Except.error message =>
               IO.eprintln message
               return 2
