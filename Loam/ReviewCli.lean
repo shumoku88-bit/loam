@@ -54,18 +54,4 @@ def reviewRememberedEvents (memoryPath : String) : IO UInt32 := do
                             toString effect.quantity.quanta ++ " " ++ effect.measure.token)
                 return 0
 
-private def usage : String :=
-  "Review recorded facts with occurrence dates:\n" ++
-  "  ./tools/loam review MEMORY_FILE"
-
-def run (args : List String) : IO UInt32 :=
-  match args with
-  | [memoryPath] => reviewRememberedEvents memoryPath
-  | _ => do
-      IO.eprintln usage
-      return 2
-
 end Loam.ReviewCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.ReviewCli.run args
