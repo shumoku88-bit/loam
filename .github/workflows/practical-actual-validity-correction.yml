@@ -1,0 +1,61 @@
+name: Practical Actual Validity Correction
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ActualValidityHistory.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/ActualValidityCorrectionCli.lean'
+      - 'Loam/Tests/ActualValidityCorrection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application.lean'
+      - '.github/workflows/practical-actual-validity-correction.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Core/ActualValidityHistory.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/ActualValidityPersistence.lean'
+      - 'Loam/ActualValidityCorrectionCli.lean'
+      - 'Loam/Tests/ActualValidityCorrection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application.lean'
+      - '.github/workflows/practical-actual-validity-correction.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-actual-validity-correction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build and test append-only date correction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build Core and Application
+        run: lake build Loam Loam.Application
+      - name: Compile practical date-correction entrance
+        run: lake env lean Loam/ActualValidityCorrectionCli.lean
+      - name: Exercise date-correction frontier
+        run: lake env lean --run Loam/Tests/ActualValidityCorrection.lean
