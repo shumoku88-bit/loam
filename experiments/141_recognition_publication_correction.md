@@ -1,6 +1,6 @@
 # Observation 141 — Recognition correction across a published horizon
 
-Status: **experiment under qualification**
+Status: **qualified bounded observation**
 
 ## Question
 
@@ -86,6 +86,53 @@ as published at horizon 2 = 12
 current restated           = 6
 ```
 
+## Qualified result
+
+TLC 1.7.4 matched the expected boundary on executable head `534dc4a9a27308599081125945ddd80d4beb46b6`.
+
+The positive configuration completed with no error and preserved all checked safety properties:
+
+- retained recognition facts, corrections, and publication evidence remain append-only;
+- no evidence is admitted before its learned coordinate;
+- correction references remain closed;
+- the published horizon remains a past-or-present knowledge coordinate;
+- the published projection remains `{12}` after the later correction;
+- the current restated projection becomes `{6}` after the later correction;
+- those two answers coexist over one retained history;
+- the whole-service recognition quantity remains `{12}`.
+
+Both deliberately too-strong boundary configurations produced the required TLC counterexamples:
+
+```text
+PublishedProjectionAlwaysEqualsCurrent       counterexample
+CurrentFrontierCanReconstructPublished       counterexample
+```
+
+So the bounded result is:
+
+```text
+as-published projection
+    !=
+current-restated projection
+
+final current frontier
+    !=
+historical retained knowledge
+```
+
+The smaller qualified candidate is:
+
+```text
+append-only recognition evidence
++ append-only correction provenance
++ publication/query knowledge horizon
++ time-coordinate projection
+    -> historical as-published view
+    -> current restated view
+```
+
+No mutation of the old recognition fact is required to preserve either answer.
+
 ## Positive safety claims
 
 The positive TLC configuration checks:
@@ -112,7 +159,7 @@ The first negative configuration checks the deliberately too-strong invariant:
 PublishedProjectionAlwaysEqualsCurrent
 ```
 
-Expected: **TLC counterexample** after `c0` is learned.
+Qualified result: **TLC counterexample** after `c0` is learned.
 
 The useful result is not that one answer is more true than the other. They answer different coordinate questions:
 
@@ -121,7 +168,7 @@ what was published using knowledge through K2?
 what is the restated answer using knowledge through K3?
 ```
 
-A mutable ledger often expresses this conflict through locks, reopenings, discrepancy workflows, or rewritten rows. This specimen asks whether LOAM can instead preserve both projections.
+A mutable ledger often expresses this conflict through locks, reopenings, discrepancy workflows, or rewritten rows. This specimen shows that LOAM can preserve both projections without requiring those mechanisms for truth preservation.
 
 ### 2. Final current frontier is enough to reconstruct publication
 
@@ -131,13 +178,13 @@ The second negative configuration checks:
 CurrentFrontierCanReconstructPublished
 ```
 
-Expected: **TLC counterexample**.
+Qualified result: **TLC counterexample**.
 
 After correction, the final frontier contains only `r1`. Filtering that final frontier back to knowledge time 2 yields no recognition fact because `r1` was not learned until time 3.
 
 The full retained history still contains `r0`, so `FrontierAt(2)` reconstructs the published amount 12.
 
-This should reinforce Observation 096's boundary in a recognition/publication setting:
+This reinforces Observation 096's boundary in a recognition/publication setting:
 
 ```text
 current frontier
@@ -145,9 +192,9 @@ current frontier
 historical retained knowledge
 ```
 
-## Interpretation gate
+## Interpretation
 
-If all expected results qualify, the bounded candidate is:
+The qualified bounded candidate is:
 
 ```text
 append-only recognition evidence
@@ -160,13 +207,13 @@ append-only recognition evidence
 
 without requiring truth-preserving mutation of old rows.
 
-The result may also show why a lock flag is not necessary **for preserving truth**. A product may still choose lock permissions for workflow, tax, governance, or operational safety. That is a separate authority question.
+The result also shows why a lock flag is not necessary **for preserving truth**. A product may still choose lock permissions for workflow, tax, governance, or operational safety. That is a separate authority question.
 
 ## What publication evidence means here
 
 `p0` is experiment-local evidence that a view was actually published at a known horizon.
 
-This observation does **not** yet prove that a canonical `PublicationReceipt` belongs in Practical Core. If a caller already supplies a historical knowledge horizon, LOAM can ask an `as-known` query without a publication object.
+This observation does **not** prove that a canonical `PublicationReceipt` belongs in Practical Core. If a caller already supplies a historical knowledge horizon, LOAM can ask an `as-known` query without a publication object.
 
 But the question:
 
@@ -176,7 +223,7 @@ contains provenance beyond merely knowing that horizon existed. If future dogfoo
 
 ## Not earned by this observation
 
-Even if the expected result qualifies, it does not establish:
+This qualified result does not establish:
 
 - canonical `ClosedPeriod`;
 - mutable lock state;
