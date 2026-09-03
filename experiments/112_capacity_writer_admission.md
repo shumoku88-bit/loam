@@ -60,53 +60,80 @@ A historically valid Purpose stock never becomes negative at a day boundary.
 
 A grant from `Unallocated` followed by a transfer between two Purposes can satisfy the Purpose stock law.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 2. The same movements can be valid or invalid when only effective days change
 
-The endpoint graph is held fixed. One world dates the grant before the transfer; another dates the transfer before the grant.
+The endpoint graph is held fixed. One world dates a movement history so named Purpose stock remains valid; another dates the same movement set so a named Purpose becomes negative at an earlier day.
 
-If historical validity differs, untimed Capacity movement memory is too small to reconstruct this admission question.
+Observed: **SAT**.
 
-Expected: **SAT**.
+Untimed Capacity movement memory is therefore too small to reconstruct this historical admission question.
 
 ### 3. Final non-negative totals can hide an earlier invalid state
 
-A later grant can repair the final total even though an earlier named-source transfer temporarily drove a Purpose below zero.
+A later incoming movement can repair the final total even though an earlier named-source movement drove a Purpose below zero.
 
-Expected: **SAT**.
+Observed: **SAT**.
+
+Final Entitlement alone is therefore too small for historical stock admission.
 
 ### 4. Same-day grant and transfer can be valid without line ordering
 
 When both effects share the same effective day, the day-level aggregate can remain non-negative. No extra within-day sequence is required for this bounded law.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 5. `Unallocated` can be negative while all named Purpose stock remains valid
 
-This probes whether the outside balancing boundary should obey the same stock law as a spendable Purpose.
+The outside balancing boundary can become negative while every named Purpose satisfies the non-negative stock law.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-## Assertions
+## Executed result
 
-The model checks four stronger claims:
-
-```text
-untimed movement set -> historical stock validity
-final Purpose totals -> historical stock validity
-same effective days -> same historical stock validity
-Unallocated obeys the same non-negative stock law as Purpose
-```
-
-Expected results:
+Alloy 6.2.0 + Sat4j, exactly 2 Days / 2 Movements / 2 Purposes / 2 Worlds:
 
 ```text
-UntimedMovementsDetermineHistoricalStockValidity       SAT counterexample
-TimedMovementsDetermineHistoricalStockValidity         UNSAT counterexample
-FinalPurposeTotalsDetermineHistoricalStockValidity     SAT counterexample
-PurposeAndUnallocatedShareOneNonnegativeStockLaw       SAT counterexample
+representativeHraShapedCapacity                         SAT
+sameMovementSetDifferentTimeDifferentValidity           SAT
+finalNonnegativeHidesEarlierInvalidity                   SAT
+sameDayGrantAndTransferCanNet                            SAT
+unallocatedBoundaryCanBeNegative                        SAT
+UntimedMovementsDetermineHistoricalStockValidity        SAT counterexample
+TimedMovementsDetermineHistoricalStockValidity          UNSAT counterexample
+FinalPurposeTotalsDetermineHistoricalStockValidity      SAT counterexample
+PurposeAndUnallocatedShareOneNonnegativeStockLaw        SAT counterexample
 ```
+
+The first execution used relational `-` where integer subtraction was intended in the bounded stock helper. Alloy executed that model correctly, but the malformed arithmetic collapsed several probes. Replacing it with explicit integer `sub[...]` changed no intended observation question; the corrected exact-head result above passed the expected-result checker.
+
+## Finding
+
+Within this bounded question:
+
+```text
+balanced Capacity movements alone
+    too small for historical named-Purpose stock validity
+
+final Purpose totals
+    too small for historical named-Purpose stock validity
+
+movement endpoints + effective day
+    sufficient for the selected historical stock-validity answer
+
+same-day textual order
+    not required
+
+Purpose non-negative stock law
+    does not imply the same law for Unallocated
+```
+
+Effective time is therefore independently observable **if LOAM wants retained Capacity history itself to determine whether named-source movements were historically admissible**.
+
+That does not by itself require a built-in `date` field on `CapacityMovement`. The information could be retained as separate typed evidence or another information-equivalent temporal mechanic. The observation earns the information distinction, not one representation.
+
+The result also sharpens the meaning of the first practical entrance. A named Purpose behaves like spendable Capacity stock for this bounded admission question; `unallocated` does not. Consequently, blindly allowing a named-source movement to exceed available Entitlement is not equivalent to merely allowing `unallocated` to become negative.
 
 ## Deliberate boundaries
 
@@ -125,9 +152,9 @@ In particular, negative `Remaining` is not the same thing as negative Entitlemen
 
 ## Decision pressure
 
-If the expected model results hold, the next design choice becomes explicit:
+The next implementation decision is now explicit:
 
-1. **writer-only current guard**: reject a named-source movement when current Entitlement is insufficient, while accepting that persisted history does not independently prove historical admission; or
+1. **writer-only current guard**: reject a named-source movement when current Entitlement is insufficient, while accepting that persisted untimed history does not independently prove historical admission; or
 2. **retained temporal evidence**: add enough effective-time evidence that Capacity history can itself determine the stock-admission question.
 
-The observation should choose between these only after the solver result is known. It should not import HRA's exact source format merely because HRA supplies the reality pressure.
+HRA and the canonical household source justify asking this question, but do not choose LOAM's representation. The smallest production step should be chosen from LOAM's own practical needs rather than by copying HRA's source format.
