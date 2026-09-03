@@ -1,0 +1,173 @@
+name: Historical Actual Prepare Dry Run
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Sha256.lean'
+      - 'Loam/HistoricalPrepare.lean'
+      - 'Loam/Cli/HistoricalPrepareCli.lean'
+      - 'tools/historical-prepare-qualification.sh'
+      - '.github/workflows/historical-actual-prepare.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Sha256.lean'
+      - 'Loam/HistoricalPrepare.lean'
+      - 'Loam/Cli/HistoricalPrepareCli.lean'
+      - 'tools/historical-prepare-qualification.sh'
+      - '.github/workflows/historical-actual-prepare.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-verify:
+    name: Prepare and verify production-format candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build prepare verifier
+        run: lake build loamHistoricalPrepare loamDailyQuantity
+
+      - name: Generate authority-shaped synthetic roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/historical-prepare-fixture"
+          source="$root/source"
+          dest="$root/destination"
+          mkdir -p "$source" "$dest"
+
+          python3 - "$source/actual.journal" <<'PY'
+          from pathlib import Path
+          import sys
+
+          out = Path(sys.argv[1])
+          cardinalities = [2] * 521 + [3] * 34 + [4] * 2 + [5]
+          assert len(cardinalities) == 558
+          assert sum(cardinalities) == 1157
+          seeded = {
+              1: [("assets:cash", 100), ("equity:synthetic", -100)],
+              2: [("assets:paypay", 200), ("equity:synthetic", -200)],
+              3: [("assets:smbc", 300), ("equity:synthetic", -300)],
+              4: [("assets:ゆうちょ", 400), ("equity:synthetic", -400)],
+              5: [("assets:オルカン積立", 500), ("equity:synthetic", -500)],
+          }
+          lines = ["include accounts.journal", ""]
+          for i, count in enumerate(cardinalities, 1):
+              lines.append(f"2026-04-04 synthetic-{i}")
+              if i == 490:
+                  lines.append("    ; event-id: synthetic-explicit-actual")
+              if i <= 20:
+                  lines.append(f"    ; plan-id: synthetic-plan-{i}")
+              posts = seeded.get(i)
+              if posts is None:
+                  if count == 2:
+                      posts = [("expenses:synthetic", 1), ("equity:synthetic", -1)]
+                  else:
+                      posts = [(f"expenses:synthetic:{j}", 1) for j in range(count - 1)]
+                      posts.append(("equity:synthetic", -(count - 1)))
+              assert len(posts) == count and sum(q for _, q in posts) == 0
+              for account, quantity in posts:
+                  lines.append(f"    {account}  {quantity} JPY")
+              lines.append("")
+          out.write_text("\n".join(lines), encoding="utf-8")
+          PY
+
+          cat >"$dest/memory.loam" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	old-event
+          EFFECT	old-effect-1	old-left	jpy	-1
+          EFFECT	old-effect-2	old-right	jpy	1
+          EOF
+
+          cat >"$dest/balance-view.tsv" <<'EOF'
+          cash	jpy
+          paypay	jpy
+          smbc	jpy
+          yucho	jpy
+          all-country	jpy
+          EOF
+
+          {
+            printf 'LOAM-SCHEDULED-MEMORY\t1\n'
+            for i in $(seq 1 11); do
+              printf 'SCHEDULED\tscheduled-%s\t2030-01-%02d\tjpy\n' "$i" "$i"
+              printf 'CHANGE\tfuture-source\t-1\n'
+              printf 'CHANGE\tfuture-use\t1\n'
+            done
+          } >"$dest/scheduled.loam"
+
+          printf '%s\n' "$root" >"$RUNNER_TEMP/historical-prepare-root"
+
+      - name: Run prepare, verify, drift, restart, and negative specimens
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat "$RUNNER_TEMP/historical-prepare-root")"
+          source="$root/source/actual.journal"
+          dest="$root/destination"
+          source_before="$(sha256sum "$source")"
+          dest_before="$(find "$dest" -type f -print0 | sort -z | xargs -0 sha256sum)"
+
+          tools/historical-prepare-qualification.sh \
+            .lake/build/bin/loamHistoricalPrepare \
+            "$source" "$dest" "$RUNNER_TEMP/historical-prepare-specimens"
+
+          test "$source_before" = "$(sha256sum "$source")"
+          test "$dest_before" = "$(find "$dest" -type f -print0 | sort -z | xargs -0 sha256sum)"
+
+      - name: Require SHA-256 interoperability and production balances
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat "$RUNNER_TEMP/historical-prepare-root")"
+          source="$root/source/actual.journal"
+          dest="$root/destination"
+          bundle="$RUNNER_TEMP/final-prepared"
+          expected_sha="$(sha256sum "$source" | awk '{print $1}')"
+          .lake/build/bin/loamHistoricalPrepare prepare \
+            "$source" "$dest" "$bundle" "$expected_sha"
+          .lake/build/bin/loamHistoricalPrepare verify "$bundle" "$source" "$dest"
+
+          manifest_sha="$(awk -F '\t' '$1 == "SOURCE-SHA256" {print $2}' "$bundle/manifest")"
+          test "$manifest_sha" = "$expected_sha"
+
+          c="$bundle/candidate-root"
+          test ! -e "$c/basis-cut.tsv"
+          test ! -e "$c/corrections.loam"
+          test ! -e "$c/scheduled.loam.completions"
+          test ! -e "$c/historical-admission/admission-receipt"
+          test "$(sha256sum "$dest/scheduled.loam" | awk '{print $1}')" = \
+               "$(sha256sum "$c/scheduled.loam" | awk '{print $1}')"
+          test "$(sha256sum "$dest/balance-view.tsv" | awk '{print $1}')" = \
+               "$(sha256sum "$c/balance-view.tsv" | awk '{print $1}')"
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$c/memory.loam" "$c/corrections.loam" "$c/basis.loam" \
+            "$c/basis-corrections.loam" "$c/balance-view.tsv" "$c/basis-cut.tsv" \
+            | tee "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'cash: 100 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'paypay: 200 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'smbc: 300 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'yucho: 400 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'all-country: 500 jpy' "$RUNNER_TEMP/candidate-balances.out"
