@@ -15,21 +15,45 @@ private def promptLine (prompt : String) : IO String := do
   let stdin ← IO.getStdin
   return (← stdin.getLine).trimAsciiEnd.toString
 
-private def promptOccurrenceDate : IO (Except String String) := do
+private def validateOccurrenceDate (text : String) : Except String String :=
+  if Loam.ActualDate.validIsoDate text then
+    Except.ok text
+  else
+    Except.error "loam: date must be a real calendar date in YYYY-MM-DD form"
+
+private def defaultOccurrenceDate : IO (Except String String) := do
   match ← Loam.ActualDate.todayIso? with
-  | some today =>
-      let entered ← promptLine ("Date [" ++ today ++ "]: ")
-      let chosen := if entered.isEmpty then today else entered
-      if Loam.ActualDate.validIsoDate chosen then
-        return Except.ok chosen
-      else
-        return Except.error "loam: date must be a real calendar date in YYYY-MM-DD form"
+  | some today => return Except.ok today
   | none =>
-      let entered ← promptLine "Date (YYYY-MM-DD): "
-      if Loam.ActualDate.validIsoDate entered then
-        return Except.ok entered
-      else
-        return Except.error "loam: date must be a real calendar date in YYYY-MM-DD form"
+      return Except.error
+        "loam: could not determine the local date; set LOAM_OCCURRENCE_DATE=YYYY-MM-DD"
+
+/--
+Choose the practical occurrence date with no unnecessary scripted input.
+
+On a real terminal the user sees `Date [today]:` and may press Enter for today
+or enter another ISO day. Redirected/scripted callers do not consume an extra
+stdin line: they may set `LOAM_OCCURRENCE_DATE`, otherwise the host-local current
+day is used. This keeps interactive backdating explicit without breaking the
+existing movement stream shape used by automation.
+-/
+private def occurrenceDate : IO (Except String String) := do
+  let stdin ← IO.getStdin
+  if !(← stdin.isTty) then
+    match ← IO.getEnv "LOAM_OCCURRENCE_DATE" with
+    | some configured => return validateOccurrenceDate configured
+    | none => defaultOccurrenceDate
+  else
+    match ← Loam.ActualDate.todayIso? with
+    | some today =>
+        let entered ← promptLine ("Date [" ++ today ++ "]: ")
+        if entered.isEmpty then
+          return Except.ok today
+        else
+          return validateOccurrenceDate entered
+    | none =>
+        let entered ← promptLine "Date (YYYY-MM-DD): "
+        return validateOccurrenceDate entered
 
 /--
 Search the same bounded operational Event-id namespace used by the practical CLI.
@@ -59,8 +83,8 @@ Record one balanced human-facing JPY movement with one occurrence date and one
 or more FROM / TO loci.
 
 The occurrence date is retained as separate `ActualValidity String` evidence;
-`Event` remains date-free. Empty date input accepts the host-local current day,
-while backdated recording accepts an explicit ISO date.
+`Event` remains date-free. Interactive empty date input accepts the host-local
+current day, while backdated recording accepts an explicit ISO date.
 
 The entrance requires the two entered totals to agree, then persists one generic
 Event containing negative Effects for the FROM side and positive Effects for the
@@ -82,7 +106,7 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
           return 2
       | some validities =>
           IO.println "Record one movement. Add FROM entries, then TO entries."
-          match ← promptOccurrenceDate with
+          match ← occurrenceDate with
           | Except.error message =>
               IO.eprintln message
               return 2
@@ -128,7 +152,8 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
   "  ./tools/loam movement MEMORY_FILE\n\n" ++
-  "Press Enter at the Date prompt to use today, or enter YYYY-MM-DD for another day.\n" ++
+  "Interactive recording: press Enter at Date [today] to use today, or enter YYYY-MM-DD.\n" ++
+  "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD to backdate; otherwise today is used.\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
