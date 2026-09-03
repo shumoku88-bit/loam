@@ -66,12 +66,11 @@ jobs:
           assert len(cardinalities) == 558
           assert sum(cardinalities) == 1157
           seeded = {
-              1: [("assets:paypay", 192), ("equity:opening-balances", -192)],
-              2: [("assets:paypay", 502), ("equity:synthetic", -502)],
-              3: [("assets:cash", 30909), ("equity:synthetic", -30909)],
-              4: [("assets:smbc", 65192), ("equity:synthetic", -65192)],
-              5: [("assets:ゆうちょ", 5000), ("equity:synthetic", -5000)],
-              6: [("assets:オルカン積立", 5600), ("equity:synthetic", -5600)],
+              1: [("assets:cash", 100), ("equity:synthetic", -100)],
+              2: [("assets:paypay", 200), ("equity:synthetic", -200)],
+              3: [("assets:smbc", 300), ("equity:synthetic", -300)],
+              4: [("assets:ゆうちょ", 400), ("equity:synthetic", -400)],
+              5: [("assets:オルカン積立", 500), ("equity:synthetic", -500)],
           }
           lines = ["include accounts.journal", ""]
           for i, count in enumerate(cardinalities, 1):
@@ -145,10 +144,11 @@ jobs:
           source="$root/source/actual.journal"
           dest="$root/destination"
           bundle="$RUNNER_TEMP/final-prepared"
-          .lake/build/bin/loamHistoricalPrepare prepare "$source" "$dest" "$bundle"
+          expected_sha="$(sha256sum "$source" | awk '{print $1}')"
+          .lake/build/bin/loamHistoricalPrepare prepare \
+            "$source" "$dest" "$bundle" "$expected_sha"
           .lake/build/bin/loamHistoricalPrepare verify "$bundle" "$source" "$dest"
 
-          expected_sha="$(sha256sum "$source" | awk '{print $1}')"
           manifest_sha="$(awk -F '\t' '$1 == "SOURCE-SHA256" {print $2}' "$bundle/manifest")"
           test "$manifest_sha" = "$expected_sha"
 
@@ -166,8 +166,8 @@ jobs:
             "$c/memory.loam" "$c/corrections.loam" "$c/basis.loam" \
             "$c/basis-corrections.loam" "$c/balance-view.tsv" "$c/basis-cut.tsv" \
             | tee "$RUNNER_TEMP/candidate-balances.out"
-          grep -Fq 'cash: 30909 jpy' "$RUNNER_TEMP/candidate-balances.out"
-          grep -Fq 'paypay: 694 jpy' "$RUNNER_TEMP/candidate-balances.out"
-          grep -Fq 'smbc: 65192 jpy' "$RUNNER_TEMP/candidate-balances.out"
-          grep -Fq 'yucho: 5000 jpy' "$RUNNER_TEMP/candidate-balances.out"
-          grep -Fq 'all-country: 5600 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'cash: 100 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'paypay: 200 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'smbc: 300 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'yucho: 400 jpy' "$RUNNER_TEMP/candidate-balances.out"
+          grep -Fq 'all-country: 500 jpy' "$RUNNER_TEMP/candidate-balances.out"

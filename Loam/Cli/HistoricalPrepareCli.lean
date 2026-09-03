@@ -22,7 +22,7 @@ Dry-run qualification boundary for the one-time Historical Actual authority
 admission. Two operations:
 
 ```text
-loamHistoricalPrepare prepare <actual-journal> <destination-root> <bundle-dir>
+loamHistoricalPrepare prepare <actual-journal> <destination-root> <bundle-dir> <expected-source-sha256>
 loamHistoricalPrepare verify  <bundle-dir> <actual-journal> <destination-root>
 ```
 
@@ -50,7 +50,7 @@ set_option autoImplicit false
 
 private def usage : String :=
   "Historical Actual prepare / verify dry-run qualification\n\n" ++
-  "  loamHistoricalPrepare prepare <actual-journal> <destination-root> <bundle-dir>\n" ++
+  "  loamHistoricalPrepare prepare <actual-journal> <destination-root> <bundle-dir> <expected-source-sha256>\n" ++
   "  loamHistoricalPrepare verify  <bundle-dir> <actual-journal> <destination-root>\n"
 
 private def fail (message : String) : IO UInt32 := do
@@ -88,6 +88,19 @@ private def candidateRelPaths : List String := [
   "historical-admission/actual.journal.snapshot"
 ]
 
+private def captureDestinationBase
+    (root : System.FilePath) : IO (List (String × String × String)) := do
+  let mut rows : List (String × String × String) := []
+  for name in destinationBaseFileNames do
+    match ← fingerprintFile? (root / name) with
+    | none => rows := rows ++ [(name, "ABSENT", "ABSENT")]
+    | some (bytes, sha) => rows := rows ++ [(name, sha, toString bytes.size)]
+  return rows
+
+private def validSha256Text (digest : String) : Bool :=
+  digest.length == 64 && digest.toList.all fun c =>
+    c.isDigit || ('a' ≤ c && c ≤ 'f')
+
 /-! ## prepare -/
 
 private def writeTextChecked
@@ -98,7 +111,7 @@ private def writeTextChecked
   catch e => return Except.error s!"could not write {path}: {e}"
 
 private def prepare
-    (sourcePath destinationRoot bundleDir : String) : IO UInt32 := do
+    (sourcePath destinationRoot bundleDir expectedSourceSha : String) : IO UInt32 := do
   let sourceFile := System.FilePath.mk sourcePath
   let destRoot := System.FilePath.mk destinationRoot
   let bundle := System.FilePath.mk bundleDir
@@ -111,6 +124,9 @@ private def prepare
     match ← fingerprintFile? sourceFile with
     | none => return ← fail s!"missing source file: {sourcePath}"
     | some pair => pure pair
+  if !validSha256Text expectedSourceSha || sourceSha ≠ expectedSourceSha then
+    return ← fail
+      s!"SOURCE-NOT-QUALIFIED: caller-approved sha256 {expectedSourceSha} does not match actual source sha256 {sourceSha}"
   let sourceText ←
     match decodeUtf8? sourceBytes with
     | Except.error message => return ← fail s!"source rejected: {message}"
@@ -123,6 +139,8 @@ private def prepare
     match sourceStats txs with
     | Except.error message => return ← fail s!"source rejected: {message}"
     | Except.ok stats => pure stats
+  -- Migration-batch qualification guards, not universal HRA/LOAM laws. The
+  -- caller-approved source fingerprint is the exact batch authority gate.
   if stats.eventCount ≠ 558 then
     return ← fail s!"source event count {stats.eventCount} ≠ qualified 558"
   if stats.effectCount ≠ 1157 then
@@ -132,12 +150,7 @@ private def prepare
   if stats.explicitSourceEventIds.length ≠ 1 then
     return ← fail s!"explicit source event-id count {stats.explicitSourceEventIds.length} ≠ qualified 1"
   -- 2. Destination base state fingerprints (read-only).
-  let mut destBase : List (String × String × String) := []
-  for name in destinationBaseFileNames do
-    match ← fingerprintFile? (destRoot / name) with
-    | none => destBase := destBase ++ [(name, "ABSENT", "ABSENT")]
-    | some (bytes, sha) =>
-        destBase := destBase ++ [(name, sha, toString bytes.size)]
+  let destBase ← captureDestinationBase destRoot
   -- Destination EventId namespace for the explicit-token collision check.
   let destinationEventTokens : List String ←
     if ← (destRoot / "memory.loam").pathExists then
@@ -202,6 +215,11 @@ private def prepare
     match ← fingerprintFile? (destRoot / name) with
     | none => return ← fail s!"destination {name} is required but missing"
     | some (bytes, sha) =>
+        match destBase.find? (fun entry => entry.1 == name) with
+        | none => return ← fail s!"internal: captured destination row missing for {name}"
+        | some captured =>
+            if captured.2.1 ≠ sha || captured.2.2 ≠ toString bytes.size then
+              return ← fail s!"DESTINATION-DRIFT-DURING-PREPARE: {name} changed before copy"
         IO.FS.writeBinFile (root / name) bytes
         match ← fingerprintFile? (root / name) with
         | none => return ← fail s!"candidate {name} disappeared after copy"
@@ -219,7 +237,12 @@ private def prepare
     | none => return ← fail s!"candidate file missing after construction: {relPath}"
     | some (bytes, sha) =>
         candidateRows := candidateRows ++ [(relPath, bytes.size, sha)]
-  -- 6. Seal the manifest last. No admission receipt: nothing transferred yet.
+  -- 6. Recheck the destination immediately before sealing PREPARED. Source is
+  -- intentionally not reread: hash, parse, and snapshot all used one byte read.
+  let currentDestBase ← captureDestinationBase destRoot
+  if currentDestBase ≠ destBase then
+    return ← fail "DESTINATION-DRIFT-DURING-PREPARE: captured base changed before manifest seal"
+  -- Seal the manifest last. No admission receipt: nothing transferred yet.
   let manifest : Manifest := {
     preparedAt := s!"monotonic-nanos:{nanos}"
     sourcePath := sourcePath
@@ -255,16 +278,7 @@ private def prepare
 
 /-! ## verify -/
 
-/-- Phase 0.6 DOGFOOD_CURRENT: authoritative current holdings parity target. -/
-private def expectedCurrentQuanta : List (String × Int) := [
-  ("cash", 30909),
-  ("paypay", 694),
-  ("smbc", 65192),
-  ("yucho", 5000),
-  ("all-country", 5600)
-]
-
-/-- Expected posting-cardinality multiset from the sealed source. -/
+/-- Expected posting-cardinality multiset for this qualified migration batch. -/
 private def expectedCardinality : List (Nat × Nat) := [(2, 521), (3, 34), (4, 2), (5, 1)]
 
 private def sortedEffectSignature (event : Event) : List (String × String × Int) :=
@@ -586,30 +600,19 @@ private def verify
   let emptyBasisCorrections : Loam.Core.QuantityBasisCorrectionMemory :=
     { corrections := [], idNodup := by simp }
   for coordinate in distinctView do
-    let expected ←
-      match expectedCurrentQuanta.find?
-          (fun entry => entry.1 == coordinate.locus.token) with
-      | none =>
-          return ← reportFailure
-            s!"no parity expectation qualified for coordinate {coordinate.locus.token}"
-      | some (_, quanta) => pure quanta
+    let contribution := events.quantityAtRecorded coordinate.locus coordinate.measure
     match Loam.Application.BasisCut.inspectCurrentQuantityWithBasisCut?
         events eventCorrections bases emptyBasisCorrections basisCut
         coordinate.locus coordinate.measure with
     | none => return ← reportFailure "basis-cut evidence rejected unexpectedly"
     | some (Loam.Application.CurrentQuantityAnswer.current quantity) =>
-        if quantity.quanta ≠ expected then
+        if quantity ≠ contribution then
           return ← reportFailure
-            s!"current quantity parity broken at {coordinate.locus.token}: got {quantity.quanta}, expected {expected}"
+            s!"current quantity differs from historical Event contribution at {coordinate.locus.token}"
     | some other =>
         return ← reportFailure
           s!"current quantity unavailable at {coordinate.locus.token}: {repr other}"
-    -- Zero basis means current quantity must equal the pure Event contribution.
-    let contribution := events.quantityAtRecorded coordinate.locus coordinate.measure
-    if contribution.quanta ≠ expected then
-      return ← reportFailure
-        s!"HRA history contribution ≠ current at {coordinate.locus.token}"
-  record s!"current quantity parity: {distinctView.length} coordinates match DOGFOOD_CURRENT and HRA contribution"
+  record s!"current quantity parity: {distinctView.length} coordinates equal historical Event contribution under explicit zero bases"
   -- Negative specimen inside verify: zero basis is explicit evidence, not
   -- an optional file. Without any basis the production boundary fails closed.
   let emptyBases ←
@@ -635,8 +638,8 @@ private def verify
 
 def run (args : List String) : IO UInt32 := do
   match args with
-  | ["prepare", source, destinationRoot, bundleDir] =>
-      prepare source destinationRoot bundleDir
+  | ["prepare", source, destinationRoot, bundleDir, expectedSourceSha] =>
+      prepare source destinationRoot bundleDir expectedSourceSha
   | ["verify", bundleDir, source, destinationRoot] =>
       verify bundleDir source destinationRoot
   | _ => usageFail

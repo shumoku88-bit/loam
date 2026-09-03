@@ -504,23 +504,43 @@ def parseManifest? (input : String) : Except String Manifest := do
       let mut sawPreparedAt := false
       let mut sawSourcePath := false
       let mut sawSha := false
+      let mut sawSourceBytes := false
+      let mut sawEventCount := false
+      let mut sawEffectCount := false
+      let mut sawCompletionCount := false
+      let mut sawExplicitId := false
       let mut sawDestinationRoot := false
+      let mut sawDiagnostic := false
       for row in rows do
         match row.splitOn "\t" with
-        | ["PREPARED-AT", value] => preparedAt := value; sawPreparedAt := true
-        | ["SOURCE-PATH", value] => sourcePath := value; sawSourcePath := true
-        | ["SOURCE-SHA256", value] => sourceSha256 := value; sawSha := true
+        | ["PREPARED-AT", value] =>
+            if sawPreparedAt then throw "manifest duplicate PREPARED-AT"
+            preparedAt := value; sawPreparedAt := true
+        | ["SOURCE-PATH", value] =>
+            if sawSourcePath then throw "manifest duplicate SOURCE-PATH"
+            sourcePath := value; sawSourcePath := true
+        | ["SOURCE-SHA256", value] =>
+            if sawSha then throw "manifest duplicate SOURCE-SHA256"
+            sourceSha256 := value; sawSha := true
         | ["SOURCE-BYTES", value] =>
-            sourceBytes := parseNat? value
+            if sawSourceBytes then throw "manifest duplicate SOURCE-BYTES"
+            sourceBytes := parseNat? value; sawSourceBytes := true
         | ["SOURCE-EVENT-COUNT", value] =>
-            eventCount := parseNat? value
+            if sawEventCount then throw "manifest duplicate SOURCE-EVENT-COUNT"
+            eventCount := parseNat? value; sawEventCount := true
         | ["SOURCE-EFFECT-COUNT", value] =>
-            effectCount := parseNat? value
+            if sawEffectCount then throw "manifest duplicate SOURCE-EFFECT-COUNT"
+            effectCount := parseNat? value; sawEffectCount := true
         | ["SOURCE-COMPLETION-CANDIDATES", value] =>
-            completionCandidates := parseNat? value
+            if sawCompletionCount then
+              throw "manifest duplicate SOURCE-COMPLETION-CANDIDATES"
+            completionCandidates := parseNat? value; sawCompletionCount := true
         | ["EXPLICIT-SOURCE-EVENT-ID", value] =>
+            if sawExplicitId then throw "manifest duplicate EXPLICIT-SOURCE-EVENT-ID"
             explicitId := if value == "ABSENT" then none else some value
+            sawExplicitId := true
         | ["DESTINATION-ROOT", value] =>
+            if sawDestinationRoot then throw "manifest duplicate DESTINATION-ROOT"
             destinationRoot := value; sawDestinationRoot := true
         | ["DEST-BASE", name, sha, bytes] =>
             destBase := destBase ++ [(name, sha, bytes)]
@@ -528,12 +548,23 @@ def parseManifest? (input : String) : Except String Manifest := do
             match parseNat? bytes with
             | none => throw s!"malformed CANDIDATE bytes: {row}"
             | some byteCount => candidates := candidates ++ [(path, byteCount, sha)]
-        | ["EXPECTED-RECEIPT-INPUT-DIAGNOSTIC", _value] => pure ()
+        | ["EXPECTED-RECEIPT-INPUT-DIAGNOSTIC", _value] =>
+            if sawDiagnostic then
+              throw "manifest duplicate EXPECTED-RECEIPT-INPUT-DIAGNOSTIC"
+            sawDiagnostic := true
         | _ => throw s!"malformed or unknown manifest row: {row}"
       if !sawPreparedAt then throw "manifest missing PREPARED-AT"
       if !sawSourcePath then throw "manifest missing SOURCE-PATH"
       if !sawSha then throw "manifest missing SOURCE-SHA256"
+      if !sawSourceBytes then throw "manifest missing SOURCE-BYTES"
+      if !sawEventCount then throw "manifest missing SOURCE-EVENT-COUNT"
+      if !sawEffectCount then throw "manifest missing SOURCE-EFFECT-COUNT"
+      if !sawCompletionCount then
+        throw "manifest missing SOURCE-COMPLETION-CANDIDATES"
+      if !sawExplicitId then throw "manifest missing EXPLICIT-SOURCE-EVENT-ID"
       if !sawDestinationRoot then throw "manifest missing DESTINATION-ROOT"
+      if !sawDiagnostic then
+        throw "manifest missing EXPECTED-RECEIPT-INPUT-DIAGNOSTIC"
       let byteCount ←
         match sourceBytes with
         | none => throw "manifest missing or malformed SOURCE-BYTES"
