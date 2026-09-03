@@ -38,7 +38,9 @@ private def capacityMovement?
     (id : String)
     (fromCoordinate toCoordinate : CapacityCoordinate)
     (quanta : Int) : Option CapacityMovement := do
-  if quanta <= 0 || fromCoordinate = toCoordinate then
+  if quanta <= 0 then
+    none
+  else if fromCoordinate = toCoordinate then
     none
   else
     let balanced ← BalancedMovement.ofChanges? yen
