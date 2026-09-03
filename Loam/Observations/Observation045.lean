@@ -1,4 +1,4 @@
-import Loam.Observation044
+import Loam.Observations.Observation044
 
 namespace Loam.Observation045
 
