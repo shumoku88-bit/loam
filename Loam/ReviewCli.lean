@@ -1,4 +1,5 @@
 import Loam.ActualValidityPersistence
+import Loam.Application.ActualValidityFrontier
 import Loam.Persistence
 
 namespace Loam.ReviewCli
@@ -13,11 +14,12 @@ private def renderDate
   | none => "date unknown"
 
 /--
-Review remembered Events together with separately retained occurrence dates.
+Review remembered Events together with the admitted current occurrence-date frontier.
 
-Event-memory representation order remains non-temporal. The date label comes
-only from `ActualValidity` evidence; older pre-date practical records remain
-visible as `date unknown` rather than acquiring a guessed date.
+Raw validity history remains append-only. Superseded dates leave the current
+frontier only through explicit correction relations. Event-memory representation
+order remains non-temporal, and older pre-date practical records remain visible
+as `date unknown` rather than acquiring a guessed date.
 -/
 def reviewRememberedEvents (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -31,27 +33,34 @@ def reviewRememberedEvents (memoryPath : String) : IO UInt32 := do
         IO.eprintln "loam: malformed or unsupported event-memory file"
         return 2
     | some memory =>
-        match ← Loam.Persistence.loadActualValidityMemoryOrEmpty? validityFile with
+        match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
         | none =>
-            IO.eprintln "loam: malformed or unsupported actual-validity file"
+            IO.eprintln "loam: malformed or unsupported actual-validity history"
             return 2
-        | some validities =>
-            match memory.events with
-            | [] =>
-                IO.println "No recorded events."
-                return 0
-            | events =>
-                IO.println "Recorded facts (date comes from ActualValidity; display order has no time meaning):"
-                for event in events do
-                  IO.println
-                    (renderDate validities event.id ++ "  [" ++ event.id.token ++ "]")
-                  match event.effects with
-                  | [] => IO.println "  (no quantity effects)"
-                  | effects =>
-                      for effect in effects do
-                        IO.println
-                          ("  " ++ effect.locus.token ++ ": " ++
-                            toString effect.quantity.quanta ++ " " ++ effect.measure.token)
-                return 0
+        | some history =>
+            match Loam.Application.admittedActualValidityMemory? history with
+            | none =>
+                IO.eprintln
+                  "loam: actual-validity corrections do not justify one current date per event"
+                return 2
+            | some validities =>
+                match memory.events with
+                | [] =>
+                    IO.println "No recorded events."
+                    return 0
+                | events =>
+                    IO.println
+                      "Recorded facts (date comes from the admitted ActualValidity frontier; display order has no time meaning):"
+                    for event in events do
+                      IO.println
+                        (renderDate validities event.id ++ "  [" ++ event.id.token ++ "]")
+                      match event.effects with
+                      | [] => IO.println "  (no quantity effects)"
+                      | effects =>
+                          for effect in effects do
+                            IO.println
+                              ("  " ++ effect.locus.token ++ ": " ++
+                                toString effect.quantity.quanta ++ " " ++ effect.measure.token)
+                    return 0
 
 end Loam.ReviewCli
