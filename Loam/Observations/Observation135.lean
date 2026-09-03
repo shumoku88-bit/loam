@@ -10,36 +10,50 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Observation 135 — Minimal boundary for Historical Migration Archive
+# Observation 135 — Minimal boundary for Historical Migration Archive (Amended)
 
-This observation studies whether admitting 544 items of non-canonical historical
-source evidence requires a dedicated parsed wire format (Candidate A), or whether
-an exact immutable source snapshot bound by an admission receipt (Candidate B)
-is sufficient.
+This observation studies the minimal boundary for preserving 544 non-canonical
+historical source evidence items from `actual.journal`:
 
-## Structural Findings:
-1. Four Authorities Separated:
-   - Canonical query authority: Event, Validity, Description, ScheduledCompletion.
-   - Immutable provenance: Exact source snapshot + receipt.
-   - Migration recovery aid: Temporary PREPARED state (retired on receipt commit).
-   - Future promotion source: Retained inside the exact snapshot, not pre-parsed.
+1. Lexical Preservation vs Semantic Closure:
+   - Preserving the exact lexical source text of Actual-local evidence is
+     self-contained within the `actual.journal` snapshot.
+   - Future semantic promotion (e.g. interpreting series, biz, tax in full
+     household context) may require additional historical dependencies (e.g. Plan
+     definitions, historical rules). Semantic closure is currently unknown and
+     is not claimed self-contained.
 
-2. Determinism of Derived Extraction:
-   Given the exact source bytes (or its cryptographically binding SHA-256 fingerprint),
-   any required evidence projection is a deterministic pure function of the snapshot.
-   Permanent storage of a secondary parsed archive is redundant.
+2. Distinct Roles of Snapshot Bytes vs Receipt Fingerprint:
+   - Snapshot bytes = immutable material for future extraction.
+   - Receipt fingerprint = integrity binding verifying that the preserved
+     snapshot matches the bytes admitted at migration time.
+   - The digest cannot reconstruct source bytes.
 
-3. Diet-First Canonical Architecture:
-   Because non-canonical evidence remains confined to the immutable snapshot:
-   - Canonical facts start small (zero metadata bloat).
-   - Provenance is 100% bit-for-bit lossless.
-   - Retiring unneeded evidence requires zero canonical schema migration.
-   - Promoting needed evidence is a strict one-way extraction to a typed fact.
+3. Separation of Authorities:
+   - Canonical query authority: ordinary household queries observe strictly
+     `AdmittedHouseholdState`.
+   - Immutable historical provenance: sealed snapshot + binding receipt.
+   - Canonical queries do not accept or observe the archive.
+
+4. Binding Invariants of HistoricalAdmissionReceipt:
+   - `snapshotFingerprint = fingerprint snapshotBytes`
+   - `admittedEventCount = state.events.events.length`
 -/
 
+/-- An abstract opaque cryptographic digest token. -/
+structure Digest where
+  token : String
+deriving Repr, DecidableEq, Inhabited
+
 /--
-An admitted household state after historical migration.
-The canonical facts are strictly typed and minimal.
+An abstract deterministic fingerprinting function.
+In practical implementation, this is SHA-256.
+-/
+opaque fingerprint : ByteArray → Digest
+
+/--
+The admitted canonical household state.
+Contains strictly the earned typed facts.
 -/
 structure AdmittedHouseholdState where
   events : EventMemory
@@ -48,23 +62,33 @@ structure AdmittedHouseholdState where
   completions : ScheduledCompletionMemory
 
 /--
-An immutable historical admission provenance archive.
-Pairs the exact byte content of the admitted source journal with its receipt.
+An admission receipt binding the physical snapshot to the admitted state.
+Invariants:
+- `snapshotFingerprint` binds the exact snapshot bytes.
+- `admittedEventCount` binds the exact number of admitted Events in canonical state.
 -/
-structure HistoricalAdmissionArchive where
-  sourceSnapshotBytes : ByteArray
-  snapshotSha256 : String
+structure HistoricalAdmissionReceipt (snapshot : ByteArray) (state : AdmittedHouseholdState) where
+  snapshotFingerprint : Digest
   admittedEventCount : Nat
   receiptTimestamp : String
+  fingerprintBound : snapshotFingerprint = fingerprint snapshot
+  eventCountBound : admittedEventCount = state.events.events.length
 
 /--
-Theorem 1 (Canonical Balance Invariance under Archive):
-Canonical quantity calculation is strictly determined by canonical Events;
-it does not read, observe, or depend upon the admission archive.
+An immutable historical admission archive package.
+Combines the exact source bytes with its bound receipt.
+-/
+structure HistoricalAdmissionArchive (state : AdmittedHouseholdState) where
+  sourceSnapshotBytes : ByteArray
+  receipt : HistoricalAdmissionReceipt sourceSnapshotBytes state
+
+/--
+Theorem 1 (Canonical Balance Invariance under Archive Separation):
+Canonical quantity projections take only `AdmittedHouseholdState` (specifically its
+Events) and do not take, observe, or depend upon the archive package.
 -/
 theorem canonical_quantity_invariant_under_archive
     (state : AdmittedHouseholdState)
-    (_archive : HistoricalAdmissionArchive)
     (locus : LocusId)
     (measure : MeasureId) :
     EventMemory.quantityAtRecorded state.events locus measure =
@@ -72,32 +96,31 @@ theorem canonical_quantity_invariant_under_archive
   rfl
 
 /--
-Theorem 2 (Deterministic Derived Evidence):
-Given an exact snapshot and a deterministic extraction parser, the resulting
-evidence collection is uniquely determined by the snapshot bytes.
-Storing a secondary parsed copy in production persistence adds zero information.
+Theorem 2 (Receipt Integrity Binding):
+The receipt held in an archive package strictly matches the fingerprint
+recalculated from its enclosed snapshot bytes, and its event count matches
+the canonical event memory size.
 -/
-theorem derived_evidence_uniquely_determined
-    {Evidence : Type}
-    (snapshot : ByteArray)
-    (extract : ByteArray → List Evidence) :
-    extract snapshot = extract snapshot := by
-  rfl
+theorem receipt_strictly_binds_snapshot_and_state
+    (state : AdmittedHouseholdState)
+    (archive : HistoricalAdmissionArchive state) :
+    archive.receipt.snapshotFingerprint = fingerprint archive.sourceSnapshotBytes ∧
+    archive.receipt.admittedEventCount = state.events.events.length := by
+  exact ⟨archive.receipt.fingerprintBound, archive.receipt.eventCountBound⟩
 
 /--
-Theorem 3 (Diet-First Boundary):
-If an evidence item `e` is not included in the canonical state `state`,
-its absence from canonical query projections requires zero state deletion
-or migration. It remains quiescent in the archive snapshot.
+Theorem 3 (Deterministic Extractor Reproducibility):
+Applying the same deterministic extractor function to identical source bytes
+yields identical extracted evidence.
+(Formal reproducibility; whether that evidence is semantically sufficient for
+a given future query is an empirical observation question, not an a priori theorem).
 -/
-theorem unpromoted_evidence_absent_from_canonical_query
-    (state : AdmittedHouseholdState)
-    (targetEvent : EventId) :
-    -- The canonical state only answers for earned typed projections:
-    (state.descriptions.findText? targetEvent = none ∨
-     ∃ txt, state.descriptions.findText? targetEvent = some txt) := by
-  cases h : state.descriptions.findText? targetEvent with
-  | none => exact Or.inl rfl
-  | some txt => exact Or.inr ⟨txt, rfl⟩
+theorem extractor_reproducible
+    {Evidence : Type}
+    (extract : ByteArray → List Evidence)
+    (bytes1 bytes2 : ByteArray)
+    (hEq : bytes1 = bytes2) :
+    extract bytes1 = extract bytes2 := by
+  rw [hEq]
 
 end Loam.Observation135
