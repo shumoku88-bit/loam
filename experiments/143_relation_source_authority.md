@@ -1,6 +1,6 @@
 # Observation 143 — Relation source provenance and scalar authority
 
-Status: **experiment under qualification**
+Status: **qualified bounded experiment**
 
 ## Question
 
@@ -61,9 +61,11 @@ Three experiment-local selection definitions choose BankSource, ProviderSource, 
 
 The retained observations remain identical across those worlds. Only the selection definition changes.
 
-## Positive witnesses
+## Qualified result
 
-Expected SAT:
+Alloy 6.2.0 + Sat4j confirms the expected boundary.
+
+The positive witnesses are SAT:
 
 ```text
 sameCoordinateExposesSeveralSourceDistinguishedCandidates
@@ -72,12 +74,11 @@ provenanceWithoutAuthorityLeavesCandidateSetUncollapsed
 equalAuthorityDefinitionDifferentIdentitySameSelection
 ```
 
-These witnesses ask whether:
+So one effective coordinate can expose several source-distinguished candidates, and the same retained evidence can yield V5, V6, or V7 when the scalar-selection authority differs.
 
-- one effective coordinate can expose several source-distinguished candidates;
-- the same retained evidence can yield different scalar selections when authority differs;
-- provenance can preserve the candidate set without itself selecting one scalar;
-- identity-distinct selection definitions with the same accepted-source meaning yield the same selected value.
+Complete source provenance without a selection definition leaves the candidate set uncollapsed. Provenance preserves where observations came from; it does not itself authorize one scalar answer.
+
+Identity-distinct selection definitions accepting the same source produce the same selected projection in this bounded specimen, so a durable policy identity is not earned merely by this result.
 
 ## Deliberately too-strong boundaries
 
@@ -87,7 +88,7 @@ These witnesses ask whether:
 EffectiveCoordinateDeterminesOneRelationValue
 ```
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
 At C2 the candidate values are V5, V6, and V7.
 
@@ -113,7 +114,7 @@ is too strong in this specimen.
 ProvenanceAloneAlwaysSelectsScalar
 ```
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
 `CandidateWorld` retains all three observations with complete source provenance but has no selection definition. The source information says where each observation came from. It does not itself say which source should govern a scalar valuation query.
 
@@ -135,9 +136,9 @@ authority definition
 EqualAuthorityDefinitionDeterminesScalar
 ```
 
-Expected: **UNSAT counterexample**.
+Observed: **UNSAT counterexample**.
 
-Within the exact specimen, two worlds with the same retained observations and selection definitions accepting the same source must produce the same selected value.
+Within the exact specimen, two worlds with the same retained observations and selection definitions accepting the same source cannot produce different selected values.
 
 ### Selected value remains one of the retained candidates
 
@@ -145,13 +146,13 @@ Within the exact specimen, two worlds with the same retained observations and se
 SelectedValueComesFromCandidateSetAndIsScalar
 ```
 
-Expected: **UNSAT counterexample**.
+Observed: **UNSAT counterexample**.
 
 The selection layer may choose among retained observations; it may not manufacture a value outside the candidate set in this bounded model.
 
-## Interpretation gate
+## Interpretation
 
-If the expected results qualify, the smaller candidate is:
+The qualified smaller candidate is:
 
 ```text
 retained Measure-to-Measure relation observations
@@ -172,9 +173,9 @@ Measure pair
     -> one universally authoritative relation value
 ```
 
-This would mean that source provenance and scalar-selection authority answer different questions.
+Source provenance and scalar-selection authority answer different questions.
 
-It would also mean that a multi-valued inspection API could expose all retained observations without needing an authority policy at all. Authority becomes necessary only when a caller demands one selected scalar.
+A multi-valued inspection API could expose all retained observations without needing an authority policy at all. Authority becomes necessary only when a caller demands one selected scalar.
 
 ## What is deliberately not modeled
 
@@ -198,7 +199,7 @@ Those are separate pressure points.
 
 ## Not earned by this observation
 
-Even if qualified, Observation 143 does not establish:
+Observation 143 does not establish:
 
 - canonical `ExchangeRate`;
 - canonical `RateSource`;
@@ -210,6 +211,23 @@ Even if qualified, Observation 143 does not establish:
 - any Practical Core change.
 
 In particular, the experiment-local `SelectionDefinition` is evidence that a scalar answer needs information equivalent to selection authority in this specimen. It does not establish that this authority requires its own durable identity or production type.
+
+## Qualification
+
+Initial executable head:
+
+```text
+efebf34b8ecb14ab99726b1c53e284c437784920
+```
+
+GitHub Actions Observation 143 run `33778533605`, job `100726205821`:
+
+```text
+Alloy execution                 SUCCESS
+expected-result checker         SUCCESS
+```
+
+The result note is then requalified at its exact final head before the observation is considered complete.
 
 ## Tool choice
 
