@@ -1,0 +1,64 @@
+name: Attention Slice C1
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/Attention.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/AttentionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Tests/Attention.lean'
+      - 'experiments/109_practical_slice_c1.md'
+      - '.github/workflows/attention-slice-c1.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'feat/attention-practical-core'
+      - main
+    paths:
+      - 'Loam/Core/Attention.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/AttentionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Tests/Attention.lean'
+      - 'experiments/109_practical_slice_c1.md'
+      - '.github/workflows/attention-slice-c1.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attention-slice-c1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build typed Attention boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core Loam.Application
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Attention boundary check
+        shell: bash
+        run: lake env lean --run Loam/Tests/Attention.lean
