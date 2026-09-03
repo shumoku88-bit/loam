@@ -1,0 +1,135 @@
+name: Practical Open Scheduled
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledCompletion.lean'
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-open-scheduled.yml'
+  push:
+    paths:
+      - 'Loam/OpenScheduledCli.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledCompletion.lean'
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/ScheduledCompletionPersistence.lean'
+      - 'Loam/ScheduledPersistence.lean'
+      - 'Loam/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-open-scheduled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-open-scheduled-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  open-scheduled:
+    name: Build and test open Scheduled view
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build open Scheduled entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamOpenScheduled
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Project only live open occurrences in scheduled-date order
+        shell: bash
+        run: |
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+          completions="$scheduled.completions"
+          retirements="$scheduled.retirements"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-late	2026-10-01	jpy
+          CHANGE	bank	-300
+          CHANGE	late-subject	300
+          SCHEDULED	scheduled-completed	2026-09-12	jpy
+          CHANGE	bank	-200
+          CHANGE	completed-subject	200
+          SCHEDULED	scheduled-early	2026-08-20	jpy
+          CHANGE	bank	-100
+          CHANGE	early-subject	100
+          SCHEDULED	scheduled-cancelled	2026-09-20	jpy
+          CHANGE	bank	-400
+          CHANGE	cancelled-subject	400
+          SCHEDULED	scheduled-interrupted	2026-09-15	jpy
+          CHANGE	bank	-250
+          CHANGE	interrupted-subject	250
+          EOF
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	actual-completed
+          EFFECT	effect-1	bank	jpy	-200
+          EFFECT	effect-2	completed-subject	jpy	200
+          EOF
+
+          cat >"$completions" <<'EOF'
+          LOAM-SCHEDULED-COMPLETION-MEMORY	1
+          COMPLETION	scheduled-completed	actual-completed
+          COMPLETION	scheduled-interrupted	actual-not-published
+          EOF
+
+          cat >"$retirements" <<'EOF'
+          LOAM-SCHEDULED-RETIREMENT-MEMORY	1
+          RETIREMENT	scheduled-cancelled
+          EOF
+
+          ./tools/loam open-scheduled "$scheduled" "$memory" > /tmp/loam-open-scheduled.out
+
+          grep -Fq 'Open scheduled movements (ordered by scheduled date):' /tmp/loam-open-scheduled.out
+          grep -Fq 'scheduled-early' /tmp/loam-open-scheduled.out
+          grep -Fq 'scheduled-interrupted' /tmp/loam-open-scheduled.out
+          grep -Fq 'scheduled-late' /tmp/loam-open-scheduled.out
+
+          if grep -Fq 'scheduled-completed' /tmp/loam-open-scheduled.out; then
+            echo 'effective completion remained open' >&2
+            exit 1
+          fi
+          if grep -Fq 'scheduled-cancelled' /tmp/loam-open-scheduled.out; then
+            echo 'retired Scheduled occurrence remained open' >&2
+            exit 1
+          fi
+
+          early_line="$(grep -n 'scheduled-early' /tmp/loam-open-scheduled.out | cut -d: -f1)"
+          interrupted_line="$(grep -n 'scheduled-interrupted' /tmp/loam-open-scheduled.out | cut -d: -f1)"
+          late_line="$(grep -n 'scheduled-late' /tmp/loam-open-scheduled.out | cut -d: -f1)"
+          test "$early_line" -lt "$interrupted_line"
+          test "$interrupted_line" -lt "$late_line"
+
+          printf '12\nq\n' | LOAM_DATA_DIR="$tmp_dir" ./tools/loam > /tmp/loam-open-scheduled-menu.out
+          grep -Fq '12. Show open scheduled movements' /tmp/loam-open-scheduled-menu.out
+          grep -Fq 'scheduled-early' /tmp/loam-open-scheduled-menu.out
