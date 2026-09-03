@@ -50,15 +50,15 @@ fact SmallPositiveAmounts {
 }
 
 fun eventEdges[w: World]: Event -> Event {
-  { target, replacement: Event |
+  { source, destination: Event |
     some c: w.eventCorrections |
-      c.target = target and c.replacement = replacement }
+      c.target = source and c.replacement = destination }
 }
 
 fun validityEdges[w: World]: ValidityFact -> ValidityFact {
-  { target, replacement: ValidityFact |
+  { source, destination: ValidityFact |
     some c: w.validityCorrections |
-      c.target = target and c.replacement = replacement }
+      c.target = source and c.replacement = destination }
 }
 
 fun eventFrontier[w: World]: set Event {
@@ -97,7 +97,6 @@ pred consumable[w: World] {
 
 fact WorldAdmission {
   all w: World | {
-    // Event correction is an explicit collection of disjoint acyclic paths.
     all c: w.eventCorrections | {
       c.target in w.events
       c.replacement in w.events
@@ -109,7 +108,6 @@ fact WorldAdmission {
     }
     no e: Event | e in e.^(eventEdges[w])
 
-    // Validity correction is independently append-only and preserves Event identity.
     all c: w.validityCorrections | {
       c.target in w.validityFacts
       c.replacement in w.validityFacts
@@ -122,109 +120,107 @@ fact WorldAdmission {
     }
     no v: ValidityFact | v in v.^(validityEdges[w])
 
-    // One current occurrence coordinate per Event when one is known.
     all e: Event |
       lone { v: validityFrontier[w] | v.event = e }
 
-    // Historical routing has at most one answer for one Locus and day.
     all l: Locus, d: Day |
       lone { r: w.routes | r.locus = l and r.day = d }
   }
 }
 
 pred rawDoubleCountsCorrectedActual {
-  some disj target, replacement: Event,
+  some disj original, revised: Event,
        c: EventCorrection,
-       targetDate, replacementDate: ValidityFact,
+       originalDate, revisedDate: ValidityFact,
        route: Route | {
-    Left.events = target + replacement
+    Left.events = original + revised
     Left.eventCorrections = c
-    c.target = target
-    c.replacement = replacement
+    c.target = original
+    c.replacement = revised
 
-    Left.validityFacts = targetDate + replacementDate
+    Left.validityFacts = originalDate + revisedDate
     no Left.validityCorrections
-    targetDate.event = target
-    replacementDate.event = replacement
-    targetDate.day = D1
-    replacementDate.day = D1
+    originalDate.event = original
+    revisedDate.event = revised
+    originalDate.day = D1
+    revisedDate.day = D1
 
     Left.routes = route
     route.locus = Coffee
     route.day = D1
     route.purpose = Food
-    target.locus = Coffee
-    replacement.locus = Coffee
+    original.locus = Coffee
+    revised.locus = Coffee
 
     consumable[Left]
-    rawConsumption[Left, Food] = add[target.amount, replacement.amount]
-    effectiveConsumption[Left, Food] = replacement.amount
+    rawConsumption[Left, Food] = add[original.amount, revised.amount]
+    effectiveConsumption[Left, Food] = revised.amount
     rawConsumption[Left, Food] != effectiveConsumption[Left, Food]
   }
 }
 
 pred missingReplacementValidityFailsClosed {
-  some disj target, replacement: Event,
+  some disj original, revised: Event,
        c: EventCorrection,
-       targetDate: ValidityFact | {
-    Left.events = target + replacement
+       originalDate: ValidityFact | {
+    Left.events = original + revised
     Left.eventCorrections = c
-    c.target = target
-    c.replacement = replacement
+    c.target = original
+    c.replacement = revised
 
-    Left.validityFacts = targetDate
+    Left.validityFacts = originalDate
     no Left.validityCorrections
-    targetDate.event = target
-    targetDate.day = D1
+    originalDate.event = original
+    originalDate.day = D1
 
     no Left.routes
-    no currentDay[Left, replacement]
+    no currentDay[Left, revised]
     not consumable[Left]
   }
 }
 
 pred correctionDoesNotForceSameOccurrenceDay {
-  some disj target, replacement: Event,
+  some disj original, revised: Event,
        c: EventCorrection,
-       targetDate, replacementDate: ValidityFact | {
-    Left.events = target + replacement
+       originalDate, revisedDate: ValidityFact | {
+    Left.events = original + revised
     Left.eventCorrections = c
-    c.target = target
-    c.replacement = replacement
+    c.target = original
+    c.replacement = revised
 
-    Left.validityFacts = targetDate + replacementDate
+    Left.validityFacts = originalDate + revisedDate
     no Left.validityCorrections
-    targetDate.event = target
-    replacementDate.event = replacement
-    targetDate.day = D1
-    replacementDate.day = D2
+    originalDate.event = original
+    revisedDate.event = revised
+    originalDate.day = D1
+    revisedDate.day = D2
 
-    currentDay[Left, target] = D1
-    currentDay[Left, replacement] = D2
+    currentDay[Left, original] = D1
+    currentDay[Left, revised] = D2
   }
 }
 
 pred replacementDateCorrectionReroutesConsumption {
-  some disj target, replacement: Event,
+  some disj original, revised: Event,
        eventCorrection: EventCorrection,
-       targetDate, oldReplacementDate, newReplacementDate: ValidityFact,
+       originalDate, oldRevisedDate, newRevisedDate: ValidityFact,
        dateCorrection: ValidityCorrection,
        foodRoute, householdRoute: Route | {
-    Left.events = target + replacement
+    Left.events = original + revised
     Left.eventCorrections = eventCorrection
-    eventCorrection.target = target
-    eventCorrection.replacement = replacement
+    eventCorrection.target = original
+    eventCorrection.replacement = revised
 
-    Left.validityFacts = targetDate + oldReplacementDate + newReplacementDate
+    Left.validityFacts = originalDate + oldRevisedDate + newRevisedDate
     Left.validityCorrections = dateCorrection
-    targetDate.event = target
-    targetDate.day = D1
-    oldReplacementDate.event = replacement
-    oldReplacementDate.day = D1
-    newReplacementDate.event = replacement
-    newReplacementDate.day = D2
-    dateCorrection.target = oldReplacementDate
-    dateCorrection.replacement = newReplacementDate
+    originalDate.event = original
+    originalDate.day = D1
+    oldRevisedDate.event = revised
+    oldRevisedDate.day = D1
+    newRevisedDate.event = revised
+    newRevisedDate.day = D2
+    dateCorrection.target = oldRevisedDate
+    dateCorrection.replacement = newRevisedDate
 
     Left.routes = foodRoute + householdRoute
     foodRoute.locus = Coffee
@@ -233,45 +229,45 @@ pred replacementDateCorrectionReroutesConsumption {
     householdRoute.locus = Coffee
     householdRoute.day = D2
     householdRoute.purpose = Household
-    target.locus = Coffee
-    replacement.locus = Coffee
+    original.locus = Coffee
+    revised.locus = Coffee
 
     consumable[Left]
-    currentDay[Left, replacement] = D2
+    currentDay[Left, revised] = D2
     effectiveConsumption[Left, Food] = 0
-    effectiveConsumption[Left, Household] = replacement.amount
+    effectiveConsumption[Left, Household] = revised.amount
   }
 }
 
 pred correctionsChangeAnswerWithoutChangingRawEvents {
-  some disj target, replacement: Event,
+  some disj original, revised: Event,
        correction: EventCorrection,
-       targetDate, replacementDate: ValidityFact,
+       originalDate, revisedDate: ValidityFact,
        route: Route | {
     Left.events = Right.events
-    Left.events = target + replacement
+    Left.events = original + revised
 
     no Left.eventCorrections
     Right.eventCorrections = correction
-    correction.target = target
-    correction.replacement = replacement
+    correction.target = original
+    correction.replacement = revised
 
     Left.validityFacts = Right.validityFacts
-    Left.validityFacts = targetDate + replacementDate
+    Left.validityFacts = originalDate + revisedDate
     no Left.validityCorrections
     no Right.validityCorrections
-    targetDate.event = target
-    replacementDate.event = replacement
-    targetDate.day = D1
-    replacementDate.day = D1
+    originalDate.event = original
+    revisedDate.event = revised
+    originalDate.day = D1
+    revisedDate.day = D1
 
     Left.routes = Right.routes
     Left.routes = route
     route.locus = Coffee
     route.day = D1
     route.purpose = Food
-    target.locus = Coffee
-    replacement.locus = Coffee
+    original.locus = Coffee
+    revised.locus = Coffee
 
     consumable[Left]
     consumable[Right]
@@ -291,7 +287,6 @@ assert RawAndEffectiveAgreeWithoutEventCorrection {
     implies rawConsumption[w, p] = effectiveConsumption[w, p]
 }
 
-// Deliberately test the tempting but too-strong semantic inheritance rule.
 assert EventCorrectionImpliesSameOccurrenceDay {
   all w: World, c: w.eventCorrections |
     (one currentDay[w, c.target] and one currentDay[w, c.replacement])
