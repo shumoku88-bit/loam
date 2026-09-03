@@ -193,7 +193,6 @@ structure CompletionDraft where
   dateSource : CompletionDateSource
   effects : List Effect
   total : Int
-  deriving Repr
 
 private def showCompletionProgress
     (progress : Loam.ScheduledCompletionUi.Progress) : IO Unit := do
