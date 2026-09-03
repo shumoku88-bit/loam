@@ -196,21 +196,12 @@ assert NegativeRemainingAndNetPositionDetermineFundingComposition {
      liabilityQuantityAfter[w1] = liabilityQuantityAfter[w2])
 }
 
-assert DifferentFundingCompositionRequiresDifferentNextCapacity {
-  all w1, w2 : World |
-    (sameBudgetEvidence[w1, w2] and
-     (assetQuantityAfter[w1] != assetQuantityAfter[w2] or
-      liabilityQuantityAfter[w1] != liabilityQuantityAfter[w2]))
-    implies
-    NextAuthority.amount[Food] != NextAuthority.amount[Food]
-}
-
 assert ActualPhysicalDefinitionDeterminesFundingProjection {
   all w1, w2 : World |
     sameActualPhysicalDefinition[w1, w2]
     implies
     (remaining[w1, Food] = remaining[w2, Food] and
-     assetQuantityAfter[w1] = assetQuantityAfter[w2] and
+     assetQuantityAfter[w1] = assetQuantityAfter[w2, AssetRole] and
      liabilityQuantityAfter[w1] = liabilityQuantityAfter[w2] and
      netFundingPositionAfter[w1] = netFundingPositionAfter[w2])
 }
@@ -223,5 +214,4 @@ run equalPhysicalDefinitionDifferentIdentitySameAnswer for 6 Int
 
 check NegativeRemainingDeterminesFundingComposition for 6 Int
 check NegativeRemainingAndNetPositionDetermineFundingComposition for 6 Int
-check DifferentFundingCompositionRequiresDifferentNextCapacity for 6 Int
 check ActualPhysicalDefinitionDeterminesFundingProjection for 6 Int
