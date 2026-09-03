@@ -80,7 +80,7 @@ jobs:
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
           test "$(cat "$memory")" = "$expected"
 
-          expected_validity=$'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t2026-09-02'
+          expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t2026-09-02'
           test "$(cat "$validity")" = "$expected_validity"
 
           ./tools/loam review "$memory" >/tmp/loam-review.out
@@ -102,7 +102,7 @@ jobs:
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
           test "$(cat "$data_dir/memory.loam")" = "$expected"
 
-          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-MEMORY\t1\nVALIDITY\trecord-1\t%s' "$today")"
+          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t%s' "$today")"
           test "$(cat "$data_dir/memory.loam.actual-validity")" = "$expected_validity"
 
       - name: Older undated records remain visible without guessed dates
