@@ -190,10 +190,12 @@ This keeps the DateRange boundary law consistent with Observation 131.
 ## Qualification
 
 - executable-model head `2b7115a5e81977807f7061fb67305639420b3276`
-- PR merge ref `6fc3c2a4806e345960ade931a7479439b0f87c8e`
+- executable PR merge ref `6fc3c2a4806e345960ade931a7479439b0f87c8e`
 - base `main` `1672e83786b01c71f80d06bb56e03ffa29efe9c1`
-- Observation 136 solver execution: SUCCESS
-- expected-result checker: SUCCESS
+- executable-head Observation 136: SUCCESS
+- result-note final head `616570cf6f6aba5fea750dddf44e28b0c981f95d`
+- final-head Observation 136: SUCCESS
+- final-head solver execution and expected-result checker: SUCCESS
 
 ## Boundaries
 
