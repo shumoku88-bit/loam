@@ -14,6 +14,7 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Tests/Capacity.lean'
       - 'Loam/Tests/ActualRoutingConsumption.lean'
+      - 'Loam/Tests/CapacityHouseholdStory.lean'
       - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -34,6 +35,7 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Tests/Capacity.lean'
       - 'Loam/Tests/ActualRoutingConsumption.lean'
+      - 'Loam/Tests/CapacityHouseholdStory.lean'
       - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -74,3 +76,7 @@ jobs:
       - name: Run actual routing consumption boundary check
         shell: bash
         run: lake env lean --run Loam/Tests/ActualRoutingConsumption.lean
+
+      - name: Run household capacity development story
+        shell: bash
+        run: lake env lean --run Loam/Tests/CapacityHouseholdStory.lean
