@@ -131,9 +131,29 @@ The model therefore treats rollover as budget authority over Capacity, not as ev
 
 This does not claim Holdings and Backing are unrelated to later budget safety projections. It claims only that they do not determine whether unused Capacity is authorized to carry across this boundary.
 
-## Expected ambiguity checks
+## Qualified ambiguity checks
 
-The model deliberately expects counterexamples to stronger compressions:
+Alloy produced witnesses for all intended specimen predicates and counterexamples to the stronger compressions:
+
+```text
+previousRemainingIsDerivedFromCapacityAndActual                 SAT
+unusedCarryChangesNextCapacityWithoutReallocationCarry          SAT
+reallocationCarryChangesNextCapacityWithoutUnusedCarry          SAT
+combinedPolicyComposesIndependentAxes                           SAT
+selectiveUnusedCarryProducesPurposeSpecificAnswer               SAT
+samePhysicalBackingDifferentUnusedCarryDifferentCapacity        SAT
+equalDefinitionDifferentIdentitySameAnswer                      SAT
+
+FormulaActualsAdjustmentsAndAdjustmentCarryDetermineNextCapacity SAT counterexample
+AdjustmentCarryDeterminesUnusedCarry                             SAT counterexample
+UnusedCarryDeterminesAdjustmentCarry                             SAT counterexample
+PhysicalHoldingsAndBackingPlusAdjustmentCarryDetermineNextCapacity SAT counterexample
+BoundaryPoliciesPreserveBaseTotal                                SAT counterexample
+
+CompositeBoundaryDefinitionDeterminesNextCapacity                UNSAT counterexample
+```
+
+Therefore:
 
 ```text
 formula
@@ -143,22 +163,22 @@ formula
     -> next Capacity
 ```
 
-is expected to be too small, because two policies can agree completely on reallocation carry while disagreeing on unused Remaining carry.
+is too small. Two policies can agree completely on reallocation carry while disagreeing on unused Remaining carry.
 
-Likewise, the model expects neither direction of implication to hold:
+Neither direction of implication holds:
 
 ```text
 reallocation carry definition -> unused carry definition
 unused carry definition       -> reallocation carry definition
 ```
 
-and expects physical Holdings / Backing to remain insufficient to recover the missing unused-carry decision.
+and the fixed physical Holdings / Backing specimen does not recover the missing unused-carry authority.
 
-The total-Capacity preservation result from Observation 136 is also expected not to generalize. Balanced reallocation carry preserves total Capacity, while carrying unused Remaining can increase next-authority Capacity above the new base formula result.
+The total-Capacity preservation result from Observation 136 also does not generalize. Balanced reallocation carry preserves total Capacity, while carrying unused Remaining can increase next-authority Capacity above the new base formula result.
 
-## Smaller candidate under test
+## Smaller bounded candidate
 
-The bounded candidate is:
+The surviving bounded candidate is:
 
 ```text
 next authority DateRange
@@ -184,6 +204,8 @@ so no retained `EnvelopeBalance` is needed inside this specimen.
 
 The important distinction is that `Remaining` is a derived prior-period answer, while the decision to reuse that amount in the next authority is independent semantic authority supplied by the boundary policy definition.
 
+The equal-definition / different-identity witness also survives, so boundary-policy identity itself is not earned by this specimen.
+
 ## What this observation does not claim
 
 It does not propose or earn:
@@ -206,4 +228,8 @@ Partial-percentage rollover, caps, expiry, negative Remaining / overspending sem
 
 ## Qualification
 
-Pending exact-head Alloy qualification.
+- executable-model head `9a3fbb5b3673490c3d85440a89816f333d12f082`: Observation 137 SUCCESS
+- Alloy solver execution: SUCCESS
+- expected-result checker: SUCCESS
+- workflow run: `33767566594`
+- the qualification note itself is a documentation-only follow-up; its exact final head is qualified separately by the same Observation 137 workflow
