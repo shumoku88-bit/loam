@@ -74,100 +74,108 @@ Union       [0,5)
 
 The overlap pair intentionally shares `[2,3)`.
 
-## Expected observations
+## Qualified Alloy result
 
-For the pure rate formula:
-
-```text
-Left  + Right
-  = 2 days + 3 days
-  = 5 days
-  = Union
-```
-
-so adjacent composition should succeed.
-
-For the fixed-per-window formula:
-
-```text
-Food Left   = 10
-Food Right  = 10
-Food Union  = 10
-```
-
-so `Left + Right = Union` should fail because splitting the range repeats the per-window intercept.
-
-Even the additive pure-rate formula should not be naively added across overlapping views, because the shared day is counted twice.
-
-## Qualification targets
-
-Expected witnesses:
+Alloy 6.2.0 + Sat4j:
 
 ```text
 pureRateAdjacentRangesCompose                           SAT
 fixedPerWindowAdjacentRangesDoNotCompose                SAT
 overlappingRateViewsAreNotAdditive                      SAT
 equalDefinitionDifferentIdentitySameCompositionAnswer   SAT
-```
 
-Expected counterexamples to deliberately too-strong assumptions:
-
-```text
 SameFormulaAdjacentRangesAlwaysCompose                  SAT counterexample
-ZeroInterceptOverlappingRangesComposeByAddition         SAT counterexample
-```
-
-Expected no counterexample for the smaller bounded law:
-
-```text
 ZeroInterceptAdjacentRangesCompose                      UNSAT counterexample
 AdjacentAdditivityCharacterizedByZeroIntercept          UNSAT counterexample
+ZeroInterceptOverlappingRangesComposeByAddition         SAT counterexample
 EqualDefinitionDeterminesSelectedCapacity               UNSAT counterexample
 ```
 
-## Interpretation if qualified
+The counterexample to `SameFormulaAdjacentRangesAlwaysCompose` selects `FixedFormula`: the same formula is applied to both adjacent subranges and their union, but the per-window intercept is repeated when the subranges are added.
 
-The useful boundary would be:
+The overlapping-range counterexample remains even for the pure-rate formula because the shared interval `[2,3)` is counted twice.
+
+## Finding
+
+Adjacency alone is not enough:
 
 ```text
-same formula + adjacent DateRanges
+same formula
++ adjacent DateRanges
     does not imply
 additive Capacity composition
-
-formula definition
-+ range relation
-    may determine
-whether naive addition is valid
 ```
 
-For this affine scaffold specifically:
+But in this bounded non-negative affine scaffold, the composition law is recoverable from the formula definition itself:
 
 ```text
 base = 0
-    -> adjacent partition additivity
-
-base > 0
-    -> splitting repeats per-window authority
+    <->
+adjacent partition additivity
 ```
 
-This would mean LOAM need not immediately introduce canonical kinds such as:
+For example:
 
 ```text
-ComposableBudgetPolicy
-NonComposableBudgetPolicy
-MonthlyBudget
-PensionBudget
+RateFormula Food
+  [0,2) = 6
+  [2,5) = 9
+  [0,5) = 15
+
+6 + 9 = 15
 ```
 
-The application may instead inspect or know the law of the selected formula definition. Friendly policy names can remain configuration.
+while:
 
-It would also preserve Observation 133's warning: even an additive formula cannot be naively summed across overlapping DateRanges.
+```text
+FixedFormula Food
+  [0,2) = 10
+  [2,5) = 10
+  [0,5) = 10
 
-## What would count as failure?
+10 + 10 != 10
+```
 
-The small candidate should be rejected if a zero-intercept affine formula over adjacent half-open ranges can produce a bounded counterexample to additivity.
+So the qualified small boundary is:
 
-Likewise, if equal formula definitions under equal ranges can produce different Capacity answers, formula identity or additional authority would remain observable.
+```text
+DateRange relation
++ formula definition
+    -> whether this bounded formula composes by naive addition
+```
+
+A separate canonical `ComposableBudgetPolicy` / `NonComposableBudgetPolicy` identity is not earned by this specimen. An identity-distinct formula with the same definition also gives the same selected Capacity answer.
+
+Observation 133's warning remains essential: even a formula that composes over an adjacent partition cannot be naively summed over overlapping DateRanges.
+
+## Practical interpretation
+
+A household can therefore have friendly application policies such as:
+
+```text
+monthly
+pension period
+six months
+custom
+```
+
+without assuming that the labels determine composition.
+
+Instead, a policy definition may carry or admit a law such as:
+
+```text
+additive over adjacent partition
+```
+
+when that law is justified by the formula itself.
+
+For the current affine specimen, no extra tag is needed because zero intercept characterizes the law. More expressive future formulas may need proof or metadata if the law cannot be derived mechanically from their definition.
+
+## Qualification
+
+- executable-model head `f12902011b43a5775478bf016719b8a7857780ad` — Observation 134 SUCCESS on the PR merge ref against `main` (`093cff1fbb6cb40362c6e7ceb1f622edd4158001`)
+- solver execution and expected-result checker both SUCCESS
+- result-note final head is qualified separately after this note update
 
 ## Boundaries
 
