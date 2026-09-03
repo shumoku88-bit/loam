@@ -1,3 +1,5 @@
+import Loam.Cli.ScheduledCli
+import Loam.Cli.ScheduledLifecycleCli
 import Loam.Persistence
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
@@ -9,6 +11,13 @@ namespace Loam.OpenScheduledCli
 open Loam.Core
 
 set_option autoImplicit false
+
+private def promptLine (prompt : String) : IO String := do
+  IO.print prompt
+  let stdout ← IO.getStdout
+  stdout.flush
+  let stdin ← IO.getStdin
+  return (← stdin.getLine).trimAsciiEnd.toString
 
 private def loadScheduledMemoryOrEmpty?
     (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
@@ -202,12 +211,91 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
                           printOccurrence occurrence
                         return 0
 
+/-!
+Interactive Scheduled workbench for daily dogfood.
+
+The workbench deliberately asks only which Scheduled occurrences remain open.
+Observation 122 showed that answering a stronger question such as "which later
+occurrence is the next one?" would require independent continuation provenance.
+This UI does not retain that new fact yet. After add, realization, or
+cancellation it simply re-renders the open set, so pre-created future
+occurrences remain visible without forcing automatic replenishment or a Series
+model.
+-/
+partial def scheduledMenu (scheduledPath memoryPath : String) : IO UInt32 := do
+  IO.println ""
+  IO.println "Scheduled movements"
+  let status ← showOpenScheduled scheduledPath memoryPath
+  if status != 0 then
+    return status
+  else
+    IO.println ""
+    IO.println "What do you want to do?"
+    IO.println "a. Add scheduled movement"
+    IO.println "r. Record what actually happened"
+    IO.println "x. Cancel scheduled movement"
+    IO.println "b. Back"
+    let choice ← promptLine "> "
+    match choice with
+    | "a" =>
+        let _ ← Loam.ScheduledCli.recordScheduled scheduledPath
+        scheduledMenu scheduledPath memoryPath
+    | "A" =>
+        let _ ← Loam.ScheduledCli.recordScheduled scheduledPath
+        scheduledMenu scheduledPath memoryPath
+    | "r" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledLifecycleCli.completeScheduled
+            scheduledPath memoryPath scheduledId
+          scheduledMenu scheduledPath memoryPath
+    | "R" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledLifecycleCli.completeScheduled
+            scheduledPath memoryPath scheduledId
+          scheduledMenu scheduledPath memoryPath
+    | "x" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledId
+          scheduledMenu scheduledPath memoryPath
+    | "X" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledId
+          scheduledMenu scheduledPath memoryPath
+    | "b" => return 0
+    | "B" => return 0
+    | "q" => return 0
+    | "Q" => return 0
+    | _ =>
+        IO.eprintln "loam: Scheduled choice not understood"
+        scheduledMenu scheduledPath memoryPath
+
 end Loam.OpenScheduledCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
-  | [scheduledPath, memoryPath] =>
-      Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
+  | ["menu", scheduledPath, memoryPath] =>
+      Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
+  | [scheduledPath, memoryPath] => do
+      let stdin ← IO.getStdin
+      let stdout ← IO.getStdout
+      let inputInteractive ← stdin.isTty
+      let outputInteractive ← stdout.isTty
+      if inputInteractive && outputInteractive then
+        Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
+      else
+        Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
   | _ => do
-      IO.eprintln "Usage: loamOpenScheduled SCHEDULED_FILE MEMORY_FILE"
+      IO.eprintln "Usage: loamOpenScheduled [menu] SCHEDULED_FILE MEMORY_FILE"
       return 2
