@@ -75,6 +75,9 @@ jobs:
 
           output="$(.lake/build/bin/loamCapacity show "$capacity")"
           printf '%s\n' "$output"
-          grep -F 'unallocated: -100 jpy' <<<"$output"
           grep -F 'food: 60 jpy' <<<"$output"
           grep -F 'groceries: 40 jpy' <<<"$output"
+          if grep -Fq 'unallocated:' <<<"$output"; then
+            echo 'internal unallocated boundary leaked into entitlement view' >&2
+            exit 1
+          fi
