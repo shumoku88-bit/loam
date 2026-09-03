@@ -1,6 +1,6 @@
 # Observation 139 — Negative Remaining and funding composition
 
-Status: **experiment under qualification**
+Status: **qualified bounded result**
 
 ## Question
 
@@ -108,63 +108,133 @@ while differing in asset/liability composition.
 
 A third identity-distinct copy repeats the cash-funded physical definition to test whether world identity itself contributes anything to the selected answers.
 
-## Pressure
+## Qualified Alloy result
 
-### 1. Negative Remaining alone
+Alloy 6.2.0 + Sat4j produced the complete expected result set:
 
-If two worlds have the same Capacity evidence, the same consumption quantity, and therefore the same negative Remaining, must their asset/liability funding projections agree?
+```text
+sameNegativeRemainingDifferentFundingComposition       SAT
+cashFundedNegativeRemainingIsReachable                 SAT
+liabilityFundedNegativeRemainingIsReachable            SAT
+sameBoundaryCapacityDifferentFundingPressure           SAT
+equalPhysicalDefinitionDifferentIdentitySameAnswer     SAT
 
-Expected: **no**.
+NegativeRemainingDeterminesFundingComposition                SAT counterexample
+NegativeRemainingAndNetPositionDetermineFundingComposition  SAT counterexample
+ActualPhysicalDefinitionDeterminesFundingProjection          UNSAT counterexample
+```
 
-The cash-funded and liability-funded worlds are intended counterexamples.
+Executable qualification head:
 
-### 2. Negative Remaining plus aggregate net position
+```text
+228102c0ce1d1c6083c66fec1a0c8d23e95d032f
+```
 
-Perhaps the missing distinction is merely aggregate household position.
+GitHub Actions:
 
-The specimen therefore also fixes the same simple net position:
+```text
+Observation 139
+run 33774365348
+job 100712252260
+SUCCESS
+```
+
+Both the Alloy execution step and the expected-result checker completed successfully.
+
+## Findings
+
+### 1. Negative Remaining does not determine funding composition
+
+The cash-funded and liability-funded worlds share:
+
+```text
+Previous Capacity = 10
+Consumption       = 12
+Remaining         = -2
+Next Capacity     = 10
+```
+
+but their post-Actual asset/liability projections differ.
+
+Therefore, in this bounded vocabulary:
+
+```text
+negative Remaining
+    does not determine
+asset-funded vs liability-funded composition
+```
+
+### 2. Adding one aggregate net position is still too small
+
+Both worlds also share:
 
 ```text
 asset quantity - liability quantity = 8
 ```
 
-in both worlds.
+while retaining different asset/liability composition.
 
-If Remaining and this net aggregate are both equal, must the funding composition agree?
+So the stronger compression also fails:
 
-Expected: **no**.
+```text
+negative Remaining
++ aggregate net funding position
+    does not determine
+funding composition
+```
 
-This tests whether an aggregate net-worth-like answer is still too compressed for the selected question.
+An aggregate net-worth-like answer can therefore erase information needed by the selected funding question.
 
-### 3. Different funding under one next Capacity
+### 3. Different funding composition can coexist with one next Capacity
 
-The two worlds deliberately retain the same next Capacity authority:
+The witness `sameBoundaryCapacityDifferentFundingPressure` is SAT while both worlds retain:
 
 ```text
 Next Food Capacity = 10
 ```
 
-while their physical funding composition differs.
-
-The SAT witness `sameBoundaryCapacityDifferentFundingPressure` is enough to demonstrate that these can coexist. No artificial assertion is needed to force a contradiction.
-
-This preserves the separation:
+Thus this bounded pressure does not force budget authority to mutate merely because physical funding composition differs:
 
 ```text
-budget authority
+Capacity authority
     !=
-physical funding / liability composition
+physical asset/liability composition
 ```
 
-A later explicit boundary policy may choose to connect them, but that connection is not inferred merely from negative Remaining.
+A future explicit boundary policy may connect those questions, but negative Remaining alone does not supply such authority.
 
-### 4. Full Actual physical evidence
+### 4. Complete Actual physical evidence is sufficient for the selected projection
 
-If two worlds share the same Actual purpose, quantity, and complete Locus effect definition, can the selected Remaining / asset / liability / net answers differ?
+The assertion:
 
-Expected: **no bounded counterexample**.
+```text
+ActualPhysicalDefinitionDeterminesFundingProjection
+```
 
-If this holds, the smaller candidate is:
+has no bounded counterexample.
+
+When two worlds share the same:
+
+```text
+Actual Purpose
+Actual quantity
+complete Actual Locus effects
+```
+
+and the specimen retains the same accounting-role interpretation, their selected:
+
+```text
+Remaining
+asset quantity
+liability quantity
+net funding position
+```
+
+cannot differ in the bounded model.
+
+The identity-distinct cash-funded copy also produces the same selected answer.
+
+So the smaller qualified candidate is:
 
 ```text
 Capacity authority
@@ -177,29 +247,9 @@ Capacity authority
 
 without a retained overspending-kind fact.
 
-## Expected commands
+## Interpretation
 
-The workflow requires the following witnesses:
-
-```text
-sameNegativeRemainingDifferentFundingComposition       SAT
-cashFundedNegativeRemainingIsReachable                 SAT
-liabilityFundedNegativeRemainingIsReachable            SAT
-sameBoundaryCapacityDifferentFundingPressure           SAT
-equalPhysicalDefinitionDifferentIdentitySameAnswer     SAT
-```
-
-and the following assertion results:
-
-```text
-NegativeRemainingDeterminesFundingComposition                SAT counterexample
-NegativeRemainingAndNetPositionDetermineFundingComposition  SAT counterexample
-ActualPhysicalDefinitionDeterminesFundingProjection          UNSAT counterexample
-```
-
-## Interpretation gate
-
-If qualification matches the expected result, the bounded conclusion will be deliberately narrow:
+The bounded conclusion is deliberately narrow:
 
 ```text
 negative Remaining
@@ -211,13 +261,43 @@ whether the consumption reduced an asset
 or increased a liability
 ```
 
-But this does **not** automatically earn a new deficit category.
+But the missing distinction need not become another canonical budget noun if it is already observable in upstream physical/accounting evidence.
 
-If the complete Actual physical effects plus accounting-role interpretation determine the selected funding projection, then information equivalent to the distinction already exists upstream. A UI may say `cash overspending` or `credit overspending` without those phrases becoming canonical household facts.
+A household UI may legitimately present phrases such as:
+
+```text
+cash overspending
+credit / liability-funded overspending
+```
+
+without storing those phrases as independent household truth.
+
+This strengthens the existing LOAM separation:
+
+```text
+Capacity / Remaining
+    budget authority and projection
+
+Actual physical effects
+    what quantities actually changed where
+
+AccountingRole
+    how selected loci participate in an accounting view
+```
+
+The selected budget deficit and the selected funding composition are related questions, but one does not own the other's truth.
+
+## What this closes
+
+The external survey used YNAB's distinct cash and credit overspending behavior as pressure. Observation 139 does not reproduce YNAB's product objects. Instead it shows that the first pure cash-versus-liability distinction can already be represented without a canonical credit-budget object or retained overspending-kind fact.
+
+That reduces the immediate pressure to enlarge the envelope-budget ontology.
+
+The ordinary negative-Remaining question can therefore remain compressed until a future operation asks something not recoverable from the existing upstream evidence.
 
 ## Not earned by this observation
 
-Even if the expected result qualifies, it does not establish:
+This result does not establish:
 
 - a production `OverspendKind`;
 - a `CreditCardPaymentCategory` or `DebtEnvelope`;
@@ -230,17 +310,27 @@ Even if the expected result qualifies, it does not establish:
 - interest, fees, minimum payments, or statement cycles;
 - a production AccountingRole change.
 
-Mixed funding is intentionally deferred. The first question is only whether the pure cash-funded versus liability-funded distinction is already recoverable from existing kinds of evidence.
+Mixed funding remains a possible later pressure, but it should be observed only if dogfood or an external accounting question requires source-specific attribution within one Actual. It is not automatically the next experiment.
 
 ## Tool choice
 
-**Alloy first.**
+**Alloy was sufficient.**
 
-The first pressure is static independence and sufficiency:
+The pressure was static independence and sufficiency:
 
 - hold budget evidence fixed;
 - hold aggregate net position fixed;
 - vary the physical funding shape;
 - ask whether selected answers diverge.
 
-No transition/liveness law is needed yet. TLA+ becomes relevant only if later work asks how mixed funding, repayment, or boundary publication evolves through time.
+No transition/liveness law was needed. TLA+ becomes relevant only if later work asks how mixed funding, repayment, or boundary publication evolves through time.
+
+## Next pressure
+
+Observation 139 removes the strongest immediate negative-Remaining compression concern without adding a budget concept.
+
+The next externally observed gap should therefore preferably move to a genuinely different boundary rather than keep elaborating envelope vocabulary:
+
+> Can accounting recognition time differ from occurrence, invoice, payment, delivery, or service time without rewriting the underlying Actual evidence?
+
+That is the stronger next candidate from the September external accounting pressure survey.
