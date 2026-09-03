@@ -132,12 +132,6 @@ The handler re-admits atomically against current terminal evidence before publis
 not (completion_claim and retirement)
 ```
 
-Expected result:
-
-```text
-errors: 0
-```
-
 ### Unsafe stale Cancel
 
 `118_ui_stale_admission_unsafe_cancel.pml` forces:
@@ -147,8 +141,6 @@ render Cancel
 publish completion claim
 activate stale Cancel without re-admission
 ```
-
-Expected result: assertion violation.
 
 ### Unsafe stale Complete
 
@@ -160,11 +152,44 @@ publish retirement
 activate stale Complete without re-admission
 ```
 
-Expected result: assertion violation.
+## SPIN result
 
-## Candidate UI law
+Exact PR head after the Promela guard fix:
 
-If the expected SPIN boundary holds:
+```text
+37c976321701df9544eb1f6537750f742655883f
+```
+
+Observation 118 workflow run #4 completed successfully.
+
+Safe activation-time re-admission:
+
+```text
+State-vector 28 byte, depth reached 12, errors: 0
+20 states, stored
+2 states, matched
+22 transitions
+```
+
+Unsafe stale Cancel:
+
+```text
+assertion violated !(completion_claim && retirement)
+depth reached 9, errors: 1
+```
+
+Unsafe stale Complete:
+
+```text
+assertion violated !(completion_claim && retirement)
+depth reached 9, errors: 1
+```
+
+The first workflow attempt did not produce a semantic counterexample. SPIN rejected the initial safe Promela model because nested `else` guards were inherited into one selection. Replacing those `else` branches with explicit complementary guards allowed the intended state-space check to run. The protocol result above is therefore from the corrected model, not from the rejected syntax shape.
+
+## Interpretation
+
+The bounded result supports:
 
 ```text
 render-time admission
@@ -183,9 +208,11 @@ visible affordance
 
 This is stronger than merely disabling buttons correctly at render time.
 
+The UI does not need to hold writer ownership while a person thinks. The rendered surface may become stale. Mutation authority is recomputed only when activation begins, under the current operation's existing ownership / admission boundary.
+
 ## Relationship to Lean-shaped UI
 
-The result would give a natural future interaction loop:
+The result gives a natural future interaction loop:
 
 ```text
 World W0
@@ -221,4 +248,4 @@ This observation does not add:
 - multi-user collaboration semantics;
 - fairness or liveness guarantees.
 
-The candidate is smaller: human-visible UI state may go stale, so mutation authority must be recomputed at activation time.
+The earned boundary is smaller: human-visible UI state may go stale, so mutation authority must be recomputed at activation time.
