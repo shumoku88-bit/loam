@@ -34,7 +34,7 @@ proctype UI()
         /* Activation-time re-admission. */
         if
         :: (!retirement && !completion_claim) -> retirement = true
-        :: else -> skip
+        :: (retirement || completion_claim) -> skip
         fi;
         assert(TERMINAL_SAFE)
       }
@@ -44,7 +44,7 @@ proctype UI()
            competes with retained retirement evidence. */
         if
         :: !retirement -> completion_claim = true
-        :: else -> skip
+        :: retirement -> skip
         fi;
         assert(TERMINAL_SAFE)
       }
@@ -58,19 +58,15 @@ proctype ConcurrentWriter()
   if
   :: atomic {
        /* A completion writer publishes its terminal claim. */
-       if
-       :: (!retirement && !completion_claim) -> completion_claim = true
-       :: else -> skip
-       fi;
+       (!retirement && !completion_claim);
+       completion_claim = true;
        assert(TERMINAL_SAFE);
        phase = 2
      }
   :: atomic {
        /* Or a cancellation writer publishes retirement. */
-       if
-       :: (!retirement && !completion_claim) -> retirement = true
-       :: else -> skip
-       fi;
+       (!retirement && !completion_claim);
+       retirement = true;
        assert(TERMINAL_SAFE);
        phase = 2
      }
