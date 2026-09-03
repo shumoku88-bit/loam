@@ -14,11 +14,11 @@ source reports posted
 
 PFM software often exposes this as a mutable transaction status or replaces one imported row with another. LOAM should not assume that either source lifecycle has to mutate household Actual truth.
 
-The question is:
+The questions are:
 
 > Can pending -> posted evolution remain entirely inside external-source evidence while the reconciled household Actual stays stable?
 
-A second question is:
+and:
 
 > If the current source view is `posted`, is that current projection sufficient to reconstruct whether pending evidence existed earlier?
 
@@ -57,9 +57,7 @@ pendingSupportsActual
 postedSupportsActual
 ```
 
-These booleans are bounded observation scaffolding, not proposed production fields.
-
-They stand for information-equivalent retained evidence.
+These booleans are bounded observation scaffolding, not proposed production fields. They stand for information-equivalent retained evidence.
 
 The household Actual is represented by one stable `actualQuantity` coordinate.
 
@@ -108,43 +106,111 @@ Both historical source observations may support the same household occurrence.
 
 This is not two Actuals and does not imply that pending and posted quantities must be identical.
 
-## Qualification target
+## Executed result
 
-The positive TLC configuration must preserve:
+TLC 2.19 / TLA+ tools 1.7.4 on exact head `0d64495b7eb94608b27fa29591f4d0ea889ec6a1` produced the complete expected result set.
+
+The positive configuration completed with no invariant violation:
 
 ```text
-TypeOK
-ActualStable
-SupersessionRequiresObservedEndpoints
-SupportRequiresObservedSource
-CurrentProjectionBackedByEvidence
+TypeOK                                      PASS
+ActualStable                                PASS
+SupersessionRequiresObservedEndpoints       PASS
+SupportRequiresObservedSource               PASS
+CurrentProjectionBackedByEvidence            PASS
 ```
 
-Dedicated boundary configurations are intentionally too strong and must fail:
+The dedicated boundary configurations each violated their deliberately-too-strong invariant as expected:
 
 ```text
-NoPendingThenPostedHistory
-NoDirectPostedHistory
-NoDualSourceSupport
-NoQuantityDriftSupport
+NoPendingThenPostedHistory   VIOLATED
+NoDirectPostedHistory        VIOLATED
+NoDualSourceSupport          VIOLATED
+NoQuantityDriftSupport       VIOLATED
 ```
 
-Expected interpretation:
+The workflow's positive checker and all four expected-boundary checks completed **SUCCESS**.
 
-- `NoPendingThenPostedHistory` violation proves pending -> posted history is reachable;
-- `NoDirectPostedHistory` violation proves posted-without-prior-pending is also reachable;
-- together, those two violations show current `posted` projection does not determine prior-pending history;
-- `NoDualSourceSupport` violation proves both source observations can support one Actual;
-- `NoQuantityDriftSupport` violation proves provisional/final source quantities may differ while converging on the same stable Actual.
+An initial harness run reached a legitimate terminal source state and TLC reported it as a deadlock. The model was refined with an explicit `Idle == UNCHANGED vars` action because this observation is about reachability rather than termination/liveness. That change adds no new source transition or household meaning; it only makes terminal stuttering explicit to TLC.
 
-## Expected compression boundary
+## Interpretation
 
-If qualified, the bounded boundary is:
+### 1. Source lifecycle does not force Actual mutation
+
+`ActualStable` holds across every reachable transition.
+
+Observed: **PASS**.
+
+The source can move from pending evidence to posted evidence while the household Actual quantity stays unchanged.
+
+### 2. Pending -> posted history is reachable
+
+`NoPendingThenPostedHistory` is violated.
+
+Observed boundary: **expected violation**.
+
+So a posted current source projection may have a retained earlier pending observation and explicit source-supersession provenance.
+
+### 3. Direct posted history is also reachable
+
+`NoDirectPostedHistory` is violated.
+
+Observed boundary: **expected violation**.
+
+So a posted current source projection does not imply that pending evidence existed earlier.
+
+Together with the previous boundary, this establishes the selected history-loss result:
 
 ```text
-household Actual
-    does not need to transition
-    merely because source evidence goes pending -> posted
+current source projection = posted
+```
+
+is compatible with both:
+
+```text
+none -> posted
+```
+
+and:
+
+```text
+none -> pending -> posted
+```
+
+Therefore current `posted` state alone does not determine prior-pending provenance.
+
+### 4. Pending and posted evidence can corroborate one Actual
+
+`NoDualSourceSupport` is violated.
+
+Observed boundary: **expected violation**.
+
+Both retained source observations can point at the same household Actual without creating another Actual occurrence.
+
+### 5. Provisional/final source quantity drift can stay outside Actual
+
+`NoQuantityDriftSupport` is violated with the synthetic shape:
+
+```text
+pending = 9
+posted  = 10
+Actual  = 10
+```
+
+Observed boundary: **expected violation**.
+
+The model therefore admits a source changing its reported quantity across pending -> posted while both observations remain evidence about one stable Actual.
+
+This is a bounded reachability result, not a universal bank-matching policy.
+
+## Finding
+
+The bounded boundary is:
+
+```text
+source pending / posted lifecycle
+    !=
+household Actual lifecycle
 ```
 
 and:
@@ -155,7 +221,7 @@ current source projection = posted
 whether pending evidence existed earlier
 ```
 
-So the selected questions can be answered by a decomposition like:
+For the selected questions, the smaller decomposition is sufficient:
 
 ```text
 stable household Actual
@@ -172,7 +238,7 @@ projection
     current source view
 ```
 
-The current `pending` / `posted` label can therefore remain a projection of source evidence rather than a mutable status on Actual.
+Nothing in this observation earns a mutable `pending`, `posted`, `cleared`, or `matched` flag on Actual.
 
 ## Important restraint
 
@@ -188,7 +254,7 @@ The experiment also does not yet establish the production representation of sour
 
 - Observation 121 separates external observation authority from Actual authority and requires explicit reconciliation for selected support answers.
 - `AsynchronousSettlement.tla` models a different pressure: initiation/pending versus physical settlement of a household movement. Observation 123 must not collapse source-feed pending into physical unsettledness.
-- Existing append-only provenance observations already show that current projections can lose history in other semantic families; Observation 123 tests whether that pressure appears specifically at the external-source boundary.
+- Existing append-only provenance observations already show that current projections can lose history in other semantic families; Observation 123 confirms that the pressure also appears at the external-source boundary.
 
 ## Boundaries
 
@@ -209,4 +275,4 @@ Observation 123 does not establish:
 - foreign exchange or valuation behavior;
 - a mutable `pending`, `posted`, `cleared`, or `matched` flag on Actual.
 
-The observation asks only whether source lifecycle history can evolve while household Actual remains semantically stable, and whether the current posted projection loses provenance that an append-only source-evidence history can retain.
+The observation asks only whether source lifecycle history can evolve while household Actual remains semantically stable, and whether the current posted projection loses provenance that retained source-evidence history can preserve.
