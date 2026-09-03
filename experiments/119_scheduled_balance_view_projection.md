@@ -69,7 +69,9 @@ The internal transfer still changes both selected Loci individually. A zero sele
 4. If the balance view and Scheduled facts are fixed, can a separate Eligibility selection still change allocation-sensitive impact?
 5. Does adding the same Eligibility selection remove that ambiguity?
 
-## Expected Alloy results
+## Observed Alloy results
+
+Alloy 6.2.0 + Sat4j produced the complete expected result set:
 
 ```text
 balanceViewReadsRelativeDirectionWithoutAccountTypes                 SAT
@@ -83,32 +85,55 @@ BalanceViewPlusScheduledPlusEligibilityDeterminesEligibilitySensitiveImpact UNSA
 
 For `check` commands, SAT means Alloy found a counterexample to the asserted sufficiency law.
 
-## Candidate interpretation
+The first CI attempt stopped before solving because the field name `open` collided with an Alloy 6 reserved word. Renaming the field to `activeScheduled` changed only model syntax, not the question or expected result set. The corrected exact-head run passed the solver and result qualification.
 
-If the expected result set holds, the smallest current decomposition is:
+## Interpretation
+
+The same Scheduled movement can have opposite selected impact under two different balance views. In the synthetic payment:
+
+```text
+Bank selected  -> negative impact
+Rent selected  -> positive impact
+```
+
+So incoming / outgoing direction is relative to the selected balance question. It need not be stored as an intrinsic Income / Expense or transaction-kind fact.
+
+Scheduled facts alone do not determine the selected balance impact. Alloy finds a counterexample when two worlds retain the same active Scheduled set but select different balance Loci.
+
+Once the active Scheduled set and the balance-view selection are both fixed, Alloy finds no bounded counterexample to the selected-impact answer. The smallest current decomposition is therefore:
 
 ```text
 open Scheduled
 + replaceable BalanceView selection
     -> Scheduled impact on the balances currently being asked about
+```
 
+The transfer specimen adds an important projection boundary:
+
+```text
+Bank -2 -> Wallet +2
+```
+
+has zero total impact when both Bank and Wallet are selected, but both selected Loci still change. A future practical projection must therefore retain per-Locus effects rather than replacing them with one net number.
+
+Finally, the same Scheduled facts and the same BalanceView still do not determine an allocation-sensitive answer. Varying only Eligibility changes that answer. When Eligibility is also fixed, the ambiguity disappears in the bounded model:
+
+```text
 open Scheduled
 + BalanceView
 + separate Eligibility / Backing evidence
     -> allocation-sensitive question
 ```
 
-That would mean LOAM does **not** yet need a new canonical `holding Locus` concept merely to distinguish household Scheduled funding from payment relative to the current balance view.
+This preserves Observation 048 rather than weakening it. BalanceView says which balances are currently being asked about; it does not say which held quantity may fund household allocation.
 
-The direction is query-relative:
+## Consequence for vocabulary
 
-```text
-same movement
-+ different selected balance coordinates
-= different balance-view interpretation
-```
+This observation gives no reason to add a new canonical `holding Locus` classification merely to distinguish household Scheduled funding from payment relative to the current balance view.
 
-This is different from saying the movement intrinsically *is* Income or Expense.
+The existing replaceable BalanceView already carries the additional query-relative selection needed for that narrower answer.
+
+That does **not** mean a holding, eligibility, liquidity, or backing distinction can never be needed. It means this particular household question does not earn a new canonical concept yet.
 
 ## Boundary
 
@@ -126,4 +151,4 @@ This observation does not establish:
 - that balance-view selection is allocation authority;
 - that AccountingRole is unnecessary for accounting statements.
 
-It asks only whether the existing application balance selection is enough to interpret open Scheduled effects *relative to the balances currently being viewed*.
+It establishes only that the existing application balance selection is sufficient, in this bounded vocabulary, to interpret open Scheduled effects *relative to the balances currently being viewed*.
