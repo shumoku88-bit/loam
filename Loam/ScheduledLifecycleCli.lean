@@ -19,14 +19,17 @@ Cancellation is retained as explicit retirement evidence rather than mutating a
 Scheduled occurrence.
 
 The Scheduled file is the shared ownership anchor for terminal admission.
-Completion acquires that ownership first and then enters the existing
-EventMemory-owned completion writer, giving one fixed lock order:
+Completion now prepares all human input before taking mutation ownership. On
+activation it acquires Scheduled ownership and then EventMemory ownership,
+giving one fixed lock order:
 
-  Scheduled -> EventMemory
+  human draft (no writer lock)
+      -> Scheduled
+      -> EventMemory
 
-This prevents a completion and cancellation from both being admitted for the
-same Scheduled identity while still preserving EventMemory ownership against
-ordinary Actual writers.
+The draft is not authority. Both ownership boundaries re-read current evidence
+before publication. This prevents a stale Complete affordance from competing
+with a cancellation that happened while the user was entering Actual details.
 
 A raw completion relation whose Actual Event is not yet published remains inert
 to readers, but cancellation conservatively treats any retained completion
@@ -57,8 +60,69 @@ private def terminalEvidenceCompatible
     (ScheduledCompletionMemory.findByScheduled?
       completionMemory retirement.scheduled).isNone
 
+/--
+Read the terminal evidence before asking the human for completion details.
+
+This is only a usability preflight. It does not reserve the Scheduled identity;
+activation repeats the same checks while holding Scheduled ownership.
+-/
+private def preflightCompletionTerminal
+    (scheduledPath scheduledToken : String) : IO (Except UInt32 Unit) := do
+  let scheduledFile := System.FilePath.mk scheduledPath
+  let completionFile :=
+    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
+  let retirementFile :=
+    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
+
+  if !(← scheduledFile.pathExists) then
+    IO.eprintln ("loam: file not found: " ++ scheduledPath)
+    return Except.error 2
+  else
+    match ← Loam.Persistence.loadScheduledMemory? scheduledFile with
+    | none =>
+        IO.eprintln "loam: malformed or unsupported scheduled file"
+        return Except.error 2
+    | some scheduledMemory =>
+        let scheduledId : ScheduledId := ⟨scheduledToken⟩
+        match ScheduledMemory.findById? scheduledMemory scheduledId with
+        | none =>
+            IO.eprintln "loam: scheduled identity not found"
+            return Except.error 1
+        | some _ =>
+            match ← Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile with
+            | none =>
+                IO.eprintln "loam: malformed or unsupported scheduled-completion file"
+                return Except.error 2
+            | some completionMemory =>
+                match ← Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile with
+                | none =>
+                    IO.eprintln "loam: malformed or unsupported scheduled-retirement file"
+                    return Except.error 2
+                | some retirementMemory =>
+                    if !completionReferencesKnownScheduled scheduledMemory completionMemory then
+                      IO.eprintln
+                        "loam: scheduled-completion file refers to an unknown Scheduled identity"
+                      return Except.error 2
+                    else if !retirementReferencesKnownScheduled scheduledMemory retirementMemory then
+                      IO.eprintln
+                        "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+                      return Except.error 2
+                    else if !terminalEvidenceCompatible completionMemory retirementMemory then
+                      IO.eprintln
+                        "loam: Scheduled terminal evidence conflicts between completion and retirement"
+                      return Except.error 2
+                    else
+                      match ScheduledRetirementMemory.findByScheduled?
+                          retirementMemory scheduledId with
+                      | some _ =>
+                          IO.println
+                            ("Scheduled movement already cancelled: " ++ scheduledId.token ++ ".")
+                          return Except.error 1
+                      | none => return Except.ok ()
+
 private def completeScheduledUnlocked
-    (scheduledPath memoryPath scheduledToken : String) : IO UInt32 := do
+    (scheduledPath memoryPath scheduledToken : String)
+    (draft : Loam.ScheduledCli.CompletionDraft) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
   let completionFile :=
     Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
@@ -107,24 +171,35 @@ private def completeScheduledUnlocked
                           retirementMemory scheduledId with
                       | some _ =>
                           IO.println
-                            ("Scheduled movement already cancelled: " ++ scheduledId.token ++ ".")
+                            ("Scheduled movement changed while the completion draft was open: " ++
+                              scheduledId.token ++ " is now cancelled.")
                           return 1
                       | none =>
-                          Loam.ScheduledCli.completeScheduled
-                            scheduledPath memoryPath scheduledToken
+                          Loam.ScheduledCli.activateCompletionDraft
+                            scheduledPath memoryPath scheduledToken draft
 
 /--
-Complete one Scheduled occurrence while holding the Scheduled terminal boundary.
+Complete one Scheduled occurrence without holding mutation ownership across
+human input.
 
-The existing completion writer still owns EventMemory internally, so the
-coordinated operation is serialized against both Scheduled lifecycle writers
-and ordinary Actual writers.
+A read-only preflight first avoids soliciting details for an already-cancelled
+occurrence. The completion draft is then collected with no writer lock. Only
+activation acquires Scheduled ownership, re-admits terminal evidence, then
+enters the EventMemory-owned completion publisher. A stale draft therefore
+cannot publish across a concurrent cancellation.
 -/
 def completeScheduled
-    (scheduledPath memoryPath scheduledToken : String) : IO UInt32 :=
-  Loam.WriterOwnership.withOwnership
-    (System.FilePath.mk scheduledPath)
-    (completeScheduledUnlocked scheduledPath memoryPath scheduledToken)
+    (scheduledPath memoryPath scheduledToken : String) : IO UInt32 := do
+  match ← preflightCompletionTerminal scheduledPath scheduledToken with
+  | Except.error status => return status
+  | Except.ok _ =>
+      match ← Loam.ScheduledCli.prepareCompletionDraft
+          scheduledPath memoryPath scheduledToken with
+      | Except.error status => return status
+      | Except.ok draft =>
+          Loam.WriterOwnership.withOwnership
+            (System.FilePath.mk scheduledPath)
+            (completeScheduledUnlocked scheduledPath memoryPath scheduledToken draft)
 
 private def cancelScheduledUnlocked
     (scheduledPath scheduledToken : String) : IO UInt32 := do
