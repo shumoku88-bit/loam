@@ -174,7 +174,7 @@ pred adjustmentAtViewEndIsExcluded {
 }
 
 pred laterSubviewIncludesBoundaryAdjustment {
-  LateReallocation.effectiveDay = PensionSecond.view.start + 1
+  LateReallocation.effectiveDay = add[PensionSecond.view.start, 1]
   capacityAtViewEnd[PensionSecond, Food] = 9
   capacityAtViewEnd[PensionSecond, Travel] = 5
 }
