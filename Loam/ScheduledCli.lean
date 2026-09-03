@@ -10,13 +10,6 @@ open Loam.Core
 
 set_option autoImplicit false
 
-private def usage : String :=
-  "LOAM scheduled movements\n\n" ++
-  "Add one balanced JPY scheduled movement:\n" ++
-  "  ./tools/loam scheduled <scheduled-file>\n\n" ++
-  "Show retained scheduled movements:\n" ++
-  "  ./tools/loam scheduled show <scheduled-file>"
-
 private def promptLine (prompt : String) : IO String := do
   IO.print prompt
   let stdout ← IO.getStdout
@@ -143,16 +136,4 @@ def showScheduled (scheduledPath : String) : IO UInt32 := do
             printOccurrence occurrence
           return 0
 
-/-- Command dispatcher for the first practical Scheduled entrance. -/
-def run (args : List String) : IO UInt32 :=
-  match args with
-  | [scheduledPath] => recordScheduled scheduledPath
-  | ["show", scheduledPath] => showScheduled scheduledPath
-  | _ => do
-      IO.eprintln usage
-      return 2
-
 end Loam.ScheduledCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.ScheduledCli.run args
