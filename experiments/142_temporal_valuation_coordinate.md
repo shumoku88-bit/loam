@@ -1,6 +1,6 @@
 # Observation 142 — Temporal valuation coordinate
 
-Status: **experiment under qualification**
+Status: **qualified bounded experiment**
 
 ## Question
 
@@ -8,15 +8,15 @@ Observation 033 established that a Measure-to-Measure relation can remain an ove
 
 The September external accounting pressure survey then identified temporal FX valuation as a remaining partial gap.
 
-This observation asks the smallest next question:
+Observation 142 asks the smallest next question:
 
 > If several relation observations for the same Measure pair exist at different time coordinates, can occurrence-time booked valuation, settlement-time realised comparison, and current unrealised comparison be treated as different projections over the same retained relation history rather than one timeless rate attached to the subject?
 
-The observation uses neutral experiment vocabulary. `ForeignMeasure`, `BaseMeasure`, `RelationObservation`, and `ValuationSubject` are not proposed Practical Core types.
+The vocabulary is experiment-local. `ForeignMeasure`, `BaseMeasure`, `RelationObservation`, and `ValuationSubject` are not proposed Practical Core types.
 
 ## Minimal specimen
 
-One Measure pair is held fixed:
+One Measure pair is fixed:
 
 ```text
 ForeignMeasure -> BaseMeasure
@@ -25,12 +25,12 @@ ForeignMeasure -> BaseMeasure
 Three relation observations exist:
 
 ```text
-R0 effective at C0, value V5
-R2 effective at C2, value V6
-R3 effective at C3, value V7
+R0 effective C0, value V5
+R2 effective C2, value V6
+R3 effective C3, value V7
 ```
 
-Two experiment-local subjects share the same occurrence coordinate:
+Two subjects share occurrence C0:
 
 ```text
 SettledSubject
@@ -44,7 +44,7 @@ OpenSubject
 
 The current query coordinate is C3.
 
-The relation values are intentionally symbolic. Observation 142 tests applicability and retained information, not multiplication, decimal representation, rounding, or residual allocation.
+The relation values are symbolic. This observation tests applicability and retained information, not multiplication, decimal representation, rounding, or residual allocation.
 
 ## Projection shape
 
@@ -61,7 +61,7 @@ current observation
   = relation effective at current query coordinate
 ```
 
-In the full-history world this yields:
+In the full-history world:
 
 ```text
 booked input            = R0 / V5
@@ -82,9 +82,9 @@ A second world keeps only the current relation observation:
 CurrentOnly.retained = R3
 ```
 
-It can still answer the current query at C3, but it cannot reconstruct the C0 booked input or C2 settlement input.
+It can answer the current C3 query, but it cannot reconstruct the C0 booked input or C2 settlement input.
 
-This is deliberately parallel to LOAM's broader append-oriented historical reasoning:
+So the specimen distinguishes:
 
 ```text
 current relation observation
@@ -92,11 +92,13 @@ current relation observation
 retained temporal relation history
 ```
 
-Observation 142 does not yet model knowledge-time corrections to rates. It only asks whether effective-time history itself is observable.
+This observation does not yet model knowledge-time corrections to rates. It only asks whether effective-time history itself is observable.
 
-## Positive witnesses
+## Qualified Alloy result
 
-Expected SAT:
+Alloy 6.2.0 + Sat4j produced the complete expected result set.
+
+SAT witnesses:
 
 ```text
 fullHistoryUsesThreeTemporalObservations
@@ -104,60 +106,32 @@ realisedAndUnrealisedUseDifferentInputs
 currentOnlyLosesHistoricalInputs
 ```
 
-These witnesses establish that one retained relation history can expose distinct inputs for occurrence, settlement, and current valuation questions, while retaining only the current observation loses historical inputs.
-
-## Deliberately too-strong boundaries
-
-### One timeless relation value answers every valuation question
-
-The assertion:
+SAT counterexamples to deliberately too-strong assertions:
 
 ```text
 OneTimelessRelationValueAnswersAllTemporalQuestions
-```
-
-claims that occurrence-time and settlement-time relation values are equal, and that occurrence-time and current relation values are equal.
-
-Expected: **SAT counterexample**.
-
-The specimen uses V5, V6, and V7 at distinct coordinates.
-
-### Current relation alone can reconstruct historical selections
-
-The assertion:
-
-```text
 CurrentOnlyCanReconstructHistoricalSelections
 ```
 
-claims that retaining the current relation observation is sufficient to recover prior booked and settlement selections.
-
-Expected: **SAT counterexample**.
-
-The CurrentOnly world retains R3 but not R0 or R2.
-
-## Sufficiency inside the bounded specimen
-
-The assertion:
+UNSAT counterexample:
 
 ```text
 FullHistoryTemporalSelectionIsUnambiguous
 ```
 
-checks that, given the full retained history and the specimen's exact one-observation-per-relevant-coordinate shape:
+The UNSAT result is intentionally bounded by the specimen's exact one-observation-per-relevant-coordinate shape. It does not establish uniqueness when several sources or conflicting observations exist at one coordinate.
 
-- booked selection is unique;
-- settlement selection is unique for the settled subject;
-- no settlement selection exists for the open subject;
-- current selection is unique.
+Qualification head:
 
-Expected: **UNSAT counterexample**.
+```text
+94606f707ed3a9aa0759bd65a10ea5797c8d2387
+```
 
-This is intentionally narrow. It does **not** show that effective time is sufficient once several sources or conflicting observations exist at one coordinate.
+Workflow job `100724243346` completed SUCCESS, including Alloy execution and the expected-result checker.
 
-## Interpretation gate
+## Interpretation
 
-If the expected result qualifies, the bounded candidate is:
+The bounded candidate is:
 
 ```text
 retained Measure-to-Measure relation observations
@@ -175,20 +149,15 @@ one subject
 + one timeless rate
 ```
 
-The intended conceptual pressure is coordinate-like:
+The same subject and Measure pair can therefore participate in different valuation questions whose selected relation depends on the question's time coordinate.
 
-```text
-same subject
-same Measure pair
+Observation 142 also shows that retaining only the current relation is too small if historical booked or settlement inputs must remain reconstructable.
 
-valuation relation depends on the question's time coordinate
-```
+This extends Observation 033 without turning `Currency` or `ExchangeRate` into mandatory primitives.
 
-This would extend Observation 033 without turning `Currency` or `ExchangeRate` into mandatory primitives.
+## What remains open
 
-## What is deliberately not modeled
-
-Observation 142 does not yet decide:
+Observation 142 does not decide:
 
 - multiple relation sources at the same effective coordinate;
 - external-source versus user override authority;
@@ -196,20 +165,19 @@ Observation 142 does not yet decide:
 - nearest-prior / nearest-next / interpolation rules;
 - correction of a previously observed relation;
 - knowledge-time / as-known relation queries;
-- whether a rate has a validity interval rather than one effective coordinate;
+- validity intervals;
 - inverse or transitive relation laws;
 - arithmetic conversion;
 - decimal precision;
-- rounding;
-- residual allocation;
+- rounding and residual allocation;
 - realised or unrealised gain/loss accounting-role classification;
 - persistence or canonical relation identity.
 
-Those should remain separate pressure points.
+Those are separate pressure points.
 
-## Not earned by this observation
+## Not earned
 
-Even if qualified, Observation 142 does not establish:
+Observation 142 does not establish:
 
 - canonical `Currency`;
 - canonical `ExchangeRate`;
@@ -226,6 +194,6 @@ Even if qualified, Observation 142 does not establish:
 
 **Alloy first.**
 
-Observation 033 suggested TLA+ once relation observations evolve through time. The present question is smaller: static applicability over explicit effective coordinates and whether discarding historical relation observations loses selected answers. Alloy is sufficient for that distinguishability boundary.
+Observation 033 suggested TLA+ once relation observations evolve through learned time. The present question is smaller: static applicability over explicit effective coordinates and whether discarding historical relation observations loses selected answers. Alloy is sufficient for that distinguishability boundary.
 
-TLA+ becomes appropriate if the next question is learned-time correction, concurrent rate publication, or historical as-known valuation. Lean becomes appropriate when exact conversion / rounding / conservation laws are the pressure.
+TLA+ becomes appropriate for learned-time correction, concurrent rate publication, or historical as-known valuation. Lean becomes appropriate when exact conversion, rounding, and conservation laws are the pressure.
