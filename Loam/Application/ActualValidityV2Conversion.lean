@@ -47,9 +47,10 @@ Every source fact loses its independent stored identity and instead receives a
 derived adapter id from EventId. Facts that are replacement endpoints retain
 their identities because they are actual temporal revisions. Correction ids are
 unchanged. The conversion refuses any V1 history that the existing production
-frontier would not admit.
+frontier would not admit and checks current-frontier parity before returning.
 -/
 def compressActualValidityV1ToV2?
+    [DecidableEq Time]
     (history : ActualValidityHistory Time) : Option (ActualValidityHistory Time) := do
   if !actualValidityFrontierAdmissible history then
     none
