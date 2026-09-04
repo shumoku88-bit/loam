@@ -17,7 +17,7 @@ Observation 111 and pressured by real household data after Observation 156:
 
 ```text
 LocusId
-+ effective coordinate (`initial` or `from ISO date`)
++ effective coordinate (`initial` or `dated ISO date`)
 + Purpose? (`managed` or explicitly unmanaged)
 ```
 
@@ -45,7 +45,7 @@ private def encodeActualRoutingRow?
   let effectiveFields ←
     match entry.effectiveOn with
     | .initial => some ["INITIAL"]
-    | .from date =>
+    | .dated date =>
         if Loam.ActualDate.validIsoDate date then
           some ["FROM", date]
         else
@@ -67,12 +67,12 @@ private def decodeActualRoutingRow?
         none
   | ["ROUTE", locus, "FROM", date, "MANAGED", purpose] =>
       if validToken locus && validToken purpose && Loam.ActualDate.validIsoDate date then
-        some { subject := ⟨locus⟩, effectiveOn := .from date, purpose := some ⟨purpose⟩ }
+        some { subject := ⟨locus⟩, effectiveOn := .dated date, purpose := some ⟨purpose⟩ }
       else
         none
   | ["ROUTE", locus, "FROM", date, "UNMANAGED"] =>
       if validToken locus && Loam.ActualDate.validIsoDate date then
-        some { subject := ⟨locus⟩, effectiveOn := .from date, purpose := none }
+        some { subject := ⟨locus⟩, effectiveOn := .dated date, purpose := none }
       else
         none
   | _ => none
