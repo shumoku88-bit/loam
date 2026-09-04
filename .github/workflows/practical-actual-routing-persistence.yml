@@ -1,0 +1,68 @@
+name: Practical Actual Routing Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - '.github/workflows/practical-actual-routing-persistence.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'feat/actual-routing-persistence'
+      - main
+    paths:
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - '.github/workflows/practical-actual-routing-persistence.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-actual-routing-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build and test initial-aware Actual routing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core Loam.Application Loam.Persistence.ActualRoutingPersistence
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Actual routing persistence story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
