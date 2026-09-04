@@ -192,7 +192,7 @@ finite presentation
 free-Abelian-style vector Z^(C)
 
 BalancedMovement image
-    = zero-augmentation part of that vector space-like group
+    = zero-augmentation part of that integer-coordinate group
 ```
 
 The practical lesson is not to introduce `FreeAbelianGroup` into Core now.
@@ -204,6 +204,40 @@ The useful result is the boundary:
 - canonical identity, relation provenance, semantic plane, and time authority
   must remain outside that quotient unless a separate observation proves they
   are unobservable.
+
+## Epistemic status: boundary marker, not foundation
+
+Observation 159 is a **current best boundary witness**, not an ontology for
+LOAM, an architectural axiom, or a commitment to organize future Core code
+around group theory.
+
+Keep it as a reference point for later observations:
+
+```text
+what 159 explains
+what a later model explains in addition
+what distinctions each model preserves or forgets
+```
+
+A later observation should be free to supersede this reading if, for example:
+
+- a more uniform structure explains both retained evidence and additive
+  projection without erasing identity or provenance;
+- correction, routing, temporal authority, or another currently external
+  notion acquires a natural structure that makes this boundary too coarse;
+- the free-Abelian reading starts forcing duplicated machinery or unnatural
+  semantic distinctions in practical LOAM;
+- a concrete counterexample shows `VectorEquivalent` is too coarse or too fine
+  for a projection LOAM actually needs.
+
+Superseding this observation does not require deleting it. The historical
+observation remains useful evidence of where the boundary appeared at this
+stage. A successor should state what it preserves from Observation 159, what it
+weakens, and what it replaces.
+
+In that sense this observation is a survey marker rather than a foundation
+stone: useful for measuring future discoveries, but deliberately removable from
+the path they may open.
 
 ## Stop condition
 
