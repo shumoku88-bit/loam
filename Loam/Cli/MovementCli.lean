@@ -87,6 +87,11 @@ private def freshRecordEventId?
   freshRecordEventIdFrom memory history descriptions 1
     (memory.events.length + history.facts.length + descriptions.entries.length + 1)
 
+/--
+Allocate a compatibility identity for the in-memory ActualValidityHistory shape.
+V1 persists this identity. V2 persistence normalizes an initial/source date to
+Event-rooted representation and does not serialize this token.
+-/
 private def freshValidityFactIdFrom
     (history : Loam.Core.ActualValidityHistory String) :
     Nat → Nat → Option Loam.Core.ActualValidityFactId
@@ -192,16 +197,15 @@ private def collectMovementDraft
 
 /--
 Expose only the admission boundaries that the practical movement entrance has
-actually crossed before publication. This is deliberately not a generic proof
-UI and does not claim balance sufficiency, accounting roles, or a Core-wide
-conservation law.
+actually crossed before publication. Persistence-generation compatibility
+identity is deliberately hidden: the durable human-facing evidence is Event,
+date, optional description, and effects.
 -/
 private def showAdmissionPreview
     (total : Int)
     (validOn : String)
     (description : Option String)
-    (eventId : Loam.Core.EventId)
-    (factId : Loam.Core.ActualValidityFactId) : IO Unit := do
+    (eventId : Loam.Core.EventId) : IO Unit := do
   IO.println ""
   IO.println "Admission preview"
   IO.println ("  movement: " ++ toString total ++ " jpy")
@@ -210,21 +214,21 @@ private def showAdmissionPreview
   | some text => IO.println ("  description: " ++ text)
   | none => pure ()
   IO.println ("  event: " ++ eventId.token)
-  IO.println ("  validity fact: " ++ factId.token)
   IO.println "  [ok] movement totals agree"
   IO.println "  [ok] effect identities admitted"
   IO.println "  [ok] Event identity admitted in memory"
-  IO.println "  [ok] validity fact identity admitted in retained history"
+  IO.println "  [ok] occurrence-date evidence admitted"
   IO.println "  ready to publish"
 
 /--
 Re-read current canonical state and publish one already-collected draft while
 holding the existing writer-ownership boundary.
 
-Fresh durable identities are chosen here, not while the user is typing. Date and
-optional description evidence are published before the Event. The Event remains
-the authority commit: if Event publication fails, retained supporting evidence
-for that EventId remains inert until an Event with that identity exists.
+Fresh durable Event/effect identities and any compatibility validity identity are
+chosen here, not while the user is typing. Date and optional description evidence
+are published before the Event. The Event remains the authority commit: if Event
+publication fails, retained supporting evidence for that EventId remains inert
+until an Event with that identity exists.
 -/
 private def publishDraftUnderOwnership
     (memoryPath : String)
@@ -270,7 +274,7 @@ private def publishDraftUnderOwnership
                           updatedDescriptions? with
                       | some updatedEvents, some updatedHistory, some updatedDescriptions =>
                           showAdmissionPreview
-                            draft.total draft.validOn draft.description eventId factId
+                            draft.total draft.validOn draft.description eventId
                           if ← Loam.Persistence.saveActualValidityHistory?
                               validityFile updatedHistory then
                             let descriptionPublished ←
@@ -281,7 +285,7 @@ private def publishDraftUnderOwnership
                                     descriptionFile updatedDescriptions
                             if !descriptionPublished then
                               IO.eprintln
-                                "loam: description was not published; the already-published date fact remains inert"
+                                "loam: description was not published; the already-published date evidence remains inert"
                               return 2
                             else if ← Loam.Persistence.saveEventMemory?
                                 memoryFile updatedEvents then
@@ -313,11 +317,13 @@ the draft is complete does the entrance acquire ownership, re-read current
 canonical state, re-run world-dependent admission, allocate fresh durable
 identities, and publish.
 
-The occurrence date is retained as an identified append-only Actual-validity
-fact; `Event` remains date-free. Interactive empty date input accepts the
-host-local current day, while backdated recording accepts an explicit ISO date.
-Interactive terminals also offer one optional unqualified EventDescription;
-redirected callers may supply the same evidence with `LOAM_DESCRIPTION`.
+The occurrence date remains separate evidence from the date-free `Event`.
+Event-rooted V2 persistence stores the initial date without an independent
+identity; historical V1 storage remains readable until explicitly converted.
+Interactive empty date input accepts the host-local current day, while backdated
+recording accepts an explicit ISO date. Interactive terminals also offer one
+optional unqualified EventDescription; redirected callers may supply the same
+evidence with `LOAM_DESCRIPTION`.
 
 The entrance requires the two entered totals to agree, then persists one generic
 Event containing negative Effects for the FROM side and positive Effects for the
