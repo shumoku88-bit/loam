@@ -16,6 +16,8 @@ ActualValidity
 
 If publication stops before the Event commit, already-published supporting
 evidence remains inert because no authoritative Event exists with that identity.
+EventCorrection is a separate Actual relation stream. It may be physically absent
+when empty, but that absence does not erase its persistence boundary.
 
 The question is therefore:
 
@@ -27,12 +29,13 @@ This observation does not change canonical household data.
 
 ## Current logical families
 
-The current data directory contains distinct physical evidence families such as:
+The current persistence model contains distinct physical evidence families such as:
 
 ```text
 Actual Event / Effect evidence
 Actual occurrence-date evidence
 Actual human-recognition description evidence
+Actual EventCorrection evidence (optional physical stream when non-empty)
 Scheduled evidence
 QuantityBasis evidence
 view configuration
@@ -51,6 +54,7 @@ Representative shape:
 memory.loam
 memory.loam.actual-validity
 memory.loam.descriptions
+corrections.loam              # optional / physically absent when empty
 scheduled.loam
 basis.loam
 balance-view.tsv
@@ -60,6 +64,7 @@ Properties:
 
 - EventMemory has a dedicated physical authority file;
 - date / description evidence can be published before Event authority;
+- EventCorrection retains its own relation write unit when present;
 - Scheduled, QuantityBasis, and view configuration remain separate write domains.
 
 ### B. Unified Actual file
@@ -73,48 +78,51 @@ basis.loam
 balance-view.tsv
 ```
 
-where `actual.loam` contains typed Event, ActualValidity, and EventDescription
-records.
+where `actual.loam` contains typed Event, ActualValidity, EventDescription, and
+EventCorrection records.
 
 This can be a coherent future design, especially if the whole file is staged and
 atomically replaced. But it is **not** a path-only cleanup:
 
 - Event authority no longer has a dedicated physical write unit;
-- Event + date + description become one publication unit;
-- the current auxiliary-first crash semantics must be replaced by and qualified
-  against a new whole-Actual commit protocol.
+- Event + date + description + correction become one publication unit;
+- the current auxiliary-first Event admission semantics and separate correction
+  publication boundary must be replaced by and qualified against a new whole-Actual
+  commit protocol.
 
 The observation therefore does not reject unified Actual. It classifies it as a
 semantic persistence redesign that needs its own pressure and qualification.
 
 ### C. Semantic Actual directory
 
-The minimum representation-only specimen keeps the existing filenames and sidecar
-convention unchanged and moves the complete Actual bundle under one directory:
+The minimum representation-only specimen keeps existing filenames and sidecar
+conventions unchanged while grouping the Actual persistence streams under one
+parent directory:
 
 ```text
 actual/
   memory.loam
   memory.loam.actual-validity
   memory.loam.descriptions
+  corrections.loam            # optional / absent when empty
 scheduled.loam
 basis.loam
 balance-view.tsv
 ```
 
 This exact shape matters. Current production code derives the validity and
-description paths from the EventMemory path. Therefore renaming the files to
-`events.loam`, `validity.loam`, and `descriptions.loam` would require another
-persistence-path change and is not part of the representation-only candidate.
+description paths from the EventMemory path. Therefore renaming those files to
+`events.loam`, `validity.loam`, and `descriptions.loam` would add another
+persistence-path decision and is not part of this representation-only candidate.
 
-The three streams remain distinct write units, but their parent path exposes the
-logical Actual bundle. Existing production readers can point at
-`actual/memory.loam` and continue deriving the two companion sidecars without a
-new file-format or companion-path rule.
+The EventCorrection path is supplied separately by practical consumers today, so
+moving it under `actual/` requires path wiring to follow the bundle but does not
+merge it with EventMemory or change its file format / write unit.
 
-This candidate changes placement without changing which streams share a write
-unit. Therefore the existing publication protocol can remain structurally
-unchanged.
+The Actual streams remain distinct write units, but their parent path exposes the
+logical bundle. The candidate changes placement without changing which streams
+share a physical write unit. Therefore the current write partition and authority
+isolation can remain structurally unchanged.
 
 ### D. Whole-household monolith
 
@@ -142,13 +150,14 @@ file write unit
 
 It establishes:
 
-1. moving the three Actual streams under `actual/` preserves the complete current
-   write partition;
+1. moving the Actual streams under `actual/` preserves the complete current write
+   partition, including the optional EventCorrection stream;
 2. that directory move preserves the dedicated Event authority file;
 3. Actual remains physically separate from Scheduled, QuantityBasis, and view
    configuration;
-4. a unified Actual file merges Event, ActualValidity, and EventDescription into
-   one write unit and therefore changes the current publication boundary;
+4. a unified Actual file merges Event, ActualValidity, EventDescription, and
+   EventCorrection into one write unit and therefore changes the current
+   publication boundary;
 5. a whole-household monolith additionally couples independent non-Actual fact
    families;
 6. among the concrete alternatives, only the semantic-directory candidate is a
@@ -156,8 +165,8 @@ It establishes:
 
 ## What this observation does not prove
 
-The Lean model intentionally does not claim that three Actual files are the final
-best design.
+The Lean model intentionally does not claim that separate Actual files are the
+final best design.
 
 A unified `actual.loam` may eventually be better if whole-Actual atomic publication
 reduces operational complexity, improves portability, or makes corruption /
@@ -168,8 +177,8 @@ Likewise, grouping files under `actual/` may prove aesthetically cleaner but not
 worth migration churn. Path movement itself must earn value in real use.
 
 Humanizing the sidecar filenames is also a separate question from grouping them.
-The representation-only specimen intentionally avoids changing both directory and
-companion-path convention at once.
+The representation-only specimen intentionally avoids changing directory,
+companion naming, and write partition all at once.
 
 ## Private canonical pressure
 
@@ -178,17 +187,20 @@ generation should be tested in scratch only, without changing its canonical tree
 
 For the same current data generation, construct:
 
-1. current root sidecars;
-2. a unified-Actual specimen that can be losslessly materialized back to the
-   current three stream bytes for production-reader parity checks;
-3. `actual/memory.loam` plus its two unchanged companion sidecars.
+1. current root sidecars, preserving physical absence of empty optional streams;
+2. a unified-Actual specimen that losslessly contains the current Event,
+   ActualValidity, EventDescription, and optional EventCorrection state and can be
+   materialized back to the exact current stream bytes for production-reader
+   parity checks;
+3. the semantic-directory specimen under `actual/`, again preserving optional
+   stream absence.
 
 Compare at least:
 
 - production-loader reconstruction parity;
 - readable-journal parity;
 - Quantity balance parity;
-- exact Event / Effect / ActualValidity / EventDescription counts;
+- exact Event / Effect / ActualValidity / EventDescription / EventCorrection counts;
 - byte size and changed-byte locality for one representative native Actual append;
 - crash / partial-publication states;
 - number and scope of files rewritten by date-only, description-only, correction,
@@ -201,7 +213,7 @@ The scratch comparison must not publish or commit a topology migration.
 At this observation's public-model layer:
 
 ```text
-semantic directory with unchanged sidecar names
+semantic directory with unchanged stream formats / write units
     = representation-only candidate
 
 unified Actual file
