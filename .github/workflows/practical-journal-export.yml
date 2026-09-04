@@ -1,0 +1,208 @@
+name: Practical Readable Journal Export
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-journal-export.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-journal-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-readable-journal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    name: Build and qualify readable Actual journal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build journal exporter
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamJournalExport
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Regenerate correction-effective readable journal deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          validity="$memory.actual-validity"
+          descriptions="$memory.descriptions"
+          derived="$tmp/derived"
+          output="$derived/actual.journal"
+          mkdir -p "$derived"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	same-b
+          EFFECT	effect-b1	wallet	jpy	-30
+          EFFECT	effect-b2	food	jpy	30
+          EVENT	old
+          EFFECT	effect-old1	wallet	jpy	-100
+          EFFECT	effect-old2	food	jpy	100
+          EVENT	later
+          EFFECT	effect-l1	cash	jpy	-20
+          EFFECT	effect-l2	transport	jpy	20
+          EVENT	replacement
+          EFFECT	effect-r1	wallet	jpy	-80
+          EFFECT	effect-r2	food	jpy	80
+          EVENT	same-a
+          EFFECT	effect-a1	wallet	jpy	-25
+          EFFECT	effect-a2	food	jpy	25
+          EOF
+
+          cat >"$corrections" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	correction-1	old	replacement
+          EOF
+
+          cat >"$validity" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          FACT	validity-old	old	2026-09-02
+          FACT	validity-later	later	2026-09-06
+          FACT	validity-replacement	replacement	2026-09-03
+          FACT	validity-same-b	same-b	2026-09-05
+          FACT	validity-same-a	same-a	2026-09-05
+          EOF
+
+          cat >"$descriptions" <<'EOF'
+          LOAM-EVENT-DESCRIPTION-MEMORY	1
+          DESC	old	old purchase
+          DESC	later	train
+          DESC	replacement	corrected purchase
+          DESC	same-b	same B
+          DESC	same-a	same\nA
+          EOF
+
+          .lake/build/bin/loamJournalExport "$memory" "$corrections" "$output" | tee /tmp/loam-journal-export.out
+          grep -Fq 'Regenerated readable Actual journal:' /tmp/loam-journal-export.out
+
+          grep -Fq '; GENERATED FROM LOAM CANONICAL DATA' "$output"
+          grep -Fq '; DO NOT EDIT AS AUTHORITY' "$output"
+          grep -Fq '2026-09-03 * corrected purchase' "$output"
+          grep -Fq '    wallet    -80 jpy' "$output"
+          grep -Fq '    food    80 jpy' "$output"
+          grep -Fq '2026-09-05 * same\nA' "$output"
+          grep -Fq '2026-09-05 * same B' "$output"
+          grep -Fq '2026-09-06 * train' "$output"
+
+          if grep -Fq 'old purchase' "$output"; then
+            echo 'superseded correction target leaked into effective journal' >&2
+            exit 1
+          fi
+
+          corrected_line="$(grep -nF '2026-09-03 * corrected purchase' "$output" | cut -d: -f1)"
+          same_a_line="$(grep -nF '2026-09-05 * same\nA' "$output" | cut -d: -f1)"
+          same_b_line="$(grep -nF '2026-09-05 * same B' "$output" | cut -d: -f1)"
+          later_line="$(grep -nF '2026-09-06 * train' "$output" | cut -d: -f1)"
+          test "$corrected_line" -lt "$same_a_line"
+          test "$same_a_line" -lt "$same_b_line"
+          test "$same_b_line" -lt "$later_line"
+
+          cp "$output" "$tmp/first.journal"
+          .lake/build/bin/loamJournalExport "$memory" "$corrections" "$output" >/dev/null
+          cmp -s "$tmp/first.journal" "$output"
+          test ! -e "$output.loam-stage"
+
+      - name: Fail closed before replacing an existing derived journal
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          validity="$memory.actual-validity"
+          descriptions="$memory.descriptions"
+          output="$tmp/actual.journal"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	event-1
+          EFFECT	effect-1	wallet	jpy	-10
+          EFFECT	effect-2	food	jpy	10
+          EOF
+
+          cat >"$corrections" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          EOF
+
+          cat >"$validity" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          EOF
+
+          cat >"$descriptions" <<'EOF'
+          LOAM-EVENT-DESCRIPTION-MEMORY	1
+          DESC	event-1	missing date event
+          EOF
+
+          printf 'keep-me\n' >"$output"
+          before="$(sha256sum "$output" | cut -d' ' -f1)"
+
+          if .lake/build/bin/loamJournalExport "$memory" "$corrections" "$output" > /tmp/loam-journal-refusal.out 2>&1; then
+            echo 'effective Event without current date unexpectedly exported' >&2
+            exit 1
+          fi
+          grep -Fq 'effective Event is missing current Actual occurrence date: event-1' /tmp/loam-journal-refusal.out
+          after="$(sha256sum "$output" | cut -d' ' -f1)"
+          test "$before" = "$after"
+          test ! -e "$output.loam-stage"
+
+      - name: Refuse canonical stream as output target
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EOF
+
+          before="$(sha256sum "$memory" | cut -d' ' -f1)"
+          if .lake/build/bin/loamJournalExport "$memory" "$corrections" "$memory" > /tmp/loam-journal-target-refusal.out 2>&1; then
+            echo 'journal exporter overwrote canonical Event memory' >&2
+            exit 1
+          fi
+          grep -Fq 'journal output must not replace a canonical Event evidence stream' /tmp/loam-journal-target-refusal.out
+          after="$(sha256sum "$memory" | cut -d' ' -f1)"
+          test "$before" = "$after"
