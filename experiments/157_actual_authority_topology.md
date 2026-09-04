@@ -1,6 +1,6 @@
 # Observation 157 — Actual authority topology does not have one universally smaller shape
 
-Status: **OBSERVING** until the bounded Alloy matrix is qualified by CI. No production persistence topology changes here.
+Status: **QUALIFIED** by bounded Alloy 6.2.0 / SAT4J exploration. No production persistence topology changes here.
 
 ## Pressure
 
@@ -79,11 +79,13 @@ But the five families no longer form one authority unit, so a whole-Actual snaps
 
 The model also permits an intermediate topology where some families share an authority and others remain independent.
 
-Expected: SAT.
+Observed: SAT.
 
 This matters because the design space is not binary. A future observed atomicity requirement may justify grouping a subset without implying that every Actual-side family belongs in one file.
 
-## Expected Alloy matrix
+## Observed qualification receipt
+
+Alloy 6.2.0 / SAT4J produced the expected matrix exactly:
 
 ```text
 routingOnlyContrast                 SAT
@@ -98,18 +100,22 @@ NoTopologyHasBothStrictProperties   UNSAT counterexample
 
 For `check` commands, `UNSAT counterexample` means Alloy found no counterexample and the bounded assertion survived.
 
-The two deliberately too-strong claims are:
+The two deliberately too-strong claims were:
 
 ```text
 UnifiedSingleFamilyLocality
 SidecarsWholeImageOneAuthority
 ```
 
-Both are expected to fail.
+Both failed as intended.
+
+The routing-only witness also exists: one unified authority makes an ActualRouting-only publication cover all five families, while one-authority-per-family sidecars keep that publication scope exactly at ActualRouting.
+
+An intermediate partition witness exists too, so the model does not force a binary all-unified/all-separated design space.
 
 ## Interpretation boundary
 
-If the matrix is qualified, the result is not "sidecars are better" and not "one file is better".
+The qualified result is not "sidecars are better" and not "one file is better".
 
 It is:
 
@@ -125,7 +131,7 @@ Therefore a complete Actual authority should not be selected merely because Obse
 
 The current concrete pressure from ActualRouting supports at least one independently publishable family. No observation currently requires ActualRouting to be atomically coupled with EventMemory, ActualValidity, EventDescription, and EventCorrection in one authority transition.
 
-So the smallest decision supported by this observation, if qualified, is conservative:
+So the smallest decision supported by this observation is conservative:
 
 ```text
 retain current family authority boundaries
