@@ -5,6 +5,8 @@ on:
     paths:
       - 'Loam/HistoricalPublisher.lean'
       - 'Loam/Cli/HistoricalPublishCli.lean'
+      - 'Loam/ActualValidityV2Identity.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'tools/historical-publish-qualification.sh'
       - '.github/workflows/historical-actual-publish.yml'
       - 'lakefile.lean'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'Loam/HistoricalPublisher.lean'
       - 'Loam/Cli/HistoricalPublishCli.lean'
+      - 'Loam/ActualValidityV2Identity.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'tools/historical-publish-qualification.sh'
       - '.github/workflows/historical-actual-publish.yml'
       - 'lakefile.lean'
