@@ -28,20 +28,20 @@ def main : IO Unit := do
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := some food },
        { subject := groceries,
-         effectiveOn := RoutingEffective.from "2026-08-17",
+         effectiveOn := RoutingEffective.dated "2026-08-17",
          purpose := some household },
        { subject := coffee,
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := none }])
     "initial-aware Actual routing fixture was not admitted"
 
-  expect (routing.statusAt groceries (.from "2026-08-16") == .managed food)
+  expect (routing.statusAt groceries (.dated "2026-08-16") == .managed food)
     "initial route was not visible before the first dated override"
-  expect (routing.statusAt groceries (.from "2026-08-17") == .managed household)
+  expect (routing.statusAt groceries (.dated "2026-08-17") == .managed household)
     "first-day dated override did not supersede the distinct initial route"
-  expect (routing.statusAt coffee (.from "2026-08-17") == .unmanaged)
+  expect (routing.statusAt coffee (.dated "2026-08-17") == .unmanaged)
     "explicitly unmanaged initial route was lost"
-  expect (routing.statusAt ⟨"unseen"⟩ (.from "2026-08-17") == .unrouted)
+  expect (routing.statusAt ⟨"unseen"⟩ (.dated "2026-08-17") == .unrouted)
     "absence of routing evidence stopped being unrouted"
 
   let encoded ← requireSome
@@ -55,7 +55,7 @@ def main : IO Unit := do
     "decoded Actual routing fixture could not be re-encoded"
   expect (encoded == reencoded)
     "Actual routing decode/encode changed canonical bytes"
-  expect (decoded.statusAt groceries (.from "2026-08-17") == .managed household)
+  expect (decoded.statusAt groceries (.dated "2026-08-17") == .managed household)
     "Actual routing persistence changed selected route"
 
   let permuted ← requireSome
@@ -64,19 +64,19 @@ def main : IO Unit := do
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := none },
        { subject := groceries,
-         effectiveOn := RoutingEffective.from "2026-08-17",
+         effectiveOn := RoutingEffective.dated "2026-08-17",
          purpose := some household },
        { subject := groceries,
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := some food }])
     "permuted Actual routing fixture was not admitted"
   expect
-    (routing.statusAt groceries (.from "2026-08-16") ==
-      permuted.statusAt groceries (.from "2026-08-16"))
+    (routing.statusAt groceries (.dated "2026-08-16") ==
+      permuted.statusAt groceries (.dated "2026-08-16"))
     "routing row order changed pre-override answer"
   expect
-    (routing.statusAt groceries (.from "2026-08-17") ==
-      permuted.statusAt groceries (.from "2026-08-17"))
+    (routing.statusAt groceries (.dated "2026-08-17") ==
+      permuted.statusAt groceries (.dated "2026-08-17"))
     "routing row order changed dated override answer"
 
   expect
