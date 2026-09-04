@@ -136,7 +136,10 @@ with Actual, Scheduled, QuantityBasis, and view configuration all sharing one
 physical file.
 
 This merges fact families that currently have independent write / failure domains.
-It is not storage cleanup and is not qualified by this observation.
+It is not representation-only cleanup. That classification is not, by itself, a
+rejection: for small household state, staging and atomically replacing one complete
+snapshot might eliminate partial cross-file publication states. The tradeoff is a
+larger write / corruption domain and a new whole-household authority protocol.
 
 ## Lean qualification
 
@@ -173,6 +176,10 @@ reduces operational complexity, improves portability, or makes corruption /
 recovery behavior easier to reason about. That requires a separate observation
 because the authority protocol changes.
 
+A whole `household.loam` snapshot may deserve the same deeper observation if real
+pressure shows that one atomic household generation is simpler and safer in
+practice. Observation 149 only proves that such a move is semantic, not cosmetic.
+
 Likewise, grouping files under `actual/` may prove aesthetically cleaner but not
 worth migration churn. Path movement itself must earn value in real use.
 
@@ -185,26 +192,39 @@ companion naming, and write partition all at once.
 After the public Lean qualification passes, the private canonical `loam-data`
 generation should be tested in scratch only, without changing its canonical tree.
 
-For the same current data generation, construct:
+For the same current data generation, construct four specimens:
 
 1. current root sidecars, preserving physical absence of empty optional streams;
-2. a unified-Actual specimen that losslessly contains the current Event,
-   ActualValidity, EventDescription, and optional EventCorrection state and can be
-   materialized back to the exact current stream bytes for production-reader
-   parity checks;
+2. a unified-Actual observation envelope that losslessly contains the current
+   Event, ActualValidity, EventDescription, and optional EventCorrection state and
+   can be materialized back to the exact current stream bytes;
 3. the semantic-directory specimen under `actual/`, again preserving optional
-   stream absence.
+   stream absence;
+4. a whole-household observation envelope containing the same Actual state plus
+   Scheduled, QuantityBasis, and view state.
+
+The two observation envelopes are deliberately not proposed production wire
+formats. They exist only to measure the consequences of changing the physical
+commit unit. Each must round-trip to the exact source bytes before any semantic
+comparison is accepted.
 
 Compare at least:
 
-- production-loader reconstruction parity;
+- production-loader reconstruction parity after exact materialization;
 - readable-journal parity;
 - Quantity balance parity;
 - exact Event / Effect / ActualValidity / EventDescription / EventCorrection counts;
-- byte size and changed-byte locality for one representative native Actual append;
-- crash / partial-publication states;
-- number and scope of files rewritten by date-only, description-only, correction,
-  Scheduled-only, and Basis-only changes.
+- total stored bytes and atomic-rewrite bytes per mutation;
+- Git / human diff locality separately from filesystem bytes rewritten;
+- old-or-new behavior under staged atomic replacement for single-file candidates;
+- current auxiliary-first partial-publication behavior for multi-file candidates;
+- blast radius of one malformed physical stream / container;
+- number and scope of write units touched by native Actual append,
+  ActualValidity correction, EventCorrection, Scheduled-only, and Basis-only
+  operations that production LOAM actually supports.
+
+If an operation is not a current production operation, report that fact instead of
+inventing a fake household mutation merely to fill the matrix.
 
 The scratch comparison must not publish or commit a topology migration.
 
@@ -217,10 +237,10 @@ semantic directory with unchanged stream formats / write units
     = representation-only candidate
 
 unified Actual file
-    = potentially good, but requires a new publication protocol
+    = potentially good, but requires a new Actual publication protocol
 
 whole-household monolith
-    = couples currently independent fact families
+    = potentially good or bad, but requires a new household publication protocol
 ```
 
 Therefore DD-006 readable-journal publication should remain paused until this
