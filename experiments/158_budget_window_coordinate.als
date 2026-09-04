@@ -104,9 +104,9 @@ pred coordinateMembership[w: World] {
 
 pred cleanEpochCoordinateWitness {
   some p: Purpose, c: CapacityFact, disj oldActual, insideActual: ActualFact,
-       start, end: Day | {
-    ord/next[ord/first] = start
-    end = ord/last
+       startDay, endDay: Day | {
+    ord/next[ord/first] = startDay
+    endDay = ord/last
 
     Left.capacity = c
     Left.actual = oldActual + insideActual
@@ -114,18 +114,18 @@ pred cleanEpochCoordinateWitness {
     oldActual.purpose = p
     insideActual.purpose = p
 
-    Left.capDay = c->start
-    Left.actualDay = oldActual->ord/first + insideActual->start
+    Left.capDay = c->startDay
+    Left.actualDay = oldActual->ord/first + insideActual->startDay
 
-    coordinateRemaining[Left, p, start, end] = 0
+    coordinateRemaining[Left, p, startDay, endDay] = 0
     allHistoryRemaining[Left, p] = -1
   }
 }
 
 pred sameFactsDifferentDatesDifferentRemaining {
-  some p: Purpose, c: CapacityFact, a: ActualFact, start, end: Day | {
-    ord/next[ord/first] = start
-    end = ord/last
+  some p: Purpose, c: CapacityFact, a: ActualFact, startDay, endDay: Day | {
+    ord/next[ord/first] = startDay
+    endDay = ord/last
 
     Left.capacity = c
     Right.capacity = c
@@ -134,35 +134,35 @@ pred sameFactsDifferentDatesDifferentRemaining {
     c.purpose = p
     a.purpose = p
 
-    Left.capDay = c->start
-    Right.capDay = c->start
-    Left.actualDay = a->start
+    Left.capDay = c->startDay
+    Right.capDay = c->startDay
+    Left.actualDay = a->startDay
     Right.actualDay = a->ord/first
 
-    coordinateRemaining[Left, p, start, end] = 0
-    coordinateRemaining[Right, p, start, end] = 1
+    coordinateRemaining[Left, p, startDay, endDay] = 0
+    coordinateRemaining[Right, p, startDay, endDay] = 1
   }
 }
 
 pred parallelPeriodIdentityPressure {
   some p: Purpose, c: CapacityFact, a: ActualFact,
        disj firstPeriod, secondPeriod: Period,
-       start, end: Day | {
-    ord/next[ord/first] = start
-    end = ord/last
+       startDay, endDay: Day | {
+    ord/next[ord/first] = startDay
+    endDay = ord/last
 
-    firstPeriod.start = start
-    firstPeriod.end = end
-    secondPeriod.start = start
-    secondPeriod.end = end
+    firstPeriod.start = startDay
+    firstPeriod.end = endDay
+    secondPeriod.start = startDay
+    secondPeriod.end = endDay
 
     Left.capacity = c
     Left.actual = a
     Left.periods = firstPeriod + secondPeriod
     c.purpose = p
     a.purpose = p
-    Left.capDay = c->start
-    Left.actualDay = a->start
+    Left.capDay = c->startDay
+    Left.actualDay = a->startDay
 
     Left.capPeriod = c->firstPeriod
     Left.actualPeriod = a->secondPeriod
