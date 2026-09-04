@@ -1,0 +1,52 @@
+name: Observation 150
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation150.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/150_unified_actual_generation.md'
+      - '.github/workflows/observation-150-unified-actual-generation.yml'
+      - 'Loam/Core/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/150-unified-actual-generation'
+      - main
+    paths:
+      - 'Loam/Observations/Observation150.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/150_unified_actual_generation.md'
+      - '.github/workflows/observation-150-unified-actual-generation.yml'
+      - 'Loam/Core/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unified-actual:
+    name: Lean unified Actual generation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check unified Actual generation
+        run: lake build Loam.Observations.Observation150

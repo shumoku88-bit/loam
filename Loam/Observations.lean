@@ -13,6 +13,7 @@ import Loam.Observations.Observation145
 import Loam.Observations.Observation147
 import Loam.Observations.Observation148
 import Loam.Observations.Observation149
+import Loam.Observations.Observation150
 
 /-!
 # Historical Lean observations
