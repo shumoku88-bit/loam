@@ -1,0 +1,118 @@
+name: Practical Actual Validity V2
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ActualValidityV2Identity.lean'
+      - 'Loam/Application/ActualValidityV2Conversion.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Cli/ActualValidityV2Cli.lean'
+      - '.github/workflows/practical-actual-validity-v2.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'feat/actual-validity-v2-rooted-persistence'
+      - main
+    paths:
+      - 'Loam/ActualValidityV2Identity.lean'
+      - 'Loam/Application/ActualValidityV2Conversion.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Cli/ActualValidityV2Cli.lean'
+      - '.github/workflows/practical-actual-validity-v2.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build V2 converter
+        run: lake build loamActualValidityV2
+
+      - name: Convert uncorrected V1 without retaining root fact ids
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          validity="$memory.actual-validity"
+          : > "$memory"
+          cat > "$validity" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          FACT	hpvf-a	event-a	2026-09-01
+          FACT	hpvf-b	event-b	2026-09-02
+          EOF
+          ./.lake/build/bin/loamActualValidityV2 check "$memory"
+          ./.lake/build/bin/loamActualValidityV2 convert "$memory"
+          grep -Fx $'LOAM-ACTUAL-VALIDITY-HISTORY\t2' "$validity"
+          grep -Fx $'BASE\tevent-a\t2026-09-01' "$validity"
+          grep -Fx $'BASE\tevent-b\t2026-09-02' "$validity"
+          ! grep -q 'hpvf-' "$validity"
+          cp "$validity" "$tmp/once"
+          ./.lake/build/bin/loamActualValidityV2 convert "$memory"
+          cmp "$tmp/once" "$validity"
+
+      - name: Preserve only correction-created revision identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          validity="$memory.actual-validity"
+          : > "$memory"
+          cat > "$validity" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          FACT	hpvf-root	event-a	2026-09-01
+          FACT	validity-2	event-a	2026-09-03
+          CORRECTION	validity-correction-1	hpvf-root	validity-2
+          EOF
+          ./.lake/build/bin/loamActualValidityV2 convert "$memory"
+          grep -Fx $'BASE\tevent-a\t2026-09-01' "$validity"
+          grep -Fx $'REVISION\tvalidity-2\tevent-a\t2026-09-03' "$validity"
+          grep -Fx $'CORRECTION\tvalidity-correction-1\tROOT\tevent-a\tvalidity-2' "$validity"
+          ! grep -q 'hpvf-root' "$validity"
+          ./.lake/build/bin/loamActualValidityV2 check "$memory"
+
+      - name: Refuse ambiguous V1 before rewrite
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          validity="$memory.actual-validity"
+          : > "$memory"
+          cat > "$validity" <<'EOF'
+          LOAM-ACTUAL-VALIDITY-HISTORY	1
+          FACT	root	event-a	2026-09-01
+          FACT	rev-a	event-a	2026-09-02
+          FACT	rev-b	event-a	2026-09-03
+          CORRECTION	corr-a	root	rev-a
+          CORRECTION	corr-b	root	rev-b
+          EOF
+          cp "$validity" "$tmp/before"
+          if ./.lake/build/bin/loamActualValidityV2 convert "$memory"; then
+            echo 'ambiguous V1 unexpectedly converted' >&2
+            exit 1
+          fi
+          cmp "$tmp/before" "$validity"

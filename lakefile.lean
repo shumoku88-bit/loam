@@ -41,3 +41,6 @@ lean_exe loamHistoricalPrepare where
 
 lean_exe loamHistoricalPublish where
   root := `Loam.Cli.HistoricalPublishCli
+
+lean_exe loamActualValidityV2 where
+  root := `Loam.Cli.ActualValidityV2Cli
