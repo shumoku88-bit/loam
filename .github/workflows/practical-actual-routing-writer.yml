@@ -1,0 +1,96 @@
+name: Practical Actual Routing Writer
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-actual-routing-writer.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-actual-routing-writer.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-actual-routing-writer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Write and reload Actual routing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Actual routing executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamActualRouting
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run existing routing persistence story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
+
+      - name: Exercise practical routing writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          routing="$tmpdir/actual-routing.loam"
+          rejected="$tmpdir/rejected.log"
+
+          .lake/build/bin/loamActualRouting \
+            initial "$routing" expenses:food managed food
+          .lake/build/bin/loamActualRouting \
+            initial "$routing" expenses:coffee unmanaged
+          .lake/build/bin/loamActualRouting \
+            from "$routing" 2026-08-17 expenses:food managed household
+
+          grep -Fx $'LOAM-ACTUAL-ROUTING\t1' "$routing"
+          grep -Fx $'ROUTE\texpenses:food\tINITIAL\tMANAGED\tfood' "$routing"
+          grep -Fx $'ROUTE\texpenses:coffee\tINITIAL\tUNMANAGED' "$routing"
+          grep -Fx $'ROUTE\texpenses:food\tFROM\t2026-08-17\tMANAGED\thousehold' "$routing"
+
+          if .lake/build/bin/loamActualRouting \
+              initial "$routing" expenses:food managed another >"$rejected" 2>&1; then
+            echo 'duplicate initial routing coordinate was admitted' >&2
+            exit 1
+          fi
+          grep -F 'already has evidence at this locus/effective coordinate' "$rejected"
+
+          if .lake/build/bin/loamActualRouting \
+              from "$routing" 2026-02-29 expenses:other managed food >"$rejected" 2>&1; then
+            echo 'impossible routing date was admitted' >&2
+            exit 1
+          fi
+          grep -F 'real calendar date in YYYY-MM-DD form' "$rejected"
