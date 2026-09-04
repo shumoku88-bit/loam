@@ -3,6 +3,7 @@ name: Practical Actual Validity Correction
 on:
   pull_request:
     paths:
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
@@ -22,6 +23,7 @@ on:
       - 'lake-manifest.json'
   push:
     paths:
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
@@ -84,6 +86,8 @@ jobs:
 
           .lake/build/bin/loam review "$memory" >"$tmp/review-before.out"
           grep -Fq '2026-09-03  [record-1]' "$tmp/review-before.out"
+          grep -Fxq $'BASE\trecord-1\t2026-09-03' "$validity"
+          ! grep -q $'REVISION\t' "$validity"
 
           printf '1\n2026-09-02\n' \
             | .lake/build/bin/loam correct-date "$memory" "$corrections" \
@@ -96,6 +100,8 @@ jobs:
             echo 'superseded occurrence date remained current' >&2
             exit 1
           fi
+          grep -Fxq $'REVISION\tvalidity-1\trecord-1\t2026-09-02' "$validity"
+          grep -Fxq $'CORRECTION\tvalidity-correction-1\tROOT\trecord-1\tvalidity-1' "$validity"
 
           printf '1\n2026-09-01\n' \
             | .lake/build/bin/loam correct-date "$memory" "$corrections" \
@@ -105,7 +111,7 @@ jobs:
           .lake/build/bin/loam review "$memory" >"$tmp/review-twice.out"
           grep -Fq '2026-09-01  [record-1]' "$tmp/review-twice.out"
 
-          expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t2026-09-03\nFACT\tvalidity-2\trecord-1\t2026-09-02\nFACT\tvalidity-3\trecord-1\t2026-09-01\nCORRECTION\tvalidity-correction-1\tvalidity-1\tvalidity-2\nCORRECTION\tvalidity-correction-2\tvalidity-2\tvalidity-3'
+          expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-03\nREVISION\tvalidity-1\trecord-1\t2026-09-02\nREVISION\tvalidity-2\trecord-1\t2026-09-01\nCORRECTION\tvalidity-correction-1\tROOT\trecord-1\tvalidity-1\nCORRECTION\tvalidity-correction-2\tREVISION\tvalidity-1\tvalidity-2'
           test "$(cat "$validity")" = "$expected"
 
       - name: Add the first date to an older undated record
@@ -115,6 +121,7 @@ jobs:
           tmp="$(mktemp -d)"
           memory="$tmp/memory.loam"
           corrections="$tmp/corrections.loam"
+          validity="$memory.actual-validity"
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
 
           printf '1\n2026-09-02\n' \
@@ -124,3 +131,6 @@ jobs:
 
           .lake/build/bin/loam review "$memory" >"$tmp/review-old.out"
           grep -Fq '2026-09-02  [record-1]' "$tmp/review-old.out"
+          expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-02'
+          test "$(cat "$validity")" = "$expected"
+          ! grep -q 'validity-1' "$validity"
