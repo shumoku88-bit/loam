@@ -1,3 +1,4 @@
+import Loam.Application.ScheduledInspection
 import Loam.Cli.ScheduledCli
 import Loam.Cli.ScheduledLifecycleCli
 import Loam.Persistence
@@ -32,42 +33,6 @@ private def loadEventMemoryOrEmpty?
     Loam.Persistence.loadEventMemory? path
   else
     return EventMemory.ofEvents? []
-
-private def completionReferencesKnownScheduled
-    (scheduledMemory : ScheduledMemory String)
-    (completionMemory : ScheduledCompletionMemory) : Bool :=
-  completionMemory.completions.all fun completion =>
-    (ScheduledMemory.findById? scheduledMemory completion.scheduled).isSome
-
-private def retirementReferencesKnownScheduled
-    (scheduledMemory : ScheduledMemory String)
-    (retirementMemory : ScheduledRetirementMemory) : Bool :=
-  retirementMemory.retirements.all fun retirement =>
-    (ScheduledMemory.findById? scheduledMemory retirement.scheduled).isSome
-
-private def terminalEvidenceCompatible
-    (completionMemory : ScheduledCompletionMemory)
-    (retirementMemory : ScheduledRetirementMemory) : Bool :=
-  retirementMemory.retirements.all fun retirement =>
-    (ScheduledCompletionMemory.findByScheduled?
-      completionMemory retirement.scheduled).isNone
-
-private def hasEffectiveCompletion
-    (completionMemory : ScheduledCompletionMemory)
-    (eventMemory : EventMemory)
-    (scheduled : ScheduledId) : Bool :=
-  match ScheduledCompletionMemory.findByScheduled? completionMemory scheduled with
-  | none => false
-  | some completion => (EventMemory.findById? eventMemory completion.actual).isSome
-
-private def isOpen
-    (completionMemory : ScheduledCompletionMemory)
-    (retirementMemory : ScheduledRetirementMemory)
-    (eventMemory : EventMemory)
-    (occurrence : ScheduledOccurrence String) : Bool :=
-  (ScheduledRetirementMemory.findByScheduled?
-      retirementMemory occurrence.id).isNone &&
-    !hasEffectiveCompletion completionMemory eventMemory occurrence.id
 
 private def insertByScheduledDay
     (occurrence : ScheduledOccurrence String) :
@@ -149,12 +114,9 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
 /--
 Show Scheduled occurrences whose expectation remains open.
 
-Retirement evidence closes an occurrence. Completion closes it only when the
-referenced Actual Event is present, preserving the existing interrupted-
-publication rule that a raw completion relation alone is inert to readers.
-The result is ordered by explicit scheduled day for presentation only; retained
-storage order gains no temporal meaning. Past-due open occurrences remain
-visible rather than being silently dropped.
+The semantic current-open set comes from `Loam.Application.currentOpenScheduled`.
+This CLI adds only scheduled-date presentation order and human movement rendering.
+Past-due open occurrences remain visible rather than being silently dropped.
 -/
 def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
@@ -184,32 +146,30 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
                   IO.eprintln "loam: malformed or unsupported event-memory file"
                   return 2
               | some eventMemory =>
-                  if !completionReferencesKnownScheduled scheduledMemory completionMemory then
-                    IO.eprintln
-                      "loam: scheduled-completion file refers to an unknown Scheduled identity"
-                    return 2
-                  else if !retirementReferencesKnownScheduled scheduledMemory retirementMemory then
-                    IO.eprintln
-                      "loam: scheduled-retirement file refers to an unknown Scheduled identity"
-                    return 2
-                  else if !terminalEvidenceCompatible completionMemory retirementMemory then
-                    IO.eprintln
-                      "loam: Scheduled terminal evidence conflicts between completion and retirement"
-                    return 2
-                  else
-                    let openOccurrences :=
-                      sortByScheduledDay
-                        (scheduledMemory.occurrences.filter
-                          (isOpen completionMemory retirementMemory eventMemory))
-                    match openOccurrences with
-                    | [] =>
-                        IO.println "No open scheduled movements."
-                        return 0
-                    | occurrences =>
-                        IO.println "Open scheduled movements (ordered by scheduled date):"
-                        for occurrence in occurrences do
-                          printOccurrence occurrence
-                        return 0
+                  match Loam.Application.currentOpenScheduled
+                      scheduledMemory completionMemory retirementMemory eventMemory with
+                  | .unknownCompletionScheduled =>
+                      IO.eprintln
+                        "loam: scheduled-completion file refers to an unknown Scheduled identity"
+                      return 2
+                  | .unknownRetirementScheduled =>
+                      IO.eprintln
+                        "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+                      return 2
+                  | .conflictingTerminalEvidence =>
+                      IO.eprintln
+                        "loam: Scheduled terminal evidence conflicts between completion and retirement"
+                      return 2
+                  | .open openOccurrences =>
+                      match sortByScheduledDay openOccurrences with
+                      | [] =>
+                          IO.println "No open scheduled movements."
+                          return 0
+                      | occurrences =>
+                          IO.println "Open scheduled movements (ordered by scheduled date):"
+                          for occurrence in occurrences do
+                            printOccurrence occurrence
+                          return 0
 
 /-!
 Interactive Scheduled workbench for daily dogfood.
