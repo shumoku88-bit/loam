@@ -145,6 +145,19 @@ private def rootedMentionsFactId
   (history.corrections.any fun correction =>
     decide (correction.target = .revision id) || decide (correction.replacement = id))
 
+private def migratedRevisionCount?
+    (history : ActualValidityHistory Time) : Option Nat :=
+  (migrateAdmitted? history).map fun rooted => rooted.revisions.length
+
+private def migratedCorrectionCount?
+    (history : ActualValidityHistory Time) : Option Nat :=
+  (migrateAdmitted? history).map fun rooted => rooted.corrections.length
+
+private def migratedMentionsFactId?
+    (history : ActualValidityHistory Time)
+    (id : ActualValidityFactId) : Option Bool :=
+  (migrateAdmitted? history).map fun rooted => rootedMentionsFactId rooted id
+
 private def eventA : EventId := ⟨"event-a"⟩
 private def eventB : EventId := ⟨"event-b"⟩
 
@@ -234,37 +247,28 @@ private def cyclic : ActualValidityHistory Nat :=
 theorem uncorrected_drops_initial_fact_identity :
     legacyCurrentTime? uncorrected eventA = some 1 ∧
     migratedCurrentTime? uncorrected eventA = some 1 ∧
-    match migrateAdmitted? uncorrected with
-    | some rooted =>
-        rooted.revisions = [] ∧
-        rooted.corrections = [] ∧
-        rootedMentionsFactId rooted factA.id = false
-    | none => False := by
+    migratedRevisionCount? uncorrected = some 0 ∧
+    migratedCorrectionCount? uncorrected = some 0 ∧
+    migratedMentionsFactId? uncorrected factA.id = some false := by
   decide
 
 /-- One correction keeps only the replacement fact as a revision identity. -/
 theorem one_correction_keeps_identity_on_demand :
     legacyCurrentTime? correctedOnce eventA = some 2 ∧
     migratedCurrentTime? correctedOnce eventA = some 2 ∧
-    match migrateAdmitted? correctedOnce with
-    | some rooted =>
-        rootedMentionsFactId rooted factA.id = false ∧
-        rootedMentionsFactId rooted factB.id = true ∧
-        rooted.revisions.length = 1
-    | none => False := by
+    migratedMentionsFactId? correctedOnce factA.id = some false ∧
+    migratedMentionsFactId? correctedOnce factB.id = some true ∧
+    migratedRevisionCount? correctedOnce = some 1 := by
   decide
 
 /-- A -> B -> A remains representable because later A has distinct revision identity. -/
 theorem return_to_original_date_preserved :
     legacyCurrentTime? returnedToOriginalDate eventA = some 1 ∧
     migratedCurrentTime? returnedToOriginalDate eventA = some 1 ∧
-    match migrateAdmitted? returnedToOriginalDate with
-    | some rooted =>
-        rootedMentionsFactId rooted factA.id = false ∧
-        rootedMentionsFactId rooted factB.id = true ∧
-        rootedMentionsFactId rooted factA2.id = true ∧
-        rooted.revisions.length = 2
-    | none => False := by
+    migratedMentionsFactId? returnedToOriginalDate factA.id = some false ∧
+    migratedMentionsFactId? returnedToOriginalDate factB.id = some true ∧
+    migratedMentionsFactId? returnedToOriginalDate factA2.id = some true ∧
+    migratedRevisionCount? returnedToOriginalDate = some 2 := by
   decide
 
 /-- Root selection and the current answer do not depend on the specimen's storage order. -/
