@@ -1,0 +1,56 @@
+name: Observation 162
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation162.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/162_statement_contract_field_trial.md'
+      - '.github/workflows/observation-162-statement-contract-field-trial.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/162-statement-contract-field-trial'
+      - main
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation162.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/162_statement_contract_field_trial.md'
+      - '.github/workflows/observation-162-statement-contract-field-trial.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  statement-contract-field-trial:
+    name: Lean statement contract field trial
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check Observation 159 against reviewed contract
+        run: lake build Loam.Observations.Observation162
