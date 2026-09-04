@@ -7,17 +7,18 @@ set_option autoImplicit false
 /-!
 # Observation 149 — canonical persistence topology
 
-The current LOAM data generation keeps EventMemory, ActualValidity,
-EventDescription, Scheduled, QuantityBasis, and view configuration in distinct
-physical files. That layout may be either an earned semantic boundary or merely
-historical storage shape.
+The current LOAM persistence model keeps EventMemory, ActualValidity,
+EventDescription, EventCorrection, Scheduled, QuantityBasis, and view
+configuration in distinct physical write units when those streams are present.
+Some canonical streams may be physically absent in a generation when empty,
+but absence does not erase their persistence boundary.
 
 This observation separates three proposals:
 
 1. current sidecar layout;
-2. one unified Actual file for Event + date + description evidence;
-3. a semantic `actual/` directory that groups the three Actual streams without
-   merging their write units.
+2. one unified Actual file for Event + date + description + correction evidence;
+3. a semantic `actual/` directory that groups the Actual streams without merging
+   their write units.
 
 A fourth household-monolith specimen is included as a negative boundary.
 
@@ -33,6 +34,7 @@ inductive Stream
   | events
   | actualValidity
   | descriptions
+  | corrections
   | scheduled
   | basis
   | view
@@ -47,6 +49,7 @@ inductive FileSlot
   | events
   | actualValidity
   | descriptions
+  | corrections
   | scheduled
   | basis
   | view
@@ -65,12 +68,13 @@ private def allStreams : List Stream :=
   [ .events,
     .actualValidity,
     .descriptions,
+    .corrections,
     .scheduled,
     .basis,
     .view ]
 
 private def actualStreams : List Stream :=
-  [.events, .actualValidity, .descriptions]
+  [.events, .actualValidity, .descriptions, .corrections]
 
 private def nonActualStreams : List Stream :=
   [.scheduled, .basis, .view]
@@ -79,6 +83,7 @@ private def current : Topology
   | .events => ⟨.root, .events⟩
   | .actualValidity => ⟨.root, .actualValidity⟩
   | .descriptions => ⟨.root, .descriptions⟩
+  | .corrections => ⟨.root, .corrections⟩
   | .scheduled => ⟨.root, .scheduled⟩
   | .basis => ⟨.root, .basis⟩
   | .view => ⟨.root, .view⟩
@@ -87,6 +92,7 @@ private def semanticDirectory : Topology
   | .events => ⟨.actual, .events⟩
   | .actualValidity => ⟨.actual, .actualValidity⟩
   | .descriptions => ⟨.actual, .descriptions⟩
+  | .corrections => ⟨.actual, .corrections⟩
   | .scheduled => ⟨.root, .scheduled⟩
   | .basis => ⟨.root, .basis⟩
   | .view => ⟨.root, .view⟩
@@ -95,6 +101,7 @@ private def unifiedActual : Topology
   | .events => ⟨.root, .actualUnified⟩
   | .actualValidity => ⟨.root, .actualUnified⟩
   | .descriptions => ⟨.root, .actualUnified⟩
+  | .corrections => ⟨.root, .actualUnified⟩
   | .scheduled => ⟨.root, .scheduled⟩
   | .basis => ⟨.root, .basis⟩
   | .view => ⟨.root, .view⟩
@@ -118,7 +125,8 @@ private def samePlacementEverywhere (left right : Topology) : Bool :=
 
 private def eventAuthorityDedicated (topology : Topology) : Bool :=
   !(sameFile topology .events .actualValidity) &&
-  !(sameFile topology .events .descriptions)
+  !(sameFile topology .events .descriptions) &&
+  !(sameFile topology .events .corrections)
 
 private def actualSeparatedFromNonActual (topology : Topology) : Bool :=
   actualStreams.all fun actual =>
@@ -132,15 +140,16 @@ private def nonActualPairwiseSeparate (topology : Topology) : Bool :=
 
 private def wholeActualOneWriteUnit (topology : Topology) : Bool :=
   sameFile topology .events .actualValidity &&
-  sameFile topology .events .descriptions
+  sameFile topology .events .descriptions &&
+  sameFile topology .events .corrections
 
 private def representationOnlyFromCurrent (candidate : Topology) : Bool :=
   sameWritePartition current candidate &&
   !(samePlacementEverywhere current candidate)
 
 /--
-Moving the three existing Actual files under one semantic directory changes
-paths but not which streams share a physical write unit.
+Moving the existing Actual persistence streams under one semantic directory
+changes paths but not which streams share a physical write unit.
 -/
 theorem semantic_directory_preserves_write_partition :
     sameWritePartition current semanticDirectory = true := by
@@ -152,8 +161,8 @@ theorem semantic_directory_is_representation_only :
   decide
 
 /--
-The existing Event authority file remains physically distinct from occurrence
-and description evidence under the semantic-directory candidate.
+The existing Event authority file remains physically distinct from occurrence,
+description, and EventCorrection evidence under the semantic-directory candidate.
 -/
 theorem semantic_directory_preserves_event_authority_isolation :
     eventAuthorityDedicated semanticDirectory = true := by
@@ -169,8 +178,8 @@ theorem semantic_directory_preserves_family_boundaries :
   decide
 
 /--
-Putting Event, ActualValidity, and EventDescription in one file changes the
-current write partition. It is not merely a path cleanup.
+Putting Event, ActualValidity, EventDescription, and EventCorrection in one file
+changes the current write partition. It is not merely a path cleanup.
 -/
 theorem unified_actual_changes_write_partition :
     sameWritePartition current unifiedActual = false := by
