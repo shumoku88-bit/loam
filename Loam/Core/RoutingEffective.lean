@@ -22,16 +22,18 @@ occurrences.
 /-- One historical-routing effective coordinate: initial, or effective from `Time`. -/
 inductive RoutingEffective (Time : Type) where
   | initial
-  | from (time : Time)
+  | dated (time : Time)
 deriving Repr, DecidableEq
 
 namespace RoutingEffective
 
+variable {Time : Type}
+
 /-- Initial routing precedes every dated routing coordinate. -/
 def le [LE Time] : RoutingEffective Time → RoutingEffective Time → Prop
   | .initial, _ => True
-  | .from _, .initial => False
-  | .from left, .from right => left ≤ right
+  | .dated _, .initial => False
+  | .dated left, .dated right => left ≤ right
 
 instance [LE Time] : LE (RoutingEffective Time) where
   le := RoutingEffective.le
@@ -41,8 +43,8 @@ instance [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)] :
   fun left right =>
     match left, right with
     | .initial, _ => isTrue trivial
-    | .from _, .initial => isFalse id
-    | .from a, .from b => inferInstance
+    | .dated _, .initial => isFalse id
+    | .dated a, .dated b => inferInstance
 
 /--
 The routing-specific effective coordinates inherit a linear order from the
@@ -53,49 +55,49 @@ instance [LE Time] [Std.IsLinearOrder Time] :
   le_refl value := by
     cases value with
     | initial => trivial
-    | from time => exact le_refl time
+    | dated time => exact le_refl time
   le_trans left middle right hLeftMiddle hMiddleRight := by
     cases left with
     | initial => trivial
-    | from leftTime =>
+    | dated leftTime =>
         cases middle with
         | initial => exact False.elim hLeftMiddle
-        | from middleTime =>
+        | dated middleTime =>
             cases right with
             | initial => exact False.elim hMiddleRight
-            | from rightTime => exact le_trans hLeftMiddle hMiddleRight
+            | dated rightTime => exact le_trans hLeftMiddle hMiddleRight
   le_antisymm left right hLeftRight hRightLeft := by
     cases left with
     | initial =>
         cases right with
         | initial => rfl
-        | from _ => exact False.elim hRightLeft
-    | from leftTime =>
+        | dated _ => exact False.elim hRightLeft
+    | dated leftTime =>
         cases right with
         | initial => exact False.elim hLeftRight
-        | from rightTime =>
+        | dated rightTime =>
             have hTime : leftTime = rightTime := le_antisymm hLeftRight hRightLeft
             cases hTime
             rfl
   le_total left right := by
     cases left with
     | initial => exact Or.inl trivial
-    | from leftTime =>
+    | dated leftTime =>
         cases right with
         | initial => exact Or.inr trivial
-        | from rightTime => exact le_total leftTime rightTime
+        | dated rightTime => exact le_total leftTime rightTime
 
 @[simp] theorem initial_le [LE Time] (value : RoutingEffective Time) :
     (RoutingEffective.initial : RoutingEffective Time) ≤ value := by
   trivial
 
-@[simp] theorem from_not_le_initial [LE Time] (time : Time) :
-    ¬ ((RoutingEffective.from time : RoutingEffective Time) ≤ .initial) := by
+@[simp] theorem dated_not_le_initial [LE Time] (time : Time) :
+    ¬ ((RoutingEffective.dated time : RoutingEffective Time) ≤ .initial) := by
   intro h
   exact h
 
-@[simp] theorem from_le_from [LE Time] (left right : Time) :
-    ((RoutingEffective.from left : RoutingEffective Time) ≤ .from right) ↔ left ≤ right := by
+@[simp] theorem dated_le_dated [LE Time] (left right : Time) :
+    ((RoutingEffective.dated left : RoutingEffective Time) ≤ .dated right) ↔ left ≤ right := by
   rfl
 
 end RoutingEffective
