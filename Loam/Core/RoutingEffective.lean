@@ -2,6 +2,8 @@ import Init.Data.Order
 
 namespace Loam.Core
 
+open Std (le_trans le_antisymm le_total)
+
 set_option autoImplicit false
 
 /-!
@@ -44,6 +46,28 @@ instance [LE Time] [decTime : DecidableRel (· ≤ · : Time → Time → Prop)]
     | .dated _, .initial => isFalse id
     | .dated a, .dated b => decTime a b
 
+private theorem baseLeRefl [LE Time] [Std.IsLinearOrder Time] (value : Time) :
+    value ≤ value := by
+  rcases le_total (a := value) (b := value) with h | h
+  · exact h
+  · exact h
+
+private theorem baseLeTrans [LE Time] [Std.IsLinearOrder Time]
+    {left middle right : Time}
+    (hLeftMiddle : left ≤ middle)
+    (hMiddleRight : middle ≤ right) : left ≤ right :=
+  le_trans hLeftMiddle hMiddleRight
+
+private theorem baseLeAntisymm [LE Time] [Std.IsLinearOrder Time]
+    {left right : Time}
+    (hLeftRight : left ≤ right)
+    (hRightLeft : right ≤ left) : left = right :=
+  le_antisymm hLeftRight hRightLeft
+
+private theorem baseLeTotal [LE Time] [Std.IsLinearOrder Time]
+    (left right : Time) : left ≤ right ∨ right ≤ left := by
+  exact le_total (a := left) (b := right)
+
 /--
 The routing-specific effective coordinates inherit a linear order from the
 underlying dated coordinate, with `initial` as a distinct least element.
@@ -53,7 +77,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
   le_refl value := by
     cases value with
     | initial => trivial
-    | dated time => exact Std.le_refl time
+    | dated time => exact baseLeRefl time
   le_trans left middle right hLeftMiddle hMiddleRight := by
     cases left with
     | initial => trivial
@@ -63,7 +87,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
         | dated middleTime =>
             cases right with
             | initial => exact False.elim hMiddleRight
-            | dated rightTime => exact Std.le_trans hLeftMiddle hMiddleRight
+            | dated rightTime => exact baseLeTrans hLeftMiddle hMiddleRight
   le_antisymm left right hLeftRight hRightLeft := by
     cases left with
     | initial =>
@@ -74,7 +98,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
         cases right with
         | initial => exact False.elim hLeftRight
         | dated rightTime =>
-            have hTime : leftTime = rightTime := Std.le_antisymm hLeftRight hRightLeft
+            have hTime : leftTime = rightTime := baseLeAntisymm hLeftRight hRightLeft
             cases hTime
             rfl
   le_total left right := by
@@ -83,7 +107,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
     | dated leftTime =>
         cases right with
         | initial => exact Or.inr trivial
-        | dated rightTime => exact Std.le_total
+        | dated rightTime => exact baseLeTotal leftTime rightTime
 
 @[simp] theorem initial_le [LE Time] (value : RoutingEffective Time) :
     (RoutingEffective.initial : RoutingEffective Time) ≤ value := by
