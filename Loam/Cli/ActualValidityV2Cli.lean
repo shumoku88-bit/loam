@@ -6,6 +6,24 @@ namespace Loam.ActualValidityV2Cli
 
 set_option autoImplicit false
 
+/--
+Prove the candidate V2 text can be decoded back to the same admitted current
+occurrence-date view before any canonical rename is attempted.
+-/
+private def qualifiedV2Text?
+    (history : Loam.Core.ActualValidityHistory String) : Option String := do
+  let text ← Loam.Persistence.encodeActualValidityHistoryV2? history
+  let (version, decoded) ← Loam.Persistence.decodeActualValidityHistoryWithVersion? text
+  if version != .v2 then
+    none
+  else
+    let expected ← Loam.Application.admittedActualValidityMemory? history
+    let actual ← Loam.Application.admittedActualValidityMemory? decoded
+    if expected.entries = actual.entries then
+      pure text
+    else
+      none
+
 private def checkFile (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
   let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
@@ -17,9 +35,14 @@ private def checkFile (memoryPath : String) : IO UInt32 := do
     | none =>
         IO.eprintln "loam: malformed or unsupported actual-validity history"
         return 2
-    | some (.v2, _) =>
-        IO.println "ActualValidity storage is already V2."
-        return 0
+    | some (.v2, history) =>
+        match qualifiedV2Text? history with
+        | some _ =>
+            IO.println "ActualValidity storage is already V2."
+            return 0
+        | none =>
+            IO.eprintln "loam: retained V2 history does not round-trip with current-date parity"
+            return 2
     | some (.v1, history) =>
         match Loam.Application.compressActualValidityV1ToV2? history with
         | none =>
@@ -27,9 +50,9 @@ private def checkFile (memoryPath : String) : IO UInt32 := do
               "loam: V1 actual-validity history is not admissible for root compression"
             return 2
         | some compressed =>
-            match Loam.Persistence.encodeActualValidityHistoryV2? compressed with
+            match qualifiedV2Text? compressed with
             | none =>
-                IO.eprintln "loam: V1 history could not be represented as V2"
+                IO.eprintln "loam: V1 history could not round-trip as equivalent V2"
                 return 2
             | some _ =>
                 IO.println
@@ -49,20 +72,30 @@ private def convertUnderOwnership (memoryPath : String) : IO UInt32 := do
         IO.eprintln "loam: could not construct empty ActualValidity V2 state"
         return 2
     | some empty =>
-        if ← Loam.Persistence.saveActualValidityHistoryV2? validityFile empty then
-          IO.println "Created empty Event-rooted ActualValidity V2 storage."
-          return 0
-        else
-          IO.eprintln "loam: empty ActualValidity V2 storage could not be published"
-          return 2
+        match qualifiedV2Text? empty with
+        | none =>
+            IO.eprintln "loam: empty ActualValidity V2 image failed pre-publication qualification"
+            return 2
+        | some _ =>
+            if ← Loam.Persistence.saveActualValidityHistoryV2? validityFile empty then
+              IO.println "Created empty Event-rooted ActualValidity V2 storage."
+              return 0
+            else
+              IO.eprintln "loam: empty ActualValidity V2 storage could not be published"
+              return 2
   else
     match ← Loam.Persistence.loadActualValidityHistoryWithVersion? validityFile with
     | none =>
         IO.eprintln "loam: malformed or unsupported actual-validity history"
         return 2
-    | some (.v2, _) =>
-        IO.println "ActualValidity storage is already V2; nothing changed."
-        return 0
+    | some (.v2, history) =>
+        match qualifiedV2Text? history with
+        | some _ =>
+            IO.println "ActualValidity storage is already V2; nothing changed."
+            return 0
+        | none =>
+            IO.eprintln "loam: retained V2 history does not round-trip with current-date parity"
+            return 2
     | some (.v1, history) =>
         match Loam.Application.compressActualValidityV1ToV2? history with
         | none =>
@@ -70,32 +103,38 @@ private def convertUnderOwnership (memoryPath : String) : IO UInt32 := do
               "loam: V1 actual-validity history is not admissible for root compression"
             return 2
         | some compressed =>
-            if !(← Loam.Persistence.saveActualValidityHistoryV2? validityFile compressed) then
-              IO.eprintln "loam: ActualValidity V2 image could not be published"
-              return 2
-            else
-              match ← Loam.Persistence.loadActualValidityHistoryWithVersion? validityFile with
-              | some (.v2, reloaded) =>
-                  match Loam.Application.admittedActualValidityMemory? compressed,
-                      Loam.Application.admittedActualValidityMemory? reloaded with
-                  | some expected, some actual =>
-                      if expected.entries = actual.entries then
-                        IO.println
-                          ("Converted ActualValidity to V2: initial date identity is now EventId; " ++
-                            toString reloaded.corrections.length ++
-                            " correction relations retain later revision identity.")
-                        return 0
-                      else
-                        IO.eprintln
-                          "loam: V2 reload parity failed after publication"
-                        return 2
-                  | _, _ =>
-                      IO.eprintln
-                        "loam: V2 reload no longer admits one current date per Event"
-                      return 2
-              | _ =>
-                  IO.eprintln "loam: published ActualValidity V2 image could not be reloaded"
+            match qualifiedV2Text? compressed with
+            | none =>
+                IO.eprintln
+                  "loam: candidate V2 image failed round-trip parity before publication"
+                return 2
+            | some _ =>
+                if !(← Loam.Persistence.saveActualValidityHistoryV2? validityFile compressed) then
+                  IO.eprintln "loam: ActualValidity V2 image could not be published"
                   return 2
+                else
+                  match ← Loam.Persistence.loadActualValidityHistoryWithVersion? validityFile with
+                  | some (.v2, reloaded) =>
+                      match Loam.Application.admittedActualValidityMemory? compressed,
+                          Loam.Application.admittedActualValidityMemory? reloaded with
+                      | some expected, some actual =>
+                          if expected.entries = actual.entries then
+                            IO.println
+                              ("Converted ActualValidity to V2: initial date identity is now EventId; " ++
+                                toString reloaded.corrections.length ++
+                                " correction relations retain later revision identity.")
+                            return 0
+                          else
+                            IO.eprintln
+                              "loam: V2 reload parity failed after publication"
+                            return 2
+                      | _, _ =>
+                          IO.eprintln
+                            "loam: V2 reload no longer admits one current date per Event"
+                          return 2
+                  | _ =>
+                      IO.eprintln "loam: published ActualValidity V2 image could not be reloaded"
+                      return 2
 
 private def convertFile (memoryPath : String) : IO UInt32 :=
   Loam.WriterOwnership.withOwnership
