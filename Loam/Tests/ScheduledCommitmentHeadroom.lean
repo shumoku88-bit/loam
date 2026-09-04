@@ -99,9 +99,15 @@ def main : IO Unit := do
     (scheduled? "scheduled-8" 2
       [change paypay (-8), change groceries 8])
     "unrouted Scheduled fixture was not admitted"
+  -- Repeated raw changes at one Locus form one aggregated Scheduled × Locus
+  -- routing coordinate: groceries is net +10 here, not +20.
+  let s9 ← requireSome
+    (scheduled? "scheduled-9" 2
+      [change paypay (-10), change groceries 20, change groceries (-10)])
+    "aggregated-Locus Scheduled fixture was not admitted"
 
   let scheduledMemory ← requireSome
-    (ScheduledMemory.ofOccurrences? [s1, s2, s3, s4, s5, s6, s7, s8])
+    (ScheduledMemory.ofOccurrences? [s1, s2, s3, s4, s5, s6, s7, s8, s9])
     "Scheduled memory was not admitted"
   let completionMemory ← requireSome
     (ScheduledCompletionMemory.ofCompletions?
@@ -130,7 +136,9 @@ def main : IO Unit := do
        { subject := subject "scheduled-6" groceries,
          effectiveOn := (1 : Nat), purpose := some food },
        { subject := subject "scheduled-7" groceries,
-         effectiveOn := (1 : Nat), purpose := none }])
+         effectiveOn := (1 : Nat), purpose := none },
+       { subject := subject "scheduled-9" groceries,
+         effectiveOn := (1 : Nat), purpose := some food }])
     "Scheduled routing fixture was not admitted"
 
   let commitment ← requireSome
@@ -139,8 +147,8 @@ def main : IO Unit := do
       food yen (2 : Nat) (4 : Nat))
     "current Scheduled commitment failed closed"
 
-  expect (commitment.managed.quanta == 25)
-    s!"expected food commitment 25, got {commitment.managed.quanta}"
+  expect (commitment.managed.quanta == 35)
+    s!"expected food commitment 35, got {commitment.managed.quanta}"
   expect (commitment.unmanaged.quanta == 7)
     s!"expected unmanaged commitment 7, got {commitment.unmanaged.quanta}"
   expect (commitment.unrouted.quanta == 8)
@@ -156,10 +164,10 @@ def main : IO Unit := do
 
   expect (headroom.remaining.quanta == 70)
     s!"expected Remaining 70, got {headroom.remaining.quanta}"
-  expect (headroom.commitment.quanta == 25)
-    s!"expected Commitment 25, got {headroom.commitment.quanta}"
-  expect (headroom.headroom.quanta == 45)
-    s!"expected Headroom 45, got {headroom.headroom.quanta}"
+  expect (headroom.commitment.quanta == 35)
+    s!"expected Commitment 35, got {headroom.commitment.quanta}"
+  expect (headroom.headroom.quanta == 35)
+    s!"expected Headroom 35, got {headroom.headroom.quanta}"
   expect (headroom.unmanagedCommitment.quanta == 7)
     "Headroom view lost unmanaged Scheduled pressure"
   expect (headroom.unroutedCommitment.quanta == 8)
