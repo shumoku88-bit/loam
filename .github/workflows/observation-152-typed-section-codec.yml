@@ -1,0 +1,50 @@
+name: Observation 152
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation152.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/152_typed_section_codec.md'
+      - '.github/workflows/observation-152-typed-section-codec.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/152-typed-section-codec'
+      - main
+    paths:
+      - 'Loam/Observations/Observation152.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/152_typed_section_codec.md'
+      - '.github/workflows/observation-152-typed-section-codec.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typed-section-codec:
+    name: Lean typed-section codec pressure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check typed-section codec pressure
+        run: lake build Loam.Observations.Observation152
