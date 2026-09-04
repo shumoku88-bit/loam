@@ -18,6 +18,9 @@ lean_exe loamCapacity where
 lean_exe loamActualRouting where
   root := `Loam.Cli.ActualRoutingCli
 
+lean_exe loamBudgetWindow where
+  root := `Loam.Cli.BudgetWindowCli
+
 lean_exe loamDailyQuantity where
   root := `Loam.Cli.DailyQuantityCli
 
