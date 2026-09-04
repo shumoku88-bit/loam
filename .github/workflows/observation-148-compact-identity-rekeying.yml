@@ -1,0 +1,60 @@
+name: Observation 148
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation148.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/148_compact_identity_rekeying.md'
+      - '.github/workflows/observation-148-compact-identity-rekeying.yml'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventDescription.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/148-compact-identity-rekeying'
+      - main
+    paths:
+      - 'Loam/Observations/Observation148.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/148_compact_identity_rekeying.md'
+      - '.github/workflows/observation-148-compact-identity-rekeying.yml'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventDescription.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compact-rekey:
+    name: Lean compact identity re-keying
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check compact identity re-keying
+        run: lake build Loam.Observations.Observation148
