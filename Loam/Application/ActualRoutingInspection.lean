@@ -20,7 +20,7 @@ variable {Time : Type}
 
 Actual validity remains an ordinary `Time`. Historical routing may additionally
 retain one `initial` coordinate that precedes every dated route. The selected
-Actual occurrence is therefore queried at `.from validOn` without fabricating a
+Actual occurrence is therefore queried at `.dated validOn` without fabricating a
 calendar date for the initial policy.
 
 The quantity arithmetic remains owned by `ConsumptionInspection`; this module is
@@ -35,7 +35,7 @@ def eventConsumptionAtEffectiveRouting
     (routing : RoutingHistory LocusId (RoutingEffective Time))
     (purpose : PurposeId)
     (measure : MeasureId) : Quantity :=
-  eventConsumptionAt event (.from validOn) routing purpose measure
+  eventConsumptionAt event (.dated validOn) routing purpose measure
 
 /--
 Project recorded Actual Consumption with initial-aware historical routing.
