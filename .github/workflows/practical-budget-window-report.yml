@@ -1,0 +1,105 @@
+name: Practical Budget Window Report
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/BudgetWindowCli.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-budget-window-report.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Cli/BudgetWindowCli.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-budget-window-report.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-budget-window-report-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Project Entitlement Consumption Remaining
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical entrances
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement loamCapacity loamActualRouting loamBudgetWindow
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Exercise a clean budget coordinate window
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+
+          printf 'unallocated\nfood\n100\n' \
+            | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
+              .lake/build/bin/loamCapacity "$tmpdir/capacity.loam"
+
+          printf 'paypay\n20\n\nexpenses:food\n20\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-08-16 \
+              LOAM_DESCRIPTION='before clean epoch' \
+              .lake/build/bin/loamMovement "$tmpdir/memory.loam"
+
+          printf 'paypay\n30\n\nexpenses:food\n30\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-08-18 \
+              LOAM_DESCRIPTION='inside clean epoch' \
+              .lake/build/bin/loamMovement "$tmpdir/memory.loam"
+
+          .lake/build/bin/loamActualRouting \
+            initial "$tmpdir/actual-routing.loam" expenses:food managed food
+
+          output="$(.lake/build/bin/loamBudgetWindow \
+            "$tmpdir" 2026-08-17 2026-10-15 food)"
+          printf '%s\n' "$output"
+
+          grep -Fx 'Budget window [2026-08-17, 2026-10-15)' <<<"$output"
+          grep -Fx 'Purpose: food' <<<"$output"
+          grep -Fx 'Entitlement: 100 jpy' <<<"$output"
+          grep -Fx 'Consumption: 30 jpy' <<<"$output"
+          grep -Fx 'Remaining: 70 jpy' <<<"$output"
+
+          mv "$tmpdir/actual-routing.loam" "$tmpdir/actual-routing.saved"
+          if .lake/build/bin/loamBudgetWindow \
+              "$tmpdir" 2026-08-17 2026-10-15 food >/tmp/budget-window.err 2>&1; then
+            echo 'budget report silently accepted missing routing authority' >&2
+            exit 1
+          fi
+          grep -F 'required Actual routing evidence not found' /tmp/budget-window.err
