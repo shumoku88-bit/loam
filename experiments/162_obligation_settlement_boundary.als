@@ -186,9 +186,11 @@ pred directPurchaseNeedsNoObligation {
 
 assert ObligationConservation {
   all w: World |
-    #householdPayables[w] = #(w.settled & householdPayables[w]) + #payableOutstanding[w]
+    householdPayables[w] =
+      (w.settled & householdPayables[w]) + payableOutstanding[w]
     and
-    #householdReceivables[w] = #(w.settled & householdReceivables[w]) + #receivableOutstanding[w]
+    householdReceivables[w] =
+      (w.settled & householdReceivables[w]) + receivableOutstanding[w]
 }
 
 assert SettlementCorePreservesBurden {
