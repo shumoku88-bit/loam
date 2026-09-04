@@ -1,0 +1,113 @@
+name: Observation 155
+
+on:
+  pull_request:
+    paths:
+      - 'tla/CompleteImagePublication.tla'
+      - 'tla/CompleteImagePublication.cfg'
+      - 'tla/CompleteImagePublicationPublishedBoundary.cfg'
+      - 'tla/CompleteImagePublicationStageBoundary.cfg'
+      - 'tla/CompleteImagePublicationDirectWrite.cfg'
+      - 'tests/observation_155_atomic_replace.py'
+      - 'experiments/155_complete_image_publication.md'
+      - '.github/workflows/observation-155-complete-image-publication.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tla/CompleteImagePublication.tla'
+      - 'tla/CompleteImagePublication.cfg'
+      - 'tla/CompleteImagePublicationPublishedBoundary.cfg'
+      - 'tla/CompleteImagePublicationStageBoundary.cfg'
+      - 'tla/CompleteImagePublicationDirectWrite.cfg'
+      - 'tests/observation_155_atomic_replace.py'
+      - 'experiments/155_complete_image_publication.md'
+      - '.github/workflows/observation-155-complete-image-publication.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  complete-image-publication:
+    name: TLA+ and filesystem complete-image publication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/tla2tools.jar \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+          test -s /tmp/tla2tools.jar
+
+      - name: Check staged publication safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-155-positive \
+            -config tla/CompleteImagePublication.cfg \
+            tla/CompleteImagePublication.tla \
+            2>&1 | tee /tmp/observation-155-positive.txt
+          grep -Fq 'Model checking completed. No error has been found.' /tmp/observation-155-positive.txt
+
+      - name: Require reachable partial sibling stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-155-stage \
+            -config tla/CompleteImagePublicationStageBoundary.cfg \
+            tla/CompleteImagePublication.tla \
+            2>&1 | tee /tmp/observation-155-stage.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoPartialStageState' /tmp/observation-155-stage.txt
+          grep -Fq 'Invariant' /tmp/observation-155-stage.txt
+
+      - name: Require reachable published image
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-155-published \
+            -config tla/CompleteImagePublicationPublishedBoundary.cfg \
+            tla/CompleteImagePublication.tla \
+            2>&1 | tee /tmp/observation-155-published.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'NoPublishedState' /tmp/observation-155-published.txt
+          grep -Fq 'Invariant' /tmp/observation-155-published.txt
+
+      - name: Require direct-write mixed-image counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -metadir /tmp/observation-155-direct \
+            -config tla/CompleteImagePublicationDirectWrite.cfg \
+            tla/CompleteImagePublication.tla \
+            2>&1 | tee /tmp/observation-155-direct.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -Fq 'ReadersSeeOnlyCompleteImages' /tmp/observation-155-direct.txt
+          grep -Fq 'Invariant' /tmp/observation-155-direct.txt
+
+      - name: Exercise same-filesystem atomic replace with concurrent readers
+        shell: bash
+        run: python3 tests/observation_155_atomic_replace.py
