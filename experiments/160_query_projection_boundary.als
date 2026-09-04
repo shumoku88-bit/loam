@@ -43,8 +43,8 @@ sig BareResponse {
 }
 
 sig Execution {
-  before: one Snapshot,
-  after: one Snapshot,
+  pre: one Snapshot,
+  post: one Snapshot,
   response: one BoundResponse
 }
 
@@ -91,15 +91,15 @@ pred freshHypothesis[s: Snapshot, h: Hypothesis] {
   no h.addActual & s.actual
 }
 
-pred appliesHypothesis[base, after: Snapshot, h: Hypothesis] {
-  after.capacity = base.capacity + h.addCapacity
-  after.actual = base.actual + h.addActual
+pred appliesHypothesis[base, target: Snapshot, h: Hypothesis] {
+  target.capacity = base.capacity + h.addCapacity
+  target.actual = base.actual + h.addActual
 }
 
 pred readOnlyExecution[e: Execution] {
-  e.response.source = e.before
-  e.after.capacity = e.before.capacity
-  e.after.actual = e.before.actual
+  e.response.source = e.pre
+  e.post.capacity = e.pre.capacity
+  e.post.actual = e.pre.actual
 }
 
 pred crossSurfaceBoundResponseWitness {
@@ -123,12 +123,12 @@ pred hypotheticalOverlayChangesAnswer {
 }
 
 pred simulationMatchesExplicitApply {
-  some disj base, after: Snapshot, q: Query, h: Hypothesis | {
+  some disj base, target: Snapshot, q: Query, h: Hypothesis | {
     freshHypothesis[base, h]
     some h.addCapacity + h.addActual
-    appliesHypothesis[base, after, h]
-    hypotheticalRemaining[base, q, h] = remaining[after, q]
-    base.capacity != after.capacity or base.actual != after.actual
+    appliesHypothesis[base, target, h]
+    hypotheticalRemaining[base, q, h] = remaining[target, q]
+    base.capacity != target.capacity or base.actual != target.actual
   }
 }
 
@@ -152,7 +152,7 @@ assert ReadOnlyExecutionPreservesAnyCanonicalQuery {
   all e: Execution |
     readOnlyExecution[e] implies
       all q: Query |
-        remaining[e.before, q] = remaining[e.after, q]
+        remaining[e.pre, q] = remaining[e.post, q]
 }
 
 assert BoundCurrentResponseMatchesCurrentSnapshot {
