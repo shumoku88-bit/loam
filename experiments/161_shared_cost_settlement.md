@@ -59,7 +59,7 @@ The model derives three quantities:
 ```text
 net expense
 household burden
-aoutside outstanding
+outside outstanding
 ```
 
 where the intended decomposition is:
