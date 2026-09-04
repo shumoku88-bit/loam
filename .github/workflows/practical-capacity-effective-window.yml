@@ -1,0 +1,55 @@
+name: Practical Capacity Effective Window
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Tests/CapacityEffectiveWindow.lean'
+      - '.github/workflows/practical-capacity-effective-window.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Tests/CapacityEffectiveWindow.lean'
+      - '.github/workflows/practical-capacity-effective-window.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-capacity-effective-window-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build and test Capacity effective window
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core Loam.Application
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Capacity effective-window practical story
+        shell: bash
+        run: lake env lean --run Loam/Tests/CapacityEffectiveWindow.lean

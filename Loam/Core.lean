@@ -11,6 +11,7 @@ import Loam.Core.AttentionMemory
 import Loam.Core.BalancedMovement
 import Loam.Core.Capacity
 import Loam.Core.CapacityMemory
+import Loam.Core.CapacityEffective
 import Loam.Core.Event
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
