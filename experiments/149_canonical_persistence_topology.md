@@ -89,20 +89,28 @@ semantic persistence redesign that needs its own pressure and qualification.
 
 ### C. Semantic Actual directory
 
-Representative shape:
+The minimum representation-only specimen keeps the existing filenames and sidecar
+convention unchanged and moves the complete Actual bundle under one directory:
 
 ```text
 actual/
-  events.loam
-  validity.loam
-  descriptions.loam
+  memory.loam
+  memory.loam.actual-validity
+  memory.loam.descriptions
 scheduled.loam
 basis.loam
 balance-view.tsv
 ```
 
-The file streams remain distinct, but their physical path exposes the logical
-Actual bundle.
+This exact shape matters. Current production code derives the validity and
+description paths from the EventMemory path. Therefore renaming the files to
+`events.loam`, `validity.loam`, and `descriptions.loam` would require another
+persistence-path change and is not part of the representation-only candidate.
+
+The three streams remain distinct write units, but their parent path exposes the
+logical Actual bundle. Existing production readers can point at
+`actual/memory.loam` and continue deriving the two companion sidecars without a
+new file-format or companion-path rule.
 
 This candidate changes placement without changing which streams share a write
 unit. Therefore the existing publication protocol can remain structurally
@@ -159,6 +167,10 @@ because the authority protocol changes.
 Likewise, grouping files under `actual/` may prove aesthetically cleaner but not
 worth migration churn. Path movement itself must earn value in real use.
 
+Humanizing the sidecar filenames is also a separate question from grouping them.
+The representation-only specimen intentionally avoids changing both directory and
+companion-path convention at once.
+
 ## Private canonical pressure
 
 After the public Lean qualification passes, the private canonical `loam-data`
@@ -166,9 +178,10 @@ generation should be tested in scratch only, without changing its canonical tree
 
 For the same current data generation, construct:
 
-1. current sidecars;
-2. unified-Actual specimen;
-3. semantic-directory specimen.
+1. current root sidecars;
+2. a unified-Actual specimen that can be losslessly materialized back to the
+   current three stream bytes for production-reader parity checks;
+3. `actual/memory.loam` plus its two unchanged companion sidecars.
 
 Compare at least:
 
@@ -188,7 +201,7 @@ The scratch comparison must not publish or commit a topology migration.
 At this observation's public-model layer:
 
 ```text
-semantic directory
+semantic directory with unchanged sidecar names
     = representation-only candidate
 
 unified Actual file
