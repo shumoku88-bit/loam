@@ -56,6 +56,10 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Build routing inspection dependency
+        shell: bash
+        run: lake build Loam.Application.ActualRoutingInspection
+
       - name: Run existing routing persistence story
         shell: bash
         run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
