@@ -91,12 +91,12 @@ pred rootedAdmissible {
 }
 
 pred sameEventShapeDifferentCorrectionRole {
-  some disj a, b, replacement: Event |
+  some disj a, b, replEvent: Event |
     a.payload = b.payload and
     a.baseTime = b.baseTime and
     some c: EventCorrection |
       c.target = a and
-      c.replacement = replacement and
+      c.replacement = replEvent and
       no c2: EventCorrection | c2.target = b
 }
 
