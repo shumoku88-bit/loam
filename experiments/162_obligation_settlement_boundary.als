@@ -54,7 +54,7 @@ fun receivableOutstanding[w: World]: set Unit {
   householdReceivables[w] - w.settled
 }
 
-pred sameBasis[before, after: World] {
+pred sameBasis[before: World, after: World] {
   before != after
   after.incurred = before.incurred
   after.burden = before.burden
@@ -63,13 +63,13 @@ pred sameBasis[before, after: World] {
   after.creditor = before.creditor
 }
 
-pred settleCore[before, after: World, u: Unit] {
+pred settleCore[before: World, after: World, u: Unit] {
   sameBasis[before, after]
   u in before.claims - before.settled
   after.settled = before.settled + u
 }
 
-pred settleHouseholdPayable[before, after: World, u: Unit] {
+pred settleHouseholdPayable[before: World, after: World, u: Unit] {
   settleCore[before, after, u]
   before.debtor[u] = Household
   before.creditor[u] != Household
@@ -77,7 +77,7 @@ pred settleHouseholdPayable[before, after: World, u: Unit] {
   after.cashIn = before.cashIn
 }
 
-pred settleHouseholdReceivable[before, after: World, u: Unit] {
+pred settleHouseholdReceivable[before: World, after: World, u: Unit] {
   settleCore[before, after, u]
   before.creditor[u] = Household
   before.debtor[u] != Household
