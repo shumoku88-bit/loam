@@ -3,34 +3,26 @@ import Loam.Observations.Observation152
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 
-namespace Loam.Observation153
-
 open Loam.Core
 open Loam.Application
 
-set_option autoImplicit false
+private def expect (condition : Bool) (message : String) : IO Unit := do
+  unless condition do
+    throw <| IO.userError message
 
-/-!
-# Observation 153 — production fixture parity through typed sections
+private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
+  match value with
+  | some result => pure result
+  | none => throw <| IO.userError message
 
-Observation 152 qualified the outer typed-section framing in isolation. This
-observation connects that framing to the existing production semantic codecs on
-public synthetic fixtures without adding a production unified-Actual format.
-
-The outer frame does not parse EventMemory, ActualValidity, EventDescription, or
-EventCorrection payloads. It only carries their already-versioned production
-representations. After unwrap, the existing production decoders remain the only
-semantic admission boundary.
--/
-
-structure SidecarBytes where
+private structure SidecarBytes where
   events : String
   validity : String
   descriptions : String
   corrections : Option String
-  deriving Repr, DecidableEq
+  deriving Repr, BEq
 
-structure ProductionProjection where
+private structure ProductionProjection where
   eventCount : Nat
   effectCount : Nat
   firstWallet : Int
@@ -41,7 +33,7 @@ structure ProductionProjection where
   secondDescription : Option String
   correctionCount : Nat
   correctionsProject : Bool
-  deriving Repr, DecidableEq
+  deriving Repr, BEq
 
 private def fixtureEventMemory : String :=
   "LOAM-EVENT-MEMORY\t1\n" ++
@@ -147,52 +139,47 @@ private def productionProjection? (sidecars : SidecarBytes) : Option ProductionP
       (EventCorrection.project? events correction).isSome
   }
 
-private def wrappedProjection? : Option ProductionProjection := do
-  let sidecars ← unpack? (pack fixture)
-  productionProjection? sidecars
-
 private def malformedEventPayload : SidecarBytes :=
   { fixture with events := "LOAM-EVENT-MEMORY\t2\n" }
 
-private def framedMalformedEventPayloadIsRejected : Bool :=
-  match unpack? (pack malformedEventPayload) with
-  | none => false
-  | some sidecars => (productionProjection? sidecars).isNone
+def main : IO Unit := do
+  let canonical ← requireSome (canonicalize? fixture)
+    "public sidecar fixture was not admitted by production codecs"
+  expect (canonical == fixture)
+    "production decode/encode changed the public sidecar fixture"
 
-/-- The public sidecar fixture is already canonical under every production codec. -/
-theorem public_fixture_is_production_canonical :
-    canonicalize? fixture = some fixture := by
-  native_decide
+  let unpacked ← requireSome (unpack? (pack fixture))
+    "typed-section framing failed to unwrap its public fixture"
+  expect (unpacked == fixture)
+    "typed-section framing changed exact production sidecar bytes"
 
-/-- Typed framing is byte-transparent for complete production sidecar payloads. -/
-theorem typed_sections_preserve_exact_sidecar_bytes :
-    unpack? (pack fixture) = some fixture := by
-  native_decide
+  let before ← requireSome (productionProjection? fixture)
+    "production fixture failed semantic projection"
+  let after ← requireSome (productionProjection? unpacked)
+    "framed fixture failed production semantic projection"
+  expect (after == before)
+    "typed-section framing changed the production semantic projection"
 
-/-- The same production semantic projection is observed before and after framing. -/
-theorem typed_sections_preserve_production_projection :
-    wrappedProjection? = productionProjection? fixture := by
-  native_decide
+  expect (before.eventCount == 2)
+    "production projection changed Event count"
+  expect (before.effectCount == 4)
+    "production projection changed Effect count"
+  expect (before.firstWallet == -1000 && before.secondWallet == -1200)
+    "production projection changed exact wallet quantities"
+  expect
+    (before.firstDate == some "2026-09-01" &&
+      before.secondDate == some "2026-09-02")
+    "production projection changed ActualValidity dates"
+  expect
+    (before.firstDescription == some "public original" &&
+      before.secondDescription == some "public replacement")
+    "production projection changed Event descriptions"
+  expect (before.correctionCount == 1 && before.correctionsProject)
+    "production projection changed EventCorrection admission"
 
-/-- The projection witness includes both EventCorrection endpoint admission and dates/text. -/
-theorem public_projection_witness :
-    productionProjection? fixture = some {
-      eventCount := 2
-      effectCount := 4
-      firstWallet := -1000
-      secondWallet := -1200
-      firstDate := some "2026-09-01"
-      secondDate := some "2026-09-02"
-      firstDescription := some "public original"
-      secondDescription := some "public replacement"
-      correctionCount := 1
-      correctionsProject := true
-    } := by
-  native_decide
+  let malformedUnpacked ← requireSome (unpack? (pack malformedEventPayload))
+    "outer framing unexpectedly rejected the intentionally malformed inner fixture"
+  expect ((productionProjection? malformedUnpacked).isNone)
+    "outer framing bypassed production semantic version rejection"
 
-/-- A valid outer frame cannot make an unsupported inner production version admissible. -/
-theorem framing_does_not_bypass_production_semantic_validation :
-    framedMalformedEventPayloadIsRejected = true := by
-  native_decide
-
-end Loam.Observation153
+  IO.println "Observation 154 production fixture parity succeeded."

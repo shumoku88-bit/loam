@@ -1,10 +1,13 @@
-# Observation 153 — production fixture parity through typed sections
+# Observation 154 — production fixture parity through typed sections
 
 ## Question
 
 Can the typed-section framing qualified by Observation 152 carry the existing
 production Actual persistence representations without becoming a second semantic
-parser or changing any currently observable household meaning?
+parser or changing any currently observable meaning?
+
+Observation 153 is already assigned to Scheduled routing subject pressure. This
+observation therefore continues the persistence-topology line as Observation 154.
 
 ## Public fixture
 
@@ -28,12 +31,18 @@ The inner payloads are the existing production versioned representations:
 
 Observation 152's typed framing carries those representations as opaque payloads.
 After unwrap, semantic admission is performed only by the existing production
-decoders. The observation does not introduce a unified production parser,
-writer, loader, file path, migration, or canonical format.
+decoders. The observation introduces no unified production parser, writer,
+loader, file path, migration, or canonical format.
 
-## Qualified pressure
+## Qualification shape
 
-The Lean witness checks that:
+These checks deliberately run as an executable public fixture qualification
+rather than theorem declarations. The production String parsers are executable
+boundaries, while LOAM's umbrella Lean build is axiom-audited. Keeping the heavy
+parity pressure in `lake env lean --run` preserves that audit boundary instead of
+adding native-evaluation axioms to formal declarations.
+
+The executable witness requires that:
 
 1. each public sidecar is already canonical under its production
    decode-then-encode path;
@@ -45,12 +54,13 @@ The Lean witness checks that:
 5. a valid outer frame containing an unsupported inner EventMemory version is
    still rejected by the production semantic decoder.
 
-## Result
+## Result boundary
 
-The framing can remain representation-only. It does not need to understand the
-four Actual fact families in order to preserve their current production meaning.
-The existing production decoders remain the semantic authority after unwrap.
+If the executable qualification succeeds, typed framing has earned the status of
+representation-only transport for current production Actual sidecars on the
+public fixture. The existing production decoders remain semantic authority after
+unwrap.
 
-This earns the next question, not a migration: can one complete framed Actual
-image be staged and atomically replaced while preserving the existing practical
-read/write behavior on public filesystem fixtures?
+This still does not earn a production migration. The next question is whether one
+complete framed Actual image can be staged and atomically replaced while
+preserving current practical read/write behavior on public filesystem fixtures.
