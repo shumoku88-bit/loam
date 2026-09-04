@@ -1,0 +1,58 @@
+name: Observation 149
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation149.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/149_canonical_persistence_topology.md'
+      - '.github/workflows/observation-149-canonical-persistence-topology.yml'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/149-canonical-persistence-topology'
+      - main
+    paths:
+      - 'Loam/Observations/Observation149.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/149_canonical_persistence_topology.md'
+      - '.github/workflows/observation-149-canonical-persistence-topology.yml'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  topology:
+    name: Lean canonical persistence topology
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check canonical persistence topology
+        run: lake build Loam.Observations.Observation149
