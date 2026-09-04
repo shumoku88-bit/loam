@@ -9,6 +9,7 @@ on:
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/WriterOwnership.lean'
@@ -28,6 +29,7 @@ on:
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/WriterOwnership.lean'
@@ -164,10 +166,11 @@ jobs:
           CHANGE	rent	1000
           EOF
 
-          printf 'r\nscheduled-1\n2026-09-11\n\n950\n\n\n950\n\nb\n' \
+          printf 'r\nscheduled-1\n2026-09-11\n\n\n950\n\n\n950\n\nb\n' \
             | script -qefc ".lake/build/bin/loamOpenScheduled menu '$scheduled' '$memory'" /dev/null \
               >"$out"
 
+          grep -Fq 'Description (optional):' "$out"
           grep -Fq 'Press Enter to keep each scheduled movement value; type only what changed.' "$out"
           grep -Fq 'From locus [paypay] (Enter keeps, - removes):' "$out"
           grep -Fq 'From amount [1000]:' "$out"
