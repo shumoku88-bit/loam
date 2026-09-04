@@ -56,7 +56,7 @@ def VectorEquivalent {Coordinate : Type} [DecidableEq Coordinate]
   intro coordinate
   exact (h coordinate).symm
 
-@[trans] theorem vectorEquivalent_trans
+theorem vectorEquivalent_trans
     {Coordinate : Type} [DecidableEq Coordinate]
     {left middle right : List (MovementChange Coordinate)}
     (hLeft : VectorEquivalent left middle)
