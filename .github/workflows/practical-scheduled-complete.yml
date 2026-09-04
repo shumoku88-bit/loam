@@ -110,13 +110,13 @@ jobs:
           printf 'paypay\n950\n\nrent\n950\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-11 LOAM_DESCRIPTION='rent actual' \
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-1 \
-                >"$tmp/complete-1.out"
+                >"$tmp_dir/complete-1.out"
 
-          grep -Fq 'Scheduled completion' "$tmp/complete-1.out"
-          grep -Fq 'action: Complete' "$tmp/complete-1.out"
-          grep -Fq '[ok] Actual date: 2026-09-11' "$tmp/complete-1.out"
-          grep -Fq '[ok] Actual movement: 950 jpy' "$tmp/complete-1.out"
-          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' "$tmp/complete-1.out"
+          grep -Fq 'Scheduled completion' "$tmp_dir/complete-1.out"
+          grep -Fq 'action: Complete' "$tmp_dir/complete-1.out"
+          grep -Fq '[ok] Actual date: 2026-09-11' "$tmp_dir/complete-1.out"
+          grep -Fq '[ok] Actual movement: 950 jpy' "$tmp_dir/complete-1.out"
+          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' "$tmp_dir/complete-1.out"
 
           expected_completion=$'LOAM-SCHEDULED-COMPLETION-MEMORY\t1\nCOMPLETION\tscheduled-1\tscheduled-completion:scheduled-1'
           test "$(cat "$completions")" = "$expected_completion"
@@ -133,8 +133,8 @@ jobs:
             exit 1
           fi
 
-          ./tools/loam review "$memory" >"$tmp/review-1.out"
-          grep -Fq '2026-09-11  rent actual  [scheduled-completion:scheduled-1]' "$tmp/review-1.out"
+          ./tools/loam review "$memory" >"$tmp_dir/review-1.out"
+          grep -Fq '2026-09-11  rent actual  [scheduled-completion:scheduled-1]' "$tmp_dir/review-1.out"
           printf '%s\n' "$tmp_dir" > /tmp/loam-scheduled-complete-dir
 
       - name: Refuse a second completion without changing retained facts
