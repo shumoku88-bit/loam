@@ -1,0 +1,70 @@
+name: Practical Slice B
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/Core/ScheduledCompletion.lean'
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - '.github/workflows/practical-slice-b.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'feat/scheduled-commitment-headroom'
+      - main
+    paths:
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/Core/ScheduledCompletion.lean'
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - '.github/workflows/practical-slice-b.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-slice-b-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build Scheduled Commitment / Headroom boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Core Loam.Application
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Scheduled Commitment / Headroom practical story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
