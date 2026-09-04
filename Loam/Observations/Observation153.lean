@@ -162,17 +162,17 @@ private def framedMalformedEventPayloadIsRejected : Bool :=
 /-- The public sidecar fixture is already canonical under every production codec. -/
 theorem public_fixture_is_production_canonical :
     canonicalize? fixture = some fixture := by
-  decide
+  native_decide
 
 /-- Typed framing is byte-transparent for complete production sidecar payloads. -/
 theorem typed_sections_preserve_exact_sidecar_bytes :
     unpack? (pack fixture) = some fixture := by
-  decide
+  native_decide
 
 /-- The same production semantic projection is observed before and after framing. -/
 theorem typed_sections_preserve_production_projection :
     wrappedProjection? = productionProjection? fixture := by
-  decide
+  native_decide
 
 /-- The projection witness includes both EventCorrection endpoint admission and dates/text. -/
 theorem public_projection_witness :
@@ -188,11 +188,11 @@ theorem public_projection_witness :
       correctionCount := 1
       correctionsProject := true
     } := by
-  decide
+  native_decide
 
 /-- A valid outer frame cannot make an unsupported inner production version admissible. -/
 theorem framing_does_not_bypass_production_semantic_validation :
     framedMalformedEventPayloadIsRejected = true := by
-  decide
+  native_decide
 
 end Loam.Observation153
