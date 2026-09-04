@@ -3,6 +3,7 @@ import Loam.Persistence.EventDescriptionPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence
+import Loam.WriterOwnership
 
 namespace Loam.JournalExportCli
 
@@ -181,3 +182,16 @@ def exportJournal
                               return 0
 
 end Loam.JournalExportCli
+
+private def journalUsage : String :=
+  "Usage: loamJournalExport MEMORY_FILE CORRECTION_FILE OUTPUT_FILE"
+
+def main (args : List String) : IO UInt32 :=
+  match args with
+  | [memoryPath, correctionPath, outputPath] =>
+      Loam.WriterOwnership.withOwnership
+        (System.FilePath.mk memoryPath)
+        (Loam.JournalExportCli.exportJournal memoryPath correctionPath outputPath)
+  | _ => do
+      IO.eprintln journalUsage
+      return 2
