@@ -1,0 +1,116 @@
+name: Practical Capacity Effective Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityEffectivePersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-capacity-effective-persistence.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityEffectivePersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-capacity-effective-persistence.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-capacity-effective-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Persist and query dated Capacity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Capacity executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamCapacity
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Capacity effective persistence qualification
+        shell: bash
+        run: lake env lean --run Loam/Tests/CapacityEffectivePersistence.lean
+
+      - name: Exercise dated writer and half-open window
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          capacity="$tmpdir/capacity.loam"
+          effective="$capacity.effective"
+          rejected="$tmpdir/rejected.log"
+
+          printf 'unallocated\nfood\n100\n' | \
+            LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
+            .lake/build/bin/loamCapacity "$capacity"
+
+          printf 'food\ngroceries\n40\n' | \
+            LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-29 \
+            .lake/build/bin/loamCapacity "$capacity"
+
+          grep -Fx $'LOAM-CAPACITY-EFFECTIVE\t1' "$effective"
+          grep -Fx $'EFFECTIVE\tcapacity-1\t2026-08-17' "$effective"
+          grep -Fx $'EFFECTIVE\tcapacity-2\t2026-08-29' "$effective"
+
+          early="$(.lake/build/bin/loamCapacity show-window "$capacity" 2026-08-17 2026-08-29)"
+          printf '%s\n' "$early"
+          grep -F 'food: 100 jpy' <<<"$early"
+          grep -F 'groceries: 0 jpy' <<<"$early"
+
+          later="$(.lake/build/bin/loamCapacity show-window "$capacity" 2026-08-17 2026-08-30)"
+          printf '%s\n' "$later"
+          grep -F 'food: 60 jpy' <<<"$later"
+          grep -F 'groceries: 40 jpy' <<<"$later"
+
+          if .lake/build/bin/loamCapacity show-window \
+              "$capacity" 2026-02-29 2026-08-30 >"$rejected" 2>&1; then
+            echo 'invalid calendar window was admitted' >&2
+            exit 1
+          fi
+          grep -F 'real YYYY-MM-DD calendar dates' "$rejected"
+
+          mv "$effective" "$effective.saved"
+          if .lake/build/bin/loamCapacity show-window \
+              "$capacity" 2026-08-17 2026-08-30 >"$rejected" 2>&1; then
+            echo 'missing effective evidence was silently ignored' >&2
+            exit 1
+          fi
+          grep -F 'cannot project Capacity window' "$rejected"
