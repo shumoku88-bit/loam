@@ -1,6 +1,6 @@
 # Observation 155: Can one complete Actual image be published without mixed-generation visibility?
 
-Status: temporal and filesystem qualification only. No production unified-Actual writer is introduced here.
+Status: **QUALIFIED** by bounded TLA+ / TLC state exploration and one public same-filesystem runtime fixture. No production unified-Actual writer is introduced here.
 
 ## Pressure
 
@@ -58,39 +58,77 @@ The TLA+ model treats `Publish` as one atomic transition. That is the right abst
 
 The runtime fixture and TLA+ model answer different questions. Neither is treated as a substitute for the other.
 
-## Expected qualification
+## Observed qualification receipt
 
-Positive TLC model:
+TLA+ tools 1.7.4 / TLC 2.19 completed the positive model with no error:
 
 ```text
+17 states generated
+10 distinct states found
+0 states left on queue
+depth 6
 Model checking completed. No error has been found.
 ```
 
-Reachability checks:
+The partial-stage reachability boundary failed as intended after `BeginStage`:
 
 ```text
-NoPartialStageState  -> expected invariant counterexample
-NoPublishedState     -> expected invariant counterexample
+target = "old-image"
+stage = "partial-image"
+published = FALSE
 ```
 
-Direct-write comparison:
+The published-state reachability boundary failed as intended after the complete transition sequence:
 
 ```text
-ReadersSeeOnlyCompleteImages -> expected invariant counterexample
+old authority
+-> partial sibling stage
+-> complete sibling stage
+-> published new authority
 ```
 
-Filesystem fixture:
+with the final state:
 
 ```text
-old_reads > 0
-new_reads > 0
-partial_reads = 0
-interrupted_target = old
+target = "new-image"
+stage = "no-stage"
+published = TRUE
 ```
 
-## Boundary
+The direct-write comparison produced the intended three-state counterexample:
 
-Even if qualified, this observation does **not** claim:
+```text
+State 1: target = "old-image", observed = {}
+State 2: target = "partial-image", observed = {}
+State 3: target = "partial-image", observed = {"partial-image"}
+```
+
+so `ReadersSeeOnlyCompleteImages` is false for incremental authority-path mutation.
+
+The public filesystem fixture also passed:
+
+```text
+old_reads=704
+new_reads=8
+partial_reads=0
+interrupted_target=old
+```
+
+The exact old/new read counts are scheduler-dependent and carry no semantic meaning. The qualified result is that both complete generations were observed, no partial generation or target disappearance was observed, and an interrupted sibling stage left the authority target unchanged.
+
+## Qualified boundary
+
+Within this bounded temporal model and the exercised same-filesystem Ubuntu fixture, the surviving publication topology is:
+
+```text
+complete sibling image
+    + one same-filesystem authority replace
+    => no mixed-generation canonical visibility
+```
+
+The direct-write alternative does not survive the same reader-visibility law.
+
+This result does **not** claim:
 
 - that Observation 152/154 framing is now the production canonical format;
 - a production unified-Actual writer or migration;
@@ -100,12 +138,4 @@ Even if qualified, this observation does **not** claim:
 - safety when stage and target live on different filesystems;
 - anything about private canonical household bytes.
 
-It qualifies only the publication topology candidate:
-
-```text
-complete sibling image
-    + one same-filesystem authority replace
-    => no mixed-generation canonical visibility
-```
-
-If this survives both TLC and the filesystem fixture, the next production decision can ask whether one complete Actual authority file is actually simpler than retaining coordinated sidecars. That remains a separate design choice.
+The next production decision may now ask whether one complete Actual authority file is actually simpler than retaining coordinated sidecars. That remains a separate design choice, not a consequence smuggled into this observation.
