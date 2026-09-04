@@ -54,35 +54,35 @@ fun receivableOutstanding[w: World]: set Unit {
   householdReceivables[w] - w.settled
 }
 
-pred sameBasis[before: World, after: World] {
-  before != after
-  after.incurred = before.incurred
-  after.burden = before.burden
-  after.claims = before.claims
-  after.debtor = before.debtor
-  after.creditor = before.creditor
+pred sameBasis[pre: World, post: World] {
+  pre != post
+  post.incurred = pre.incurred
+  post.burden = pre.burden
+  post.claims = pre.claims
+  post.debtor = pre.debtor
+  post.creditor = pre.creditor
 }
 
-pred settleCore[before: World, after: World, u: Unit] {
-  sameBasis[before, after]
-  u in before.claims - before.settled
-  after.settled = before.settled + u
+pred settleCore[pre: World, post: World, u: Unit] {
+  sameBasis[pre, post]
+  u in pre.claims - pre.settled
+  post.settled = pre.settled + u
 }
 
-pred settleHouseholdPayable[before: World, after: World, u: Unit] {
-  settleCore[before, after, u]
-  before.debtor[u] = Household
-  before.creditor[u] != Household
-  after.cashOut = before.cashOut + u
-  after.cashIn = before.cashIn
+pred settleHouseholdPayable[pre: World, post: World, u: Unit] {
+  settleCore[pre, post, u]
+  pre.debtor[u] = Household
+  pre.creditor[u] != Household
+  post.cashOut = pre.cashOut + u
+  post.cashIn = pre.cashIn
 }
 
-pred settleHouseholdReceivable[before: World, after: World, u: Unit] {
-  settleCore[before, after, u]
-  before.creditor[u] = Household
-  before.debtor[u] != Household
-  after.cashIn = before.cashIn + u
-  after.cashOut = before.cashOut
+pred settleHouseholdReceivable[pre: World, post: World, u: Unit] {
+  settleCore[pre, post, u]
+  pre.creditor[u] = Household
+  pre.debtor[u] != Household
+  post.cashIn = pre.cashIn + u
+  post.cashOut = pre.cashOut
 }
 
 pred sharedCostOpenWitness {
@@ -125,51 +125,51 @@ pred cardPurchaseOpenWitness {
 }
 
 pred sameSettlementCoreOppositeDirections {
-  some sharedBefore, sharedAfter, cardBefore, cardAfter: World,
+  some sharedPre, sharedPost, cardPre, cardPost: World,
        sharedUnit, cardUnit: Unit | {
-    sharedBefore != sharedAfter
-    cardBefore != cardAfter
+    sharedPre != sharedPost
+    cardPre != cardPost
     sharedUnit != cardUnit
 
-    sharedUnit in sharedBefore.claims
-    sharedUnit not in sharedBefore.burden
-    sharedBefore.debtor[sharedUnit] = Friend
-    sharedBefore.creditor[sharedUnit] = Household
-    sharedBefore.cashOut = sharedBefore.incurred
-    no sharedBefore.cashIn
-    no sharedBefore.settled
-    settleHouseholdReceivable[sharedBefore, sharedAfter, sharedUnit]
+    sharedUnit in sharedPre.claims
+    sharedUnit not in sharedPre.burden
+    sharedPre.debtor[sharedUnit] = Friend
+    sharedPre.creditor[sharedUnit] = Household
+    sharedPre.cashOut = sharedPre.incurred
+    no sharedPre.cashIn
+    no sharedPre.settled
+    settleHouseholdReceivable[sharedPre, sharedPost, sharedUnit]
 
-    cardUnit in cardBefore.claims
-    cardUnit in cardBefore.burden
-    cardBefore.debtor[cardUnit] = Household
-    cardBefore.creditor[cardUnit] = CardIssuer
-    no cardBefore.cashOut
-    no cardBefore.cashIn
-    no cardBefore.settled
-    settleHouseholdPayable[cardBefore, cardAfter, cardUnit]
+    cardUnit in cardPre.claims
+    cardUnit in cardPre.burden
+    cardPre.debtor[cardUnit] = Household
+    cardPre.creditor[cardUnit] = CardIssuer
+    no cardPre.cashOut
+    no cardPre.cashIn
+    no cardPre.settled
+    settleHouseholdPayable[cardPre, cardPost, cardUnit]
   }
 }
 
 pred cardSettlementChangesCashNotBurden {
-  some before, after: World, u: Unit | {
-    #before.incurred = 1
-    before.burden = before.incurred
-    before.claims = before.incurred
-    no before.settled
-    no before.cashOut
-    no before.cashIn
-    before.debtor[u] = Household
-    before.creditor[u] = CardIssuer
-    u in before.claims
+  some pre, post: World, u: Unit | {
+    #pre.incurred = 1
+    pre.burden = pre.incurred
+    pre.claims = pre.incurred
+    no pre.settled
+    no pre.cashOut
+    no pre.cashIn
+    pre.debtor[u] = Household
+    pre.creditor[u] = CardIssuer
+    u in pre.claims
 
-    settleHouseholdPayable[before, after, u]
+    settleHouseholdPayable[pre, post, u]
 
-    before.burden = after.burden
-    u not in before.cashOut
-    u in after.cashOut
-    #payableOutstanding[before] = 1
-    #payableOutstanding[after] = 0
+    pre.burden = post.burden
+    u not in pre.cashOut
+    u in post.cashOut
+    #payableOutstanding[pre] = 1
+    #payableOutstanding[post] = 0
   }
 }
 
@@ -192,15 +192,15 @@ assert ObligationConservation {
 }
 
 assert SettlementCorePreservesBurden {
-  all before, after: World, u: Unit |
-    settleCore[before, after, u] implies
-      after.burden = before.burden
+  all pre, post: World, u: Unit |
+    settleCore[pre, post, u] implies
+      post.burden = pre.burden
 }
 
 assert SettlementDischargesExactlyOneClaim {
-  all before, after: World, u: Unit |
-    settleCore[before, after, u] implies
-      after.claims - after.settled = (before.claims - before.settled) - u
+  all pre, post: World, u: Unit |
+    settleCore[pre, post, u] implies
+      post.claims - post.settled = (pre.claims - pre.settled) - u
 }
 
 run sharedCostOpenWitness for 6 but exactly 3 Party, 4 Unit, 2 World
