@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/ActualDate.lean'
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
@@ -23,6 +24,7 @@ on:
   push:
     paths:
       - 'Loam/ActualDate.lean'
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/CompletionPrompt.lean'
@@ -88,19 +90,20 @@ jobs:
           grep -Fq 'movement: 1000 jpy' /tmp/loam-movement.out
           grep -Fq 'date: 2026-09-02' /tmp/loam-movement.out
           grep -Fq 'event: record-1' /tmp/loam-movement.out
-          grep -Fq 'validity fact: validity-1' /tmp/loam-movement.out
           grep -Fq '[ok] movement totals agree' /tmp/loam-movement.out
           grep -Fq '[ok] effect identities admitted' /tmp/loam-movement.out
           grep -Fq '[ok] Event identity admitted in memory' /tmp/loam-movement.out
-          grep -Fq '[ok] validity fact identity admitted in retained history' /tmp/loam-movement.out
+          grep -Fq '[ok] occurrence-date evidence admitted' /tmp/loam-movement.out
+          ! grep -Fq 'validity fact:' /tmp/loam-movement.out
           grep -Fq 'ready to publish' /tmp/loam-movement.out
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
 
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
           test "$(cat "$memory")" = "$expected"
 
-          expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t2026-09-02'
+          expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-02'
           test "$(cat "$validity")" = "$expected_validity"
+          ! grep -q 'validity-1' "$validity"
 
           ./tools/loam review "$memory" >/tmp/loam-review.out
           grep -Fq '2026-09-02  [record-1]' /tmp/loam-review.out
@@ -145,17 +148,20 @@ jobs:
             | LOAM_OCCURRENCE_DATE=2026-09-02 timeout 15 \
                 ./tools/loam-movement "$memory" >"$second_out"
           grep -Fq 'event: record-1' "$second_out"
-          grep -Fq 'validity fact: validity-1' "$second_out"
+          grep -Fq '[ok] occurrence-date evidence admitted' "$second_out"
 
           printf '2\n\ncoffee\n2\n\n' >&3
           exec 3>&-
           wait "$first_pid"
 
           grep -Fq 'event: record-2' "$first_out"
-          grep -Fq 'validity fact: validity-2' "$first_out"
+          grep -Fq '[ok] occurrence-date evidence admitted' "$first_out"
           grep -Fq 'Recorded movement: 2 jpy. Date: 2026-09-02.' "$first_out"
           grep -Fq $'EVENT\trecord-1' "$memory"
           grep -Fq $'EVENT\trecord-2' "$memory"
+          grep -Fq $'BASE\trecord-1\t2026-09-02' "$memory.actual-validity"
+          grep -Fq $'BASE\trecord-2\t2026-09-02' "$memory.actual-validity"
+          ! grep -q $'FACT\t' "$memory.actual-validity"
 
       - name: Scripted primary menu defaults to host-local today
         shell: bash
@@ -171,7 +177,7 @@ jobs:
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
           test "$(cat "$data_dir/memory.loam")" = "$expected"
 
-          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-HISTORY\t1\nFACT\tvalidity-1\trecord-1\t%s' "$today")"
+          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t%s' "$today")"
           test "$(cat "$data_dir/memory.loam.actual-validity")" = "$expected_validity"
 
       - name: Older undated records remain visible without guessed dates
