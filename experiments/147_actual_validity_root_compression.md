@@ -91,9 +91,61 @@ The specimens cover:
 
 The file also models the physical rewrite boundary. Existing ActualValidity persistence already writes a complete sibling stage file and performs one rename. A future V1-to-V2 rewrite of this **single canonical stream** can therefore expose either the complete old image or complete new image at the canonical path, not a mixed row generation. This does not earn another multi-file transaction layer.
 
-## What a positive result would earn
+## Observed result
 
-If the exact-head Lean qualification succeeds, the next production slice may be kept narrow:
+The dedicated Observation 147 Lean build completed successfully after two proof-shape-only fixes: first binding the polymorphic `Time` parameter explicitly under `autoImplicit false`, then replacing proposition-level matches with small decidable observation functions. Neither fix changed the candidate representation or migration rule.
+
+The qualified synthetic results are:
+
+```text
+uncorrected
+  legacy current       = A
+  rooted current       = A
+  retained revisions   = 0
+  initial FactId kept  = false
+
+one correction A -> B
+  legacy current       = B
+  rooted current       = B
+  retained revisions   = 1
+  initial FactId kept  = false
+  replacement id kept  = true
+
+return A -> B -> A
+  legacy current       = A
+  rooted current       = A
+  retained revisions   = 2
+  initial FactId kept  = false
+  both later ids kept  = true
+
+reordered storage
+  selected source fact = same root
+  rooted current       = same answer
+
+invalid V1 histories
+  sibling target       = refused
+  dangling endpoint    = refused
+  cross-Event replace  = refused
+  cycle                = refused
+```
+
+The multiple-Event specimen also preserves both independent current answers.
+
+The result therefore supports the narrower identity law:
+
+```text
+initial occurrence identity
+    = EventId
+
+later temporal revision identity
+    = allocated only when correction occurs
+```
+
+It does **not** support removing temporal revision identity altogether.
+
+## Earned next production slice
+
+The next production slice may be kept narrow:
 
 1. introduce a rooted ActualValidity persistence shape (V2);
 2. add an explicit V1 -> V2 converter that first requires current V1 admission;
@@ -103,4 +155,4 @@ If the exact-head Lean qualification succeeds, the next production slice may be 
 6. convert canonical data only after a dry-run proves current-date parity and exact reference closure;
 7. retire V1 compatibility after the canonical conversion rather than preserving migration machinery forever.
 
-A positive result would **not** earn re-keying EventId/EffectKey, removal of revision identity, removal of correction identity, mutation-in-place of historical dates, or last-write-wins semantics.
+The result does **not** earn re-keying EventId/EffectKey, removal of revision identity, removal of correction identity, mutation-in-place of historical dates, or last-write-wins semantics.
