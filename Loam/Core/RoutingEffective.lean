@@ -77,7 +77,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
   le_refl value := by
     cases value with
     | initial => trivial
-    | dated time => exact baseLeRefl time
+    | dated time => exact baseLeRefl (Time := Time) time
   le_trans left middle right hLeftMiddle hMiddleRight := by
     cases left with
     | initial => trivial
@@ -87,7 +87,8 @@ instance [LE Time] [Std.IsLinearOrder Time] :
         | dated middleTime =>
             cases right with
             | initial => exact False.elim hMiddleRight
-            | dated rightTime => exact baseLeTrans hLeftMiddle hMiddleRight
+            | dated rightTime =>
+                exact baseLeTrans (Time := Time) hLeftMiddle hMiddleRight
   le_antisymm left right hLeftRight hRightLeft := by
     cases left with
     | initial =>
@@ -98,7 +99,8 @@ instance [LE Time] [Std.IsLinearOrder Time] :
         cases right with
         | initial => exact False.elim hLeftRight
         | dated rightTime =>
-            have hTime : leftTime = rightTime := baseLeAntisymm hLeftRight hRightLeft
+            have hTime : leftTime = rightTime :=
+              baseLeAntisymm (Time := Time) hLeftRight hRightLeft
             cases hTime
             rfl
   le_total left right := by
@@ -107,7 +109,7 @@ instance [LE Time] [Std.IsLinearOrder Time] :
     | dated leftTime =>
         cases right with
         | initial => exact Or.inr trivial
-        | dated rightTime => exact baseLeTotal leftTime rightTime
+        | dated rightTime => exact baseLeTotal (Time := Time) leftTime rightTime
 
 @[simp] theorem initial_le [LE Time] (value : RoutingEffective Time) :
     (RoutingEffective.initial : RoutingEffective Time) ≤ value := by
