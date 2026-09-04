@@ -7,6 +7,8 @@ open Loam.Application
 
 set_option autoImplicit false
 
+variable {Time : Type}
+
 /-!
 # Observation 147 — ActualValidity root compression
 
