@@ -101,7 +101,7 @@ private def validSectionOrder (sections : List (SectionTag × List Nat)) : Bool 
 private def payloadFor?
     (sections : List (SectionTag × List Nat))
     (tag : SectionTag) : Option (List Nat) :=
-  match sections.find? (fun section => decide (section.1 = tag)) with
+  match sections.find? (fun entry => decide (entry.1 = tag)) with
   | some (_, payload) => some payload
   | none => none
 
@@ -235,9 +235,8 @@ private def projection (actual : SyntheticActual) : Nat × Nat × Nat × Option 
 
 /-- Decode after canonical encode preserves a representative derived projection. -/
 theorem projection_parity_after_roundtrip :
-    match decode (encode samplePresentCorrection) with
-    | some decoded => projection decoded = projection samplePresentCorrection
-    | none => False := by
+    (decode (encode samplePresentCorrection)).map projection =
+      some (projection samplePresentCorrection) := by
   decide
 
 end Loam.Observation152
