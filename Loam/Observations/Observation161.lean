@@ -21,7 +21,7 @@ theorem must inhabit that contract proposition.
 
 /-- The proof-bearing theorem produced by the observation implementation. -/
 theorem observed_balance : ExpectedClaim := by
-  decide
+  rfl
 
 /--
 Mechanical statement alignment: if `observed_balance` is changed to prove an
