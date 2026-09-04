@@ -3,6 +3,7 @@ name: Practical Open Scheduled
 on:
   pull_request:
     paths:
+      - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
@@ -19,6 +20,7 @@ on:
       - '.github/workflows/practical-open-scheduled.yml'
   push:
     paths:
+      - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Core/EventMemory.lean'
       - 'Loam/Core/Scheduled.lean'
