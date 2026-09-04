@@ -3,6 +3,7 @@ name: Practical Scheduled Complete
 on:
   pull_request:
     paths:
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/ScheduledCompletionUi.lean'
@@ -24,6 +25,7 @@ on:
       - '.github/workflows/practical-scheduled-complete.yml'
   push:
     paths:
+      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/ScheduledCompletionUi.lean'
@@ -75,6 +77,7 @@ jobs:
       - name: Complete with Actual content independent from expectation
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(mktemp -d)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -107,28 +110,21 @@ jobs:
           printf 'paypay\n950\n\nrent\n950\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-11 LOAM_DESCRIPTION='rent actual' \
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-1 \
-                >/tmp/loam-scheduled-complete-1.out
+                >"$tmp/complete-1.out"
 
-          grep -Fq 'Scheduled completion' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'action: Complete' /tmp/loam-scheduled-complete-1.out
-          grep -Fq '[?] Actual date' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'outstanding: Actual date, Actual movement' /tmp/loam-scheduled-complete-1.out
-          grep -Fq '[ok] Actual date: 2026-09-11' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'outstanding: Actual movement' /tmp/loam-scheduled-complete-1.out
-          grep -Fq '[ok] Actual movement: 950 jpy' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'ready to request admission' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'scheduled-1' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'paypay: -1000 jpy' /tmp/loam-scheduled-complete-1.out
-          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' \
-            /tmp/loam-scheduled-complete-1.out
+          grep -Fq 'Scheduled completion' "$tmp/complete-1.out"
+          grep -Fq 'action: Complete' "$tmp/complete-1.out"
+          grep -Fq '[ok] Actual date: 2026-09-11' "$tmp/complete-1.out"
+          grep -Fq '[ok] Actual movement: 950 jpy' "$tmp/complete-1.out"
+          grep -Fq 'Completed scheduled movement: scheduled-1 -> scheduled-completion:scheduled-1, 950 jpy. Date: 2026-09-11.' "$tmp/complete-1.out"
 
           expected_completion=$'LOAM-SCHEDULED-COMPLETION-MEMORY\t1\nCOMPLETION\tscheduled-1\tscheduled-completion:scheduled-1'
           test "$(cat "$completions")" = "$expected_completion"
-
           expected_description=$'LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tscheduled-completion:scheduled-1\trent actual'
           test "$(cat "$descriptions")" = "$expected_description"
-
-          grep -Fq $'FACT\tscheduled-completion-validity:scheduled-1\tscheduled-completion:scheduled-1\t2026-09-11' "$validity"
+          grep -Fxq $'LOAM-ACTUAL-VALIDITY-HISTORY\t2' "$validity"
+          grep -Fxq $'BASE\tscheduled-completion:scheduled-1\t2026-09-11' "$validity"
+          ! grep -q 'scheduled-completion-validity:scheduled-1' "$validity"
           grep -Fq $'EVENT\tscheduled-completion:scheduled-1' "$memory"
           grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-950' "$memory"
           grep -Fq $'EFFECT\teffect-2\trent\tjpy\t950' "$memory"
@@ -137,15 +133,14 @@ jobs:
             exit 1
           fi
 
-          ./tools/loam review "$memory" >/tmp/loam-scheduled-complete-review.out
-          grep -Fq '2026-09-11  rent actual  [scheduled-completion:scheduled-1]' \
-            /tmp/loam-scheduled-complete-review.out
-
+          ./tools/loam review "$memory" >"$tmp/review-1.out"
+          grep -Fq '2026-09-11  rent actual  [scheduled-completion:scheduled-1]' "$tmp/review-1.out"
           printf '%s\n' "$tmp_dir" > /tmp/loam-scheduled-complete-dir
 
       - name: Refuse a second completion without changing retained facts
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -155,21 +150,21 @@ jobs:
 
           before="$(sha256sum "$memory" "$completions" "$validity" "$descriptions")"
           if ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-1 \
-              >/tmp/loam-scheduled-complete-repeat.out 2>/tmp/loam-scheduled-complete-repeat.err; then
+              >"$tmp_dir/repeat.out" 2>"$tmp_dir/repeat.err"; then
             echo 'expected second completion to be refused' >&2
             exit 1
           else
             status=$?
           fi
           test "$status" = '1'
-          grep -Fq 'Scheduled movement already completed: scheduled-1 -> scheduled-completion:scheduled-1.' \
-            /tmp/loam-scheduled-complete-repeat.out
+          grep -Fq 'Scheduled movement already completed: scheduled-1 -> scheduled-completion:scheduled-1.' "$tmp_dir/repeat.out"
           after="$(sha256sum "$memory" "$completions" "$validity" "$descriptions")"
           test "$before" = "$after"
 
       - name: Recover from relation-only interrupted publication
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -185,20 +180,20 @@ jobs:
           printf 'paypay\n700\n\nutilities\n700\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-16 \
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-2 \
-                >/tmp/loam-scheduled-complete-2.out
+                >"$tmp_dir/complete-2.out"
 
-          grep -Fq 'action: Resume completion' /tmp/loam-scheduled-complete-2.out
-          grep -Fq '[ok] completion relation retained' /tmp/loam-scheduled-complete-2.out
-          grep -Fq 'outstanding: Actual date, Actual movement' /tmp/loam-scheduled-complete-2.out
-          grep -Fq 'Completed scheduled movement: scheduled-2 -> scheduled-completion:scheduled-2, 700 jpy. Date: 2026-09-16.' \
-            /tmp/loam-scheduled-complete-2.out
+          grep -Fq 'action: Resume completion' "$tmp_dir/complete-2.out"
+          grep -Fq '[ok] completion relation retained' "$tmp_dir/complete-2.out"
+          grep -Fq 'Completed scheduled movement: scheduled-2 -> scheduled-completion:scheduled-2, 700 jpy. Date: 2026-09-16.' "$tmp_dir/complete-2.out"
           test "$(grep -Fc $'COMPLETION\tscheduled-2\tscheduled-completion:scheduled-2' "$completions")" = '1'
-          grep -Fq $'FACT\tscheduled-completion-validity:scheduled-2\tscheduled-completion:scheduled-2\t2026-09-16' "$validity"
+          grep -Fxq $'BASE\tscheduled-completion:scheduled-2\t2026-09-16' "$validity"
+          ! grep -q 'scheduled-completion-validity:scheduled-2' "$validity"
           grep -Fq $'EVENT\tscheduled-completion:scheduled-2' "$memory"
 
       - name: Recover from relation-and-date interrupted publication
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -212,22 +207,19 @@ jobs:
           COMPLETION	scheduled-3	scheduled-completion:scheduled-3
           EOF
           cat >>"$validity" <<'EOF'
-          FACT	scheduled-completion-validity:scheduled-3	scheduled-completion:scheduled-3	2026-09-21
+          BASE	scheduled-completion:scheduled-3	2026-09-21
           EOF
 
           printf 'yucho\n2800\n\ninvestment\n2800\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-30 \
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-3 \
-                >/tmp/loam-scheduled-complete-3.out
+                >"$tmp_dir/complete-3.out"
 
-          grep -Fq 'action: Resume completion' /tmp/loam-scheduled-complete-3.out
-          grep -Fq '[ok] Actual date: 2026-09-21 (retained)' /tmp/loam-scheduled-complete-3.out
-          grep -Fq 'outstanding: Actual movement' /tmp/loam-scheduled-complete-3.out
-          grep -Fq 'Using retained Actual date from interrupted completion: 2026-09-21' \
-            /tmp/loam-scheduled-complete-3.out
-          grep -Fq 'Completed scheduled movement: scheduled-3 -> scheduled-completion:scheduled-3, 2800 jpy. Date: 2026-09-21.' \
-            /tmp/loam-scheduled-complete-3.out
-          test "$(grep -Fc $'FACT\tscheduled-completion-validity:scheduled-3\tscheduled-completion:scheduled-3\t2026-09-21' "$validity")" = '1'
+          grep -Fq 'action: Resume completion' "$tmp_dir/complete-3.out"
+          grep -Fq '[ok] Actual date: 2026-09-21 (retained)' "$tmp_dir/complete-3.out"
+          grep -Fq 'Using retained Actual date from interrupted completion: 2026-09-21' "$tmp_dir/complete-3.out"
+          grep -Fq 'Completed scheduled movement: scheduled-3 -> scheduled-completion:scheduled-3, 2800 jpy. Date: 2026-09-21.' "$tmp_dir/complete-3.out"
+          test "$(grep -Fc $'BASE\tscheduled-completion:scheduled-3\t2026-09-21' "$validity")" = '1'
           if grep -Fq '2026-09-30' "$validity"; then
             echo 'retry replaced retained completion date' >&2
             exit 1
@@ -236,6 +228,7 @@ jobs:
       - name: Recover from relation-date-description interrupted publication
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -247,7 +240,7 @@ jobs:
           COMPLETION	scheduled-6	scheduled-completion:scheduled-6
           EOF
           cat >>"$validity" <<'EOF'
-          FACT	scheduled-completion-validity:scheduled-6	scheduled-completion:scheduled-6	2026-09-30
+          BASE	scheduled-completion:scheduled-6	2026-09-30
           EOF
           cat >>"$descriptions" <<'EOF'
           DESC	scheduled-completion:scheduled-6	retained insurance actual
@@ -256,17 +249,14 @@ jobs:
           printf 'paypay\n620\n\ninsurance\n620\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-10-01 LOAM_DESCRIPTION='attempted replacement' \
               ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-6 \
-                >/tmp/loam-scheduled-complete-6.out
+                >"$tmp_dir/complete-6.out"
 
-          grep -Fq 'action: Resume completion' /tmp/loam-scheduled-complete-6.out
-          grep -Fq '[ok] completion relation retained' /tmp/loam-scheduled-complete-6.out
-          grep -Fq '[ok] Actual date: 2026-09-30 (retained)' /tmp/loam-scheduled-complete-6.out
-          grep -Fq 'Using retained Actual date from interrupted completion: 2026-09-30' \
-            /tmp/loam-scheduled-complete-6.out
-          grep -Fq 'Using retained Actual description from interrupted completion: retained insurance actual' \
-            /tmp/loam-scheduled-complete-6.out
-          grep -Fq 'Completed scheduled movement: scheduled-6 -> scheduled-completion:scheduled-6, 620 jpy. Date: 2026-09-30.' \
-            /tmp/loam-scheduled-complete-6.out
+          grep -Fq 'action: Resume completion' "$tmp_dir/complete-6.out"
+          grep -Fq '[ok] completion relation retained' "$tmp_dir/complete-6.out"
+          grep -Fq '[ok] Actual date: 2026-09-30 (retained)' "$tmp_dir/complete-6.out"
+          grep -Fq 'Using retained Actual date from interrupted completion: 2026-09-30' "$tmp_dir/complete-6.out"
+          grep -Fq 'Using retained Actual description from interrupted completion: retained insurance actual' "$tmp_dir/complete-6.out"
+          grep -Fq 'Completed scheduled movement: scheduled-6 -> scheduled-completion:scheduled-6, 620 jpy. Date: 2026-09-30.' "$tmp_dir/complete-6.out"
           test "$(grep -Fc $'DESC\tscheduled-completion:scheduled-6\tretained insurance actual' "$descriptions")" = '1'
           if grep -Fq 'attempted replacement' "$descriptions"; then
             echo 'retry replaced retained completion description' >&2
@@ -328,8 +318,7 @@ jobs:
             status=$?
           fi
           test "$status" = '1'
-          grep -Fq 'Scheduled movement changed while the completion draft was open: scheduled-5 is now cancelled.' \
-            "$complete_out"
+          grep -Fq 'Scheduled movement changed while the completion draft was open: scheduled-5 is now cancelled.' "$complete_out"
           grep -Fq $'RETIREMENT\tscheduled-5' "$retirements"
           if grep -Fq $'COMPLETION\tscheduled-5\t' "$completions"; then
             echo 'stale completion relation was published after cancellation' >&2
@@ -343,6 +332,7 @@ jobs:
       - name: Refuse deterministic completion Event-id collision
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(cat /tmp/loam-scheduled-complete-dir)"
           scheduled="$tmp_dir/scheduled.loam"
           memory="$tmp_dir/memory.loam"
@@ -354,12 +344,11 @@ jobs:
           EOF
 
           if ./tools/loam scheduled complete "$scheduled" "$memory" scheduled-4 \
-              >/tmp/loam-scheduled-complete-collision.out 2>/tmp/loam-scheduled-complete-collision.err; then
+              >"$tmp_dir/collision.out" 2>"$tmp_dir/collision.err"; then
             echo 'expected completion Event-id collision to fail closed' >&2
             exit 1
           else
             status=$?
           fi
           test "$status" = '2'
-          grep -Fq 'completion Event identity already exists without the expected completion relation' \
-            /tmp/loam-scheduled-complete-collision.err
+          grep -Fq 'completion Event identity already exists without the expected completion relation' "$tmp_dir/collision.err"
