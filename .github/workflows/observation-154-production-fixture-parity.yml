@@ -1,0 +1,65 @@
+name: Observation 154
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tests/Observation154ProductionFixtureParity.lean'
+      - 'Loam/Observations/Observation152.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'experiments/154_production_fixture_parity.md'
+      - '.github/workflows/observation-154-production-fixture-parity.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Tests/Observation154ProductionFixtureParity.lean'
+      - 'Loam/Observations/Observation152.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'experiments/154_production_fixture_parity.md'
+      - '.github/workflows/observation-154-production-fixture-parity.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-fixture-parity:
+    name: Production fixture parity through typed sections
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build runtime dependencies
+        run: |
+          lake build \
+            Loam.Observations.Observation152 \
+            Loam.Application.ActualValidityFrontier \
+            Loam.Persistence.ActualValidityPersistence \
+            Loam.Persistence.EventDescriptionPersistence
+
+      - name: Execute production fixture parity
+        run: lake env lean --run Loam/Tests/Observation154ProductionFixtureParity.lean
