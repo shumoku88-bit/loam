@@ -21,7 +21,7 @@ def actualValidityHistoryHeaderV1 : String := "LOAM-ACTUAL-VALIDITY-HISTORY\t1"
 /-- Event-rooted format: initial dates have no independently stored identity. -/
 def actualValidityHistoryHeaderV2 : String := "LOAM-ACTUAL-VALIDITY-HISTORY\t2"
 
-/-- Backward-compatible name for code that intentionally emits the historical V1 image. -/
+/-- Backward-compatible name for code that intentionally reasons about V1 text. -/
 def actualValidityHistoryHeader : String := actualValidityHistoryHeaderV1
 
 /--
@@ -92,6 +92,39 @@ private def isReplacementId
     (history : ActualValidityHistory String)
     (id : ActualValidityFactId) : Bool :=
   history.corrections.any fun correction => decide (correction.replacement = id)
+
+private def idForV2Fact
+    (history : ActualValidityHistory String)
+    (fact : ActualValidityFact String) : ActualValidityFactId :=
+  if isReplacementId history fact.id then
+    fact.id
+  else
+    Loam.ActualValidityV2.rootFactId fact.event
+
+private def idForV2Existing?
+    (history : ActualValidityHistory String)
+    (id : ActualValidityFactId) : Option ActualValidityFactId := do
+  let fact ← history.findFactById? id
+  pure (idForV2Fact history fact)
+
+/--
+Normalize only identity representation before a V2 write. Initial/source facts
+receive Event-derived adapter ids; replacement facts keep their actual revision
+ids. No current-date winner is inferred here and list order has no authority.
+-/
+private def normalizeHistoryForV2?
+    (history : ActualValidityHistory String) : Option (ActualValidityHistory String) := do
+  let facts := history.facts.map fun fact =>
+    { fact with id := idForV2Fact history fact }
+  let corrections ← history.corrections.mapM fun correction => do
+    let target ← idForV2Existing? history correction.target
+    let replacement ← idForV2Existing? history correction.replacement
+    pure {
+      id := correction.id
+      target := target
+      replacement := replacement
+    }
+  ActualValidityHistory.ofParts? facts corrections
 
 private def v2Compatible (history : ActualValidityHistory String) : Bool :=
   history.facts.all fun fact =>
@@ -243,32 +276,63 @@ private def saveEncoded
       IO.FS.rename stagePath path
       return true
 
-/-- Historical V1 writer retained for explicit compatibility and old publisher qualification. -/
-def saveActualValidityHistory?
+/-- Explicit historical V1 writer used only when the selected physical generation is V1. -/
+def saveActualValidityHistoryV1?
     (path : System.FilePath)
     (history : ActualValidityHistory String) : IO Bool :=
   saveEncoded path (encodeActualValidityHistoryV1? history)
 
-/-- Publish one complete Event-rooted V2 image through the existing stage+rename boundary. -/
+/--
+Publish one complete Event-rooted V2 image through the existing stage+rename
+boundary. Source ids supplied by old practical writers are normalized away;
+only correction-created replacement identity survives serialization.
+-/
 def saveActualValidityHistoryV2?
     (path : System.FilePath)
-    (history : ActualValidityHistory String) : IO Bool :=
-  saveEncoded path (encodeActualValidityHistoryV2? history)
-
-/-- Preserve the physical generation selected by the caller. -/
-def saveActualValidityHistoryForVersion?
-    (version : ActualValidityStorageVersion)
-    (path : System.FilePath)
-    (history : ActualValidityHistory String) : IO Bool :=
-  match version with
-  | .v1 => saveActualValidityHistory? path history
-  | .v2 => saveActualValidityHistoryV2? path history
+    (history : ActualValidityHistory String) : IO Bool := do
+  match normalizeHistoryForV2? history with
+  | none => return false
+  | some normalized =>
+      saveEncoded path (encodeActualValidityHistoryV2? normalized)
 
 /-- Load retained occurrence-date provenance and physical generation. -/
 def loadActualValidityHistoryWithVersion?
     (path : System.FilePath) : IO (Option (ActualValidityStorageVersion × ActualValidityHistory String)) := do
   let input ← IO.FS.readFile path
   return decodeActualValidityHistoryWithVersion? input
+
+private def storageVersionAt?
+    (path : System.FilePath) : IO (Option ActualValidityStorageVersion) := do
+  if ← path.pathExists then
+    match ← loadActualValidityHistoryWithVersion? path with
+    | none => return none
+    | some (version, _) => return some version
+  else
+    return some .v2
+
+/-- Preserve an explicitly selected physical generation. -/
+def saveActualValidityHistoryForVersion?
+    (version : ActualValidityStorageVersion)
+    (path : System.FilePath)
+    (history : ActualValidityHistory String) : IO Bool :=
+  match version with
+  | .v1 => saveActualValidityHistoryV1? path history
+  | .v2 => saveActualValidityHistoryV2? path history
+
+/--
+Ordinary practical writer boundary.
+
+Existing V1 stays V1 until the explicit converter runs. Existing V2 stays V2.
+A missing stream starts directly as V2. This keeps migration authority explicit
+while allowing all existing practical entrances to preserve the selected format
+without carrying V1/V2 branches themselves.
+-/
+def saveActualValidityHistory?
+    (path : System.FilePath)
+    (history : ActualValidityHistory String) : IO Bool := do
+  match ← storageVersionAt? path with
+  | none => return false
+  | some version => saveActualValidityHistoryForVersion? version path history
 
 /-- Load retained occurrence-date provenance; malformed content fails closed. -/
 def loadActualValidityHistory?
