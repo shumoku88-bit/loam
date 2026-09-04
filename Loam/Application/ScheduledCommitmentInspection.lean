@@ -78,28 +78,45 @@ private def inEndExclusiveHorizon
     (scheduledOn endExclusive : Time) : Bool :=
   decide (scheduledOn ≤ endExclusive ∧ scheduledOn ≠ endExclusive)
 
-private def addPositiveScheduledChange
+private def addLocusIfAbsent
+    (loci : List LocusId)
+    (locus : LocusId) : List LocusId :=
+  if locus ∈ loci then loci else loci ++ [locus]
+
+/--
+Recover each represented Locus once. `BalancedMovement` may retain repeated
+changes at one Locus; the routing subject qualified by Observation 153 is the
+aggregated `ScheduledId × LocusId` coordinate, not an individual raw change row.
+-/
+private def scheduledLoci
+    (occurrence : ScheduledOccurrence Time) : List LocusId :=
+  occurrence.movement.changes.foldl
+    (fun loci change => addLocusIfAbsent loci change.coordinate)
+    []
+
+private def addPositiveScheduledLocus
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (observedAt : Time)
     (occurrence : ScheduledOccurrence Time)
     (total : CommitmentQuanta)
-    (change : MovementChange LocusId) : CommitmentQuanta :=
-  if change.quantity.quanta ≤ 0 then
+    (locus : LocusId) : CommitmentQuanta :=
+  let quantity := occurrence.quantityAt locus
+  if quantity.quanta ≤ 0 then
     total
   else
     let subject : ScheduledRoutingSubject :=
-      { scheduled := occurrence.id, locus := change.coordinate }
+      { scheduled := occurrence.id, locus := locus }
     match routing.statusAt subject observedAt with
     | .managed routedPurpose =>
         if routedPurpose = purpose then
-          { total with managed := total.managed + change.quantity.quanta }
+          { total with managed := total.managed + quantity.quanta }
         else
           total
     | .unmanaged =>
-        { total with unmanaged := total.unmanaged + change.quantity.quanta }
+        { total with unmanaged := total.unmanaged + quantity.quanta }
     | .unrouted =>
-        { total with unrouted := total.unrouted + change.quantity.quanta }
+        { total with unrouted := total.unrouted + quantity.quanta }
 
 private def addOpenOccurrence
     (routing : RoutingHistory ScheduledRoutingSubject Time)
@@ -113,17 +130,18 @@ private def addOpenOccurrence
   else if !inEndExclusiveHorizon occurrence.scheduledOn endExclusive then
     total
   else
-    occurrence.movement.changes.foldl
-      (addPositiveScheduledChange routing purpose observedAt occurrence)
+    (scheduledLoci occurrence).foldl
+      (addPositiveScheduledLocus routing purpose observedAt occurrence)
       total
 
 /--
 Project current Scheduled Commitment for one Purpose and Measure.
 
-Only positive Scheduled movement coordinates are claims against spending
-capacity. Negative source coordinates remain visible in the Scheduled movement
-but do not consume Purpose authority. Past-due open occurrences remain in the
-projection; an occurrence exactly at `endExclusive` is excluded.
+Only positive aggregated Scheduled Locus coordinates are claims against spending
+capacity. Negative or net-negative source coordinates remain visible in the
+Scheduled movement but do not consume Purpose authority. Past-due open
+occurrences remain in the projection; an occurrence exactly at `endExclusive`
+is excluded.
 
 Fails closed (`none`) if current Scheduled lifecycle evidence is structurally
 inconsistent.
