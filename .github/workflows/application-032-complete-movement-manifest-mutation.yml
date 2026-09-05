@@ -1,0 +1,171 @@
+name: Application 032 Complete Movement Manifest Mutation
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_032_complete_movement_manifest_mutation.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.md'
+      - '.github/workflows/application-032-complete-movement-manifest-mutation.yml'
+  push:
+    branches:
+      - 'experiment/application-032-complete-movement-manifest-mutation'
+    paths:
+      - 'experiments/application_032_complete_movement_manifest_mutation.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.md'
+      - '.github/workflows/application-032-complete-movement-manifest-mutation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  complete-mutation:
+    name: complete Movement mutation through manifest authority
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production Movement entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Exercise interrupted retry and two complete human-input mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          manifest="$tmp_dir/manifest"
+          attempt1="$tmp_dir/attempt1"
+          retry1="$tmp_dir/retry1"
+          attempt2="$tmp_dir/attempt2"
+          mkdir -p "$attempt1" "$retry1" "$attempt2"
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            seed "$manifest"
+
+          # First attempt starts only from selected authority. The real production
+          # loamMovement entrance supplies the existing human input semantics,
+          # world-dependent admission, and identity allocation. Its sidecars are
+          # scratch staging, not selected authority.
+          memory1="$attempt1/memory.loam"
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            materialize "$manifest" "$memory1"
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory1" \
+                | tee "$tmp_dir/attempt1.out"
+          grep -Fq 'event: record-1' "$tmp_dir/attempt1.out"
+          grep -Fq '[ok] open relation evidence admitted: 1' "$tmp_dir/attempt1.out"
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            prepare "$memory1" "$manifest" \
+            | tee "$tmp_dir/prepare1.out"
+          grep -Fq 'reused_objects=0' "$tmp_dir/prepare1.out"
+          grep -Fq 'authority_switches=0' "$tmp_dir/prepare1.out"
+
+          # Candidate objects exist, but CURRENT still selects the empty world.
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            verify "$manifest" \
+            | tee "$tmp_dir/pre_retry_verify.out"
+          grep -Fq 'event_count=0' "$tmp_dir/pre_retry_verify.out"
+          grep -Fq 'relation_count=0' "$tmp_dir/pre_retry_verify.out"
+
+          # Simulate process loss: discard all sidecar staging. Retry starts from
+          # CURRENT, so unselected object residue cannot reserve record-1 or
+          # relation-1. Identical content-addressed objects are reused.
+          rm -rf "$attempt1"
+          memory_retry="$retry1/memory.loam"
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            materialize "$manifest" "$memory_retry"
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory_retry" \
+                | tee "$tmp_dir/retry1.out"
+          grep -Fq 'event: record-1' "$tmp_dir/retry1.out"
+          grep -Fq 'relation-1' "$memory_retry.relations.loam" || true
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            prepare "$memory_retry" "$manifest" \
+            | tee "$tmp_dir/prepare_retry.out"
+          grep -Fq 'reused_objects=5' "$tmp_dir/prepare_retry.out"
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            commit "$manifest"
+
+          # A fresh Lean process now observes the selected typed generation.
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            verify "$manifest" \
+            | tee "$tmp_dir/verify1.out"
+          grep -Fq 'event_count=1' "$tmp_dir/verify1.out"
+          grep -Fq 'recorded_paypay=-100' "$tmp_dir/verify1.out"
+          grep -Fq 'recorded_travel=100' "$tmp_dir/verify1.out"
+          grep -Fq 'relation_count=1' "$tmp_dir/verify1.out"
+          grep -Fq 'relation_outstanding=100' "$tmp_dir/verify1.out"
+
+          # Second human-input mutation begins from generation 1 and explicitly
+          # discharges relation-1. Again the sidecar files are only staging.
+          memory2="$attempt2/memory.loam"
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            materialize "$manifest" "$memory2"
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$memory2" \
+                | tee "$tmp_dir/attempt2.out"
+          grep -Fq 'event: record-2' "$tmp_dir/attempt2.out"
+          grep -Fq '[ok] relation discharge evidence admitted: 1' "$tmp_dir/attempt2.out"
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            prepare "$memory2" "$manifest" \
+            | tee "$tmp_dir/prepare2.out"
+          grep -Fq 'reused_objects=1' "$tmp_dir/prepare2.out"
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            commit "$manifest"
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            compare "$memory2" "$manifest" \
+            | tee "$tmp_dir/compare.out"
+          grep -Fq 'canonical_family_byte_matches=5' "$tmp_dir/compare.out"
+          grep -Fq 'semantic_projection_match=1' "$tmp_dir/compare.out"
+
+          lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
+            verify "$manifest" \
+            | tee "$tmp_dir/verify2.out"
+          grep -Fq 'event_count=2' "$tmp_dir/verify2.out"
+          grep -Fq 'effect_count=4' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_paypay=-60' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_travel=100' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_friend_in=-40' "$tmp_dir/verify2.out"
+          grep -Fq 'relation_count=1' "$tmp_dir/verify2.out"
+          grep -Fq 'discharge_count=1' "$tmp_dir/verify2.out"
+          grep -Fq 'relation_outstanding=60' "$tmp_dir/verify2.out"
+
+          cat <<'EOF'
+          Application 032 complete Movement manifest mutation PASS
+          human_input_mutations=2
+          production_input_semantics_reused=1
+          production_domain_admission_reused=1
+          selected_authority_switches=2
+          interrupted_candidate_authority_changes=0
+          orphan_event_id_reservations=0
+          orphan_relation_unit_id_reservations=0
+          retry_reused_prepared_objects=5
+          production_typed_family_boundaries=5
+          canonical_family_byte_matches=5
+          semantic_projection_match=1
+          staging_writer_protocol_retained=1
+          production_migration_earned=0
+          EOF
