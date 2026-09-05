@@ -1,0 +1,39 @@
+name: Practical Open Relation Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Tests/OpenRelationPersistenceTest.lean'
+      - '.github/workflows/practical-open-relation-persistence.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'persistence/open-relation-unit-stream'
+      - main
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Tests/OpenRelationPersistenceTest.lean'
+      - '.github/workflows/practical-open-relation-persistence.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Raw RelationUnit persistence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build persistence module
+        run: lake build Loam.Persistence.OpenRelationPersistence
+      - name: Run persistence qualification
+        run: lake env lean --run Loam/Tests/OpenRelationPersistenceTest.lean
