@@ -154,7 +154,10 @@ private def loadReferenced? (root : System.FilePath) (ref : FamilyRef) : IO (Opt
   if !(← target.pathExists) then
     return none
   let text ← IO.FS.readFile target
-  if Loam.Sha256.hash text.toUTF8 == ref.sha256 then some text else none
+  if Loam.Sha256.hash text.toUTF8 == ref.sha256 then
+    return some text
+  else
+    return none
 
 private def replaceRef (manifest : Manifest) (family : Family) (ref : FamilyRef) : Manifest :=
   { refs := manifest.refs.map fun row =>
