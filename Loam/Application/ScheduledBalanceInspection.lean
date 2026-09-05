@@ -78,6 +78,23 @@ private def aggregateCoordinate
   }
 
 /--
+Project one already-qualified Scheduled occurrence list onto selected balance
+coordinates before `endExclusive`.
+
+This operation carries no lifecycle authority of its own. Callers that start from
+retained Scheduled evidence must first obtain a qualified current-open set, as
+`currentScheduledBalanceEffectsBefore?` does below. Exposing this pure projection
+lets a read-only hypothetical query compare the same qualified open set with a
+derived subset without fabricating a second Scheduled memory.
+-/
+def scheduledBalanceEffectsBefore
+    (occurrences : List (ScheduledOccurrence Time))
+    (coordinates : List EffectCoordinate)
+    (endExclusive : Time) : List ScheduledBalanceEffect :=
+  (normalizeCoordinates coordinates).map
+    (aggregateCoordinate occurrences endExclusive)
+
+/--
 Project aggregate signed effects of the complete current-open Scheduled set onto
 one replaceable balance-coordinate selection before `endExclusive`.
 
@@ -101,7 +118,6 @@ def currentScheduledBalanceEffectsBefore?
   | .unknownRetirementScheduled => none
   | .conflictingTerminalEvidence => none
   | .open occurrences =>
-      some <| (normalizeCoordinates coordinates).map
-        (aggregateCoordinate occurrences endExclusive)
+      some <| scheduledBalanceEffectsBefore occurrences coordinates endExclusive
 
 end Loam.Application
