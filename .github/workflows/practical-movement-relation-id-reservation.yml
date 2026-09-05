@@ -1,0 +1,73 @@
+name: Practical Movement Relation Identity Reservation
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/MovementCli.lean'
+      - '.github/workflows/practical-movement-relation-id-reservation.yml'
+      - 'tools/loam-movement'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'fix/relation-id-reserve-discharge-targets'
+      - main
+    paths:
+      - 'Loam/Cli/MovementCli.lean'
+      - '.github/workflows/practical-movement-relation-id-reservation.yml'
+      - 'tools/loam-movement'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relation-id-reservation:
+    name: Movement reserves raw discharge target ids
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean and build Movement
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Keep orphan discharge target unavailable to unrelated relation allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          relations="$memory.relations"
+          discharges="$memory.discharges"
+
+          printf 'cash\n25\n\ncoffee\n25\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-05 \
+                ./tools/loam-movement "$memory" >/dev/null
+
+          grep -Fq $'EVENT\trecord-1' "$memory"
+
+          cat >"$discharges" <<'EOF'
+          LOAM-RELATION-DISCHARGE-MEMORY	1
+          DISCHARGE	record-1	relation-1	10
+          EOF
+
+          printf 'paypay\n50\n\ntravel\n50\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t50' \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq 'event: record-2' "$tmp_dir/out"
+          grep -Fq $'RELATION\trelation-2\trecord-2\teffect-1' "$relations"
+          ! grep -Fq $'RELATION\trelation-1\t' "$relations"
+          grep -Fq $'DISCHARGE\trecord-1\trelation-1\t10' "$discharges"

@@ -158,10 +158,21 @@ private def freshRelationUnitIdsFrom
       let rest ← freshRelationUnitIdsFrom (id :: used) remaining (index + 1)
       some (id :: rest)
 
+/--
+Allocate fresh practical RelationUnit identities without rebinding retained raw
+provenance. Observation 183 requires raw RelationDischarge target ids to reserve
+the same operational namespace as already-retained RelationUnit ids: otherwise
+an unrelated later Movement could make an orphan discharge meaningful merely by
+reusing its opaque target token.
+-/
 private def freshRelationUnitIds?
     (relations : List Loam.Core.RelationUnit)
+    (discharges : List Loam.Core.RelationDischarge)
     (count : Nat) : Option (List Loam.Core.RelationUnitId) :=
-  freshRelationUnitIdsFrom (relations.map (fun relation => relation.id)) count 1
+  let used :=
+    relations.map (fun relation => relation.id) ++
+      discharges.map (fun discharge => discharge.target)
+  freshRelationUnitIdsFrom used count 1
 
 private def materializeRelationUnits? :
     Loam.Core.EventId →
@@ -413,7 +424,9 @@ holding the existing writer-ownership boundary.
 
 Fresh Event/RelationUnit identities are chosen here, not while the user types.
 Raw RelationUnit source EventIds and raw RelationDischarge later EventIds both
-reserve Event identity after interrupted Event-last publication.
+reserve Event identity after interrupted Event-last publication. Retained raw
+RelationDischarge target ids also reserve RelationUnit identity, so orphan target
+provenance cannot bind to a later unrelated Movement merely through token reuse.
 
 Publication order preserves the qualified activation boundaries:
 
@@ -427,7 +440,8 @@ validity / optional description supporting evidence
 The relative order among supporting families is not a cross-stream transaction.
 If Event publication fails after a relation or discharge update, the retained
 rows remain raw inert provenance and cannot be rebound because fresh Event-id
-allocation scans both streams.
+allocation scans both streams and fresh RelationUnit-id allocation reserves raw
+discharge targets.
 -/
 private def publishDraftUnderOwnership
     (memoryPath : String)
@@ -465,7 +479,8 @@ private def publishDraftUnderOwnership
                       match freshRecordEventId?
                               memory history descriptions relations discharges,
                           freshValidityFactId? history,
-                          freshRelationUnitIds? relations draft.relations.length with
+                          freshRelationUnitIds?
+                            relations discharges draft.relations.length with
                       | some eventId, some factId, some relationIds =>
                           match Loam.Core.Event.ofEffects? eventId draft.effects,
                               materializeRelationUnits? eventId relationIds draft.relations with
