@@ -2,5 +2,6 @@
   "challenge_module": "Challenge",
   "solution_module": "Solution",
   "theorem_names": ["Observation165.vector_claim"],
-  "permitted_axioms": []
+  "permitted_axioms": [],
+  "enable_nanoda": false
 }
