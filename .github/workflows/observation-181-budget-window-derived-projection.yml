@@ -1,0 +1,56 @@
+name: Observation 181
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation181.lean'
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/181_budget_window_derived_projection.md'
+      - '.github/workflows/observation-181-budget-window-derived-projection.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/181-budget-window-derived-projection'
+      - main
+    paths:
+      - 'Loam/Observations/Observation181.lean'
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/181_budget_window_derived_projection.md'
+      - '.github/workflows/observation-181-budget-window-derived-projection.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-window-derived-projection:
+    name: Lean Budget Window derived projection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check Budget Window derived projection
+        run: lake build Loam.Observations.Observation181
