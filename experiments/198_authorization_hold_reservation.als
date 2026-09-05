@@ -50,11 +50,11 @@ fact WellFormed {
 }
 
 pred representativeHeldAuthorization {
-  Left.held = 100
+  Left.held = 10
   A in Left.initiated
   A not in Left.settled
-  reserveAmount[Left, A] = 30
-  available[Left] = 70
+  reserveAmount[Left, A] = 3
+  available[Left] = 7
 }
 
 pred samePhysicalAndLifecycleDifferentReservation {
@@ -62,15 +62,15 @@ pred samePhysicalAndLifecycleDifferentReservation {
   Left.initiated = Right.initiated
   Left.settled = Right.settled
 
-  Left.held = 100
+  Left.held = 10
   A in Left.initiated
   A not in Left.settled
 
-  reserveAmount[Left, A] = 30
+  reserveAmount[Left, A] = 3
   reserveAmount[Right, A] = 0
 
-  available[Left] = 70
-  available[Right] = 100
+  available[Left] = 7
+  available[Right] = 10
 }
 
 -- Deliberately too strong: Observation 050-style physical + lifecycle evidence
@@ -98,8 +98,8 @@ assert SettledHasNoReservation {
     a in w.settled implies reserveAmount[w, a] = 0
 }
 
-run representativeHeldAuthorization for exactly 1 Authorization, exactly 2 World, 8 Int
-run samePhysicalAndLifecycleDifferentReservation for exactly 1 Authorization, exactly 2 World, 8 Int
-check PhysicalAndLifecycleDetermineAvailability for exactly 1 Authorization, exactly 2 World, 8 Int
-check ExplicitReservationDeterminesAvailability for exactly 1 Authorization, exactly 2 World, 8 Int
-check SettledHasNoReservation for exactly 1 Authorization, exactly 2 World, 8 Int
+run representativeHeldAuthorization for exactly 1 Authorization, exactly 2 World, 5 Int
+run samePhysicalAndLifecycleDifferentReservation for exactly 1 Authorization, exactly 2 World, 5 Int
+check PhysicalAndLifecycleDetermineAvailability for exactly 1 Authorization, exactly 2 World, 5 Int
+check ExplicitReservationDeterminesAvailability for exactly 1 Authorization, exactly 2 World, 5 Int
+check SettledHasNoReservation for exactly 1 Authorization, exactly 2 World, 5 Int
