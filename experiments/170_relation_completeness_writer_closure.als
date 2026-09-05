@@ -142,7 +142,7 @@ pred dateCorrectionQualificationIsIndependentOfSource {
     w.coverageGate[movementEvent] = DateCorrectionGate
     w.coverageGate[lowLevelEvent] = DateCorrectionGate
     DateCorrectionGate in w.qualified
-    no (movementEvent + lowLevelEvent) & w.positive
+    no ((movementEvent + lowLevelEvent) & w.positive)
     w.meaning[movementEvent] = NoEdge
     w.meaning[lowLevelEvent] = NoEdge
   }
