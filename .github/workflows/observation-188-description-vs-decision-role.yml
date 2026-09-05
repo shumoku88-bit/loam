@@ -1,0 +1,48 @@
+name: Observation 188
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation188.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/188_description_vs_decision_role.md'
+      - '.github/workflows/observation-188-description-vs-decision-role.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/188-description-vs-decision-role'
+      - main
+    paths:
+      - 'Loam/Observations/Observation188.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/188_description_vs_decision_role.md'
+      - '.github/workflows/observation-188-description-vs-decision-role.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  description-vs-decision-role:
+    name: Lean description vs decision role
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check description / decision separation
+        run: lake build Loam.Observations.Observation188
