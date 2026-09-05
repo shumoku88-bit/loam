@@ -211,7 +211,7 @@ private def journalOwnershipAnchor (memoryPath : String) : IO (Except String Sys
         return .error "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
       return .ok (System.FilePath.mk rootPath / "CURRENT")
 
-def main (args : List String) : IO UInt32 :=
+def main (args : List String) : IO UInt32 := do
   match args with
   | [memoryPath, correctionPath, outputPath] =>
       match ← journalOwnershipAnchor memoryPath with
@@ -222,6 +222,6 @@ def main (args : List String) : IO UInt32 :=
           Loam.WriterOwnership.withOwnership
             anchor
             (Loam.JournalExportCli.exportJournal memoryPath correctionPath outputPath)
-  | _ => do
+  | _ =>
       IO.eprintln journalUsage
       return 2
