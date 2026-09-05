@@ -1,0 +1,46 @@
+name: Application 032 Movement Protocol Surface
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.md'
+      - 'tests/application_032_movement_protocol_surface.py'
+      - '.github/workflows/application-032-movement-protocol-surface.yml'
+  push:
+    branches:
+      - 'experiment/application-032-complete-movement-manifest-mutation'
+    paths:
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.lean'
+      - 'experiments/application_032_complete_movement_manifest_mutation.md'
+      - 'tests/application_032_movement_protocol_surface.py'
+      - '.github/workflows/application-032-movement-protocol-surface.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-surface:
+    name: Movement authority and implementation surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Measure protocol surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_032_movement_protocol_surface.py | tee /tmp/application032-surface.out
+          grep -Fq 'current_movement_cross_family_save_calls=5' /tmp/application032-surface.out
+          grep -Fq 'current_movement_max_partial_authority_prefixes=4' /tmp/application032-surface.out
+          grep -Fq 'current_movement_residue_widened_identity_namespaces=2' /tmp/application032-surface.out
+          grep -Fq 'manifest_authority_switches_per_mutation=1' /tmp/application032-surface.out
+          grep -Fq 'manifest_partial_authority_prefixes_per_mutation=0' /tmp/application032-surface.out
+          grep -Fq 'manifest_orphan_objects_reserve_semantic_identity=0' /tmp/application032-surface.out
+          grep -Fq 'manifest_operation_specific_retry_branches=0' /tmp/application032-surface.out
+          grep -Fq 'staging_writer_protocol_retained=1' /tmp/application032-surface.out
+          grep -Fq 'staging_cross_family_save_calls_max=5' /tmp/application032-surface.out
+          grep -Fq 'production_migration_earned=0' /tmp/application032-surface.out
