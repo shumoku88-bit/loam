@@ -1,0 +1,51 @@
+name: Application 029 Generation-Scoped Read Boundary
+
+on:
+  push:
+    paths:
+      - 'experiments/application_029_generation_read_boundary.py'
+      - 'experiments/application_029_generation_read_boundary.md'
+      - '.github/workflows/application-029-generation-read-boundary.yml'
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/**.lean'
+  pull_request:
+    paths:
+      - 'experiments/application_029_generation_read_boundary.py'
+      - 'experiments/application_029_generation_read_boundary.md'
+      - '.github/workflows/application-029-generation-read-boundary.yml'
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/**.lean'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-029-generation-read-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  read-boundary:
+    name: Qualify generation-scoped reader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Probe shared physical read boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 experiments/application_029_generation_read_boundary.py \
+            | tee /tmp/application029.out
+
+          grep -Fq 'Application 029 generation-scoped read boundary PASS' /tmp/application029.out
+          grep -Fq 'read_only_callsite_modules=7' /tmp/application029.out
+          grep -Fq 'shared_generation_capture_mechanisms=1' /tmp/application029.out
+          grep -Fq 'shared_family_object_resolvers=1' /tmp/application029.out
+          grep -Fq 'meaning_specific_adapters=7' /tmp/application029.out
+          grep -Fq 'generation_captures_for_seven_views=7' /tmp/application029.out
+          grep -Fq 'cross_generation_mixed_reads=0' /tmp/application029.out
+          grep -Fq 'requested_corruption_fail_closed=1' /tmp/application029.out
+          grep -Fq 'unrequested_corruption_blocked_unrelated_view=0' /tmp/application029.out
+          grep -Fq 'missing_policy_cases_preserved=6' /tmp/application029.out
+          grep -Fq 'manifest_family_presence_is_explicit=1' /tmp/application029.out
