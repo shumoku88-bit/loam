@@ -1,0 +1,42 @@
+name: Observation 164
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation163.lean'
+      - 'Loam/Observations/Observation164.lean'
+      - 'Loam/Observations/Observation164Contract.lean'
+      - 'Loam/Observations.lean'
+      - '.github/workflows/observation-164-independent-statement-surface.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.toml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+      - experiment/164-independent-statement-surface
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation163.lean'
+      - 'Loam/Observations/Observation164.lean'
+      - 'Loam/Observations/Observation164Contract.lean'
+      - 'Loam/Observations.lean'
+      - '.github/workflows/observation-164-independent-statement-surface.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.toml'
+      - 'lean-toolchain'
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build Observation 164
+        run: lake build Loam.Observations.Observation164
