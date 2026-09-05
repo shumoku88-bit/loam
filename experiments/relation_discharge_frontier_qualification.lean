@@ -10,6 +10,7 @@ set_option autoImplicit false
 private def sourceEventId : EventId := ⟨"trip"⟩
 private def receiptAId : EventId := ⟨"receipt-a"⟩
 private def receiptBId : EventId := ⟨"receipt-b"⟩
+private def missingReceiptId : EventId := ⟨"missing-receipt"⟩
 private def effectKey : EffectKey := ⟨"travel"⟩
 private def measure : MeasureId := ⟨"jpy"⟩
 private def locus : LocusId := ⟨"paypay"⟩
@@ -34,10 +35,18 @@ private def emptyEvent (id : EventId) : Event :=
 
 private def receiptA : Event := emptyEvent receiptAId
 private def receiptB : Event := emptyEvent receiptBId
+private def missingReceipt : Event := emptyEvent missingReceiptId
 
 private def events : EventMemory :=
   {
     events := [sourceEvent, receiptA, receiptB]
+    idNodup := by native_decide
+  }
+
+/-- Same Event snapshot after the previously absent discharge Event becomes authoritative. -/
+private def eventsWithMissingReceipt : EventMemory :=
+  {
+    events := [sourceEvent, receiptA, receiptB, missingReceipt]
     idNodup := by native_decide
   }
 
@@ -91,7 +100,13 @@ private def fullBFromSameReceipt : RelationDischarge :=
   discharge receiptAId relationB.id 5
 
 private def missingEventA : RelationDischarge :=
-  discharge ⟨"missing-receipt"⟩ relationA.id 4
+  discharge missingReceiptId relationA.id 4
+
+private def missingEventADuplicate : RelationDischarge :=
+  discharge missingReceiptId relationA.id 3
+
+private def missingMalformedA : RelationDischarge :=
+  discharge missingReceiptId relationA.id (-4)
 
 private def sameAsSourceA : RelationDischarge :=
   discharge sourceEventId relationA.id 4
@@ -167,10 +182,65 @@ example :
         [partialA, unrelatedMalformedB] relationA.id = q 6 := by
   native_decide
 
-/-- Missing later Event on the queried target fails closed. -/
+/--
+Observation 182 activation law: raw discharge whose later Event is absent is
+inert crash residue, so the pre-discharge outstanding answer remains available.
+-/
 example :
     relationOutstandingQuantity?
-      events [relationA, relationB] [] [missingEventA] relationA.id = none := by
+      events [relationA, relationB] [] [missingEventA] relationA.id = q 10 := by
+  native_decide
+
+/-- Inert residue does not disturb already-active partial fulfillment either. -/
+example :
+    relationOutstandingQuantity?
+      events [relationA, relationB] []
+        [partialA, missingEventA] relationA.id = q 6 := by
+  native_decide
+
+/-- The inert row is absent from the admitted discharge projection. -/
+example :
+    (admittedRelationDischargesFor?
+      events [relationA, relationB] [] [missingEventA] relationA.id).map
+      List.length = some 0 := by
+  native_decide
+
+/-- The exact same raw row activates automatically once its later Event exists. -/
+example :
+    relationOutstandingQuantity?
+      eventsWithMissingReceipt [relationA, relationB] []
+        [missingEventA] relationA.id = q 6 := by
+  native_decide
+
+/--
+Missing Event is the only relaxation: malformed quantity is inert before
+activation, but fails closed as soon as the named Event is authoritative.
+-/
+example :
+    relationOutstandingQuantity?
+      events [relationA, relationB] [] [missingMalformedA] relationA.id = q 10 := by
+  native_decide
+
+example :
+    relationOutstandingQuantity?
+      eventsWithMissingReceipt [relationA, relationB] []
+        [missingMalformedA] relationA.id = none := by
+  native_decide
+
+/--
+Duplicate Event/target crash residue is likewise inert while Event authority is
+absent, then becomes an ordinary ambiguity when that Event appears.
+-/
+example :
+    relationOutstandingQuantity?
+      events [relationA, relationB] []
+        [missingEventA, missingEventADuplicate] relationA.id = q 10 := by
+  native_decide
+
+example :
+    relationOutstandingQuantity?
+      eventsWithMissingReceipt [relationA, relationB] []
+        [missingEventA, missingEventADuplicate] relationA.id = none := by
   native_decide
 
 /-- The source Event itself is not admitted as its relation's later discharge occurrence. -/
@@ -179,7 +249,7 @@ example :
       events [relationA, relationB] [] [sameAsSourceA] relationA.id = none := by
   native_decide
 
-/-- Zero and negative raw quantities cannot acquire discharge meaning. -/
+/-- Zero and negative raw quantities attached to present Events fail closed. -/
 example :
     relationOutstandingQuantity?
       events [relationA, relationB] [] [zeroA] relationA.id = none := by
@@ -190,14 +260,14 @@ example :
       events [relationA, relationB] [] [negativeA] relationA.id = none := by
   native_decide
 
-/-- Repeated `(EventId, RelationUnitId)` evidence is unresolved without DischargeId. -/
+/-- Repeated active `(EventId, RelationUnitId)` evidence is unresolved without DischargeId. -/
 example :
     relationOutstandingQuantity?
       events [relationA, relationB] []
         [partialA, duplicateEventA] relationA.id = none := by
   native_decide
 
-/-- Aggregate discharge above the current RelationUnit quantity fails closed. -/
+/-- Aggregate active discharge above the current RelationUnit quantity fails closed. -/
 example :
     relationOutstandingQuantity?
       events [relationA, relationB] [] [overA1, overA2] relationA.id = none := by

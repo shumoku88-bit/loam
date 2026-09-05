@@ -11,15 +11,18 @@ set_option autoImplicit false
 
 Observation 178 qualified exact discharge quantity as independent provenance for
 an aggregate `RelationUnit`. This module composes that raw Core evidence with the
-already-admitted open-relation frontier without introducing persistence, writer
-protocol, settlement ontology, or discharge identity.
+already-admitted open-relation frontier without introducing persistence,
+settlement ontology, or discharge identity.
 
-The projection is target-local. Global relation identity/revision structure is
-still checked by `currentRelationState?`, while unrelated pre-Event relation
+Observation 182 then qualified Event authority as the activation edge for fresh
+Movement discharge publication. A raw discharge whose later Event is absent from
+the acquired EventMemory snapshot is therefore inert crash residue. Once that
+Event exists, the row becomes active and all ordinary target-local fail-closed
+checks apply.
+
+The projection remains target-local. Global relation identity/revision structure
+is still checked by `currentRelationState?`, while unrelated pre-Event relation
 residue remains inert exactly as qualified by the existing source-local frontier.
-A discharge attached to the queried target fails closed when its later Event is
-missing, its quantity is malformed, its `(event, target)` pair is repeated, or
-the target's aggregate discharge would exceed the relation quantity.
 -/
 
 /-- One discharge after both its later Event and current target relation resolve. -/
@@ -79,6 +82,22 @@ private def targetDischarges
     (id : RelationUnitId) : List RelationDischarge :=
   discharges.filter (dischargeTargets id)
 
+/--
+Select only discharge rows activated by an Event visible in the caller's acquired
+EventMemory snapshot.
+
+Observation 182 qualifies this as the narrow crash-residue boundary: a raw row
+may have been published before its later Event and is then inert. This helper does
+not filter malformed evidence whose Event is already present; such rows proceed
+to ordinary fail-closed admission below.
+-/
+private def activatedTargetDischarges
+    (events : EventMemory)
+    (discharges : List RelationDischarge)
+    (id : RelationUnitId) : List RelationDischarge :=
+  (targetDischarges discharges id).filter fun discharge =>
+    (EventMemory.findById? events discharge.event).isSome
+
 private def uniqueDischargeEvents : List RelationDischarge → Bool
   | [] => true
   | discharge :: rest =>
@@ -86,7 +105,7 @@ private def uniqueDischargeEvents : List RelationDischarge → Bool
         uniqueDischargeEvents rest
 
 /--
-Admit one raw discharge against an already-current relation target.
+Admit one activated raw discharge against an already-current relation target.
 
 The later Event remains Event-scoped, as qualified by Observation 166. The
 quantity is raw signed Core `Quantity`; this boundary gives it positive-discharge
@@ -129,11 +148,11 @@ private def admittedForCurrentTarget?
     (events : EventMemory)
     (target : AdmittedRelationUnit)
     (discharges : List RelationDischarge) : Option (List AdmittedRelationDischarge) := do
-  let relevant := targetDischarges discharges target.relation.id
-  if !uniqueDischargeEvents relevant then
+  let active := activatedTargetDischarges events discharges target.relation.id
+  if !uniqueDischargeEvents active then
     none
   else
-    let admitted ← admitAllForTarget? events target relevant
+    let admitted ← admitAllForTarget? events target active
     if dischargeTotal admitted > target.relation.quantity.quanta then
       none
     else
@@ -143,14 +162,19 @@ private def admittedForCurrentTarget?
 Return the admitted discharge rows for one currently admitted RelationUnit.
 
 Rows targeting other RelationUnits are irrelevant to this target-local query.
-For the requested target, however, every retained row must admit; a missing later
-Event or malformed quantity cannot be silently filtered out and mistaken for a
-larger outstanding amount.
+Rows targeting this RelationUnit but naming a later Event absent from the acquired
+EventMemory snapshot are also inert, as qualified by Observation 182's Event-last
+publication model. They become active automatically when that Event appears in a
+later EventMemory snapshot.
 
-At most one row may exist for one `(EventId, RelationUnitId)` pair. Observation
-178 found no need for a separate `DischargeId` merely to distinguish several
-pieces inside the same later occurrence; those pieces normalize to one exact
-quantity before reaching this frontier.
+For every activated row, however, admission remains fail-closed. Zero/negative
+quantity, source-Event self-discharge, duplicate `(EventId, RelationUnitId)`
+correspondence, or aggregate over-discharge cannot be silently filtered into a
+numeric answer.
+
+Observation 178 found no need for a separate `DischargeId` merely to distinguish
+several pieces inside the same later occurrence; those pieces normalize to one
+exact quantity before reaching this frontier.
 -/
 def admittedRelationDischargesFor?
     (events : EventMemory)
@@ -167,12 +191,12 @@ Derive the exact outstanding quantity for one current RelationUnit.
 Outstanding is projection state only. It is never retained as a separate balance:
 
 ```text
-current relation quantity - admitted discharge total
+current relation quantity - admitted activated discharge total
 ```
 
-The enclosing `Option` is fail-closed. In particular over-discharge, duplicate
-Event/target correspondence, malformed target discharge, unresolved target
-relation, or a missing later Event cannot produce a numeric answer.
+The enclosing `Option` is fail-closed for ambiguity or malformed **activated**
+evidence. Pre-Event discharge crash residue is inert instead of suppressing the
+still-valid pre-discharge outstanding answer.
 -/
 def relationOutstandingQuantity?
     (events : EventMemory)
