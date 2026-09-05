@@ -1,0 +1,128 @@
+name: Application 030 Journal Manifest Parity
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_030_journal_manifest_parity.lean'
+      - 'experiments/application_030_journal_manifest_parity.md'
+      - '.github/workflows/application-030-journal-manifest-parity.yml'
+      - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Sha256.lean'
+  push:
+    branches:
+      - 'experiment/application-030-journal-manifest-parity'
+    paths:
+      - 'experiments/application_030_journal_manifest_parity.lean'
+      - 'experiments/application_030_journal_manifest_parity.md'
+      - '.github/workflows/application-030-journal-manifest-parity.yml'
+      - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Sha256.lean'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-030-journal-manifest-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journal-parity:
+    name: Production-typed JournalExport parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production executables
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement loamJournalExport Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Compare sidecar and manifest JournalExport bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          corrections="$tmp_dir/corrections.loam"
+          manifest="$tmp_dir/manifest"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='journal parity source' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/first.out"
+
+          printf 'cash\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='journal parity second' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/second.out"
+
+          grep -Fq 'event: record-1' "$tmp_dir/first.out"
+          grep -Fq 'event: record-2' "$tmp_dir/second.out"
+
+          # Case A: description evidence is present. EventCorrection remains
+          # physically absent and must retain JournalExport's empty-evidence policy.
+          .lake/build/bin/loamJournalExport \
+            "$memory" "$corrections" "$tmp_dir/sidecar-a.journal" \
+            >"$tmp_dir/direct-a.out"
+
+          lake env lean --run experiments/application_030_journal_manifest_parity.lean \
+            publish "$memory" "$corrections" "$manifest" \
+            | tee "$tmp_dir/publish-a.out"
+
+          lake env lean --run experiments/application_030_journal_manifest_parity.lean \
+            export "$manifest" "$tmp_dir/manifest-a.journal" \
+            | tee "$tmp_dir/export-a.out"
+
+          cmp -s "$tmp_dir/sidecar-a.journal" "$tmp_dir/manifest-a.journal"
+          grep -Fq 'Application 030 manifest JournalExport PASS' "$tmp_dir/export-a.out"
+          grep -Fq 'generation_captures=1' "$tmp_dir/export-a.out"
+          grep -Fq 'event_correction_absent=1' "$tmp_dir/publish-a.out"
+          grep -Fq 'event_description_absent=0' "$tmp_dir/publish-a.out"
+
+          # Case B: remove EventDescription sidecar. The production exporter
+          # falls back to EventId headings; the manifest records explicit ABSENT.
+          rm "$memory.descriptions"
+
+          .lake/build/bin/loamJournalExport \
+            "$memory" "$corrections" "$tmp_dir/sidecar-b.journal" \
+            >"$tmp_dir/direct-b.out"
+
+          lake env lean --run experiments/application_030_journal_manifest_parity.lean \
+            publish "$memory" "$corrections" "$manifest" \
+            | tee "$tmp_dir/publish-b.out"
+
+          lake env lean --run experiments/application_030_journal_manifest_parity.lean \
+            export "$manifest" "$tmp_dir/manifest-b.journal" \
+            | tee "$tmp_dir/export-b.out"
+
+          cmp -s "$tmp_dir/sidecar-b.journal" "$tmp_dir/manifest-b.journal"
+          grep -Fq '[record-1]' "$tmp_dir/manifest-b.journal"
+          grep -Fq '[record-2]' "$tmp_dir/manifest-b.journal"
+          grep -Fq 'event_description_absent=1' "$tmp_dir/publish-b.out"
+
+          echo 'Application 030 JournalExport byte parity PASS'
+          echo 'parity_cases=2'
+          echo 'byte_equal_cases=2'
+          echo 'production_typed_family_boundaries=4'
+          echo 'explicit_absence_cases=2'
