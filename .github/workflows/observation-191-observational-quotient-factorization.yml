@@ -1,0 +1,60 @@
+name: Observation 191
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation191.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/191_observational_quotient_factorization.md'
+      - '.github/workflows/observation-191-observational-quotient-factorization.yml'
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations/Observation179.lean'
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/191-observational-quotient-factorization'
+      - main
+    paths:
+      - 'Loam/Observations/Observation191.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/191_observational_quotient_factorization.md'
+      - '.github/workflows/observation-191-observational-quotient-factorization.yml'
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations/Observation179.lean'
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observational-quotient-factorization:
+    name: Lean observational quotient factorization
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check observational quotient factorization
+        run: lake build Loam.Observations.Observation191
