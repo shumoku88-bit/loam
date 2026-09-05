@@ -1,0 +1,64 @@
+name: Application 022 Manifest Writer Amortization
+
+on:
+  push:
+    paths:
+      - 'experiments/application_022_manifest_writer_amortization.lean'
+      - 'experiments/application_022_manifest_writer_amortization.md'
+      - 'tests/application_022_source_measure.py'
+      - '.github/workflows/application-022-manifest-writer-amortization.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_022_manifest_writer_amortization.lean'
+      - 'experiments/application_022_manifest_writer_amortization.md'
+      - 'tests/application_022_source_measure.py'
+      - '.github/workflows/application-022-manifest-writer-amortization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-022-manifest-writer-amortization-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Compare five writer publication tails
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build SHA dependency
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run five-writer manifest probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_022_manifest_writer_amortization.lean \
+            | tee /tmp/application-022-probe.out
+          grep -Fq 'Application 022 manifest writer amortization PASS' /tmp/application-022-probe.out
+          grep -Fq 'writers=5' /tmp/application-022-probe.out
+          grep -Fq 'changed_object_preparations=16' /tmp/application-022-probe.out
+          grep -Fq 'authority_switches=5' /tmp/application-022-probe.out
+
+      - name: Measure aggregate source boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_022_source_measure.py \
+            | tee /tmp/application-022-source.out
+          grep -Fq 'current_cross_family_save_calls=16' /tmp/application-022-source.out
+          grep -Fq 'scratch_writer_adapter_count=5' /tmp/application-022-source.out
+          grep -Fq 'scratch_generic_authority_call_sites=5' /tmp/application-022-source.out
