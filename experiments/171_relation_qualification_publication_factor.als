@@ -58,8 +58,8 @@ pred projectedNone[w: World, op: Operation] {
 
 pred allFiveKindsShareQualificationLaw {
   some w: World |
-    all kind: OpKind | some op: w.operations | {
-      op.kind = kind
+    all opKind: OpKind | some op: w.operations | {
+      op.kind = opKind
       op in w.covered
       op in w.qualified
     }
