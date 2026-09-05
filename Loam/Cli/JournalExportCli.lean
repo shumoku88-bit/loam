@@ -2,6 +2,7 @@ import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
+import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.WriterOwnership
 
@@ -16,6 +17,11 @@ private structure JournalEntry where
   validOn : String
   description : Option String
 
+private structure MovementView where
+  events : EventMemory
+  validity : ActualValidityHistory String
+  descriptions : EventDescriptionMemory
+
 private def loadCorrectionMemoryOrEmpty?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
   if ← path.pathExists then
@@ -29,6 +35,33 @@ private def loadDescriptionMemoryOrEmpty?
     Loam.Persistence.loadEventDescriptionMemory? path
   else
     return some EventDescriptionMemory.empty
+
+private def loadMovementView?
+    (memoryFile : System.FilePath) : IO (Except String MovementView) := do
+  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return .error "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      | .error message => return .error message
+      | .ok world =>
+          return .ok {
+            events := world.events
+            validity := world.validity
+            descriptions := world.descriptions
+          }
+  | none =>
+      if !(← memoryFile.pathExists) then
+        return .error ("file not found: " ++ memoryFile.toString)
+      let some events ← Loam.Persistence.loadEventMemory? memoryFile
+        | return .error "malformed or unsupported event-memory file"
+      let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
+      let some validity ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile
+        | return .error "malformed or unsupported actual-validity history"
+      let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
+      let some descriptions ← loadDescriptionMemoryOrEmpty? descriptionFile
+        | return .error "malformed or unsupported event-description memory"
+      return .ok { events, validity, descriptions }
 
 private def journalEntry?
     (validities : ActualValidityMemory String)
@@ -117,13 +150,11 @@ private def conflictsWithCanonicalPath
 /--
 Regenerate one human-readable Actual journal from current canonical evidence.
 
-The export is deliberately one-way. It derives the current Event correction
-frontier, derives one current ActualValidity per Event, joins optional
-EventDescription evidence, sorts by occurrence date with Event identity as a
-stable same-day tie-breaker, and atomically replaces only the requested derived
-output file. Missing correction/description streams mean empty optional evidence;
-malformed streams, ambiguous correction/date frontiers, or an effective Event
-without a current occurrence date fail closed before publication.
+In sidecar mode this preserves the existing Event / ActualValidity /
+EventDescription readers. In explicit manifest mode those three Movement
+families come from exactly one selected generation, while EventCorrection
+remains its independent canonical stream. Missing or corrupt selected manifest
+authority fails closed with no sidecar fallback.
 -/
 def exportJournal
     (memoryPath correctionPath outputPath : String) : IO UInt32 := do
@@ -133,65 +164,64 @@ def exportJournal
 
   let memoryFile := System.FilePath.mk memoryPath
   let correctionFile := System.FilePath.mk correctionPath
-  let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
-  let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
   let outputFile := System.FilePath.mk outputPath
 
-  if !(← memoryFile.pathExists) then
-    IO.eprintln ("loam: file not found: " ++ memoryPath)
-    return 2
+  let movement ←
+    match ← loadMovementView? memoryFile with
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
+        return 2
+    | .ok view => pure view
 
-  match ← Loam.Persistence.loadEventMemory? memoryFile with
+  match ← loadCorrectionMemoryOrEmpty? correctionFile with
   | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
+      IO.eprintln "loam: malformed or unsupported correction-memory file"
       return 2
-  | some memory =>
-      match ← loadCorrectionMemoryOrEmpty? correctionFile with
+  | some corrections =>
+      match Loam.Application.correctionFrontierMemory? movement.events corrections with
       | none =>
-          IO.eprintln "loam: malformed or unsupported correction-memory file"
+          IO.eprintln "loam: corrections do not justify one current Event frontier"
           return 2
-      | some corrections =>
-          match Loam.Application.correctionFrontierMemory? memory corrections with
+      | some frontier =>
+          match Loam.Application.admittedActualValidityMemory? movement.validity with
           | none =>
-              IO.eprintln "loam: corrections do not justify one current Event frontier"
+              IO.eprintln
+                "loam: actual-validity corrections do not justify one current date per event"
               return 2
-          | some frontier =>
-              match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
-              | none =>
-                  IO.eprintln "loam: malformed or unsupported actual-validity history"
+          | some validities =>
+              match journalEntries? validities movement.descriptions frontier.events with
+              | .error message =>
+                  IO.eprintln ("loam: " ++ message)
                   return 2
-              | some history =>
-                  match Loam.Application.admittedActualValidityMemory? history with
-                  | none =>
-                      IO.eprintln
-                        "loam: actual-validity corrections do not justify one current date per event"
-                      return 2
-                  | some validities =>
-                      match ← loadDescriptionMemoryOrEmpty? descriptionFile with
-                      | none =>
-                          IO.eprintln "loam: malformed or unsupported event-description memory"
-                          return 2
-                      | some descriptions =>
-                          match journalEntries? validities descriptions frontier.events with
-                          | .error message =>
-                              IO.eprintln ("loam: " ++ message)
-                              return 2
-                          | .ok entries =>
-                              publishJournal outputFile (renderJournal (sortEntries entries))
-                              IO.println ("Regenerated readable Actual journal: " ++ outputPath)
-                              return 0
+              | .ok entries =>
+                  publishJournal outputFile (renderJournal (sortEntries entries))
+                  IO.println ("Regenerated readable Actual journal: " ++ outputPath)
+                  return 0
 
 end Loam.JournalExportCli
 
 private def journalUsage : String :=
   "Usage: loamJournalExport MEMORY_FILE CORRECTION_FILE OUTPUT_FILE"
 
+private def journalOwnershipAnchor (memoryPath : String) : IO (Except String System.FilePath) := do
+  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  | none => return .ok (System.FilePath.mk memoryPath)
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return .error "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+      return .ok (System.FilePath.mk rootPath / "CURRENT")
+
 def main (args : List String) : IO UInt32 :=
   match args with
   | [memoryPath, correctionPath, outputPath] =>
-      Loam.WriterOwnership.withOwnership
-        (System.FilePath.mk memoryPath)
-        (Loam.JournalExportCli.exportJournal memoryPath correctionPath outputPath)
+      match ← journalOwnershipAnchor memoryPath with
+      | .error message =>
+          IO.eprintln ("loam: " ++ message)
+          return 2
+      | .ok anchor =>
+          Loam.WriterOwnership.withOwnership
+            anchor
+            (Loam.JournalExportCli.exportJournal memoryPath correctionPath outputPath)
   | _ => do
       IO.eprintln journalUsage
       return 2
