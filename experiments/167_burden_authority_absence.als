@@ -118,23 +118,23 @@ pred absenceSupportsDifferentMeanings {
 // Explicit household evidence is observably different from mere absence even
 // when both worlds happen to have household semantic meaning.
 pred explicitHouseholdDiffersFromAbsence {
-  some effect: Effect, u: Unit, fact: BurdenFact | {
+  some effect: Effect, u: Unit, burdenFact: BurdenFact | {
     u.source = effect
-    fact.unit = u
-    fact.bearer = Household
+    burdenFact.unit = u
+    burdenFact.bearer = Household
 
     Left.units = u
     Right.units = u
     no Left.facts
     no Left.corrections
-    Right.facts = fact
+    Right.facts = burdenFact
     no Right.corrections
 
     Left.semanticBearer = u->Household
     Right.semanticBearer = u->Household
 
     no currentFor[Left, u]
-    currentFor[Right, u] = fact
+    currentFor[Right, u] = burdenFact
   }
 }
 
