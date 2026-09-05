@@ -1,5 +1,7 @@
 module experiments/observation_198_authorization_hold_reservation
 
+open util/integer
+
 -- F001 asks whether a temporary authorization reservation is independent from
 -- both physical holdings and the already-qualified initiated/unsettled state.
 --
@@ -28,7 +30,7 @@ fun totalReserved[w: World]: one Int {
 }
 
 fun available[w: World]: one Int {
-  w.held - totalReserved[w]
+  w.held.sub[totalReserved[w]]
 }
 
 fact WellFormed {
