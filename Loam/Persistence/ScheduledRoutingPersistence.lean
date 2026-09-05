@@ -29,8 +29,6 @@ Envelope identity, or a generic routing registry.
 /-- Version marker for the first concrete Scheduled-routing stream. -/
 def scheduledRoutingHeader : String := "LOAM-SCHEDULED-ROUTING\t1"
 
-abbrev ScheduledRoutingHistory := RoutingHistory ScheduledRoutingSubject String
-
 private def encodeScheduledRoutingRow?
     (entry : RoutingEntry ScheduledRoutingSubject String) : Option String := do
   let scheduled := entry.subject.scheduled.token
@@ -75,12 +73,14 @@ private def decodeScheduledRoutingRow?
   | _ => none
 
 /-- Encode Scheduled routing without assigning authority to row order. -/
-def encodeScheduledRoutingHistory? (history : ScheduledRoutingHistory) : Option String := do
+def encodeScheduledRoutingHistory?
+    (history : ScheduledRoutingHistory String) : Option String := do
   let rows ← history.entries.mapM encodeScheduledRoutingRow?
   return String.intercalate "\n" (scheduledRoutingHeader :: rows) ++ "\n"
 
 /-- Decode and re-admit duplicate `(ScheduledId × LocusId, date)` coordinates. -/
-def decodeScheduledRoutingHistory? (input : String) : Option ScheduledRoutingHistory :=
+def decodeScheduledRoutingHistory?
+    (input : String) : Option (ScheduledRoutingHistory String) :=
   match input.splitOn "\n" with
   | header :: rows =>
       if header != scheduledRoutingHeader then
@@ -99,7 +99,7 @@ private def scheduledRoutingStagePath (path : System.FilePath) : System.FilePath
 /-- Publish one complete Scheduled-routing stream by sibling staging plus rename. -/
 def saveScheduledRoutingHistory?
     (path : System.FilePath)
-    (history : ScheduledRoutingHistory) : IO Bool := do
+    (history : ScheduledRoutingHistory String) : IO Bool := do
   match encodeScheduledRoutingHistory? history with
   | none => return false
   | some text =>
@@ -110,7 +110,7 @@ def saveScheduledRoutingHistory?
 
 /-- Read and fail-closed decode one concrete Scheduled-routing stream. -/
 def loadScheduledRoutingHistory?
-    (path : System.FilePath) : IO (Option ScheduledRoutingHistory) := do
+    (path : System.FilePath) : IO (Option (ScheduledRoutingHistory String)) := do
   let input ← IO.FS.readFile path
   return decodeScheduledRoutingHistory? input
 
