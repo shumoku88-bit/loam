@@ -36,12 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build practical Scheduled routing utility
+      - name: Build practical Scheduled routing utility and projection dependency
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: loamScheduledRouting
+          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection
           test: false
           lint: false
           use-mathlib-cache: false
