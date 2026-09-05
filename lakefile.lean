@@ -12,9 +12,6 @@ lean_exe loam where
 lean_exe loamMovement where
   root := `Loam.Cli.MovementCli
 
-lean_exe loamMovementManifestCutover where
-  root := `Loam.Cli.MovementManifestCutoverCli
-
 lean_exe loamCapacity where
   root := `Loam.Cli.CapacityCli
 

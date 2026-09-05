@@ -27,17 +27,17 @@ private def lockPath (anchor : System.FilePath) : System.FilePath :=
   System.FilePath.mk (anchor.toString ++ ".loam-writer-lock")
 
 /--
-Application 036 single-version cutover guard.
+Movement manifest authority guard.
 
-When the explicit Movement manifest mode is active, the only writer-ownership
-anchor permitted in that process is the selected manifest's `CURRENT` path.
-This prevents an older sidecar publisher, correction publisher, or Scheduled
-Actual publisher from reopening frozen sidecar authority merely because its
-binary remains reachable. Independent commands remain unaffected when the
-manifest environment variable is not supplied to their process.
+When Movement manifest mode is active, the only writer-ownership anchor
+permitted in that process is the selected manifest's `CURRENT` path. This
+prevents a sidecar publisher, correction publisher, or Scheduled Actual
+publisher from reopening legacy sidecar authority merely because its binary
+remains reachable. Independent commands remain unaffected when the manifest
+environment variable is not supplied to their process.
 -/
 private def ownershipAllowedByManifestMode (anchor : System.FilePath) : IO Bool := do
-  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
   | none => return true
   | some rootPath =>
       if rootPath.isEmpty then
@@ -58,9 +58,9 @@ handle without truncating it. The OS lock, not file contents or file existence,
 is the ownership primitive. `finally` releases ownership on ordinary Lean
 exceptions; process termination releases the underlying OS lock.
 
-During the Application 036 manifest epoch guard, attempting to acquire any
-non-`CURRENT` ownership anchor while manifest mode is explicitly selected fails
-before the action observes or mutates its legacy authority.
+While Movement manifest authority is selected, attempting to acquire any
+non-`CURRENT` ownership anchor fails before the action observes or mutates its
+legacy authority.
 -/
 def withOwnership {α : Type}
     (anchor : System.FilePath)
