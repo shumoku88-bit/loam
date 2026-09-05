@@ -62,8 +62,10 @@ for family in ["Event", "ActualValidity", "EventDescription", "RelationUnit", "R
     if f'manifestRow "{family}"' not in authority:
         raise SystemExit(f"Movement manifest authority lost family {family}")
 
-if authority.count('let target := root / "CURRENT"') != 2:
-    raise SystemExit("expected one selected read and one CURRENT commit target")
+if authority.count('let current := root / "CURRENT"') != 1:
+    raise SystemExit("expected one selected CURRENT read site")
+if authority.count('let target := root / "CURRENT"') != 1:
+    raise SystemExit("expected one CURRENT commit target")
 if authority.count("IO.FS.rename stage target") != 2:
     raise SystemExit("expected one object-stage rename site and one CURRENT-stage rename site")
 
