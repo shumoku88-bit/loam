@@ -324,8 +324,7 @@ theorem representation_length_does_not_respect_vector_equivalence :
     compactPresentation
     splitPresentation
     split_and_compact_are_vector_equivalent
-  change compactPresentation.length = splitPresentation.length at hLength
-  exact equivalent_presentations_can_have_different_shape hLength
+  simp [Loam.Observation180.observe, compactPresentation, splitPresentation] at hLength
 
 /--
 Observation 180's negative representation result is likewise recovered directly
@@ -364,7 +363,7 @@ Closure(O)
 
 Observation 159 supplies a concrete nontrivial quotient: for the two-coordinate
 field trial, `~O` is exactly the free-Abelian-style coordinate-vector
- equivalence. Observation 179 supplies the preservation polarity. Observation
+equivalence. Observation 179 supplies the preservation polarity. Observation
 180's all-endomap double polarity then becomes quotient factorization rather
 than a separate closure phenomenon.
 
