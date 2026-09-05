@@ -73,6 +73,10 @@ jobs:
             | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
               .lake/build/bin/loamCapacity "$tmpdir/capacity.loam"
 
+          printf 'unallocated\ngeneral\n50\n' \
+            | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
+              .lake/build/bin/loamCapacity "$tmpdir/capacity.loam"
+
           printf 'paypay\n20\n\nexpenses:food\n20\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-08-16 \
               LOAM_DESCRIPTION='before clean epoch' \
@@ -95,6 +99,15 @@ jobs:
           grep -Fx 'Entitlement: 100 jpy' <<<"$output"
           grep -Fx 'Consumption: 30 jpy' <<<"$output"
           grep -Fx 'Remaining: 70 jpy' <<<"$output"
+
+          all_output="$(.lake/build/bin/loamBudgetWindow \
+            "$tmpdir" 2026-08-17 2026-10-15 --all)"
+          printf '%s\n' "$all_output"
+
+          grep -Fx 'Budget window [2026-08-17, 2026-10-15)' <<<"$all_output"
+          grep -Fx 'Purposes:' <<<"$all_output"
+          grep -Fx '  food: entitlement 100 jpy, consumption 30 jpy, remaining 70 jpy' <<<"$all_output"
+          grep -Fx '  general: entitlement 50 jpy, consumption 0 jpy, remaining 50 jpy' <<<"$all_output"
 
           mv "$tmpdir/actual-routing.loam" "$tmpdir/actual-routing.saved"
           if .lake/build/bin/loamBudgetWindow \
