@@ -1,6 +1,6 @@
 # Observation 199 — Does a full refund of a shared expense require new second-order evidence?
 
-Status: **F076 active falsification observation**
+Status: **F076 complete — ABSORBED / RESEARCH_ONLY**
 
 ## Question
 
@@ -96,7 +96,7 @@ These names are experiment-local. They do not propose production `Cost`, `Partic
 
 Can a full refund of a two-unit shared cost leave one unit as the household's own refund share while the already-settled outside unit becomes value owed back to the outside participant?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 2. Same physical refund amount and burden graph, different source provenance
 
@@ -104,9 +104,9 @@ Two equal-size shared costs exist. One is shared with OutsideA and the other wit
 
 If only `refundOf` changes, the outside beneficiary changes.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-This should recover Observation 065's provenance pressure inside a shared-burden graph rather than earn a new kind of source relation.
+This recovers Observation 065's provenance pressure inside a shared-burden graph rather than earning a new kind of source relation.
 
 ### 3. Same source and burden, different prior discharge
 
@@ -122,9 +122,9 @@ not yet settled
   -> extinguish open receivable
 ```
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-This should recover Observation 165's discharge distinction rather than earn a new settlement primitive.
+This recovers Observation 165's discharge distinction rather than earning a new settlement primitive.
 
 ## Deliberately too-small checks
 
@@ -132,13 +132,13 @@ This should recover Observation 165's discharge distinction rather than earn a n
 
 If burden allocation and discharge state are the same, do they determine refund consequences without saying which source was refunded?
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
 ### Refund source + burden without discharge
 
 If source provenance and burden allocation are fixed, do they determine whether the outside share is extinguished or reverses direction without prior discharge evidence?
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
 ## Composition sufficiency check
 
@@ -154,13 +154,30 @@ prior outside discharge state
 
 Then ask whether the selected refund consequences can still differ.
 
-Expected counterexample: **UNSAT**.
+Observed counterexample: **UNSAT**.
 
-If this holds, F076 does not expose a fourth independent evidence family at this bounded frontier. It is absorbed by composition of distinctions LOAM already earned separately.
+No fourth independent degree of freedom remained in the selected bounded vocabulary.
 
-## Candidate interpretation if the matrix holds
+## Executed Alloy result
 
-The result would be:
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix:
+
+```text
+representativeSettledSharedRefund                                SAT
+samePhysicalRefundDifferentSourceChangesBeneficiary              SAT
+sameSourceAndBurdenDifferentDischargeChangesConsequence          SAT
+BurdenAndDischargeWithoutRefundSourceDetermineRefundConsequences SAT counterexample
+RefundSourceAndBurdenWithoutDischargeDetermineDirection          SAT counterexample
+ExistingEvidenceDeterminesRefundConsequences                     UNSAT counterexample
+```
+
+Dedicated Observation 199 CI completed SUCCESS on the initial observation head.
+
+## Finding
+
+F076 does **not** expose a fourth independent evidence family at this bounded frontier.
+
+The qualified composition is:
 
 ```text
 physical refund alone
@@ -177,7 +194,9 @@ burden allocation
     -> selected full-refund consequence
 ```
 
-That would close F076 as:
+So the selected second-order refund answer is reconstructible from distinctions LOAM had already earned independently.
+
+This closes F076 as:
 
 ```text
 Work     DONE
@@ -185,7 +204,7 @@ Finding  ABSORBED
 Runtime  RESEARCH_ONLY
 ```
 
-This would be an important kind of success for the falsification program: not every adversarial specimen should force the vocabulary to grow.
+This is an important falsification result in the opposite direction from Observations 196–198: the adversarial specimen survives, but the vocabulary does not need to grow.
 
 ## Boundaries
 
@@ -204,4 +223,4 @@ Observation 199 does **not** establish:
 
 F077, which asks about explicit redistribution to participants, may still contain additional pressure if a query requires information beyond the selected composition here.
 
-Runtime remains `RESEARCH_ONLY` regardless of the result.
+Runtime remains `RESEARCH_ONLY`.
