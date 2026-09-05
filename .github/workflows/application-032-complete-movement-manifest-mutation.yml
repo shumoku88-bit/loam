@@ -71,7 +71,9 @@ jobs:
           lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
             prepare "$memory1" "$manifest" \
             | tee "$tmp_dir/prepare1.out"
-          grep -Fq 'reused_objects=0' "$tmp_dir/prepare1.out"
+          # RelationDischarge is unchanged and reuses the selected empty object;
+          # the four changed families prepare new immutable objects.
+          grep -Fq 'reused_objects=1' "$tmp_dir/prepare1.out"
           grep -Fq 'authority_switches=0' "$tmp_dir/prepare1.out"
 
           # Candidate objects exist, but CURRENT still selects the empty world.
@@ -95,7 +97,6 @@ jobs:
                 .lake/build/bin/loamMovement "$memory_retry" \
                 | tee "$tmp_dir/retry1.out"
           grep -Fq 'event: record-1' "$tmp_dir/retry1.out"
-          grep -Fq 'relation-1' "$memory_retry.relations.loam" || true
 
           lake env lean --run experiments/application_032_complete_movement_manifest_mutation.lean \
             prepare "$memory_retry" "$manifest" \
