@@ -7,6 +7,7 @@ import Loam.Application.ScheduledInspection
 import Loam.Application.ScheduledCommitmentInspection
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.AttentionInspection
+import Loam.Application.OpenRelationFrontier
 
 namespace Loam
 
