@@ -1,113 +1,90 @@
 # Application 020: Generation-manifest publication boundary
 
-Status: **QUALIFICATION PENDING**. This application is a scratch protocol/model and
-filesystem fixture only. It changes no production persistence or household data.
+Status: **QUALIFIED** by bounded TLA+ / TLC exploration and public filesystem
+fixtures on both Ubuntu and macOS. No production persistence or household data
+changes here.
 
 ## Pressure
 
-Application 019 found a real temporal distinction:
+Application 019 found that LOAM's largest practical writer paths spend substantial
+source on cross-stream publication, interruption residue, retry, and identity
+reservation. Its TLA+ comparison also found that:
 
 ```text
-per-fact durable publication
-    -> partial authority-store residue remains
-
-complete off-authority bundle
-    -> one authority transition
-    -> partial work stays outside authority
+several files -> one typed file
 ```
 
-But that result did not yet identify a filesystem primitive LOAM could actually
-use without flattening its fact families or rewriting every family for every
-small change.
+is not temporal compression by itself when facts are still durably published one
+at a time. Only complete off-authority preparation followed by one authority
+transition removed partial authority-store prefixes in that model.
 
-The next question is therefore:
+The next question is therefore concrete:
 
-> What is the smallest realizable indirection that can select several already
-> complete typed family images in one authority transition while leaving
-> unchanged family images physically untouched?
+> Can LOAM realize one atomic selector over several separately stored typed fact
+> families without physically rewriting every unchanged family?
 
-This application is stacked on Application 019 at:
-
-```text
-6f7ac80039500948656578a3030b71275026dd6e
-```
-
-The production snapshot under observation remains `main` at:
+This application is stacked on Application 019. The production source inspected
+remains `main` at:
 
 ```text
 3491a1511ed8b069d8638e76a74ebbb9fbc594e5
 ```
 
-## Existing facts that constrain the experiment
+## Existing boundaries
 
-This is not the first LOAM observation about atomic publication.
+### Individual stream replacement already exists
 
-### Current production already stages each individual stream
+Current persistence already writes complete family images to sibling
+`.loam-stage` paths and then renames them over their targets. For example,
+`saveEventMemory?` explicitly says its rename is one-file atomic publication,
+not a cross-stream transaction.
 
-`Loam.Persistence.saveEventMemory?` writes a complete encoded EventMemory to a
-sibling `.loam-stage` path and then renames it over the EventMemory target.
-EventCorrection and the newer family persistence modules use the same basic
-per-target shape.
-
-That gives one atomic replacement boundary **per family path** where the
-filesystem rename has replacement atomicity. The persistence comments explicitly
-do not claim a cross-stream transaction.
-
-So Application 020 is not looking for a better way to atomically replace one
-file. LOAM already has that primitive.
+Application 020 therefore does not invent atomic replacement of one file.
 
 ### Writer ownership already exists
 
-`Loam.WriterOwnership.withOwnership` supplies one OS-managed exclusive writer
-scope anchored at the canonical EventMemory path. Application 020 does not try to
-replace that concurrency boundary. Any future manifest publication would still
-need ownership spanning:
+`Loam.WriterOwnership.withOwnership` gives one OS-managed cross-process writer
+scope. A future manifest writer would still need ownership spanning:
 
 ```text
-read current authority
+read authority selector
 -> prepare candidate
 -> admit candidate
--> publish new authority selector
+-> publish selector
 ```
 
-Without ownership, two writers could still prepare from one old selector and let
-a later stale selector lose the earlier completed update.
+Manifest indirection does not solve stale concurrent writers by itself.
 
-### Observation 060 did not require a manifest for crash safety
+### Observation 060 remains valid
 
 Observation 060 already showed that relation-first split publication plus
-Event-first acquisition can remain safe across explicit retry. It deliberately
-concluded that a generation/manifest selector should **not** be added merely for
-crash safety.
+Event-first acquisition can remain safe through explicit retry. It concluded
+that a generation/manifest selector was not required merely for crash safety.
 
-Application 020 does not overturn that result. The new pressure is different:
-production code-size work in Applications 016-019 found that explicit
-cross-stream publication/recovery protocol is now the largest practical source
-cost. A manifest is being observed as a possible *protocol-compression* boundary,
-not as a newly discovered requirement for semantic safety.
+Application 020 does not reverse that result. The new pressure is whether a
+selector can make the *production protocol smaller* now that cross-stream
+recovery dominates practical source size.
 
-### Observation 157 exposed a locality tradeoff
+### Observation 157 left this topology open
 
-Observation 157 compared direct authority partitions and found a structural
-competition:
+Observation 157 found a structural tradeoff for direct authority partitions:
 
 ```text
-one whole Actual authority
+one whole authority
     -> one authority transition
     -> broad rewrite scope
 
 one authority per family
-    -> strict single-family rewrite locality
-    -> no one-transition whole-Actual publication without coordination above it
+    -> strict family rewrite locality
+    -> no whole-view one-transition publication without coordination above it
 ```
 
-The final phrase matters. Application 020 deliberately tests that previously
-unmodeled coordination-above-sidecars case rather than contradicting the Alloy
-result.
+Application 020 tests exactly that previously excluded `coordination above
+sidecars` case.
 
-## Candidate primitive: one manifest selects immutable family images
+## Candidate primitive
 
-The scratch topology is:
+The scratch physical shape is:
 
 ```text
 objects/
@@ -121,7 +98,7 @@ objects/
 CURRENT
 ```
 
-`CURRENT` is a tiny versioned manifest. For every family it records:
+`CURRENT` is a small versioned manifest. Each row names:
 
 ```text
 family
@@ -129,64 +106,75 @@ relative object path
 digest
 ```
 
-The referenced family images are write-once at this abstraction. `CURRENT` is the
-only mutable authority selector.
+Family images are write-once at this abstraction. `CURRENT` is the only mutable
+operational selector.
 
-A reader does:
+A reader performs:
 
 ```text
-read CURRENT exactly once
--> validate the manifest
--> read exactly the family-image paths named by that manifest
--> validate their digests
+read CURRENT once
+-> validate manifest
+-> read exactly the referenced family images
+-> validate digests
 -> perform ordinary typed decode/admission
 ```
 
-If `CURRENT` changes while the reader is loading those paths, the already-read
-manifest remains a stable snapshot because its referenced objects are not
-mutated in place.
+If `CURRENT` changes while those images are being loaded, the reader still holds
+one stable manifest snapshot and follows only write-once paths from that snapshot.
+
+The manifest is operational publication metadata, not a household domain fact.
 
 ## Multi-family publication
 
-For a maximum-fan-out Movement-like change, a future writer shape could be:
+For a maximum-fan-out Movement-like update, the modeled changed families are:
+
+```text
+Event
+ActualValidity
+EventDescription
+RelationUnit
+RelationDischarge
+```
+
+while ActualRouting remains unchanged.
+
+A candidate writer shape is:
 
 ```text
 hold WriterOwnership
 -> read CURRENT
--> prepare new Event image off-authority
--> prepare new ActualValidity image off-authority
--> prepare new EventDescription image off-authority
--> prepare new RelationUnit image off-authority
--> prepare new RelationDischarge image off-authority
+-> prepare new changed-family images off-authority
 -> validate the complete candidate view
--> write CURRENT.loam-stage with all five new refs
-   plus unchanged refs such as ActualRouting
+-> stage next CURRENT with new refs for changed families
+   and old refs for unchanged families
 -> atomically replace CURRENT
 ```
 
-The order in which the five object files are constructed no longer has reader
-visibility meaning because none is selected until the manifest switch.
+The order in which off-authority objects are constructed has no reader-visibility
+meaning. Partial objects are not discovered by canonical readers because the
+published manifest does not reference them.
 
-This does **not** remove Event as a semantic fact or relation activation concept.
-It only tests whether physical partial-object order can stop being an authority
-protocol.
+This does not remove Event, Relation, or Discharge semantics. It only moves the
+physical activation boundary above their storage paths.
 
 ## Single-family locality
 
-For an ActualRouting-only change, the candidate shape is smaller:
+The routing-only model prepares only a new ActualRouting image:
 
 ```text
-prepare one new ActualRouting image
--> next CURRENT keeps every other old reference
--> atomically replace CURRENT
+old Event ref             -> old Event ref
+old Validity ref          -> old Validity ref
+old Description ref       -> old Description ref
+old Relation ref          -> old Relation ref
+old Discharge ref         -> old Discharge ref
+old Routing ref           -> new Routing ref
 ```
 
-Only the routing object bytes are rewritten. The manifest is rewritten because it
-is the selector, but Event, validity, description, relation, and discharge object
-images remain physically unchanged and continue to be referenced.
+Only one family image is physically rewritten. The manifest itself changes
+because it is the selector.
 
-This is the important distinction from a complete unified snapshot. Manifest
-indirection can potentially combine:
+This produces a topology not represented by Observation 157's direct partition
+model:
 
 ```text
 one authority selection step
@@ -194,53 +182,11 @@ one authority selection step
 changed-family-only object rewriting
 ```
 
-at the cost of introducing one new operational authority layer.
-
-## Interruption and orphan residue
-
-Before the selector changes, an interrupted writer may leave:
-
-- a partial unreferenced family object;
-- several complete unreferenced family objects;
-- a complete but unpublished candidate set;
-- a partial `CURRENT.loam-stage` file.
-
-None is canonical merely because it exists. Readers discover family images only
-through the currently published manifest.
-
-This gives orphan residue a simpler operational meaning than current raw
-cross-stream residue:
-
-```text
-unreferenced object
-    !=
-selected authority
-```
-
-A later production design would still need object-name collision rules and a
-cleanup policy. Application 020 does not infer garbage-collection authority from
-file age or naming.
-
-## Append-only provenance boundary
-
-The fixture keeps every previously published family image byte-identical after a
-later manifest switch. New versions use fresh paths; old images are not replaced.
-
-That gives a useful physical provenance shape:
-
-```text
-family images: write-once / retained
-CURRENT: moving operational selector
-```
-
-This is not yet a complete provenance design. In particular, the current
-manifest itself is replaced, and this application does not decide whether old
-manifests, publication receipts, or a manifest history must also be retained.
-Canonical append-only correction semantics remain inside the typed family images.
+The price is one new indirection layer.
 
 ## TLA+ model
 
-`application_020_generation_manifest.tla` keeps six family names:
+`application_020_generation_manifest.tla` keeps six families distinct:
 
 ```text
 Event
@@ -251,99 +197,99 @@ Discharge
 Routing
 ```
 
-A manifest maps each family to either its old or new immutable image.
+The manifest maps each family to an old or new write-once image. Family images may
+be prepared one at a time off-authority. One crash may occur during preparation;
+prepared objects survive restart. Readers capture the manifest before completing
+their read.
 
-Two positive configurations are checked.
+Two positive configurations qualified:
 
-### Movement-like multi-family update
+1. Movement-like five-family change;
+2. Routing-only one-family change.
 
-Changed families are:
-
-```text
-Event
-Validity
-Description
-Relation
-Discharge
-```
-
-Routing remains old.
-
-The model permits family preparation one by one, crash/restart during preparation,
-reader acquisition before or after publication, and one atomic manifest switch.
-
-Expected invariants:
+The checked invariants require:
 
 - only changed families are prepared;
 - authority manifest is always exactly old or complete candidate;
 - completed readers observe only old or complete candidate manifests;
-- unchanged family references stay old;
-- published state selects the complete candidate.
+- unchanged references remain old;
+- published state selects the complete candidate manifest.
 
-### Routing-only update
+All passed.
 
-Only Routing is prepared as new. Every other family reference remains old even
-after the new manifest is published.
+Dedicated expected-counterexample checks also qualified and prove non-vacuity:
 
-This is the model-level locality witness that coordination above sidecars need not
-rewrite every family image.
+- partial off-authority preparation is reachable;
+- crash with prepared off-authority residue is reachable;
+- completed manifest publication is reachable;
+- routing-only publication is reachable without preparing every family.
 
-### Non-vacuity boundaries
-
-Dedicated negative configurations require the following states to be reachable:
-
-- partial off-authority preparation;
-- crash with prepared off-authority residue;
-- completed manifest publication;
-- routing-only publication without all families having been prepared.
+So the model does not obtain safety by forbidding interruption, publication, or
+single-family locality.
 
 ## Filesystem fixture
 
 `tests/application_020_generation_manifest.py` exercises the same shape with
 ordinary files.
 
-It first publishes one old manifest, then performs a routing-only update where
-only one family object path changes.
+It first creates one old selected generation, then performs a routing-only update
+where exactly one family object reference changes.
 
-Next it starts concurrent readers, gradually writes five new Movement-family
+It then starts concurrent readers, gradually writes five new Movement-family
 objects while the old manifest remains authoritative, and finally replaces a
-staged manifest using `os.replace`.
+staged manifest with `os.replace`.
 
-Every reader reconstructs its view from one manifest read plus the immutable
-objects named by that manifest. The fixture requires every observation to equal
-either the complete old selected view or the complete new selected view.
+Every reader reconstructs its view from one manifest read plus the family objects
+named by that manifest.
 
-It also requires:
+The fixture requires:
 
-- partial unreferenced objects do not change authority;
-- complete unreferenced objects do not change authority;
-- routing-only publication changes exactly one family object reference;
-- Movement publication changes exactly five family object references and leaves
-  the routing version untouched;
-- old published object bytes remain unchanged after later publication;
-- both complete reader generations are actually observed.
+- readers see only one complete old or one complete new selected view;
+- both complete generations are actually observed;
+- mixed views are never observed;
+- a partial unreferenced object has no authority effect;
+- a complete unreferenced object has no authority effect;
+- routing-only publication changes exactly one family reference;
+- Movement publication changes exactly five family references and leaves routing
+  untouched;
+- previously published object bytes remain unchanged after later selector moves.
 
-The runtime fixture is run on both Ubuntu and macOS GitHub runners. As with
-Observation 155, this tests process-concurrent visibility on those filesystems;
-it does not claim power-loss durability or directory-entry fsync guarantees.
+The exact-head workflow passed on both `ubuntu-latest` and `macos-latest`.
+The TLA+ protocol job and every intended positive/negative boundary also passed.
 
-## What this could compress if production evidence later supports it
+As with Observation 155, this is a process-concurrency filesystem qualification,
+not a power-loss or directory-fsync guarantee.
 
-A manifest selector has one potentially important consequence for the source-size
-pressure that motivated this line.
+## Finding
 
-Current writers must make partially published sibling facts semantically inert and
-resumable. That drives operation-specific logic for:
+The qualified result is:
 
-- publication order;
-- which fact activates the operation;
-- interrupted raw residue recognition;
-- retry reuse;
-- identity reservation against residue that physically sits on canonical paths.
+> One small atomically replaced manifest can select several separately stored
+> write-once typed family images as one coherent authority view while unchanged
+> family images remain physically untouched.
 
-With explicit manifest selection, unselected object versions are not discovered
-by canonical readers. That may allow some physical-publication recovery logic to
-collapse into one generic operational rule:
+That is stronger than Application 019's abstract atomic-bundle transition and
+different from a unified one-file Actual snapshot.
+
+The important new shape is:
+
+```text
+immutable/versioned family images
+        +
+one mutable generation selector
+        =
+atomic multi-family selection with family-byte locality
+```
+
+## Why this could matter for production size
+
+Current multi-stream writers must reason about partially published sibling facts
+that physically occupy canonical family paths. That drives operation-specific
+logic for publication order, inert residue, retry recognition, and identity
+reservation against interrupted residue.
+
+Under manifest selection, unreferenced object versions are not canonical merely
+because they exist. This could allow physical recovery to collapse toward:
 
 ```text
 prepare complete candidate objects
@@ -351,58 +297,63 @@ prepare complete candidate objects
 -> switch selector once
 ```
 
-But **may** is the boundary. Application 020 does not delete any of those checks
-or claim a source reduction. A scratch Lean writer must demonstrate actual code
-deletion before a production migration is earned.
+But **could** is the boundary. Application 020 does not prove any current writer
+checks removable and does not claim a net LOC reduction.
 
-## Costs introduced by the candidate
+## Costs introduced
 
-The primitive is not free. A production version would add at least:
+A production version would add at least:
 
-- a versioned manifest format and parser;
-- one operational authority path;
+- a versioned manifest parser and writer;
+- one new operational authority path;
 - fresh/write-once object naming;
-- digest validation or another immutability check;
+- digest validation or another immutability discipline;
 - reader indirection through the manifest;
 - migration from current direct canonical paths;
 - orphan-object cleanup policy;
-- compatibility decisions for direct inspection/export tooling;
-- a decision about retaining old manifest generations or receipts.
+- compatibility rules for direct inspection/export tools;
+- a decision about retaining old manifests or publication receipts.
 
-Therefore a successful fixture proves **realizability**, not net simplicity.
+The manifest selector may therefore be architecturally cleaner but still lose the
+code-size contest. Realizability is not net simplicity.
 
 ## Explicit limits
 
-Application 020 does not model or implement:
+Application 020 does not introduce or decide:
 
-- a production manifest parser or writer;
-- a production object store;
+- production manifest or object-store code;
 - garbage collection;
 - content-addressed naming;
-- hard links or symlinks;
-- power-loss durability;
-- directory fsync;
-- two concurrent writers beyond reusing the existing ownership requirement;
-- stale-manifest compare-and-swap without ownership;
+- symlinks or hard links;
+- power-loss durability or directory fsync;
+- a new concurrent-writer protocol;
+- stale-manifest CAS without ownership;
 - torn-object recovery;
 - malicious path mutation;
-- full correction graphs inside the scratch TLA+ state;
+- full correction graphs inside the TLA+ model;
 - private household data;
-- a canonical migration.
+- canonical migration.
 
-## Decision rule
+The write-once object discipline is a protocol assumption in this experiment,
+with digest validation in the runtime fixture. A production design would have to
+make that boundary explicit and fail closed when it is violated.
 
-If qualification succeeds, the earned statement is deliberately narrow:
+## Smallest earned follow-up
 
-> A small versioned manifest can act as one realizable atomic selector over
-> separately stored write-once typed family images, while unchanged family images
-> remain physically untouched.
+Do **not** migrate production storage yet.
 
-That is stronger than Application 019's abstract atomic-bundle transition and
-different from a one-file unified Actual image.
+The next useful experiment is a scratch Lean Movement publisher that reuses the
+existing typed encoders but publishes through this manifest boundary. Compare it
+directly with current `MovementCli` for:
 
-It still does not earn production adoption. The next useful test would be a
-scratch Lean Movement publisher using the existing typed encoders behind this
-manifest boundary, followed by a direct source/protocol comparison with the
-current Movement writer. Only then can LOAM ask whether the new indirection
-actually makes the product smaller rather than merely moving complexity.
+```text
+publication steps
+recovery branches
+identity-reservation branches
+source size
+reader complexity
+failure messages
+```
+
+Only if the scratch writer demonstrably deletes more protocol than the manifest
+layer adds has a production persistence change been earned.
