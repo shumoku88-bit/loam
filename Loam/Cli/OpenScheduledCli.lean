@@ -1,4 +1,5 @@
 import Loam.Application.ScheduledInspection
+import Loam.Cli.ScheduledBalanceCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.ScheduledLifecycleCli
 import Loam.Persistence
@@ -245,6 +246,8 @@ end Loam.OpenScheduledCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
+  | ["balance-effects", rootPath, endExclusive] =>
+      Loam.ScheduledBalanceCli.report rootPath endExclusive
   | ["menu", scheduledPath, memoryPath] =>
       Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
   | [scheduledPath, memoryPath] => do
@@ -257,5 +260,6 @@ def main (args : List String) : IO UInt32 :=
       else
         Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
   | _ => do
-      IO.eprintln "Usage: loamOpenScheduled [menu] SCHEDULED_FILE MEMORY_FILE"
+      IO.eprintln
+        "Usage: loamOpenScheduled balance-effects DATA_ROOT END | [menu] SCHEDULED_FILE MEMORY_FILE"
       return 2
