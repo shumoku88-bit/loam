@@ -73,38 +73,50 @@ private def loadEventMemoryForEntry?
     return Loam.Core.EventMemory.ofEvents? []
 
 /--
-Read current files before interactive input only as a convenience and
-malformation preflight. Returned Event memory feeds Locus completion hints; none
-of these snapshots is publication authority. Canonical state is re-read under
-writer ownership after human think time.
+Read exactly one Movement authority backend before interactive input.
+
+Without the explicit manifest gate this retains the current sidecar malformation
+preflight and Event-memory completion hints. With the gate, the selected manifest
+generation supplies the hints and all five selected families are verified before
+human input. The same manifest is re-read under writer ownership after human
+think time, so preflight remains observational rather than publication authority.
+There is no fallback to frozen sidecars in manifest mode.
 -/
 private def preflightForDraft
     (memoryFile : System.FilePath) : IO (Except String Loam.Core.EventMemory) := do
-  match ← loadEventMemoryForEntry? memoryFile with
+  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return Except.error "loam: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      | Except.error message => return Except.error message
+      | Except.ok world => return Except.ok world.events
   | none =>
-      return Except.error "loam: malformed or unsupported event-memory file"
-  | some memory =>
-      let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
-      let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
-      let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
-      let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
-      match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
+      match ← loadEventMemoryForEntry? memoryFile with
       | none =>
-          return Except.error "loam: malformed or unsupported actual-validity history"
-      | some _ =>
-          match ← loadEventDescriptionMemoryOrEmpty? descriptionFile with
+          return Except.error "loam: malformed or unsupported event-memory file"
+      | some memory =>
+          let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
+          let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
+          let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
+          let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
+          match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
           | none =>
-              return Except.error "loam: malformed or unsupported event-description memory"
+              return Except.error "loam: malformed or unsupported actual-validity history"
           | some _ =>
-              match ← loadOpenRelationUnitsOrEmpty? relationFile with
+              match ← loadEventDescriptionMemoryOrEmpty? descriptionFile with
               | none =>
-                  return Except.error "loam: malformed or unsupported open-relation stream"
+                  return Except.error "loam: malformed or unsupported event-description memory"
               | some _ =>
-                  match ← loadRelationDischargesOrEmpty? dischargeFile with
+                  match ← loadOpenRelationUnitsOrEmpty? relationFile with
                   | none =>
-                      return Except.error "loam: malformed or unsupported relation-discharge stream"
+                      return Except.error "loam: malformed or unsupported open-relation stream"
                   | some _ =>
-                      return Except.ok memory
+                      match ← loadRelationDischargesOrEmpty? dischargeFile with
+                      | none =>
+                          return Except.error "loam: malformed or unsupported relation-discharge stream"
+                      | some _ =>
+                          return Except.ok memory
 
 private def showDraftProgress (progress : Loam.MovementUi.Progress) : IO Unit := do
   IO.println ""
@@ -328,13 +340,12 @@ private def publishDraftUnderOwnership
 /--
 Application 035 experimental production path.
 
-The selected manifest generation, not the sidecar files used before human input
-for completion hints, is re-read under writer ownership and is the only state
-used for world-dependent admission and publication. The resulting admitted
-five-family world is prepared as immutable typed objects and becomes authority
-through one `CURRENT` replacement.
+The selected manifest generation is re-read under writer ownership and is the
+only state used for world-dependent admission and publication. The resulting
+admitted five-family world is prepared as immutable typed objects and becomes
+authority through one `CURRENT` replacement.
 
-There is deliberately no fallback to the frozen sidecars if selected manifest
+There is deliberately no fallback to frozen sidecars if selected manifest
 authority is missing or malformed.
 -/
 private def publishDraftUnderManifestOwnership
@@ -387,11 +398,11 @@ open-relation direction or discharge matching from those signs and does not add
 Account, ExpenseCategory, EventKind, debit/credit, Transfer, Income, Spending,
 Settlement, or a global conservation law to Core.
 
-Default operation retains the qualified sidecar authority protocol. Application
-035 may explicitly set `LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT` to a previously
-initialized manifest root. In that mode the supplied `MEMORY_FILE` remains only
-pre-input frozen preflight/hint material; selected manifest state is re-read
-under ownership and is the sole mutation authority.
+Default operation retains the qualified sidecar authority protocol. The explicit
+`LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT` gate selects a previously initialized
+manifest root. In that mode `MEMORY_FILE` is not consulted for Movement-family
+preflight or completion hints; the selected manifest supplies both pre-input
+observations and the under-ownership mutation authority.
 -/
 def recordMovement (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -422,7 +433,7 @@ private def usage : String :=
   "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
   "LOAM_RELATIONS rows: EFFECT_KEY<TAB>E2H|H2E<TAB>EXTERNAL_ID<TAB>POSITIVE_QUANTITY.\n" ++
   "LOAM_DISCHARGES rows: RELATION_ID<TAB>POSITIVE_QUANTITY.\n" ++
-  "Application 035 only: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT=DIR selects preinitialized manifest authority without legacy fallback.\n" ++
+  "Cutover rehearsal: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT=DIR selects preinitialized manifest authority without legacy fallback.\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
