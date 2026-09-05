@@ -67,7 +67,7 @@ private def projectPurpose?
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (validities : ActualValidityMemory String)
-    (routing : RoutingHistory LocusId String)
+    (routing : Loam.Persistence.ActualRoutingHistory)
     (start end_ : String)
     (purpose : PurposeId)
     (measure : MeasureId) : Option PurposeProjection := do
