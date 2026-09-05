@@ -154,10 +154,10 @@ def prepareReplacementDraft
 private def containsScheduled
     (occurrences : List (ScheduledOccurrence String))
     (id : ScheduledId) : Bool :=
-  occurrences.any fun occurrence => occurrence.id = id
+  occurrences.any fun occurrence => decide (occurrence.id = id)
 
 private def reportFrontierRefusal
-    (result : CurrentOpenScheduledWithReplacementResult String) : IO UInt32 := do
+    (result : Loam.Application.CurrentOpenScheduledWithReplacementResult String) : IO UInt32 := do
   match result with
   | .unknownCompletionScheduled =>
       IO.eprintln "loam: scheduled-completion file refers to an unknown Scheduled identity"
