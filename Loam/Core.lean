@@ -13,6 +13,7 @@ import Loam.Core.Capacity
 import Loam.Core.CapacityMemory
 import Loam.Core.CapacityEffective
 import Loam.Core.Event
+import Loam.Core.OpenRelation
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
 import Loam.Core.EventCorrectionMemory
