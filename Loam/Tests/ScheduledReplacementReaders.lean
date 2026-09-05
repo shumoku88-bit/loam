@@ -97,7 +97,7 @@ def main : IO Unit := do
     (EventCorrectionMemory.ofCorrections? [])
     "empty correction memory was not admitted"
   let validities ← requireSome
-    (ActualValidityMemory.ofEntries? ([] : List (ActualValidityEntry Nat)))
+    (ActualValidityMemory.ofEntries? ([] : List (ActualValidity Nat)))
     "empty Actual validity memory was not admitted"
   let actualRouting ← requireSome
     (RoutingHistory.ofEntries? ([] : List (RoutingEntry LocusId Nat)))
