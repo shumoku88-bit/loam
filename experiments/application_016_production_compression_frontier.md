@@ -65,6 +65,8 @@ private def promptLine (prompt : String) : IO String := do
 
 The copies occur across date, Movement, Capacity, Scheduled, correction, and
 completion entrances. `ReviewCli` has one closely related fixed-prompt variant.
+Its fixed prompt and full ASCII trimming are deliberately not counted as an
+identical copy.
 
 This helper carries terminal mechanics, not household meaning. Sharing it would
 not merge Event, Scheduled, Capacity, correction, or relation authority.
@@ -198,6 +200,46 @@ same control-flow silhouette != same semantic operation
 This is the production-code counterpart of LOAM's standing rule to share
 mechanics without erasing meaning.
 
+## Second-pass result: safe duplication is not the main source of size
+
+The first obvious compression candidates are real, but they are small compared
+with the current runtime shell.
+
+Measured directly from the repeated source bodies on the fixed snapshot:
+
+```text
+13 promptLine bodies        about 2.6 KiB total
+2 description-input bodies  about 0.9 KiB total
+3 getAt? bodies              about 0.5 KiB total
+```
+
+If each family were reduced to one implementation, or the list selector were
+deleted in favor of a suitable standard operation, the theoretical raw-source
+saving is only about 3.3 KiB before adding imports, names, and the shared module
+itself. Against roughly 301 KiB of CLI source, that is around one percent at
+most, and the actual net reduction would be smaller.
+
+So the visible mechanical duplication is **not** the primary reason the runtime
+has grown.
+
+The larger source volume is mostly explicit behavior: admission, recovery,
+identity reservation, interactive workflows, projections, and publication
+protocols. Some of that may still be simplifiable, but a large reduction will
+not come from helper extraction alone.
+
+This changes the interpretation of the first refactor:
+
+```text
+small helper extraction
+    = hygiene / boundary test
+    != meaningful size reduction by itself
+```
+
+A substantial later reduction should therefore be earned by deleting obsolete
+paths, deriving behavior from already-retained evidence, or discovering a
+smaller semantic mechanism. A generic framework that merely compresses source
+spelling would not satisfy the central compression rule.
+
 ## Smallest earned follow-up
 
 If production compression is implemented next, keep the first slice deliberately
@@ -212,9 +254,9 @@ small:
 
 Stop there and remeasure before touching loader policy or writer orchestration.
 
-The purpose of that refactor would not be to chase a percentage reduction. It
-would test whether LOAM can become mechanically smaller while leaving semantic
-boundaries more visible, not less.
+The purpose of that refactor is now sharper: it is a controlled test that LOAM
+can become mechanically smaller while leaving semantic boundaries more visible,
+not a claim that these helpers explain the current code volume.
 
 ## Qualification
 
