@@ -14,6 +14,7 @@ def source_metrics(text: str) -> tuple[int, int]:
 
 
 movement = Path("Loam/Cli/MovementCli.lean").read_text()
+admission = Path("Loam/MovementAdmission.lean").read_text()
 probe = Path("experiments/application_032_complete_movement_manifest_mutation.lean").read_text()
 
 current_publisher = section(
@@ -33,15 +34,17 @@ current_save_calls = sum(current_publisher.count(name) for name in current_save_
 assert current_save_calls == 5, "Movement publication save surface drifted"
 current_partial_authority_prefixes = current_save_calls - 1
 
-# Movement has two semantic identity namespaces widened specifically by
-# supporting-stream crash residue: EventId scans raw relation/discharge evidence,
-# and RelationUnitId scans raw discharge targets.
+# Movement still has two semantic identity namespaces widened specifically by
+# supporting-stream crash residue. Application 034 moves these rules into the
+# shared production Movement admission seam, while the sidecar publisher retains
+# the same five-save physical authority protocol.
 for marker in [
-    "relationsMentionEvent relations candidate",
-    "dischargesMentionEvent discharges candidate",
-    "discharges.map (fun discharge => discharge.target)",
+    "relationsMentionEvent world.relations candidate",
+    "dischargesMentionEvent world.discharges candidate",
+    "world.discharges.map (fun discharge => discharge.target)",
 ]:
-    assert marker in movement, f"Movement residue marker disappeared: {marker}"
+    assert marker in admission, f"Movement residue marker disappeared: {marker}"
+assert "Loam.MovementAdmission.admit? world draft" in current_publisher
 current_residue_widened_identity_namespaces = 2
 
 # The scratch manifest path prepares immutable content-addressed objects before
@@ -66,10 +69,10 @@ manifest_partial_authority_prefixes_per_mutation = 0
 manifest_orphan_objects_reserve_semantic_identity = 0
 manifest_operation_specific_retry_branches = 0
 
-# Important counterweight: Application 032 deliberately invokes the unchanged
-# production loamMovement writer in disposable sidecar staging. The old protocol
-# therefore remains in the implementation surface even though it is no longer
-# canonical authority in this experiment.
+# Important counterweight: Application 032 deliberately invokes the production
+# loamMovement sidecar writer in disposable staging. Its five-save physical
+# protocol therefore remains in the implementation surface even though semantic
+# admission has since moved behind MovementAdmission.admit?.
 staging_writer_protocol_retained = 1
 staging_cross_family_save_calls_max = current_save_calls
 staging_partial_residue_policy_retained = 1
