@@ -2,6 +2,7 @@ import Loam.Application.ScheduledInspection
 import Loam.Cli.ScheduledBalanceCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.ScheduledLifecycleCli
+import Loam.Cli.ScheduledReplacementCli
 import Loam.Persistence
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
@@ -197,8 +198,8 @@ Interactive Scheduled workbench for daily dogfood.
 The workbench deliberately asks only which Scheduled occurrences remain open.
 Observation 122 showed that answering a stronger question such as "which later
 occurrence is the next one?" would require independent continuation provenance.
-This UI does not retain that new fact yet. After add, realization, or
-cancellation it simply re-renders the open set, so pre-created future
+This UI does not retain that new fact yet. After add, realization, replacement,
+or cancellation it simply re-renders the open set, so pre-created future
 occurrences remain visible without forcing automatic replenishment or a Series
 model.
 -/
@@ -212,6 +213,7 @@ partial def scheduledMenu (scheduledPath memoryPath : String) : IO UInt32 := do
     IO.println ""
     IO.println "What do you want to do?"
     IO.println "a. Add scheduled movement"
+    IO.println "e. Edit / reschedule scheduled movement"
     IO.println "r. Record what actually happened"
     IO.println "x. Cancel scheduled movement"
     IO.println "b. Back"
@@ -223,6 +225,22 @@ partial def scheduledMenu (scheduledPath memoryPath : String) : IO UInt32 := do
     | "A" =>
         let _ ← Loam.ScheduledCli.recordScheduled scheduledPath
         scheduledMenu scheduledPath memoryPath
+    | "e" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledReplacementCli.replaceScheduled
+            scheduledPath memoryPath scheduledId
+          scheduledMenu scheduledPath memoryPath
+    | "E" =>
+        let scheduledId ← promptLine "Scheduled id: "
+        if scheduledId.isEmpty then
+          scheduledMenu scheduledPath memoryPath
+        else
+          let _ ← Loam.ScheduledReplacementCli.replaceScheduled
+            scheduledPath memoryPath scheduledId
+          scheduledMenu scheduledPath memoryPath
     | "r" =>
         let scheduledId ← promptLine "Scheduled id: "
         if scheduledId.isEmpty then
@@ -267,6 +285,8 @@ def main (args : List String) : IO UInt32 :=
   match args with
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
+  | ["replace", scheduledPath, memoryPath, scheduledToken] =>
+      Loam.ScheduledReplacementCli.replaceScheduled scheduledPath memoryPath scheduledToken
   | ["menu", scheduledPath, memoryPath] =>
       Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
   | [scheduledPath, memoryPath] => do
@@ -280,5 +300,5 @@ def main (args : List String) : IO UInt32 :=
         Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled balance-effects DATA_ROOT END | [menu] SCHEDULED_FILE MEMORY_FILE"
+        "Usage: loamOpenScheduled balance-effects DATA_ROOT END | replace SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID | [menu] SCHEDULED_FILE MEMORY_FILE"
       return 2
