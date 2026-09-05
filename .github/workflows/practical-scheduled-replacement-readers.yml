@@ -58,7 +58,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamOpenScheduled loamScheduledSuppression
+          build-args: loamOpenScheduled loamScheduledSuppression Loam.Application.ScheduledCommitmentInspection
           test: false
           lint: false
           use-mathlib-cache: false
