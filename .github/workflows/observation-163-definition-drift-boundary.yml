@@ -1,0 +1,58 @@
+name: Observation 163
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation162.lean'
+      - 'Loam/Observations/Observation163.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/163_definition_drift_boundary.md'
+      - '.github/workflows/observation-163-definition-drift-boundary.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/163-definition-drift-boundary'
+      - main
+    paths:
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Observations/Observation162.lean'
+      - 'Loam/Observations/Observation163.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/163_definition_drift_boundary.md'
+      - '.github/workflows/observation-163-definition-drift-boundary.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  definition-drift-boundary:
+    name: Lean definition drift boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check coupled definition drift witness
+        run: lake build Loam.Observations.Observation163
