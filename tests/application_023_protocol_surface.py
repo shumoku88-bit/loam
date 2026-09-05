@@ -15,6 +15,7 @@ def require(text: str, markers: list[str], label: str) -> None:
 
 
 movement = Path("Loam/Cli/MovementCli.lean").read_text()
+movement_admission = Path("Loam/MovementAdmission.lean").read_text()
 scheduled = Path("Loam/Cli/ScheduledCli.lean").read_text()
 correction = Path("Loam/Cli/CorrectionCli.lean").read_text()
 capacity = Path("Loam/Cli/CapacityCli.lean").read_text()
@@ -91,20 +92,26 @@ for label, names in save_names.items():
 partial_prefixes = {label: max(count - 1, 0) for label, count in save_counts.items()}
 
 # Source evidence that current correctness/recovery policy is coupled to
-# retained partial cross-family evidence. The modes are intentionally different:
-# Movement reserves identities against orphan provenance, Scheduled reuses
-# retained evidence, Event correction resumes a dangling relation, Capacity
-# fails closed on an incomplete pair, and QuantityBasis correction retains an
-# inactive relation-first residue.
+# retained partial cross-family evidence. Application 034 moved Movement's
+# identity/admission semantics into one production Movement-specific seam, while
+# the sidecar publisher still carries the Event-last physical residue policy.
+# The modes remain intentionally different across writers.
+require(
+    movement_admission,
+    [
+        "relationsMentionEvent world.relations candidate",
+        "dischargesMentionEvent world.discharges candidate",
+        "world.discharges.map (fun discharge => discharge.target)",
+    ],
+    "Movement admission residue identity policy",
+)
 require(
     movement,
     [
-        "relationsMentionEvent relations candidate",
-        "dischargesMentionEvent discharges candidate",
-        "discharges.map (fun discharge => discharge.target)",
+        "Loam.MovementAdmission.admit? world draft",
         "remains inert until that EventId exists",
     ],
-    "Movement residue policy",
+    "Movement sidecar residue publication policy",
 )
 require(
     scheduled,
@@ -144,9 +151,10 @@ require(
 )
 
 # Fresh identity allocation is widened by supporting-stream residue in these
-# three current writers. Scheduled completion uses a deterministic EventId plus
-# retained-evidence collision checks instead, while QuantityBasis correction's
-# fresh basis allocator only scans basis memory.
+# three current writers. Moving Movement's allocator behind the shared admission
+# seam changes source ownership, not this semantic count. Scheduled completion
+# uses a deterministic EventId plus retained-evidence collision checks instead,
+# while QuantityBasis correction's fresh basis allocator only scans basis memory.
 current_widened_fresh_identity_writers = 3
 
 # The Application 022 scratch topology has one generic authority primitive and
