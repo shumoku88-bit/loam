@@ -1,0 +1,133 @@
+name: Application 031 BudgetWindow Manifest Parity
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_031_budget_window_manifest_parity.lean'
+      - 'experiments/application_031_budget_window_manifest_parity.md'
+      - '.github/workflows/application-031-budget-window-manifest-parity.yml'
+  push:
+    branches:
+      - 'experiment/application-031-budget-window-manifest-parity'
+    paths:
+      - 'experiments/application_031_budget_window_manifest_parity.lean'
+      - 'experiments/application_031_budget_window_manifest_parity.md'
+      - '.github/workflows/application-031-budget-window-manifest-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-window-parity:
+    name: Production-typed BudgetWindow parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production executables
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement loamCapacity loamActualRouting loamBudgetWindow Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Compare sidecar and manifest BudgetWindow answers
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          manifest="$tmpdir/manifest"
+
+          printf 'unallocated\nfood\n100\n' \
+            | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
+              .lake/build/bin/loamCapacity "$tmpdir/capacity.loam" \
+              >"$tmpdir/capacity-food.out"
+
+          printf 'unallocated\ngeneral\n50\n' \
+            | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
+              .lake/build/bin/loamCapacity "$tmpdir/capacity.loam" \
+              >"$tmpdir/capacity-general.out"
+
+          printf 'paypay\n20\n\nexpenses:food\n20\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-08-16 \
+              LOAM_DESCRIPTION='before clean epoch' \
+              .lake/build/bin/loamMovement "$tmpdir/memory.loam" \
+              >"$tmpdir/movement-before.out"
+
+          printf 'paypay\n30\n\nexpenses:food\n30\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-08-18 \
+              LOAM_DESCRIPTION='inside clean epoch' \
+              .lake/build/bin/loamMovement "$tmpdir/memory.loam" \
+              >"$tmpdir/movement-inside.out"
+
+          .lake/build/bin/loamActualRouting \
+            initial "$tmpdir/actual-routing.loam" expenses:food managed food \
+            >"$tmpdir/routing.out"
+
+          .lake/build/bin/loamBudgetWindow \
+            "$tmpdir" 2026-08-17 2026-10-15 food \
+            >"$tmpdir/sidecar-food.out"
+
+          .lake/build/bin/loamBudgetWindow \
+            "$tmpdir" 2026-08-17 2026-10-15 --all \
+            >"$tmpdir/sidecar-all.out"
+
+          lake env lean --run experiments/application_031_budget_window_manifest_parity.lean \
+            publish "$tmpdir" "$manifest" \
+            | tee "$tmpdir/publish.out"
+
+          lake env lean --run experiments/application_031_budget_window_manifest_parity.lean \
+            report "$manifest" 2026-08-17 2026-10-15 food "$tmpdir/manifest-food.out" \
+            | tee "$tmpdir/report-food.out"
+
+          lake env lean --run experiments/application_031_budget_window_manifest_parity.lean \
+            report "$manifest" 2026-08-17 2026-10-15 --all "$tmpdir/manifest-all.out" \
+            | tee "$tmpdir/report-all.out"
+
+          cmp -s "$tmpdir/sidecar-food.out" "$tmpdir/manifest-food.out"
+          cmp -s "$tmpdir/sidecar-all.out" "$tmpdir/manifest-all.out"
+
+          grep -Fx 'Budget window [2026-08-17, 2026-10-15)' "$tmpdir/manifest-food.out"
+          grep -Fx 'Purpose: food' "$tmpdir/manifest-food.out"
+          grep -Fx 'Entitlement: 100 jpy' "$tmpdir/manifest-food.out"
+          grep -Fx 'Consumption: 30 jpy' "$tmpdir/manifest-food.out"
+          grep -Fx 'Remaining: 70 jpy' "$tmpdir/manifest-food.out"
+          grep -Fx '  food: entitlement 100 jpy, consumption 30 jpy, remaining 70 jpy' "$tmpdir/manifest-all.out"
+          grep -Fx '  general: entitlement 50 jpy, consumption 0 jpy, remaining 50 jpy' "$tmpdir/manifest-all.out"
+
+          grep -Fq 'event_correction_absent=1' "$tmpdir/publish.out"
+          grep -Fq 'generation_captures=1' "$tmpdir/report-food.out"
+          grep -Fq 'generation_captures=1' "$tmpdir/report-all.out"
+
+          cp "$manifest/CURRENT" "$manifest/CURRENT.good"
+          python3 - "$manifest/CURRENT" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          rows = path.read_text().splitlines()
+          rows = ["ActualRouting\tABSENT" if row.startswith("ActualRouting\t") else row for row in rows]
+          path.write_text("\n".join(rows) + "\n")
+          PY
+
+          if lake env lean --run experiments/application_031_budget_window_manifest_parity.lean \
+              report "$manifest" 2026-08-17 2026-10-15 food "$tmpdir/should-not-exist.out" \
+              >"$tmpdir/missing-routing.out" 2>&1; then
+            echo 'manifest BudgetWindow silently accepted absent required ActualRouting' >&2
+            exit 1
+          fi
+          grep -Fq 'ActualRouting is absent from selected generation' "$tmpdir/missing-routing.out"
+
+          echo 'Application 031 BudgetWindow byte parity PASS'
+          echo 'read_only_executable_frontier_qualified=2/2'
+          echo 'parity_cases=2'
+          echo 'byte_equal_cases=2'
+          echo 'production_typed_family_boundaries=6'
+          echo 'required_absence_fail_closed=1'
