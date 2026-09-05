@@ -3,6 +3,7 @@ name: Application 023 Whole Mutation Protocol Surface
 on:
   push:
     paths:
+      - "Loam/MovementAdmission.lean"
       - "Loam/Cli/MovementCli.lean"
       - "Loam/Cli/ScheduledCli.lean"
       - "Loam/Cli/CorrectionCli.lean"
@@ -14,6 +15,7 @@ on:
       - ".github/workflows/application-023-whole-mutation-protocol-surface.yml"
   pull_request:
     paths:
+      - "Loam/MovementAdmission.lean"
       - "Loam/Cli/MovementCli.lean"
       - "Loam/Cli/ScheduledCli.lean"
       - "Loam/Cli/CorrectionCli.lean"
