@@ -151,11 +151,11 @@ theorem broken_manifest_never_falls_back
     } = none := by
   rfl
 
+end Loam.Application026
+
 def main : IO Unit := do
   IO.println "Application 026 manifest cutover/rollback model PASS"
   IO.println "explicit_authority_selector=1"
   IO.println "pre_divergence_selector_rollback=1"
   IO.println "post_divergence_selector_rollback=0"
   IO.println "broken_manifest_legacy_fallback=0"
-
-end Loam.Application026
