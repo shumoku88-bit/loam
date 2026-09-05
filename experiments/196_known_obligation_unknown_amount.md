@@ -1,6 +1,6 @@
 # Observation 196 — Does a known obligation require evidence before its amount is known?
 
-Status: **F051 active falsification observation**
+Status: **qualified F051 falsification result**
 
 ## Question
 
@@ -14,11 +14,11 @@ its exact amount is not known yet
 
 Current practical `ScheduledOccurrence` is deliberately quantity-bearing: it contains an exact balanced movement. Current `RelationUnit` is also exact-quantity evidence. Attention can exist without an amount, but Observation 109 deliberately kept Attention meaning distinct from Scheduled / relation lifecycle meaning; an Attention item must not silently become financial-obligation evidence merely because its shape is convenient.
 
-So the narrow question is:
+The narrow question is:
 
 > If every currently representable exact Scheduled fact is held fixed, can two worlds still differ on whether one future obligation is known to exist when no exact amount is available?
 
-This is not yet a question about UI input, persistence syntax, nullable quantities, estimates, ranges, invoices, or debt objects.
+This is not a question about UI input, persistence syntax, nullable quantities, estimates, ranges, invoices, or debt objects.
 
 ## Candidate compression under attack
 
@@ -84,85 +84,91 @@ no-known-obligation subjects
 
 Nothing else is inferred.
 
-## Expected probes
+## Executed Alloy result
 
-### Representative amount-unknown obligation
-
-Can one obligation be known while having no exact Scheduled amount?
-
-Expected: **SAT**.
-
-### Same exact Scheduled evidence, different known existence
-
-Can Left and Right have exactly the same `exactScheduledAmount` relation while one world knows an amount-unknown obligation exists and the other has no known obligation for that identity?
-
-Expected: **SAT**.
-
-This is the central F051 falsification witness.
-
-### Same known existence, different amount knowledge
-
-Can both worlds agree that the same obligation exists while one knows only existence and the other has an exact amount?
-
-Expected: **SAT**.
-
-This checks the reverse independence:
+Alloy 6.2.0 + Sat4j produced exactly the expected matrix:
 
 ```text
-existence knowledge
+representativeUnknownAmount                    SAT
+sameExactScheduledDifferentKnownExistence      SAT
+sameKnownExistenceDifferentAmountKnowledge     SAT
+ExactScheduledDeterminesKnownObligation        SAT counterexample
+KnownExistenceDeterminesAmountKnowledge        SAT counterexample
+ExplicitKnowledgeDeterminesSelectedViews       UNSAT counterexample
+ExactScheduledSubjectsAreKnown                 UNSAT counterexample
+```
+
+Dedicated Observation 196 CI completed successfully with the full expected-result checker.
+
+## What the witnesses show
+
+### Exact Scheduled evidence does not determine known existence
+
+`sameExactScheduledDifferentKnownExistence` is SAT and `ExactScheduledDeterminesKnownObligation` has a counterexample.
+
+A concrete bounded witness keeps the exact Scheduled relation identical in both worlds, including the empty exact-Scheduled case, while Left retains an amount-unknown obligation and Right retains no known obligation for that identity.
+
+So:
+
+```text
+same exact quantity-bearing Scheduled evidence
+    +
+different known-obligation existence
+```
+
+is possible.
+
+The candidate compression therefore loses observable information.
+
+### Existence knowledge does not determine quantity knowledge
+
+`sameKnownExistenceDifferentAmountKnowledge` is SAT and `KnownExistenceDeterminesAmountKnowledge` has a counterexample.
+
+Two worlds can agree that an obligation is known while disagreeing on whether an exact amount is known.
+
+Thus:
+
+```text
+known obligation existence
     !=
-quantity knowledge
+exact obligation quantity knowledge
 ```
 
-## Deliberately too-strong checks
+in both directions relevant to the selected vocabulary.
 
-### Exact Scheduled determines known obligation
+### Explicit existence-only evidence closes the selected information gap
 
-```text
-same exact Scheduled evidence
-    ->
-same known-obligation answer
-```
+`ExplicitKnowledgeDeterminesSelectedViews` has no counterexample in the bounded scope.
 
-Expected: **SAT counterexample**.
+Once both the exact Scheduled relation and the experiment-local existence-only evidence are fixed, all selected knowledge views are fixed.
 
-If so, the current exact Scheduled boundary is too small for the selected existence query.
+This is a sufficiency result only for the selected bounded vocabulary. It does not establish that `knownWithoutAmount` is the production representation.
 
-### Known existence determines amount knowledge
+### Exact Scheduled still entails known existence for its own subject
 
-```text
-same known-obligation set
-    ->
-same known-vs-unknown amount state
-```
+`ExactScheduledSubjectsAreKnown` has no counterexample.
 
-Expected: **SAT counterexample**.
+Observation 196 therefore does not weaken the existing Scheduled meaning. Exact Scheduled evidence remains enough to know that its represented obligation exists.
 
-If so, simply retaining existence does not reconstruct exact quantity knowledge.
-
-## Positive sufficiency checks
-
-### Exact Scheduled + explicit existence-only evidence determines selected views
-
-Expected counterexample: **UNSAT**.
-
-This does not claim the candidate representation is canonical. It only checks that the selected information gap disappears once both independent answers are retained.
-
-### Exact Scheduled subjects are known
-
-Expected counterexample: **UNSAT**.
-
-An exact Scheduled fact remains sufficient to say that its own represented obligation is known. Observation 196 attacks only the false converse:
+The failed converse is the important boundary:
 
 ```text
-no exact Scheduled
+no exact Scheduled evidence
     -/->
 no known obligation
 ```
 
-## Candidate interpretation if the matrix holds
+## Finding
 
-The bounded result would be:
+Observation 196 falsifies the tested compression:
+
+```text
+known future obligation
+    =
+exact quantity-bearing Scheduled fact
+```
+
+The qualified bounded separation is:
 
 ```text
 known obligation existence
@@ -170,7 +176,7 @@ known obligation existence
 exact obligation quantity
 ```
 
-and, more specifically:
+and more specifically:
 
 ```text
 exact quantity-bearing Scheduled evidence
@@ -178,7 +184,9 @@ exact quantity-bearing Scheduled evidence
 all known future-obligation existence
 ```
 
-This would earn **independently observable existence/claim information for this selected query**, not a production object.
+For a vocabulary that asks whether an obligation is already known before its amount is known, **some information-equivalent existence/claim evidence is independently observable**.
+
+This earns an information distinction, not a product noun.
 
 Several later representations could still be information-equivalent:
 
@@ -187,19 +195,19 @@ Several later representations could still be information-equivalent:
 - a richer claim state whose amount knowledge is separate from identity/existence;
 - some smaller representation not yet considered.
 
-The observation does not choose among them.
+Observation 196 does not choose among them.
 
-## Why existing Attention does not automatically close F051
+## Why existing Attention does not automatically absorb F051
 
-Practical Attention deliberately has no amount, but Observation 109 established that Attention lifecycle meaning is its own semantic family. Reusing an Attention identity as proof that a financial obligation exists would add a new semantic correspondence that is not currently earned.
+Practical Attention deliberately has no amount, but Observation 109 established that Attention lifecycle meaning is its own semantic family. Reusing an Attention identity as proof that a financial obligation exists would add a semantic correspondence that is not currently earned.
 
-So this observation does not say Attention is unusable. It says only that **shape similarity is not already obligation provenance**.
+Shape similarity is not already obligation provenance.
 
-## Why existing OpenRelation does not automatically close F051
+## Why existing OpenRelation does not automatically absorb F051
 
 Current `RelationUnit` carries an exact `Quantity`. It can represent an exact open directional obligation after the source Effect exists, but its present production shape does not itself represent “this obligation exists, exact amount still unknown.”
 
-Observation 196 therefore does not compete with OpenRelation. It pressures an earlier epistemic boundary.
+Observation 196 therefore pressures an earlier epistemic boundary rather than competing with OpenRelation.
 
 ## Deliberate boundaries
 
@@ -215,14 +223,14 @@ Observation 196 does **not** establish:
 - whether an unknown amount contributes to Commitment, Headroom, Remaining, or forecast arithmetic;
 - persistence, CLI, TUI, notification, or household-data changes.
 
-Production remains gated on real dogfood need even if a counterexample is found.
+Production remains gated on real dogfood need.
 
 ## Falsification status
 
-Until the exact model executes successfully, F051 remains:
+F051 is now:
 
 ```text
-Work     = OBSERVING
-Finding  = UNTESTED
+Work     = DONE
+Finding  = COUNTEREXAMPLE
 Runtime  = RESEARCH_ONLY
 ```
