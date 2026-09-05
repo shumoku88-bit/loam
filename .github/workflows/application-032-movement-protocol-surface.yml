@@ -3,6 +3,7 @@ name: Application 032 Movement Protocol Surface
 on:
   pull_request:
     paths:
+      - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_032_complete_movement_manifest_mutation.lean'
       - 'experiments/application_032_complete_movement_manifest_mutation.md'
@@ -11,7 +12,9 @@ on:
   push:
     branches:
       - 'experiment/application-032-complete-movement-manifest-mutation'
+      - 'experiment/application-034-movement-admission-seam'
     paths:
+      - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_032_complete_movement_manifest_mutation.lean'
       - 'experiments/application_032_complete_movement_manifest_mutation.md'
