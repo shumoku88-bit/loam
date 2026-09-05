@@ -39,8 +39,8 @@ sig World {
 one sig Left, Right extends World {}
 
 fact EffectKeyScopedIdentity {
-  all disj left, right: Effect |
-    left.event = right.event implies left.key != right.key
+  all disj leftEffect, rightEffect: Effect |
+    leftEffect.event = rightEffect.event implies leftEffect.key != rightEffect.key
 }
 
 fun currentFacts[w: World]: set BurdenFact {
@@ -75,9 +75,9 @@ fact WellFormedEvidence {
 
     // Correction ancestry is append-only and acyclic. Storage/arrival order is
     // not represented and therefore cannot choose a current winner.
-    let edge = { target, replacement: w.facts |
+    let edge = { oldFact, newFact: w.facts |
       some c: w.corrections |
-        c.target = target and c.replacement = replacement
+        c.target = oldFact and c.replacement = newFact
     } |
       no iden & ^edge
 
@@ -95,9 +95,9 @@ fact WellFormedEvidence {
 // outside-borne semantic completions. Absence therefore cannot universally
 // mean "Household bears it".
 pred absenceSupportsDifferentMeanings {
-  some event: Event, key: Key, effect: Effect, u: Unit, friend: Outside | {
-    effect.event = event
-    effect.key = key
+  some occurrence: Event, effectKey: Key, effect: Effect, u: Unit, friend: Outside | {
+    effect.event = occurrence
+    effect.key = effectKey
     u.source = effect
 
     Left.units = u
@@ -268,15 +268,15 @@ pred splitBurdenWithinOneEffect {
 // Deliberately too strong: identical absence of burden evidence does not force
 // the same bearer meaning.
 assert AbsenceDeterminesBearer {
-  all left, right: World, u: Unit |
-    u in left.units and
-    u in right.units and
-    left.facts = right.facts and
-    left.corrections = right.corrections and
-    no currentFor[left, u] and
-    no currentFor[right, u]
+  all leftWorld, rightWorld: World, u: Unit |
+    u in leftWorld.units and
+    u in rightWorld.units and
+    leftWorld.facts = rightWorld.facts and
+    leftWorld.corrections = rightWorld.corrections and
+    no currentFor[leftWorld, u] and
+    no currentFor[rightWorld, u]
     implies
-      u.(left.semanticBearer) = u.(right.semanticBearer)
+      u.(leftWorld.semanticBearer) = u.(rightWorld.semanticBearer)
 }
 
 // Once exactly one current burden fact exists, its bearer is authoritative in
