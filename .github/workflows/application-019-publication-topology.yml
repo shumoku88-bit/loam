@@ -1,0 +1,128 @@
+name: Application 019 Publication Topology
+
+on:
+  push:
+    paths:
+      - 'experiments/application_019_publication_topology.tla'
+      - 'experiments/application_019_publication_*.cfg'
+      - 'experiments/application_019_publication_topology.md'
+      - '.github/workflows/application-019-publication-topology.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_019_publication_topology.tla'
+      - 'experiments/application_019_publication_*.cfg'
+      - 'experiments/application_019_publication_topology.md'
+      - '.github/workflows/application-019-publication-topology.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-019-publication-topology-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tlc:
+    name: Compare publication topologies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch pinned TLA+ tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          curl -fsSL \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar \
+            -o /tmp/tla2tools.jar
+          echo 'bee4a54f3ee3d4afc347c3240ec2d9e93b075104  /tmp/tla2tools.jar' | sha1sum -c -
+
+      - name: Check reader safety for all topologies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          for cfg in \
+            application_019_publication_separate.cfg \
+            application_019_publication_typed.cfg \
+            application_019_publication_marked.cfg \
+            application_019_publication_atomic.cfg
+          do
+            echo "=== $cfg ==="
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config "$cfg" \
+              application_019_publication_topology.tla
+          done
+
+      - name: Require partial authority-store residue for sequential topologies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          for cfg in \
+            application_019_publication_separate_residue.cfg \
+            application_019_publication_typed_residue.cfg \
+            application_019_publication_marked_residue.cfg
+          do
+            echo "=== $cfg ==="
+            set +e
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config "$cfg" \
+              application_019_publication_topology.tla \
+              > "/tmp/${cfg}.out" 2>&1
+            status=$?
+            set -e
+            cat "/tmp/${cfg}.out"
+            test "$status" -ne 0
+            grep -Fq 'NoPartialAuthorityStore' "/tmp/${cfg}.out"
+            grep -Fq 'is violated' "/tmp/${cfg}.out"
+          done
+
+      - name: Require partial non-authoritative staging for atomic bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          cfg=application_019_publication_atomic_stage.cfg
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config "$cfg" \
+            application_019_publication_topology.tla \
+            > "/tmp/${cfg}.out" 2>&1
+          status=$?
+          set -e
+          cat "/tmp/${cfg}.out"
+          test "$status" -ne 0
+          grep -Fq 'NoPartialStage' "/tmp/${cfg}.out"
+          grep -Fq 'is violated' "/tmp/${cfg}.out"
+
+      - name: Require completed publication to be reachable in every topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          for cfg in \
+            application_019_publication_separate_complete.cfg \
+            application_019_publication_typed_complete.cfg \
+            application_019_publication_marked_complete.cfg \
+            application_019_publication_atomic_complete.cfg
+          do
+            echo "=== $cfg ==="
+            set +e
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config "$cfg" \
+              application_019_publication_topology.tla \
+              > "/tmp/${cfg}.out" 2>&1
+            status=$?
+            set -e
+            cat "/tmp/${cfg}.out"
+            test "$status" -ne 0
+            grep -Fq 'NoCompletePublication' "/tmp/${cfg}.out"
+            grep -Fq 'is violated' "/tmp/${cfg}.out"
+          done
