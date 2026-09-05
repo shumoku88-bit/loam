@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; F051, F033, and F001 completed; three-item near queue remains**
+Status: **F001-F200 reviewed; F051, F033, F001, and F076 completed; two-item near queue remains**
 
 Baseline corpus:
 
@@ -44,7 +44,7 @@ Interpretation:
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after F051, F033, and F001
+## Default after F051, F033, F001, and F076
 
 Every F001-F200 specimen has now been cross-referenced.
 
@@ -62,7 +62,7 @@ This keeps the completed review sparse: unresolved cases do not need duplicated 
 ## Queue
 
 ```text
-READY      3
+READY      2
 OBSERVING  0
 ```
 
@@ -70,11 +70,10 @@ Exact READY order:
 
 | Order | ID | Pressure |
 |---:|---|---|
-| 1 | F076 | refund provenance through shared burden |
-| 2 | F055 | recurrence at shorter-month boundary |
-| 3 | F086 | physical/external quantity assertion vs reconstructed history |
+| 1 | F055 | recurrence at shorter-month boundary |
+| 2 | F086 | physical/external quantity assertion vs reconstructed history |
 
-All three remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
+Both remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
 Only one should normally advance to `OBSERVING` at a time.
 Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
 
@@ -107,6 +106,7 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 | F065 | ABSORBED | RESEARCH_ONLY | Observation 164 — card-financed burden may exist before bank cash settlement; later debit discharges relation rather than creating expense again. |
 | F074 | ABSORBED | RESEARCH_ONLY | Observations 163-165 — later reimbursement/receipt can discharge an already-established outside burden without changing burden allocation. |
 | F075 | ABSORBED | RESEARCH_ONLY | Observation 165 — one obligation origin may be discharged across several later Events; outstanding remains derived. |
+| F076 | ABSORBED | RESEARCH_ONLY | Observation 199 — burden allocation + refund source provenance + prior discharge evidence determine the selected full-refund consequence; no fourth independent second-order refund fact was required. |
 | F078 | ABSORBED | RESEARCH_ONLY | Observations 165 + 172 — one later Event may discharge multiple relation units, while opaque endpoint identity preserves per-counterparty distinctions. |
 | F081 | ABSORBED | RESEARCH_ONLY | Observation 051 + PR #279 — external confirmation/matching evidence does not itself mean reconciled; reconciliation is explicit correspondence. |
 | F083 | ABSORBED | RESEARCH_ONLY | PR #307 / Observation 141 — later correction need not erase an earlier as-known/as-published answer. |
@@ -171,7 +171,7 @@ Direct results absorb several seams, but unresolved cases remain deliberately li
 - PR #278 closes the information question for split/merged realization by finding a real counterexample; it does not implement apportionment.
 - PR #306 does not close recognition-policy amendment after service cancellation, or tax-specific recognition applicability.
 - Observations 163-165 close ordinary directional obligation/discharge structure, but interest accrual, refinancing, late-fee generation, creditor migration, and forgiveness without cash remain live.
-- shared-cost observations do not yet settle second-order refund redistribution, overpayment direction reversal, or obligation netting without a physical cash Event.
+- Observation 199 closes F076 by composition: burden allocation, refund source provenance, and prior discharge state determine the selected full-refund consequence. F077 redistribution remains separately untested, as do overpayment direction reversal and obligation netting without a physical cash Event.
 
 ## F081-F120 — finality, FX, investments, inventory, correction/provenance
 
@@ -216,11 +216,11 @@ Review result:
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 57
-  ABSORBED                           48
+DONE                                 58
+  ABSORBED                           49
   COUNTEREXAMPLE                      9
 
-READY                                 3
+READY                                 2
 OBSERVING                             0
 REVIEWED / UNTESTED                 140
 
@@ -234,7 +234,7 @@ The 140 unresolved non-READY cases are not claimed novel. They are the reviewed 
 
 # Selection frontier
 
-F051, F033, and F001 are complete:
+F051, F033, F001, and F076 are complete:
 
 ```text
 F051
@@ -251,17 +251,22 @@ F001
   Work     DONE
   Finding  COUNTEREXAMPLE
   Runtime  RESEARCH_ONLY
+
+F076
+  Work     DONE
+  Finding  ABSORBED
+  Runtime  RESEARCH_ONLY
 ```
 
-The next READY representative is F076:
+The next READY representative is F055:
 
 ```text
-shared expense
+monthly recurrence on day 31
     ->
-later full refund
+shorter month boundary
 ```
 
-Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-198 change any ranking rationale. Do not open three observations in parallel.
+Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-199 change any ranking rationale. Do not open two observations in parallel.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
