@@ -66,8 +66,8 @@ jobs:
         run: |
           set -euo pipefail
           root="$(mktemp -d)/manifest"
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root"
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- retry-probe "$root" \
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean seed-empty "$root"
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean retry-probe "$root" \
             | tee /tmp/application035-retry.out
           grep -Fq 'retry_reused_prepared_objects=5' /tmp/application035-retry.out
           grep -Fq 'interrupted_candidate_authority_changes=0' /tmp/application035-retry.out
@@ -83,7 +83,7 @@ jobs:
           root="$tmp_dir/manifest"
           dump="$tmp_dir/dump"
 
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root"
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean seed-empty "$root"
 
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
@@ -105,12 +105,12 @@ jobs:
           test ! -e "$memory.relations"
           test ! -e "$memory.discharges"
 
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- verify-two "$root" \
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean verify-two "$root" \
             | tee /tmp/application035-projection.out
           grep -Fq 'event_count=2' /tmp/application035-projection.out
           grep -Fq 'relation_outstanding=60' /tmp/application035-projection.out
 
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- dump "$root" "$dump"
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean dump "$root" "$dump"
 
           test "$(sha256sum "$dump/Event.loam" | cut -d' ' -f1)" = \
             'f1db19930ebce381589d55dcb6279031263465f088deaba3e7e68d5b83090992'
@@ -153,7 +153,7 @@ jobs:
                 LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
                 .lake/build/bin/loamMovement "$memory" >/dev/null
 
-          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root" >/dev/null
+          lake env lean --run experiments/application_035_production_movement_manifest_tail.lean seed-empty "$root" >/dev/null
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
                 LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
