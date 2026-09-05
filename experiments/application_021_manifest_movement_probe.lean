@@ -229,7 +229,7 @@ private def everyOldRefStillExists (root : System.FilePath) (manifest : Manifest
       allPresent := false
   pure allPresent
 
-def main : IO Unit := do
+def runProbe : IO Unit := do
   let root := System.FilePath.mk "scratch/application-021-manifest-movement"
   if ← root.pathExists then
     IO.FS.removeDirAll root
@@ -276,3 +276,6 @@ def main : IO Unit := do
   IO.println "unchanged_routing_rewrites=0"
 
 end Loam.Application021
+
+def main : IO Unit :=
+  Loam.Application021.runProbe
