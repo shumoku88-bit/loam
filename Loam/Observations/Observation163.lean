@@ -48,7 +48,7 @@ def DriftedMeaning : Prop :=
 
 /-- The weakened meaning accepts the witness because both totals are zero. -/
 theorem drifted_meaning_accepts_witness : DriftedMeaning := by
-  decide
+  rfl
 
 /-- The original coordinate-vector meaning rejects exactly the same witness. -/
 theorem strict_meaning_rejects_witness : ¬ StrictMeaning := by
