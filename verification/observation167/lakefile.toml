@@ -1,0 +1,19 @@
+name = "loam-observation167"
+version = "0.1.0"
+
+[[require]]
+name = "Comparator"
+git = "https://github.com/leanprover/comparator.git"
+rev = "v4.33.0"
+
+[[require]]
+name = "lean4export"
+scope = "leanprover"
+git = "https://github.com/leanprover/lean4export"
+rev = "v4.33.0"
+
+[[lean_lib]]
+name = "Challenge"
+
+[[lean_lib]]
+name = "Solution"
