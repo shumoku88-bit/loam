@@ -20,11 +20,10 @@ Before adding a new result framework, this observation checks whether the
 existing mathematics from Observations 191 and 192 already treats such
 fail-closed definedness correctly.
 
-The key fact is easy to miss: Observation 191 already permits an arbitrary,
-observation-dependent result type, and Observation 192 permits an arbitrary
-answer type. `Option`, `Except Refusal`, or another explicit semantic-result type
-can therefore live in the observation codomain without changing the quotient
-construction itself.
+The key fact is easy to miss: Observation 191 already permits an arbitrary
+observation result type, and Observation 192 permits an arbitrary answer type.
+`Option`, `Except Refusal`, or another explicit semantic-result type can therefore
+live in the observation codomain without changing the quotient construction.
 
 This field trial uses `Option` because that is the actual result shape exposed by
 `CorrectionFrontier` in Observations 193–194. It asks two narrower questions:
@@ -52,19 +51,23 @@ inductive SemanticObservable (Question : Type uQ) where
   | available : Question → SemanticObservable Question
   deriving Repr
 
-/-- The result type depends on which observation is being asked. -/
-def SemanticValue (Answer : Type uA) : SemanticObservable Question → Type uA
-  | .result _ => Option Answer
-  | .available _ => Bool
+/--
+Keep both observation views in one tagged codomain. This avoids inventing a
+production result abstraction while keeping exact result and availability
+observationally distinct.
+-/
+inductive SemanticValue (Answer : Type uA) where
+  | resultValue : Option Answer → SemanticValue Answer
+  | availabilityValue : Bool → SemanticValue Answer
 
 /-- Lift an `Option`-valued semantic observer with its derived availability view. -/
 def semanticObserve
     (answer : State → Question → Option Answer)
     (observable : SemanticObservable Question)
-    (state : State) : SemanticValue (Question := Question) Answer observable :=
+    (state : State) : SemanticValue Answer :=
   match observable with
-  | .result question => answer state question
-  | .available question => (answer state question).isSome
+  | .result question => .resultValue (answer state question)
+  | .available question => .availabilityValue (answer state question).isSome
 
 /-- Select exact semantic results for the visible question vocabulary. -/
 def ExactResultBasis
@@ -94,12 +97,14 @@ theorem availability_factors_through_exact_result
       (ExactResultBasis vocabulary)
       (.available question) := by
   intro left right hIndistinguishable
-  have hResult :=
+  have hWrapped :=
     hIndistinguishable (.result question) hVisible
-  change
-    (answer left question).isSome =
-      (answer right question).isSome
-  exact congrArg Option.isSome hResult
+  have hResult : answer left question = answer right question := by
+    simpa [semanticObserve] using hWrapped
+  exact congrArg
+    (fun result : Option Answer =>
+      SemanticValue.availabilityValue result.isSome)
+    hResult
 
 /--
 By Observation 191's all-endomap theorem, availability therefore belongs to the
@@ -206,8 +211,12 @@ theorem exact_results_distinguish_values :
       (ExactResultBasis allQuestions)
       false true := by
   intro h
-  have hResult := h (.result .value) (by simp [ExactResultBasis, allQuestions])
-  simp [semanticObserve, strictAnswer] at hResult
+  have hWrapped := h (.result .value) (by simp [ExactResultBasis, allQuestions])
+  have hResult : (some (100 : Int) : Option Int) = some 120 := by
+    simpa [semanticObserve, strictAnswer] using hWrapped
+  have hNe : (some (100 : Int) : Option Int) ≠ some 120 := by
+    native_decide
+  exact hNe hResult
 
 /--
 Equivalently, exact result does not factor through the quotient induced by
@@ -220,9 +229,13 @@ theorem exact_result_does_not_factor_through_availability :
       (AvailabilityBasis allQuestions)
       (.result .value) := by
   intro hFactors
-  have hResult :=
+  have hWrapped :=
     hFactors false true availability_only_cannot_distinguish_values
-  simp [semanticObserve, strictAnswer] at hResult
+  have hResult : (some (100 : Int) : Option Int) = some 120 := by
+    simpa [semanticObserve, strictAnswer] using hWrapped
+  have hNe : (some (100 : Int) : Option Int) ≠ some 120 := by
+    native_decide
+  exact hNe hResult
 
 /-!
 ## Finding
