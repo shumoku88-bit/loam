@@ -1,0 +1,50 @@
+name: Practical Scheduled Replacement Frontier
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - '.github/workflows/practical-scheduled-replacement-frontier.yml'
+  push:
+    branches:
+      - main
+      - 'feat/scheduled-replacement-frontier'
+    paths:
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - '.github/workflows/practical-scheduled-replacement-frontier.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Qualify Scheduled replacement frontier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build replacement-aware Scheduled reader
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Application.ScheduledInspection Loam.Persistence.ScheduledReplacementPersistence
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Exercise replacement frontier laws
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/ScheduledReplacementFrontier.lean
