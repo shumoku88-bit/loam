@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; first near queue selected**
+Status: **F001-F200 reviewed; F051 completed; five-item near queue remains**
 
 Baseline corpus:
 
@@ -44,7 +44,7 @@ Interpretation:
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after selection
+## Default after F051
 
 Every F001-F200 specimen has now been cross-referenced.
 
@@ -62,7 +62,7 @@ This keeps the completed review sparse: unresolved cases do not need duplicated 
 ## Queue
 
 ```text
-READY      6
+READY      5
 OBSERVING  0
 ```
 
@@ -70,14 +70,13 @@ Exact READY order:
 
 | Order | ID | Pressure |
 |---:|---|---|
-| 1 | F051 | known obligation, unknown amount |
-| 2 | F033 | equal wallet quantity, different movement rights |
-| 3 | F001 | authorization hold without capture |
-| 4 | F076 | refund provenance through shared burden |
-| 5 | F055 | recurrence at shorter-month boundary |
-| 6 | F086 | physical/external quantity assertion vs reconstructed history |
+| 1 | F033 | equal wallet quantity, different movement rights |
+| 2 | F001 | authorization hold without capture |
+| 3 | F076 | refund provenance through shared burden |
+| 4 | F055 | recurrence at shorter-month boundary |
+| 5 | F086 | physical/external quantity assertion vs reconstructed history |
 
-All six remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
+All five remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
 Only one should normally advance to `OBSERVING` at a time.
 Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
 
@@ -142,6 +141,7 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 |---|---|---|---|
 | F044 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Capacity + holdings/eligibility do not determine per-Purpose Backing; explicit Backing correspondence is observable. |
 | F045 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Backing support and Capacity authority are not mutually determined. |
+| F051 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 196 — identical exact Scheduled evidence can coexist with a known amount-unknown obligation versus no known obligation; existence knowledge and exact quantity knowledge are independently observable. |
 | F053 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — one-to-one ScheduledCompletion is too small for split realization, and quantity-free topology is too small for apportionment. |
 | F054 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — several Scheduled claims sharing one Actual require quantity apportionment beyond endpoint topology. |
 | F073 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 163 — physical payment and final net movement do not determine economic burden allocation before settlement. |
@@ -165,7 +165,7 @@ Direct results absorb several seams, but unresolved cases remain deliberately li
 
 - PR #305 tests cash-funded versus liability-funded negative Remaining but not arbitrary mixed funding composition, so F043 stays open.
 - recurrence generation itself remains deferred; Series membership evidence does not answer shorter-month or weekend-shift generation policy.
-- Scheduled unknown amount / unknown due coordinate remain distinct from the quantity-bearing Scheduled boundary already qualified.
+- Observation 196 now closes F051 by finding a genuine counterexample: exact Scheduled evidence does not determine whether an amount-unknown obligation is already known to exist. F049/F050/F052 remain separate unresolved quantity/date questions.
 - PR #278 closes the information question for split/merged realization by finding a real counterexample; it does not implement apportionment.
 - PR #306 does not close recognition-policy amendment after service cancellation, or tax-specific recognition applicability.
 - Observations 163-165 close ordinary directional obligation/discharge structure, but interest accrual, refinancing, late-fee generation, creditor migration, and forgiveness without cash remain live.
@@ -208,17 +208,17 @@ Review result:
 - securities execution versus later settlement is absorbed by Observation 050, but settlement failure, exposure/ownership before settlement, dividend entitlement and corporate-action cash-in-lieu remain untested;
 - historical settlement-convention policy and settlement-status rights are already separated by existing temporal-policy / settlement / eligibility results.
 
-# Review completion counts
+# Current counts
 
 ```text
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 54
+DONE                                 55
   ABSORBED                           48
-  COUNTEREXAMPLE                      6
+  COUNTEREXAMPLE                      7
 
-READY                                 6
+READY                                 5
 OBSERVING                             0
 REVIEWED / UNTESTED                 140
 
@@ -228,22 +228,28 @@ Runtime IMPLEMENTED                   3
   F124
 ```
 
-The 140 unresolved non-READY cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which were not selected into the first near queue.
+The 140 unresolved non-READY cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which were not selected into the current near queue.
 
 # Selection frontier
 
-The review is complete and the first near queue is selected.
-
-Preferred next mode:
+F051 is complete:
 
 ```text
-F051 READY
-    -> one deliberately small formal observation
-    -> record ABSORBED or COUNTEREXAMPLE
-    -> re-rank the remaining READY / WATCHLIST
+F051
+  Work     DONE
+  Finding  COUNTEREXAMPLE
+  Runtime  RESEARCH_ONLY
 ```
 
-Do not open six observations in parallel.
+The next READY representative is F033:
+
+```text
+same numeric wallet quantity
+    +
+different future movement rights
+```
+
+Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observation 196 changes any ranking rationale. Do not open five observations in parallel.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
