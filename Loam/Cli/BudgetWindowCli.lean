@@ -49,8 +49,9 @@ Required authority/evidence streams under `root`:
 absent, matching the existing practical read-side convention.
 
 ActualValidity V2 correction history is resolved to one current date per Event
-before the query. Remaining is recomputed from Capacity and routed Actuals on
-every invocation; it is never retained as canonical state.
+before the query. Entitlement and Consumption are projected once from the loaded
+snapshot, then Remaining is derived exactly from those resolved values. No
+Remaining state is retained as canonical evidence.
 -/
 def report
     (rootPath start end_ purposeToken : String) : IO UInt32 := do
@@ -119,11 +120,9 @@ def report
                                         capacity effective start end_ purpose yen,
                                       consumptionAtCorrectionFrontierEffectiveRoutingWindow?
                                         events corrections validities routing
-                                        start end_ purpose yen,
-                                      remainingAtEffectiveWindow?
-                                        capacity effective events corrections validities routing
                                         start end_ purpose yen with
-                                  | some entitlement, some consumption, some remaining =>
+                                  | some entitlement, some consumption =>
+                                      let remaining := entitlement - consumption
                                       IO.println ("Budget window [" ++ start ++ ", " ++ end_ ++ ")")
                                       IO.println ("Purpose: " ++ purposeToken)
                                       IO.println
@@ -133,7 +132,7 @@ def report
                                       IO.println
                                         ("Remaining: " ++ toString remaining.quanta ++ " jpy")
                                       return 0
-                                  | _, _, _ =>
+                                  | _, _ =>
                                       IO.eprintln
                                         "loam: canonical evidence does not justify this budget-window projection"
                                       return 2
