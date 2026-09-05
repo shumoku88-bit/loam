@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; F051 completed; five-item near queue remains**
+Status: **F001-F200 reviewed; F051 and F033 completed; four-item near queue remains**
 
 Baseline corpus:
 
@@ -44,7 +44,7 @@ Interpretation:
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after F051
+## Default after F051 and F033
 
 Every F001-F200 specimen has now been cross-referenced.
 
@@ -62,7 +62,7 @@ This keeps the completed review sparse: unresolved cases do not need duplicated 
 ## Queue
 
 ```text
-READY      5
+READY      4
 OBSERVING  0
 ```
 
@@ -70,13 +70,12 @@ Exact READY order:
 
 | Order | ID | Pressure |
 |---:|---|---|
-| 1 | F033 | equal wallet quantity, different movement rights |
-| 2 | F001 | authorization hold without capture |
-| 3 | F076 | refund provenance through shared burden |
-| 4 | F055 | recurrence at shorter-month boundary |
-| 5 | F086 | physical/external quantity assertion vs reconstructed history |
+| 1 | F001 | authorization hold without capture |
+| 2 | F076 | refund provenance through shared burden |
+| 3 | F055 | recurrence at shorter-month boundary |
+| 4 | F086 | physical/external quantity assertion vs reconstructed history |
 
-All five remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
+All four remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
 Only one should normally advance to `OBSERVING` at a time.
 Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
 
@@ -139,6 +138,7 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 
 | ID | Finding | Runtime | Direct falsification result |
 |---|---|---|---|
+| F033 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 197 — equal wallet quantity and equal broad allocation eligibility can coexist with different send/withdraw permissions; quantity and coarse usability do not determine future movement rights. |
 | F044 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Capacity + holdings/eligibility do not determine per-Purpose Backing; explicit Backing correspondence is observable. |
 | F045 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Backing support and Capacity authority are not mutually determined. |
 | F051 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 196 — identical exact Scheduled evidence can coexist with a known amount-unknown obligation versus no known obligation; existence knowledge and exact quantity knowledge are independently observable. |
@@ -151,13 +151,14 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 
 ## F001-F040 — authorization, refund, external observation, transfer, restricted rights
 
-The review preserves the earlier stop conditions:
+The review now has one additional direct result:
 
+- Observation 197 closes F033 with a counterexample: quantity plus broad allocation eligibility does not determine selected future movement rights, and quantity plus spendability does not reconstruct sendability/withdrawability.
 - Observation 050 qualifies `initiated != settled` but explicitly excludes reservation/hold rights, failure, cancellation, reversal, partial settlement, multiple settlement legs, and institution-specific rails. Therefore F001-F008 are not waved away as "pending payment already solved".
 - Observation 065 explicitly leaves multiple refunds, refund lifecycle, dispute/chargeback, and multi-source reimbursement open. Therefore F010-F016 remain live.
 - PRs #279/#281/#283/#284 absorb many external-feed identity pressures, but pending disappearance and later institution revision remain untested in F019-F020.
 - side-local transfer dates/reconciliation, fees, one-to-many settlement, net settlement, and reversal remain beyond Observation 050's scope.
-- Observation 048 proves `held != allocatable` but explicitly does not settle liquidity, access, ownership, convertibility, or legal restrictions, so wallet/points/voucher rights in F033-F040 remain live.
+- Observation 048 proves `held != allocatable`; Observation 197 now additionally proves that even equal allocation eligibility does not settle operation-specific movement rights. F034-F040 remain separate unresolved restricted-value questions.
 
 ## F041-F080 — Capacity/Backing, Scheduled, recognition, debt, shared burden
 
@@ -214,11 +215,11 @@ Review result:
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 55
+DONE                                 56
   ABSORBED                           48
-  COUNTEREXAMPLE                      7
+  COUNTEREXAMPLE                      8
 
-READY                                 5
+READY                                 4
 OBSERVING                             0
 REVIEWED / UNTESTED                 140
 
@@ -232,24 +233,29 @@ The 140 unresolved non-READY cases are not claimed novel. They are the reviewed 
 
 # Selection frontier
 
-F051 is complete:
+F051 and F033 are complete:
 
 ```text
 F051
   Work     DONE
   Finding  COUNTEREXAMPLE
   Runtime  RESEARCH_ONLY
+
+F033
+  Work     DONE
+  Finding  COUNTEREXAMPLE
+  Runtime  RESEARCH_ONLY
 ```
 
-The next READY representative is F033:
+The next READY representative is F001:
 
 ```text
-same numeric wallet quantity
+authorization hold exists
     +
-different future movement rights
+no capture yet
 ```
 
-Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observation 196 changes any ranking rationale. Do not open five observations in parallel.
+Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-197 change any ranking rationale. Do not open four observations in parallel.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
