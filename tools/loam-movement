@@ -12,11 +12,14 @@ binary_is_current() {
 
   for input in \
     Loam/ActualDate.lean \
+    Loam/Application/OpenRelationFrontier.lean \
     Loam/Persistence/ActualValidityPersistence.lean \
     Loam/Persistence/EventDescriptionPersistence.lean \
+    Loam/Persistence/OpenRelationPersistence.lean \
     Loam/CompletionPrompt.lean \
     Loam/Cli/MovementCli.lean \
     Loam/MovementEntry.lean \
+    Loam/MovementRelationEntry.lean \
     Loam/MovementUi.lean \
     Loam/Persistence.lean \
     Loam/WriterOwnership.lean \
