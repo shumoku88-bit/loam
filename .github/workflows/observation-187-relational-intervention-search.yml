@@ -1,0 +1,52 @@
+name: Observation 187
+
+on:
+  pull_request:
+    paths:
+      - 'scheme/187_relational_intervention_search.rkt'
+      - 'experiments/187_relational_intervention_search.md'
+      - 'README.md'
+      - '.github/workflows/observation-187-relational-intervention-search.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'scheme/187_relational_intervention_search.rkt'
+      - 'experiments/187_relational_intervention_search.md'
+      - 'README.md'
+      - '.github/workflows/observation-187-relational-intervention-search.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  minikanren:
+    name: Search typed intervention candidates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Racket
+        uses: Bogdanp/setup-racket@v1.15
+        with:
+          architecture: x64
+          distribution: full
+          variant: CS
+          version: stable
+
+      - name: Install miniKanren
+        shell: bash
+        run: |
+          set -euo pipefail
+          raco pkg install --auto --skip-installed minikanren
+          raco pkg show minikanren
+
+      - name: Search synthetic typed intervention bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          racket scheme/187_relational_intervention_search.rkt 2>&1 \
+            | tee /tmp/observation-187.txt
+          grep -Fq 'OBSERVATION_187_OK' /tmp/observation-187.txt
+          grep -Fq 'feasible bundles with protected candidates excluded:' /tmp/observation-187.txt

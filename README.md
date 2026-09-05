@@ -27,7 +27,7 @@ Before adding an optional tool to a new observation, state what the current tool
 
 Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
 
-Observations 006–007 are the concrete miniKanren example. Their executed findings remain in the observation records and Git history, while the Racket/miniKanren source and dedicated CI have been retired from the current checkout after that role was established. A later genuinely relational or backwards-search question may earn that runtime again; historical use alone does not keep it active.
+Observations 006–007 are the historical miniKanren example. Their first Racket/miniKanren source and dedicated CI were later retired after that role was established. Observation 187 supplies a new concrete backwards-search pressure, so one observation-only Racket/miniKanren source and dedicated CI are present again. This does not make miniKanren a production or steady-state runtime dependency; a relational question must earn its use each time.
 
 Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
 
