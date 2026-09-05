@@ -4,6 +4,10 @@ Date: 2026-09-06
 Status: **Research catalog, not UI specification**  
 Scope: CLI / TUI / GUI-Web / ChatGPT in-chat UI / possible Mobile
 
+Companion shards:
+
+- `LOAM_INTERACTION_ATLAS_DIFFICULT_OPERATIONS.md` — transfer, card, points, refunds, shared costs, splits, schedules, import matching, correction, reconciliation
+
 ---
 
 ## 0. Purpose
@@ -38,6 +42,8 @@ Working hypothesis: the surfaces should share **application-level semantic actio
 ---
 
 # 2. Atlas Record Schema
+
+Each observation should eventually record:
 
 | Field | Meaning |
 |---|---|
@@ -679,7 +685,7 @@ Therefore:
 
 Instead design an adapter boundary now:
 
-```
+```text
 natural language
     ↓
 intent extraction
@@ -695,7 +701,7 @@ structured result + provenance link
 
 Candidate future in-chat card:
 
-```
+```text
 Record purchase
 
 Mathematics books          ¥1,750
@@ -942,17 +948,13 @@ This keeps research state separate from implementation state.
 Recommended next batch:
 
 1. Fully excavate HRA and h-kernel daily interaction flows.
-2. Build a dedicated **Difficult Operations Catalog**:
-   - transfers,
-   - shared costs,
-   - refunds,
-   - credit card settlement,
-   - points,
-   - split purchases,
-   - schedule replacement,
-   - matching/import duplication,
-   - correction/reversal,
-   - reconciliation.
+2. Continue `LOAM_INTERACTION_ATLAS_DIFFICULT_OPERATIONS.md`:
+   - loans / interest,
+   - authorization holds,
+   - subscriptions / trials,
+   - foreign currency,
+   - joint accounts,
+   - gift cards / store credit.
 3. Build a **Home / Attention Atlas** across all products.
 4. Build a **Transaction Entry Atlas** across CLI/TUI/desktop/mobile/chat.
 5. Deep-review LeanTEA architecture specifically for:
