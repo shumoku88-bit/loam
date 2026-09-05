@@ -107,11 +107,37 @@ food:    entitlement 100, consumption 30, remaining 70 JPY
 general: entitlement  50, consumption  0, remaining 50 JPY
 ```
 
+## Qualified result
+
+The exact practical probe succeeded on the initial Application 031 head and reported:
+
+```text
+Application 031 BudgetWindow byte parity PASS
+read_only_executable_frontier_qualified=2/2
+parity_cases=2
+byte_equal_cases=2
+production_typed_family_boundaries=6
+required_absence_fail_closed=1
+```
+
+The selected generation recorded `EventCorrection` as `ABSENT`; the manifest-backed query preserved the current BudgetWindow empty-correction policy.
+
+Both the single-purpose `food` answer and the `--all` answer were byte-for-byte equal to the real production `loamBudgetWindow` output. The observed answers remained:
+
+```text
+food:    entitlement 100, consumption 30, remaining 70 JPY
+general: entitlement  50, consumption  0, remaining 50 JPY
+```
+
+Each manifest-backed query captured `CURRENT` once and crossed six production typed family boundaries.
+
 ## Required-absence pressure
 
-The workflow then edits only scratch `CURRENT` so `ActualRouting` is explicitly `ABSENT` while the old object still physically exists.
+The workflow then edited only scratch `CURRENT` so `ActualRouting` was explicitly `ABSENT` while the old content-addressed routing object still physically existed.
 
-The manifest-backed BudgetWindow must refuse. This distinguishes:
+The manifest-backed BudgetWindow refused with `ActualRouting is absent from selected generation`.
+
+This distinguishes:
 
 ```text
 object exists somewhere
@@ -125,19 +151,20 @@ selected generation contains required ActualRouting evidence
 
 and confirms that explicit family presence is an authority property rather than directory discovery.
 
-## What success can earn
+## Finding
 
-If the qualification succeeds, Applications 030 and 031 together establish:
+Applications 030 and 031 together now qualify both retained steady-state read-only executable roots:
 
 ```text
-retained steady-state read-only executable roots
-  loamJournalExport  qualified through manifest authority
-  loamBudgetWindow   qualified through manifest authority
+loamJournalExport  qualified through manifest authority
+loamBudgetWindow   qualified through manifest authority
 
 read-only executable frontier = 2/2
 ```
 
-This would not yet authorize production migration. Writer-capable executables remain a separate gate, and the scratch parity executable intentionally copies private rendering shape only to compare externally visible bytes.
+For both product paths, changing the physical authority topology did not require changing the production typed decoders or household projection semantics.
+
+This does not authorize production migration by itself. The remaining steady-state authority-consumer pressure is writer-capable execution. The scratch parity executable also copies private BudgetWindow rendering shape solely to compare externally visible bytes; no renderer API refactor is claimed.
 
 ## Boundary
 
