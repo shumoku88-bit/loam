@@ -39,9 +39,6 @@ answers only the current-open view. `observedAt` selects historical routing; it
 does not pretend to reconstruct when completion or retirement became known.
 -/
 
-/-- Compatibility name for the qualified Core Scheduled routing coordinate. -/
-abbrev ScheduledRoutingSubject := Loam.Core.ScheduledRoutingSubject
-
 /--
 Query-local Commitment partition for one Purpose and Measure.
 
