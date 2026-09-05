@@ -1,5 +1,7 @@
 # Application 021: Scratch manifest Movement publisher
 
+Status: **QUALIFIED** by the dedicated Lean runtime probe and exact-source measurement.
+
 ## Pressure
 
 Applications 016-020 narrowed the production-size question from generic source
@@ -97,24 +99,10 @@ This does not solve concurrent stale writers. A production version would still
 retain the existing `WriterOwnership` scope while observing current authority,
 admitting the candidate, and selecting the new manifest.
 
-## Qualification
+## Qualified runtime result
 
-The dedicated workflow performs two checks.
-
-### 1. Lean runtime probe
-
-The probe:
-
-1. creates an initial six-family manifest;
-2. verifies a five-family Movement fixture round-trips through production codecs;
-3. prepares five new immutable family images;
-4. publishes one new `CURRENT` manifest;
-5. confirms the reader selects exactly that manifest;
-6. confirms the unchanged ActualRouting reference and bytes are reused;
-7. digest-checks every selected family image;
-8. confirms older immutable objects remain present.
-
-Expected receipt:
+The exact-head workflow succeeded after one same-day entry-point correction. The
+runtime probe produced:
 
 ```text
 Application 021 manifest Movement probe PASS
@@ -123,41 +111,81 @@ authority_switches=1
 unchanged_routing_rewrites=0
 ```
 
-### 2. Source-boundary measurement
+It therefore exercised one five-family Movement-like publication through the
+current production codecs, one manifest authority switch, reuse of unchanged
+ActualRouting bytes, digest-checked reads of every selected family, and retention
+of the old immutable objects.
 
-A small source measurement reports, without forcing a preferred answer:
+## Exact-source measurement
 
-- current `publishDraftUnderOwnership` lines/bytes;
-- the current physical-publication tail beginning at
-  `saveActualValidityHistory?`;
-- scratch `publishAdmittedMovement` lines/bytes;
-- scratch manifest infrastructure lines/bytes;
-- current cross-family save-call count;
-- scratch changed-object preparation count;
-- scratch manifest authority-switch count.
+The same successful workflow measured these source boundaries:
 
-The measurement deliberately reports both the tiny per-Movement publisher and
-the manifest infrastructure it depends on. A prototype is not allowed to claim
-victory by hiding infrastructure outside the measured function.
+```text
+current publishDraftUnderOwnership     132 lines   8501 bytes
+current physical-publication tail       58 lines   3949 bytes
+scratch publishAdmittedMovement          20 lines    767 bytes
+scratch manifest infrastructure         141 lines   5352 bytes
+```
+
+The current writer contains five cross-family save calls. The scratch publisher
+still prepares five changed family objects, but it has one manifest authority
+switch.
+
+The narrow publication function is therefore materially smaller:
+
+```text
+20 / 58 lines  = 0.345
+767 / 3949 B   = 0.194
+```
+
+So, at the already-admitted physical-publication boundary, the manifest shape
+reduces writer-specific publication code by roughly two thirds in lines and four
+fifths in bytes in this scratch specimen.
+
+## The honest counterweight
+
+The shared manifest infrastructure is not free.
+
+For a single Movement probe:
+
+```text
+scratch publisher + manifest infrastructure
+= 161 lines / 6119 bytes
+```
+
+That is **more lines** than the current 132-line whole
+`publishDraftUnderOwnership` boundary, although still fewer raw bytes than its
+8501-byte source body. This is not an apples-to-apples whole-writer victory: the
+current boundary also contains world reload, identity allocation, admission, and
+frontier checks that the scratch manifest infrastructure does not replace.
+
+So Application 021 does **not** claim that one Movement alone earns a production
+migration.
+
+What it establishes is narrower and useful:
+
+```text
+writer-specific physical publication gets much smaller
+but the shared selector/object layer must amortize across more than one writer
+before net production simplicity can be claimed
+```
 
 ## Decision boundary
 
-A smaller per-Movement publisher is useful but insufficient by itself.
+Production adoption now needs aggregate evidence across the writers that share
+this same physical problem. The next measurement should reuse the exact same
+manifest infrastructure for at least Movement, Scheduled completion, Event
+Correction, Capacity publication, and QuantityBasis correction, then compare:
 
-Production adoption would need evidence that, across the writers which share the
-same physical problem, the manifest layer removes more code and recovery state
-than it adds in:
+- aggregate writer-specific publication code removed;
+- shared manifest/object code added once;
+- recovery branches removed or retained;
+- semantic identity reservation that remains necessary;
+- reader indirection and garbage-collection cost.
 
-- manifest codec and reader indirection;
-- object naming and digest checks;
-- garbage collection of unreachable objects;
-- migration and compatibility;
-- writer ownership and stale-writer checks.
-
-Conversely, a prototype that is not smaller for one Movement is not automatically
-a failure. Shared infrastructure may amortize across Movement, Scheduled,
-Correction, Capacity, and QuantityBasis publication. That must be measured rather
-than assumed.
+Do not multiply the 141-line infrastructure by writer count. Do not count domain
+admission code as publication savings. The question is whether one shared
+physical primitive replaces several independent publication protocols.
 
 ## Smallness criterion
 
