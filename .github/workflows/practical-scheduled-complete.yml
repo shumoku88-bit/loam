@@ -133,7 +133,7 @@ jobs:
             exit 1
           fi
 
-          ./tools/loam review "$memory" >"$tmp_dir/review-1.out"
+          ./tools/loam event-memory review "$memory" >"$tmp_dir/review-1.out"
           grep -Fq '2026-09-11  rent actual  [scheduled-completion:scheduled-1]' "$tmp_dir/review-1.out"
           printf '%s\n' "$tmp_dir" > /tmp/loam-scheduled-complete-dir
 

@@ -3,6 +3,11 @@ name: Practical Movement
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/RecordReview.lean'
+      - 'tests/test_record_review.py'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
@@ -23,6 +28,11 @@ on:
       - '.github/workflows/practical-movement.yml'
   push:
     paths:
+      - 'Loam/Tests/RecordReview.lean'
+      - 'tests/test_record_review.py'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
@@ -105,7 +115,7 @@ jobs:
           test "$(cat "$validity")" = "$expected_validity"
           ! grep -q 'validity-1' "$validity"
 
-          ./tools/loam review "$memory" >/tmp/loam-review.out
+          ./tools/loam event-memory review "$memory" >/tmp/loam-review.out
           grep -Fq '2026-09-02  [record-1]' /tmp/loam-review.out
           grep -Fq 'paypay: -800 jpy' /tmp/loam-review.out
           grep -Fq 'groceries: 1000 jpy' /tmp/loam-review.out
@@ -187,7 +197,7 @@ jobs:
           memory="$tmp_dir/memory.loam"
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
 
-          ./tools/loam review "$memory" >/tmp/loam-undated-review.out
+          ./tools/loam event-memory review "$memory" >/tmp/loam-undated-review.out
           grep -Fq 'date unknown  [record-1]' /tmp/loam-undated-review.out
 
       - name: Refuse invalid scripted calendar date without publication
@@ -248,3 +258,9 @@ jobs:
             echo 'expected successful cached build to refresh wrapper stamp' >&2
             exit 1
           fi
+
+      - name: Qualify focused record review and nearby writer recovery
+        run: |
+          lake build loam loamMovement loamCapacity loamDailyQuantity loamOpenScheduled
+          lake env lean --run Loam/Tests/RecordReview.lean
+          python3 tests/test_record_review.py -v

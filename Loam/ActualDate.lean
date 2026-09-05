@@ -39,6 +39,33 @@ def validIsoDate (text : String) : Bool :=
         | _, _, _ => false
   | _ => false
 
+private def padded (width value : Nat) : String :=
+  let text := toString value
+  String.ofList (List.replicate (width - text.length) '0') ++ text
+
+/-- Presentation-only day movement, bounded by the existing four-digit date spelling. -/
+def shiftDays? (text : String) (offset : Int) : Option String := do
+  if !validIsoDate text then none else do
+    let [y, m, d] := text.splitOn "-" | none
+    let year ← y.toNat?
+    let month ← m.toNat?
+    let day ← d.toNat?
+    let step := fun (y, m, d) => do
+      let limit ← daysInMonth? y m
+      if offset < 0 then
+        if d > 1 then some (y, m, d - 1)
+        else if m > 1 then some (y, m - 1, ← daysInMonth? y (m - 1))
+        else if y > 1 then some (y - 1, 12, 31)
+        else none
+      else
+        if d < limit then some (y, m, d + 1)
+        else if m < 12 then some (y, m + 1, 1)
+        else if y < 9999 then some (y + 1, 1, 1)
+        else none
+    let (year, month, day) ← (List.range offset.natAbs).foldlM
+      (fun date _ => step date) (year, month, day)
+    pure (padded 4 year ++ "-" ++ padded 2 month ++ "-" ++ padded 2 day)
+
 /-- Read the host-local calendar day in the same ISO spelling used by the CLI. -/
 def todayIso? : IO (Option String) := do
   try

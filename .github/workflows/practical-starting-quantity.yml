@@ -187,19 +187,19 @@ jobs:
           set -euo pipefail
           rm -rf scratch/dogfood
 
-          printf '7\nbank\n100000\n' | ./tools/loam
+          printf 'starting\nbank\n100000\n' | ./tools/loam
           test -f scratch/dogfood/basis.loam
 
-          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-empty.out
-          grep -F '8. Show balances' /tmp/loam-balance-menu-empty.out
+          printf '3\n' | ./tools/loam >/tmp/loam-balance-menu-empty.out
+          grep -F '3. Show balances' /tmp/loam-balance-menu-empty.out
           grep -F 'No balances are selected in the current balance view.' /tmp/loam-balance-menu-empty.out
 
           printf 'bank\tjpy\n' > scratch/dogfood/balance-view.tsv
-          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
+          printf '3\n' | ./tools/loam >/tmp/loam-balance-menu-before.out
           grep -F 'Balances (starting balance + effective recorded changes):' /tmp/loam-balance-menu-before.out
           grep -F 'bank: 100000 jpy' /tmp/loam-balance-menu-before.out
 
-          printf '9\n1\n90000\n' | ./tools/loam
+          printf 'basis\n1\n90000\n' | ./tools/loam
           test -f scratch/dogfood/basis-corrections.loam
-          printf '8\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
+          printf '3\n' | ./tools/loam >/tmp/loam-balance-menu-after.out
           grep -F 'bank: 90000 jpy' /tmp/loam-balance-menu-after.out

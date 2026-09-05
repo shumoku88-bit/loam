@@ -49,6 +49,52 @@ Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus 
 
 Purchases, transfers, income, split payments, and other value flows use this same entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
+### Focused record review
+
+The primary menu keeps recording, record review, and balances at the entrance;
+`m` reveals correction, setup, scheduled, capacity, and inspection actions. Those
+named actions can also be entered directly at the menu prompt.
+
+```text
+./tools/loam review MEMORY_FILE CORRECTION_FILE
+./tools/loam review MEMORY_FILE CORRECTION_FILE 2026-09-03
+./tools/loam review MEMORY_FILE CORRECTION_FILE '/スーパー'
+```
+
+Review opens a short list for the seven occurrence dates ending today, with a
+small date/count strip. It is **not** a most-recently-entered log. Daily counts
+and lists reflect movement and date corrections. The correction path is explicit;
+a not-yet-created correction file means no correction facts, as in balances.
+
+In an interactive terminal:
+
+- `YYYY-MM-DD` selects one date; `p` / `n` move the date window seven days;
+- `t` returns to the recent week; `u` shows records with unknown dates;
+- `/text` searches all dates and **all recorded Events**, including clearly
+  marked correction originals. Search uses literal, case-insensitive substrings over
+  descriptions, loci, measures, quantity spellings, dates, and EventIds;
+- `1`–`10` opens a displayed record's full detail; `#EventId` follows a raw
+  record / correction link;
+- `more` / `back` traverse bounded result batches, `r` reloads the read-only
+  session, and `q` returns.
+
+Long recognition text and additional Effects are explicitly elided only in the
+summary. Search examines the full retained text. Date-unknown counts remain
+visible. No match is not proof that something was never recorded. Invalid
+correction evidence refuses the review instead of appearing as an empty list.
+Redirected input produces one bounded answer and consumes no menu input.
+
+Unbounded raw inspection is deliberately lower-level:
+
+```text
+./tools/loam event-memory review MEMORY_FILE
+```
+
+See [Application 015](experiments/application_015_focused_record_review.md) for
+scope and local composition checks. Review adds no persistence or writer path.
+
+### Quantities and shadow readers
+
 A Locus is not silently given a zero starting basis. If `current` encounters a recorded Locus without basis evidence, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. The replaceable balance view can select only the loci intended for a household balance display without turning Locus into an Account primitive. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
 
 A separate stateless shadow entrance can read one journal snapshot without changing it or creating LOAM persistence:
