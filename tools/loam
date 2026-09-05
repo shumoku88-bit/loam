@@ -316,8 +316,8 @@ Show spending capacity:
 Show open scheduled movements:
   ./tools/loam open-scheduled SCHEDULED_FILE MEMORY_FILE
 
-Review recorded facts:
-  ./tools/loam review MEMORY_FILE
+Review current records (optional YYYY-MM-DD, /text search, or u for undated):
+  ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]
 
 Show recorded quantities:
   ./tools/loam summary MEMORY_FILE
@@ -408,24 +408,34 @@ if [[ $# -eq 0 ]]; then
   while true; do
     printf 'LOAM\nData: %s\n\n' "$data_label"
     cat <<'EOF'
-What do you want to do?
 1. Record movement
-2. Review what I recorded
-3. Show recorded quantities
-4. Correct a record
-5. Show effective quantities
-6. Review correction integrity
-7. Set a starting balance
-8. Show balances
-9. Correct a starting balance
-10. Move spending capacity
-11. Show spending capacity
-12. Show open scheduled movements
+2. Review records
+3. Show balances
+m. More actions
 q. Quit
 EOF
     printf '> '
     if ! IFS= read -r choice; then
       break
+    fi
+
+    if [[ "$choice" == "m" ]]; then
+      cat <<'EOF'
+correct    Correct a record
+starting   Set a starting balance
+basis      Correct a starting balance
+capacity   Move spending capacity
+available  Show spending capacity
+scheduled  Show open scheduled movements
+raw        Show raw recorded quantities
+effective  Show effective quantities
+integrity  Review correction integrity
+b. Back
+EOF
+      printf '> '
+      if ! IFS= read -r choice; then
+        break
+      fi
     fi
 
     case "$choice" in
@@ -436,17 +446,17 @@ EOF
         if [[ ! -e "$memory_file" ]]; then
           echo "Nothing recorded yet."
         else
-          run_menu_action run_loam review "$memory_file"
+          run_menu_action run_loam review "$memory_file" "$correction_file"
         fi
         ;;
-      3)
+      raw)
         if [[ ! -e "$memory_file" ]]; then
           echo "Nothing recorded yet."
         else
           run_menu_action run_loam summary "$memory_file"
         fi
         ;;
-      4)
+      correct)
         if [[ -t 0 ]]; then
           cat <<'EOF'
 What needs correction?
@@ -471,29 +481,32 @@ EOF
           run_menu_action run_loam correct "$memory_file" "$correction_file"
         fi
         ;;
-      5)
+      effective)
         run_menu_action run_loam effective "$memory_file" "$correction_file"
         ;;
-      6)
+      integrity)
         run_menu_action run_loam correction-integrity "$memory_file" "$correction_file"
         ;;
-      7)
+      starting)
         run_menu_action run_daily_quantity starting-quantity "$basis_file"
         ;;
-      8)
+      3)
         run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file" "$balance_view_file" "$basis_cut_file"
         ;;
-      9)
+      basis)
         run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
         ;;
-      10)
+      capacity)
         run_menu_action run_capacity "$capacity_file"
         ;;
-      11)
+      available)
         run_menu_action run_capacity show "$capacity_file"
         ;;
-      12)
+      scheduled)
         run_menu_action run_open_scheduled "$scheduled_file" "$memory_file"
+        ;;
+      b)
+        continue
         ;;
       q|Q)
         break

@@ -84,7 +84,7 @@ jobs:
             | LOAM_OCCURRENCE_DATE=2026-09-03 .lake/build/bin/loamMovement "$memory" \
               >"$tmp/record.out"
 
-          .lake/build/bin/loam review "$memory" >"$tmp/review-before.out"
+          .lake/build/bin/loam event-memory review "$memory" >"$tmp/review-before.out"
           grep -Fq '2026-09-03  [record-1]' "$tmp/review-before.out"
           grep -Fxq $'BASE\trecord-1\t2026-09-03' "$validity"
           ! grep -q $'REVISION\t' "$validity"
@@ -94,7 +94,7 @@ jobs:
               >"$tmp/correct-once.out"
           grep -Fq 'Date corrected: 2026-09-03 -> 2026-09-02.' "$tmp/correct-once.out"
 
-          .lake/build/bin/loam review "$memory" >"$tmp/review-once.out"
+          .lake/build/bin/loam event-memory review "$memory" >"$tmp/review-once.out"
           grep -Fq '2026-09-02  [record-1]' "$tmp/review-once.out"
           if grep -Fq '2026-09-03  [record-1]' "$tmp/review-once.out"; then
             echo 'superseded occurrence date remained current' >&2
@@ -108,7 +108,7 @@ jobs:
               >"$tmp/correct-twice.out"
           grep -Fq 'Date corrected: 2026-09-02 -> 2026-09-01.' "$tmp/correct-twice.out"
 
-          .lake/build/bin/loam review "$memory" >"$tmp/review-twice.out"
+          .lake/build/bin/loam event-memory review "$memory" >"$tmp/review-twice.out"
           grep -Fq '2026-09-01  [record-1]' "$tmp/review-twice.out"
 
           expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-03\nREVISION\tvalidity-1\trecord-1\t2026-09-02\nREVISION\tvalidity-2\trecord-1\t2026-09-01\nCORRECTION\tvalidity-correction-1\tROOT\trecord-1\tvalidity-1\nCORRECTION\tvalidity-correction-2\tREVISION\tvalidity-1\tvalidity-2'
@@ -129,7 +129,7 @@ jobs:
               >"$tmp/date-old.out"
           grep -Fq 'Date recorded: 2026-09-02.' "$tmp/date-old.out"
 
-          .lake/build/bin/loam review "$memory" >"$tmp/review-old.out"
+          .lake/build/bin/loam event-memory review "$memory" >"$tmp/review-old.out"
           grep -Fq '2026-09-02  [record-1]' "$tmp/review-old.out"
           expected=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-02'
           test "$(cat "$validity")" = "$expected"

@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/warm-menu.out" 2>&1
+          printf 'available\nscheduled\nq\n' | ./tools/loam >"$RUNNER_TEMP/warm-menu.out" 2>&1
           if grep -Fq 'Building LOAM' "$RUNNER_TEMP/warm-menu.out"; then
             cat "$RUNNER_TEMP/warm-menu.out"
             exit 1
@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           touch Loam/Core/Quantity.lean
-          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/stale-menu.out" 2>&1
+          printf 'available\nscheduled\nq\n' | ./tools/loam >"$RUNNER_TEMP/stale-menu.out" 2>&1
 
           test "$(grep -Fc 'Building LOAM...' "$RUNNER_TEMP/stale-menu.out")" -eq 1
           if grep -Eq 'Building LOAM (spending capacity|daily quantity|open scheduled view|movement)' "$RUNNER_TEMP/stale-menu.out"; then
@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '11\n12\nq\n' | ./tools/loam >"$RUNNER_TEMP/rewarmed-menu.out" 2>&1
+          printf 'available\nscheduled\nq\n' | ./tools/loam >"$RUNNER_TEMP/rewarmed-menu.out" 2>&1
           if grep -Fq 'Building LOAM' "$RUNNER_TEMP/rewarmed-menu.out"; then
             cat "$RUNNER_TEMP/rewarmed-menu.out"
             exit 1

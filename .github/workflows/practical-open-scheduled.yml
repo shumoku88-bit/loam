@@ -146,7 +146,7 @@ jobs:
           test "$early_line" -lt "$interrupted_line"
           test "$interrupted_line" -lt "$late_line"
 
-          printf '12\nq\n' | LOAM_DATA_DIR="$tmp_dir" ./tools/loam > /tmp/loam-open-scheduled-menu.out
-          grep -Fq '12. Show open scheduled movements' /tmp/loam-open-scheduled-menu.out
+          printf 'm\nscheduled\nq\n' | LOAM_DATA_DIR="$tmp_dir" ./tools/loam > /tmp/loam-open-scheduled-menu.out
+          grep -Fq 'scheduled  Show open scheduled movements' /tmp/loam-open-scheduled-menu.out
           grep -Fq 'scheduled-early' /tmp/loam-open-scheduled-menu.out
           grep -Fq 'bank -> early-subject: 100 jpy' /tmp/loam-open-scheduled-menu.out

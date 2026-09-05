@@ -26,8 +26,8 @@ private def practicalUsage : String :=
   "  ./tools/loam scheduled show SCHEDULED_FILE\n" ++
   "  ./tools/loam scheduled complete SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID\n" ++
   "  ./tools/loam scheduled cancel SCHEDULED_FILE SCHEDULED_ID\n\n" ++
-  "Review recorded facts:\n" ++
-  "  ./tools/loam review MEMORY_FILE\n\n" ++
+  "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
+  "  ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]\n\n" ++
   "Show recorded quantities:\n" ++
   "  ./tools/loam summary MEMORY_FILE\n\n" ++
   "Correct a recorded movement append-only:\n" ++
@@ -45,6 +45,7 @@ private def lowLevelUsage : String :=
   "  ./tools/loam event create <event-file> <event-id> [<effect-key> <locus> <measure> <quanta>]...\n" ++
   "  ./tools/loam event quantity <event-file> <locus> <measure>\n" ++
   "  ./tools/loam event-memory get <memory-file> <event-id>\n" ++
+  "  ./tools/loam event-memory review <memory-file>\n" ++
   "  ./tools/loam event-memory quantity <memory-file> <locus> <measure>\n" ++
   "  ./tools/loam event-memory add <memory-file> <event-file>"
 
@@ -203,35 +204,6 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
     IO.eprintln ("loam: file not found: " ++ path)
     return 2
 
-/-- Show all remembered Events without interpreting representation order as time. -/
-def reviewRememberedEvents (path : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk path
-  if ← memoryFile.pathExists then
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
-        return 2
-    | some memory =>
-        match memory.events with
-        | [] =>
-            IO.println "No recorded events."
-            return 0
-        | events =>
-            IO.println "Recorded facts (display order has no time meaning):"
-            for event in events do
-              IO.println ("Event " ++ event.id.token)
-              match event.effects with
-              | [] => IO.println "  (no quantity effects)"
-              | effects =>
-                  for effect in effects do
-                    IO.println
-                      ("  " ++ effect.locus.token ++ ": " ++
-                        toString effect.quantity.quanta ++ " " ++ effect.measure.token)
-            return 0
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
-
 /-- Add one already-complete persisted Event under caller-held writer ownership. -/
 def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -289,7 +261,9 @@ def run (args : List String) : IO UInt32 :=
       Loam.ScheduledLifecycleCli.completeScheduled scheduledPath memoryPath scheduledToken
   | ["scheduled", "cancel", scheduledPath, scheduledToken] =>
       Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledToken
-  | ["review", memoryPath] => Loam.ReviewCli.reviewRememberedEvents memoryPath
+  | ["review", memoryPath, correctionPath] => Loam.ReviewCli.review memoryPath correctionPath
+  | ["review", memoryPath, correctionPath, query] =>
+      Loam.ReviewCli.review memoryPath correctionPath (some query)
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
   | ["correct", memoryPath, correctionPath] =>
       withMemoryOwnership memoryPath
@@ -305,6 +279,7 @@ def run (args : List String) : IO UInt32 :=
       createEvent path eventToken effectArgs
   | ["event", "quantity", path, locus, measure] =>
       showEventQuantity path locus measure
+  | ["event-memory", "review", path] => Loam.ReviewCli.reviewRawEvents path
   | ["event-memory", "get", path, eventToken] =>
       showRememberedEvent path eventToken
   | ["event-memory", "quantity", path, locus, measure] =>
