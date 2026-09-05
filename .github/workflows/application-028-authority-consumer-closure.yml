@@ -1,0 +1,52 @@
+name: Application 028 Authority Consumer Closure
+
+on:
+  push:
+    paths:
+      - 'experiments/application_028_authority_consumer_closure.py'
+      - 'experiments/application_028_authority_consumer_closure.md'
+      - '.github/workflows/application-028-authority-consumer-closure.yml'
+      - 'lakefile.lean'
+      - 'tools/loam'
+      - 'Loam/**/*.lean'
+  pull_request:
+    paths:
+      - 'experiments/application_028_authority_consumer_closure.py'
+      - 'experiments/application_028_authority_consumer_closure.md'
+      - '.github/workflows/application-028-authority-consumer-closure.yml'
+      - 'lakefile.lean'
+      - 'tools/loam'
+      - 'Loam/**/*.lean'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-028-authority-consumer-closure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  closure:
+    name: Map authority consumers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Probe executable and persistence closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 experiments/application_028_authority_consumer_closure.py \
+            | tee /tmp/application028.out
+
+          grep -Fq 'Application 028 authority consumer closure PASS' /tmp/application028.out
+          grep -Fq 'declared_executables=14' /tmp/application028.out
+          grep -Fq 'primary_practical_executables=5' /tmp/application028.out
+          grep -Fq 'secondary_steady_state_executables=3' /tmp/application028.out
+          grep -Fq 'nonsteady_executables=6' /tmp/application028.out
+          grep -Fq 'steady_state_executables=8' /tmp/application028.out
+          grep -Fq 'steady_state_authority_consumers=8' /tmp/application028.out
+          grep -Fq 'steady_state_authority_writers=6' /tmp/application028.out
+          grep -Fq 'steady_state_read_only_consumers=2' /tmp/application028.out
+          grep -Fq 'quiesce_or_retire_at_cutover=6' /tmp/application028.out
