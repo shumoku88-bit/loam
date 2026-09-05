@@ -1,0 +1,7 @@
+{
+  "challenge_module": "Challenge",
+  "solution_module": "Solution",
+  "theorem_names": ["Observation168.vector_claim"],
+  "permitted_axioms": ["propext"],
+  "enable_nanoda": true
+}
