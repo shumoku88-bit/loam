@@ -1,0 +1,183 @@
+name: Application 035 Production Movement Manifest Tail
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_035_production_movement_manifest_tail.lean'
+      - 'experiments/application_035_production_movement_manifest_tail.md'
+      - 'tests/application_035_movement_manifest_tail_surface.py'
+      - '.github/workflows/application-035-production-movement-manifest-tail.yml'
+  push:
+    branches:
+      - 'experiment/application-035-production-movement-manifest-tail'
+    paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_035_production_movement_manifest_tail.lean'
+      - 'experiments/application_035_production_movement_manifest_tail.md'
+      - 'tests/application_035_movement_manifest_tail_surface.py'
+      - '.github/workflows/application-035-production-movement-manifest-tail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  manifest-tail:
+    name: qualify production-capable Movement manifest tail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production Movement
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Qualify production tail source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_035_movement_manifest_tail_surface.py | tee /tmp/application035-surface.out
+          grep -Fq 'retained_sidecar_save_calls=5' /tmp/application035-surface.out
+          grep -Fq 'manifest_tail_sidecar_save_calls=0' /tmp/application035-surface.out
+          grep -Fq 'manifest_tail_selected_world_reads=1' /tmp/application035-surface.out
+          grep -Fq 'manifest_tail_shared_admission_calls=1' /tmp/application035-surface.out
+          grep -Fq 'manifest_tail_authority_publish_calls=1' /tmp/application035-surface.out
+          grep -Fq 'manifest_authority_switches_per_mutation=1' /tmp/application035-surface.out
+          grep -Fq 'manifest_partial_authority_prefixes=0' /tmp/application035-surface.out
+          grep -Fq 'production_manifest_mode_default_off=1' /tmp/application035-surface.out
+          grep -Fq 'semantic_family_count=5' /tmp/application035-surface.out
+
+      - name: Qualify interrupted off-authority retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/manifest"
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root"
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- retry-probe "$root" \
+            | tee /tmp/application035-retry.out
+          grep -Fq 'retry_reused_prepared_objects=5' /tmp/application035-retry.out
+          grep -Fq 'interrupted_candidate_authority_changes=0' /tmp/application035-retry.out
+          grep -Fq 'orphan_event_id_reservations=0' /tmp/application035-retry.out
+          grep -Fq 'manifest_partial_authority_prefixes=0' /tmp/application035-retry.out
+
+      - name: Run real loamMovement through experimental manifest authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/frozen-preflight.loam"
+          root="$tmp_dir/manifest"
+          dump="$tmp_dir/dump"
+
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT="$root" \
+                .lake/build/bin/loamMovement "$memory"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT="$root" \
+                .lake/build/bin/loamMovement "$memory"
+
+          test ! -e "$memory"
+          test ! -e "$memory.actual-validity"
+          test ! -e "$memory.descriptions"
+          test ! -e "$memory.relations"
+          test ! -e "$memory.discharges"
+
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- verify-two "$root" \
+            | tee /tmp/application035-projection.out
+          grep -Fq 'event_count=2' /tmp/application035-projection.out
+          grep -Fq 'relation_outstanding=60' /tmp/application035-projection.out
+
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- dump "$root" "$dump"
+
+          test "$(sha256sum "$dump/Event.loam" | cut -d' ' -f1)" = \
+            'f1db19930ebce381589d55dcb6279031263465f088deaba3e7e68d5b83090992'
+          test "$(sha256sum "$dump/ActualValidity.loam" | cut -d' ' -f1)" = \
+            '7a4d44b8a877386c70b91131f644e6e97e2a6ff8658989013e9958e1ef727f5f'
+          test "$(sha256sum "$dump/EventDescription.loam" | cut -d' ' -f1)" = \
+            '77a98cf7921d12ee5da6757539d5e195410c8c3c0de971bc450689e0daedaa6a'
+          test "$(sha256sum "$dump/RelationUnit.loam" | cut -d' ' -f1)" = \
+            'cd73e5303796be1e23711c7b9849190de4e61e4bd0672a5f2d6905552ff50f73'
+          test "$(sha256sum "$dump/RelationDischarge.loam" | cut -d' ' -f1)" = \
+            '8e8626073f6e205950ab5287bee14372f0dd0e30a0b7d91076dc5faccba718ea'
+
+          test "$(wc -c < "$dump/Event.loam" | tr -d ' ')" = '177'
+          test "$(wc -c < "$dump/ActualValidity.loam" | tr -d ' ')" = '81'
+          test "$(wc -c < "$dump/EventDescription.loam" | tr -d ' ')" = '113'
+          test "$(wc -c < "$dump/RelationUnit.loam" | tr -d ' ')" = '82'
+          test "$(wc -c < "$dump/RelationDischarge.loam" | tr -d ' ')" = '66'
+
+          echo 'Application 035 real production Movement manifest tail PASS'
+          echo 'human_input_mutations=2'
+          echo 'production_movement_binary_reused=1'
+          echo 'production_admission_seam_reused=1'
+          echo 'production_manifest_tail_used=1'
+          echo 'manifest_mutation_sidecar_save_calls=0'
+          echo 'canonical_family_hash_matches=5'
+          echo 'canonical_family_size_matches=5'
+          echo 'semantic_projection_match=1'
+          echo 'default_sidecar_mode_changed=0'
+
+      - name: Refuse broken selected manifest without legacy fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/frozen-sidecar.loam"
+          root="$tmp_dir/manifest"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory" >/dev/null
+
+          lake env lean experiments/application_035_production_movement_manifest_tail.lean -- seed-empty "$root" >/dev/null
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT="$root" \
+                .lake/build/bin/loamMovement "$memory" >/dev/null
+
+          event_object="$(awk -F '\t' '$1 == "Event" { print $2 }' "$root/CURRENT")"
+          test -n "$event_object"
+          printf '\ncorrupt\n' >> "$root/$event_object"
+
+          set +e
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT="$root" \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/out" 2>"$tmp_dir/err"
+          status=$?
+          set -e
+
+          test "$status" = '2'
+          grep -Fq 'loam: selected Movement object failed digest verification' "$tmp_dir/err"
+          grep -Fq $'EVENT\trecord-1' "$memory"
+          ! grep -Fq $'EVENT\trecord-2' "$memory"
+          echo 'broken_selected_manifest_failed_closed=1'
+          echo 'legacy_sidecar_fallbacks=0'
+          echo 'frozen_sidecar_mutations_after_manifest_failure=0'
