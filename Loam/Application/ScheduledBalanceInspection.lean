@@ -98,13 +98,9 @@ def scheduledBalanceEffectsBefore
 Project aggregate signed effects of the complete current-open Scheduled set onto
 one replaceable balance-coordinate selection before `endExclusive`.
 
-Duplicate selected coordinates are normalized as one current question. Every
-selected coordinate is retained in the answer, including an explicit zero, so
-an internal transfer cannot disappear merely because a wider selected net would
-cancel.
-
-The answer fails closed when Scheduled completion / retirement evidence is
-structurally inconsistent, exactly like `currentOpenScheduled`.
+This compatibility entry retains the pre-replacement practical world used by
+existing observations. New practical readers that admit replacement evidence
+must use `currentScheduledBalanceEffectsBeforeWithReplacement?` below.
 -/
 def currentScheduledBalanceEffectsBefore?
     (scheduled : ScheduledMemory Time)
@@ -119,5 +115,28 @@ def currentScheduledBalanceEffectsBefore?
   | .conflictingTerminalEvidence => none
   | .open occurrences =>
       some <| scheduledBalanceEffectsBefore occurrences coordinates endExclusive
+
+/--
+Project Scheduled balance effects through the replacement-aware current frontier.
+
+Every structural refusal from `currentOpenScheduledWithReplacement` collapses to
+`none` at this older Option-shaped projection boundary. Superseded Scheduled
+sources contribute nothing once replacement evidence is admissible; the retained
+replacement occurrence contributes normally according to its own date and
+movement.
+-/
+def currentScheduledBalanceEffectsBeforeWithReplacement?
+    (scheduled : ScheduledMemory Time)
+    (completions : ScheduledCompletionMemory)
+    (retirements : ScheduledRetirementMemory)
+    (replacements : ScheduledReplacementMemory)
+    (events : EventMemory)
+    (coordinates : List EffectCoordinate)
+    (endExclusive : Time) : Option (List ScheduledBalanceEffect) :=
+  match currentOpenScheduledWithReplacement
+      scheduled completions retirements replacements events with
+  | .open occurrences =>
+      some <| scheduledBalanceEffectsBefore occurrences coordinates endExclusive
+  | _ => none
 
 end Loam.Application
