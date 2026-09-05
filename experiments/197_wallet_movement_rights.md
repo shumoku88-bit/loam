@@ -1,6 +1,6 @@
 # Observation 197 — Does equal wallet quantity determine future movement rights?
 
-Status: **F033 active falsification observation**
+Status: **F033 qualified — COUNTEREXAMPLE**
 
 ## Question
 
@@ -90,67 +90,39 @@ allowed     : Wallet -> set RightKind
 
 `RightKind` and `allowed` are experiment-local evidence. They are not a production proposal for `WalletKind`, `MoneyClass`, capabilities, permissions, legal-right objects, or an extensible operation enum.
 
-## Selected probes
+## Executed result
 
-### Representative restricted wallet
+Alloy 6.2.0 + Sat4j produced exactly the expected matrix:
 
-Can an allocatable wallet be spendable and sendable but not withdrawable?
+```text
+representativeRestrictedWallet                         SAT
+sameQuantityAndAllocationDifferentRights               SAT
+sameQuantityAndSpendabilityDifferentTransferRight      SAT
+QuantityAndAllocationDetermineRights                   SAT counterexample
+SpendabilityDeterminesAllRights                        SAT counterexample
+ExplicitRightsDetermineSelectedViews                   UNSAT counterexample
+```
 
-Expected: **SAT**.
+Dedicated Observation 197 CI completed SUCCESS.
 
-### Same quantity and allocation, different rights
+## Central witness
 
-Can Left and Right have exactly the same quantity relation and exactly the same allocation-eligibility set while one selected wallet is withdrawable in only one world?
-
-Both worlds additionally keep that wallet spendable and sendable.
-
-Expected: **SAT**.
-
-This is the central F033 witness.
-
-### Same quantity and spendability, different transfer right
-
-Can two worlds agree on quantity and spendability while sendability differs?
-
-Expected: **SAT**.
-
-This pressures a single coarse `usable` / `spendable` flag.
-
-## Deliberately too-strong checks
-
-### Quantity and allocation determine rights
+Left and Right can keep:
 
 ```text
 same quantity
-+ same allocatable set
-    ->
-same operation rights
+same broad allocation eligibility
+same spendability
+same sendability
 ```
 
-Expected: **SAT counterexample**.
+while the selected wallet is withdrawable in Left and not withdrawable in Right.
 
-### Spendability determines all rights
+So even after Observation 048's allocation distinction is retained, the selected future-operation answer is not reconstructed.
 
-```text
-same quantity
-+ same spendability
-    ->
-same sendability and withdrawability
-```
+A second witness keeps quantity and spendability equal while sendability differs. Therefore one coarse `usable` / `spendable` state is also too small for the selected operation vocabulary.
 
-Expected: **SAT counterexample**.
-
-## Positive sufficiency check
-
-When quantity, allocation eligibility, and explicit right evidence are all held equal, the selected spend / send / withdraw views must be equal.
-
-Expected counterexample: **UNSAT**.
-
-This checks only internal sufficiency for the selected vocabulary. It does not claim `allowed` is the canonical representation.
-
-## Candidate interpretation if the matrix holds
-
-The bounded result would be:
+## Qualified bounded separation
 
 ```text
 quantity
@@ -158,7 +130,7 @@ quantity
 future movement rights
 ```
 
-and more strongly for the selected pressure:
+and, for the stronger selected pressure:
 
 ```text
 quantity + broad allocation eligibility
@@ -166,9 +138,17 @@ quantity + broad allocation eligibility
 withdraw / send permission
 ```
 
-That would earn independently observable future-operation-right information for queries that need it.
+The exact future-operation-right evidence used in the model is sufficient for the selected views, but Observation 197 does not claim that this evidence shape is canonical.
 
-It would **not** earn a PayPay-specific balance-class field. Several information-equivalent representations could remain possible, including policy-derived rights, source/provenance facts, restricted-value evidence, or some smaller relation not yet considered.
+## Interpretation
+
+F033 therefore finds a genuine counterexample to the tested compression. Numeric equality does not imply operational equivalence, and broad allocation eligibility does not close that gap.
+
+What has been earned is only this information statement:
+
+> Some future-movement-right information is independently observable when the query needs to distinguish operations such as spend, send, and withdraw.
+
+This does **not** earn a PayPay-specific balance-class field. Several information-equivalent representations could remain possible, including policy-derived rights, source/provenance facts, restricted-value evidence, or some smaller relation not yet considered.
 
 ## Deliberate boundaries
 
@@ -186,14 +166,13 @@ Observation 197 does **not** establish:
 - legal ownership semantics;
 - persistence, CLI, TUI, or household-data changes.
 
-If the result is a counterexample, runtime remains `RESEARCH_ONLY`. Production implementation still waits for real dogfood pressure.
+Production implementation still waits for real dogfood pressure.
 
-## Falsification status
-
-Until the exact model executes successfully, F033 remains:
+## Falsification result
 
 ```text
-Work     = OBSERVING
-Finding  = UNTESTED
-Runtime  = RESEARCH_ONLY
+F033
+  Work     = DONE
+  Finding  = COUNTEREXAMPLE
+  Runtime  = RESEARCH_ONLY
 ```
