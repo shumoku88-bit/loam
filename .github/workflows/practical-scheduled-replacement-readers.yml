@@ -1,0 +1,132 @@
+name: Practical Scheduled Replacement Readers
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Cli/ScheduledSuppressionCli.lean'
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Tests/ScheduledReplacementReaders.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-replacement-readers.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Cli/ScheduledSuppressionCli.lean'
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Tests/ScheduledReplacementReaders.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-replacement-readers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-replacement-readers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readers:
+    name: Qualify replacement-aware practical readers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical Scheduled readers
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamOpenScheduled loamScheduledSuppression
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run replacement-aware Application story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ScheduledReplacementReaders.lean
+
+      - name: Exercise replacement through practical CLI readers
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          replacements="$scheduled.replacements"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-payment	2026-09-08	jpy
+          CHANGE	smbc	-100
+          CHANGE	wifi	100
+          SCHEDULED	scheduled-payment-v2	2026-09-10	jpy
+          CHANGE	smbc	-120
+          CHANGE	wifi	120
+          SCHEDULED	scheduled-transfer	2026-09-09	jpy
+          CHANGE	smbc	-50
+          CHANGE	paypay	50
+          EOF
+
+          cat >"$replacements" <<'EOF'
+          LOAM-SCHEDULED-REPLACEMENT-MEMORY	1
+          REPLACEMENT	scheduled-payment	scheduled-payment-v2
+          EOF
+
+          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          smbc	jpy
+          paypay	jpy
+          EOF
+
+          ./tools/loam open-scheduled "$scheduled" "$tmp_dir/memory.loam" \
+            | tee /tmp/loam-replacement-open.out
+
+          grep -Fq '[scheduled-payment-v2]' /tmp/loam-replacement-open.out
+          grep -Fq '[scheduled-transfer]' /tmp/loam-replacement-open.out
+          if grep -Fq '[scheduled-payment]' /tmp/loam-replacement-open.out; then
+            echo 'superseded Scheduled source remained in practical open view' >&2
+            exit 1
+          fi
+
+          .lake/build/bin/loamOpenScheduled balance-effects "$tmp_dir" 2026-10-01 \
+            | tee /tmp/loam-replacement-balance.out
+          grep -Fq '  smbc: -170 jpy' /tmp/loam-replacement-balance.out
+          grep -Fq '  paypay: 50 jpy' /tmp/loam-replacement-balance.out
+
+          .lake/build/bin/loamScheduledSuppression \
+            "$tmp_dir" 2026-10-01 scheduled-payment-v2 \
+            | tee /tmp/loam-replacement-suppression.out
+          grep -Fq '  smbc: -170 jpy' /tmp/loam-replacement-suppression.out
+          grep -Fq '  smbc: -50 jpy' /tmp/loam-replacement-suppression.out
+
+          if .lake/build/bin/loamScheduledSuppression \
+              "$tmp_dir" 2026-10-01 scheduled-payment \
+              >/tmp/loam-superseded-suppression.out 2>&1; then
+            echo 'superseded Scheduled source remained a valid suppression target' >&2
+            exit 1
+          fi
+          grep -Fq 'is not currently open: scheduled-payment' \
+            /tmp/loam-superseded-suppression.out
