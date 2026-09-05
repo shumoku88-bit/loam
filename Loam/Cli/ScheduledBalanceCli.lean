@@ -5,6 +5,7 @@ import Loam.BalanceViewConfig
 import Loam.Persistence
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledReplacementPersistence
 import Loam.Persistence.ScheduledRetirementPersistence
 
 namespace Loam.ScheduledBalanceCli
@@ -32,6 +33,7 @@ private structure QueryContext where
   scheduled : ScheduledMemory String
   completions : ScheduledCompletionMemory
   retirements : ScheduledRetirementMemory
+  replacements : ScheduledReplacementMemory
   events : EventMemory
   coordinates : List EffectCoordinate
 
@@ -44,6 +46,8 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
     Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledPath
   let retirementPath :=
     Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledPath
+  let replacementPath :=
+    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledPath
 
   match ← loadScheduledMemoryOrEmpty? scheduledPath with
   | none =>
@@ -57,21 +61,26 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
           | none =>
               return .error "loam: malformed or unsupported Scheduled retirement memory"
           | some retirements =>
-              match ← loadEventMemoryOrEmpty? memoryPath with
+              match ← Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementPath with
               | none =>
-                  return .error "loam: malformed or unsupported Event memory"
-              | some events =>
-                  match ← Loam.BalanceViewConfig.load? balanceViewPath with
+                  return .error "loam: malformed or unsupported Scheduled replacement memory"
+              | some replacements =>
+                  match ← loadEventMemoryOrEmpty? memoryPath with
                   | none =>
-                      return .error "loam: malformed or unsupported balance-view config"
-                  | some coordinates =>
-                      return .ok {
-                        scheduled := scheduled
-                        completions := completions
-                        retirements := retirements
-                        events := events
-                        coordinates := coordinates
-                      }
+                      return .error "loam: malformed or unsupported Event memory"
+                  | some events =>
+                      match ← Loam.BalanceViewConfig.load? balanceViewPath with
+                      | none =>
+                          return .error "loam: malformed or unsupported balance-view config"
+                      | some coordinates =>
+                          return .ok {
+                            scheduled := scheduled
+                            completions := completions
+                            retirements := retirements
+                            replacements := replacements
+                            events := events
+                            coordinates := coordinates
+                          }
 
 private def printEffect (effect : ScheduledBalanceEffect) : IO Unit := do
   IO.println
@@ -86,12 +95,13 @@ private def printEffects (effects : List ScheduledBalanceEffect) : IO Unit := do
       printEffect effect
 
 /--
-Project current-open Scheduled effects through the current replaceable balance
-view before one end-exclusive calendar boundary.
+Project replacement-aware current-open Scheduled effects through the current
+replaceable balance view before one end-exclusive calendar boundary.
 
 This command does not read QuantityBasis or current balances and therefore does
 not invent a forecast balance. It answers only the already-qualified signed
-Scheduled-effect question from Observations 108 and 119.
+Scheduled-effect question from Observations 108 and 119 after applying explicit
+Observation-105 replacement provenance.
 -/
 def report (rootPath endExclusive : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate endExclusive then
@@ -103,12 +113,12 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
         IO.eprintln message
         return 2
     | .ok context =>
-        match currentScheduledBalanceEffectsBefore?
-            context.scheduled context.completions context.retirements context.events
-            context.coordinates endExclusive with
+        match currentScheduledBalanceEffectsBeforeWithReplacement?
+            context.scheduled context.completions context.retirements context.replacements
+            context.events context.coordinates endExclusive with
         | none =>
             IO.eprintln
-              "loam: Scheduled balance effects unavailable: lifecycle evidence is inconsistent"
+              "loam: Scheduled balance effects unavailable: lifecycle or replacement evidence is inconsistent"
             return 1
         | some effects =>
             IO.println
@@ -118,11 +128,12 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
             return 0
 
 /--
-Compare the ordinary Scheduled balance projection with one read-only hypothetical
-that suppresses exactly one currently open Scheduled identity.
+Compare the replacement-aware Scheduled balance projection with one read-only
+hypothetical that suppresses exactly one currently open Scheduled identity.
 
-The command never writes retirement/completion evidence or a second Scheduled
-memory. The target identity is retained in the output as hypothetical provenance.
+The command never writes retirement/completion/replacement evidence or a second
+Scheduled memory. A superseded identity is not currently open and is therefore
+rejected as a hypothetical suppression target.
 -/
 def reportSuppression
     (rootPath endExclusive scheduledId : String) : IO UInt32 := do
@@ -140,9 +151,9 @@ def reportSuppression
     | .ok context =>
         let hypothesis : SuppressScheduledHypothesis :=
           { scheduled := ⟨scheduledId⟩ }
-        match compareSuppressScheduledBalanceEffectsBefore
-            context.scheduled context.completions context.retirements context.events
-            context.coordinates endExclusive hypothesis with
+        match compareSuppressScheduledBalanceEffectsBeforeWithReplacement
+            context.scheduled context.completions context.retirements context.replacements
+            context.events context.coordinates endExclusive hypothesis with
         | .targetNotOpen =>
             IO.eprintln
               ("loam: hypothetical Scheduled suppression target is not currently open: " ++
@@ -155,6 +166,14 @@ def reportSuppression
         | .unknownRetirementScheduled =>
             IO.eprintln
               "loam: Scheduled suppression unavailable: retirement evidence refers to an unknown Scheduled identity"
+            return 1
+        | .unknownReplacementScheduled =>
+            IO.eprintln
+              "loam: Scheduled suppression unavailable: replacement evidence refers to an unknown Scheduled identity"
+            return 1
+        | .invalidReplacementGraph =>
+            IO.eprintln
+              "loam: Scheduled suppression unavailable: replacement graph is invalid"
             return 1
         | .conflictingTerminalEvidence =>
             IO.eprintln
