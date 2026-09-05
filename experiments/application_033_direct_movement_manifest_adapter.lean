@@ -1,7 +1,5 @@
-import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
-import Loam.MovementRelationEntry
-import Loam.MovementDischargeEntry
+import Loam.MovementAdmission
 import Loam.Persistence
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
@@ -46,26 +44,8 @@ private structure WorldBytes where
   discharges : String
   deriving Repr, BEq
 
-private structure TypedWorld where
-  events : EventMemory
-  validity : ActualValidityHistory String
-  descriptions : EventDescriptionMemory
-  relations : List RelationUnit
-  discharges : List RelationDischarge
-
-private structure MovementDraft where
-  validOn : String
-  description : Option String
-  effects : List Effect
-  relations : List Loam.MovementRelationEntry.Draft
-  discharges : List Loam.MovementDischargeEntry.Draft
-  total : Int
-
-private structure AdmittedMovement where
-  world : TypedWorld
-  eventId : EventId
-  relationCount : Nat
-  dischargeCount : Nat
+private abbrev TypedWorld := Loam.MovementAdmission.World
+private abbrev MovementDraft := Loam.MovementAdmission.Draft
 
 private structure Projection where
   eventCount : Nat
@@ -248,218 +228,6 @@ private def emptyWorld : IO TypedWorld := do
     discharges := []
   }
 
-private def historyMentionsEvent
-    (history : ActualValidityHistory String)
-    (id : EventId) : Bool :=
-  history.facts.any fun fact => decide (fact.event = id)
-
-private def relationsMentionEvent
-    (relations : List RelationUnit)
-    (id : EventId) : Bool :=
-  relations.any fun relation => decide (relation.sourceEvent = id)
-
-private def dischargesMentionEvent
-    (discharges : List RelationDischarge)
-    (id : EventId) : Bool :=
-  discharges.any fun discharge => decide (discharge.event = id)
-
-private def freshRecordEventIdFrom
-    (world : TypedWorld) : Nat → Nat → Option EventId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : EventId := ⟨"record-" ++ toString index⟩
-      match EventMemory.findById? world.events candidate with
-      | none =>
-          if historyMentionsEvent world.validity candidate ||
-              (EventDescriptionMemory.findText? world.descriptions candidate).isSome ||
-              relationsMentionEvent world.relations candidate ||
-              dischargesMentionEvent world.discharges candidate then
-            freshRecordEventIdFrom world (index + 1) fuel
-          else
-            some candidate
-      | some _ => freshRecordEventIdFrom world (index + 1) fuel
-
-private def freshRecordEventId? (world : TypedWorld) : Option EventId :=
-  freshRecordEventIdFrom world 1
-    (world.events.events.length + world.validity.facts.length +
-      world.descriptions.entries.length + world.relations.length +
-      world.discharges.length + 1)
-
-private def relationIdUsed
-    (used : List RelationUnitId)
-    (id : RelationUnitId) : Bool :=
-  used.any fun candidate => decide (candidate = id)
-
-private def freshRelationUnitIdFrom
-    (used : List RelationUnitId) : Nat → Nat → Option RelationUnitId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : RelationUnitId := ⟨"relation-" ++ toString index⟩
-      if relationIdUsed used candidate then
-        freshRelationUnitIdFrom used (index + 1) fuel
-      else
-        some candidate
-
-private def freshRelationUnitIdsFrom
-    (used : List RelationUnitId) : Nat → Nat → Option (List RelationUnitId)
-  | 0, _ => some []
-  | remaining + 1, index => do
-      let id ← freshRelationUnitIdFrom used index (used.length + 1)
-      let rest ← freshRelationUnitIdsFrom (id :: used) remaining (index + 1)
-      some (id :: rest)
-
-private def freshRelationUnitIds?
-    (world : TypedWorld)
-    (count : Nat) : Option (List RelationUnitId) :=
-  let used :=
-    world.relations.map (fun relation => relation.id) ++
-      world.discharges.map (fun discharge => discharge.target)
-  freshRelationUnitIdsFrom used count 1
-
-private def materializeRelationUnits? :
-    EventId →
-    List RelationUnitId →
-    List Loam.MovementRelationEntry.Draft →
-    Option (List RelationUnit)
-  | _, [], [] => some []
-  | eventId, id :: ids, draft :: drafts => do
-      let rest ← materializeRelationUnits? eventId ids drafts
-      some ({
-        id := id
-        sourceEvent := eventId
-        sourceEffect := draft.sourceEffect
-        debtor := draft.debtor
-        creditor := draft.creditor
-        quantity := draft.quantity
-      } :: rest)
-  | _, _, _ => none
-
-private def materializeRelationDischarges
-    (eventId : EventId)
-    (drafts : List Loam.MovementDischargeEntry.Draft) : List RelationDischarge :=
-  drafts.map fun draft => {
-    event := eventId
-    target := draft.target
-    quantity := draft.quantity
-  }
-
-private def freshValidityFactIdFrom
-    (history : ActualValidityHistory String) : Nat → Nat → Option ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : ActualValidityFactId := ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshValidityFactIdFrom history (index + 1) fuel
-
-private def freshValidityFactId?
-    (history : ActualValidityHistory String) : Option ActualValidityFactId :=
-  freshValidityFactIdFrom history 1 (history.facts.length + 1)
-
-private def uncoveredRelationSource
-    (_ : EventId) (_ : EffectKey) : Bool := false
-
-private def relationSourceResolved?
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (eventId : EventId)
-    (effectKey : EffectKey) : Bool :=
-  (Loam.Application.currentRelationState?
-    events relations [] uncoveredRelationSource eventId effectKey).isSome
-
-private def relationSourcePositive?
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (eventId : EventId)
-    (effectKey : EffectKey) : Bool :=
-  match Loam.Application.currentRelationState?
-      events relations [] uncoveredRelationSource eventId effectKey with
-  | some (.knownPositive _) => true
-  | _ => false
-
-private def relationPublicationAdmissible
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (event : Event)
-    (newRelations : List RelationUnit) : Bool :=
-  event.effects.all (fun effect =>
-    relationSourceResolved? events relations event.id effect.key) &&
-  newRelations.all (fun relation =>
-    relationSourcePositive? events relations event.id relation.sourceEffect)
-
-private def dischargePublicationAdmissible
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (discharges : List RelationDischarge)
-    (newDischarges : List RelationDischarge) : Bool :=
-  newDischarges.all fun discharge =>
-    match Loam.Application.admittedRelationDischargesFor?
-        events relations [] discharges discharge.target with
-    | none => false
-    | some admitted =>
-        admitted.any fun item =>
-          decide
-            (item.discharge.event = discharge.event ∧
-              item.discharge.target = discharge.target ∧
-              item.discharge.quantity = discharge.quantity)
-
-private def admitMovement?
-    (world : TypedWorld)
-    (draft : MovementDraft) : Except String AdmittedMovement := do
-  let eventId ← match freshRecordEventId? world with
-    | some id => pure id
-    | none => throw "loam: could not generate fresh recording identities"
-  let factId ← match freshValidityFactId? world.validity with
-    | some id => pure id
-    | none => throw "loam: could not generate fresh recording identities"
-  let relationIds ← match freshRelationUnitIds? world draft.relations.length with
-    | some ids => pure ids
-    | none => throw "loam: could not generate fresh recording identities"
-  let event ← match Event.ofEffects? eventId draft.effects with
-    | some admitted => pure admitted
-    | none => throw "loam: could not admit generated movement or relation evidence"
-  let newRelations ← match materializeRelationUnits? eventId relationIds draft.relations with
-    | some admitted => pure admitted
-    | none => throw "loam: could not admit generated movement or relation evidence"
-  let newDischarges := materializeRelationDischarges eventId draft.discharges
-  let fact : ActualValidityFact String := {
-    id := factId
-    event := eventId
-    validOn := draft.validOn
-  }
-  let updatedDescriptions ← match draft.description with
-    | none => pure world.descriptions
-    | some text =>
-        match EventDescriptionMemory.ofEntries?
-            (world.descriptions.entries ++ [{ event := eventId, text := text }]) with
-        | some descriptions => pure descriptions
-        | none => throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedEvents ← match EventMemory.add? world.events event with
-    | some events => pure events
-    | none => throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedHistory ← match world.validity.addFact? fact with
-    | some history => pure history
-    | none => throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedRelations := world.relations ++ newRelations
-  let updatedDischarges := world.discharges ++ newDischarges
-  if !relationPublicationAdmissible updatedEvents updatedRelations event newRelations then
-    throw "loam: open relation evidence did not justify one source-local frontier"
-  if !dischargePublicationAdmissible
-      updatedEvents updatedRelations updatedDischarges newDischarges then
-    throw "loam: relation discharge evidence did not justify one current target frontier"
-  pure {
-    world := {
-      events := updatedEvents
-      validity := updatedHistory
-      descriptions := updatedDescriptions
-      relations := updatedRelations
-      discharges := updatedDischarges
-    }
-    eventId := eventId
-    relationCount := newRelations.length
-    dischargeCount := newDischarges.length
-  }
-
 private def effect (key locus : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
 
@@ -544,15 +312,15 @@ private def runPrepareMutation (rootPath draftName : String) : IO UInt32 := do
   let root := System.FilePath.mk rootPath
   let draft ← requireSome (draftByName? draftName) "unknown Application 033 draft"
   let current ← readCurrentTyped root
-  let admitted ← match admitMovement? current draft with
+  let admitted ← match Loam.MovementAdmission.admit? current draft with
     | Except.ok admitted => pure admitted
     | Except.error message => throw <| IO.userError message
   let (manifest, reused) ← prepareWorld root admitted.world
   writeCandidate root manifest
   IO.println "Application 033 direct admitted typed candidate PASS"
-  IO.println s!"event={admitted.eventId.token}"
-  IO.println s!"new_relations={admitted.relationCount}"
-  IO.println s!"new_discharges={admitted.dischargeCount}"
+  IO.println s!"event={admitted.event.id.token}"
+  IO.println s!"new_relations={admitted.newRelations.length}"
+  IO.println s!"new_discharges={admitted.newDischarges.length}"
   IO.println s!"reused_objects={reused}"
   IO.println "sidecar_materializations=0"
   IO.println "sidecar_save_calls=0"
@@ -585,8 +353,8 @@ private def runCompareOracle (memoryPath rootPath : String) : IO UInt32 := do
   IO.println "Application 033 production-oracle parity PASS"
   IO.println "canonical_family_byte_matches=5"
   IO.println "semantic_projection_match=1"
-  IO.println "scratch_admission_rule_copy=1"
-  IO.println "production_admission_seam_reused=0"
+  IO.println "scratch_admission_rule_copy=0"
+  IO.println "production_admission_seam_reused=1"
   IO.println "manifest_mutation_sidecar_writer_runs=0"
   return 0
 
