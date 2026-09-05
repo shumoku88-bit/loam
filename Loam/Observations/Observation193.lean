@@ -56,8 +56,7 @@ theorem correctionStep_preserves_events
     (state : CorrectionState)
     (correction : EventCorrection) :
     (correctionStep state (.publish correction)).events = state.events := by
-  unfold correctionStep
-  split <;> rfl
+  simp [correctionStep]
 
 private def wallet : LocusId := ⟨"wallet"⟩
 private def jpy : MeasureId := ⟨"jpy"⟩
@@ -229,7 +228,7 @@ refinement:
 
 ```text
 same current CorrectionFrontier quantity
-    -/->
+    does not imply
 same answer after every allowed Correction continuation
 ```
 
