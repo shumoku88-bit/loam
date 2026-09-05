@@ -40,6 +40,22 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Measure direct protocol surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_033_direct_movement_surface.py | tee /tmp/application033-surface.out
+          grep -Fq 'current_movement_cross_family_save_calls=5' /tmp/application033-surface.out
+          grep -Fq 'current_movement_max_partial_authority_prefixes=4' /tmp/application033-surface.out
+          grep -Fq 'manifest_mutation_sidecar_writer_protocols=0' /tmp/application033-surface.out
+          grep -Fq 'manifest_mutation_sidecar_save_calls=0' /tmp/application033-surface.out
+          grep -Fq 'manifest_partial_authority_prefixes=0' /tmp/application033-surface.out
+          grep -Fq 'manifest_authority_switches_per_mutation=1' /tmp/application033-surface.out
+          grep -Fq 'scratch_admission_rule_copy=1' /tmp/application033-surface.out
+          grep -Fq 'production_admission_seam_reused=0' /tmp/application033-surface.out
+          grep -Fq 'production_sidecar_writer_still_exists=1' /tmp/application033-surface.out
+          grep -Fq 'production_migration_earned=0' /tmp/application033-surface.out
+
       - name: Exercise direct mutation without sidecar staging
         shell: bash
         run: |
