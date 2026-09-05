@@ -2,6 +2,7 @@ import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
+import Loam.MovementManifestAuthority
 
 namespace Loam.ReviewCli
 
@@ -92,13 +93,60 @@ private def loadOrEmpty {α : Type} (path : System.FilePath)
     (loader : System.FilePath → IO (Option α)) (empty : α) : IO (Option α) := do
   if ← path.pathExists then loader path else return some empty
 
+private structure ReviewMovementWorld where
+  events : EventMemory
+  validity : Loam.Core.ActualValidityHistory String
+  descriptions : EventDescriptionMemory
+
+/--
+Load the Movement families from exactly one authority backend.
+
+Without the explicit manifest gate, review retains the current sidecar behavior.
+With the gate, the selected manifest generation supplies Event, ActualValidity,
+and EventDescription evidence; `loadSelectedWorld?` also verifies the selected
+RelationUnit and RelationDischarge objects before review continues. There is no
+fallback to frozen sidecars when selected manifest authority is unavailable.
+-/
+private def loadReviewMovementWorld?
+    (memoryFile : System.FilePath) : IO (Except String ReviewMovementWorld) := do
+  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return .error "loam: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      | .error message => return .error message
+      | .ok world =>
+          return .ok {
+            events := world.events
+            validity := world.validity
+            descriptions := world.descriptions
+          }
+  | none =>
+      if !(← memoryFile.pathExists) then
+        return .error ("loam: file not found: " ++ memoryFile.toString)
+      let some memory ← Loam.Persistence.loadEventMemory? memoryFile
+        | return .error "loam: malformed or unsupported event-memory file"
+      let some history ← Loam.Persistence.loadActualValidityHistoryOrEmpty?
+          (Loam.Persistence.actualValidityPathForEventMemory memoryFile)
+        | return .error "loam: malformed or unsupported actual-validity history"
+      let some descriptions ← loadOrEmpty
+          (Loam.Persistence.eventDescriptionPathForEventMemory memoryFile)
+          Loam.Persistence.loadEventDescriptionMemory? EventDescriptionMemory.empty
+        | return .error "loam: malformed or unsupported event-description memory"
+      return .ok {
+        events := memory
+        validity := history
+        descriptions := descriptions
+      }
+
 /-- Admit the whole evidence before filtering; a quiet view must not hide refusal. -/
 private def loadRecords (memoryPath : String) (correctionPath : Option String) :
     IO (Except String (List Record)) := do
   let memoryFile := System.FilePath.mk memoryPath
-  if !(← memoryFile.pathExists) then return .error ("loam: file not found: " ++ memoryPath)
-  let some memory ← Loam.Persistence.loadEventMemory? memoryFile
-    | return .error "loam: malformed or unsupported event-memory file"
+  let world ←
+    match ← loadReviewMovementWorld? memoryFile with
+    | .error message => return .error message
+    | .ok world => pure world
   let emptyCorrections : EventCorrectionMemory := { corrections := [], idNodup := by simp }
   let loadedCorrections ← match correctionPath with
     | some path =>
@@ -106,21 +154,14 @@ private def loadRecords (memoryPath : String) (correctionPath : Option String) :
     | none => pure (some emptyCorrections)
   let some corrections := loadedCorrections
     | return .error "loam: malformed or unsupported correction-memory file"
-  let some frontier := Loam.Application.correctionFrontierMemory? memory corrections
+  let some frontier := Loam.Application.correctionFrontierMemory? world.events corrections
     | return .error "loam: movement corrections do not justify one current record frontier"
-  let some history ← Loam.Persistence.loadActualValidityHistoryOrEmpty?
-      (Loam.Persistence.actualValidityPathForEventMemory memoryFile)
-    | return .error "loam: malformed or unsupported actual-validity history"
-  let some validities := Loam.Application.admittedActualValidityMemory? history
+  let some validities := Loam.Application.admittedActualValidityMemory? world.validity
     | return .error "loam: actual-validity corrections do not justify one current date per event"
-  let some descriptions ← loadOrEmpty
-      (Loam.Persistence.eventDescriptionPathForEventMemory memoryFile)
-      Loam.Persistence.loadEventDescriptionMemory? EventDescriptionMemory.empty
-    | return .error "loam: malformed or unsupported event-description memory"
-  return .ok (memory.events.map fun event => {
+  return .ok (world.events.events.map fun event => {
     event := event
     date := validities.findByEventId? event.id
-    description := (descriptions.findText? event.id).getD ""
+    description := (world.descriptions.findText? event.id).getD ""
     replacement := (corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
     isCurrent := (frontier.findById? event.id).isSome
   })
