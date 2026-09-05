@@ -1,0 +1,48 @@
+name: Observation 185
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation185.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/185_typed_hypothetical_decision_support.md'
+      - '.github/workflows/observation-185-typed-hypothetical-decision-support.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/185-typed-hypothetical-decision-support'
+      - main
+    paths:
+      - 'Loam/Observations/Observation185.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/185_typed_hypothetical_decision_support.md'
+      - '.github/workflows/observation-185-typed-hypothetical-decision-support.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typed-hypothetical-decision-support:
+    name: Lean typed hypothetical decision support
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check typed hypothetical decision support
+        run: lake build Loam.Observations.Observation185
