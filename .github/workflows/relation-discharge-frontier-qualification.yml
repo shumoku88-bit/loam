@@ -1,0 +1,41 @@
+name: Relation Discharge Frontier Qualification
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Application/RelationDischargeFrontier.lean'
+      - 'Loam/Application.lean'
+      - 'experiments/relation_discharge_frontier_qualification.lean'
+      - '.github/workflows/relation-discharge-frontier-qualification.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'application/relation-discharge-frontier'
+      - main
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Application/RelationDischargeFrontier.lean'
+      - 'Loam/Application.lean'
+      - 'experiments/relation_discharge_frontier_qualification.lean'
+      - '.github/workflows/relation-discharge-frontier-qualification.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Quantified relation discharge frontier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build Application boundary
+        run: lake build Loam.Application
+      - name: Run discharge frontier qualification
+        run: lake env lean experiments/relation_discharge_frontier_qualification.lean
