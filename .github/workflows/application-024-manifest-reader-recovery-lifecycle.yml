@@ -1,0 +1,54 @@
+name: Application 024 Manifest Reader Recovery Lifecycle
+
+on:
+  push:
+    branches:
+      - experiment/application-024-manifest-reader-recovery-lifecycle
+  pull_request:
+    paths:
+      - 'experiments/application_024_manifest_reader_recovery_lifecycle.lean'
+      - 'tests/application_024_lifecycle_measure.py'
+      - '.github/workflows/application-024-manifest-reader-recovery-lifecycle.yml'
+      - 'Loam/Sha256.lean'
+      - 'lean-toolchain'
+      - 'lakefile.toml'
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean and build SHA dependency
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+          mk_all-check: false
+          check-reservoir-eligibility: false
+      - name: Run manifest reader and recovery lifecycle probe
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_024_manifest_reader_recovery_lifecycle.lean \
+            | tee /tmp/application-024-probe.out
+          grep -Fq 'Application 024 manifest reader/recovery lifecycle PASS' /tmp/application-024-probe.out
+          grep -Fq 'fail_closed_reader_cases=4' /tmp/application-024-probe.out
+          grep -Fq 'interrupted_unreferenced_restart_kept_authority=1' /tmp/application-024-probe.out
+          grep -Fq 'retry_reused_prepared_object=1' /tmp/application-024-probe.out
+          grep -Fq 'stale_reader_old_generation_survives=1' /tmp/application-024-probe.out
+          grep -Fq 'online_gc_deletions=0' /tmp/application-024-probe.out
+      - name: Measure lifecycle source surface
+        run: |
+          set -euo pipefail
+          python3 tests/application_024_lifecycle_measure.py \
+            | tee /tmp/application-024-source.out
+          grep -Fq 'manifest_shared_readers=1' /tmp/application-024-source.out
+          grep -Fq 'manifest_shared_publishers=1' /tmp/application-024-source.out
+          grep -Fq 'manifest_operation_specific_recovery_branches=0' /tmp/application-024-source.out
+          grep -Fq 'manifest_online_gc_deletions=0' /tmp/application-024-source.out
