@@ -1,0 +1,104 @@
+name: Practical Scheduled Balance
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Tests/ScheduledBalanceProjection.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-balance.yml'
+  push:
+    paths:
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Tests/ScheduledBalanceProjection.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-balance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-balance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scheduled-balance:
+    name: Build and test Scheduled balance effects
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Scheduled read-side entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamOpenScheduled
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Scheduled balance semantic story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ScheduledBalanceProjection.lean
+
+      - name: Exercise balance-view projection and end-exclusive horizon
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+
+          cat >"$tmp_dir/scheduled.loam" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-payment	2026-09-08	jpy
+          CHANGE	smbc	-100
+          CHANGE	wifi	100
+          SCHEDULED	scheduled-transfer	2026-09-09	jpy
+          CHANGE	smbc	-50
+          CHANGE	paypay	50
+          SCHEDULED	scheduled-boundary	2026-10-15	jpy
+          CHANGE	smbc	-999
+          CHANGE	rent	999
+          EOF
+
+          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          smbc	jpy
+          paypay	jpy
+          cash	jpy
+          EOF
+
+          .lake/build/bin/loamOpenScheduled balance-effects "$tmp_dir" 2026-10-15 \
+            | tee /tmp/loam-scheduled-balance.out
+
+          grep -Fq 'Current-open Scheduled balance effects before 2026-10-15 (end-exclusive):' /tmp/loam-scheduled-balance.out
+          grep -Fq '  smbc: -150 jpy' /tmp/loam-scheduled-balance.out
+          grep -Fq '  paypay: 50 jpy' /tmp/loam-scheduled-balance.out
+          grep -Fq '  cash: 0 jpy' /tmp/loam-scheduled-balance.out
+          if grep -Fq -- '-1149 jpy' /tmp/loam-scheduled-balance.out; then
+            echo 'end-exclusive boundary occurrence leaked into projection' >&2
+            exit 1
+          fi
