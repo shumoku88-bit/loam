@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Cli/MovementManifestCutoverCli.lean'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Cli/MovementManifestCutoverCli.lean'
@@ -108,6 +110,22 @@ jobs:
             >"$tmp/review.manifest"
           cmp "$tmp/review.sidecar" "$tmp/review.manifest"
 
+          if LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT="$manifest" \
+              .lake/build/bin/loam correct-date "$memory" "$corrections" \
+              >"$tmp/legacy-writer.out" 2>"$tmp/legacy-writer.err"; then
+            echo 'legacy sidecar writer unexpectedly acquired ownership in manifest mode' >&2
+            exit 1
+          fi
+          grep -Fq 'legacy writer ownership is unavailable while Movement manifest authority is selected' \
+            "$tmp/legacy-writer.err"
+
+          sha256sum \
+            "$memory" \
+            "$memory.actual-validity" \
+            "$memory.descriptions" \
+            >"$tmp/sidecars.after-blocked-writer"
+          cmp "$tmp/sidecars.before" "$tmp/sidecars.after-blocked-writer"
+
           mkdir -p "$frozen"
           mv "$memory" "$frozen/memory.loam"
           mv "$memory.actual-validity" "$frozen/memory.loam.actual-validity"
@@ -156,5 +174,6 @@ jobs:
           echo 'absent_empty_families=2'
           echo 'prepare_authority_switches=0'
           echo 'cutover_authority_switches=1'
+          echo 'legacy_sidecar_writer_blocked=1'
           echo 'post_cutover_sidecar_writes=0'
           echo 'legacy_fallback_after_corruption=0'
