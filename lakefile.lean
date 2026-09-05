@@ -27,6 +27,9 @@ lean_exe loamDailyQuantity where
 lean_exe loamOpenScheduled where
   root := `Loam.Cli.OpenScheduledCli
 
+lean_exe loamScheduledSuppression where
+  root := `Loam.Cli.ScheduledSuppressionCli
+
 lean_exe loamJournalExport where
   root := `Loam.Cli.JournalExportCli
 

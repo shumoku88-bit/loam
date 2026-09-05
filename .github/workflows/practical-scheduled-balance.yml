@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Cli/ScheduledSuppressionCli.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Tests/ScheduledBalanceProjection.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
@@ -20,10 +22,12 @@ on:
   push:
     paths:
       - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
       - 'Loam/Cli/ScheduledBalanceCli.lean'
+      - 'Loam/Cli/ScheduledSuppressionCli.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Tests/ScheduledBalanceProjection.lean'
       - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
@@ -49,12 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build Scheduled read-side entrance
+      - name: Build Scheduled read-side entrances
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: loamOpenScheduled
+          build-args: loamOpenScheduled loamScheduledSuppression
           test: false
           lint: false
           use-mathlib-cache: false
@@ -66,7 +70,7 @@ jobs:
         shell: bash
         run: lake env lean --run Loam/Tests/ScheduledBalanceProjection.lean
 
-      - name: Exercise balance-view projection and end-exclusive horizon
+      - name: Exercise balance-view and suppression projections
         shell: bash
         run: |
           set -euo pipefail
@@ -102,3 +106,16 @@ jobs:
             echo 'end-exclusive boundary occurrence leaked into projection' >&2
             exit 1
           fi
+
+          .lake/build/bin/loamScheduledSuppression \
+            "$tmp_dir" 2026-10-15 scheduled-payment \
+            | tee /tmp/loam-scheduled-suppression.out
+
+          grep -Fq 'Hypothetical Scheduled suppression before 2026-10-15 (end-exclusive):' /tmp/loam-scheduled-suppression.out
+          grep -Fq 'Hypothesis: suppress Scheduled scheduled-payment' /tmp/loam-scheduled-suppression.out
+          grep -Fq 'Baseline:' /tmp/loam-scheduled-suppression.out
+          grep -Fq 'Projected:' /tmp/loam-scheduled-suppression.out
+          test "$(grep -F '  smbc: -150 jpy' /tmp/loam-scheduled-suppression.out | wc -l | tr -d ' ')" = 1
+          test "$(grep -F '  smbc: -50 jpy' /tmp/loam-scheduled-suppression.out | wc -l | tr -d ' ')" = 1
+          test "$(grep -F '  paypay: 50 jpy' /tmp/loam-scheduled-suppression.out | wc -l | tr -d ' ')" = 2
+          test "$(grep -F '  cash: 0 jpy' /tmp/loam-scheduled-suppression.out | wc -l | tr -d ' ')" = 2
