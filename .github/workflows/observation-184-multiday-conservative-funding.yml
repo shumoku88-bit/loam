@@ -1,0 +1,48 @@
+name: Observation 184
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation184.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/184_multiday_conservative_funding.md'
+      - '.github/workflows/observation-184-multiday-conservative-funding.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/184-multiday-conservative-funding'
+      - main
+    paths:
+      - 'Loam/Observations/Observation184.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/184_multiday_conservative_funding.md'
+      - '.github/workflows/observation-184-multiday-conservative-funding.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  multiday-conservative-funding:
+    name: Lean multi-day conservative funding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check multi-day conservative funding
+        run: lake build Loam.Observations.Observation184
