@@ -3,6 +3,8 @@ name: Application 033 Direct Movement Manifest Adapter
 on:
   pull_request:
     paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.md'
       - 'tests/application_033_direct_movement_surface.py'
@@ -10,7 +12,10 @@ on:
   push:
     branches:
       - 'experiment/application-033-direct-movement-manifest-adapter'
+      - 'experiment/application-034-movement-admission-seam'
     paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.md'
       - 'tests/application_033_direct_movement_surface.py'
@@ -51,8 +56,10 @@ jobs:
           grep -Fq 'manifest_mutation_sidecar_save_calls=0' /tmp/application033-surface.out
           grep -Fq 'manifest_partial_authority_prefixes=0' /tmp/application033-surface.out
           grep -Fq 'manifest_authority_switches_per_mutation=1' /tmp/application033-surface.out
-          grep -Fq 'scratch_admission_rule_copy=1' /tmp/application033-surface.out
-          grep -Fq 'production_admission_seam_reused=0' /tmp/application033-surface.out
+          grep -Fq 'scratch_admission_rule_copy=0' /tmp/application033-surface.out
+          grep -Fq 'production_admission_seam_reused=1' /tmp/application033-surface.out
+          grep -Fq 'production_sidecar_publisher_uses_seam=1' /tmp/application033-surface.out
+          grep -Fq 'manifest_probe_uses_production_seam=1' /tmp/application033-surface.out
           grep -Fq 'production_sidecar_writer_still_exists=1' /tmp/application033-surface.out
           grep -Fq 'production_migration_earned=0' /tmp/application033-surface.out
 
@@ -69,8 +76,6 @@ jobs:
           lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
             seed "$manifest"
 
-          # Prepare one admitted typed Movement directly from selected CURRENT.
-          # No sidecar world is materialized and no sidecar save function runs.
           lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
             prepare "$manifest" first | tee "$tmp_dir/prepare1.out"
           grep -Fq 'event=record-1' "$tmp_dir/prepare1.out"
@@ -81,14 +86,11 @@ jobs:
           grep -Fq 'sidecar_save_calls=0' "$tmp_dir/prepare1.out"
           grep -Fq 'authority_switches=0' "$tmp_dir/prepare1.out"
 
-          # Prepared objects remain non-authority until CURRENT changes.
           lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
             verify "$manifest" | tee "$tmp_dir/pre_retry.out"
           grep -Fq 'event_count=0' "$tmp_dir/pre_retry.out"
           grep -Fq 'relation_count=0' "$tmp_dir/pre_retry.out"
 
-          # Retry from selected authority. record-1/relation-1 are allocated again
-          # and all five candidate family objects are reusable.
           lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
             prepare "$manifest" first | tee "$tmp_dir/retry1.out"
           grep -Fq 'event=record-1' "$tmp_dir/retry1.out"
@@ -125,9 +127,6 @@ jobs:
           grep -Fq 'discharge_count=1' "$tmp_dir/verify2.out"
           grep -Fq 'relation_outstanding=60' "$tmp_dir/verify2.out"
 
-          # Build an independent production oracle only after the direct manifest
-          # path has completed. This writer is comparison evidence, never staging
-          # for the manifest mutation path.
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
                 LOAM_DESCRIPTION='manifest source movement' \
@@ -143,8 +142,8 @@ jobs:
             compare-oracle "$oracle" "$manifest" | tee "$tmp_dir/parity.out"
           grep -Fq 'canonical_family_byte_matches=5' "$tmp_dir/parity.out"
           grep -Fq 'semantic_projection_match=1' "$tmp_dir/parity.out"
-          grep -Fq 'scratch_admission_rule_copy=1' "$tmp_dir/parity.out"
-          grep -Fq 'production_admission_seam_reused=0' "$tmp_dir/parity.out"
+          grep -Fq 'scratch_admission_rule_copy=0' "$tmp_dir/parity.out"
+          grep -Fq 'production_admission_seam_reused=1' "$tmp_dir/parity.out"
           grep -Fq 'manifest_mutation_sidecar_writer_runs=0' "$tmp_dir/parity.out"
 
           cat <<'EOF'
@@ -161,7 +160,7 @@ jobs:
           canonical_family_byte_matches=5
           semantic_projection_match=1
           comparison_oracle_production_writer_runs=2
-          scratch_admission_rule_copy=1
-          production_admission_seam_reused=0
+          scratch_admission_rule_copy=0
+          production_admission_seam_reused=1
           production_migration_earned=0
           EOF
