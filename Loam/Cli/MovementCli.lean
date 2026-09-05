@@ -4,6 +4,7 @@ import Loam.Persistence.EventDescriptionPersistence
 import Loam.Persistence.OpenRelationPersistence
 import Loam.Persistence.RelationDischargePersistence
 import Loam.MovementAdmission
+import Loam.MovementManifestAuthority
 import Loam.MovementEntry
 import Loam.MovementRelationEntry
 import Loam.MovementDischargeEntry
@@ -325,6 +326,46 @@ private def publishDraftUnderOwnership
                             return 2
 
 /--
+Application 035 experimental production path.
+
+The selected manifest generation, not the sidecar files used before human input
+for completion hints, is re-read under writer ownership and is the only state
+used for world-dependent admission and publication. The resulting admitted
+five-family world is prepared as immutable typed objects and becomes authority
+through one `CURRENT` replacement.
+
+There is deliberately no fallback to the frozen sidecars if selected manifest
+authority is missing or malformed.
+-/
+private def publishDraftUnderManifestOwnership
+    (rootPath : String)
+    (draft : Loam.MovementAdmission.Draft) : IO UInt32 := do
+  let root := System.FilePath.mk rootPath
+  match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+  | Except.error message =>
+      IO.eprintln message
+      return 2
+  | Except.ok world =>
+      match Loam.MovementAdmission.admit? world draft with
+      | Except.error message =>
+          IO.eprintln message
+          return 2
+      | Except.ok admitted =>
+          showAdmissionPreview
+            draft.total draft.validOn draft.description
+            admitted.newRelations.length admitted.newDischarges.length
+            admitted.event.id
+          match ← Loam.MovementManifestAuthority.publishWorld? root admitted.world with
+          | Except.error message =>
+              IO.eprintln message
+              return 2
+          | Except.ok _ =>
+              IO.println
+                ("Recorded movement: " ++ toString draft.total ++
+                  " jpy. Date: " ++ draft.validOn ++ ".")
+              return 0
+
+/--
 Record one balanced human-facing JPY movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
 more explicit relation discharges.
@@ -345,6 +386,12 @@ the FROM side and positive Effects for the TO side. This adapter does not infer
 open-relation direction or discharge matching from those signs and does not add
 Account, ExpenseCategory, EventKind, debit/credit, Transfer, Income, Spending,
 Settlement, or a global conservation law to Core.
+
+Default operation retains the qualified sidecar authority protocol. Application
+035 may explicitly set `LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT` to a previously
+initialized manifest root. In that mode the supplied `MEMORY_FILE` remains only
+pre-input frozen preflight/hint material; selected manifest state is re-read
+under ownership and is the sole mutation authority.
 -/
 def recordMovement (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -353,9 +400,20 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       IO.eprintln message
       return 2
   | Except.ok draft =>
-      Loam.WriterOwnership.withOwnership
-        memoryFile
-        (publishDraftUnderOwnership memoryPath draft)
+      match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+      | none =>
+          Loam.WriterOwnership.withOwnership
+            memoryFile
+            (publishDraftUnderOwnership memoryPath draft)
+      | some rootPath =>
+          if rootPath.isEmpty then
+            IO.eprintln "loam: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+            return 2
+          else
+            let root := System.FilePath.mk rootPath
+            Loam.WriterOwnership.withOwnership
+              (root / "CURRENT")
+              (publishDraftUnderManifestOwnership rootPath draft)
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
@@ -364,6 +422,7 @@ private def usage : String :=
   "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
   "LOAM_RELATIONS rows: EFFECT_KEY<TAB>E2H|H2E<TAB>EXTERNAL_ID<TAB>POSITIVE_QUANTITY.\n" ++
   "LOAM_DISCHARGES rows: RELATION_ID<TAB>POSITIVE_QUANTITY.\n" ++
+  "Application 035 only: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT=DIR selects preinitialized manifest authority without legacy fallback.\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
