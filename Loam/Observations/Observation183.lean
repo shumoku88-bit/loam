@@ -95,7 +95,7 @@ theorem safeForUnknownOrder_iff_required_le
     rcases hSafe with ⟨hAdditional, hProgress⟩
     have hExtreme :
         0 ≤ opening + additional + 0 - day.outflow :=
-      hProgress 0 day.outflow (by omega) (by omega) hDay.2 (by omega)
+      hProgress 0 day.outflow (by omega) hDay.1 hDay.2 (by omega)
     unfold requiredAdditionalOpening
     by_cases hCovered : day.outflow ≤ opening
     · simp [hCovered]
