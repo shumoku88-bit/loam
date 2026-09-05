@@ -1,0 +1,170 @@
+name: Practical Scheduled Replacement Writer
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledReplacementCli.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-replacement-writer.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledReplacementCli.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Core/ScheduledReplacement.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/WriterOwnership.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-scheduled-replacement-writer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-replacement-writer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  writer:
+    name: Qualify relation-first Scheduled replacement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical Scheduled entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamOpenScheduled
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Replace one open Scheduled occurrence
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          replacements="$scheduled.replacements"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	bank	-500
+          CHANGE	rent	500
+          EOF
+
+          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          bank	jpy
+          rent	jpy
+          EOF
+
+          printf '2026-09-15\nbank\n550\n\nrent\n550\n\n' \
+            | .lake/build/bin/loamOpenScheduled \
+                replace "$scheduled" "$tmp_dir/memory.loam" scheduled-1 \
+            | tee "$tmp_dir/replace.out"
+
+          grep -Fq \
+            'Replaced scheduled movement: scheduled-1 -> scheduled-2 on 2026-09-15 = 550 jpy.' \
+            "$tmp_dir/replace.out"
+          grep -Fq \
+            'Replacement Scheduled routing is independent' \
+            "$tmp_dir/replace.out"
+          grep -Fq $'REPLACEMENT\tscheduled-1\tscheduled-2' "$replacements"
+          grep -Fq $'SCHEDULED\tscheduled-2\t2026-09-15\tjpy' "$scheduled"
+          grep -Fq $'CHANGE\tbank\t-550' "$scheduled"
+          grep -Fq $'CHANGE\trent\t550' "$scheduled"
+
+          .lake/build/bin/loamOpenScheduled "$scheduled" "$tmp_dir/memory.loam" \
+            | tee "$tmp_dir/open.out"
+          grep -Fq '[scheduled-2]' "$tmp_dir/open.out"
+          if grep -Fq '[scheduled-1]' "$tmp_dir/open.out"; then
+            echo 'superseded Scheduled source remained open after replacement' >&2
+            exit 1
+          fi
+
+          .lake/build/bin/loamOpenScheduled balance-effects "$tmp_dir" 2026-10-01 \
+            | tee "$tmp_dir/balance.out"
+          grep -Fq '  bank: -550 jpy' "$tmp_dir/balance.out"
+          grep -Fq '  rent: 550 jpy' "$tmp_dir/balance.out"
+
+          if printf '2026-09-20\nbank\n600\n\nrent\n600\n\n' \
+              | .lake/build/bin/loamOpenScheduled \
+                  replace "$scheduled" "$tmp_dir/memory.loam" scheduled-1 \
+              >"$tmp_dir/repeat.out" 2>&1; then
+            echo 'already-superseded Scheduled source was replaceable twice' >&2
+            exit 1
+          fi
+          grep -Fq 'Scheduled identity already replaced: scheduled-1 -> scheduled-2' \
+            "$tmp_dir/repeat.out"
+
+      - name: Recover a relation-first interrupted publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          replacements="$scheduled.replacements"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-10	jpy
+          CHANGE	bank	-500
+          CHANGE	rent	500
+          EOF
+
+          cat >"$replacements" <<'EOF'
+          LOAM-SCHEDULED-REPLACEMENT-MEMORY	1
+          REPLACEMENT	scheduled-1	scheduled-2
+          EOF
+
+          if .lake/build/bin/loamOpenScheduled \
+              "$scheduled" "$tmp_dir/memory.loam" \
+              >"$tmp_dir/interrupted.out" 2>&1; then
+            echo 'reader did not fail closed on unknown replacement endpoint' >&2
+            exit 1
+          fi
+          grep -Fq \
+            'scheduled-replacement file refers to an unknown Scheduled identity' \
+            "$tmp_dir/interrupted.out"
+
+          printf '2026-09-16\nbank\n525\n\nrent\n525\n\n' \
+            | .lake/build/bin/loamOpenScheduled \
+                replace "$scheduled" "$tmp_dir/memory.loam" scheduled-1 \
+            | tee "$tmp_dir/resume.out"
+
+          grep -Fq \
+            'Resumed interrupted Scheduled replacement: scheduled-1 -> scheduled-2 on 2026-09-16 = 525 jpy.' \
+            "$tmp_dir/resume.out"
+          grep -Fq $'SCHEDULED\tscheduled-2\t2026-09-16\tjpy' "$scheduled"
+
+          .lake/build/bin/loamOpenScheduled "$scheduled" "$tmp_dir/memory.loam" \
+            | tee "$tmp_dir/recovered-open.out"
+          grep -Fq '[scheduled-2]' "$tmp_dir/recovered-open.out"
+          if grep -Fq '[scheduled-1]' "$tmp_dir/recovered-open.out"; then
+            echo 'superseded Scheduled source remained open after recovery' >&2
+            exit 1
+          fi
