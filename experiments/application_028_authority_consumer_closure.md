@@ -20,7 +20,7 @@ Application 027 is open and mergeable with exact-head push and pull-request work
 
 Application 017 already separated CLI source by steady-state role. Application 028 applies that boundary to the current declared executables instead of counting every repository tool as a migration blocker.
 
-The current `lakefile.lean` declares fourteen executables. Their retained operational roles are treated as:
+The current `lakefile.lean` declares fourteen executables:
 
 ```text
 primary practical               5
@@ -47,53 +47,126 @@ loamOpenScheduled
 
 This matters because merely importing a persistence implementation does not make an executable a writer. For example, `loamJournalExport` reads canonical evidence but writes only a derived non-authoritative journal.
 
-The probe distinguishes:
+## Qualified result
 
-- executable role;
-- whether its CLI closure reads canonical persistence;
-- whether its CLI closure performs canonical persistence saves;
-- unique steady-state CLI modules that directly touch persistence;
-- unique persistence implementation modules below the retained steady-state executable closure.
-
-## Expected boundary
-
-The working hypothesis is intentionally small:
+The exact-head source probe reports:
 
 ```text
-14 declared executable roots
+Application 028 authority consumer closure PASS
+declared_executables=14
+primary_practical_executables=5
+secondary_steady_state_executables=3
+nonsteady_executables=6
+steady_state_executables=8
+steady_state_authority_consumers=8
+steady_state_authority_writers=6
+steady_state_read_only_consumers=2
+quiesce_or_retire_at_cutover=6
 
+unique_steady_state_cli_modules=17
+direct_persistence_consumer_cli_modules=17
+direct_persistence_writer_cli_modules=10
+direct_persistence_read_only_cli_modules=7
+steady_state_persistence_modules=14
+```
+
+So the executable deployment frontier is exactly:
+
+```text
 8 retained steady-state roots
-  = 5 primary + 3 secondary
+  6 writer-capable
+  2 read-only
 
 6 non-steady-state roots
-  = 4 shadow/research + 2 historical
+  quiesce or retire at the epoch cut
 ```
 
-If all eight retained roots consume canonical authority, those eight must either become manifest-aware or be deliberately removed from the new epoch. The six non-steady-state roots do not need compatibility machinery merely to permit production cutover; they can remain stopped until separately adapted or retired.
-
-Within the retained eight, the current source shape is expected to distinguish six writer-capable roots from two read-only roots:
+The retained writer-capable roots are:
 
 ```text
-writer-capable
-  loam
-  loamMovement
-  loamCapacity
-  loamDailyQuantity
-  loamOpenScheduled
-  loamActualRouting
-
-read-only canonical consumers
-  loamBudgetWindow
-  loamJournalExport
+loam
+loamMovement
+loamCapacity
+loamDailyQuantity
+loamOpenScheduled
+loamActualRouting
 ```
 
-This is an executable deployment classification, not a claim that manifest support should be implemented eight times. Shared persistence readers/writers remain the preferred implementation seam when semantic authority stays explicit.
+The retained read-only canonical consumers are:
+
+```text
+loamBudgetWindow
+loamJournalExport
+```
+
+The source-level implementation surface is broader than the eight executable roots. The eight retained roots close over seventeen CLI modules, and all seventeen directly call persistence. Ten are writer call-site modules and seven are read-only call-site modules:
+
+```text
+writer call-site modules
+  Loam/Cli.lean
+  Loam/Cli/ActualRoutingCli.lean
+  Loam/Cli/ActualValidityCorrectionCli.lean
+  Loam/Cli/CapacityCli.lean
+  Loam/Cli/CorrectionCli.lean
+  Loam/Cli/DailyQuantityCli.lean
+  Loam/Cli/MovementCli.lean
+  Loam/Cli/QuantityBasisCorrectionCli.lean
+  Loam/Cli/ScheduledCli.lean
+  Loam/Cli/ScheduledLifecycleCli.lean
+
+read-only call-site modules
+  Loam/Cli/BudgetWindowCli.lean
+  Loam/Cli/CorrectionIntegrityCli.lean
+  Loam/Cli/EffectiveCli.lean
+  Loam/Cli/JournalExportCli.lean
+  Loam/Cli/OpenScheduledCli.lean
+  Loam/Cli/ReviewCli.lean
+  Loam/Cli/ScheduledBalanceCli.lean
+```
+
+The retained closure reaches fourteen persistence implementation modules.
+
+## Main finding
+
+The top-level compatibility problem is smaller than the repository suggests: only eight of fourteen declared executables must survive into the new steady-state authority epoch if the existing primary/secondary product boundary is retained. The other six do not justify permanent dual-version compatibility merely by existing in the repository.
+
+But the opposite reassuring story is also false. Manifest-awareness cannot be implemented honestly by changing eight `main` functions. Every CLI module in the retained steady-state closure currently talks directly to persistence, so the physical authority seam is distributed across seventeen CLI modules.
+
+That distribution is useful pressure rather than a reason to abandon the manifest topology. Applications 020-027 already showed that the new physical authority law is shared:
+
+```text
+capture/select one generation
+  -> typed family reads
+
+prepare changed immutable family images
+  -> one authority selection change
+```
+
+Application 028 therefore suggests a narrower implementation seam: centralize **physical authority access**, not household meaning. Read-only modules should not each learn manifest parsing, digest validation, fallback rules, or epoch policy. Writer modules should not each reimplement generation publication. Existing typed family decoders and semantic admission boundaries remain separate.
+
+This is not yet permission to create a generic repository framework. A shared authority-access layer is earned only if a scratch implementation can replace the seven retained read-only persistence call-site modules' physical selection logic without erasing their distinct evidence policies.
 
 ## Interpretation boundary
 
-A root that is classified `quiesce/retire` may still read old canonical data today. The classification means only that it is not required to remain live across the production epoch cut.
+A root classified `quiesce/retire` may still read old canonical data today. The classification means only that it is not required to remain live across the production epoch cut.
 
 Likewise, a read-only executable still needs manifest-aware authority selection if it remains live after the cut. Read-only does not mean migration-neutral; Application 027 already showed that a stale sidecar reader can return a plausible but obsolete household world.
+
+The `17` direct CLI consumers are also not seventeen semantic authorities. They are seventeen current physical call sites into independently typed evidence families. The desired compression is to share physical selection mechanics while keeping those meanings explicit.
+
+## Smallest next gate
+
+Before production migration, build one scratch generation-scoped read boundary and route the seven retained read-only CLI call-site shapes through it. Measure whether:
+
+```text
+7 distributed physical read selections
+  -> 1 shared generation capture / validation mechanism
+     + meaning-specific typed reads
+```
+
+reduces code and failure-state surface without changing any projection answer or missing-evidence policy.
+
+Writer migration can remain a separate gate, already informed by Applications 021-024.
 
 ## Boundary
 
