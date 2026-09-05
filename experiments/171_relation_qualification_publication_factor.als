@@ -57,7 +57,7 @@ pred projectedNone[w: World, op: Operation] {
 }
 
 pred allFiveKindsShareQualificationLaw {
-  some w: World |
+  some w: World | {
     all opKind: OpKind | some op: w.operations | {
       op.kind = opKind
       op in w.covered
@@ -65,6 +65,7 @@ pred allFiveKindsShareQualificationLaw {
     }
     some op: w.covered & w.qualified | op.meaning = HasEdge
     some op: w.covered & w.qualified | op.meaning = NoEdge
+  }
 }
 
 pred sameQualificationDifferentPublicationProtocols {
