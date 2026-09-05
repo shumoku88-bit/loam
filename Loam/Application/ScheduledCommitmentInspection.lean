@@ -1,7 +1,7 @@
 import Init.Data.Order
 import Loam.Application.ConsumptionInspection
 import Loam.Application.ScheduledInspection
-import Loam.Core.HistoricalRouting
+import Loam.Core.ScheduledRouting
 
 namespace Loam.Application
 
@@ -30,22 +30,14 @@ without retained reservation, Commitment, Remaining, or Headroom state.
 Observation 153 then pruned the practical Scheduled routing subject. Whole
 `ScheduledId` is too coarse for split-purpose movement; bare `LocusId` is too
 coarse across distinct Scheduled intent; a fresh Claim identity is not yet earned
-when it is only a bijective wrapper. This module therefore uses one typed
-`ScheduledId × LocusId` coordinate and no Claim registry.
+when it is only a bijective wrapper. The reusable coordinate is owned by
+`Loam.Core.ScheduledRouting`; this module only consumes it for Commitment and
+Headroom projections.
 
 The current Scheduled lifecycle has no learned-time coordinate, so this module
 answers only the current-open view. `observedAt` selects historical routing; it
 does not pretend to reconstruct when completion or retirement became known.
 -/
-
-/--
-Typed routing coordinate for one aggregated quantity-bearing Scheduled Locus.
-It is a coordinate, not a new stable Claim identity.
--/
-structure ScheduledRoutingSubject where
-  scheduled : ScheduledId
-  locus : LocusId
-deriving Repr, DecidableEq
 
 /--
 Query-local Commitment partition for one Purpose and Measure.

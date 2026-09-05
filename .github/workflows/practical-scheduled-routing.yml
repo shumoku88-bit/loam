@@ -1,0 +1,96 @@
+name: Practical Scheduled Routing
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ScheduledRouting.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Cli/ScheduledRoutingCli.lean'
+      - 'Loam/Tests/ScheduledRoutingPersistence.lean'
+      - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-scheduled-routing.yml'
+  push:
+    branches:
+      - main
+      - 'feat/practical-scheduled-routing'
+    paths:
+      - 'Loam/Core/ScheduledRouting.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Cli/ScheduledRoutingCli.lean'
+      - 'Loam/Tests/ScheduledRoutingPersistence.lean'
+      - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/practical-scheduled-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Qualify Scheduled routing input
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build practical Scheduled routing utility and projection dependency
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check routing persistence feeds existing Commitment semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/ScheduledRoutingPersistence.lean
+          lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
+
+      - name: Exercise practical Scheduled routing entrance
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          scheduled="$tmp/scheduled.loam"
+          routing="$tmp/scheduled-routing.loam"
+
+          printf 'LOAM-SCHEDULED-MEMORY\t1\nSCHEDULED\tscheduled-1\t2026-09-15\tjpy\nCHANGE\tpaypay\t-500\nCHANGE\tgroceries\t500\n' >"$scheduled"
+
+          .lake/build/bin/loamScheduledRouting \
+            "$routing" "$scheduled" 2026-09-06 scheduled-1 groceries managed food \
+            >"$tmp/managed.out"
+          grep -Fq 'Recorded Scheduled route: scheduled-1 / groceries @ 2026-09-06 = managed -> food.' \
+            "$tmp/managed.out"
+          grep -Fxq $'LOAM-SCHEDULED-ROUTING\t1' "$routing"
+          grep -Fxq $'ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-06\tMANAGED\tfood' "$routing"
+
+          .lake/build/bin/loamScheduledRouting \
+            "$routing" "$scheduled" 2026-09-07 scheduled-1 groceries unmanaged \
+            >"$tmp/unmanaged.out"
+          grep -Fxq $'ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-07\tUNMANAGED' "$routing"
+
+          set +e
+          .lake/build/bin/loamScheduledRouting \
+            "$routing" "$scheduled" 2026-09-07 scheduled-1 groceries managed food \
+            >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
+          duplicate_status=$?
+          .lake/build/bin/loamScheduledRouting \
+            "$routing" "$scheduled" 2026-09-08 scheduled-1 unknown managed food \
+            >"$tmp/unknown.out" 2>"$tmp/unknown.err"
+          unknown_status=$?
+          set -e
+
+          test "$duplicate_status" -eq 2
+          grep -Fq 'already has evidence at this subject/effective coordinate' "$tmp/duplicate.err"
+          test "$unknown_status" -eq 1
+          grep -Fq 'does not contain that Locus' "$tmp/unknown.err"
