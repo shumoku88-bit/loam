@@ -1,10 +1,13 @@
 import Loam.ActualDate
 import Loam.Application.OpenRelationFrontier
+import Loam.Application.RelationDischargeFrontier
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Persistence.OpenRelationPersistence
+import Loam.Persistence.RelationDischargePersistence
 import Loam.MovementEntry
 import Loam.MovementRelationEntry
+import Loam.MovementDischargeEntry
 import Loam.MovementUi
 import Loam.Persistence
 import Loam.WriterOwnership
@@ -18,6 +21,7 @@ private structure MovementDraft where
   description : Option String
   effects : List Loam.Core.Effect
   relations : List Loam.MovementRelationEntry.Draft
+  discharges : List Loam.MovementDischargeEntry.Draft
   total : Int
 
 private def promptLine (prompt : String) : IO String := do
@@ -58,6 +62,11 @@ private def relationsMentionEvent
     (id : Loam.Core.EventId) : Bool :=
   relations.any fun relation => decide (relation.sourceEvent = id)
 
+private def dischargesMentionEvent
+    (discharges : List Loam.Core.RelationDischarge)
+    (id : Loam.Core.EventId) : Bool :=
+  discharges.any fun discharge => decide (discharge.event = id)
+
 private def loadEventDescriptionMemoryOrEmpty?
     (path : System.FilePath) : IO (Option Loam.Core.EventDescriptionMemory) := do
   if ← path.pathExists then
@@ -72,20 +81,29 @@ private def loadOpenRelationUnitsOrEmpty?
   else
     return some []
 
+private def loadRelationDischargesOrEmpty?
+    (path : System.FilePath) : IO (Option (List Loam.Core.RelationDischarge)) := do
+  if ← path.pathExists then
+    Loam.Persistence.loadRelationDischarges? path
+  else
+    return some []
+
 /--
 Search the bounded operational Event-id namespace used by the practical CLI.
 A candidate must be unused by Event memory, retained validity history, the
-adjacent description stream, and every retained raw RelationUnit source Event.
+adjacent description stream, every retained raw RelationUnit source Event, and
+every retained raw RelationDischarge later Event.
 
-The relation check is essential for Observation 177 crash residue: a RelationUnit
-that survived before Event publication reserves that EventId so a later unrelated
-movement cannot accidentally rebind the orphan evidence.
+The relation and discharge checks are essential for Event-last crash residue:
+supporting evidence that survived before Event publication reserves that EventId
+so a later unrelated movement cannot accidentally activate old raw provenance.
 -/
 private def freshRecordEventIdFrom
     (memory : Loam.Core.EventMemory)
     (history : Loam.Core.ActualValidityHistory String)
     (descriptions : Loam.Core.EventDescriptionMemory)
-    (relations : List Loam.Core.RelationUnit) :
+    (relations : List Loam.Core.RelationUnit)
+    (discharges : List Loam.Core.RelationDischarge) :
     Nat → Nat → Option Loam.Core.EventId
   | _, 0 => none
   | index, fuel + 1 =>
@@ -94,22 +112,25 @@ private def freshRecordEventIdFrom
       | none =>
           if historyMentionsEvent history candidate ||
               (Loam.Core.EventDescriptionMemory.findText? descriptions candidate).isSome ||
-              relationsMentionEvent relations candidate then
+              relationsMentionEvent relations candidate ||
+              dischargesMentionEvent discharges candidate then
             freshRecordEventIdFrom
-              memory history descriptions relations (index + 1) fuel
+              memory history descriptions relations discharges (index + 1) fuel
           else
             some candidate
       | some _ =>
-          freshRecordEventIdFrom memory history descriptions relations (index + 1) fuel
+          freshRecordEventIdFrom
+            memory history descriptions relations discharges (index + 1) fuel
 
 private def freshRecordEventId?
     (memory : Loam.Core.EventMemory)
     (history : Loam.Core.ActualValidityHistory String)
     (descriptions : Loam.Core.EventDescriptionMemory)
-    (relations : List Loam.Core.RelationUnit) : Option Loam.Core.EventId :=
-  freshRecordEventIdFrom memory history descriptions relations 1
+    (relations : List Loam.Core.RelationUnit)
+    (discharges : List Loam.Core.RelationDischarge) : Option Loam.Core.EventId :=
+  freshRecordEventIdFrom memory history descriptions relations discharges 1
     (memory.events.length + history.facts.length + descriptions.entries.length +
-      relations.length + 1)
+      relations.length + discharges.length + 1)
 
 private def relationIdUsed
     (used : List Loam.Core.RelationUnitId)
@@ -160,6 +181,16 @@ private def materializeRelationUnits? :
       } :: rest)
   | _, _, _ => none
 
+private def materializeRelationDischarges
+    (eventId : Loam.Core.EventId)
+    (drafts : List Loam.MovementDischargeEntry.Draft) :
+    List Loam.Core.RelationDischarge :=
+  drafts.map fun draft => {
+    event := eventId
+    target := draft.target
+    quantity := draft.quantity
+  }
+
 /--
 Allocate a compatibility identity for the in-memory ActualValidityHistory shape.
 V1 persists this identity. V2 persistence normalizes an initial/source date to
@@ -202,6 +233,7 @@ private def preflightForDraft
       let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
       let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
       let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
+      let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
       match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
       | none =>
           return Except.error "loam: malformed or unsupported actual-validity history"
@@ -214,7 +246,11 @@ private def preflightForDraft
               | none =>
                   return Except.error "loam: malformed or unsupported open-relation stream"
               | some _ =>
-                  return Except.ok memory
+                  match ← loadRelationDischargesOrEmpty? dischargeFile with
+                  | none =>
+                      return Except.error "loam: malformed or unsupported relation-discharge stream"
+                  | some _ =>
+                      return Except.ok memory
 
 private def showDraftProgress (progress : Loam.MovementUi.Progress) : IO Unit := do
   IO.println ""
@@ -236,10 +272,10 @@ private def showDraftProgress (progress : Loam.MovementUi.Progress) : IO Unit :=
 Collect a complete Movement draft without holding cross-process writer
 ownership across human think time.
 
-After signed Movement Effects exist, open-relation meaning is collected as a
-separate optional overlay. Relation source Effect, endpoint identity, direction,
-and quantity are explicit; no relation meaning is inferred from FROM/TO sign.
-The resulting draft carries no durable Event, validity, or RelationUnit identity.
+After signed Movement Effects exist, open-relation and relation-discharge meaning
+are collected as separate optional overlays. No discharge target is inferred
+from payment shape, endpoint label, source sign, or amount. The resulting draft
+carries no durable Event, validity, RelationUnit, or discharge Event identity.
 -/
 private def collectMovementDraft
     (memoryFile : System.FilePath) : IO (Except String MovementDraft) := do
@@ -270,13 +306,17 @@ private def collectMovementDraft
               match ← Loam.MovementRelationEntry.collect effects with
               | Except.error message => return Except.error message
               | Except.ok relations =>
-                  return Except.ok {
-                    validOn := validOn
-                    description := description
-                    effects := effects
-                    relations := relations
-                    total := total
-                  }
+                  match ← Loam.MovementDischargeEntry.collect with
+                  | Except.error message => return Except.error message
+                  | Except.ok discharges =>
+                      return Except.ok {
+                        validOn := validOn
+                        description := description
+                        effects := effects
+                        relations := relations
+                        discharges := discharges
+                        total := total
+                      }
 
 private def uncoveredRelationSource
     (_ : Loam.Core.EventId) (_ : Loam.Core.EffectKey) : Bool := false
@@ -317,16 +357,33 @@ private def relationPublicationAdmissible
   newRelations.all (fun relation =>
     relationSourcePositive? events relations event.id relation.sourceEffect)
 
+private def dischargePublicationAdmissible
+    (events : Loam.Core.EventMemory)
+    (relations : List Loam.Core.RelationUnit)
+    (discharges : List Loam.Core.RelationDischarge)
+    (newDischarges : List Loam.Core.RelationDischarge) : Bool :=
+  newDischarges.all fun discharge =>
+    match Loam.Application.admittedRelationDischargesFor?
+        events relations [] discharges discharge.target with
+    | none => false
+    | some admitted =>
+        admitted.any fun item =>
+          decide
+            (item.discharge.event = discharge.event ∧
+              item.discharge.target = discharge.target ∧
+              item.discharge.quantity = discharge.quantity)
+
 /--
-Expose only admission boundaries crossed before publication. Relation evidence is
-reported separately from signed Movement Effects; no sign-based interpretation
-is introduced.
+Expose only admission boundaries crossed before publication. Relation and
+discharge evidence are reported separately from signed Movement Effects; no
+sign-based or automatic settlement interpretation is introduced.
 -/
 private def showAdmissionPreview
     (total : Int)
     (validOn : String)
     (description : Option String)
     (relationCount : Nat)
+    (dischargeCount : Nat)
     (eventId : Loam.Core.EventId) : IO Unit := do
   IO.println ""
   IO.println "Admission preview"
@@ -344,6 +401,10 @@ private def showAdmissionPreview
     IO.println "  [ok] open relation decision: none"
   else
     IO.println ("  [ok] open relation evidence admitted: " ++ toString relationCount)
+  if dischargeCount = 0 then
+    IO.println "  [ok] relation discharge decision: none"
+  else
+    IO.println ("  [ok] relation discharge evidence admitted: " ++ toString dischargeCount)
   IO.println "  ready to publish"
 
 /--
@@ -351,21 +412,22 @@ Re-read current canonical state and publish one already-collected draft while
 holding the existing writer-ownership boundary.
 
 Fresh Event/RelationUnit identities are chosen here, not while the user types.
-A raw RelationUnit left by an interrupted older publication reserves both its
-RelationUnitId and its source EventId.
+Raw RelationUnit source EventIds and raw RelationDischarge later EventIds both
+reserve Event identity after interrupted Event-last publication.
 
-Publication order preserves Observation 177:
+Publication order preserves the qualified activation boundaries:
 
 ```text
 validity / optional description supporting evidence
 -> required positive RelationUnit stream update when any
+-> required RelationDischarge stream update when any
 -> Event last as authority commit
 ```
 
 The relative order among supporting families is not a cross-stream transaction.
-If Event publication fails after a relation update, the relation row remains raw
-orphan provenance and cannot be rebound because fresh Event-id allocation scans
-the retained relation stream.
+If Event publication fails after a relation or discharge update, the retained
+rows remain raw inert provenance and cannot be rebound because fresh Event-id
+allocation scans both streams.
 -/
 private def publishDraftUnderOwnership
     (memoryPath : String)
@@ -374,6 +436,7 @@ private def publishDraftUnderOwnership
   let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
   let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
   let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
+  let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
   match ← loadEventMemoryForEntry? memoryFile with
   | none =>
       IO.eprintln "loam: malformed or unsupported event-memory file"
@@ -394,87 +457,113 @@ private def publishDraftUnderOwnership
                   IO.eprintln "loam: malformed or unsupported open-relation stream"
                   return 2
               | some relations =>
-                  match freshRecordEventId? memory history descriptions relations,
-                      freshValidityFactId? history,
-                      freshRelationUnitIds? relations draft.relations.length with
-                  | some eventId, some factId, some relationIds =>
-                      match Loam.Core.Event.ofEffects? eventId draft.effects,
-                          materializeRelationUnits? eventId relationIds draft.relations with
-                      | some event, some newRelations =>
-                          let fact : Loam.Core.ActualValidityFact String := {
-                            id := factId
-                            event := eventId
-                            validOn := draft.validOn
-                          }
-                          let updatedDescriptions? :=
-                            match draft.description with
-                            | none => some descriptions
-                            | some text =>
-                                Loam.Core.EventDescriptionMemory.ofEntries?
-                                  (descriptions.entries ++ [{ event := eventId, text := text }])
-                          let updatedRelations := relations ++ newRelations
-                          match Loam.Core.EventMemory.add? memory event,
-                              history.addFact? fact, updatedDescriptions? with
-                          | some updatedEvents, some updatedHistory, some updatedDescriptions =>
-                              if !relationPublicationAdmissible
-                                  updatedEvents updatedRelations event newRelations then
-                                IO.eprintln
-                                  "loam: open relation evidence did not justify one source-local frontier"
-                                return 2
-                              else
-                                showAdmissionPreview
-                                  draft.total draft.validOn draft.description
-                                  newRelations.length eventId
-                                if ← Loam.Persistence.saveActualValidityHistory?
-                                    validityFile updatedHistory then
-                                  let descriptionPublished ←
-                                    match draft.description with
-                                    | none => pure true
-                                    | some _ =>
-                                        Loam.Persistence.saveEventDescriptionMemory?
-                                          descriptionFile updatedDescriptions
-                                  if !descriptionPublished then
+                  match ← loadRelationDischargesOrEmpty? dischargeFile with
+                  | none =>
+                      IO.eprintln "loam: malformed or unsupported relation-discharge stream"
+                      return 2
+                  | some discharges =>
+                      match freshRecordEventId?
+                              memory history descriptions relations discharges,
+                          freshValidityFactId? history,
+                          freshRelationUnitIds? relations draft.relations.length with
+                      | some eventId, some factId, some relationIds =>
+                          match Loam.Core.Event.ofEffects? eventId draft.effects,
+                              materializeRelationUnits? eventId relationIds draft.relations with
+                          | some event, some newRelations =>
+                              let newDischarges :=
+                                materializeRelationDischarges eventId draft.discharges
+                              let fact : Loam.Core.ActualValidityFact String := {
+                                id := factId
+                                event := eventId
+                                validOn := draft.validOn
+                              }
+                              let updatedDescriptions? :=
+                                match draft.description with
+                                | none => some descriptions
+                                | some text =>
+                                    Loam.Core.EventDescriptionMemory.ofEntries?
+                                      (descriptions.entries ++ [{ event := eventId, text := text }])
+                              let updatedRelations := relations ++ newRelations
+                              let updatedDischarges := discharges ++ newDischarges
+                              match Loam.Core.EventMemory.add? memory event,
+                                  history.addFact? fact, updatedDescriptions? with
+                              | some updatedEvents, some updatedHistory, some updatedDescriptions =>
+                                  if !relationPublicationAdmissible
+                                      updatedEvents updatedRelations event newRelations then
                                     IO.eprintln
-                                      "loam: description was not published; the already-published date evidence remains inert"
+                                      "loam: open relation evidence did not justify one source-local frontier"
+                                    return 2
+                                  else if !dischargePublicationAdmissible
+                                      updatedEvents updatedRelations updatedDischarges newDischarges then
+                                    IO.eprintln
+                                      "loam: relation discharge evidence did not justify one current target frontier"
                                     return 2
                                   else
-                                    let relationPublished ←
-                                      if newRelations.isEmpty then
-                                        pure true
+                                    showAdmissionPreview
+                                      draft.total draft.validOn draft.description
+                                      newRelations.length newDischarges.length eventId
+                                    if ← Loam.Persistence.saveActualValidityHistory?
+                                        validityFile updatedHistory then
+                                      let descriptionPublished ←
+                                        match draft.description with
+                                        | none => pure true
+                                        | some _ =>
+                                            Loam.Persistence.saveEventDescriptionMemory?
+                                              descriptionFile updatedDescriptions
+                                      if !descriptionPublished then
+                                        IO.eprintln
+                                          "loam: description was not published; the already-published date evidence remains inert"
+                                        return 2
                                       else
-                                        Loam.Persistence.saveOpenRelationUnits?
-                                          relationFile updatedRelations
-                                    if !relationPublished then
-                                      IO.eprintln
-                                        "loam: open relation evidence was not published; Event authority was not published"
-                                      return 2
-                                    else if ← Loam.Persistence.saveEventMemory?
-                                        memoryFile updatedEvents then
-                                      IO.println
-                                        ("Recorded movement: " ++ toString draft.total ++
-                                          " jpy. Date: " ++ draft.validOn ++ ".")
-                                      return 0
+                                        let relationPublished ←
+                                          if newRelations.isEmpty then
+                                            pure true
+                                          else
+                                            Loam.Persistence.saveOpenRelationUnits?
+                                              relationFile updatedRelations
+                                        if !relationPublished then
+                                          IO.eprintln
+                                            "loam: open relation evidence was not published; Event authority was not published"
+                                          return 2
+                                        else
+                                          let dischargePublished ←
+                                            if newDischarges.isEmpty then
+                                              pure true
+                                            else
+                                              Loam.Persistence.saveRelationDischarges?
+                                                dischargeFile updatedDischarges
+                                          if !dischargePublished then
+                                            IO.eprintln
+                                              "loam: relation discharge evidence was not published; Event authority was not published"
+                                            return 2
+                                          else if ← Loam.Persistence.saveEventMemory?
+                                              memoryFile updatedEvents then
+                                            IO.println
+                                              ("Recorded movement: " ++ toString draft.total ++
+                                                " jpy. Date: " ++ draft.validOn ++ ".")
+                                            return 0
+                                          else
+                                            IO.eprintln
+                                              "loam: event was not published; already-published supporting, open-relation, and relation-discharge evidence remains inert until that EventId exists"
+                                            return 2
                                     else
-                                      IO.eprintln
-                                        "loam: event was not published; already-published supporting and open-relation evidence remains inert until that EventId exists"
+                                      IO.eprintln "loam: occurrence date evidence could not be published"
                                       return 2
-                                else
-                                  IO.eprintln "loam: occurrence date evidence could not be published"
+                              | _, _, _ =>
+                                  IO.eprintln
+                                    "loam: could not append movement, occurrence-date, and description evidence"
                                   return 2
-                          | _, _, _ =>
-                              IO.eprintln
-                                "loam: could not append movement, occurrence-date, and description evidence"
+                          | _, _ =>
+                              IO.eprintln "loam: could not admit generated movement or relation evidence"
                               return 2
-                      | _, _ =>
-                          IO.eprintln "loam: could not admit generated movement or relation evidence"
+                      | _, _, _ =>
+                          IO.eprintln "loam: could not generate fresh recording identities"
                           return 2
-                  | _, _, _ =>
-                      IO.eprintln "loam: could not generate fresh recording identities"
-                      return 2
 
 /--
 Record one balanced human-facing JPY movement with one occurrence date, optional
-human-recognition description, and zero or more explicit open relations.
+human-recognition description, zero or more explicit open relations, and zero or
+more explicit relation discharges.
 
 Interactive input is collected without writer ownership. Only once the draft is
 complete does the entrance acquire ownership, re-read current canonical state,
@@ -482,17 +571,16 @@ re-run world-dependent admission, allocate fresh durable identities, and
 publish.
 
 The occurrence date remains separate evidence from the date-free `Event`.
-Event-rooted V2 persistence stores the initial date without an independent
-identity; historical V1 storage remains readable until explicitly converted.
-Interactive terminals may add relation evidence only by selecting a concrete
-Effect and supplying external identity, direction, and positive quantity.
-Redirected callers remain relation-free unless `LOAM_RELATIONS` is supplied.
+Interactive terminals may add relation evidence and discharge evidence only by
+explicitly supplying their semantic coordinates and exact positive quantities.
+Redirected callers remain relation/discharge-free unless `LOAM_RELATIONS` or
+`LOAM_DISCHARGES` is supplied.
 
 The entrance still persists one generic Event containing negative Effects for
 the FROM side and positive Effects for the TO side. This adapter does not infer
-open-relation direction from those signs and does not add Account,
-ExpenseCategory, EventKind, debit/credit, Transfer, Income, Spending, or a global
-conservation law to Core.
+open-relation direction or discharge matching from those signs and does not add
+Account, ExpenseCategory, EventKind, debit/credit, Transfer, Income, Spending,
+Settlement, or a global conservation law to Core.
 -/
 def recordMovement (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -508,9 +596,10 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
   "  ./tools/loam movement MEMORY_FILE\n\n" ++
-  "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation evidence.\n" ++
-  "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS.\n" ++
+  "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation and relation discharge evidence.\n" ++
+  "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
   "LOAM_RELATIONS rows: EFFECT_KEY<TAB>E2H|H2E<TAB>EXTERNAL_ID<TAB>POSITIVE_QUANTITY.\n" ++
+  "LOAM_DISCHARGES rows: RELATION_ID<TAB>POSITIVE_QUANTITY.\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
