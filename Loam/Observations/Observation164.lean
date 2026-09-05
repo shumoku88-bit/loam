@@ -36,7 +36,8 @@ theorem observation159_inhabits_independent_surface :
       (observedQuanta compactPresentation Coordinate.food)
       (observedQuanta splitPresentation Coordinate.wallet)
       (observedQuanta splitPresentation Coordinate.food) := by
-  decide
+  simp [ExpectedVectorClaim, observedQuanta, aggregateAt,
+    compactPresentation, splitPresentation]
 
 /--
 The coupled-drift witness from Observation 163 is rejected without mentioning
@@ -48,7 +49,8 @@ theorem observation163_drift_is_rejected_by_independent_surface :
       (observedQuanta Loam.Observation163.driftLeft Coordinate.food)
       (observedQuanta Loam.Observation163.driftRight Coordinate.wallet)
       (observedQuanta Loam.Observation163.driftRight Coordinate.food) := by
-  decide
+  simp [ExpectedVectorClaim, observedQuanta, aggregateAt,
+    Loam.Observation163.driftLeft, Loam.Observation163.driftRight]
 
 /-!
 The result is deliberately narrow. The contract file itself is still reviewed
