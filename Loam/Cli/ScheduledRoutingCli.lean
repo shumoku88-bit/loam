@@ -20,7 +20,7 @@ private def usage : String :=
   "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS unmanaged"
 
 private def loadRoutingOrEmpty?
-    (path : System.FilePath) : IO (Option ScheduledRoutingHistory) := do
+    (path : System.FilePath) : IO (Option (ScheduledRoutingHistory String)) := do
   if ← path.pathExists then
     loadScheduledRoutingHistory? path
   else
