@@ -1,6 +1,6 @@
 # Observation 198 — Does an authorization hold require reservation evidence beyond pending movement?
 
-Status: **F001 active falsification observation**
+Status: **F001 falsification result — COUNTEREXAMPLE**
 
 ## Question
 
@@ -88,13 +88,13 @@ available = held - totalReserved
 
 Can one authorization be initiated but unsettled while 3 of 10 held units are reserved, leaving 7 currently available?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### Same physical and lifecycle evidence, different reservation
 
 Can Left and Right have the same held quantity, the same initiated set, and the same settled set while reservation differs and therefore availability differs?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 This is the central F001 witness.
 
@@ -110,9 +110,9 @@ same held quantity
 same available quantity
 ```
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
-If so, Observation-050-style pending evidence is still too small for an availability query that sees authorization holds.
+Observation-050-style pending evidence is therefore still too small for an availability query that sees authorization holds.
 
 ## Positive sufficiency checks
 
@@ -120,19 +120,53 @@ If so, Observation-050-style pending evidence is still too small for an availabi
 
 If held quantity and reservation evidence are equal, selected availability must be equal.
 
-Expected counterexample: **UNSAT**.
+Observed counterexample: **UNSAT**.
 
 ### Settled authorization has no reservation
 
 Inside this bounded snapshot, settled authorization cannot simultaneously retain a temporary hold.
 
-Expected counterexample: **UNSAT**.
+Observed counterexample: **UNSAT**.
 
 This is only a local well-formedness condition. It does not model release or capture transitions.
 
-## Candidate interpretation if the matrix holds
+## Observed result
 
-The bounded result would be:
+Alloy 6.2.0 + Sat4j, exactly 1 Authorization / 2 Worlds / 5-bit Ints:
+
+```text
+representativeHeldAuthorization                       SAT
+samePhysicalAndLifecycleDifferentReservation           SAT
+PhysicalAndLifecycleDetermineAvailability              SAT counterexample
+ExplicitReservationDeterminesAvailability              UNSAT counterexample
+SettledHasNoReservation                                UNSAT counterexample
+```
+
+Dedicated Observation 198 CI completed SUCCESS on the reduced exact model.
+
+The central witness keeps physical quantity and lifecycle evidence equal:
+
+```text
+Left
+  held       = 10
+  initiated  = {A}
+  settled    = {}
+  reserved A = 3
+  available  = 7
+
+Right
+  held       = 10
+  initiated  = {A}
+  settled    = {}
+  reserved A = 0
+  available  = 10
+```
+
+The first execution used relational `-` in the arithmetic view, which made the explicit numeric witnesses unsatisfiable even though the deliberately too-strong availability assertion already produced a counterexample. The arithmetic plumbing was corrected to Alloy integer `sub`, then the witness was reduced from 100/30/70 with 8-bit integers to 10/3/7 with 5-bit integers. Neither change altered the semantic question.
+
+## Interpretation
+
+The bounded result is:
 
 ```text
 pending movement evidence
@@ -148,7 +182,7 @@ physical quantity + initiated/settled state
 currently available quantity
 ```
 
-That would earn independently observable reservation information for the selected availability query, not a production representation.
+This earns independently observable reservation / encumbrance information for the selected availability query, not a production representation.
 
 Possible later information-equivalent representations could include reservation facts, provider observations, policy-derived encumbrance, or a smaller relation not yet considered.
 
@@ -169,14 +203,12 @@ Observation 198 does **not** establish:
 - how institution-reported available balance reconciles with reconstructed history;
 - persistence, CLI, TUI, or household-data changes.
 
-If the result is a counterexample, runtime remains `RESEARCH_ONLY`. Production implementation still waits for real dogfood pressure.
+Runtime remains `RESEARCH_ONLY`. Production implementation still waits for real dogfood pressure.
 
 ## Falsification status
 
-Until the exact model executes successfully, F001 remains:
-
 ```text
-Work     = OBSERVING
-Finding  = UNTESTED
+Work     = DONE
+Finding  = COUNTEREXAMPLE
 Runtime  = RESEARCH_ONLY
 ```
