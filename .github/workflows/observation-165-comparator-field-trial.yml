@@ -1,0 +1,37 @@
+name: Observation 165
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  comparator:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build pinned Comparator tools
+        working-directory: verification/observation165
+        run: |
+          lake update
+          lake build comparator lean4export
+
+      - name: Compare trusted challenge with solution
+        working-directory: verification/observation165
+        run: |
+          export COMPARATOR_LANDRUN="$(realpath .lake/packages/Comparator/scripts/fake-landrun.sh)"
+          export COMPARATOR_LEAN4EXPORT="$(realpath .lake/packages/lean4export/.lake/build/bin/lean4export)"
+          lake env .lake/packages/Comparator/.lake/build/bin/comparator config.json
+
+      - name: Record trust boundary
+        run: |
+          echo "Comparator statement/axiom/kernel checks ran with the pinned Lean toolchain."
+          echo "This field trial uses Comparator's fake-landrun development shim."
+          echo "It does NOT claim adversarial build sandboxing."
