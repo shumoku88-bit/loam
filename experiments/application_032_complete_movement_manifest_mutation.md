@@ -148,6 +148,41 @@ canonical_family_byte_matches=5
 semantic_projection_match=1
 ```
 
+## Movement protocol surface measurement
+
+Application 032 remeasures the current Movement writer and the scratch manifest authority mechanics separately:
+
+```text
+current_movement_publisher_lines=132
+current_movement_publisher_bytes=8501
+current_movement_cross_family_save_calls=5
+current_movement_max_partial_authority_prefixes=4
+current_movement_residue_widened_identity_namespaces=2
+
+manifest_authority_mechanics_lines=196
+manifest_authority_mechanics_bytes=8622
+manifest_authority_switches_per_mutation=1
+manifest_partial_authority_prefixes_per_mutation=0
+manifest_orphan_objects_reserve_semantic_identity=0
+manifest_operation_specific_retry_branches=0
+
+staging_writer_protocol_retained=1
+staging_cross_family_save_calls_max=5
+staging_partial_residue_policy_retained=1
+production_migration_earned=0
+```
+
+The source-size numbers are deliberately **not** treated as a win. The scratch manifest authority mechanics are currently larger than the current Movement publisher slice in both lines and bytes, and the slices do not represent identical reusable scope.
+
+The useful compression appears instead in canonical protocol state:
+
+- five independent cross-family authority writes become one selected-authority switch per mutation;
+- four possible partial-authority prefixes become zero;
+- two Movement semantic identity namespaces no longer need to treat unselected prepared objects as reservations;
+- no operation-specific retry branch is required in the scratch manifest authority layer.
+
+But because the unchanged production Movement writer still runs inside disposable staging, the implementation as a whole has not yet eliminated its five-save state machine or residue policy. Application 032 therefore separates **authority compression** from **implementation compression** instead of claiming both at once.
+
 ## Interpretation
 
 Application 032 qualifies these points for the observed Movement path:
@@ -157,7 +192,8 @@ Application 032 qualifies these points for the observed Movement path:
 3. candidate object preparation can occur without changing authority;
 4. retry can ignore unselected object residue for EventId and RelationUnitId allocation when it rematerializes from selected authority;
 5. identical retry bytes can reuse content-addressed objects;
-6. restart through `CURRENT` and production typed decoders reproduces the same final household world and canonical family bytes.
+6. restart through `CURRENT` and production typed decoders reproduces the same final household world and canonical family bytes;
+7. canonical authority protocol complexity decreases even though scratch source size and total implementation surface have not yet decreased.
 
 ## Important counterweight
 
