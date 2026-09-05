@@ -1,0 +1,39 @@
+name: Practical Relation Discharge Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'Loam/Tests/RelationDischargePersistenceTest.lean'
+      - '.github/workflows/practical-relation-discharge-persistence.yml'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'persistence/relation-discharge-stream'
+      - main
+    paths:
+      - 'Loam/Core/OpenRelation.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'Loam/Tests/RelationDischargePersistenceTest.lean'
+      - '.github/workflows/practical-relation-discharge-persistence.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Raw RelationDischarge persistence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build persistence module
+        run: lake build Loam.Persistence.RelationDischargePersistence
+      - name: Run persistence qualification
+        run: lake env lean --run Loam/Tests/RelationDischargePersistenceTest.lean
