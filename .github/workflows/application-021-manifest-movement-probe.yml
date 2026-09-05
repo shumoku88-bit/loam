@@ -1,0 +1,61 @@
+name: Application 021 Manifest Movement Probe
+
+on:
+  push:
+    paths:
+      - 'experiments/application_021_manifest_movement_probe.lean'
+      - 'experiments/application_021_manifest_movement_probe.md'
+      - 'tests/application_021_source_measure.py'
+      - '.github/workflows/application-021-manifest-movement-probe.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_021_manifest_movement_probe.lean'
+      - 'experiments/application_021_manifest_movement_probe.md'
+      - 'tests/application_021_source_measure.py'
+      - '.github/workflows/application-021-manifest-movement-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-021-manifest-movement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Compare manifest Movement publication boundary
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production codec dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Persistence Loam.Persistence.ActualValidityPersistence Loam.Persistence.EventDescriptionPersistence Loam.Persistence.OpenRelationPersistence Loam.Persistence.RelationDischargePersistence Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run scratch manifest Movement publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_021_manifest_movement_probe.lean \
+            | tee /tmp/application-021-probe.out
+          grep -Fq 'Application 021 manifest Movement probe PASS' /tmp/application-021-probe.out
+          grep -Fq 'changed_family_objects=5' /tmp/application-021-probe.out
+          grep -Fq 'authority_switches=1' /tmp/application-021-probe.out
+          grep -Fq 'unchanged_routing_rewrites=0' /tmp/application-021-probe.out
+
+      - name: Measure current and scratch source boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_021_source_measure.py \
+            | tee /tmp/application-021-source.out
