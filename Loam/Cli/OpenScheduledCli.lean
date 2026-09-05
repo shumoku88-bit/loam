@@ -5,6 +5,7 @@ import Loam.Cli.ScheduledLifecycleCli
 import Loam.Persistence
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledReplacementPersistence
 import Loam.Persistence.ScheduledRetirementPersistence
 import Std
 
@@ -115,9 +116,11 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
 /--
 Show Scheduled occurrences whose expectation remains open.
 
-The semantic current-open set comes from `Loam.Application.currentOpenScheduled`.
-This CLI adds only scheduled-date presentation order and human movement rendering.
-Past-due open occurrences remain visible rather than being silently dropped.
+The semantic current-open set comes from
+`Loam.Application.currentOpenScheduledWithReplacement`. This CLI adds only
+scheduled-date presentation order and human movement rendering. Past-due open
+occurrences remain visible rather than being silently dropped, while superseded
+sources disappear only when their explicit replacement relation is admissible.
 -/
 def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
@@ -126,6 +129,8 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
     Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
   let retirementFile :=
     Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
+  let replacementFile :=
+    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
 
   match ← loadScheduledMemoryOrEmpty? scheduledFile with
   | none =>
@@ -142,35 +147,49 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
               IO.eprintln "loam: malformed or unsupported scheduled-retirement file"
               return 2
           | some retirementMemory =>
-              match ← loadEventMemoryOrEmpty? memoryFile with
+              match ← Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile with
               | none =>
-                  IO.eprintln "loam: malformed or unsupported event-memory file"
+                  IO.eprintln "loam: malformed or unsupported scheduled-replacement file"
                   return 2
-              | some eventMemory =>
-                  match Loam.Application.currentOpenScheduled
-                      scheduledMemory completionMemory retirementMemory eventMemory with
-                  | .unknownCompletionScheduled =>
-                      IO.eprintln
-                        "loam: scheduled-completion file refers to an unknown Scheduled identity"
+              | some replacementMemory =>
+                  match ← loadEventMemoryOrEmpty? memoryFile with
+                  | none =>
+                      IO.eprintln "loam: malformed or unsupported event-memory file"
                       return 2
-                  | .unknownRetirementScheduled =>
-                      IO.eprintln
-                        "loam: scheduled-retirement file refers to an unknown Scheduled identity"
-                      return 2
-                  | .conflictingTerminalEvidence =>
-                      IO.eprintln
-                        "loam: Scheduled terminal evidence conflicts between completion and retirement"
-                      return 2
-                  | .open openOccurrences =>
-                      match sortByScheduledDay openOccurrences with
-                      | [] =>
-                          IO.println "No open scheduled movements."
-                          return 0
-                      | occurrences =>
-                          IO.println "Open scheduled movements (ordered by scheduled date):"
-                          for occurrence in occurrences do
-                            printOccurrence occurrence
-                          return 0
+                  | some eventMemory =>
+                      match Loam.Application.currentOpenScheduledWithReplacement
+                          scheduledMemory completionMemory retirementMemory replacementMemory
+                          eventMemory with
+                      | .unknownCompletionScheduled =>
+                          IO.eprintln
+                            "loam: scheduled-completion file refers to an unknown Scheduled identity"
+                          return 2
+                      | .unknownRetirementScheduled =>
+                          IO.eprintln
+                            "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+                          return 2
+                      | .unknownReplacementScheduled =>
+                          IO.eprintln
+                            "loam: scheduled-replacement file refers to an unknown Scheduled identity"
+                          return 2
+                      | .invalidReplacementGraph =>
+                          IO.eprintln
+                            "loam: scheduled-replacement graph is cyclic or otherwise invalid"
+                          return 2
+                      | .conflictingTerminalEvidence =>
+                          IO.eprintln
+                            "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
+                          return 2
+                      | .open openOccurrences =>
+                          match sortByScheduledDay openOccurrences with
+                          | [] =>
+                              IO.println "No open scheduled movements."
+                              return 0
+                          | occurrences =>
+                              IO.println "Open scheduled movements (ordered by scheduled date):"
+                              for occurrence in occurrences do
+                                printOccurrence occurrence
+                              return 0
 
 /-!
 Interactive Scheduled workbench for daily dogfood.
