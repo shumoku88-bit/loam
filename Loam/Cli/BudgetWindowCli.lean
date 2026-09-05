@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CapacityWindowInspection
+import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ActualValidityPersistence
@@ -22,6 +23,10 @@ private def usage : String :=
   "for every Purpose already represented by Capacity evidence. No Period or\n" ++
   "Remaining state is stored."
 
+private structure MovementView where
+  events : EventMemory
+  validity : ActualValidityHistory String
+
 private def loadCorrectionMemoryOrEmpty?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
   if ← path.pathExists then
@@ -35,6 +40,27 @@ private def requireFile (path : System.FilePath) (label : String) : IO Bool := d
   else
     IO.eprintln ("loam: required " ++ label ++ " not found: " ++ path.toString)
     return false
+
+private def loadMovementView?
+    (memoryPath : System.FilePath) : IO (Except String MovementView) := do
+  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return .error "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      | .error message => return .error message
+      | .ok world => return .ok { events := world.events, validity := world.validity }
+  | none =>
+      if !(← memoryPath.pathExists) then
+        return .error ("required Event authority not found: " ++ memoryPath.toString)
+      let validityPath := Loam.Persistence.actualValidityPathForEventMemory memoryPath
+      if !(← validityPath.pathExists) then
+        return .error ("required Actual validity history not found: " ++ validityPath.toString)
+      let some events ← Loam.Persistence.loadEventMemory? memoryPath
+        | return .error "malformed or unsupported Event authority"
+      let some validity ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityPath
+        | return .error "malformed or unsupported Actual validity history"
+      return .ok { events, validity }
 
 private def addPurposeIfAbsent
     (purposes : List PurposeId)
@@ -116,21 +142,10 @@ private def printAll
 Read canonical household evidence and project one Purpose, or every Purpose
 represented by Capacity evidence, over `[start, end)`.
 
-Required authority/evidence streams under `root`:
-
-- `capacity.loam`
-- `capacity.loam.effective`
-- `memory.loam`
-- `memory.loam.actual-validity`
-- `actual-routing.loam`
-
-`corrections.loam` is optional and means an empty Event-correction memory when
-absent, matching the existing practical read-side convention.
-
-ActualValidity V2 correction history is resolved to one current date per Event
-before the query. Entitlement and Consumption are projected once from the loaded
-snapshot, then Remaining is derived exactly from those resolved values. No
-Remaining state is retained as canonical evidence.
+Capacity, Capacity-effective, EventCorrection, and ActualRouting remain their
+independent streams. In explicit manifest mode Event and ActualValidity are read
+from one selected Movement generation. Missing or corrupt selected authority
+fails closed with no legacy sidecar fallback.
 -/
 def report
     (rootPath start end_ purposeToken : String) : IO UInt32 := do
@@ -145,17 +160,20 @@ def report
     let capacityPath := root / "capacity.loam"
     let effectivePath := Loam.Persistence.capacityEffectivePathForMemory capacityPath
     let memoryPath := root / "memory.loam"
-    let validityPath := Loam.Persistence.actualValidityPathForEventMemory memoryPath
     let correctionPath := root / "corrections.loam"
     let routingPath := root / "actual-routing.loam"
 
     if !(← requireFile capacityPath "Capacity authority") ||
         !(← requireFile effectivePath "Capacity effective evidence") ||
-        !(← requireFile memoryPath "Event authority") ||
-        !(← requireFile validityPath "Actual validity history") ||
         !(← requireFile routingPath "Actual routing evidence") then
       return 2
     else
+      let movement ←
+        match ← loadMovementView? memoryPath with
+        | .error message =>
+            IO.eprintln ("loam: " ++ message)
+            return 2
+        | .ok view => pure view
       match ← Loam.Persistence.loadCapacityMemory? capacityPath with
       | none =>
           IO.eprintln "loam: malformed or unsupported Capacity authority"
@@ -166,60 +184,50 @@ def report
               IO.eprintln "loam: malformed or unsupported Capacity effective evidence"
               return 2
           | some effective =>
-              match ← Loam.Persistence.loadEventMemory? memoryPath with
+              match ← loadCorrectionMemoryOrEmpty? correctionPath with
               | none =>
-                  IO.eprintln "loam: malformed or unsupported Event authority"
+                  IO.eprintln "loam: malformed or unsupported Event correction authority"
                   return 2
-              | some events =>
-                  match ← loadCorrectionMemoryOrEmpty? correctionPath with
+              | some corrections =>
+                  match admittedActualValidityMemory? movement.validity with
                   | none =>
-                      IO.eprintln "loam: malformed or unsupported Event correction authority"
+                      IO.eprintln
+                        "loam: Actual validity corrections do not justify one current date per Event"
                       return 2
-                  | some corrections =>
-                      match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityPath with
+                  | some validities =>
+                      match ← Loam.Persistence.loadActualRoutingHistory? routingPath with
                       | none =>
-                          IO.eprintln "loam: malformed or unsupported Actual validity history"
+                          IO.eprintln "loam: malformed or unsupported Actual routing evidence"
                           return 2
-                      | some validityHistory =>
-                          match admittedActualValidityMemory? validityHistory with
-                          | none =>
-                              IO.eprintln
-                                "loam: Actual validity corrections do not justify one current date per Event"
-                              return 2
-                          | some validities =>
-                              match ← Loam.Persistence.loadActualRoutingHistory? routingPath with
-                              | none =>
-                                  IO.eprintln "loam: malformed or unsupported Actual routing evidence"
-                                  return 2
-                              | some routing =>
-                                  let yen : MeasureId := ⟨"jpy"⟩
-                                  if purposeToken = "--all" then
-                                    let purposes := rememberedPurposes capacity
-                                    match purposes.mapM
-                                        (fun purpose =>
-                                          projectPurpose?
-                                            capacity effective events corrections validities routing
-                                            start end_ purpose yen) with
-                                    | none =>
-                                        IO.eprintln
-                                          "loam: canonical evidence does not justify this budget-window projection"
-                                        return 2
-                                    | some projections =>
-                                        printAll start end_ projections
-                                        return 0
-                                  else
-                                    let purpose : PurposeId := ⟨purposeToken⟩
-                                    match
-                                        projectPurpose?
-                                          capacity effective events corrections validities routing
-                                          start end_ purpose yen with
-                                    | none =>
-                                        IO.eprintln
-                                          "loam: canonical evidence does not justify this budget-window projection"
-                                        return 2
-                                    | some projection =>
-                                        printOne start end_ projection
-                                        return 0
+                      | some routing =>
+                          let yen : MeasureId := ⟨"jpy"⟩
+                          if purposeToken = "--all" then
+                            let purposes := rememberedPurposes capacity
+                            match purposes.mapM
+                                (fun purpose =>
+                                  projectPurpose?
+                                    capacity effective movement.events corrections validities routing
+                                    start end_ purpose yen) with
+                            | none =>
+                                IO.eprintln
+                                  "loam: canonical evidence does not justify this budget-window projection"
+                                return 2
+                            | some projections =>
+                                printAll start end_ projections
+                                return 0
+                          else
+                            let purpose : PurposeId := ⟨purposeToken⟩
+                            match
+                                projectPurpose?
+                                  capacity effective movement.events corrections validities routing
+                                  start end_ purpose yen with
+                            | none =>
+                                IO.eprintln
+                                  "loam: canonical evidence does not justify this budget-window projection"
+                                return 2
+                            | some projection =>
+                                printOne start end_ projection
+                                return 0
 
 end Loam.BudgetWindowCli
 
