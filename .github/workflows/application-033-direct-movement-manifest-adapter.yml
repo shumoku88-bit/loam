@@ -1,0 +1,151 @@
+name: Application 033 Direct Movement Manifest Adapter
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'experiments/application_033_direct_movement_manifest_adapter.md'
+      - 'tests/application_033_direct_movement_surface.py'
+      - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
+  push:
+    branches:
+      - 'experiment/application-033-direct-movement-manifest-adapter'
+    paths:
+      - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'experiments/application_033_direct_movement_manifest_adapter.md'
+      - 'tests/application_033_direct_movement_surface.py'
+      - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  direct-movement:
+    name: direct admitted typed Movement through manifest authority
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production Movement oracle
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Exercise direct mutation without sidecar staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          manifest="$tmp_dir/manifest"
+          oracle_dir="$tmp_dir/oracle"
+          oracle="$oracle_dir/memory.loam"
+          mkdir -p "$oracle_dir"
+
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            seed "$manifest"
+
+          # Prepare one admitted typed Movement directly from selected CURRENT.
+          # No sidecar world is materialized and no sidecar save function runs.
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            prepare "$manifest" first | tee "$tmp_dir/prepare1.out"
+          grep -Fq 'event=record-1' "$tmp_dir/prepare1.out"
+          grep -Fq 'new_relations=1' "$tmp_dir/prepare1.out"
+          grep -Fq 'new_discharges=0' "$tmp_dir/prepare1.out"
+          grep -Fq 'reused_objects=1' "$tmp_dir/prepare1.out"
+          grep -Fq 'sidecar_materializations=0' "$tmp_dir/prepare1.out"
+          grep -Fq 'sidecar_save_calls=0' "$tmp_dir/prepare1.out"
+          grep -Fq 'authority_switches=0' "$tmp_dir/prepare1.out"
+
+          # Prepared objects remain non-authority until CURRENT changes.
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            verify "$manifest" | tee "$tmp_dir/pre_retry.out"
+          grep -Fq 'event_count=0' "$tmp_dir/pre_retry.out"
+          grep -Fq 'relation_count=0' "$tmp_dir/pre_retry.out"
+
+          # Retry from selected authority. record-1/relation-1 are allocated again
+          # and all five candidate family objects are reusable.
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            prepare "$manifest" first | tee "$tmp_dir/retry1.out"
+          grep -Fq 'event=record-1' "$tmp_dir/retry1.out"
+          grep -Fq 'reused_objects=5' "$tmp_dir/retry1.out"
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            commit "$manifest"
+
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            verify "$manifest" | tee "$tmp_dir/verify1.out"
+          grep -Fq 'event_count=1' "$tmp_dir/verify1.out"
+          grep -Fq 'recorded_paypay=-100' "$tmp_dir/verify1.out"
+          grep -Fq 'recorded_travel=100' "$tmp_dir/verify1.out"
+          grep -Fq 'relation_count=1' "$tmp_dir/verify1.out"
+          grep -Fq 'relation_outstanding=100' "$tmp_dir/verify1.out"
+
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            prepare "$manifest" second | tee "$tmp_dir/prepare2.out"
+          grep -Fq 'event=record-2' "$tmp_dir/prepare2.out"
+          grep -Fq 'new_relations=0' "$tmp_dir/prepare2.out"
+          grep -Fq 'new_discharges=1' "$tmp_dir/prepare2.out"
+          grep -Fq 'reused_objects=1' "$tmp_dir/prepare2.out"
+          grep -Fq 'sidecar_save_calls=0' "$tmp_dir/prepare2.out"
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            commit "$manifest"
+
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            verify "$manifest" | tee "$tmp_dir/verify2.out"
+          grep -Fq 'event_count=2' "$tmp_dir/verify2.out"
+          grep -Fq 'effect_count=4' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_paypay=-60' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_travel=100' "$tmp_dir/verify2.out"
+          grep -Fq 'recorded_friend_in=-40' "$tmp_dir/verify2.out"
+          grep -Fq 'relation_count=1' "$tmp_dir/verify2.out"
+          grep -Fq 'discharge_count=1' "$tmp_dir/verify2.out"
+          grep -Fq 'relation_outstanding=60' "$tmp_dir/verify2.out"
+
+          # Build an independent production oracle only after the direct manifest
+          # path has completed. This writer is comparison evidence, never staging
+          # for the manifest mutation path.
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$oracle"
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$oracle"
+
+          lake env lean --run experiments/application_033_direct_movement_manifest_adapter.lean \
+            compare-oracle "$oracle" "$manifest" | tee "$tmp_dir/parity.out"
+          grep -Fq 'canonical_family_byte_matches=5' "$tmp_dir/parity.out"
+          grep -Fq 'semantic_projection_match=1' "$tmp_dir/parity.out"
+          grep -Fq 'scratch_admission_rule_copy=1' "$tmp_dir/parity.out"
+          grep -Fq 'production_admission_seam_reused=0' "$tmp_dir/parity.out"
+          grep -Fq 'manifest_mutation_sidecar_writer_runs=0' "$tmp_dir/parity.out"
+
+          cat <<'EOF'
+          Application 033 direct Movement manifest adapter PASS
+          direct_manifest_mutations=2
+          manifest_mutation_sidecar_materializations=0
+          manifest_mutation_sidecar_save_calls=0
+          manifest_mutation_sidecar_writer_runs=0
+          selected_authority_switches=2
+          interrupted_candidate_authority_changes=0
+          orphan_event_id_reservations=0
+          orphan_relation_unit_id_reservations=0
+          retry_reused_prepared_objects=5
+          canonical_family_byte_matches=5
+          semantic_projection_match=1
+          comparison_oracle_production_writer_runs=2
+          scratch_admission_rule_copy=1
+          production_admission_seam_reused=0
+          production_migration_earned=0
+          EOF
