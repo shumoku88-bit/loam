@@ -1,0 +1,135 @@
+name: Practical Movement Open Relation
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/MovementRelationEntry.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-movement-open-relation.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'cli/movement-open-relation-publication'
+      - main
+    paths:
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementEntry.lean'
+      - 'Loam/MovementRelationEntry.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-movement-open-relation.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  movement-relation:
+    name: Movement relation Event-last publication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean and build Movement
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Publish explicit receivable on negative source Effect
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          relations="$memory.relations"
+
+          printf 'paypay\n1000\n\ntravel\n1000\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t400' \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq 'event: record-1' "$tmp_dir/out"
+          grep -Fq '[ok] open relation evidence admitted: 1' "$tmp_dir/out"
+          grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-05.' "$tmp_dir/out"
+          grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-1000' "$memory"
+
+          expected=$'LOAM-RELATION-UNIT-MEMORY\t1\nRELATION\trelation-1\trecord-1\teffect-1\tE\tfriend\tH\t\t400'
+          test "$(cat "$relations")" = "$expected"
+
+      - name: Keep redirected relation-free Movement backward compatible
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'cash\n25\n\ncoffee\n25\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-05 \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq '[ok] open relation decision: none' "$tmp_dir/out"
+          test -f "$memory"
+          test ! -e "$memory.relations"
+
+      - name: Reserve orphan Event and RelationUnit identities after crash residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          relations="$memory.relations"
+
+          cat >"$relations" <<'EOF'
+          LOAM-RELATION-UNIT-MEMORY	1
+          RELATION	relation-1	record-1	effect-1	E	friend	H		40
+          EOF
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t40' \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq 'event: record-2' "$tmp_dir/out"
+          grep -Fq $'EVENT\trecord-2' "$memory"
+          grep -Fq $'RELATION\trelation-1\trecord-1\teffect-1\tE\tfriend\tH\t\t40' "$relations"
+          grep -Fq $'RELATION\trelation-2\trecord-2\teffect-1\tE\tfriend\tH\t\t40' "$relations"
+          ! grep -Fq $'EVENT\trecord-1' "$memory"
+
+      - name: Reject relation-plane over-allocation before Event authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          if printf 'paypay\n100\n\ntravel\n100\n\n' \
+              | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                  LOAM_RELATIONS=$'effect-1\tE2H\tfriend-a\t60\neffect-1\tE2H\tfriend-b\t60' \
+                  ./tools/loam-movement "$memory" \
+                  >"$tmp_dir/out" 2>"$tmp_dir/err"; then
+            echo 'expected aggregate relation over-allocation to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+
+          test "$status" = '2'
+          grep -Fq 'open relation evidence did not justify one source-local frontier' "$tmp_dir/err"
+          test ! -e "$memory"
+          test ! -e "$memory.actual-validity"
+          test ! -e "$memory.relations"
