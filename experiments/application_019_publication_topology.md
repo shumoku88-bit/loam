@@ -2,12 +2,10 @@
 
 ## Pressure
 
-Application 018 found that the strongest current production-size pressure is not
-terminal presentation. It is mutation, admission, recovery, and especially the
-ordered publication of one household operation across several separately
-persisted evidence families.
-
-The next question is therefore narrower than "put everything in one file":
+Application 018 found that LOAM's strongest current production-size pressure is
+mutation, admission, recovery, and especially ordered publication across several
+persisted evidence families. The next question is therefore narrower than
+"put everything in one file":
 
 ```text
 if semantic fact families stay separate,
@@ -26,34 +24,31 @@ The production snapshot remains `main` at:
 3491a1511ed8b069d8638e76a74ebbb9fbc594e5
 ```
 
-No production source, persistence format, canonical fact, or household data is
-changed.
+No production source, persistence format, canonical fact, writer behavior, or
+household data changes here.
 
 ## Why TLA+ is earned
 
-The pressure is now temporal rather than lexical. A useful comparison must allow:
+The pressure is temporal rather than lexical. The comparison must allow:
 
 ```text
-publish supporting evidence
+publish support
 -> crash
 -> restart
 -> retry
 -> reader observation
 ```
 
-and ask which partial states are durable, which are visible to readers, and which
-must remain part of recovery logic.
-
-Application 003 already established that semantic admission and later physical
-publication are different boundaries. Observation 155 separately established the
-value of staging a complete image away from authority and exposing it with one
-atomic authority transition. Application 019 reuses those lessons for one
-multi-fact practical operation rather than inventing another storage framework.
+and distinguish partial durable authority from partial non-authoritative staging.
+Application 003 already separated semantic admission from later physical
+publication. Observation 155 established complete-image staging plus one atomic
+authority transition as a useful publication primitive. Application 019 applies
+those lessons to one multi-fact practical operation.
 
 ## Fixed semantic payload
 
-The model deliberately holds household meaning constant. It uses the maximum
-current Movement fan-out as a synthetic payload:
+The model holds household meaning constant and uses the maximum current Movement
+fan-out as a synthetic payload:
 
 ```text
 ActualValidity
@@ -63,18 +58,13 @@ RelationDischarge
 Event
 ```
 
-Production descriptions, relations, and discharges are optional. The model makes
-all five present only to expose the strongest publication fan-out. It does not
-claim every Movement requires all five facts.
+Descriptions, relations, and discharges are optional in production. All five are
+present here only to expose the strongest publication fan-out. Their meanings
+remain distinct in every topology.
 
-The five names remain distinct in every topology. A topology may co-locate their
-bytes, but it may not merge their semantic meaning.
-
-## Four physical topologies
+## Four topologies
 
 ### A. Separate streams, Event last
-
-This abstracts the current maximum Movement publication shape:
 
 ```text
 ActualValidity
@@ -84,45 +74,34 @@ ActualValidity
 -> Event
 ```
 
-Each step makes one more fact durable in an authority-side store. Event is the
-reader activation boundary. A crash leaves a durable prefix and retry resumes
-without letting that prefix appear as a complete Movement.
+Each step makes another fact durable in an authority-side store. Event is the
+reader activation boundary. A crash can leave a durable prefix, but that prefix
+must remain semantically inert until Event appears.
 
-### B. One typed stream, still one fact per append
+### B. One typed stream, one fact per append
 
-All five fact families are physically co-located, but the writer still appends
-one typed fact at a time and appends Event last.
+The same five typed facts are physically co-located but still appended one at a
+time with Event last. At this abstraction A and B deliberately share the same
+transition relation: changing file count alone does not create a new temporal
+publication boundary.
 
-At the temporal level this has the same transition relation as A. The filesystem
-shape changed; the number and order of semantic publication steps did not.
+### C. One typed stream plus commit marker
 
-This candidate is included specifically to test the tempting assumption:
-
-```text
-one file => one publication boundary
-```
-
-The model does not grant that implication.
-
-### C. One typed stream plus explicit commit marker
-
-The five semantic facts are appended durably, then a sixth commit marker changes
-reader visibility:
+The five facts become durable first, then a sixth marker changes reader
+visibility:
 
 ```text
-five typed fact appends
+five typed appends
 -> commit marker
 ```
 
-This centralizes the visibility gate, but the pre-commit records are still
-partial durable content in the authority-side store. A marker alone therefore
-does not remove interruption residue.
+The marker centralizes activation, but pre-commit records still form partial
+durable content in the authority-side store.
 
-### D. Non-authoritative staging plus atomic bundle publication
+### D. Non-authoritative stage plus atomic bundle publication
 
-The five facts are assembled in staging state that readers do not treat as
-canonical authority. Only a complete stage can cross one atomic authority
-boundary:
+The five facts are assembled outside authority. A complete stage crosses one
+atomic authority boundary:
 
 ```text
 partial stage may exist
@@ -130,174 +109,182 @@ partial stage may exist
 -> one authority publication
 ```
 
-This is deliberately the strongest candidate. It assumes a real primitive that
-can expose the complete operation atomically. A single file name or an ordinary
-sequence of appends does not provide that primitive by itself.
+This candidate assumes a real complete-bundle publication primitive. A single
+file name or ordinary append sequence does not provide that primitive by itself.
 
-## Crash boundary
+## Crash model
 
-The model permits one crash before completion. The crash preserves all durable
-or staged bytes and resets only the writer's local progress cursor.
+One crash may occur before completion. Durable and staged bytes survive; only the
+writer's local progress cursor is reset. Retry is idempotent at this fact-set
+abstraction. Exact duplicate-record encoding, torn writes, and filesystem
+semantics are outside scope.
 
-This is enough to make retry traverse interrupted states without introducing a
-full process or filesystem model. Set union makes retry idempotent at the fact
-abstraction used here; exact duplicate-record encoding is outside scope.
+## Checked properties
 
-## Safety question
+Readers classify the modeled operation as `none`, `complete`, or `partial`.
 
-Readers classify the operation as:
-
-```text
-none
-complete
-partial
-```
-
-For A and B, Event is the activation gate. For C and D, the explicit marker is
-the gate.
-
-The principal reader invariant is:
+The positive reader invariant is:
 
 ```text
 ReadersNeverSeePartial
 ```
 
-All four topologies are expected to satisfy it. This is important: Application
-019 is not trying to prove the current Event-last protocol unsafe. The current
-protocol is intentionally designed so pre-Event residue is inert.
+A and B use Event as their activation gate. C and D use the explicit marker.
 
-## Authority-store residue question
-
-A second property asks something different:
+A second invariant distinguishes physical authority-store residue:
 
 ```text
 NoPartialAuthorityStore
 ```
 
-"Authority store" here means durable bytes in the publication surface that the
-operational system must retain and reason about, even when readers do not yet
-show a complete Movement.
-
-The expected boundary is:
+A dedicated atomic boundary also tests:
 
 ```text
-A separate streams        -> partial authority-store state reachable
-B typed sequential stream -> partial authority-store state reachable
-C commit-marked stream    -> partial authority-store state reachable
-D atomic bundle           -> no partial authority-store state
+NoPartialStage
 ```
 
-D is not magic. Its staging surface may still be partial. A dedicated negative
-boundary requires `NoPartialStage` to fail for D, proving the model did not erase
-interruption work; it moved partial work outside authority.
-
-## Non-vacuity
-
-A dedicated `NoCompletePublication` invariant is expected to fail under every
-protocol configuration. This proves each finite model reaches a completed
-publication rather than satisfying safety by never finishing.
-
-## What the comparison can establish
-
-If TLC confirms the intended boundaries, three useful conclusions follow.
-
-First:
+and a non-vacuity boundary requires this deliberately too-strong invariant to
+fail for every topology:
 
 ```text
-separate streams -> one typed stream
+NoCompletePublication
 ```
 
-is not by itself temporal compression when facts are still appended one by one.
-It may reduce encoders, paths, or open/rename mechanics, but it does not remove
-ordered fact publication or durable crash prefixes.
+## TLC result
 
-Second:
+Application 019 qualified successfully on exact head
+`dab5832ff8a73bbf87acd366c09be22e3102c64c` with TLA+ tools 1.7.4 / TLC.
+The dedicated workflow completed every intended positive and negative check.
+
+The observed boundary is:
 
 ```text
-add commit marker
+                              reader partial?   partial authority store?
+A separate streams                 no                    yes
+B typed sequential stream          no                    yes
+C commit-marked stream             no                    yes
+D atomic bundle                    no                    no
 ```
 
-can make one generic visibility gate, but it does not by itself remove partial
-durable records. It may still simplify domain-specific activation logic, but that
-is a separate implementation hypothesis requiring source work after this model.
+For D, partial staging is reachable. The successful expected-counterexample check
+for `NoPartialStage` confirms that the atomic model does not pretend partial work
+disappears. It moves partial work outside authority.
 
-Third:
+All four `NoCompletePublication` boundary checks also produced the expected
+counterexample, so every topology reaches completed publication. Reader safety is
+therefore not vacuous.
+
+## Finding 1: one typed file is not temporal compression by itself
+
+The comparison rejects this implication:
 
 ```text
-stage outside authority + atomic complete publication
+one file => one publication boundary
 ```
 
-is the only modeled topology that collapses the authority-store transition from
-partial prefixes to old-or-complete. That is a stronger storage primitive, not a
-naming refactor.
+If the writer still durably appends the same semantic facts one by one, the
+interruption topology is unchanged at this abstraction. A typed stream may still
+reduce path, encoder, or file-management mechanics, but it does not by itself
+remove ordered publication, durable prefixes, or retry pressure.
 
-## Relationship to current Event-last publication
+## Finding 2: a commit marker changes visibility, not residue
 
-The current Event already behaves like an operation-specific activation marker
-for several sibling evidence families. This matters because a new generic commit
-marker would otherwise risk merely duplicating a role LOAM already has.
+An explicit marker can provide one generic activation gate, but the modeled
+pre-commit facts remain partial durable authority-store content. It therefore does
+not by itself remove the state that recovery logic must recognize.
 
-The likely compression question after this application is therefore not:
+This is especially relevant because current Event-last publication already gives
+several supporting fact families an operation-specific activation gate. Adding a
+generic marker could merely duplicate that role unless it also changes the
+physical publication boundary.
+
+## Finding 3: atomic bundle publication is the topology-changing primitive
+
+Only the atomic-bundle model eliminates partial authority-store states while
+preserving partial preparation outside authority.
+
+So the genuinely different candidate is not:
 
 ```text
-should Event be replaced by Commit?
+many semantic facts -> one semantic fact
+```
+
+and not merely:
+
+```text
+many files -> one file
 ```
 
 It is:
 
 ```text
-can the physical writer publish one already-admitted multi-fact operation
-through one authority transition while keeping Event, validity, description,
-relation, and discharge independently typed?
+many independently typed facts
+-> one complete physical authority transition
 ```
 
-That question reaches storage design and must preserve append-only provenance,
-correction frontiers, and inspectability.
+This is a storage primitive. It is not earned by source refactoring alone.
+
+## Relationship to current Event-last protocol
+
+Application 019 does **not** find the current protocol unsafe. All four topologies
+preserve the modeled reader safety property. Current Event-last publication is a
+real safety mechanism, not accidental boilerplate.
+
+The source-size question is sharper now:
+
+```text
+can LOAM admit Event, validity, description, relation, and discharge separately,
+but physically publish the already-admitted operation through one authority
+transition?
+```
+
+If yes, some writer-specific interruption and identity-reservation machinery may
+become derivable or removable. That claim is not made yet.
 
 ## Explicit limits
 
 This model does not include:
 
 - two concurrent writers;
-- filesystem rename or append implementation details;
-- durability guarantees of a particular OS/filesystem;
+- filesystem rename/append implementation details;
+- durability guarantees of a particular OS or filesystem;
 - checksum or torn-record parsing;
 - exact Event/Relation identity collision rules;
-- optional omission of description/relation/discharge;
+- optional omission of supporting fact families;
 - independent migration of one fact family;
 - correction graphs;
-- liveness or fairness;
+- fairness or liveness;
 - source-line reduction estimates.
 
-Application 003 remains the relevant concurrency observation. Observation 155
-remains the relevant complete-image publication precedent. Application 019 only
-compares the interruption topology of one already-admitted multi-fact operation.
+Application 003 remains the concurrency observation. Observation 155 remains the
+complete-image publication precedent.
 
-## Qualification plan
+## What this earns
 
-The dedicated Application 019 workflow pins TLA+ tools 1.7.4 and checks:
+Application 019 earns these limited conclusions:
 
-1. `TypeOK` and `ReadersNeverSeePartial` for all four topologies;
-2. expected `NoPartialAuthorityStore` counterexamples for A, B, and C;
-3. `NoPartialAuthorityStore` success for D;
-4. expected `NoPartialStage` counterexample for D;
-5. expected `NoCompletePublication` counterexample for all four topologies.
+1. current Event-last and the three alternatives can all preserve the modeled
+   no-partial-reader property;
+2. moving per-fact writes into one typed stream does not by itself remove partial
+   durable authority states;
+3. adding a commit marker does not by itself remove those states either;
+4. staging outside authority plus one atomic complete-bundle publication does
+   remove partial authority states in the modeled operation while retaining
+   reachable partial staging.
 
-Exact TLC state counts are intentionally not treated as a code-size metric. The
-important result is which state boundary exists, not how many model states happen
-to encode it.
+It does **not** earn merging current persistence files, a universal fact log, a
+generic commit framework, changing Event meaning, deleting recovery checks,
+changing identity allocation, or modifying household data.
 
-## What this does not earn
+## Next pressure
 
-Even a successful model does not authorize:
+If this line continues, the next useful observation is concrete rather than
+architectural:
 
-- merging the current persistence files;
-- introducing one universal fact log;
-- adding a generic commit framework;
-- deleting Event-last recovery checks;
-- changing identity allocation;
-- changing production writer order;
-- changing canonical household data.
+```text
+what is the smallest physical atomic-bundle primitive LOAM could actually
+implement while preserving append-only provenance and independent typed facts?
+```
 
-A later production experiment would first need a concrete physical primitive and
-a migration story. Until then this is an observation of topology only.
+That should compare at least one realizable storage shape against current
+Event-last publication before any production migration is attempted.
