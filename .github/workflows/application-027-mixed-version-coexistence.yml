@@ -1,0 +1,175 @@
+name: Application 027 Mixed-Version Coexistence
+
+on:
+  push:
+    paths:
+      - 'experiments/application_027_mixed_version_coexistence.tla'
+      - 'experiments/application_027_*.cfg'
+      - 'experiments/application_027_mixed_version_coexistence.md'
+      - '.github/workflows/application-027-mixed-version-coexistence.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_027_mixed_version_coexistence.tla'
+      - 'experiments/application_027_*.cfg'
+      - 'experiments/application_027_mixed_version_coexistence.md'
+      - '.github/workflows/application-027-mixed-version-coexistence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-027-mixed-version-coexistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Qualify mixed-version boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch pinned TLA+ tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar \
+            -o /tmp/tla2tools.jar
+          echo 'bee4a54f3ee3d4afc347c3240ec2d9e93b075104  /tmp/tla2tools.jar' | sha1sum -c -
+
+      - name: Require unstable coexistence counterexamples
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+
+          require_violation() {
+            local cfg="$1"
+            local invariant="$2"
+            local out="/tmp/${cfg}.out"
+            set +e
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config "$cfg" \
+              application_027_mixed_version_coexistence.tla \
+              >"$out" 2>&1
+            local status=$?
+            set -e
+            cat "$out"
+            test "$status" -ne 0
+            grep -Fq "$invariant" "$out"
+            grep -Fq 'is violated' "$out"
+          }
+
+          require_violation application_027_coexist_window.cfg NoEquivalentCoexistenceWindow
+          require_violation application_027_coexist_split.cfg NoSplitView
+          require_violation application_027_coexist_legacy_divergence.cfg NoLegacyOnlyDivergence
+          require_violation application_027_coexist_manifest_divergence.cfg NoManifestOnlyDivergence
+
+      - name: Check quiescent single-version safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_027_quiescent_safe.cfg \
+            application_027_mixed_version_coexistence.tla
+
+      - name: Require post-cutover manifest progress under quiescence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          out=/tmp/application_027_quiescent_advance.out
+          set +e
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_027_quiescent_advance.cfg \
+            application_027_mixed_version_coexistence.tla \
+            >"$out" 2>&1
+          status=$?
+          set -e
+          cat "$out"
+          test "$status" -ne 0
+          grep -Fq 'NoQuiescentManifestAdvance' "$out"
+          grep -Fq 'is violated' "$out"
+
+      - name: Build practical Movement dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+
+      - name: Probe legacy writer after manifest cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/manifest"
+          selector="$tmp_dir/AUTHORITY"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/first.out"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/second.out"
+
+          grep -Fq 'event: record-1' "$tmp_dir/first.out"
+          grep -Fq 'event: record-2' "$tmp_dir/second.out"
+
+          lake env lean --run experiments/application_025_typed_movement_manifest_roundtrip.lean \
+            publish "$memory" "$manifest" \
+            >"$tmp_dir/publish.out"
+          grep -Fq 'Application 025 typed Movement manifest publish PASS' "$tmp_dir/publish.out"
+
+          printf 'LOAM-MIGRATION-AUTHORITY\t1\nMANIFEST\n' >"$selector"
+          event_rel="$(awk -F $'\t' '$1 == "Event" { print $2 }' "$manifest/CURRENT")"
+          event_object="$manifest/$event_rel"
+          grep -Fq $'EVENT\trecord-1' "$event_object"
+          grep -Fq $'EVENT\trecord-2' "$event_object"
+          ! grep -Fq $'EVENT\trecord-3' "$event_object"
+
+          current_before="$(sha256sum "$manifest/CURRENT" | awk '{print $1}')"
+          event_before="$(sha256sum "$event_object" | awk '{print $1}')"
+
+          # This invocation stands for an already-installed sidecar-only binary.
+          # It knows the old canonical path and WriterOwnership, but not AUTHORITY/CURRENT.
+          printf 'paypay\n10\n\ncoffee\n10\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-07 \
+                LOAM_DESCRIPTION='legacy writer after manifest cutover' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/legacy-after-cutover.out"
+
+          grep -Fq 'event: record-3' "$tmp_dir/legacy-after-cutover.out"
+          grep -Fq $'EVENT\trecord-3' "$memory"
+          ! grep -Fq $'EVENT\trecord-3' "$event_object"
+          [[ "$(tail -n 1 "$selector")" == 'MANIFEST' ]]
+          [[ "$(sha256sum "$manifest/CURRENT" | awk '{print $1}')" == "$current_before" ]]
+          [[ "$(sha256sum "$event_object" | awk '{print $1}')" == "$event_before" ]]
+          [[ -f "$memory.loam-writer-lock" ]]
+
+          echo 'Application 027 practical mixed-version probe PASS'
+          echo 'equivalent_coexistence_window=1'
+          echo 'legacy_writer_post_cutover_succeeded=1'
+          echo 'legacy_sidecar_record3=1'
+          echo 'selected_manifest_record3=0'
+          echo 'selected_authority_remained_manifest=1'
+          echo 'writer_lock_prevented_epoch_stale_write=0'
