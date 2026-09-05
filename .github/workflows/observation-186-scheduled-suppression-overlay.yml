@@ -1,0 +1,52 @@
+name: Observation 186
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
+      - 'Loam/Observations/Observation186.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/186_scheduled_suppression_overlay.md'
+      - '.github/workflows/observation-186-scheduled-suppression-overlay.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/186-scheduled-suppression-overlay'
+      - main
+    paths:
+      - 'Loam/Application/ScheduledBalanceInspection.lean'
+      - 'Loam/Application/ScheduledBalanceHypothetical.lean'
+      - 'Loam/Observations/Observation186.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/186_scheduled_suppression_overlay.md'
+      - '.github/workflows/observation-186-scheduled-suppression-overlay.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scheduled-suppression-overlay:
+    name: Lean Scheduled suppression overlay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check Scheduled suppression overlay
+        run: lake build Loam.Observations.Observation186
