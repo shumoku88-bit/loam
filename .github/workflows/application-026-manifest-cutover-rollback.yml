@@ -1,0 +1,257 @@
+name: Application 026 Manifest Cutover Rollback
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.lean'
+      - 'experiments/application_026_manifest_cutover_rollback.lean'
+      - 'experiments/application_026_manifest_cutover_rollback.md'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'Loam/Sha256.lean'
+      - '.github/workflows/application-026-manifest-cutover-rollback.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'experiment/application-026-manifest-cutover-rollback'
+    paths:
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.lean'
+      - 'experiments/application_026_manifest_cutover_rollback.lean'
+      - 'experiments/application_026_manifest_cutover_rollback.md'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/EventDescriptionPersistence.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'Loam/Sha256.lean'
+      - '.github/workflows/application-026-manifest-cutover-rollback.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cutover-rollback:
+    name: explicit cutover and bounded rollback
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build practical Movement dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Qualify bounded authority model
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run experiments/application_026_manifest_cutover_rollback.lean \
+            | tee /tmp/application026-model.out
+          grep -Fq 'Application 026 manifest cutover/rollback model PASS' /tmp/application026-model.out
+          grep -Fq 'pre_divergence_selector_rollback=1' /tmp/application026-model.out
+          grep -Fq 'post_divergence_selector_rollback=0' /tmp/application026-model.out
+          grep -Fq 'broken_manifest_legacy_fallback=0' /tmp/application026-model.out
+
+      - name: Probe practical sidecar to manifest cutover and rollback boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/manifest"
+          selector="$tmp_dir/AUTHORITY"
+          source_log="$tmp_dir/read-source.log"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/first.out"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/second.out"
+
+          grep -Fq 'event: record-1' "$tmp_dir/first.out"
+          grep -Fq 'event: record-2' "$tmp_dir/second.out"
+
+          lake env lean --run experiments/application_025_typed_movement_manifest_roundtrip.lean \
+            publish "$memory" "$manifest" \
+            >"$tmp_dir/publish.out"
+          grep -Fq 'Application 025 typed Movement manifest publish PASS' "$tmp_dir/publish.out"
+
+          ref_path() {
+            local family="$1"
+            awk -F $'\t' -v family="$family" '$1 == family { print $2 }' "$manifest/CURRENT"
+          }
+
+          ref_digest() {
+            local family="$1"
+            awk -F $'\t' -v family="$family" '$1 == family { print $3 }' "$manifest/CURRENT"
+          }
+
+          legacy_path() {
+            case "$1" in
+              Event) printf '%s\n' "$memory" ;;
+              ActualValidity) printf '%s.actual-validity\n' "$memory" ;;
+              EventDescription) printf '%s.descriptions\n' "$memory" ;;
+              RelationUnit) printf '%s.relations\n' "$memory" ;;
+              RelationDischarge) printf '%s.discharges\n' "$memory" ;;
+              *) return 2 ;;
+            esac
+          }
+
+          for family in Event ActualValidity EventDescription RelationUnit RelationDischarge; do
+            source="$(legacy_path "$family")"
+            object="$manifest/$(ref_path "$family")"
+            cmp "$source" "$object"
+          done
+
+          rollback_fingerprints_match() {
+            local family source expected actual
+            for family in Event ActualValidity EventDescription RelationUnit RelationDischarge; do
+              source="$(legacy_path "$family")"
+              expected="$(ref_digest "$family")"
+              actual="$(sha256sum "$source" | awk '{print $1}')"
+              [[ "$actual" == "$expected" ]] || return 1
+            done
+          }
+
+          switch_authority() {
+            local target="$1"
+            printf 'LOAM-MIGRATION-AUTHORITY\t1\n%s\n' "$target" >"$selector.loam-stage"
+            mv "$selector.loam-stage" "$selector"
+          }
+
+          switch_authority SIDECAR
+          rollback_fingerprints_match
+          switch_authority MANIFEST
+          rollback_fingerprints_match
+          switch_authority SIDECAR
+          rollback_fingerprints_match
+          switch_authority MANIFEST
+
+          # Freeze the preserved legacy sidecars, then create the first post-cutover
+          # generation from an exact copy using the ordinary production Movement writer.
+          next="$tmp_dir/next.loam"
+          cp "$memory" "$next"
+          cp "$memory.actual-validity" "$next.actual-validity"
+          cp "$memory.descriptions" "$next.descriptions"
+          cp "$memory.relations" "$next.relations"
+          cp "$memory.discharges" "$next.discharges"
+
+          printf 'paypay\n10\n\ncoffee\n10\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-07 \
+                LOAM_DESCRIPTION='first manifest-only generation' \
+                .lake/build/bin/loamMovement "$next" \
+                >"$tmp_dir/third.out"
+          grep -Fq 'event: record-3' "$tmp_dir/third.out"
+          grep -Fq $'EVENT\trecord-3' "$next"
+          ! grep -Fq $'EVENT\trecord-3' "$memory"
+
+          write_ref() {
+            local family="$1"
+            local source="$2"
+            local digest rel
+            digest="$(sha256sum "$source" | awk '{print $1}')"
+            rel="objects/$family/$digest.loam"
+            mkdir -p "$manifest/objects/$family"
+            cp "$source" "$manifest/$rel"
+            printf '%s\t%s\t%s\n' "$family" "$rel" "$digest"
+          }
+
+          {
+            printf 'LOAM-APPLICATION025-MANIFEST\t1\n'
+            write_ref Event "$next"
+            write_ref ActualValidity "$next.actual-validity"
+            write_ref EventDescription "$next.descriptions"
+            write_ref RelationUnit "$next.relations"
+            write_ref RelationDischarge "$next.discharges"
+          } >"$manifest/CURRENT.loam-stage"
+          mv "$manifest/CURRENT.loam-stage" "$manifest/CURRENT"
+
+          event_object="$manifest/$(ref_path Event)"
+          grep -Fq $'EVENT\trecord-3' "$event_object"
+
+          if rollback_fingerprints_match; then
+            echo 'expected preserved-sidecar rollback guard to close after manifest divergence' >&2
+            exit 1
+          fi
+
+          manifest_digests_valid() {
+            local root="$1"
+            local header family rel digest actual
+            IFS= read -r header <"$root/CURRENT"
+            [[ "$header" == $'LOAM-APPLICATION025-MANIFEST\t1' ]] || return 2
+            while IFS=$'\t' read -r family rel digest; do
+              [[ -n "$family" && -n "$rel" && -n "$digest" ]] || return 2
+              [[ -f "$root/$rel" ]] || return 2
+              actual="$(sha256sum "$root/$rel" | awk '{print $1}')"
+              [[ "$actual" == "$digest" ]] || return 2
+            done < <(tail -n +2 "$root/CURRENT")
+          }
+
+          read_selected() {
+            local root="$1"
+            local mode
+            mode="$(tail -n 1 "$selector")"
+            case "$mode" in
+              SIDECAR)
+                [[ -f "$memory" ]] || return 2
+                printf 'SIDECAR\n' >"$source_log"
+                ;;
+              MANIFEST)
+                manifest_digests_valid "$root" || return 2
+                printf 'MANIFEST\n' >"$source_log"
+                ;;
+              *) return 2 ;;
+            esac
+          }
+
+          : >"$source_log"
+          read_selected "$manifest"
+          grep -Fxq 'MANIFEST' "$source_log"
+
+          broken="$tmp_dir/broken-manifest"
+          cp -R "$manifest" "$broken"
+          broken_event="$broken/$(awk -F $'\t' '$1 == "Event" { print $2 }' "$broken/CURRENT")"
+          printf 'CORRUPT\n' >>"$broken_event"
+          : >"$source_log"
+          if read_selected "$broken"; then
+            echo 'expected selected broken manifest to fail closed' >&2
+            exit 1
+          else
+            status=$?
+          fi
+          [[ "$status" == 2 ]]
+          [[ ! -s "$source_log" ]]
+
+          echo 'Application 026 practical cutover/rollback probe PASS'
+          echo 'migration_equivalent_family_bytes=5'
+          echo 'pre_divergence_rollback_allowed=1'
+          echo 'post_divergence_rollback_allowed=0'
+          echo 'preserved_sidecar_record3=0'
+          echo 'selected_manifest_record3=1'
+          echo 'broken_manifest_legacy_fallbacks=0'
