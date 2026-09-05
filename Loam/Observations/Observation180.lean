@@ -136,13 +136,27 @@ theorem preserves_total_of_wallet_and_food
   intro changes
   have hw := hWallet changes
   have hf := hFood changes
+  simp [observe] at hw hf
   change
     (aggregateAt changes .wallet).quanta +
         (aggregateAt changes .food).quanta =
       (aggregateAt (transform changes) .wallet).quanta +
         (aggregateAt (transform changes) .food).quanta
-  simpa [observe] using
-    congrArg2 (fun left right : Int => left + right) hw hf
+  calc
+    (aggregateAt changes .wallet).quanta +
+        (aggregateAt changes .food).quanta =
+      (aggregateAt (transform changes) .wallet).quanta +
+        (aggregateAt changes .food).quanta := by
+          exact congrArg
+            (fun wallet : Int =>
+              wallet + (aggregateAt changes .food).quanta)
+            hw
+    _ = (aggregateAt (transform changes) .wallet).quanta +
+        (aggregateAt (transform changes) .food).quanta := by
+          exact congrArg
+            (fun food : Int =>
+              (aggregateAt (transform changes) .wallet).quanta + food)
+            hf
 
 /-- The derived total is forced by the two-coordinate additive basis. -/
 theorem total_is_in_additive_closure :
