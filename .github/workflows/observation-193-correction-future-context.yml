@@ -1,0 +1,68 @@
+name: Observation 193
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation193.lean'
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/193_correction_future_context.md'
+      - '.github/workflows/observation-193-correction-future-context.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/193-correction-future-context'
+      - main
+    paths:
+      - 'Loam/Observations/Observation193.lean'
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/193_correction_future_context.md'
+      - '.github/workflows/observation-193-correction-future-context.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  correction-future-context:
+    name: Lean Correction future-context equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check Correction future-context equivalence
+        run: lake build Loam.Observations.Observation193
