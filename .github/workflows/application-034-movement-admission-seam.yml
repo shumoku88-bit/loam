@@ -1,0 +1,131 @@
+name: Application 034 Movement Admission Seam
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'tests/application_033_direct_movement_surface.py'
+      - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
+      - '.github/workflows/application-034-movement-admission-seam.yml'
+  push:
+    branches:
+      - 'experiment/application-034-movement-admission-seam'
+    paths:
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'tests/application_033_direct_movement_surface.py'
+      - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
+      - '.github/workflows/application-034-movement-admission-seam.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seam:
+    name: preserve Movement bytes through shared admission
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build production Movement
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Qualify shared seam surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/application_033_direct_movement_surface.py | tee /tmp/application034-surface.out
+          grep -Fq 'scratch_direct_admission_lines=0' /tmp/application034-surface.out
+          grep -Fq 'scratch_admission_rule_copy=0' /tmp/application034-surface.out
+          grep -Fq 'production_admission_seam_reused=1' /tmp/application034-surface.out
+          grep -Fq 'production_sidecar_publisher_uses_seam=1' /tmp/application034-surface.out
+          grep -Fq 'manifest_probe_uses_production_seam=1' /tmp/application034-surface.out
+          grep -Fq 'current_movement_cross_family_save_calls=5' /tmp/application034-surface.out
+          grep -Fq 'current_movement_max_partial_authority_prefixes=4' /tmp/application034-surface.out
+
+      - name: Preserve pre-refactor canonical family bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$memory"
+
+          test "$(sha256sum "$memory" | cut -d' ' -f1)" = \
+            'f1db19930ebce381589d55dcb6279031263465f088deaba3e7e68d5b83090992'
+          test "$(sha256sum "$memory.actual-validity" | cut -d' ' -f1)" = \
+            '7a4d44b8a877386c70b91131f644e6e97e2a6ff8658989013e9958e1ef727f5f'
+          test "$(sha256sum "$memory.descriptions" | cut -d' ' -f1)" = \
+            '77a98cf7921d12ee5da6757539d5e195410c8c3c0de971bc450689e0daedaa6a'
+          test "$(sha256sum "$memory.relations" | cut -d' ' -f1)" = \
+            'cd73e5303796be1e23711c7b9849190de4e61e4bd0672a5f2d6905552ff50f73'
+          test "$(sha256sum "$memory.discharges" | cut -d' ' -f1)" = \
+            '8e8626073f6e205950ab5287bee14372f0dd0e30a0b7d91076dc5faccba718ea'
+
+          test "$(wc -c < "$memory" | tr -d ' ')" = '177'
+          test "$(wc -c < "$memory.actual-validity" | tr -d ' ')" = '81'
+          test "$(wc -c < "$memory.descriptions" | tr -d ' ')" = '113'
+          test "$(wc -c < "$memory.relations" | tr -d ' ')" = '82'
+          test "$(wc -c < "$memory.discharges" | tr -d ' ')" = '66'
+
+          echo 'Application 034 pre-refactor byte preservation PASS'
+          echo 'baseline_family_hash_matches=5'
+          echo 'baseline_family_size_matches=5'
+          echo 'production_sidecar_publisher_uses_seam=1'
+          echo 'scratch_admission_rule_copy=0'
+          echo 'production_admission_seam_reused=1'
+          echo 'sidecar_save_protocol_retained=1'
+          echo 'production_migration_earned=0'
+
+      - name: Preserve world-dependent discharge refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory" >/dev/null
+
+          set +e
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DISCHARGES=$'relation-999\t40' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/out" 2>"$tmp_dir/err"
+          status=$?
+          set -e
+
+          test "$status" = '2'
+          grep -Fq 'loam: relation discharge evidence did not justify one current target frontier' \
+            "$tmp_dir/err"
+          grep -Fq $'record-1\teffect-1' "$memory"
+          ! grep -Fq $'record-2\teffect-1' "$memory"
+          echo 'world_dependent_admission_refusal_preserved=1'
