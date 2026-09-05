@@ -11,11 +11,15 @@ Observations 172–176 qualified the minimum semantic vocabulary needed to retai
 one directional household open relation without introducing a general Party,
 Fact, Revision, quantity-slice, or persistence framework.
 
+Observation 178 later qualified exact discharge quantity as independent evidence
+once aggregate `RelationUnit` values became practically writable. A bare later
+Event-to-relation pair cannot preserve partial fulfillment.
+
 This module contains raw semantic provenance only. In particular it deliberately
 does not decide whether referenced Event / Effect identities are present,
-whether a quantity is positive or bounded by its source Effect, whether a
-revision is current or conflicting, or whether absence means known-none. Those
-are later admission / projection questions.
+whether a quantity is positive or bounded by its source Effect / target relation,
+whether a revision or discharge is current or conflicting, or whether absence
+means known-none. Those are later admission / projection questions.
 -/
 
 /--
@@ -69,6 +73,30 @@ structure RelationUnit where
   sourceEffect : EffectKey
   debtor : RelationEndpoint
   creditor : RelationEndpoint
+  quantity : Quantity
+deriving Repr, DecidableEq
+
+/--
+One raw exact discharge correspondence from a later Event to a retained relation.
+
+This is fulfillment provenance, not a revision or retraction of the target
+relation. The target relation remains valid history while later projection can
+derive how much remains outstanding.
+
+Observation 178 did not earn a separate `DischargeId`: for the currently demanded
+queries, one normalized row per `(event, target)` pair is sufficient. `quantity`
+therefore records the independent exact amount carried by that correspondence.
+It remains ordinary signed `Quantity` in raw provenance; semantic admission must
+require a positive amount, resolve both references, and reject aggregate admitted
+discharge above the target RelationUnit quantity.
+
+The target RelationUnit already resolves to a source Effect carrying `MeasureId`,
+so this raw correspondence does not duplicate measure identity. The later endpoint
+remains Event-scoped until a practical query earns Effect-level discharge detail.
+-/
+structure RelationDischarge where
+  event : EventId
+  target : RelationUnitId
   quantity : Quantity
 deriving Repr, DecidableEq
 
