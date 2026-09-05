@@ -1,0 +1,48 @@
+name: Observation 189
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation189.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/189_separate_choice_commitment_funding.md'
+      - '.github/workflows/observation-189-separate-choice-commitment-funding.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/189-separate-choice-commitment-funding'
+      - main
+    paths:
+      - 'Loam/Observations/Observation189.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/189_separate_choice_commitment_funding.md'
+      - '.github/workflows/observation-189-separate-choice-commitment-funding.yml'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  separate-choice-commitment-funding:
+    name: Lean choice / commitment / funding separation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check Observation 189
+        run: lake build Loam.Observations.Observation189
