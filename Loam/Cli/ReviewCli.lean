@@ -101,18 +101,19 @@ private structure ReviewMovementWorld where
 /--
 Load the Movement families from exactly one authority backend.
 
-Without the explicit manifest gate, review retains the current sidecar behavior.
-With the gate, the selected manifest generation supplies Event, ActualValidity,
-and EventDescription evidence; `loadSelectedWorld?` also verifies the selected
-RelationUnit and RelationDischarge objects before review continues. There is no
-fallback to frozen sidecars when selected manifest authority is unavailable.
+Without a manifest root, review retains the sidecar behavior used by isolated
+regression fixtures. With `LOAM_MOVEMENT_MANIFEST_ROOT`, the selected manifest
+generation supplies Event, ActualValidity, and EventDescription evidence;
+`loadSelectedWorld?` also verifies the selected RelationUnit and
+RelationDischarge objects before review continues. There is no fallback to
+sidecars when selected manifest authority is unavailable.
 -/
 private def loadReviewMovementWorld?
     (memoryFile : System.FilePath) : IO (Except String ReviewMovementWorld) := do
-  match ← IO.getEnv "LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT" with
+  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
   | some rootPath =>
       if rootPath.isEmpty then
-        return .error "loam: LOAM_EXPERIMENTAL_MOVEMENT_MANIFEST_ROOT must not be empty"
+        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
       match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
       | .error message => return .error message
       | .ok world =>
