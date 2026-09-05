@@ -1,0 +1,58 @@
+name: Observation 180
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/180_observational_closure.md'
+      - '.github/workflows/observation-180-observational-closure.yml'
+      - 'Loam/Observations/Observation179.lean'
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/180-observational-closure'
+      - main
+    paths:
+      - 'Loam/Observations/Observation180.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/180_observational_closure.md'
+      - '.github/workflows/observation-180-observational-closure.yml'
+      - 'Loam/Observations/Observation179.lean'
+      - 'Loam/Observations/Observation159.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  observational-closure:
+    name: Lean observational closure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check observational closure
+        run: lake build Loam.Observations.Observation180
