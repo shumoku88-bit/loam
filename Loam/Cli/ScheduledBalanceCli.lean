@@ -13,13 +13,6 @@ open Loam.Application
 
 set_option autoImplicit false
 
-private def usage : String :=
-  "Usage: loamScheduledBalance DATA_ROOT END\n" ++
-  "\n" ++
-  "Projects signed effects of the complete current-open Scheduled set onto the\n" ++
-  "current balance-view selection before end-exclusive END. Overdue open\n" ++
-  "Scheduled evidence remains visible until lifecycle evidence closes it."
-
 private def loadScheduledMemoryOrEmpty?
     (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
   if ← path.pathExists then
@@ -104,11 +97,3 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
                             return 0
 
 end Loam.ScheduledBalanceCli
-
-def main (args : List String) : IO UInt32 :=
-  match args with
-  | [rootPath, endExclusive] =>
-      Loam.ScheduledBalanceCli.report rootPath endExclusive
-  | _ => do
-      IO.eprintln Loam.ScheduledBalanceCli.usage
-      return 2
