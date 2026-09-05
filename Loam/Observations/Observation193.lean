@@ -56,7 +56,8 @@ theorem correctionStep_preserves_events
     (state : CorrectionState)
     (correction : EventCorrection) :
     (correctionStep state (.publish correction)).events = state.events := by
-  simp [correctionStep]
+  unfold correctionStep
+  cases hAdd : EventCorrectionMemory.add? state.corrections correction <;> simp [hAdd]
 
 private def wallet : LocusId := ⟨"wallet"⟩
 private def jpy : MeasureId := ⟨"jpy"⟩
