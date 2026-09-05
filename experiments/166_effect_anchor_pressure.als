@@ -189,7 +189,8 @@ pred keyAloneCannotIdentifyEffect {
 pred eventScopedDischargeStillWorks {
   some w: World,
        originEvent, paymentEvent: Event,
-       originEffect, disj paymentEffectA, paymentEffectB: Effect,
+       originEffect: Effect,
+       disj paymentEffectA, paymentEffectB: Effect,
        u: Unit | {
     originEvent != paymentEvent
     originEffect.event = originEvent
@@ -199,7 +200,7 @@ pred eventScopedDischargeStillWorks {
 
     w.events = originEvent + paymentEvent
     w.incurred = u
-    w.burden = u
+    w.burden = u->Household
     w.claims = u
     w.debtor = u->Household
     w.creditor = u->Outside
