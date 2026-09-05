@@ -1,0 +1,54 @@
+name: Observation 192
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/192_future_context_equivalence.md'
+      - '.github/workflows/observation-192-future-context-equivalence.yml'
+      - 'Loam/Observations/Observation191.lean'
+      - 'Loam/Observations/Observation029.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/192-future-context-equivalence'
+      - main
+    paths:
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/192_future_context_equivalence.md'
+      - '.github/workflows/observation-192-future-context-equivalence.yml'
+      - 'Loam/Observations/Observation191.lean'
+      - 'Loam/Observations/Observation029.lean'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  future-context-equivalence:
+    name: Lean future-context equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check future-context equivalence
+        run: lake build Loam.Observations.Observation192
