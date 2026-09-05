@@ -15,10 +15,12 @@ open Loam.Application
 set_option autoImplicit false
 
 private def usage : String :=
-  "Usage: loamBudgetWindow DATA_ROOT START END PURPOSE\n" ++
+  "Usage: loamBudgetWindow DATA_ROOT START END PURPOSE|--all\n" ++
   "\n" ++
   "Projects JPY Entitlement, routed Actual Consumption, and Remaining over the\n" ++
-  "half-open coordinate window [START, END). No Period or Remaining state is stored."
+  "half-open coordinate window [START, END). --all reuses the same projection\n" ++
+  "for every Purpose already represented by Capacity evidence. No Period or\n" ++
+  "Remaining state is stored."
 
 private def loadCorrectionMemoryOrEmpty?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
@@ -34,8 +36,85 @@ private def requireFile (path : System.FilePath) (label : String) : IO Bool := d
     IO.eprintln ("loam: required " ++ label ++ " not found: " ++ path.toString)
     return false
 
+private def addPurposeIfAbsent
+    (purposes : List PurposeId)
+    (purpose : PurposeId) : List PurposeId :=
+  if purpose ∈ purposes then purposes else purposes ++ [purpose]
+
 /--
-Read canonical household evidence and project one Purpose over `[start, end)`.
+Recover the Purpose coordinates already represented by retained Capacity evidence.
+This is only a query-local enumeration; it does not create a Purpose registry.
+-/
+private def rememberedPurposes (memory : CapacityMemory) : List PurposeId :=
+  memory.movements.foldl
+    (fun purposes movement =>
+      movement.movement.changes.foldl
+        (fun current change =>
+          match change.coordinate with
+          | .unallocated => current
+          | .purpose purpose => addPurposeIfAbsent current purpose)
+        purposes)
+    []
+
+private structure PurposeProjection where
+  purpose : PurposeId
+  entitlement : Quantity
+  consumption : Quantity
+
+private def projectPurpose?
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory String)
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory String)
+    (routing : Loam.Persistence.ActualRoutingHistory)
+    (start end_ : String)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option PurposeProjection := do
+  let entitlement ←
+    entitlementAtEffectiveWindow?
+      capacity effective start end_ purpose measure
+  let consumption ←
+    consumptionAtCorrectionFrontierEffectiveRoutingWindow?
+      events corrections validities routing start end_ purpose measure
+  return {
+    purpose := purpose
+    entitlement := entitlement
+    consumption := consumption
+  }
+
+private def printOne
+    (start end_ : String)
+    (projection : PurposeProjection) : IO Unit := do
+  let remaining := projection.entitlement - projection.consumption
+  IO.println ("Budget window [" ++ start ++ ", " ++ end_ ++ ")")
+  IO.println ("Purpose: " ++ projection.purpose.token)
+  IO.println
+    ("Entitlement: " ++ toString projection.entitlement.quanta ++ " jpy")
+  IO.println
+    ("Consumption: " ++ toString projection.consumption.quanta ++ " jpy")
+  IO.println
+    ("Remaining: " ++ toString remaining.quanta ++ " jpy")
+
+private def printAll
+    (start end_ : String)
+    (projections : List PurposeProjection) : IO Unit := do
+  IO.println ("Budget window [" ++ start ++ ", " ++ end_ ++ ")")
+  if projections.isEmpty then
+    IO.println "No spending-purpose capacity."
+  else
+    IO.println "Purposes:"
+    for projection in projections do
+      let remaining := projection.entitlement - projection.consumption
+      IO.println
+        ("  " ++ projection.purpose.token ++
+          ": entitlement " ++ toString projection.entitlement.quanta ++
+          " jpy, consumption " ++ toString projection.consumption.quanta ++
+          " jpy, remaining " ++ toString remaining.quanta ++ " jpy")
+
+/--
+Read canonical household evidence and project one Purpose, or every Purpose
+represented by Capacity evidence, over `[start, end)`.
 
 Required authority/evidence streams under `root`:
 
@@ -58,8 +137,8 @@ def report
   if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate end_ then
     IO.eprintln "loam: budget window endpoints must be real YYYY-MM-DD calendar dates"
     return 2
-  else if !Loam.Persistence.validToken purposeToken then
-    IO.eprintln "loam: budget Purpose must be a nonempty single-line token"
+  else if purposeToken != "--all" && !Loam.Persistence.validToken purposeToken then
+    IO.eprintln "loam: budget Purpose must be a nonempty single-line token or --all"
     return 2
   else
     let root := System.FilePath.mk rootPath
@@ -113,29 +192,34 @@ def report
                                   IO.eprintln "loam: malformed or unsupported Actual routing evidence"
                                   return 2
                               | some routing =>
-                                  let purpose : PurposeId := ⟨purposeToken⟩
                                   let yen : MeasureId := ⟨"jpy"⟩
-                                  match
-                                      entitlementAtEffectiveWindow?
-                                        capacity effective start end_ purpose yen,
-                                      consumptionAtCorrectionFrontierEffectiveRoutingWindow?
-                                        events corrections validities routing
-                                        start end_ purpose yen with
-                                  | some entitlement, some consumption =>
-                                      let remaining := entitlement - consumption
-                                      IO.println ("Budget window [" ++ start ++ ", " ++ end_ ++ ")")
-                                      IO.println ("Purpose: " ++ purposeToken)
-                                      IO.println
-                                        ("Entitlement: " ++ toString entitlement.quanta ++ " jpy")
-                                      IO.println
-                                        ("Consumption: " ++ toString consumption.quanta ++ " jpy")
-                                      IO.println
-                                        ("Remaining: " ++ toString remaining.quanta ++ " jpy")
-                                      return 0
-                                  | _, _ =>
-                                      IO.eprintln
-                                        "loam: canonical evidence does not justify this budget-window projection"
-                                      return 2
+                                  if purposeToken = "--all" then
+                                    let purposes := rememberedPurposes capacity
+                                    match purposes.mapM
+                                        (fun purpose =>
+                                          projectPurpose?
+                                            capacity effective events corrections validities routing
+                                            start end_ purpose yen) with
+                                    | none =>
+                                        IO.eprintln
+                                          "loam: canonical evidence does not justify this budget-window projection"
+                                        return 2
+                                    | some projections =>
+                                        printAll start end_ projections
+                                        return 0
+                                  else
+                                    let purpose : PurposeId := ⟨purposeToken⟩
+                                    match
+                                        projectPurpose?
+                                          capacity effective events corrections validities routing
+                                          start end_ purpose yen with
+                                    | none =>
+                                        IO.eprintln
+                                          "loam: canonical evidence does not justify this budget-window projection"
+                                        return 2
+                                    | some projection =>
+                                        printOne start end_ projection
+                                        return 0
 
 end Loam.BudgetWindowCli
 
