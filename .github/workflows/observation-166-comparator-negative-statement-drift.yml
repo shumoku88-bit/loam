@@ -1,0 +1,44 @@
+name: Observation 166
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  comparator-negative:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build pinned Comparator tools
+        working-directory: verification/observation166
+        run: |
+          lake update
+          lake build comparator lean4export
+
+      - name: Require Comparator to reject statement drift
+        working-directory: verification/observation166
+        run: |
+          export COMPARATOR_LANDRUN="$(realpath .lake/packages/Comparator/scripts/fake-landrun.sh)"
+          export COMPARATOR_LEAN4EXPORT="$(realpath .lake/packages/lean4export/.lake/build/bin/lean4export)"
+          set +e
+          lake env .lake/packages/Comparator/.lake/build/bin/comparator config.json 2>&1 | tee comparator-output.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "Comparator unexpectedly accepted a drifted statement."
+            exit 1
+          fi
+          echo "Comparator rejected the deliberately drifted statement as expected."
+
+      - name: Record trust boundary
+        run: |
+          echo "This negative trial establishes rejection, not adversarial sandboxing."
+          echo "Comparator still runs through the fake-landrun development shim here."
