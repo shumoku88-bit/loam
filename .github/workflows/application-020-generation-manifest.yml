@@ -1,0 +1,151 @@
+name: Application 020 Generation Manifest
+
+on:
+  push:
+    paths:
+      - 'experiments/application_020_generation_manifest.tla'
+      - 'experiments/application_020_generation_manifest_*.cfg'
+      - 'experiments/application_020_generation_manifest.md'
+      - 'tests/application_020_generation_manifest.py'
+      - '.github/workflows/application-020-generation-manifest.yml'
+  pull_request:
+    paths:
+      - 'experiments/application_020_generation_manifest.tla'
+      - 'experiments/application_020_generation_manifest_*.cfg'
+      - 'experiments/application_020_generation_manifest.md'
+      - 'tests/application_020_generation_manifest.py'
+      - '.github/workflows/application-020-generation-manifest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-020-generation-manifest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tlc:
+    name: Check generation manifest protocol
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch pinned TLA+ tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          curl -fsSL \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar \
+            -o /tmp/tla2tools.jar
+          echo 'bee4a54f3ee3d4afc347c3240ec2d9e93b075104  /tmp/tla2tools.jar' | sha1sum -c -
+
+      - name: Check multi-family manifest publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_020_generation_manifest_movement.cfg \
+            application_020_generation_manifest.tla
+
+      - name: Check single-family locality through manifest indirection
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments
+          java -cp /tmp/tla2tools.jar tlc2.TLC \
+            -deadlock \
+            -config application_020_generation_manifest_routing.cfg \
+            application_020_generation_manifest.tla
+
+      - name: Require reachable partial off-authority preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd experiments
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config application_020_generation_manifest_partial.cfg \
+              application_020_generation_manifest.tla
+          ) > /tmp/partial.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/partial.out
+          test "$status" -ne 0
+          grep -Fq 'NoPartialPreparation' /tmp/partial.out
+          grep -Fq 'is violated' /tmp/partial.out
+
+      - name: Require reachable interrupted off-authority preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd experiments
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config application_020_generation_manifest_interrupted.cfg \
+              application_020_generation_manifest.tla
+          ) > /tmp/interrupted.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/interrupted.out
+          test "$status" -ne 0
+          grep -Fq 'NoInterruptedPreparation' /tmp/interrupted.out
+          grep -Fq 'is violated' /tmp/interrupted.out
+
+      - name: Require reachable published manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd experiments
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config application_020_generation_manifest_published.cfg \
+              application_020_generation_manifest.tla
+          ) > /tmp/published.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/published.out
+          test "$status" -ne 0
+          grep -Fq 'NoPublishedState' /tmp/published.out
+          grep -Fq 'is violated' /tmp/published.out
+
+      - name: Require routing-only publication without rewriting every family
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          (
+            cd experiments
+            java -cp /tmp/tla2tools.jar tlc2.TLC \
+              -deadlock \
+              -config application_020_generation_manifest_locality.cfg \
+              application_020_generation_manifest.tla
+          ) > /tmp/locality.out 2>&1
+          status=$?
+          set -e
+          cat /tmp/locality.out
+          test "$status" -ne 0
+          grep -Fq 'AllFamiliesPreparedIfPublished' /tmp/locality.out
+          grep -Fq 'is violated' /tmp/locality.out
+
+  filesystem-fixture:
+    name: Exercise manifest-selected immutable family images (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run generation-manifest filesystem fixture
+        shell: bash
+        run: python3 tests/application_020_generation_manifest.py
