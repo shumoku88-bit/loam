@@ -86,7 +86,7 @@ available = held - totalReserved
 
 ### Representative held authorization
 
-Can one authorization be initiated but unsettled while 30 of 100 held units are reserved, leaving 70 currently available?
+Can one authorization be initiated but unsettled while 3 of 10 held units are reserved, leaving 7 currently available?
 
 Expected: **SAT**.
 
