@@ -102,10 +102,6 @@
   '(((4 reduce-consumption 5 #f)
      (5 pause-contribution 6 #f))
     11))
-(define expected-protected-a
-  '(((3 reallocate-capacity 4 #f)
-     (5 pause-contribution 6 #f))
-    10))
 
 ;; Keep qualification structural rather than depending on miniKanren's fair
 ;; interleaving order.
