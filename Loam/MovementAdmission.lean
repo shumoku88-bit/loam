@@ -1,5 +1,7 @@
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
+import Loam.Core.ActualValidityHistory
+import Loam.Core.EventDescription
 import Loam.MovementRelationEntry
 import Loam.MovementDischargeEntry
 import Loam.Persistence
