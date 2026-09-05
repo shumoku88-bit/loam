@@ -6,6 +6,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'experiments/application_034_movement_admission_seam.md'
       - 'tests/application_033_direct_movement_surface.py'
       - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
       - '.github/workflows/application-034-movement-admission-seam.yml'
@@ -16,6 +17,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'experiments/application_033_direct_movement_manifest_adapter.lean'
+      - 'experiments/application_034_movement_admission_seam.md'
       - 'tests/application_033_direct_movement_surface.py'
       - '.github/workflows/application-033-direct-movement-manifest-adapter.yml'
       - '.github/workflows/application-034-movement-admission-seam.yml'
@@ -126,6 +128,6 @@ jobs:
           test "$status" = '2'
           grep -Fq 'loam: relation discharge evidence did not justify one current target frontier' \
             "$tmp_dir/err"
-          grep -Fq $'record-1\teffect-1' "$memory"
-          ! grep -Fq $'record-2\teffect-1' "$memory"
+          grep -Fq $'EVENT\trecord-1' "$memory"
+          ! grep -Fq $'EVENT\trecord-2' "$memory"
           echo 'world_dependent_admission_refusal_preserved=1'
