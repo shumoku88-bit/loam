@@ -1,12 +1,18 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 cross-reference review complete**
+Status: **F001-F200 reviewed; first near queue selected**
 
 Baseline corpus:
 
 ```text
 LOAM_FALSIFICATION_ATLAS.md        F001-F128
 LOAM_FALSIFICATION_ATLAS_WAVE2.md  F129-F200
+```
+
+Selection checkpoint:
+
+```text
+LOAM_FALSIFICATION_SELECTION_2026-09.md
 ```
 
 The atlas files own specimen descriptions, attacked seams, and source context.
@@ -32,16 +38,17 @@ Runtime
 Interpretation:
 
 - `REVIEWED / UNTESTED` means the specimen was cross-referenced against existing LOAM evidence and no direct information-equivalent bounded result was found.
+- `READY / UNTESTED` means the reviewed specimen has been selected into the small near formal queue, but no new bounded result exists yet.
 - `DONE / ABSORBED` means existing LOAM evidence already supplies the distinction required by the specimen.
 - `DONE / COUNTEREXAMPLE` means formal work directly demonstrated that a tested smaller candidate was too small.
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after full review
+## Default after selection
 
 Every F001-F200 specimen has now been cross-referenced.
 
-Unless an ID appears in an exact `DONE` override below:
+Unless an ID appears in an exact `READY` or `DONE` override below:
 
 ```text
 Work     = REVIEWED
@@ -50,17 +57,29 @@ Queue    = NONE
 Runtime  = RESEARCH_ONLY
 ```
 
-This makes the completed review sparse: unresolved cases no longer need 146 duplicated rows.
+This keeps the completed review sparse: unresolved cases do not need duplicated rows.
 
 ## Queue
 
 ```text
-READY      0
+READY      6
 OBSERVING  0
 ```
 
-The old Wave 1 seed queue remains retired.
-No new formal observation is selected until the reviewed unresolved corpus is ranked as a whole.
+Exact READY order:
+
+| Order | ID | Pressure |
+|---:|---|---|
+| 1 | F051 | known obligation, unknown amount |
+| 2 | F033 | equal wallet quantity, different movement rights |
+| 3 | F001 | authorization hold without capture |
+| 4 | F076 | refund provenance through shared burden |
+| 5 | F055 | recurrence at shorter-month boundary |
+| 6 | F086 | physical/external quantity assertion vs reconstructed history |
+
+All six remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
+Only one should normally advance to `OBSERVING` at a time.
+Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
 
 # Exact DONE overrides
 
@@ -73,31 +92,31 @@ No new formal observation is selected until the reviewed unresolved corpus is ra
 | F018 | ABSORBED | RESEARCH_ONLY | PR #281 / Observation 123 — pending and posted source evidence may drift in quantity while supporting one stable Actual. |
 | F021 | ABSORBED | RESEARCH_ONLY | PR #279 / Observation 121 — multiple external feeds may support one Actual through explicit reconciliation. |
 | F022 | ABSORBED | RESEARCH_ONLY | PR #279 + #283 — identical content/delivery count does not determine source-observation or household-occurrence identity. |
-| F023 | ABSORBED | RESEARCH_ONLY | PR #279 — one transfer-shaped Actual may retain multiple external observations without multiplying Actual occurrences. |
+| F023 | ABSORBED | RESEARCH_ONLY | PR #279 — one transfer-shaped Actual may retain multiple source observations without multiplying household occurrences. |
 | F024 | ABSORBED | RESEARCH_ONLY | PR #279 — reconciliation may survive source timing drift without rewriting household occurrence time. |
 | F028 | ABSORBED | RESEARCH_ONLY | Observations 032-033 + 110; PRs #309-#312 — multi-Measure occurrence, valuation, authority and exact residual remain separate layers. |
 | F041 | ABSORBED | RESEARCH_ONLY | PR #305 / Observation 139 — negative Remaining does not determine asset/liability funding composition. |
 | F042 | ABSORBED | RESEARCH_ONLY | PR #305 / Observation 139 — equal deficit may be cash- or liability-funded without OverspendKind. |
-| F046 | ABSORBED | RESEARCH_ONLY | PR #285 + #301 — Capacity/unused carry and Backing continuity are independent. |
+| F046 | ABSORBED | RESEARCH_ONLY | PR #285 + PR #301 — Capacity/unused-carry continuity and Backing continuity are independent axes. |
 | F047 | ABSORBED | IMPLEMENTED | Observation 111 / Practical Slice A2 — one Actual Event may route Effects to several Purposes through historical Locus routing. |
 | F048 | ABSORBED | IMPLEMENTED | Observation 111 / Practical Slice A2 — current routing does not rewrite occurrence-valid historical routing. |
-| F049 | ABSORBED | RESEARCH_ONLY | Observation 064 — recurring content does not reconstruct Series membership. |
-| F057 | ABSORBED | RESEARCH_ONLY | PR #306 / Observation 140 — recognised amount is a policy/query-coordinate projection, not payment/invoice/service timing alone. |
-| F058 | ABSORBED | RESEARCH_ONLY | Observation 164 — open obligation plus later discharge covers invoice/bill-like payable structure without canonical Invoice state. |
-| F059 | ABSORBED | RESEARCH_ONLY | PR #306 — service range, invoice/payment timing and recognition authority remain separable. |
-| F060 | ABSORBED | RESEARCH_ONLY | PR #306 — annual prepayment can project periodic recognition from service range plus recognition definition. |
-| F062 | ABSORBED | RESEARCH_ONLY | PR #306 — same payment evidence can support different recognition views under explicit authority. |
-| F064 | ABSORBED | RESEARCH_ONLY | PR #306 + #307 — recognition projection and historical as-published/restated knowledge horizons compose without mutable closed-period truth. |
-| F065 | ABSORBED | RESEARCH_ONLY | Observation 164 — card-financed burden may precede bank cash settlement; later debit discharges rather than recreates expense. |
-| F074 | ABSORBED | RESEARCH_ONLY | Observations 163-165 — later reimbursement can discharge an established outside burden without changing burden allocation. |
+| F049 | ABSORBED | RESEARCH_ONLY | Observation 064 — repeated-plan content / recurrence shape does not reconstruct Series membership. |
+| F057 | ABSORBED | RESEARCH_ONLY | PR #306 / Observation 140 — recognition is a policy/query-coordinate projection rather than payment/invoice/service timing alone. |
+| F058 | ABSORBED | RESEARCH_ONLY | Observation 164 — invoice/bill-like open obligation and later cash settlement fit a directional relation + later discharge. |
+| F059 | ABSORBED | RESEARCH_ONLY | PR #306 — service range, invoice/payment timing, and recognition authority remain separable coordinates. |
+| F060 | ABSORBED | RESEARCH_ONLY | PR #306 — annual prepayment can project periodic recognition from service DateRange + recognition definition. |
+| F062 | ABSORBED | RESEARCH_ONLY | PR #306 — same physical payment may support different recognition views under explicit recognition authority. |
+| F064 | ABSORBED | RESEARCH_ONLY | PR #306 + PR #307 — recognition projection and as-published/restated knowledge horizon compose without mutable closed-period truth. |
+| F065 | ABSORBED | RESEARCH_ONLY | Observation 164 — card-financed burden may exist before bank cash settlement; later debit discharges relation rather than creating expense again. |
+| F074 | ABSORBED | RESEARCH_ONLY | Observations 163-165 — later reimbursement/receipt can discharge an already-established outside burden without changing burden allocation. |
 | F075 | ABSORBED | RESEARCH_ONLY | Observation 165 — one obligation origin may be discharged across several later Events; outstanding remains derived. |
-| F078 | ABSORBED | RESEARCH_ONLY | Observations 165 + 172 — one later Event may discharge several relation units; endpoint identity preserves per-counterparty questions when needed. |
+| F078 | ABSORBED | RESEARCH_ONLY | Observations 165 + 172 — one later Event may discharge multiple relation units, while opaque endpoint identity preserves per-counterparty distinctions. |
 | F081 | ABSORBED | RESEARCH_ONLY | Observation 051 + PR #279 — external confirmation/matching evidence does not itself mean reconciled; reconciliation is explicit correspondence. |
 | F083 | ABSORBED | RESEARCH_ONLY | PR #307 / Observation 141 — later correction need not erase an earlier as-known/as-published answer. |
-| F084 | ABSORBED | RESEARCH_ONLY | PR #307 / Observation 141 — as-published and current-restated views can coexist. |
-| F089 | ABSORBED | RESEARCH_ONLY | PR #309 / Observation 142 — occurrence, settlement and query coordinates may select different retained valuation observations. |
+| F084 | ABSORBED | RESEARCH_ONLY | PR #307 / Observation 141 — as-published and current-restated projections coexist. |
+| F089 | ABSORBED | RESEARCH_ONLY | PR #309 / Observation 142 — occurrence, settlement, and query coordinates may select different retained valuation observations. |
 | F090 | ABSORBED | RESEARCH_ONLY | PR #310 / Observation 143 — source provenance does not itself choose one authoritative scalar. |
-| F094 | ABSORBED | RESEARCH_ONLY | PR #311/#312 / Observations 144-145 — residual preserves exact conversion; residual placement is separate authority. |
+| F094 | ABSORBED | RESEARCH_ONLY | PR #311/#312 / Observations 144-145 — exact residual preserves conversion equality; visible residual placement is separate authority. |
 | F095 | ABSORBED | RESEARCH_ONLY | Observation 033 + temporal valuation work — reporting valuation is a Measure-to-Measure projection context, not canonical conversion baked into Event history. |
 | F096 | ABSORBED | RESEARCH_ONLY | PR #309/#310 — retained temporal relation observations plus source provenance preserve historical valuation inputs without relying on later recomputation. |
 | F097 | ABSORBED | RESEARCH_ONLY | Observations 066-067 — acquisition basis and acquisition-specific provenance survive aggregation and remain distinct from valuation. |
@@ -105,9 +124,9 @@ No new formal observation is selected until the reviewed unresolved corpus is ra
 | F116 | ABSORBED | RESEARCH_ONLY | Observation 096 + bitemporal correction work — valid/effective time and learned time remain distinct. |
 | F117 | ABSORBED | RESEARCH_ONLY | PR #310 / Observation 143 — several source-distinguished candidates may coexist; provenance and scalar-selection authority are separate. |
 | F120 | ABSORBED | RESEARCH_ONLY | Observations 070-071 — current policy definition does not reconstruct the historical definition governing retained attribution. |
-| F124 | ABSORBED | IMPLEMENTED | Application 004 + WriterOwnership production use — exclusive ownership spans observe→prepare→admit→publish. |
-| F127 | ABSORBED | RESEARCH_ONLY | Observation 047/068 + replaceable query-view work — selection/query policy is replaceable authority over retained evidence, not canonical historical fact. |
-| F128 | ABSORBED | RESEARCH_ONLY | Application 006 — conservative fact extension can add new independent evidence without rewriting old meaning/projections. |
+| F124 | ABSORBED | IMPLEMENTED | Application 004 + `Loam.WriterOwnership` production use — writer ownership spans observe -> prepare -> admit -> publish. |
+| F127 | ABSORBED | RESEARCH_ONLY | Observation 047/068 + replaceable query-view work — selection/query policy is replaceable authority over retained evidence. |
+| F128 | ABSORBED | RESEARCH_ONLY | Application 006 — conservative fact extension can add new independent evidence without rewriting old fact meaning/projections. |
 | F138 | ABSORBED | RESEARCH_ONLY | Observation 048 — positive physical holding does not imply allocation/spending eligibility. |
 | F146 | ABSORBED | RESEARCH_ONLY | Observation 178 + relation-discharge frontier — exact partial discharge and remaining outstanding are independently representable. |
 | F161 | ABSORBED | RESEARCH_ONLY | Observations 172-173 + OpenRelation — one source Effect may carry several exact quantity-bearing relation units to distinct external endpoints. |
@@ -123,9 +142,9 @@ No new formal observation is selected until the reviewed unresolved corpus is ra
 |---|---|---|---|
 | F044 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Capacity + holdings/eligibility do not determine per-Purpose Backing; explicit Backing correspondence is observable. |
 | F045 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Backing support and Capacity authority are not mutually determined. |
-| F053 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — one-to-one ScheduledCompletion is too small for split realization; topology alone is too small for apportionment. |
+| F053 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — one-to-one ScheduledCompletion is too small for split realization, and quantity-free topology is too small for apportionment. |
 | F054 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — several Scheduled claims sharing one Actual require quantity apportionment beyond endpoint topology. |
-| F073 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 163 — physical payment/final net movement do not determine economic burden allocation before settlement. |
+| F073 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 163 — physical payment and final net movement do not determine economic burden allocation before settlement. |
 | F099 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 067 — aggregate holding, disposal quantity and even source identity set are too small; per-acquisition consumed quantity is independently observable. |
 
 # Completed review notes
@@ -134,20 +153,23 @@ No new formal observation is selected until the reviewed unresolved corpus is ra
 
 The review preserves the earlier stop conditions:
 
-- Observation 050 qualifies `initiated != settled` but explicitly excludes reservation/hold rights, failure, cancellation, reversal, partial settlement, multiple settlement legs, and institution-specific rails.
-- Observation 065 leaves multiple refunds, refund lifecycle, disputes/chargebacks, and multi-source reimbursement open.
-- PRs #279/#281/#283/#284 absorb much external-feed identity/reconciliation pressure but do not settle pending disappearance or later institution revision.
-- Observation 048 proves `held != allocatable` but does not by itself settle liquidity, convertibility, ownership, transfer rights, expiry, or legal restrictions.
+- Observation 050 qualifies `initiated != settled` but explicitly excludes reservation/hold rights, failure, cancellation, reversal, partial settlement, multiple settlement legs, and institution-specific rails. Therefore F001-F008 are not waved away as "pending payment already solved".
+- Observation 065 explicitly leaves multiple refunds, refund lifecycle, dispute/chargeback, and multi-source reimbursement open. Therefore F010-F016 remain live.
+- PRs #279/#281/#283/#284 absorb many external-feed identity pressures, but pending disappearance and later institution revision remain untested in F019-F020.
+- side-local transfer dates/reconciliation, fees, one-to-many settlement, net settlement, and reversal remain beyond Observation 050's scope.
+- Observation 048 proves `held != allocatable` but explicitly does not settle liquidity, access, ownership, convertibility, or legal restrictions, so wallet/points/voucher rights in F033-F040 remain live.
 
 ## F041-F080 — Capacity/Backing, Scheduled, recognition, debt, shared burden
 
 Direct results absorb several seams, but unresolved cases remain deliberately live:
 
-- arbitrary mixed funding composition remains beyond PR #305;
-- recurrence generation rules remain outside Series-membership results;
-- unknown Scheduled amount/due semantics remain untested;
-- recognition amendment/cancellation remains beyond PR #306;
-- interest accrual, refinancing, late-fee generation, creditor migration, forgiveness, second-order refund redistribution, and cashless netting remain untested.
+- PR #305 tests cash-funded versus liability-funded negative Remaining but not arbitrary mixed funding composition, so F043 stays open.
+- recurrence generation itself remains deferred; Series membership evidence does not answer shorter-month or weekend-shift generation policy.
+- Scheduled unknown amount / unknown due coordinate remain distinct from the quantity-bearing Scheduled boundary already qualified.
+- PR #278 closes the information question for split/merged realization by finding a real counterexample; it does not implement apportionment.
+- PR #306 does not close recognition-policy amendment after service cancellation, or tax-specific recognition applicability.
+- Observations 163-165 close ordinary directional obligation/discharge structure, but interest accrual, refinancing, late-fee generation, creditor migration, and forgiveness without cash remain live.
+- shared-cost observations do not yet settle second-order refund redistribution, overpayment direction reversal, or obligation netting without a physical cash Event.
 
 ## F081-F120 — finality, FX, investments, inventory, correction/provenance
 
@@ -196,10 +218,9 @@ DONE                                 54
   ABSORBED                           48
   COUNTEREXAMPLE                      6
 
-REVIEWED / UNTESTED                 146
-
-READY                                 0
+READY                                 6
 OBSERVING                             0
+REVIEWED / UNTESTED                 140
 
 Runtime IMPLEMENTED                   3
   F047
@@ -207,47 +228,50 @@ Runtime IMPLEMENTED                   3
   F124
 ```
 
-The 146 unresolved cases are not claimed novel. They are the cases for which this review found no direct information-equivalent bounded result strong enough to mark `DONE`.
+The 140 unresolved non-READY cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which were not selected into the first near queue.
 
-# Next gate
+# Selection frontier
 
-The next task is no longer corpus review.
+The review is complete and the first near queue is selected.
 
-It is **ranking the 146 REVIEWED / UNTESTED specimens**.
+Preferred next mode:
 
-Selection should prefer:
+```text
+F051 READY
+    -> one deliberately small formal observation
+    -> record ABSORBED or COUNTEREXAMPLE
+    -> re-rank the remaining READY / WATCHLIST
+```
 
-1. real household relevance;
-2. a small two-world distinguishability test;
-3. direct pressure against current minimum retained evidence;
-4. a question not already answerable by composition of qualified evidence;
-5. one formal observation at a time.
-
-Do not expand the corpus or implement product behavior merely to keep the sequence moving.
+Do not open six observations in parallel.
+Do not expand the corpus merely to keep numbering moving.
+Do not convert a formal counterexample into production work without dogfood pressure.
 
 # Formal-tool rule
 
 ```text
 Alloy
-  information independence / two-world distinguishability
+    information independence / two-world distinguishability
 
 Lean
-  exact algebraic law / conservation / constructive sufficiency
+    exact algebraic law / conservation / constructive sufficiency
 
 TLA+ or SPIN
-  temporal publication / interleaving / lifecycle ordering
+    temporal publication / interleaving / lifecycle ordering
 ```
+
+A catalogue entry does not earn a formal model merely by existing.
 
 # Production gate
 
 ```text
 formal pressure
-  -> research result
-  -> RESEARCH_ONLY
+    -> research result
+    -> RESEARCH_ONLY
 
 real household operation requires the distinction
-  -> DOGFOOD_REQUIRED
-  -> implementation work
+    -> DOGFOOD_REQUIRED
+    -> implementation work
 ```
 
-The catalogue is intentionally allowed to remain much larger than the product.
+The catalogue is intentionally allowed to be much larger than the product.
