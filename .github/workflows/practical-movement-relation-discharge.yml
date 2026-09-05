@@ -1,0 +1,175 @@
+name: Practical Movement Relation Discharge
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Application/RelationDischargeFrontier.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementDischargeEntry.lean'
+      - 'Loam/MovementRelationEntry.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-movement-relation-discharge.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'cli/movement-relation-discharge-publication'
+      - main
+    paths:
+      - 'Loam/Application/OpenRelationFrontier.lean'
+      - 'Loam/Application/RelationDischargeFrontier.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementDischargeEntry.lean'
+      - 'Loam/MovementRelationEntry.lean'
+      - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Persistence/RelationDischargePersistence.lean'
+      - 'tools/loam-movement'
+      - '.github/workflows/practical-movement-relation-discharge.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  movement-discharge:
+    name: Movement discharge Event-last publication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean and build Movement
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Publish exact partial discharge on second Movement
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          relations="$memory.relations"
+          discharges="$memory.discharges"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                ./tools/loam-movement "$memory" >"$tmp_dir/first"
+
+          grep -Fq $'RELATION\trelation-1\trecord-1\teffect-1\tE\tfriend\tH\t\t100' "$relations"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                ./tools/loam-movement "$memory" >"$tmp_dir/second"
+
+          grep -Fq 'event: record-2' "$tmp_dir/second"
+          grep -Fq '[ok] relation discharge evidence admitted: 1' "$tmp_dir/second"
+          grep -Fq $'EVENT\trecord-2' "$memory"
+          expected=$'LOAM-RELATION-DISCHARGE-MEMORY\t1\nDISCHARGE\trecord-2\trelation-1\t40'
+          test "$(cat "$discharges")" = "$expected"
+
+      - name: Keep relation-discharge-free redirected Movement backward compatible
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'cash\n25\n\ncoffee\n25\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-05 \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq '[ok] relation discharge decision: none' "$tmp_dir/out"
+          test -f "$memory"
+          test ! -e "$memory.discharges"
+
+      - name: Reserve orphan discharge EventId after crash residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          discharges="$memory.discharges"
+
+          cat >"$discharges" <<'EOF'
+          LOAM-RELATION-DISCHARGE-MEMORY	1
+          DISCHARGE	record-1	missing-relation	40
+          EOF
+
+          printf 'cash\n25\n\ncoffee\n25\n\n' \
+            | LOAM_OCCURRENCE_DATE=2026-09-05 \
+                ./tools/loam-movement "$memory" >"$tmp_dir/out"
+
+          grep -Fq 'event: record-2' "$tmp_dir/out"
+          grep -Fq $'EVENT\trecord-2' "$memory"
+          ! grep -Fq $'EVENT\trecord-1' "$memory"
+          grep -Fq $'DISCHARGE\trecord-1\tmissing-relation\t40' "$discharges"
+
+      - name: Reject over-discharge before second Event authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                ./tools/loam-movement "$memory" >/dev/null
+
+          if printf 'friend-in\n120\n\npaypay\n120\n\n' \
+              | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                  LOAM_DISCHARGES=$'relation-1\t120' \
+                  ./tools/loam-movement "$memory" \
+                  >"$tmp_dir/out" 2>"$tmp_dir/err"; then
+            echo 'expected over-discharge to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+
+          test "$status" = '2'
+          grep -Fq 'relation discharge evidence did not justify one current target frontier' "$tmp_dir/err"
+          ! grep -Fq $'EVENT\trecord-2' "$memory"
+          test ! -e "$memory.discharges"
+
+      - name: Reject duplicate Event-target discharge correspondence
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                ./tools/loam-movement "$memory" >/dev/null
+
+          if printf 'friend-in\n70\n\npaypay\n70\n\n' \
+              | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                  LOAM_DISCHARGES=$'relation-1\t40\nrelation-1\t30' \
+                  ./tools/loam-movement "$memory" \
+                  >"$tmp_dir/out" 2>"$tmp_dir/err"; then
+            echo 'expected duplicate Event-target discharge to fail' >&2
+            exit 1
+          else
+            status=$?
+          fi
+
+          test "$status" = '2'
+          grep -Fq 'relation discharge evidence did not justify one current target frontier' "$tmp_dir/err"
+          ! grep -Fq $'EVENT\trecord-2' "$memory"
+          test ! -e "$memory.discharges"
