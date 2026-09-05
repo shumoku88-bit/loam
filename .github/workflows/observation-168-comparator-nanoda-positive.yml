@@ -1,0 +1,45 @@
+name: Observation 168
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  comparator-nanoda:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build pinned Comparator tools
+        working-directory: verification/observation168
+        run: |
+          lake update
+          lake build comparator lean4export
+
+      - name: Build pinned Nanoda
+        run: |
+          git clone https://github.com/robsimmons/nanoda_lib.git /tmp/nanoda
+          git -C /tmp/nanoda checkout 68d5ca9db226849b41a6fff59d796ff19d0a8840
+          cargo build --release --locked --manifest-path /tmp/nanoda/Cargo.toml
+
+      - name: Compare with Lean kernel and Nanoda
+        working-directory: verification/observation168
+        run: |
+          export COMPARATOR_LANDRUN="$(realpath .lake/packages/Comparator/scripts/fake-landrun.sh)"
+          export COMPARATOR_LEAN4EXPORT="$(realpath .lake/packages/lean4export/.lake/build/bin/lean4export)"
+          export COMPARATOR_NANODA="/tmp/nanoda/target/release/nanoda_bin"
+          lake env .lake/packages/Comparator/.lake/build/bin/comparator config.json
+
+      - name: Record trust boundary
+        run: |
+          echo "Comparator accepted the exact statement and replayed it through Lean plus Nanoda."
+          echo "propext is temporarily allowlisted because of the current Comparator/Nanoda primitive-export issue."
+          echo "This trial still uses Comparator's fake-landrun development shim."
+          echo "It does NOT claim adversarial build sandboxing."
