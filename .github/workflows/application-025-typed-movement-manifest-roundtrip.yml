@@ -1,0 +1,87 @@
+name: Application 025 Typed Movement Manifest Round-trip
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.lean'
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.md'
+      - '.github/workflows/application-025-typed-movement-manifest-roundtrip.yml'
+  push:
+    branches:
+      - 'experiment/application-025-typed-movement-manifest-roundtrip'
+    paths:
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.lean'
+      - 'experiments/application_025_typed_movement_manifest_roundtrip.md'
+      - '.github/workflows/application-025-typed-movement-manifest-roundtrip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typed-roundtrip:
+    name: typed Movement round-trip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build practical Movement dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovement Loam.Sha256
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Create genuine practical Movement world
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/manifest"
+
+          printf 'paypay\n100\n\ntravel\n100\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+                LOAM_DESCRIPTION='manifest source movement' \
+                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t100' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/first.out"
+
+          printf 'friend-in\n40\n\npaypay\n40\n\n' \
+            | env LOAM_OCCURRENCE_DATE=2026-09-06 \
+                LOAM_DESCRIPTION='manifest discharge movement' \
+                LOAM_DISCHARGES=$'relation-1\t40' \
+                .lake/build/bin/loamMovement "$memory" \
+                >"$tmp_dir/second.out"
+
+          grep -Fq 'event: record-1' "$tmp_dir/first.out"
+          grep -Fq 'event: record-2' "$tmp_dir/second.out"
+          grep -Fq '[ok] relation discharge evidence admitted: 1' "$tmp_dir/second.out"
+
+          lake env lean --run experiments/application_025_typed_movement_manifest_roundtrip.lean \
+            publish "$memory" "$manifest" \
+            | tee "$tmp_dir/publish.out"
+
+          grep -Fq 'Application 025 typed Movement manifest publish PASS' "$tmp_dir/publish.out"
+          grep -Fq 'typed_families=5' "$tmp_dir/publish.out"
+          grep -Fq 'positive_authority_switches=1' "$tmp_dir/publish.out"
+
+          # A second Lean process is the restart boundary. It reads CURRENT,
+          # digest-checks all selected objects, invokes the production decoders,
+          # and compares the resulting household projection with the direct world.
+          lake env lean --run experiments/application_025_typed_movement_manifest_roundtrip.lean \
+            verify "$memory" "$manifest" \
+            | tee "$tmp_dir/verify.out"
+
+          grep -Fq 'Application 025 typed Movement manifest round-trip PASS' "$tmp_dir/verify.out"
+          grep -Fq 'canonical_family_byte_matches=5' "$tmp_dir/verify.out"
+          grep -Fq 'semantic_projection_match=1' "$tmp_dir/verify.out"
+          grep -Fq 'recorded_paypay=-60' "$tmp_dir/verify.out"
+          grep -Fq 'relation_outstanding=60' "$tmp_dir/verify.out"
+          grep -Fq 'typed_fail_closed_cases=1' "$tmp_dir/verify.out"
