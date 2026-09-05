@@ -1,0 +1,46 @@
+name: Application 023 Whole Mutation Protocol Surface
+
+on:
+  push:
+    paths:
+      - "Loam/Cli/MovementCli.lean"
+      - "Loam/Cli/ScheduledCli.lean"
+      - "Loam/Cli/CorrectionCli.lean"
+      - "Loam/Cli/CapacityCli.lean"
+      - "Loam/Cli/QuantityBasisCorrectionCli.lean"
+      - "experiments/application_022_manifest_writer_amortization.lean"
+      - "experiments/application_023_whole_mutation_protocol_surface.md"
+      - "tests/application_023_protocol_surface.py"
+      - ".github/workflows/application-023-whole-mutation-protocol-surface.yml"
+  pull_request:
+    paths:
+      - "Loam/Cli/MovementCli.lean"
+      - "Loam/Cli/ScheduledCli.lean"
+      - "Loam/Cli/CorrectionCli.lean"
+      - "Loam/Cli/CapacityCli.lean"
+      - "Loam/Cli/QuantityBasisCorrectionCli.lean"
+      - "experiments/application_022_manifest_writer_amortization.lean"
+      - "experiments/application_023_whole_mutation_protocol_surface.md"
+      - "tests/application_023_protocol_surface.py"
+      - ".github/workflows/application-023-whole-mutation-protocol-surface.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-surface:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Measure protocol surface
+        run: |
+          set -euo pipefail
+          python3 tests/application_023_protocol_surface.py | tee /tmp/application-023.out
+          grep -Fq 'current_cross_family_save_calls=16' /tmp/application-023.out
+          grep -Fq 'current_max_partial_authority_prefixes=11' /tmp/application-023.out
+          grep -Fq 'current_writers_with_explicit_partial_residue_policy=5' /tmp/application-023.out
+          grep -Fq 'current_fresh_identity_allocators_widened_by_supporting_streams=3' /tmp/application-023.out
+          grep -Fq 'manifest_shared_publication_primitives=1' /tmp/application-023.out
+          grep -Fq 'manifest_partial_authority_prefixes=0' /tmp/application-023.out
+          grep -Fq 'manifest_orphan_objects_reserve_semantic_identity=0' /tmp/application-023.out
+          grep -Fq 'writer_ownership_still_required=1' /tmp/application-023.out
