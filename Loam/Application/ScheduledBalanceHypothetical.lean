@@ -27,7 +27,7 @@ Scheduled balance effects before an explicit end-exclusive horizon.
 
 The intervention is deliberately only one thing: suppress one currently open
 Scheduled identity for the hypothetical projection. It does not retire, complete,
-delete, rewrite, or otherwise mutate canonical Scheduled evidence.
+delete, rewrite, replace, or otherwise mutate canonical Scheduled evidence.
 -/
 
 /-- One explicit hypothetical request to omit a current-open Scheduled occurrence. -/
@@ -43,14 +43,24 @@ structure ScheduledSuppressionComparison where
 deriving Repr, DecidableEq
 
 /--
-Typed refusal states preserve the same lifecycle failures as current-open Scheduled
-inspection and separately reject a target that is not currently open.
+Typed refusal states for the pre-replacement observation boundary.
 -/
 inductive ScheduledSuppressionComparisonResult where
   | comparison (value : ScheduledSuppressionComparison)
   | targetNotOpen
   | unknownCompletionScheduled
   | unknownRetirementScheduled
+  | conflictingTerminalEvidence
+deriving Repr, DecidableEq
+
+/-- Replacement-aware refusal states for practical readers. -/
+inductive ScheduledSuppressionWithReplacementComparisonResult where
+  | comparison (value : ScheduledSuppressionComparison)
+  | targetNotOpen
+  | unknownCompletionScheduled
+  | unknownRetirementScheduled
+  | unknownReplacementScheduled
+  | invalidReplacementGraph
   | conflictingTerminalEvidence
 deriving Repr, DecidableEq
 
@@ -64,18 +74,27 @@ private def withoutScheduled
     (scheduled : ScheduledId) : List (ScheduledOccurrence Time) :=
   occurrences.filter fun occurrence => decide (occurrence.id ≠ scheduled)
 
+private def comparisonFromOpenOccurrences
+    (occurrences : List (ScheduledOccurrence Time))
+    (coordinates : List EffectCoordinate)
+    (endExclusive : Time)
+    (hypothesis : SuppressScheduledHypothesis) : Option ScheduledSuppressionComparison :=
+  if containsScheduled occurrences hypothesis.scheduled then
+    some {
+      hypothesis := hypothesis
+      baseline := scheduledBalanceEffectsBefore occurrences coordinates endExclusive
+      projected :=
+        scheduledBalanceEffectsBefore
+          (withoutScheduled occurrences hypothesis.scheduled)
+          coordinates
+          endExclusive
+    }
+  else
+    none
+
 /--
-Compare the ordinary Scheduled balance projection with the projection obtained by
-omitting exactly one current-open Scheduled occurrence.
-
-Lifecycle evidence is qualified once. Baseline and hypothetical answers are then
-projected from that same current-open occurrence list. This prevents a hypothetical
-suppression from fabricating a second canonical Scheduled memory or bypassing the
-existing completion/retirement fail-closed boundary.
-
-A target must be in the qualified current-open set. A currently open target may be
-outside the requested horizon or outside the selected coordinates; in those cases
-the hypothetical can legitimately equal the baseline for this particular view.
+Compare the ordinary Scheduled balance projection with a read-only suppression in
+the pre-replacement observation world retained by Observation 186.
 -/
 def compareSuppressScheduledBalanceEffectsBefore
     (scheduled : ScheduledMemory Time)
@@ -90,17 +109,35 @@ def compareSuppressScheduledBalanceEffectsBefore
   | .unknownRetirementScheduled => .unknownRetirementScheduled
   | .conflictingTerminalEvidence => .conflictingTerminalEvidence
   | .open occurrences =>
-      if containsScheduled occurrences hypothesis.scheduled then
-        .comparison {
-          hypothesis := hypothesis
-          baseline := scheduledBalanceEffectsBefore occurrences coordinates endExclusive
-          projected :=
-            scheduledBalanceEffectsBefore
-              (withoutScheduled occurrences hypothesis.scheduled)
-              coordinates
-              endExclusive
-        }
-      else
-        .targetNotOpen
+      match comparisonFromOpenOccurrences occurrences coordinates endExclusive hypothesis with
+      | some value => .comparison value
+      | none => .targetNotOpen
+
+/--
+Compare suppression against the same replacement-aware current-open frontier used
+by practical Scheduled readers. A superseded Scheduled identity is therefore not
+a valid hypothetical target: it is already absent from the canonical baseline.
+-/
+def compareSuppressScheduledBalanceEffectsBeforeWithReplacement
+    (scheduled : ScheduledMemory Time)
+    (completions : ScheduledCompletionMemory)
+    (retirements : ScheduledRetirementMemory)
+    (replacements : ScheduledReplacementMemory)
+    (events : EventMemory)
+    (coordinates : List EffectCoordinate)
+    (endExclusive : Time)
+    (hypothesis : SuppressScheduledHypothesis) :
+    ScheduledSuppressionWithReplacementComparisonResult :=
+  match currentOpenScheduledWithReplacement
+      scheduled completions retirements replacements events with
+  | .unknownCompletionScheduled => .unknownCompletionScheduled
+  | .unknownRetirementScheduled => .unknownRetirementScheduled
+  | .unknownReplacementScheduled => .unknownReplacementScheduled
+  | .invalidReplacementGraph => .invalidReplacementGraph
+  | .conflictingTerminalEvidence => .conflictingTerminalEvidence
+  | .open occurrences =>
+      match comparisonFromOpenOccurrences occurrences coordinates endExclusive hypothesis with
+      | some value => .comparison value
+      | none => .targetNotOpen
 
 end Loam.Application
