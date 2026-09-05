@@ -1,0 +1,70 @@
+name: Observation 194
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation194.lean'
+      - 'Loam/Observations/Observation193.lean'
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/194_fail_closed_future_definedness.md'
+      - '.github/workflows/observation-194-fail-closed-future-definedness.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/194-fail-closed-future-definedness'
+      - main
+    paths:
+      - 'Loam/Observations/Observation194.lean'
+      - 'Loam/Observations/Observation193.lean'
+      - 'Loam/Observations/Observation192.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'experiments/194_fail_closed_future_definedness.md'
+      - '.github/workflows/observation-194-fail-closed-future-definedness.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-future-definedness:
+    name: Lean fail-closed future definedness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check fail-closed future definedness
+        run: lake build Loam.Observations.Observation194
