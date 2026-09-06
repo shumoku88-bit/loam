@@ -94,6 +94,10 @@ private def printEffects (effects : List ScheduledBalanceEffect) : IO Unit := do
     for effect in effects do
       printEffect effect
 
+private def printCoverageCaveat : IO Unit :=
+  IO.println
+    "Coverage: explicit current-open Scheduled evidence only; unmaterialized future obligations remain Unknown."
+
 /--
 Project replacement-aware current-open Scheduled effects through the current
 replaceable balance view before one end-exclusive calendar boundary.
@@ -101,7 +105,8 @@ replaceable balance view before one end-exclusive calendar boundary.
 This command does not read QuantityBasis or current balances and therefore does
 not invent a forecast balance. It answers only the already-qualified signed
 Scheduled-effect question from Observations 108 and 119 after applying explicit
-Observation-105 replacement provenance.
+Observation-105 replacement provenance. Observation 211 additionally means this
+projection must not be presented as a complete set of all future obligations.
 -/
 def report (rootPath endExclusive : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate endExclusive then
@@ -125,6 +130,7 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
               ("Current-open Scheduled balance effects before " ++
                 endExclusive ++ " (end-exclusive):")
             printEffects effects
+            printCoverageCaveat
             return 0
 
 /--
@@ -133,7 +139,8 @@ hypothetical that suppresses exactly one currently open Scheduled identity.
 
 The command never writes retirement/completion/replacement evidence or a second
 Scheduled memory. A superseded identity is not currently open and is therefore
-rejected as a hypothetical suppression target.
+rejected as a hypothetical suppression target. Both baseline and projected
+answers retain the same explicit-only coverage boundary.
 -/
 def reportSuppression
     (rootPath endExclusive scheduledId : String) : IO UInt32 := do
@@ -188,6 +195,7 @@ def reportSuppression
             printEffects comparison.baseline
             IO.println "Projected:"
             printEffects comparison.projected
+            printCoverageCaveat
             return 0
 
 end Loam.ScheduledBalanceCli

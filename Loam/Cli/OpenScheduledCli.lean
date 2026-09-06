@@ -1,6 +1,7 @@
 import Loam.Application.ScheduledInspection
 import Loam.Cli.ScheduledBalanceCli
 import Loam.Cli.ScheduledCli
+import Loam.Cli.ScheduledDayEvidenceCli
 import Loam.Cli.ScheduledLifecycleCli
 import Loam.Cli.ScheduledReplacementCli
 import Loam.Persistence
@@ -115,13 +116,11 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
   printMovement occurrence
 
 /--
-Show Scheduled occurrences whose expectation remains open.
+Show retained Scheduled occurrences whose expectation remains open.
 
-The semantic current-open set comes from
-`Loam.Application.currentOpenScheduledWithReplacement`. This CLI adds only
-scheduled-date presentation order and human movement rendering. Past-due open
-occurrences remain visible rather than being silently dropped, while superseded
-sources disappear only when their explicit replacement relation is admissible.
+This is an explicit-evidence view, not a closed-world future-obligation report.
+Absence from this list does not establish that an unmaterialized obligation is
+not due. Exact-day machine consumers should use `day-evidence`.
 -/
 def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
@@ -184,24 +183,26 @@ def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
                       | .open openOccurrences =>
                           match sortByScheduledDay openOccurrences with
                           | [] =>
-                              IO.println "No open scheduled movements."
+                              IO.println "No explicit current-open Scheduled movements are retained."
+                              IO.println
+                                "Missing future Scheduled rows remain Unknown; this is not evidence that no obligation is due."
                               return 0
                           | occurrences =>
-                              IO.println "Open scheduled movements (ordered by scheduled date):"
+                              IO.println
+                                "Explicit current-open Scheduled movements (ordered by scheduled date):"
                               for occurrence in occurrences do
                                 printOccurrence occurrence
+                              IO.println
+                                "Coverage: explicit Scheduled evidence only; unmaterialized future obligations remain Unknown."
                               return 0
 
 /-!
 Interactive Scheduled workbench for daily dogfood.
 
-The workbench deliberately asks only which Scheduled occurrences remain open.
-Observation 122 showed that answering a stronger question such as "which later
-occurrence is the next one?" would require independent continuation provenance.
-This UI does not retain that new fact yet. After add, realization, replacement,
-or cancellation it simply re-renders the open set, so pre-created future
-occurrences remain visible without forcing automatic replenishment or a Series
-model.
+The workbench asks only which retained Scheduled occurrences remain open.
+Observation 122 showed that a stronger next-occurrence answer requires independent
+continuation provenance. Observation 211 additionally requires missing future
+rows to remain Unknown rather than being read as NotDue.
 -/
 partial def scheduledMenu (scheduledPath memoryPath : String) : IO UInt32 := do
   IO.println ""
@@ -283,6 +284,8 @@ end Loam.OpenScheduledCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
+  | ["day-evidence", scheduledPath, memoryPath, day] =>
+      Loam.ScheduledDayEvidenceCli.report scheduledPath memoryPath day
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
   | ["replace", scheduledPath, memoryPath, scheduledToken] =>
@@ -300,5 +303,5 @@ def main (args : List String) : IO UInt32 :=
         Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled balance-effects DATA_ROOT END | replace SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID | [menu] SCHEDULED_FILE MEMORY_FILE"
+        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE MEMORY_FILE YYYY-MM-DD | balance-effects DATA_ROOT END | replace SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID | [menu] SCHEDULED_FILE MEMORY_FILE"
       return 2
