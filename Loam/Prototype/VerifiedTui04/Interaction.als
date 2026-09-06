@@ -49,7 +49,6 @@ fun nextSurface[s: State, e: Event]: one Surface {
 
 pred next[s, sNext: State, e: Event] {
   valid[s]
-  valid[sNext]
   sNext.day = nextDay[s, e]
   sNext.focus = nextFocus[s, e]
   sNext.surface = nextSurface[s, e]
@@ -114,10 +113,10 @@ pred tabThenOpenScheduledWitness {
     opened.surface = Scheduled
 }
 
-run calendarMovementWitness for exactly 3 State, 6 Int
-run tabThenOpenScheduledWitness for exactly 3 State, 6 Int
-check SelectionBounds for 4 State, 6 Int
-check FocusClosure for 4 State, 6 Int
-check EventDeterminism for 4 State, 6 Int
-check MonthBoundaryCloses for 4 State, 6 Int
-check NonHomeArrowStable for 4 State, 6 Int
+run calendarMovementWitness for exactly 3 State, 7 Int
+run tabThenOpenScheduledWitness for exactly 3 State, 7 Int
+check SelectionBounds for 4 State, 7 Int
+check FocusClosure for 4 State, 7 Int
+check EventDeterminism for 4 State, 7 Int
+check MonthBoundaryCloses for 4 State, 7 Int
+check NonHomeArrowStable for 4 State, 7 Int
