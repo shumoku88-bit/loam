@@ -60,7 +60,7 @@ def editActive (form : Form) (edit : String → String) : Form :=
         then { row with locus := edit row.locus }
         else { row with amount := edit row.amount }
       { form with
-        rows := form.rows.set index row
+        rows := form.rows.set index row,
         focus := ⟨form.focus.val, by simpa using form.focus.isLt⟩ }
     else form
 
@@ -107,7 +107,7 @@ def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
       match Loam.MovementAdmission.admit? world draft with
       | .error message => { state with notice := message }
       | .ok _ => { state with
-          mode := .preview draft ⟨0, by omega⟩
+          mode := .preview draft ⟨0, by omega⟩,
           notice := "" }
 
 def dropRow (form : Form) : Form :=
@@ -142,11 +142,11 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
         | .shiftTab => { state := { state with form := moveFocus state.form true } }
         | .backspace =>
             { state := { state with
-                form := editActive state.form (fun text => String.ofList (text.toList.dropLast))
+                form := editActive state.form (fun text => String.ofList (text.toList.dropLast)),
                 notice := "" } }
         | .input char =>
             { state := { state with
-                form := editActive state.form (fun text => text.push char)
+                form := editActive state.form (fun text => text.push char),
                 notice := "" } }
         | .right => { state := { state with form := acceptCandidate known state.form } }
         | .enter =>
