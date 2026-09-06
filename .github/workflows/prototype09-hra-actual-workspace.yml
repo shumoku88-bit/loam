@@ -24,7 +24,5 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install Lean
         uses: leanprover/lean-action@v1
-      - name: Check interaction laws
-        run: lake env lean Loam/Prototype/VerifiedTui09/Main.lean
-      - name: Build read-only prototype
+      - name: Build read-only prototype and interaction laws
         run: lake build loamUiPrototype09
