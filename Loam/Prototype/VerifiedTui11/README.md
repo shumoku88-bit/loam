@@ -6,7 +6,7 @@ new question:
 ```text
 SelectedDay
   +-- current Actual
-  +-- current-open Scheduled
+  +-- open-world Scheduled day evidence
 ```
 
 Can two distinct household evidence families follow one temporal coordinate on
@@ -16,7 +16,9 @@ Home without introducing another Home state, dashboard model, or generic router?
 
 Actual remains the same manifest-backed, correction-aware `ActualReview` snapshot.
 
-Scheduled is loaded through `Loam.ScheduledReview`:
+Scheduled is loaded through `Loam.ScheduledReview`, but the day answer itself is
+the production open-world Application contract qualified by Observation 211 / PR
+#475:
 
 ```text
 scheduled.loam
@@ -24,19 +26,26 @@ scheduled.loam
 + Event identity from the selected Movement manifest generation
         |
         v
-Application.currentOpenScheduledWithReplacement
+Application.currentScheduledDayEvidenceWithReplacement(..., SelectedDay)
         |
-        v
-current-open Scheduled snapshot
+        +-- explicit current-open occurrence(s) -> Due + evidence
         |
-        v
-filter scheduledOn = SelectedDay
+        +-- no explicit current-open occurrence -> Unknown
 ```
 
-The Scheduled projection refuses the whole answer when lifecycle evidence refers
-to unknown Scheduled identities, replacement topology is invalid, or terminal
-evidence conflicts. It does not infer completion from date or hide past-due open
-occurrences merely because they are in the past.
+`Unknown` is deliberately not `NotDue`. LOAM has no qualified completeness horizon,
+Recurrence, Cadence, Series, or future-materialization policy from which absence
+could be promoted into a negative household claim.
+
+Lifecycle evidence is still admitted before raw terminal mode begins. Unknown
+Scheduled identities, invalid replacement topology, and conflicting terminal
+evidence therefore refuse startup rather than appearing as an ordinary `Unknown`
+day.
+
+The stacked Prototype 11 branch predates the #475 main merge, so it temporarily
+carries the exact production `ScheduledOpenWorldInspection` module from current
+main. This is stack plumbing, not a fork of the semantics; it should collapse away
+when the prototype stack is later rebased or merged onto that production revision.
 
 ## Reused interaction
 
@@ -61,16 +70,14 @@ The current 80x24 specimen directly composes:
 ```text
 monthly calendar    selected-day evidence
                     Actual preview
-                    Scheduled preview
+                    Scheduled: Due + explicit rows
+                               or Unknown
 ```
 
-Actual shows at most three rows and Scheduled at most two. Those bounds are only
-presentation pressure. No pagination, scrolling framework, pane abstraction, or
-retained dashboard state is introduced.
-
-The canonical Scheduled stream currently gives useful future-day witnesses such
-as September 8, 10, 15, 18, 24, and 29, so moving the calendar should make the
-Scheduled section visibly appear and disappear without another command.
+Actual shows at most three rows. A `Due` Scheduled answer shows at most two
+explicit rows. `Unknown` shows no fabricated empty collection and is labeled as
+Unknown. Those bounds are only presentation pressure. No pagination, scrolling
+framework, pane abstraction, or retained dashboard state is introduced.
 
 ## Checked local relationships
 
@@ -80,8 +87,11 @@ Lean checks that:
 Home Actual preview
   = take 3 (current Actual selected by SelectedDay)
 
+Home Scheduled evidence
+  = Application.currentScheduledDayEvidenceWithReplacement(..., SelectedDay)
+
 Home Scheduled preview
-  = take 2 (current-open Scheduled selected by the same SelectedDay)
+  = take 2 (explicit rows carried by that Due answer)
 ```
 
 The existing Actual workspace count relationship and Enter-preserves-day law are
@@ -94,6 +104,8 @@ These are semantic projection/orientation checks, not proofs of visual quality.
 - no Scheduled workspace yet;
 - no Scheduled writer entrance;
 - no Issue or Report preview;
+- no completeness horizon;
+- no Recurrence / Cadence / Series;
 - no attention markers;
 - no final journal-style amount layout or semantic colors;
 - no generic pane / dashboard / router abstraction;
@@ -102,12 +114,13 @@ These are semantic projection/orientation checks, not proofs of visual quality.
 
 ## Human gate
 
-Move from September 6 toward the known Scheduled dates and observe whether:
+Move across September and observe whether:
 
 1. Actual and Scheduled both follow one selected day immediately;
-2. days without Scheduled evidence remain visually quiet rather than confusing;
-3. a day such as September 8 exposes its open Scheduled movement without opening a
-   second screen;
+2. days without explicit Scheduled evidence visibly say `Unknown`, without feeling
+   like a false warning or a false `none` claim;
+3. a day carrying explicit current-open Scheduled evidence shows `Due` and the real
+   movement evidence without another command;
 4. Enter still opens the same day's Actual workspace and Back returns to the same
    date;
 5. the Home feels richer but not conceptually heavier;
