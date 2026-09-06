@@ -1,6 +1,6 @@
 import Loam.Cli.ReviewCli
 
-open Loam.Core Loam.ReviewCli
+open Loam.Core Loam.ActualReview Loam.ReviewCli
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw <| IO.userError message
