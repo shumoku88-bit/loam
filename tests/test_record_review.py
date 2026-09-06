@@ -209,7 +209,6 @@ class ReviewTests(unittest.TestCase):
             self.assertIn("corrects #zz-original", exchange("#zz-fixed"))
             exchange("")
             exchange("t")
-            # New source order / content must not retarget the number just displayed.
             self.events.insert(0, ("aaa-new", TODAY, "new arrival", 2))
             self.write_events()
             self.assertIn("[r00]", exchange("1"))
@@ -235,6 +234,8 @@ class ReviewTests(unittest.TestCase):
     def test_writer_correction_recovery_then_date_correction(self):
         memory = self.root / "writer.loam"
         corrections = self.root / "writer-corrections.loam"
+        Path(str(memory) + ".locus-admission").write_text(
+            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n")
         result = run(MOVEMENT, memory, input="wallet\n100\n\nfood\n100\n\n",
                      env={**ENV, "LOAM_OCCURRENCE_DATE": TODAY, "LOAM_DESCRIPTION": "recognition text"})
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -266,7 +267,7 @@ class ReviewTests(unittest.TestCase):
 
 
 class ManifestMenuTests(unittest.TestCase):
-    """Retired sidecars must not turn a populated household into an empty one."""
+    """Selected Movement authority stays readable while new writes obey explicit Locus policy."""
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -281,6 +282,7 @@ class ManifestMenuTests(unittest.TestCase):
             "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tfixed\tmanifest receipt\n",
             "RelationUnit": "LOAM-RELATION-UNIT-MEMORY\t1\n",
             "RelationDischarge": "LOAM-RELATION-DISCHARGE-MEMORY\t1\n",
+            "LocusAdmission": "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n",
         }
         self.publish()
         (self.root / "corrections.loam").write_text(
@@ -289,9 +291,12 @@ class ManifestMenuTests(unittest.TestCase):
             "LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tb1\twallet\tjpy\t1000\n")
         (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
 
-    def publish(self):
-        rows = ["LOAM-MOVEMENT-MANIFEST\t1"]
-        for family, text in self.families.items():
+    def publish(self, version=2):
+        families = self.families if version == 2 else {
+            key: value for key, value in self.families.items() if key != "LocusAdmission"
+        }
+        rows = [f"LOAM-MOVEMENT-MANIFEST\t{version}"]
+        for family, text in families.items():
             digest = hashlib.sha256(text.encode()).hexdigest()
             relative = f"objects/{family}/{digest}.loam"
             target = self.authority / relative
@@ -320,7 +325,6 @@ class ManifestMenuTests(unittest.TestCase):
         self.assertIn("wallet: 1000 jpy", result.stdout)
 
     def test_broken_selected_authority_never_falls_back(self):
-        # Even a plausible stale sidecar must not mask damaged selected objects.
         (self.root / "memory.loam").write_text(self.families["Event"])
         for path in (self.authority / "objects/RelationDischarge").iterdir():
             path.write_text("corrupt\n")
@@ -354,6 +358,37 @@ class ManifestMenuTests(unittest.TestCase):
         self.assertFalse((self.root / "memory.loam").exists())
         self.assertFalse((self.root / "memory.loam.actual-validity").exists())
         self.assertFalse((self.root / "memory.loam.descriptions").exists())
+
+    def test_unapproved_locus_refuses_without_authority_change(self):
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
+        before = self.snapshot()
+        result = self.menu("1\nwallet\n25\n\ncafe\n25\n\n")
+        self.assertIn("not approved for new publication", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_historical_locus_can_be_read_while_disallowed_for_new_write(self):
+        self.families["LocusAdmission"] = (
+            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\n")
+        self.publish()
+        read = self.menu("2\nq\n")
+        self.assertEqual(read.returncode, 0, read.stderr)
+        self.assertIn("manifest receipt", read.stdout)
+        before = self.snapshot()
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
+        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
+        self.assertIn("not approved for new publication", refused.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_version1_manifest_remains_readable_but_closed_for_new_write(self):
+        self.publish(version=1)
+        read = self.menu("2\nq\n")
+        self.assertEqual(read.returncode, 0, read.stderr)
+        self.assertIn("manifest receipt", read.stdout)
+        before = self.snapshot()
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
+        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
+        self.assertIn("not approved for new publication", refused.stderr)
+        self.assertEqual(self.snapshot(), before)
 
     def test_direct_quantity_commands_refuse_invalid_selection(self):
         binary = ROOT / ".lake/build/bin/loamDailyQuantity"
