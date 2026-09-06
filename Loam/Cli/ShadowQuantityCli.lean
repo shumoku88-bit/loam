@@ -217,28 +217,16 @@ private def printQuantities (memory : EventMemory) : IO Bool := do
   return true
 
 /--
-Emit a private comparison stream for the local parity harness.
+Parse one journal snapshot without writing the source or any LOAM persistence.
 
-Rows are deliberately plain and contain private locus / measure / quantity
-values, so this mode is intended only for capture into a private temporary file.
-Zero coordinates are omitted because the native accounting view may omit them.
-The harness sorts the rows before comparison, so this stream makes no ordering
-claim.
+Every EventId and EffectKey created here is unique only within this invocation.
+The command is therefore limited to the identity-renaming-invariant recorded
+quantity projection established by Observation 078. The projection passes
+through the production Application quantity-inspection boundary in its
+no-correction mode. Run-local identity must still not be reused for correction,
+relation, reconciliation, or cross-run identity lookup.
 -/
-private def printParityRows (memory : EventMemory) : IO Bool := do
-  for coordinate in recordedCoordinates memory do
-    match Loam.Application.inspectQuantity
-        memory emptyCorrectionMemory coordinate.locus coordinate.measure with
-    | .recorded quantity =>
-        if quantity.quanta != 0 then
-          IO.println
-            (coordinate.locus.token ++ "\t" ++
-              coordinate.measure.token ++ "\t" ++
-              toString quantity.quanta)
-    | _ => return false
-  return true
-
-private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt32 := do
+def shadowQuantity (path : String) : IO UInt32 := do
   let source := System.FilePath.mk path
   if !(← source.pathExists) then
     IO.eprintln "loam: shadow quantity source file not found"
@@ -257,14 +245,10 @@ private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt
       IO.eprintln "loam: run-local Event identity collision"
       return 2
   | some memory =>
-      let inspected ←
-        if parityRows then
-          printParityRows memory
-        else
-          IO.println "LOAM stateless shadow quantity"
-          IO.println "source: read-only; persistence: none; sidecar: none"
-          printEvidence parsed.evidence
-          printQuantities memory
+      IO.println "LOAM stateless shadow quantity"
+      IO.println "source: read-only; persistence: none; sidecar: none"
+      printEvidence parsed.evidence
+      let inspected ← printQuantities memory
       if inspected then
         return 0
       else
@@ -272,30 +256,11 @@ private def shadowQuantityWithMode (path : String) (parityRows : Bool) : IO UInt
         IO.eprintln "loam: no LOAM persistence was written"
         return 2
 
-/--
-Parse one journal snapshot without writing the source or any LOAM persistence.
-
-Every EventId and EffectKey created here is unique only within this invocation.
-The command is therefore limited to the identity-renaming-invariant recorded
-quantity projection established by Observation 078. The projection now passes
-through the production Application quantity-inspection boundary in its
-no-correction mode. Run-local identity must still not be reused for correction,
-relation, reconciliation, or cross-run identity lookup.
--/
-def shadowQuantity (path : String) : IO UInt32 :=
-  shadowQuantityWithMode path false
-
-/-- Private machine-readable entrance used only by the local parity harness. -/
-def shadowQuantityParityRows (path : String) : IO UInt32 :=
-  shadowQuantityWithMode path true
-
 end Loam.ShadowQuantityCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
   | [path] => Loam.ShadowQuantityCli.shadowQuantity path
-  | ["--parity-rows", path] =>
-      Loam.ShadowQuantityCli.shadowQuantityParityRows path
   | _ => do
-      IO.eprintln "usage: shadow-quantity [--parity-rows] <journal-file>"
+      IO.eprintln "usage: shadow-quantity <journal-file>"
       return 2
