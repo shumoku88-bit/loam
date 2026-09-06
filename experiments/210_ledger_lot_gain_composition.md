@@ -134,6 +134,63 @@ ExplicitReportInputsDetermineSelectedValue             UNSAT counterexample
 ExplicitInputsDetermineSelectedAnswers                 UNSAT counterexample
 ```
 
+## Executed result
+
+Dedicated Observation 210 CI on PR #461 completed **SUCCESS** with Alloy 6.2.0 + Sat4j.
+
+Observed matrix:
+
+```text
+representativeLotGain                                  SAT
+lotSelectionChangesRealisedAndUnrealisedGain           SAT
+sameMarketDifferentRemainingBasisChangesUnrealisedGain SAT
+sameBasisDifferentMarketChangesUnrealisedOnly          SAT
+sameRealisedGainDifferentProvenance                     SAT
+reportModeChangesSelectedRemainingValue                 SAT
+
+BasisAndProceedsDetermineRealisedGain                  SAT counterexample
+MarketValueDeterminesUnrealisedGain                    SAT counterexample
+RealisedGainScalarDeterminesDisposalProvenance         SAT counterexample
+BasisDeterminesMarketValue                             SAT counterexample
+ExplicitValuationInputsDetermineGains                  UNSAT counterexample
+ExplicitReportInputsDetermineSelectedValue             UNSAT counterexample
+ExplicitInputsDetermineSelectedAnswers                 UNSAT counterexample
+```
+
+Every expected witness/check matched.
+
+The counterexamples establish that the following compressed candidates lose selected information:
+
+```text
+basis + sale proceeds alone
+market value alone
+realised-gain scalar alone
+basis alone as a reconstruction of market value
+```
+
+In particular, the disposal source matters to realised gain, remaining acquisition basis matters to unrealised gain, and a gain scalar does not recover acquisition provenance.
+
+The positive checks establish that the bounded selected answers are fixed once the explicit inputs are fixed:
+
+```text
+acquisition-specific basis
++ disposal provenance
++ sale proceeds
++ remaining market valuation
++ report mode
+    -> realised gain
+     + unrealised gain
+     + selected remaining value
+```
+
+Classification for the selected scope:
+
+```text
+B / conservative additive composition
+```
+
+No C-level need to change neutral Event, Effect, or EffectKey shape was found.
+
 ## Interpretation gate
 
 If acquisition basis, disposal provenance, market valuation, and report policy are independently observable but fixing them fixes all selected gain/value answers, classify:
@@ -148,9 +205,11 @@ Only if a legitimate selected Ledger answer still cannot be represented because 
 C / Core-shape pressure
 ```
 
+Observation 210 took the first branch of this gate in the bounded model.
+
 ## Production boundary
 
-Even if the expected matrix succeeds, this observation does **not** earn:
+The successful matrix does **not** earn:
 
 - a production `Lot` object;
 - a production `CostBasis` fact family;
@@ -163,4 +222,4 @@ Even if the expected matrix succeeds, this observation does **not** earn:
 - investment UI/CLI;
 - Ledger file-format compatibility.
 
-It asks only whether the selected Ledger-style lot/gain composition forces neutral Event/Effect to grow.
+It establishes only that the selected Ledger-style lot/gain composition can be reconstructed without enlarging neutral Event/Effect/EffectKey in the bounded model.
