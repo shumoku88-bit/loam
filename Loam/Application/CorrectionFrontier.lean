@@ -110,6 +110,19 @@ private def frontierEvents
   events.events.filter fun event =>
     !(targetsEvent corrections.corrections event.id)
 
+private theorem targetsEvent_false_iff
+    (corrections : List EventCorrection)
+    (id : EventId) :
+    targetsEvent corrections id = false ↔
+      ∀ correction ∈ corrections, correction.target ≠ id := by
+  induction corrections with
+  | nil =>
+      simp [targetsEvent]
+  | cons correction rest ih =>
+      by_cases hTarget : correction.target = id
+      · simp [targetsEvent, hTarget]
+      · simp [targetsEvent, hTarget, ih]
+
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
 paths. Superseded targets are filtered out; terminal replacements and untouched
@@ -127,6 +140,35 @@ def correctionFrontierMemory?
     EventMemory.ofEvents? (frontierEvents events corrections)
   else
     none
+
+/--
+A successful correction frontier retains exactly the remembered Events that are
+not targeted by any retained correction fact.
+
+This theorem makes explicit a property already present in the implementation:
+once the correction relation passes the fail-closed admission boundary, frontier
+membership depends on target membership rather than path length or list order.
+It adds no new runtime semantics.
+-/
+theorem correctionFrontierMemory?_mem_iff
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (frontier : EventMemory)
+    (hFrontier : correctionFrontierMemory? events corrections = some frontier)
+    (event : Event) :
+    event ∈ frontier.events ↔
+      event ∈ events.events ∧
+        ∀ correction ∈ corrections.corrections,
+          correction.target ≠ event.id := by
+  unfold correctionFrontierMemory? at hFrontier
+  split at hFrontier
+  · unfold EventMemory.ofEvents? at hFrontier
+    split at hFrontier
+    · simp only [Option.some.injEq] at hFrontier
+      subst frontier
+      simp [frontierEvents, targetsEvent_false_iff]
+    · simp at hFrontier
+  · simp at hFrontier
 
 /--
 Project one locus/measure quantity from the admitted correction frontier.
