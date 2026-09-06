@@ -45,20 +45,9 @@ def materialize {bounds : Bounds} (screen : Screen bounds) : DenseScreen bounds 
     Vector.ofFn fun col =>
       screen { row, col }
 
-def denseDiffAt {bounds : Bounds}
-    (old new : DenseScreen bounds) (pos : Position bounds) : Option Cell :=
-  let oldCell := old.cellAt pos
-  let newCell := new.cellAt pos
-  if oldCell = newCell then none else some newCell
-
 theorem cellAt_materialize {bounds : Bounds} (screen : Screen bounds) (pos : Position bounds) :
     (materialize screen).cellAt pos = screen pos := by
   simp [DenseScreen.cellAt, materialize]
-
-theorem denseDiffAt_materialize {bounds : Bounds}
-    (old new : Screen bounds) (pos : Position bounds) :
-    denseDiffAt (materialize old) (materialize new) pos = screenDiff old new pos := by
-  simp [denseDiffAt, screenDiff, cellAt_materialize]
 
 def blankCell : Cell :=
   { glyph := ' ', style := .normal }
@@ -78,6 +67,17 @@ def screenDiff {bounds : Bounds} (old new : Screen bounds) : Patch bounds :=
       none
     else
       some (new pos)
+
+def denseDiffAt {bounds : Bounds}
+    (old new : DenseScreen bounds) (pos : Position bounds) : Option Cell :=
+  let oldCell := old.cellAt pos
+  let newCell := new.cellAt pos
+  if oldCell = newCell then none else some newCell
+
+theorem denseDiffAt_materialize {bounds : Bounds}
+    (old new : Screen bounds) (pos : Position bounds) :
+    denseDiffAt (materialize old) (materialize new) pos = screenDiff old new pos := by
+  simp [denseDiffAt, screenDiff, cellAt_materialize]
 
 inductive TerminalOp (bounds : Bounds) where
   | patch (changes : Patch bounds)
