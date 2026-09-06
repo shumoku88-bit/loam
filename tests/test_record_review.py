@@ -307,7 +307,8 @@ class ManifestMenuTests(unittest.TestCase):
 
     def snapshot(self):
         return {str(p.relative_to(self.root)): p.read_bytes()
-                for p in self.root.rglob("*") if p.is_file()}
+                for p in self.root.rglob("*")
+                if p.is_file() and not p.name.endswith(".loam-writer-lock")}
 
     def menu(self, commands):
         return run(ROOT / "tools/loam", input=commands, env=self.env)
