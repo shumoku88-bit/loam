@@ -7,6 +7,7 @@ on:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledOpenWorldInspection.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
       - 'Loam/Cli/ScheduledDayEvidenceCli.lean'
       - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
       - '.github/workflows/practical-scheduled-open-world-read.yml'
@@ -21,6 +22,7 @@ on:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledOpenWorldInspection.lean'
       - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledBalanceCli.lean'
       - 'Loam/Cli/ScheduledDayEvidenceCli.lean'
       - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
       - '.github/workflows/practical-scheduled-open-world-read.yml'
@@ -60,7 +62,7 @@ jobs:
         shell: bash
         run: lake env lean --run Loam/Tests/ScheduledOpenWorldInspection.lean
 
-      - name: Exercise exact-day machine answer
+      - name: Exercise exact-day machine answer and explicit-only projections
         shell: bash
         run: |
           set -euo pipefail
@@ -94,3 +96,13 @@ jobs:
             /tmp/loam-open-scheduled-open-world.out
           grep -Fq 'unmaterialized future obligations remain Unknown' \
             /tmp/loam-open-scheduled-open-world.out
+
+          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          bank	jpy
+          rent	jpy
+          EOF
+
+          .lake/build/bin/loamOpenScheduled balance-effects "$tmp_dir" 2026-10-01 \
+            | tee /tmp/loam-scheduled-balance-open-world.out
+          grep -Fq 'Coverage: explicit current-open Scheduled evidence only; unmaterialized future obligations remain Unknown.' \
+            /tmp/loam-scheduled-balance-open-world.out
