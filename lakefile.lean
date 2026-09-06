@@ -9,10 +9,6 @@ require «lean-tea» from git
 @[default_target]
 lean_lib Loam
 
-@[default_target]
-lean_exe loamUiPrototype02 where
-  root := `Loam.Prototype.InteractionShellTeaMain
-
 lean_exe loam where
   root := `Loam.Cli
 
