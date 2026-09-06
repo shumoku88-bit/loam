@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; F051, F033, F001, and F076 completed; two-item near queue remains**
+Status: **F001-F200 reviewed; F051, F033, F001, F076, and F055 completed; one-item near queue remains**
 
 Baseline corpus:
 
@@ -44,7 +44,7 @@ Interpretation:
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after F051, F033, F001, and F076
+## Default after F051, F033, F001, F076, and F055
 
 Every F001-F200 specimen has now been cross-referenced.
 
@@ -62,7 +62,7 @@ This keeps the completed review sparse: unresolved cases do not need duplicated 
 ## Queue
 
 ```text
-READY      2
+READY      1
 OBSERVING  0
 ```
 
@@ -70,10 +70,9 @@ Exact READY order:
 
 | Order | ID | Pressure |
 |---:|---|---|
-| 1 | F055 | recurrence at shorter-month boundary |
-| 2 | F086 | physical/external quantity assertion vs reconstructed history |
+| 1 | F086 | physical/external quantity assertion vs reconstructed history |
 
-Both remain `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
+It remains `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
 Only one should normally advance to `OBSERVING` at a time.
 Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
 
@@ -144,6 +143,7 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 | F051 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 196 — identical exact Scheduled evidence can coexist with a known amount-unknown obligation versus no known obligation; existence knowledge and exact quantity knowledge are independently observable. |
 | F053 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — one-to-one ScheduledCompletion is too small for split realization, and quantity-free topology is too small for apportionment. |
 | F054 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — several Scheduled claims sharing one Actual require quantity apportionment beyond endpoint topology. |
+| F055 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 200 — equal Series membership, Monthly recurrence, nominal day 31, and neighboring day-31 observations can coexist with skip-versus-clamp shorter-month outcomes; generation policy is independently observable. |
 | F073 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 163 — physical payment and final net movement do not determine economic burden allocation before settlement. |
 | F099 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 067 — aggregate holding, disposal quantity and even source identity set are too small; per-acquisition consumed quantity is independently observable. |
 
@@ -166,7 +166,7 @@ The review now has two additional direct results:
 Direct results absorb several seams, but unresolved cases remain deliberately live:
 
 - PR #305 tests cash-funded versus liability-funded negative Remaining but not arbitrary mixed funding composition, so F043 stays open.
-- recurrence generation itself remains deferred; Series membership evidence does not answer shorter-month or weekend-shift generation policy.
+- Observation 200 closes F055 with a counterexample: Series membership + Monthly recurrence + nominal day 31 + neighboring day-31 observations do not determine the shorter-month generation result. F056 weekend/holiday shifting remains separately untested.
 - Observation 196 now closes F051 by finding a genuine counterexample: exact Scheduled evidence does not determine whether an amount-unknown obligation is already known to exist. F049/F050/F052 remain separate unresolved quantity/date questions.
 - PR #278 closes the information question for split/merged realization by finding a real counterexample; it does not implement apportionment.
 - PR #306 does not close recognition-policy amendment after service cancellation, or tax-specific recognition applicability.
@@ -216,11 +216,11 @@ Review result:
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 58
+DONE                                 59
   ABSORBED                           49
-  COUNTEREXAMPLE                      9
+  COUNTEREXAMPLE                     10
 
-READY                                 2
+READY                                 1
 OBSERVING                             0
 REVIEWED / UNTESTED                 140
 
@@ -234,7 +234,7 @@ The 140 unresolved non-READY cases are not claimed novel. They are the reviewed 
 
 # Selection frontier
 
-F051, F033, F001, and F076 are complete:
+F051, F033, F001, F076, and F055 are complete:
 
 ```text
 F051
@@ -256,17 +256,22 @@ F076
   Work     DONE
   Finding  ABSORBED
   Runtime  RESEARCH_ONLY
+
+F055
+  Work     DONE
+  Finding  COUNTEREXAMPLE
+  Runtime  RESEARCH_ONLY
 ```
 
-The next READY representative is F055:
+The next READY representative is F086:
 
 ```text
-monthly recurrence on day 31
-    ->
-shorter month boundary
+physical / external quantity assertion
+    vs
+reconstructed history
 ```
 
-Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-199 change any ranking rationale. Do not open two observations in parallel.
+Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-200 change any ranking rationale. Do not open another observation in parallel.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
