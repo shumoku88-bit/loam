@@ -10,6 +10,7 @@ set_option autoImplicit false
 abbrev ActualSnapshot := Loam.Prototype.VerifiedTui10.Main.Snapshot
 abbrev ReviewRecord := Loam.Prototype.VerifiedTui10.Main.ReviewRecord
 abbrev ScheduledRecord := Loam.ScheduledReview.Record
+abbrev ScheduledEvidence := Loam.ScheduledReview.DayEvidence
 abbrev ReviewCursor := Loam.Prototype.VerifiedTui10.Main.ReviewCursor
 abbrev ActualMode := Loam.Prototype.VerifiedTui10.Main.ActualMode
 abbrev Surface := Loam.Prototype.VerifiedTui10.Main.Surface
@@ -18,13 +19,14 @@ abbrev Event := Loam.Prototype.VerifiedTui10.Main.Event
 abbrev Step := Loam.Prototype.VerifiedTui10.Main.Step
 
 /--
-One admitted read-only household snapshot. `openScheduled` is derived at startup
-from canonical Scheduled + lifecycle evidence and selected Movement Event evidence.
-It is not presentation state and is never persisted by the TUI.
+One admitted read-only household snapshot. Scheduled lifecycle evidence is loaded
+once before terminal entry, but the exact-day answer is projected through the
+production open-world contract whenever `SelectedDay` changes. Nothing here is
+presentation authority or persisted TUI state.
 -/
 structure Snapshot where
   actual : ActualSnapshot
-  openScheduled : List ScheduledRecord
+  scheduled : Loam.ScheduledReview.EvidenceSnapshot
 
 
 def initialState : State :=
@@ -42,9 +44,13 @@ def selectedDate (state : State) : String :=
 def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   Loam.Prototype.VerifiedTui10.Main.homeActualRecords snapshot.actual state
 
+/-- Exact-day Scheduled answer. Absence remains `unknown`, never an empty NotDue claim. -/
+def homeScheduledEvidence (snapshot : Snapshot) (state : State) : ScheduledEvidence :=
+  Loam.ScheduledReview.dayEvidence snapshot.scheduled (selectedDate state)
 
+/-- Explicit rows exist only when the open-world answer is `due`. -/
 def homeScheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
-  Loam.ScheduledReview.selectDay snapshot.openScheduled (selectedDate state)
+  Loam.ScheduledReview.explicitDueRecords (homeScheduledEvidence snapshot state)
 
 
 def homeActualPreviewRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
@@ -62,10 +68,24 @@ theorem home_actual_preview_is_selected_day
   rfl
 
 
-theorem home_scheduled_preview_is_selected_day
+theorem home_scheduled_evidence_is_selected_day
+    (snapshot : Snapshot) (state : State) :
+    homeScheduledEvidence snapshot state =
+      Loam.Application.currentScheduledDayEvidenceWithReplacement
+        snapshot.scheduled.scheduled
+        snapshot.scheduled.completions
+        snapshot.scheduled.retirements
+        snapshot.scheduled.replacements
+        snapshot.scheduled.events
+        (selectedDate state) := by
+  rfl
+
+
+theorem home_scheduled_preview_is_explicit_due_evidence
     (snapshot : Snapshot) (state : State) :
     homeScheduledPreviewRecords snapshot state =
-      (Loam.ScheduledReview.selectDay snapshot.openScheduled (selectedDate state)).take 2 := by
+      (Loam.ScheduledReview.explicitDueRecords
+        (homeScheduledEvidence snapshot state)).take 2 := by
   rfl
 
 
@@ -114,6 +134,17 @@ private def scheduledPreviewSpans
       , span (" [" ++ scheduledId ++ "]") .muted
       ]
 
+private def scheduledEvidenceHeader (snapshot : Snapshot) (state : State) : String :=
+  match homeScheduledEvidence snapshot state with
+  | .due _ rest =>
+      "Scheduled / Due / " ++ toString (rest.length + 1) ++ " explicit"
+  | .unknown => "Scheduled / Unknown"
+  | .unknownCompletionScheduled => "Scheduled / refused completion evidence"
+  | .unknownRetirementScheduled => "Scheduled / refused retirement evidence"
+  | .unknownReplacementScheduled => "Scheduled / refused replacement evidence"
+  | .invalidReplacementGraph => "Scheduled / refused replacement graph"
+  | .conflictingTerminalEvidence => "Scheduled / refused terminal evidence"
+
 private def evidenceSpans
     (snapshot : Snapshot) (state : State) : Nat → List Span
   | 0 =>
@@ -121,8 +152,7 @@ private def evidenceSpans
   | 1 => actualPreviewSpans snapshot state 0
   | 2 => actualPreviewSpans snapshot state 1
   | 3 => actualPreviewSpans snapshot state 2
-  | 4 =>
-      [ span ("Scheduled / " ++ toString (homeScheduledRecords snapshot state).length ++ " open") ]
+  | 4 => [span (scheduledEvidenceHeader snapshot state)]
   | 5 => scheduledPreviewSpans snapshot state 0
   | 6 => scheduledPreviewSpans snapshot state 1
   | _ => [span ""]
@@ -148,14 +178,21 @@ private def actualPreviewSummary (snapshot : Snapshot) (state : State) : String 
     "Actual: all " ++ toString total ++ " selected-day record(s) visible here."
 
 private def scheduledPreviewSummary (snapshot : Snapshot) (state : State) : String :=
-  let total := (homeScheduledRecords snapshot state).length
-  let shown := (homeScheduledPreviewRecords snapshot state).length
-  if total = 0 then
-    "Scheduled: none open on selected day."
-  else if shown < total then
-    "Scheduled: showing " ++ toString shown ++ " of " ++ toString total ++ " open occurrence(s)."
-  else
-    "Scheduled: all " ++ toString total ++ " selected-day open occurrence(s) visible here."
+  match homeScheduledEvidence snapshot state with
+  | .due _ rest =>
+      let total := rest.length + 1
+      let shown := (homeScheduledPreviewRecords snapshot state).length
+      if shown < total then
+        "Scheduled: Due; showing " ++ toString shown ++ " of " ++ toString total ++ " explicit."
+      else
+        "Scheduled: Due; " ++ toString total ++ " explicit occurrence(s)."
+  | .unknown =>
+      "Scheduled: Unknown (no explicit evidence)."
+  | .unknownCompletionScheduled => "Scheduled: refused completion evidence."
+  | .unknownRetirementScheduled => "Scheduled: refused retirement evidence."
+  | .unknownReplacementScheduled => "Scheduled: refused replacement evidence."
+  | .invalidReplacementGraph => "Scheduled: refused replacement graph."
+  | .conflictingTerminalEvidence => "Scheduled: refused terminal evidence."
 
 
 def homeView (snapshot : Snapshot) (state : State) : Widget :=
