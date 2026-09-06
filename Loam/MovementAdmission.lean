@@ -149,7 +149,7 @@ private def materializeRelationUnits? :
         sourceEvent := eventId
         sourceEffect := draft.sourceEffect
         debtor := draft.debtor
-        creditor := draft.credititor
+        creditor := draft.creditor
         quantity := draft.quantity
       } :: rest)
   | _, _, _ => none
