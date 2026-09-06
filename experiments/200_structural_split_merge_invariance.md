@@ -1,6 +1,6 @@
 # Observation 200 — Structural S003 split / merge representation invariance
 
-Status: **OBSERVING / UNTESTED**
+Status: **S003 complete — DONE / SURVIVED**
 
 Structural specimen: **S003**
 
@@ -12,7 +12,7 @@ The question is deliberately narrower than global Event equivalence:
 
 > If one quantity-bearing Effect is replaced by two distinct Effects at the same `Locus × Measure` coordinate whose exact quantities sum to the original quantity, does the existing `Event.quantityAt` projection change?
 
-The candidate law is query-relative.
+The tested law is query-relative.
 
 ```text
 World A
@@ -25,21 +25,21 @@ selected query
   Event.quantityAt c
 ```
 
-The intended positive boundary is:
+The positive boundary is:
 
 ```text
 quantity-only observation
   ignores quantity-preserving decomposition
 ```
 
-The intended negative boundary is equally important:
+The negative boundary is equally important:
 
 ```text
 retained Effect representation / identity / provenance
   may still distinguish the worlds
 ```
 
-So this observation does **not** ask whether split and merged Events are interchangeable for all future questions.
+So this observation does **not** say that split and merged Events are interchangeable for all future questions.
 
 ## Why Lean
 
@@ -51,9 +51,9 @@ The relevant production semantics already exist in `Loam.Core.Event`:
 - `Event.quantityAt_perm` already removes list order from the selected quantity answer;
 - `Event.quantityAt_sameCoordinate_two` already proves additive contribution for two Effects at one coordinate.
 
-The missing structural statement is a direct equality between two different retained decompositions. It is an unbounded exact-integer law over arbitrary `Quantity` values, so Lean is smaller and stronger than enumerating examples in Alloy or J.
+The missing structural statement was a direct equality between two different retained decompositions. It is an unbounded exact-integer law over arbitrary `Quantity` values, so Lean is smaller and stronger than enumerating examples in Alloy or J.
 
-## Lean specimen
+## Lean result
 
 `Loam/Observations/Observation200.lean` defines only two observation-local constructors:
 
@@ -65,7 +65,7 @@ splitEvent
   two distinct Effects carrying left and right
 ```
 
-It then states:
+It proves:
 
 ```text
 quantityAt_split_merge
@@ -79,29 +79,66 @@ for arbitrary:
 - Measure;
 - exact signed `left` and `right` quantities.
 
+Therefore:
+
+```text
+Event.quantityAt (one Effect carrying left + right)
+  =
+Event.quantityAt (two Effects carrying left and right)
+```
+
+at the decomposed coordinate.
+
 The second theorem:
 
 ```text
 split_merge_representation_remains_distinct
 ```
 
-records the negative boundary by proving that the retained Effect lists are not the same representation.
+proves the retained Effect lists are still different representations. The quantity projection forgets the decomposition; retained evidence does not.
 
-## Expected qualification
+## Exact-head qualification
 
-The dedicated Observation 200 workflow builds only the new Lean observation and its current Core dependencies.
-
-A successful exact-head build qualifies this narrow law:
+Observation 200 dedicated CI on head:
 
 ```text
-one Effect (q1 + q2)
-    ~quantityAt
- two Effects (q1, q2)
+914a9e59f50b36c0c442d2accf492c0a41755b1c
 ```
 
-at the selected decomposed coordinate.
+completed **SUCCESS** in workflow run `34006843677`.
 
-It does **not** qualify:
+The successful build checked both the positive quantity invariance theorem and the explicit representation-distinctness negative boundary.
+
+## Finding
+
+S003 survives at the selected query boundary:
+
+```text
+quantity-preserving Effect split / merge
+  -> invisible to Event.quantityAt at the decomposed coordinate
+```
+
+while:
+
+```text
+Effect decomposition / identity
+  -> remains retained and observable to other questions
+```
+
+This is therefore a genuine representation-invariance result, but only after naming the query that induces the equivalence.
+
+It fits the earlier Observation 029 / S009 principle:
+
+```text
+query vocabulary
+  -> observational equivalence
+```
+
+The result does not make Effect identity redundant.
+
+## Boundaries
+
+Observation 200 does **not** qualify:
 
 - provenance invariance;
 - identity invariance;
@@ -112,7 +149,7 @@ It does **not** qualify:
 - replacing retained Effects with aggregate quantities;
 - persistence or runtime changes.
 
-Observation 120 remains the important counterpressure: split/merged realization topology can require independently observable apportionment information. S003 therefore applies only where the selected query genuinely forgets decomposition.
+Observation 120 remains important counterpressure: split/merged realization topology can require independently observable apportionment information. S003 applies only where the selected query genuinely forgets decomposition.
 
 ## Production impact
 
@@ -120,4 +157,4 @@ None.
 
 No Core, Application, Persistence, CLI, TUI, canonical data, or writer change is introduced.
 
-The only intended result is to make one representation-invariance law explicit and falsifiable against the existing Core.
+No new domain primitive is earned. No existing primitive is deleted.
