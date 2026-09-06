@@ -11,13 +11,24 @@ private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"books"⟩]
     | throw (IO.userError "vocabulary")
-  return { events := events, validity := { facts := [], factIdNodup := by simp, corrections := [], correctionIdNodup := by simp }, descriptions := .empty,
-    relations := [], discharges := [], locusAdmission := vocabulary }
+  return {
+    events := events
+    validity := {
+      facts := []
+      factIdNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
 
 private def readyForm : Form := {
-  date := "2026-09-06", description := "数学ガール",
-  rows := #[{ fromSide := true, locus := "paypay", amount := "2470" },
-            { fromSide := false, locus := "books", amount := "2470" }] }
+  date := "2026-09-06"
+  description := "数学ガール"
+  rows := #[
+    { fromSide := true, locus := "paypay", amount := "2470" },
+    { fromSide := false, locus := "books", amount := "2470" }] }
 
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated manifest root")
