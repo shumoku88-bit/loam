@@ -134,11 +134,11 @@ pred sameExceptPostingDate[a, b : World] {
 }
 
 pred hierarchyChangesSubtreeReport {
-  some disj a, b : World, effect : Effect, disj root, child : Locus |
+  some disj a, b : World, effect : Effect, disj rootLocus, child : Locus |
     sameExceptParent[a, b] and
-    a.root = root and b.root = root and
+    a.root = rootLocus and b.root = rootLocus and
     effect.locus = child and
-    child->root in a.parent and
+    child->rootLocus in a.parent and
     no child.(b.parent) and
     child->AssetRole in a.declaredRole and
     effect.event->Cleared in a.transactionStatus and
@@ -153,15 +153,15 @@ pred hierarchyChangesSubtreeReport {
 }
 
 pred inheritedRoleChangesStatementSelection {
-  some disj a, b : World, effect : Effect, disj root, child : Locus |
+  some disj a, b : World, effect : Effect, disj rootLocus, child : Locus |
     a.parent = b.parent and
-    child->root in a.parent and
-    a.root = root and b.root = root and
+    child->rootLocus in a.parent and
+    a.root = rootLocus and b.root = rootLocus and
     effect.locus = child and
     no child.(a.declaredRole) and
     no child.(b.declaredRole) and
-    root->AssetRole in a.declaredRole and
-    root->ExpenseRole in b.declaredRole and
+    rootLocus->AssetRole in a.declaredRole and
+    rootLocus->ExpenseRole in b.declaredRole and
     a.transactionStatus = b.transactionStatus and
     a.postingStatus = b.postingStatus and
     a.transactionDate = b.transactionDate and
@@ -178,11 +178,11 @@ pred inheritedRoleChangesStatementSelection {
 }
 
 pred childRoleOverrideWitness {
-  some w : World, effect : Effect, disj root, child : Locus |
-    child->root in w.parent and
-    w.root = root and
+  some w : World, effect : Effect, disj rootLocus, child : Locus |
+    child->rootLocus in w.parent and
+    w.root = rootLocus and
     effect.locus = child and
-    root->AssetRole in w.declaredRole and
+    rootLocus->AssetRole in w.declaredRole and
     child->ExpenseRole in w.declaredRole and
     effect.event->Cleared in w.transactionStatus and
     no effect.(w.postingStatus) and
