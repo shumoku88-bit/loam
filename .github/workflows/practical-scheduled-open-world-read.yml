@@ -6,6 +6,8 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledOpenWorldInspection.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledDayEvidenceCli.lean'
       - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
       - '.github/workflows/practical-scheduled-open-world-read.yml'
       - 'lakefile.lean'
@@ -18,6 +20,8 @@ on:
       - 'Loam/Application.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledOpenWorldInspection.lean'
+      - 'Loam/Cli/OpenScheduledCli.lean'
+      - 'Loam/Cli/ScheduledDayEvidenceCli.lean'
       - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
       - '.github/workflows/practical-scheduled-open-world-read.yml'
       - 'lakefile.lean'
@@ -39,12 +43,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build Application contract
+      - name: Build Application contract and adapter
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.Application.ScheduledOpenWorldInspection
+          build-args: Loam.Application.ScheduledOpenWorldInspection loamOpenScheduled
           test: false
           lint: false
           use-mathlib-cache: false
@@ -55,3 +59,38 @@ jobs:
       - name: Run open-world Scheduled story
         shell: bash
         run: lake env lean --run Loam/Tests/ScheduledOpenWorldInspection.lean
+
+      - name: Exercise exact-day machine answer
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          scheduled="$tmp_dir/scheduled.loam"
+          memory="$tmp_dir/memory.loam"
+
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	rent-1	2026-09-08	jpy
+          CHANGE	bank	-50
+          CHANGE	rent	50
+          EOF
+
+          .lake/build/bin/loamOpenScheduled \
+            day-evidence "$scheduled" "$memory" 2026-09-08 \
+            | tee /tmp/loam-scheduled-day-due.out
+          grep -Fq $'DUE\t2026-09-08' /tmp/loam-scheduled-day-due.out
+          grep -Fq $'SCHEDULED\trent-1\t2026-09-08\tjpy' \
+            /tmp/loam-scheduled-day-due.out
+
+          .lake/build/bin/loamOpenScheduled \
+            day-evidence "$scheduled" "$memory" 2026-09-09 \
+            | tee /tmp/loam-scheduled-day-unknown.out
+          grep -Fq $'UNKNOWN\t2026-09-09' /tmp/loam-scheduled-day-unknown.out
+          grep -Fq 'does not establish NOT_DUE' /tmp/loam-scheduled-day-unknown.out
+
+          .lake/build/bin/loamOpenScheduled "$scheduled" "$memory" \
+            | tee /tmp/loam-open-scheduled-open-world.out
+          grep -Fq 'Explicit current-open Scheduled movements' \
+            /tmp/loam-open-scheduled-open-world.out
+          grep -Fq 'unmaterialized future obligations remain Unknown' \
+            /tmp/loam-open-scheduled-open-world.out
