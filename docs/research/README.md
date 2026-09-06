@@ -37,6 +37,13 @@ Structural/meta falsification has its own subdirectory:
 
 - [`falsification/structural/`](falsification/structural/)
 
+## Interaction
+
+`interaction/` contains UI/HCI and interaction-design research. It is evidence for evaluating shells and workflows, not a selected UI specification or production semantic boundary.
+
+- [`LOAM_INTERACTION_ATLAS.md`](interaction/LOAM_INTERACTION_ATLAS.md)
+- [`LOAM_UI_EVALUATION_FRAMEWORK.md`](interaction/LOAM_UI_EVALUATION_FRAMEWORK.md)
+
 ## Placement rule
 
 Keep executable observation material in `experiments/`, `observations/`, `Loam/Observations/`, `tla/`, or `verification/` according to instrument and role. Do not move numbered executable evidence here merely because it is research.
