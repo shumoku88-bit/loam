@@ -2,7 +2,7 @@
 
 module Main (main) where
 
-import Brick
+import Brick hiding (clamp)
 import qualified Graphics.Vty as V
 import Graphics.Vty.CrossPlatform (mkVty)
 
