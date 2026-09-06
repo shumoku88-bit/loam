@@ -114,46 +114,30 @@ scope and local composition checks. Review adds no persistence or writer path.
 
 A Locus is not silently given a zero starting basis. If `current` encounters a recorded Locus without basis evidence, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. The replaceable balance view can select only the loci intended for a household balance display without turning Locus into an Account primitive. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
 
-A separate stateless shadow entrance can read one journal snapshot without changing it or creating LOAM persistence:
+A separate stateless shadow entrance remains available for read-only research against historical or external journal snapshots. It does not participate in current household authority:
 
 ```text
-./tools/loam shadow-quantity CANONICAL_ROOT/actual.journal
+./tools/loam shadow-quantity PATH/TO/external.journal
 ```
 
 This entrance assigns fresh EventId / EffectKey values only for the lifetime of the process and uses them solely for the identity-renaming-invariant `EventMemory.quantityAtRecorded` projection established by Observation 078. It does not create a sidecar, retain a source mapping, or claim cross-run identity continuity. Header context, metadata, and include directives are counted as explicitly unprojected information rather than silently absorbed into the Practical Core.
 
-The command prints source locus tokens and exact quantity results, so real canonical runs are local/private dogfood and their output should not be copied into public CI, issues, or pull requests.
+The command prints source locus tokens and exact quantity results, so runs against private snapshots remain local research and their output should not be copied into public CI, issues, or pull requests.
 
-A private whole-file dogfood run has now crossed this boundary successfully. Its non-zero locus × measure quantity projection matched the native h-kernel accounting projection for the same canonical snapshot. This is a quantity-projection checkpoint only: descriptive header context, metadata, include semantics, persistent imported identity, correction attachment, and other continuity-sensitive questions remain outside the result.
+Historically, a private whole-file dogfood run crossed this boundary successfully: its non-zero locus × measure quantity projection matched the native h-kernel accounting projection for the same canonical snapshot. This remains a quantity-projection checkpoint only. The one-off private parity and source-shape wrappers used around that checkpoint have since been retired; descriptive header context, metadata, include semantics, persistent imported identity, correction attachment, and other continuity-sensitive questions remain outside the result.
 
-That comparison can now be repeated locally without publishing the private projection. The harness accepts one private journal and one local native adapter:
-
-```text
-./tools/private-quantity-parity CANONICAL_ROOT/actual.journal /path/to/native-quantity-adapter
-```
-
-The adapter receives the journal path as its first argument and emits already-aggregated rows in the private contract `LOCUS<TAB>MEASURE<TAB>QUANTA`, with canonical signed integer `QUANTA`. The harness captures both the native stream and LOAM's `shadow-quantity --parity-rows` stream in mode-0700 temporary storage, removes zero coordinates, sorts the non-zero rows, and compares them locally. It verifies that the source file did not change during observation and deletes all captured rows on exit.
-
-On success or mismatch, the harness reports only structural status and coordinate counts. It does not print private locus names, measures, quantities, projection hashes, or a value diff. The adapter itself is intentionally local: LOAM does not make h-kernel's invocation or presentation format part of LOAM semantics. Public CI qualifies the harness only with synthetic data.
-
-To inspect the source shapes that the quantity shadow already recognizes without printing private coordinates or values, use the local summary wrapper:
-
-```text
-./tools/private-source-shape-summary CANONICAL_ROOT/actual.journal
-```
-
-It captures the ordinary shadow output in mode-0700 temporary storage, extracts only the existing structural evidence counts, verifies that the source did not change, and removes the captured output on exit. The summary reports projected Event/Effect counts and counts of header context, metadata lines, and include directives that remain explicitly unprojected. Those counts are observation pressure, not new domain semantics: they do not make description, metadata, include behavior, or familiar household nouns part of the Practical Core. Public CI exercises the wrapper only with synthetic data and checks that source text and quantities are withheld.
+Generic read-only shadow tools remain only where they answer an independent research question. They are not operational bridges, migration authority, or compatibility layers for HRA / h-kernel.
 
 ## Current household dogfood checkpoint
 
 LOAM has now crossed a second practical boundary beyond the first stateless quantity shadow.
 
-The current household-facing slice includes:
+The household and research slice documented by this checkpoint includes:
 
 - correction-aware practical balances with explicit `QuantityBasis`;
 - replaceable balance selection that does not treat basis presence as hidden Account classification;
 - an explicit correction-root basis cut for occurrences already reflected in a basis observation;
-- a read-only recorded-day view over an external canonical journal;
+- historically qualified read-only recorded-day views over external journal snapshots, retained as research evidence rather than current authority;
 - a separate scheduled-day view using explicit completion / retirement evidence and a known-through horizon;
 - a terminal composition that shows recorded and scheduled answers for the same selected day without introducing a canonical Home or Day model.
 
