@@ -1,21 +1,25 @@
-# LOAM UI Prototype 03 — Brick stable-redraw spike
+# LOAM UI Prototype 03 — Brick calendar-navigation spike
 
 This is a synthetic human-dogfood experiment, not a production frontend.
 
-It asks one narrow follow-up question from Prototype 02:
+Prototype 03 first established that Brick/Vty can provide visually stable raw-key redraw without growing a LOAM terminal runtime. The next human observation was that a five-day horizontal strip still did not feel strongly calendar-like.
 
-> Does Brick's terminal rendering make immediate day/row navigation visually stable enough that the changed value is easy to track?
+This revision asks one narrow follow-up question:
+
+> Does a real month-grid spatial shape make the selected date easier to understand and move through?
 
 ## Boundary
 
 - synthetic data only;
+- September 2026 only;
+- no adjacent-month navigation yet;
 - no canonical household reads;
 - no writes;
 - no LOAM Core/Application/Persistence changes;
 - no Haskell/Brick production decision;
 - no Forms, mouse layer, scrolling framework, or LOAM-specific terminal runtime.
 
-The experiment deliberately keeps the same basic interaction as Prototype 02 while changing the rendering/runtime technology.
+The month boundary is intentionally incomplete. If an arrow would leave September, the prototype stays put and reports that adjacent months are omitted. This keeps the experiment about calendar recognition rather than date-library design.
 
 ## Run
 
@@ -30,23 +34,29 @@ The Cabal package/executable is named `loam-ui-prototype03` because Cabal packag
 
 ## Keys
 
-- Left / Right: move selected day immediately
-- Up / Down: move between Actual and Scheduled immediately
+- Left / Right: previous / next day
+- Up / Down: previous / next week
+- Tab: switch the selected synthetic object between Actual and Scheduled
 - Enter: open the selected synthetic object
 - `r`: open the mock Record draft
 - Esc or `b`: return
 - `q`: quit
 
+Arrow keys are deliberately reserved for time navigation on Home. Object selection no longer consumes Up/Down.
+
 ## Human evidence to notice
 
 Do not try to "pass" the prototype. Raw reactions are the evidence.
 
-- When pressing Left/Right repeatedly, does the screen feel stationary while only the selected day changes?
-- Can you visually follow which day changed without searching for it?
-- Is `PayPay -138 JPY` / `coffee +138 JPY` easier to parse than the old arrow-only movement display?
-- Does Up/Down selection feel immediate and easy to track?
+- Does the month grid immediately read as a calendar without reading the footer?
+- Do Left/Right feel naturally like one-day movement?
+- Do Up/Down feel naturally like one-week movement because the selected cell stays in the same weekday column?
+- Can you visually follow the selected day without searching for the changed number?
+- Does the stable month geometry reduce eye travel compared with the five-day strip?
+- Is Tab an acceptable separate gesture for switching Actual/Scheduled, or does it feel hidden?
+- Is `PayPay -138 JPY` / `coffee +138 JPY` still easy to parse?
 - Is there visible flicker, jumping, or other redraw noise?
-- Would you rather touch this tomorrow than Prototype 01 or Prototype 02?
+- Would you rather touch this tomorrow than the strip version?
 
 ## Why this is separate from Prototype 02
 
