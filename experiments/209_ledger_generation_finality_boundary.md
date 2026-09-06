@@ -1,68 +1,58 @@
 # Observation 209 — Ledger generation / assignment / assertion-order boundary
 
-Status: **Ledger/hledger reconstruction gate; C-seeking bounded composition probe**
+Status: **Ledger/hledger reconstruction gate; qualified bounded additive composition**
 
 ## Question
 
-Observation 208 qualified a selected chart/status/posting-date reconstruction without enlarging neutral Event/Effect. The next Ledger/hledger pressure is not another account label. It is generation and prefix-sensitive validation:
+Observation 208 qualified chart hierarchy, role inheritance/override, posting status/date, and report-vs-assertion selection without enlarging neutral Event/Effect. Observation 209 asks the next mature-ledger question:
 
 ```text
 close / open / retain generation
 + balance assignment
-+ generated balance assertions
-+ report-selection context
++ generated assertions
++ generation / validation selection context
 + assertion evaluation order
 + generated-vs-retained provenance
 ```
 
-Can these selected behaviors be reconstructed from already-derived balances plus explicit generation/order/admission policy, or does Event/Effect need a different semantic shape?
+Can those selected behaviors be reconstructed from already-derived balances plus explicit generation/order/admission policy, or does Event/Effect need a different semantic shape?
 
 ## External pressure
 
-hledger 1.52 documents that:
+hledger 1.52 documents that balance assignments infer the missing posting amount required to reach a target balance; `close` supports close/open/clopen/assert/assign/retain modes; generated close/open output includes assertions; close-generated assertions can depend on status, realness, auto-posting, dates, costs, and related selection context; and assertions are checked in date order with parse order as a same-date tie-breaker.
 
-- balance assignments calculate the missing posting amount needed to reach a specified balance;
-- `close` has close/open/clopen/assert/assign/retain modes;
-- close/open transactions are generated output and only become journal history when retained by the user;
-- generated close/open transactions include balance assertions;
-- generated close assertions can become fragile if status, realness, auto-posting, date, or other selection context changes;
-- hledger checks assertions in date order, with parse order as the same-date tie-breaker;
-- Ledger instead checks assertions in parse order, ignoring dates.
-
-Ledger 3 likewise defines balance assignments as amount inference from the prior account balance and target balance.
+Ledger 3 likewise supports balance assignments, but checks assertions in parse order rather than hledger's date-first order.
 
 References:
 
 - https://hledger.org/1.52/hledger.html
 - https://ledger-cli.org/doc/ledger3.html
 
-## Relation to earlier LOAM evidence
+## Composition boundary
 
-Observation 207 already qualified separate accounting-only/generated contribution planes, query policy, assertions, and correction-aware horizon in one bounded composition.
+Observation 207 already qualified separate accounting-only/generated contribution planes, query policy, assertions, and correction-aware horizons. Observation 208 qualified the chart/status/posting-date selection seam.
 
-Observation 208 qualified hierarchy, inherited/overridden accounting role, posting-specific status, posting-specific date, and report-vs-assertion selection as additive relations/query policy.
-
-Observation 209 therefore treats `fullBalance` and `filteredBalance` as the output interface of those earlier selection layers. It does not duplicate their internal models. The new question begins **after a balance has been selected** and asks what generation/validation behavior depends on that selected prefix or snapshot.
-
-## Observation-local arithmetic
-
-The model uses three balance atoms:
+Observation 209 therefore treats two selected balances as an interface from those earlier results:
 
 ```text
-B0 B1 B2
+fullBalance
+filteredBalance
 ```
 
-and five exact delta atoms:
+The model begins after balance selection and asks what generation and prefix-sensitive validation still require.
+
+## Observation-local model
+
+The bounded arithmetic has only:
 
 ```text
-Minus2 Minus1 ZeroDelta Plus1 Plus2
+Balance = B0 | B1 | B2
+Delta   = -2 | -1 | 0 | +1 | +2
 ```
 
-with a small explicit addition/difference table. This avoids treating Alloy integer overflow as accounting evidence.
+with an explicit partial addition/difference relation.
 
-## Generation modes
-
-The observation-local modes are:
+Observation-local generation modes are:
 
 ```text
 CloseMode
@@ -81,53 +71,33 @@ Assign          -> target - prefix balance
 Assert          -> no generated quantity movement
 ```
 
-For movement-producing modes, an opposite balancing delta is also derived. This tests the smallest double-entry-shaped generated output, not complete hledger formatting or account-selection rules.
+Movement-producing modes also derive the opposite balancing delta.
 
-## Selection context
-
-Two abstract contexts stand in for the already-qualified selection policy from Observations 207–208:
+Two abstract selection contexts stand in for prior qualified selection policy:
 
 ```text
 FullContext
 FilteredContext
 ```
 
-Each world gives the balance visible under each context. Generation and later validation may deliberately use different contexts.
+Generation and validation may deliberately use different contexts.
 
-This is not a proposed generic production `SelectionContext` type. It is an observation-local seam for composing prior results with close/assert behavior.
+`admitted = No | Yes` keeps generated output separate from retained history. This is observation-local provenance, not a production writer model.
 
-## Generated vs retained
-
-`admitted = No` means a generated close/open-style result remains a preview/output only. `admitted = Yes` lets the generated delta enter the retained view.
-
-The flag does not model a production writer. It asks only whether:
-
-```text
-generated result exists
-    !=
-retained historical fact exists
-```
-
-must remain distinguishable.
-
-## Assertion ordering
-
-One observation-local prior posting begins at `B0` and may contribute `0`, `+1`, or `+2`.
-
-The same posting can be ordered before an assertion by either:
+For assertion ordering the model compares:
 
 ```text
 ParseOnly
 DateThenParse
 ```
 
-`ParseOnly` models the selected Ledger behavior. `DateThenParse` models the selected hledger behavior. The final balance after the posting is the same either way; only the assertion prefix may differ.
+A prior posting can therefore be visible in the assertion prefix under Ledger-like parse order while excluded under hledger-like date-first order. The final balance can remain identical.
 
-## C-seeking attacks
+## C-seeking witnesses
 
-### 1. Close output exists without retained history
+### Generated close without retained history
 
-Generate a filtered close from balance `B1`:
+A filtered balance `B1` generates:
 
 ```text
 selected account  -1
@@ -136,77 +106,63 @@ counter account   +1
 
 while `admitted = No`.
 
-Expected: **SAT**.
+Observed: **SAT**.
 
-So generated output must not automatically become retained Event history.
+So generated output is not automatically retained Event history.
 
-### 2. Generated posting shape determines generation meaning
+### Same generated postings, different generation meaning
 
-A close from `B1` and an assignment from prefix `B2` to target `B1` both generate `-1/+1`.
+A close from `B1` and an assignment from prefix `B2` to target `B1` can both generate `-1/+1`.
 
-Expected: **SAT witness**.
+Observed: **SAT**.
 
-So generated posting values alone do not recover whether they came from close or assignment semantics.
+Generated posting values alone do not determine whether the semantics were close or assignment.
 
-### 3. Assignment amount is prefix/order sensitive
+### Assignment amount depends on prefix/order
 
-Hold target `B2` and the prior posting fixed. Under parse-only ordering the prior `+1` is visible first, so assignment needs `+1`. Under date-then-parse the later-dated posting is not in the prefix, so assignment needs `+2`.
-
-Expected: **SAT witness**.
-
-Thus target balance alone does not determine a balance-assignment posting.
-
-### 4. Generation does not determine retention
-
-Hold generator inputs fixed and vary only admission.
-
-Expected: **SAT witness**.
-
-This preserves the distinction between command output / inferred candidate and retained history.
-
-### 5. Close assertion depends on matching selection context
-
-Generate close under a filtered `B1` view while the full view is `B2`.
+With target `B2` and the same prior `+1` posting:
 
 ```text
-validate filtered: B1 + (-1) = B0 -> PASS
-validate full:     B2 + (-1) = B1 -> FAIL
+ParseOnly     -> prior posting visible -> prefix B1 -> assignment +1
+DateThenParse -> later-dated posting excluded -> prefix B0 -> assignment +2
 ```
 
-Expected: **SAT witness**.
+Observed: **SAT**.
 
-This captures the documented hledger warning that close-generated assertions may depend on the same status/real/auto/date context used to generate them.
+Target balance alone therefore does not determine a balance-assignment posting.
 
-### 6. Final balance does not determine assertion outcome
+### Generation does not determine retention
 
-Hold final balance equal at `B1`, but evaluate a prefix assertion under hledger-like date ordering versus Ledger-like parse ordering.
+The generator inputs can be identical while only admission differs.
 
-Expected: **SAT witness** with different assertion result.
+Observed: **SAT**.
 
-So final account balance is too compressed for prefix-sensitive assertion validation.
+So generated candidate/output and retained historical fact remain distinct.
 
-## Conservative candidate
+### Close assertion depends on matching selection context
 
-The positive candidate is:
+Generate close from filtered `B1` while full balance is `B2`:
 
 ```text
-selected balances from prior LOAM views
-+ generation mode
-+ assignment target
-+ generation/validation context
-+ parse/date ordering evidence
-+ explicit order policy
-+ explicit admission decision
-    -> generated delta
-     + balancing delta
-     + retained-generated view
-     + prefix assertion result
-     + generated-close assertion result
+filtered validation: B1 + (-1) = B0 -> PASS
+full validation:     B2 + (-1) = B1 -> FAIL
 ```
 
-If fixing those inputs fixes the selected outputs, the pressure remains additive/compositional rather than C-level Core-shape failure.
+Observed: **SAT**.
 
-## Expected Alloy matrix
+The generated assertion therefore depends on the same selected context used to derive the close amount.
+
+### Final balance does not determine prefix assertion result
+
+The model keeps the final balance equal at `B1` but switches only the order policy. The assertion can pass under date-first prefix ordering and fail under parse-only ordering.
+
+Observed: **SAT**.
+
+Final balance is too compressed for prefix-sensitive assertion validation.
+
+## Observed Alloy matrix
+
+Alloy 6.2.0 + Sat4j on exact PR head `648344a73cc7131d173fa4e0fd4835ac53d85088` produced exactly the selected matrix:
 
 ```text
 representativeClosePreview                       SAT
@@ -225,23 +181,49 @@ ExplicitCloseContextsDetermineGeneratedAssertion UNSAT counterexample
 ExplicitInputsDetermineSelectedOutputs            UNSAT counterexample
 ```
 
-## Interpretation gate
+Dedicated workflow run `34015248485`, job `101437772269`, completed **SUCCESS**.
+
+## Interpretation
+
+Three tempting compressions fail:
 
 ```text
-generation/provenance/order/context distinctions observable
-    -> missing Ledger information is real
-
-explicit additive inputs determine selected outputs
-    -> B / conservative additive composition
-
-only if those inputs still cannot represent a legitimate selected answer
-because retained Event/Effect itself has the wrong shape
-    -> C / Core-shape pressure
+generated posting values  -/-> generation meaning
+selected target/final balance -/-> prefix-sensitive result
+generated output          -/-> retained history
 ```
+
+But the conservative candidate survives:
+
+```text
+selected balances from prior LOAM views
++ generation mode
++ assignment target
++ generation / validation context
++ parse/date ordering evidence
++ explicit order policy
++ explicit admission decision
+    -> generated delta
+     + balancing delta
+     + retained-generated view
+     + prefix assertion result
+     + generated-close assertion result
+```
+
+Fixing those explicit inputs fixed all selected outputs in the bounded model.
+
+Classification:
+
+```text
+B / CONSERVATIVE ADDITIVE COMPOSITION
+C / CORE-SHAPE PRESSURE NOT DEMONSTRATED
+```
+
+The result does not say generation meaning, order, or admission are UI trivia. They are independently observable information. It says the selected Ledger/hledger behavior can be reconstructed above existing Event/Effect rather than by changing the neutral physical occurrence shape.
 
 ## Production boundary
 
-Even if the expected matrix succeeds, this does **not** earn:
+This observation does **not** earn:
 
 - a production Close/Open/Retain mode enum;
 - a production BalanceAssignment fact;
@@ -255,17 +237,16 @@ Even if the expected matrix succeeds, this does **not** earn:
 - a production retained-earnings rule;
 - mutation of existing Event/Effect history.
 
-The selected question is only whether the mature Ledger generation/finality behavior forces a larger neutral physical Core.
-
 ## Next Ledger gate
 
-If this survives, the remaining large semantic cluster is valuation:
+The remaining large semantic cluster is valuation:
 
 ```text
 temporal price/rate applicability
-+ cost annotations
-+ lot identity/selection
-+ realised/unrealised gains
++ posting-attached cost
++ valuation policy
++ lot identity / selection
++ realised / unrealised gains
 ```
 
-That cluster should be attacked separately because hledger 1.x itself has limited automated lots/gains semantics while Ledger has richer behavior.
+That cluster should be split carefully because hledger 1.x preserves cost/lot annotations and performs valuation reporting but does not implement the same automated lot/gain machinery as Ledger 3.
