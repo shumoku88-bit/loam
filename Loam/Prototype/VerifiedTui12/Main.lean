@@ -100,7 +100,7 @@ def previousCandidate : CandidateIndex → CandidateIndex
   | _ => ⟨4, by decide⟩
 
 def locusField (focus : FieldIndex) : Bool :=
-  focus.val = 1 || focus.val = 3
+  focus.val == 1 || focus.val == 3
 
 def dropLastCharList : List Char → List Char
   | [] => []
