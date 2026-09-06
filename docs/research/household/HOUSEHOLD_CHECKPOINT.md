@@ -1,22 +1,22 @@
 # LOAM household dogfood checkpoint
 
-This checkpoint records the practical household-facing state reached after Observation 104 and Applications 010–014.
+This checkpoint records the household-facing arc reached after Observation 104 and Applications 010–014, together with the later authority transition that made LOAM the sole active household system.
 
-It supplements [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md), whose integrated historical map currently closes at Observation 084. Detailed evidence remains in the individual experiment and application records.
+It supplements [`OBSERVATION_MAP.md`](../../../OBSERVATION_MAP.md). Detailed evidence remains in the individual experiment and application records.
 
 ## Why this checkpoint matters
 
 LOAM began by refusing to assume familiar household nouns such as Account, Transaction, Budget, Envelope, Month, or Report as physical primitives.
 
-The current dogfood asks a stronger practical question:
+The dogfood asked a stronger practical question:
 
 > Can useful household-accounting behavior be reconstructed from a smaller set of neutral facts, explicit relations, question-local configuration, and independently qualified projections?
 
-The answer is now positive for a meaningful but still bounded slice of ordinary use.
+The answer became positive for a meaningful but bounded slice of ordinary use, and later household operation moved fully onto LOAM.
 
 ## Practical quantity path
 
-The practical balance path now composes:
+The practical balance path composes:
 
 ```text
 Event / EventCorrection
@@ -39,13 +39,13 @@ This earns neither a global chronology nor Date/Time fields in Core Event. File 
 
 See:
 
-- [`experiments/application_010_replaceable_balance_view.md`](experiments/application_010_replaceable_balance_view.md)
-- [`experiments/104_basis_cut_by_occurrence_root.md`](experiments/104_basis_cut_by_occurrence_root.md)
-- [`experiments/application_011_basis_cut.md`](experiments/application_011_basis_cut.md)
+- [`experiments/application_010_replaceable_balance_view.md`](../../../experiments/application_010_replaceable_balance_view.md)
+- [`experiments/104_basis_cut_by_occurrence_root.md`](../../../experiments/104_basis_cut_by_occurrence_root.md)
+- [`experiments/application_011_basis_cut.md`](../../../experiments/application_011_basis_cut.md)
 
 ## Read-only household day
 
-Applications 012–014 use an external canonical household source as read-only pressure without importing its ontology into LOAM Core.
+Applications 012–014 historically used an external canonical household source as read-only pressure without importing its ontology into LOAM Core.
 
 Application 012 answers one narrow question:
 
@@ -78,13 +78,13 @@ No canonical HouseholdHome or Day aggregate was required merely because the two 
 
 See:
 
-- [`experiments/application_012_shadow_day_reader.md`](experiments/application_012_shadow_day_reader.md)
-- [`experiments/application_013_shadow_scheduled_day_reader.md`](experiments/application_013_shadow_scheduled_day_reader.md)
-- [`experiments/application_014_shadow_home_day_composition.md`](experiments/application_014_shadow_home_day_composition.md)
+- [`experiments/application_012_shadow_day_reader.md`](../../../experiments/application_012_shadow_day_reader.md)
+- [`experiments/application_013_shadow_scheduled_day_reader.md`](../../../experiments/application_013_shadow_scheduled_day_reader.md)
+- [`experiments/application_014_shadow_home_day_composition.md`](../../../experiments/application_014_shadow_home_day_composition.md)
 
-## What real-data dogfood has established
+## What real-data dogfood established
 
-Private canonical household data has exercised the following boundaries locally:
+Private canonical household data exercised the following boundaries locally:
 
 - whole-file quantity projection through run-local neutral identity;
 - native non-zero quantity parity for the qualified quantity question;
@@ -95,29 +95,32 @@ Private canonical household data has exercised the following boundaries locally:
 - scheduled-day output for both an empty selected day and a future selected day already known at the observation horizon;
 - one terminal interaction composing recorded and scheduled views.
 
-Private household values, descriptions, identities, and paths are not copied into public qualification fixtures.
+Private household values, descriptions, identities, and paths were not copied into public qualification fixtures.
 
 These results are parity for the questions actually asked. They do not establish lossless import or full semantic equivalence with HRA / h-kernel.
 
-## Deliberate authority boundary
+The one-off private comparison observers used to establish context scope, Series pressure, Plan-realization sufficiency, and refund provenance were later retired from `main` after their role was captured in repository evidence. Generic read-only shadow adapters remain available only where they still answer an independent research question.
 
-For the current dual-dogfood period:
+## Current authority boundary
 
 ```text
-HRA canonical household source
-    = authority for household truth
+LOAM
+    = sole active household system
+    = canonical household Actual authority
 
-LOAM local data and entrances
-    = dogfood, reconstruction experiment, and comparison target
+HRA / h-kernel
+    = historical and research comparators
+    ≠ operational fallback
+    ≠ compatibility target
 ```
 
-The same real occurrence may therefore be recorded through both applications while this comparison remains useful. If the two disagree, the discrepancy is pressure on LOAM rather than a reason to rewrite the canonical HRA source to match LOAM.
+Household facts are no longer intentionally duplicated into HRA or h-kernel. A future comparison against those systems is research pressure only and must not recreate a second household authority.
 
-The read-only adapters provide a path toward reducing duplicate entry later. That future convenience should not turn the HRA source taxonomy into LOAM Core ontology.
+The sealed historical-admission snapshot and receipt remain migration provenance. Retiring an old runtime or observer does not erase the finding or source boundary it established.
 
-## What is still deliberately missing
+## What was still deliberately missing at the Observation 104 checkpoint
 
-This checkpoint does not yet claim a complete household application. Concrete remaining pressures include:
+The following list is historical frontier context, not a current backlog. Later observations may already have qualified or implemented some items:
 
 - effective-day interpretation where correction/reversal semantics matter;
 - complete source include-graph traversal where a query actually needs it;
@@ -128,14 +131,13 @@ This checkpoint does not yet claim a complete household application. Concrete re
 - category or other classification questions when they become observable;
 - richer planned-payment questions such as overdue/upcoming and recurrence generation;
 - envelope / entitlement behavior;
-- a compact human editor/TUI for the growing projection set;
-- deciding when LOAM should stop requiring duplicate entry and rely on read-only canonical-source observation for some questions.
+- a compact human editor/TUI for the growing projection set.
 
-Each should be introduced from a concrete household question. HRA may tell LOAM which capability is useful; HRA's type taxonomy does not automatically determine how LOAM represents that capability.
+Each capability should still be introduced from a concrete household question. Historical HRA or h-kernel behavior may supply pressure, but their type taxonomies do not determine LOAM representation.
 
 ## Compactness checkpoint
 
-The working direction is now:
+The working direction remains:
 
 ```text
 small retained facts / relations
@@ -149,6 +151,6 @@ terminal composition
 
 rather than one large household domain model created in advance.
 
-The checkpoint does not prove that Account, Plan, temporal, Issue, or Envelope concepts will never be earned. It establishes only that several real household capabilities have already been reconstructed without promoting those familiar nouns into the neutral Core.
+The checkpoint does not prove that Account, Plan, temporal, Issue, or Envelope concepts will never be earned. It establishes only that several real household capabilities were reconstructed without promoting those familiar nouns into the neutral Core.
 
-This is a natural stopping point. Further work should resume from new dogfood pressure rather than from a speculative feature checklist.
+Further work should resume from new LOAM dogfood pressure rather than from preserving retired-system compatibility or a speculative feature checklist.
