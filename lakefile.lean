@@ -48,5 +48,10 @@ lean_exe loamShadowDay where
 lean_exe loamShadowScheduledDay where
   root := `Loam.Cli.ShadowScheduledDayCli
 
+/-- Historical name retained on this research branch only. -/
 lean_exe loamUiPrototype12 where
   root := `Loam.Prototype.VerifiedTui12.Cli
+
+/-- Unambiguous dogfood entry point for the Movement record editor experiment. -/
+lean_exe loamUiRecordEditor13 where
+  root := `Loam.Prototype.RecordEditor13
