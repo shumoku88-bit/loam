@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.LocusAdmissionPersistence
 import Loam.Persistence.OpenRelationPersistence
 import Loam.Persistence.RelationDischargePersistence
 import Loam.MovementAdmission
@@ -77,10 +78,11 @@ Read exactly one Movement authority backend before interactive input.
 
 Without a manifest root this retains the sidecar behavior used by isolated
 regression fixtures. With `LOAM_MOVEMENT_MANIFEST_ROOT`, the selected manifest
-generation supplies the hints and all five selected families are verified before
-human input. The same manifest is re-read under writer ownership after human
-think time, so preflight remains observational rather than publication authority.
-There is no fallback to sidecars in manifest mode.
+generation supplies the hints and verifies its selected families before human
+input. The same selected authority, including current Locus publication policy,
+is re-read under writer ownership after human think time, so preflight remains
+observational rather than publication authority. There is no fallback to
+sidecars in manifest mode.
 -/
 private def preflightForDraft
     (memoryFile : System.FilePath) : IO (Except String Loam.Core.EventMemory) := do
@@ -227,6 +229,11 @@ while the user types. The same typed admission seam is usable by a different
 physical publisher without teaching admission about sidecars or authority
 selectors.
 
+The isolated sidecar fixture additionally requires an explicit sibling Locus
+admission vocabulary. It is loaded here, under the same writer ownership as the
+Event memory, immediately before semantic admission. Missing policy therefore
+fails closed rather than being reconstructed from historical completion hints.
+
 Publication order remains the currently qualified sidecar protocol:
 
 ```text
@@ -248,6 +255,8 @@ private def publishDraftUnderOwnership
   let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
   let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
   let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
+  let locusAdmissionFile :=
+    Loam.Persistence.locusAdmissionVocabularyPathForEventMemory memoryFile
   match ← loadEventMemoryForEntry? memoryFile with
   | none =>
       IO.eprintln "loam: malformed or unsupported event-memory file"
@@ -273,77 +282,87 @@ private def publishDraftUnderOwnership
                       IO.eprintln "loam: malformed or unsupported relation-discharge stream"
                       return 2
                   | some discharges =>
-                      let world : Loam.MovementAdmission.World := {
-                        events := memory
-                        validity := history
-                        descriptions := descriptions
-                        relations := relations
-                        discharges := discharges
-                      }
-                      match Loam.MovementAdmission.admit? world draft with
-                      | Except.error message =>
-                          IO.eprintln message
-                          return 2
-                      | Except.ok admitted =>
-                          showAdmissionPreview
-                            draft.total draft.validOn draft.description
-                            admitted.newRelations.length admitted.newDischarges.length
-                            admitted.event.id
-                          if ← Loam.Persistence.saveActualValidityHistory?
-                              validityFile admitted.world.validity then
-                            let descriptionPublished ←
-                              match draft.description with
-                              | none => pure true
-                              | some _ =>
-                                  Loam.Persistence.saveEventDescriptionMemory?
-                                    descriptionFile admitted.world.descriptions
-                            if !descriptionPublished then
-                              IO.eprintln
-                                "loam: description was not published; the already-published date evidence remains inert"
-                              return 2
-                            else
-                              let relationPublished ←
-                                if admitted.newRelations.isEmpty then
-                                  pure true
-                                else
-                                  Loam.Persistence.saveOpenRelationUnits?
-                                    relationFile admitted.world.relations
-                              if !relationPublished then
-                                IO.eprintln
-                                  "loam: open relation evidence was not published; Event authority was not published"
-                                return 2
-                              else
-                                let dischargePublished ←
-                                  if admitted.newDischarges.isEmpty then
-                                    pure true
-                                  else
-                                    Loam.Persistence.saveRelationDischarges?
-                                      dischargeFile admitted.world.discharges
-                                if !dischargePublished then
-                                  IO.eprintln
-                                    "loam: relation discharge evidence was not published; Event authority was not published"
-                                  return 2
-                                else if ← Loam.Persistence.saveEventMemory?
-                                    memoryFile admitted.world.events then
-                                  IO.println
-                                    ("Recorded movement: " ++ toString draft.total ++
-                                      " jpy. Date: " ++ draft.validOn ++ ".")
-                                  return 0
-                                else
-                                  IO.eprintln
-                                    "loam: event was not published; already-published supporting, open-relation, and relation-discharge evidence remains inert until that EventId exists"
-                                  return 2
-                          else
-                            IO.eprintln "loam: occurrence date evidence could not be published"
+                      if !(← locusAdmissionFile.pathExists) then
+                        IO.eprintln "loam: Locus admission vocabulary is missing"
+                        return 2
+                      else
+                        match ← Loam.Persistence.loadLocusAdmissionVocabulary? locusAdmissionFile with
+                        | none =>
+                            IO.eprintln "loam: malformed or unsupported Locus admission vocabulary"
                             return 2
+                        | some locusAdmission =>
+                            let world : Loam.MovementAdmission.World := {
+                              events := memory
+                              validity := history
+                              descriptions := descriptions
+                              relations := relations
+                              discharges := discharges
+                              locusAdmission := locusAdmission
+                            }
+                            match Loam.MovementAdmission.admit? world draft with
+                            | Except.error message =>
+                                IO.eprintln message
+                                return 2
+                            | Except.ok admitted =>
+                                showAdmissionPreview
+                                  draft.total draft.validOn draft.description
+                                  admitted.newRelations.length admitted.newDischarges.length
+                                  admitted.event.id
+                                if ← Loam.Persistence.saveActualValidityHistory?
+                                    validityFile admitted.world.validity then
+                                  let descriptionPublished ←
+                                    match draft.description with
+                                    | none => pure true
+                                    | some _ =>
+                                        Loam.Persistence.saveEventDescriptionMemory?
+                                          descriptionFile admitted.world.descriptions
+                                  if !descriptionPublished then
+                                    IO.eprintln
+                                      "loam: description was not published; the already-published date evidence remains inert"
+                                    return 2
+                                  else
+                                    let relationPublished ←
+                                      if admitted.newRelations.isEmpty then
+                                        pure true
+                                      else
+                                        Loam.Persistence.saveOpenRelationUnits?
+                                          relationFile admitted.world.relations
+                                    if !relationPublished then
+                                      IO.eprintln
+                                        "loam: open relation evidence was not published; Event authority was not published"
+                                      return 2
+                                    else
+                                      let dischargePublished ←
+                                        if admitted.newDischarges.isEmpty then
+                                          pure true
+                                        else
+                                          Loam.Persistence.saveRelationDischarges?
+                                            dischargeFile admitted.world.discharges
+                                      if !dischargePublished then
+                                        IO.eprintln
+                                          "loam: relation discharge evidence was not published; Event authority was not published"
+                                        return 2
+                                      else if ← Loam.Persistence.saveEventMemory?
+                                          memoryFile admitted.world.events then
+                                        IO.println
+                                          ("Recorded movement: " ++ toString draft.total ++
+                                            " jpy. Date: " ++ draft.validOn ++ ".")
+                                        return 0
+                                      else
+                                        IO.eprintln
+                                          "loam: event was not published; already-published supporting, open-relation, and relation-discharge evidence remains inert until that EventId exists"
+                                        return 2
+                                else
+                                  IO.eprintln "loam: occurrence date evidence could not be published"
+                                  return 2
 
 /--
 Manifest production path.
 
 The selected manifest generation is re-read under writer ownership and is the
-only state used for world-dependent admission and publication. The resulting
-admitted five-family world is prepared as immutable typed objects and becomes
-authority through one `CURRENT` replacement.
+only state used for world-dependent admission and publication. Version 2 carries
+the explicit Locus new-write vocabulary in the same selected generation. Version
+1 remains readable but its closed default vocabulary refuses publication.
 
 There is deliberately no fallback to sidecars if selected manifest authority is
 missing or malformed.
