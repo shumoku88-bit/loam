@@ -95,11 +95,16 @@ def Widget.lines : Widget → List (List Cell)
   | .row spans => [spans.flatMap Span.cells]
   | .column children => children.flatMap Widget.lines
 
+def listGet? {α : Type} : List α → Nat → Option α
+  | [], _ => none
+  | value :: _, 0 => some value
+  | _ :: rest, index + 1 => listGet? rest index
+
 def widgetCellAt (lines : List (List Cell)) (row col : Nat) : Cell :=
-  match lines.get? row with
+  match listGet? lines row with
   | none => blankCell
   | some line =>
-      match line.get? col with
+      match listGet? line col with
       | none => blankCell
       | some cell => cell
 
