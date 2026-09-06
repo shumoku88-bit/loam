@@ -114,11 +114,11 @@ theorem selection_bounds (state : State) : state.selected.val < 5 :=
 
 theorem enter_preserves_selection (state : State) :
     (update state .enter).state.selected = state.selected := by
-  cases state.surface <;> rfl
+  cases h : state.surface <;> simp [update, h]
 
 theorem back_preserves_selection (state : State) :
     (update state .back).state.selected = state.selected := by
-  cases state.surface <;> rfl
+  cases h : state.surface <;> simp [update, h]
 
 theorem event_determinism (state : State) (event : Event) (left right : Step)
     (hLeft : update state event = left) (hRight : update state event = right) :
