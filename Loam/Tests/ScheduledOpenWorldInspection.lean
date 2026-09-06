@@ -30,7 +30,7 @@ private def expectDueId
     (expectedId : String)
     (message : String) : IO Unit :=
   match result with
-  | .due first rest =>
+  | .due first rest => do
       expect (first.id.token == expectedId) message
       expect rest.isEmpty "expected exactly one explicit Scheduled occurrence"
   | _ => throw <| IO.userError message
@@ -98,7 +98,8 @@ def main : IO Unit := do
   match currentScheduledDayEvidenceWithReplacement
       scheduled completions retirements unknownTargetReplacements events (2 : Nat) with
   | .unknownReplacementScheduled => pure ()
-  | _ => throw <| IO.userError
-      "open-world query collapsed an invalid replacement endpoint into ordinary Unknown"
+  | _ =>
+      throw <| IO.userError
+        "open-world query collapsed an invalid replacement endpoint into ordinary Unknown"
 
   IO.println "Scheduled open-world day evidence story succeeded."
