@@ -47,8 +47,11 @@ def compiledRowCell (row : Option (Array Cell)) (col : Nat) : Cell :=
 
 theorem compiledRowCell_spec (lines : List (List Cell)) (row col : Nat) :
     compiledRowCell (widgetArrayLines lines)[row]? col = widgetCellAt lines row col := by
-  simpa [compiledRowCell, widgetCellAtArray] using
-    widgetCellAtArray_spec lines row col
+  cases h : lines[row]? with
+  | none =>
+      simp [compiledRowCell, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
+  | some line =>
+      simp [compiledRowCell, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
 
 def CompiledWidget.cellAt {bounds : Bounds}
     (frame : CompiledWidget) (top left : Nat) (pos : Position bounds) : Cell :=
@@ -69,7 +72,10 @@ theorem compileWidget_cellAt_spec
     · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, compileWidget, renderAt,
         hRow, hCol, compiledRowCell_spec]
     · simp [CompiledWidget.cellAt, renderAt, hRow, hCol]
-  · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, renderAt, hRow]
+  · by_cases hCol : left ≤ pos.col.val
+    · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, compiledRowCell, renderAt,
+        hRow, hCol]
+    · simp [CompiledWidget.cellAt, renderAt, hRow, hCol]
 
 theorem compileWidget_spec
     (bounds : Bounds) (top left : Nat) (widget : Widget) :
