@@ -1,0 +1,34 @@
+name: Prototype UI Shell
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Prototype/InteractionShell.lean'
+      - 'Loam/Prototype/README.md'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype-ui-shell.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build prototype executable
+        run: lake build loamUiPrototype
+      - name: Smoke-test HRA-flat entrance
+        shell: bash
+        run: |
+          printf '1\nq\n' | lake exe loamUiPrototype | tee /tmp/hra.out
+          grep -F 'LOAM UI Prototype 01 session summary' /tmp/hra.out
+          grep -F 'No household or canonical data was read or written by this prototype.' /tmp/hra.out
+      - name: Smoke-test hybrid rare-action path
+        shell: bash
+        run: |
+          printf '2\n/\nwrong amount\nc\nb\nq\n' | lake exe loamUiPrototype | tee /tmp/hybrid.out
+          grep -F 'Palette found: Correct a record.' /tmp/hybrid.out
+          grep -F 'MOCK DRAFT' /tmp/hybrid.out
+          grep -F 'LOAM UI Prototype 01 session summary' /tmp/hybrid.out
