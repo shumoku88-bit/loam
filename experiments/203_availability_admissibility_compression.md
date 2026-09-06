@@ -1,6 +1,6 @@
 # Observation 203 — Can reservation and movement rights collapse into one flat future-use envelope?
 
-Status: **OBSERVING / UNTESTED**
+Status: **DONE / COUNTEREXAMPLE**
 
 Concept-pressure source: **F001 + F033 compression probe**
 
@@ -26,8 +26,6 @@ A tempting experiment-local candidate is a flat map:
 operation -> usable quantity
 ```
 
-For example, the selected wallet might expose how much can currently be spent, sent, or withdrawn.
-
 Observation 203 attacks that compression before any production noun is introduced.
 
 ## Joint model
@@ -50,7 +48,33 @@ usable(op)
 
 This is deliberately query-bounded. It is not a wallet implementation and does not claim that every real product uses one global reservation amount across all operations.
 
-## Attacks
+## Result
+
+Dedicated Observation 203 Alloy CI completed SUCCESS on exact executable head:
+
+```text
+21ef8c27990541c85d7749250b8fe180f49a468c
+```
+
+workflow run:
+
+```text
+34008569484
+```
+
+The workflow requires the following result matrix and succeeded:
+
+```text
+reservationVsPolicyCollision                       SAT
+zeroHoldingMasksRights                             SAT
+blockedOperationsMaskReservation                   SAT
+sameRightsDifferentReservationChangesEnvelope      SAT
+sameReservationDifferentRightsChangesEnvelope      SAT
+OperationalEnvelopeDeterminesRights                SAT counterexample
+OperationalEnvelopeDeterminesReservation           SAT counterexample
+OperationalEnvelopeDeterminesSelectedEvidence      SAT counterexample
+ExplicitDimensionsDetermineEnvelope                UNSAT counterexample
+```
 
 ### Reservation vs policy collision
 
@@ -73,53 +97,62 @@ both
   usable(Withdraw) = 0
 ```
 
-If SAT, a flat operational envelope cannot distinguish temporary encumbrance from policy/right restriction.
+Therefore the flat envelope cannot distinguish temporary encumbrance from policy/right restriction.
 
 ### Zero holding masks future rights
 
 With held quantity zero, permitted and prohibited operations both currently expose usable quantity zero.
 
-If SAT, operation rights are not recoverable from current usable quantity because rights may matter to later incoming quantity.
+Future movement rights therefore cannot be reconstructed from current usable quantity alone. Rights remain independently observable because they can matter to quantity that arrives later.
 
 ### Blocked operations mask reservation
 
-If all selected operations are already prohibited, different reservation evidence can also collapse to the same all-zero envelope.
+If all selected operations are prohibited, different reservation states also collapse to the same all-zero operational envelope.
 
-If SAT, temporary reservation is not recoverable from the flat envelope either.
+Temporary reservation evidence therefore cannot be reconstructed from the flat envelope either.
 
-## Positive boundary
+### Both original pressures survive jointly
 
-The model also checks that the original independent dimensions are sufficient for the selected future-use view:
+With rights fixed, changing reservation changes the selected usable envelope.
+
+With reservation fixed, changing operation rights changes the selected usable envelope.
+
+The two dimensions therefore remain independently observable inside the same vocabulary.
+
+### Positive sufficiency boundary
+
+When held quantity, reservation evidence, and operation-right evidence are all equal, the selected operation-wise usable quantities are equal. Alloy found no counterexample in the selected scope.
+
+## Qualification
+
+The attempted scalar compression is falsified:
 
 ```text
-same held
-+ same reserved
-+ same allowed
-  -> same operation-wise usable quantity
+operation -> usable quantity
 ```
 
-Expected UNSAT counterexample.
-
-## Expected interpretation
-
-If the collision witnesses are SAT and the positive sufficiency check is UNSAT, then the narrow result is:
+is too small to replace:
 
 ```text
-one scalar operation -> usable quantity envelope
-  is too small to replace
-  reservation evidence + operation-right evidence
+reservation provenance
++
+operation-right provenance
 ```
 
-That would **not** prove that LOAM needs separate production `Hold` and `Capability` concepts.
+for the selected future-use questions.
 
-A single tagged carrier might still share mechanics, but if it retains both reservation provenance and permission provenance it has not reduced the two independent information dimensions. It would be packaging, not semantic compression.
+This does **not** prove that LOAM needs separate production `Hold` and `Capability` concepts.
 
-The likely architectural reading would remain B-level conservative-extension pressure, with a stronger warning:
+A single tagged carrier may still share mechanics. But if it retains both reservation provenance and permission provenance, it has not reduced the two independent information dimensions. That is packaging, not semantic compression.
+
+The architectural reading therefore remains B-level conservative-extension pressure rather than C-level Core-shape pressure:
 
 ```text
 share mechanics if useful
 but do not erase meaning merely to obtain one noun
 ```
+
+No existing Event, Locus, Quantity, Capacity, Correction, or Scheduled meaning was shown to require redesign.
 
 ## Boundary
 
