@@ -1,3 +1,4 @@
+import Loam.Prototype.InteractionShellTeaMain
 import Loam.Persistence
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
