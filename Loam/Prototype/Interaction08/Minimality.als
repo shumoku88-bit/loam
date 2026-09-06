@@ -81,8 +81,9 @@ fun steps[c: Config]: Surface -> Surface {
   next & (c.kept -> c.kept)
 }
 
-pred reaches[c: Config, from, to: Surface] {
-  to in from.*(steps[c])
+pred reaches[c: Config, source, target: Surface] {
+  let relation = steps[c] |
+    target in source.*relation
 }
 
 pred sufficient[c: Config] {
