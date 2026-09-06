@@ -94,19 +94,21 @@ def update (state : State) (event : Event) : Step :=
   match event with
   | .quit => { state, quit := true }
   | .up =>
-      if state.surface == .list then { state := movePrevious state } else { state }
+      match state.surface with
+      | .list => { state := movePrevious state }
+      | .detail => { state }
   | .down =>
-      if state.surface == .list then { state := moveNext state } else { state }
+      match state.surface with
+      | .list => { state := moveNext state }
+      | .detail => { state }
   | .enter =>
-      if state.surface == .list then
-        { state := { state with surface := .detail, notice := "" } }
-      else
-        { state }
+      match state.surface with
+      | .list => { state := { state with surface := .detail, notice := "" } }
+      | .detail => { state }
   | .back =>
-      if state.surface == .detail then
-        { state := { state with surface := .list, notice := "" } }
-      else
-        { state }
+      match state.surface with
+      | .list => { state }
+      | .detail => { state := { state with surface := .list, notice := "" } }
   | .other => { state }
 
 theorem selection_bounds (state : State) : state.selected.val < 5 :=
