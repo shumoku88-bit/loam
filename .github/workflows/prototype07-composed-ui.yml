@@ -1,0 +1,71 @@
+name: Prototype 07 Composed UI
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'Loam/Prototype/VerifiedTui06/**'
+      - 'Loam/Prototype/VerifiedTui07/**'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'tests/test_record_review.py'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype07-composed-ui.yml'
+  push:
+    branches:
+      - 'prototype/verified-tui-composed-07'
+    paths:
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'Loam/Prototype/VerifiedTui06/**'
+      - 'Loam/Prototype/VerifiedTui07/**'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'tests/test_record_review.py'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype07-composed-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean composed calendar review pressure test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build production review and all verified UI specimens
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam loamMovement loamUiPrototype04 loamUiPrototype05 loamUiPrototype06 loamUiPrototype07
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run pure review projection checks
+        shell: bash
+        run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Run review manifest and fail-closed regression checks
+        shell: bash
+        run: python3 tests/test_record_review.py -v
+
+      - name: Composed TUI refuses missing manifest authority before terminal entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing="$(mktemp -d)/missing-data"
+          if ./.lake/build/bin/loamUiPrototype07 "$missing" >/tmp/prototype07.out 2>/tmp/prototype07.err; then
+            echo 'Prototype 07 unexpectedly accepted missing authority' >&2
+            exit 1
+          fi
+          test ! -s /tmp/prototype07.out
+          grep -q 'CURRENT is missing' /tmp/prototype07.err
