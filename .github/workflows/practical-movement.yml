@@ -96,6 +96,7 @@ jobs:
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
           validity="$memory.actual-validity"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$memory.locus-admission"
 
           printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
@@ -140,6 +141,7 @@ jobs:
           first_out="$tmp_dir/first.out"
           first_err="$tmp_dir/first.err"
           second_out="$tmp_dir/second.out"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
           mkfifo "$fifo"
 
           LOAM_OCCURRENCE_DATE=2026-09-02 \
@@ -188,6 +190,7 @@ jobs:
         run: |
           data_dir="$(mktemp -d)"
           today="$(date +%Y-%m-%d)"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$data_dir/memory.loam.locus-admission"
 
           printf '1\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
             | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out
