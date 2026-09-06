@@ -28,6 +28,38 @@ structure Position (bounds : Bounds) where
 abbrev Screen (bounds : Bounds) := Position bounds → Cell
 abbrev Patch (bounds : Bounds) := Position bounds → Option Cell
 
+/--
+A runtime materialization of the semantic screen. The dimensions remain in the
+type, while cell lookup is backed by fixed-size vectors rather than repeated
+function evaluation.
+-/
+abbrev DenseScreen (bounds : Bounds) :=
+  Vector (Vector Cell bounds.width) bounds.height
+
+def DenseScreen.cellAt {bounds : Bounds}
+    (screen : DenseScreen bounds) (pos : Position bounds) : Cell :=
+  (screen.get pos.row).get pos.col
+
+def materialize {bounds : Bounds} (screen : Screen bounds) : DenseScreen bounds :=
+  Vector.ofFn fun row =>
+    Vector.ofFn fun col =>
+      screen { row, col }
+
+def denseDiffAt {bounds : Bounds}
+    (old new : DenseScreen bounds) (pos : Position bounds) : Option Cell :=
+  let oldCell := old.cellAt pos
+  let newCell := new.cellAt pos
+  if oldCell = newCell then none else some newCell
+
+theorem cellAt_materialize {bounds : Bounds} (screen : Screen bounds) (pos : Position bounds) :
+    (materialize screen).cellAt pos = screen pos := by
+  simp [DenseScreen.cellAt, materialize]
+
+theorem denseDiffAt_materialize {bounds : Bounds}
+    (old new : Screen bounds) (pos : Position bounds) :
+    denseDiffAt (materialize old) (materialize new) pos = screenDiff old new pos := by
+  simp [denseDiffAt, screenDiff, cellAt_materialize]
+
 def blankCell : Cell :=
   { glyph := ' ', style := .normal }
 
