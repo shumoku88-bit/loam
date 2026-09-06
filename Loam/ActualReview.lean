@@ -163,18 +163,22 @@ private def loadCorrections?
 /-- Admit the whole evidence before filtering; a quiet view must not hide refusal. -/
 private def recordsFromWorld?
     (world : ReviewMovementWorld)
-    (corrections : EventCorrectionMemory) : Except String (List Record) := do
-  let some frontier := Loam.Application.correctionFrontierMemory? world.events corrections
-    | return .error "loam: movement corrections do not justify one current record frontier"
-  let some validities := Loam.Application.admittedActualValidityMemory? world.validity
-    | return .error "loam: actual-validity corrections do not justify one current date per event"
-  return .ok (world.events.events.map fun event => {
-    event := event
-    date := validities.findByEventId? event.id
-    description := (world.descriptions.findText? event.id).getD ""
-    replacement := (corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
-    isCurrent := (frontier.findById? event.id).isSome
-  })
+    (corrections : EventCorrectionMemory) : Except String (List Record) :=
+  match Loam.Application.correctionFrontierMemory? world.events corrections with
+  | none =>
+      .error "loam: movement corrections do not justify one current record frontier"
+  | some frontier =>
+      match Loam.Application.admittedActualValidityMemory? world.validity with
+      | none =>
+          .error "loam: actual-validity corrections do not justify one current date per event"
+      | some validities =>
+          .ok (world.events.events.map fun event => {
+            event := event
+            date := validities.findByEventId? event.id
+            description := (world.descriptions.findText? event.id).getD ""
+            replacement := (corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
+            isCurrent := (frontier.findById? event.id).isSome
+          })
 
 private def finishLoad?
     (worldResult : Except String ReviewMovementWorld)
