@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/204_prescheduled_subject_compression.als'
       - 'experiments/204_prescheduled_subject_compression.md'
-      - 'LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md'
       - '.github/workflows/observation-204-prescheduled-subject-compression.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/204_prescheduled_subject_compression.als'
       - 'experiments/204_prescheduled_subject_compression.md'
-      - 'LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md'
       - '.github/workflows/observation-204-prescheduled-subject-compression.yml'
   workflow_dispatch:
 
