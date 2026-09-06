@@ -78,22 +78,28 @@ def keyEvent : Loam.Prototype.VerifiedTui04.Main.Key → Event
   | .quit => .quit
   | _ => .other
 
-/-- Sparse terminal lowering reused without adding a list-specific renderer. -/
+/--
+Lower each dirty logical row as one terminal stream.
+
+The semantic kernel still models one `Char` per logical cell, but terminal glyphs
+can occupy more than one display column. Repositioning before every character
+therefore corrupts wide glyphs such as Japanese text. Once a row is known dirty,
+write it contiguously from its left edge and let the terminal own horizontal
+glyph advancement; erase the old row tail afterward.
+-/
 def emitDirtyDiff (old new : CompiledWidget) : IO Unit := do
   let mut output := ""
   for row in dirtyRows screenBounds 1 old new do
-    for col in List.finRange screenBounds.width do
-      let pos : Position screenBounds := { row, col }
-      let oldCell := old.cellAt 1 1 pos
-      let newCell := new.cellAt 1 1 pos
-      if oldCell = newCell then
-        pure ()
-      else
-        output := output ++
-          Loam.Prototype.VerifiedTui04.Main.cursorTo row.val col.val ++
-          Loam.Prototype.VerifiedTui04.Main.ansiStyle newCell.style ++
-          toString newCell.glyph
-  IO.print (output ++ "\x1b[0m")
+    output := output ++ Loam.Prototype.VerifiedTui04.Main.cursorTo row.val 1
+    match new.rowAt 1 row.val with
+    | none => pure ()
+    | some cells =>
+        for cell in cells do
+          output := output ++
+            Loam.Prototype.VerifiedTui04.Main.ansiStyle cell.style ++
+            toString cell.glyph
+    output := output ++ "\x1b[0m\x1b[K"
+  IO.print output
   (← IO.getStdout).flush
 
 partial def loop
