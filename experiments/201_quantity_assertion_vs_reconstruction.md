@@ -1,6 +1,6 @@
 # Observation 201 — Does reconstructed history determine a physical quantity assertion?
 
-Status: **F086 active falsification observation**
+Status: **F086 completed — COUNTEREXAMPLE / RESEARCH_ONLY**
 
 ## Question
 
@@ -113,7 +113,24 @@ Once both the retained history and the explicit assertion are fixed, can the sel
 
 Expected counterexample: **UNSAT**.
 
-If this matrix holds, the selected boundary is:
+## Executed result
+
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix:
+
+```text
+representativeConflict                         SAT
+sameHistoryDifferentAssertion                  SAT
+sameReconstructionDifferentConflict            SAT
+HistoryDeterminesPhysicalAssertion             SAT counterexample
+ReconstructedQuantityDeterminesConflict        SAT counterexample
+ExplicitAssertionAndHistoryDetermineConflict   UNSAT counterexample
+```
+
+The central witness keeps the retained history and reconstructed quantity identical while the independently observed assertion changes from agreement to disagreement.
+
+## Finding
+
+The bounded information boundary is:
 
 ```text
 reconstructed history
@@ -129,9 +146,9 @@ same retained history + same reconstructed quantity
 same observed quantity knowledge
 ```
 
-## Candidate interpretation if the matrix holds
+An explicit assertion can therefore carry information that reconstruction alone does not contain. Once retained history and the explicit assertion are both fixed, the selected conflict answer has no remaining degree of freedom.
 
-F086 would close as:
+F086 closes as:
 
 ```text
 Work     DONE
@@ -139,9 +156,7 @@ Finding  COUNTEREXAMPLE
 Runtime  RESEARCH_ONLY
 ```
 
-The earned information is only that a quantity assertion, or information-equivalent evidence, can be independently observable from reconstructed history.
-
-This does **not** say which value is true or authoritative when they disagree.
+This does **not** say which value is true or authoritative when they disagree. The earned result is only the independence of the assertion evidence for this query.
 
 ## Boundaries
 
@@ -161,4 +176,4 @@ Observation 201 does not establish:
 
 The observation intentionally preserves epistemic conflict instead of resolving it.
 
-Runtime remains `RESEARCH_ONLY` regardless of the result. Production waits for real dogfood pressure.
+Runtime remains `RESEARCH_ONLY`. Production waits for real dogfood pressure.
