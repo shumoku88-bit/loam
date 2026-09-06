@@ -1,6 +1,6 @@
 # Observation 206 — Does discrepancy repair require mutating historical evidence?
 
-Status: **OBSERVING concept-pressure probe**
+Status: **COMPLETE / B — CONSERVATIVE EXTENSION; C NOT DEMONSTRATED**
 
 Source: **F088 — missing history can be padded or left unknown**
 
@@ -48,16 +48,27 @@ Incomplete + PadToAssertion
 
 This does not create or modify an Event. `PadToAssertion` is an observation-local query policy, not canonical historical fact.
 
-## Attacks
+## Mechanical result
 
-1. Same reconstructed quantity and external assertion, different completeness.
-2. Same incomplete evidence, different repair policy, producing unknown vs padded quantity.
-3. Same selected scalar quantity with different provenance: complete reconstruction vs padded incomplete reconstruction.
-4. Fix all additive evidence and ask whether the selected view still differs.
-5. Check that LeaveUnknown never silently selects a quantity.
-6. Check that PadToAssertion selects the assertion only as the repair view.
+Dedicated Observation 206 Alloy CI completed SUCCESS on executable PR head:
 
-Expected matrix:
+```text
+73505b3d46efabe5f0fa61bb6654c5f5d47ac709
+```
+
+Workflow run:
+
+```text
+34009588777
+```
+
+Job:
+
+```text
+101422945040
+```
+
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix:
 
 ```text
 representativeLeaveUnknownVsPad                    SAT
@@ -71,31 +82,106 @@ LeaveUnknownHasNoSelectedReconstruction             UNSAT counterexample
 PadToAssertionSelectsAssertion                      UNSAT counterexample
 ```
 
-## Architectural interpretation under test
+## What the witnesses show
 
-If this matrix holds, F088 demonstrates independently observable completeness and repair-policy information, but not Core-shape failure.
+### Reconstruction + assertion do not determine completeness
 
-A conservative additive/query-local representation would survive while retained Events and reconstructed history remain unchanged.
+The bounded witness keeps both quantities fixed:
 
-The architectural classification would remain:
+```text
+Left
+  reconstructed = Q10
+  asserted      = Q8
+  status        = Complete
+
+Right
+  reconstructed = Q10
+  asserted      = Q8
+  status        = Incomplete
+  repair        = LeaveUnknown
+```
+
+So the same numeric discrepancy does not say whether retained history is believed complete.
+
+### Incompleteness does not determine repair policy
+
+With the same reconstructed quantity, same assertion, and the same `Incomplete` status:
+
+```text
+Left   LeaveUnknown   -> no selected reconstruction
+Right  PadToAssertion -> selected reconstruction Q8
+```
+
+Therefore epistemic status and repair policy are independently observable dimensions in the selected query.
+
+### The repaired scalar does not preserve provenance
+
+Observation 206 also found worlds with the same selected scalar but different provenance:
+
+```text
+Complete history -> Q8
+
+vs
+
+Incomplete history
++ PadToAssertion -> Q8
+```
+
+Therefore:
+
+```text
+selected repaired scalar
+  -/->
+complete-vs-padded provenance
+```
+
+Materializing only the scalar would erase information relevant to explaining how that quantity was obtained.
+
+### Explicit additive evidence closes the selected gap
+
+Once reconstructed quantity, external assertion, completeness status, and repair policy are all fixed, Alloy found no counterexample to the selected repaired reconstruction / unresolved view in scope.
+
+This is bounded sufficiency only. It does not establish these observation-local names as a universal or production representation.
+
+## Architectural result
+
+F088 exposes real additional information, but no Core-shape failure.
+
+```text
+reconstructed + asserted
+  -/-> completeness
+
+reconstructed + asserted + completeness
+  -/-> repair outcome
+
+repaired scalar
+  -/-> repair provenance
+
+explicit additive completeness + repair evidence
+  -> selected bounded repair view
+```
+
+Current classification:
 
 ```text
 B / CONSERVATIVE EXTENSION
 ```
 
-It would also show that materializing only the repaired scalar is too small because the same scalar may come from complete history or from padding incomplete history.
+Retained Events and historical reconstruction can stay unchanged. A repair/padding view can remain additive and query-local rather than silently publishing a synthetic Actual or mutating historical evidence.
 
-## Deliberate boundaries
+This is exactly the architectural null hypothesis under test: missing epistemic/policy evidence can live beside existing facts without broadening their meaning.
 
-Observation 206 does not establish:
+## What is not earned
 
-- a production `HistoryCompleteness`, `RepairPolicy`, `Adjustment`, or `OpeningBalance` type;
-- that an external assertion is authoritative truth;
-- automatic balancing or synthetic Actual creation;
-- an algorithm for discovering missing Events;
-- source trust ranking;
-- multi-assertion conflict resolution;
-- historical mutation;
-- persistence, CLI/TUI, or canonical household-data behavior.
+Observation 206 does **not** earn a production:
 
-Runtime remains research-only.
+- `HistoryCompleteness`;
+- `RepairPolicy`;
+- `Adjustment`;
+- `OpeningBalance`;
+- synthetic Actual;
+- generic uncertainty framework.
+
+It also does not establish that an external assertion is authoritative truth, how missing Events are discovered, source trust ranking, multi-assertion conflict resolution, or persistence / CLI / TUI behavior.
+
+Runtime remains `RESEARCH_ONLY`.
