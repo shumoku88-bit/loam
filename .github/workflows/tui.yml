@@ -1,0 +1,63 @@
+name: Production TUI
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tui/**'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/tui.yml'
+  push:
+    branches:
+      - 'feat/tui'
+    paths:
+      - 'Loam/Tui/**'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/tui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build production household TUI
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build production executables
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam loamMovement loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run shared Actual review checks
+        run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Verify Record publication and fresh canonical review
+        run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"

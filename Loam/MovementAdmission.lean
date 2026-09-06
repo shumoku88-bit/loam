@@ -1,3 +1,5 @@
+import Loam.ActualDate
+import Loam.Core.BalancedMovement
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Loam.Core.ActualValidityHistory
@@ -227,6 +229,26 @@ private def dischargePublicationAdmissible
               item.discharge.target = discharge.target ∧
               item.discharge.quantity = discharge.quantity)
 
+/-- Shared practical draft validation. Balanced JPY is an entrance contract,
+not a global law imposed on neutral Core Events. All publishers call admit?. -/
+def validateDraft (draft : Draft) : Except String Unit := do
+  if !Loam.ActualDate.validIsoDate draft.validOn then
+    throw "loam: date must be a real calendar date in YYYY-MM-DD form"
+  if !draft.effects.all (fun effect =>
+      Loam.Persistence.validToken effect.key.token &&
+      Loam.Persistence.validToken effect.locus.token &&
+      decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
+    throw "loam: movement requires valid effect tokens and nonzero JPY quantities"
+  let changes := draft.effects.map fun effect =>
+    ({ coordinate := effect.locus, quantity := effect.quantity } :
+      Loam.Core.MovementChange Loam.Core.LocusId)
+  if (Loam.Core.BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isNone then
+    throw "loam: movement totals differ"
+  let positive := draft.effects.foldl
+    (fun total effect => total + max 0 effect.quantity.quanta) 0
+  if positive <= 0 || draft.total != positive then
+    throw "loam: movement requires positive FROM / TO totals matching the draft total"
+
 /--
 Admit one already-collected Movement against one current typed world.
 
@@ -241,6 +263,7 @@ fully admitted typed world or the same error boundary used by the current
 practical writer.
 -/
 def admit? (world : World) (draft : Draft) : Except String Admitted := do
+  validateDraft draft
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
   let eventId ← match freshRecordEventId? world with

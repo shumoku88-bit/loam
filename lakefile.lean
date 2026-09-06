@@ -47,3 +47,6 @@ lean_exe loamShadowDay where
 
 lean_exe loamShadowScheduledDay where
   root := `Loam.Cli.ShadowScheduledDayCli
+
+lean_exe loamTui where
+  root := `Loam.Tui.Cli
