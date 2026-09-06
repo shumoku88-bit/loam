@@ -50,17 +50,17 @@ def main (args : List String) : IO Unit := do
       { w with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "change fixture policy")
   let before ← IO.FS.readFile (root / "CURRENT")
-  let refused ← Loam.MovementPublisher.publishManifest root draft
+  let refused ← Loam.MovementPublisher.publishManifestDraft root.toString draft
   expect (!refused.isOk) "stale preview bypassed current Locus policy"
   expect ((← IO.FS.readFile (root / "CURRENT")) == before) "refusal changed authority"
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
     | throw (IO.userError "restore fixture policy")
-  let .ok id ← Loam.MovementPublisher.publishManifest root draft
+  let .ok receipt ← Loam.MovementPublisher.publishManifestDraft root.toString draft
     | throw (IO.userError "canonical publish")
   let .ok records ← Loam.ActualReview.loadRecordsFromManifest root none
     | throw (IO.userError "canonical review reload")
   expect (records.length == 1) "reload did not see exactly one record"
-  expect (records.any fun record => record.event.id.token == id.token &&
+  expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
   IO.println "TUI Record: admission, stale policy rejection, publication and fresh review passed."
