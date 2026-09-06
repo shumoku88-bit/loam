@@ -8,13 +8,27 @@ open Loam.Prototype.VerifiedTui04.Main
 set_option autoImplicit false
 
 /--
+Direct runtime rendering for the current LOAM prototype surface.
+
+The semantic `screenFor` remains the specification. The executable path instead
+compiles the same Widget directly to a fixed-size dense frame, avoiding the old
+per-cell recursive List lookup and the intermediate semantic Screen evaluation.
+-/
+def denseScreenFor (state : State) : DenseScreen screenBounds :=
+  denseRenderAt screenBounds 1 1 (view state)
+
+theorem denseScreenFor_spec (state : State) :
+    (denseScreenFor state).toScreen = screenFor state := by
+  simpa [denseScreenFor, screenFor] using
+    denseRenderAt_spec screenBounds 1 1 (view state)
+
+/--
 Lower a dense frame diff to one stdout write.
 
-The semantic Screen remains the specification. Each rendered semantic frame is
-materialized once into fixed-size vectors; subsequent diff lookup is O(1) per
-cell and does not re-run the old/new Screen functions while emitting the patch.
-`denseDiffAt_materialize` proves that each dense diff cell agrees with the
-semantic `screenDiff` cell.
+The semantic Screen remains the specification. Runtime frames are rendered
+directly to fixed-size vectors, and diff lookup is O(1) per cell. The generic
+`denseRenderAt_spec` theorem and this module's `denseScreenFor_spec` keep that
+runtime path tied to the semantic renderer.
 -/
 def emitDenseDiff
     (old new : DenseScreen screenBounds) : IO Unit := do
@@ -39,7 +53,7 @@ partial def loopFast
   let step := update state event
   if step.quit then
     return
-  let nextScreen := materialize (screenFor step.state)
+  let nextScreen := denseScreenFor step.state
   emitDenseDiff screen nextScreen
   loopFast step.state nextScreen
 
@@ -47,7 +61,7 @@ def run : IO Unit := do
   enterTerminal
   try
     let state := initialState
-    let screen := materialize (screenFor state)
+    let screen := denseScreenFor state
     let blank := materialize (blankScreen screenBounds)
     emitDenseDiff blank screen
     loopFast state screen
