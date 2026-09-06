@@ -59,24 +59,6 @@ def admitsEffects
     (effects : List Effect) : Bool :=
   effects.all vocabulary.admitsEffect
 
-@[simp] theorem allows_empty (locus : LocusId) :
-    empty.allows locus = false := by
-  simp [allows, empty]
-
-@[simp] theorem allows_ofLoci?_singleton (locus : LocusId) :
-    (ofLoci? [locus]).map (fun vocabulary => vocabulary.allows locus) = some true := by
-  simp [ofLoci?, allows]
-
-/-- Reordering a vocabulary cannot change its admission answer. -/
-theorem allows_perm
-    (left right : LocusAdmissionVocabulary)
-    (hPerm : left.approved.Perm right.approved)
-    (locus : LocusId) :
-    left.allows locus = right.allows locus := by
-  simp only [allows]
-  apply Bool.eq_iff_iff.mpr
-  simp [hPerm.mem_iff]
-
 end LocusAdmissionVocabulary
 
 end Loam.Core
