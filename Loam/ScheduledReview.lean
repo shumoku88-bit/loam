@@ -1,4 +1,4 @@
-import Loam.Application.ScheduledInspection
+import Loam.Application.ScheduledOpenWorldInspection
 import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.Persistence.ScheduledCompletionPersistence
@@ -19,12 +19,28 @@ This module is intentionally a read-only projection boundary, not a Scheduled
 repository or lifecycle authority. The retained Scheduled occurrence stream and
 its completion / retirement / replacement evidence remain authoritative.
 
-The current-open answer is delegated to
-`Loam.Application.currentOpenScheduledWithReplacement`; presentations may then
-select one scheduled day without changing lifecycle semantics.
+Prototype 11 needs to ask a different exact day every time `SelectedDay` moves.
+For that reason this adapter keeps the admitted lifecycle evidence snapshot and
+delegates each exact-day answer to
+`Loam.Application.currentScheduledDayEvidenceWithReplacement`.
+
+An absent explicit current-open occurrence therefore remains `unknown`; it is
+never converted into `NotDue` or an empty closed-world household claim.
 -/
 
 abbrev Record := ScheduledOccurrence String
+abbrev DayEvidence := Loam.Application.CurrentScheduledDayEvidenceResult String
+
+/--
+Read-only evidence retained by the TUI process after startup admission. This is
+not presentation state and is never persisted by the TUI.
+-/
+structure EvidenceSnapshot where
+  scheduled : ScheduledMemory String
+  completions : ScheduledCompletionMemory
+  retirements : ScheduledRetirementMemory
+  replacements : ScheduledReplacementMemory
+  events : EventMemory
 
 private def loadScheduledMemoryOrEmpty?
     (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
@@ -33,21 +49,11 @@ private def loadScheduledMemoryOrEmpty?
   else
     return ScheduledMemory.ofOccurrences? []
 
-private def loadEventMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option EventMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventMemory? path
-  else
-    return EventMemory.ofEvents? []
-
-private def currentOpen?
-    (scheduledMemory : ScheduledMemory String)
-    (completionMemory : ScheduledCompletionMemory)
-    (retirementMemory : ScheduledRetirementMemory)
-    (replacementMemory : ScheduledReplacementMemory)
-    (eventMemory : EventMemory) : Except String (List Record) :=
+private def lifecycleAdmission
+    (snapshot : EvidenceSnapshot) : Except String Unit :=
   match Loam.Application.currentOpenScheduledWithReplacement
-      scheduledMemory completionMemory retirementMemory replacementMemory eventMemory with
+      snapshot.scheduled snapshot.completions snapshot.retirements
+      snapshot.replacements snapshot.events with
   | .unknownCompletionScheduled =>
       .error "loam: scheduled-completion file refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
@@ -58,11 +64,11 @@ private def currentOpen?
       .error "loam: scheduled-replacement graph is cyclic or otherwise invalid"
   | .conflictingTerminalEvidence =>
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
-  | .open occurrences => .ok occurrences
+  | .open _ => .ok ()
 
-private def loadLifecycle?
+private def loadLifecycleSnapshot?
     (scheduledFile : System.FilePath)
-    (eventMemory : EventMemory) : IO (Except String (List Record)) := do
+    (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) := do
   let some scheduledMemory ← loadScheduledMemoryOrEmpty? scheduledFile
     | return .error "loam: malformed or unsupported scheduled file"
   let completionFile :=
@@ -80,34 +86,43 @@ private def loadLifecycle?
   let some replacementMemory ←
       Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile
     | return .error "loam: malformed or unsupported scheduled-replacement file"
-  return currentOpen?
-    scheduledMemory completionMemory retirementMemory replacementMemory eventMemory
+  let snapshot : EvidenceSnapshot := {
+    scheduled := scheduledMemory
+    completions := completionMemory
+    retirements := retirementMemory
+    replacements := replacementMemory
+    events := eventMemory
+  }
+  match lifecycleAdmission snapshot with
+  | .error message => return .error message
+  | .ok () => return .ok snapshot
 
 /--
-Load current-open Scheduled evidence while taking Actual Event identity from one
+Load Scheduled lifecycle evidence while taking Actual Event identity from one
 explicitly selected Movement generation. There is no Movement sidecar fallback on
-this path.
+this path. Lifecycle structure is admitted before raw terminal mode begins.
 -/
-def loadCurrentOpenFromManifest
-    (scheduledFile manifestRoot : System.FilePath) : IO (Except String (List Record)) := do
+def loadEvidenceFromManifest
+    (scheduledFile manifestRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
   match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
   | .error message => return .error message
-  | .ok world => loadLifecycle? scheduledFile world.events
+  | .ok world => loadLifecycleSnapshot? scheduledFile world.events
 
 /--
-Sidecar Event-memory read path retained for the existing line Scheduled
-presentation and isolated fixtures. Missing Event memory means no retained Actual
-endpoints yet, matching the existing practical reader behavior.
--/
-def loadCurrentOpenFromSidecar
-    (scheduledFile eventMemoryFile : System.FilePath) : IO (Except String (List Record)) := do
-  let some eventMemory ← loadEventMemoryOrEmpty? eventMemoryFile
-    | return .error "loam: malformed or unsupported event-memory file"
-  loadLifecycle? scheduledFile eventMemory
+Ask one exact day using the production open-world Scheduled contract.
 
-/-- Exact selected-day projection over an already admitted current-open set. -/
-def selectDay (records : List Record) (date : String) : List Record :=
-  records.filter fun occurrence => occurrence.scheduledOn == date
+`unknown` means only that no explicit current-open occurrence is retained for the
+queried day. It is deliberately not a negative obligation claim.
+-/
+def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
+  Loam.Application.currentScheduledDayEvidenceWithReplacement
+    snapshot.scheduled snapshot.completions snapshot.retirements
+    snapshot.replacements snapshot.events date
+
+/-- Explicit rows carried by a `due` answer, used only for presentation. -/
+def explicitDueRecords : DayEvidence → List Record
+  | .due first rest => first :: rest
+  | _ => []
 
 private def fromChanges (record : Record) : List (MovementChange LocusId) :=
   record.movement.changes.filter fun change => change.quantity.quanta < 0
