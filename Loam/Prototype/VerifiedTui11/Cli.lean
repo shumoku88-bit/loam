@@ -52,16 +52,16 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     | .error message => return .error message
     | .ok records => pure records
   let scheduledPath := dataDir / "scheduled.loam"
-  let openScheduled ←
-    match ← Loam.ScheduledReview.loadCurrentOpenFromManifest scheduledPath manifestRoot with
+  let scheduled ←
+    match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledPath manifestRoot with
     | .error message => return .error message
-    | .ok records => pure records
+    | .ok evidence => pure evidence
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
     undatedCount := (Loam.ActualReview.select actualRecords .undated).length
   }
-  return .ok { actual := actual, openScheduled := openScheduled }
+  return .ok { actual := actual, scheduled := scheduled }
 
 
 def compiledFrameFor (snapshot : Snapshot) (state : State) : CompiledWidget :=
