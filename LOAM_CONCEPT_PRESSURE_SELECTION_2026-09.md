@@ -1,12 +1,12 @@
 # LOAM Concept-Pressure Reselection — September 2026
 
-Status: **first two probes completed; no production concept earned; F113 is next selected probe**
+Status: **three probes completed; no production concept earned; F113 is next selected C-seeking probe**
 
 Baseline main: `2fca5beaed65224a8d29d586fcc6735404bf599f`
 
 This checkpoint changes the question asked after the first six-item domain falsification queue.
 
-The first queue was designed to find missing independently observable information. It succeeded:
+The first queue found independently observable distinctions:
 
 ```text
 F051  known existence != exact quantity                COUNTEREXAMPLE
@@ -19,38 +19,11 @@ F086  reconstruction != external/physical assertion    COUNTEREXAMPLE
 
 That result does **not** imply five production nouns or a Core rewrite.
 
-The next question is narrower and more architectural:
+The architectural question is narrower:
 
-> Do the new counterexamples require changing existing Core meanings/shapes, or can they be compressed into a small number of conservatively added typed evidence families or existing-evidence compositions?
-
-## Execution checkpoint
-
-Two selected probes are now complete:
-
-```text
-Observation 202 / F052
-  exact amount knowledge != exact temporal placement
-  result: COUNTEREXAMPLE
-  architectural pressure: B at most
-
-Observation 203 / F001 + F033 compression
-  flat operation -> usable quantity does not preserve
-  reservation provenance + operation-right provenance
-  result: COUNTEREXAMPLE to scalar compression
-  architectural pressure: B, not C
-```
-
-Observation 202 strengthens the case that existence, exact quantity, and exact scheduled coordinate are independently knowable before a complete `ScheduledOccurrence`, while preserving the current exact occurrence shape as a valid completed fact.
-
-Observation 203 shows that F001 and F033 do not collapse into one scalar future-use envelope. Reservation and operation-right evidence remain independently observable. A shared carrier may still share mechanics, but retaining both dimensions would be packaging rather than semantic compression.
-
-Neither observation demonstrated that an existing Core family must change meaning or shape.
-
-The next selected probe is therefore **F113**, the first deliberately C-seeking attack in this checkpoint.
+> Do these counterexamples require changing existing Core meanings/shapes, or can they be retained as a small number of conservative typed extensions or existing-evidence compositions?
 
 ## Rebuild-pressure scale
-
-Use three outcomes rather than treating every counterexample alike:
 
 ```text
 A  COMPOSITION
@@ -74,78 +47,147 @@ new independent evidence
   -> old projections remain unchanged unless they opt in
 ```
 
-Therefore a `COUNTEREXAMPLE` earns B at most until a separate observation falsifies conservative extension for the concrete seam. C must be demonstrated, not inferred.
+Therefore a counterexample earns B at most until a separate observation falsifies conservative extension for the concrete seam. C must be demonstrated, not inferred.
 
-Structural S003 supplies complementary evidence: quantity-preserving Effect split/merge is invisible to the existing `Event.quantityAt` query even though representation/provenance remains retained. The Event/Effect quantity algebra therefore has survived one direct representation attack and should not be redesigned merely because adjacent information families are incomplete.
+## Execution checkpoint
+
+Three concept-pressure probes are now complete.
+
+### Observation 202 / F052
+
+```text
+exact amount knowledge != exact temporal placement
+result: COUNTEREXAMPLE
+architectural pressure: B at most
+```
+
+Observation 202 strengthens the case that future existence, exact quantity, and exact scheduled coordinate can be independently knowable before a complete `ScheduledOccurrence`, while preserving the current exact occurrence shape as a valid completed fact.
+
+### Observation 203 / F001 + F033 compression
+
+The tempting flat view:
+
+```text
+operation -> usable quantity
+```
+
+does not preserve reservation provenance and operation-right provenance.
+
+Result:
+
+```text
+COUNTEREXAMPLE to scalar compression
+architectural pressure: B, not C
+```
+
+A common carrier may still share mechanics, but retaining both dimensions would be packaging rather than semantic compression.
+
+### Observation 204 / F051 + F052 pre-Scheduled packaging compression
+
+Observation 204 deliberately inserted one additional compression probe before F113.
+
+Candidate observation-local carrier:
+
+```text
+known   : set Subject
+amount  : Subject -> lone Amount
+due     : Subject -> lone Due
+```
+
+Result:
+
+```text
+bounded subject-attached candidate SURVIVED
+state-specific noun proliferation not required for selected F051/F052 views
+architectural pressure: B, not C
+```
+
+Lower bounds also survived:
+
+```text
+amount/due attachments alone
+  -/-> known existence
+
+known existence + amount
+  -/-> exact due placement
+
+identity-free amount/due pools
+  -/-> subject-specific amount/time correspondence
+```
+
+But once stable known-subject identity, subject-attached amount, and subject-attached due are all fixed, Alloy found no counterexample to the selected derived views in scope.
+
+The interpretation is deliberately narrow:
+
+```text
+state-specific nouns can be compressed
+without compressing away the independent information dimensions
+```
+
+So F051 and F052 do not currently justify separate production types such as `UnknownAmountObligation` and `KnownAmountUnknownDue`. They also do not yet earn one production `Expectation` or `Subject` type. Observation 204 only shows that a single subject-centered additive family is a viable smaller packaging candidate if real dogfood later requires partial future knowledge.
+
+No completed concept-pressure probe has demonstrated that an existing Core family must change meaning or shape.
 
 ## Current classification
 
 | Pressure | Current reading | Why |
 |---|---|---|
-| F051 + F052 pre-Scheduled knowledge | **B pressure** | Observation 202 confirms exact quantity and exact temporal placement can be independently knowable. No existing exact `ScheduledOccurrence` meaning was invalidated. |
+| F051 + F052 pre-Scheduled knowledge | **B pressure; bounded packaging compression survived** | Observation 204 can represent selected existence-before-quantity and amount-before-time states with one subject-attached carrier; stable identity/existence/quantity/time distinctions still matter. |
 | F033 movement rights | **B pressure, not scalar-compressible with F001** | Observation 203 shows current usable quantity cannot reconstruct future rights, including when held quantity is zero. |
 | F001 temporary reservation | **B pressure, not scalar-compressible with F033** | Observation 203 shows an all-zero operational envelope can mask different reservation provenance. |
 | F055 recurrence boundary policy | **future B constraint, not current rewrite pressure** | Production does not currently own a recurrence generator. The result constrains any future generator rather than invalidating current Scheduled occurrences. |
 | F086 external/physical assertion | **B-or-query-layer candidate** | Assertion is independent of reconstruction, but authority/repair/completeness are still untested. Existing history remains truthful as reconstructed history. |
 | F076 shared full refund | **A** | Existing burden + refund provenance + discharge already compose; no new family earned. |
 
-No current selected result has yet demonstrated C.
+No current selected result has demonstrated C.
 
 ## Concept-pressure probes
 
-These are concept-pressure probes, not a second F-series Work authority. `LOAM_FALSIFICATION_PROGRESS.md` remains the Work/Finding authority for F001-F200.
+These are architectural probes, not a second F-series Work authority. `LOAM_FALSIFICATION_PROGRESS.md` remains the Work/Finding authority for F001-F200.
 
 ### 1. F052 — Scheduled skeleton symmetry — COMPLETE
 
-Pressure:
-
-```text
-amount is known
-but
-due date is unknown
-```
-
 Observation 202 found a counterexample to the claim that exact amount knowledge determines exact temporal placement.
 
-Together with F051, the result says the three dimensions can be independently knowable:
+Together with F051:
 
 ```text
-existence
-quantity
-scheduled coordinate
+known existence != exact quantity
+exact quantity  != exact temporal placement
 ```
 
-The result is B-level pressure at most. It motivates a future additive pre-Scheduled evidence boundary if practical use demands one, rather than weakening `ScheduledOccurrence` by making its established exact fields nullable.
-
-No production concept is earned yet.
+The result is B-level pressure at most and does not weaken exact `ScheduledOccurrence`.
 
 ### 2. F001 + F033 — availability/admissibility compression — COMPLETE
 
-Observation 203 tested the tempting experiment-local scalar view:
+Observation 203 falsified one flat scalar operational envelope as an information-equivalent replacement for reservation and rights evidence.
+
+This does not earn separate production `Hold` and `Capability` nouns. It only says any shared carrier must retain both meanings rather than erase them.
+
+### 2.5. F051 + F052 — pre-Scheduled subject-attached compression — COMPLETE
+
+Observation 204 tested whether the adjacent partial-knowledge states require separate state-specific nouns.
+
+They do not for the selected bounded queries.
+
+One observation-local stable subject with independent amount and due attachments represents both selected pressures, while smaller candidates fail:
 
 ```text
-operation -> usable quantity
+no explicit known existence        too small
+no independent due evidence        too small
+no stable subject correspondence   too small
+
+known + subject amount + subject due
+                                   bounded selected sufficiency survived
 ```
 
-The compression failed.
+This is packaging compression, not a claim that existence, quantity, and time are one semantic dimension.
 
-Alloy found selected worlds where the same operational envelope came from different causes:
-
-```text
-fully reserved + operations permitted
-vs
-unreserved + operations prohibited
-```
-
-It also found that zero held quantity masks future operation rights, and blocked operations mask reservation evidence.
-
-Therefore reservation provenance and operation-right provenance remain independent selected information dimensions.
-
-This does not earn separate production `Hold` and `Capability` nouns. A common carrier could still share mechanics, but it must not erase the distinction merely to obtain one vocabulary item.
+No production noun is earned.
 
 ### 3. F113 — one historical Event -> two jointly effective replacements — NEXT
 
-This is the strongest current **C-level probe**.
+This remains the strongest current **C-level probe**.
 
 Current `EventCorrection` is explicitly:
 
@@ -165,7 +207,7 @@ one historical Event
 both replacements jointly constitute the corrected interpretation
 ```
 
-If such a query is independently observable, the next task is **not** automatically to generalize `EventCorrection`. First test whether a separate split/refinement relation can be added conservatively alongside current Correction. Only if that additive representation cannot preserve the required queries should the existing Correction shape be reconsidered.
+If such a query is independently observable, do **not** automatically generalize `EventCorrection`. First test whether a separate split/refinement relation can be added conservatively alongside current Correction. Only if that additive representation cannot preserve the required queries should the existing Correction shape be reconsidered.
 
 Likely first instrument: Alloy for information/topology independence, followed by Lean only if a candidate additive relation survives.
 
@@ -173,7 +215,7 @@ Likely first instrument: Alloy for information/topology independence, followed b
 
 F086 established that physical/external assertion and reconstructed history are independent evidence. It deliberately did not decide what a conflict means.
 
-F088 asks whether incomplete history must support a distinction such as:
+F088 asks whether incomplete history must support distinctions such as:
 
 ```text
 known complete reconstruction
@@ -183,8 +225,6 @@ vs
 history repaired/padded by explicit policy
 ```
 
-This is needed before promoting F086 into a canonical assertion concept. It may show that assertions can remain external evidence plus an explicit completeness/repair policy, or that another independently retained epistemic fact is required.
-
 Do not let `asserted != reconstructed` silently create an adjustment Event.
 
 Likely first instrument: Alloy.
@@ -193,7 +233,11 @@ Likely first instrument: Alloy.
 
 Structural S003 and S008 are both complete.
 
-S008 established that, after successful Correction-frontier admission, frontier membership is remembered-and-untargeted and therefore does not depend on admitted linear path length. That result strengthens confidence in the existing Correction path semantics but does not answer F113's distinct one-to-many joint-replacement question.
+S003 shows quantity-preserving Effect split/merge is invisible to the existing `Event.quantityAt` query while representation/provenance remains retained.
+
+S008 shows that, after successful Correction-frontier admission, frontier membership is remembered-and-untargeted and does not depend on admitted linear path length.
+
+These results strengthen confidence in the current Core skeleton but do not answer F113's distinct one-to-many joint-replacement question.
 
 S007 remains watchlist pressure and is not automatically promoted.
 
@@ -207,7 +251,7 @@ Weekend/holiday shifting and richer recurrence policies remain useful later, but
 
 Inventory, tax, insurance, payroll, marketplace, BNPL, subscription, and securities cases remain adversarial pressure, not a reason to grow product vocabulary before the smaller concept seams above are understood.
 
-## Decision rule after these probes
+## Decision rule
 
 Do not call for a rewrite unless at least one concrete seam reaches C:
 
@@ -225,24 +269,25 @@ If the investigation instead yields only A and B results, the interpretation is 
 ## Recommended order
 
 ```text
-1. F052                          COMPLETE
-2. F001 + F033 compression      COMPLETE
-3. F113                          NEXT
-4. F088                          LATER
+1. F052                              COMPLETE
+2. F001 + F033 compression          COMPLETE
+2.5 F051 + F052 packaging probe     COMPLETE
+3. F113                              NEXT
+4. F088                              LATER
 ```
 
-The ordering is not a product roadmap. It is chosen to maximize the chance of **avoiding unnecessary concepts** before testing the one candidate most likely to force a structural change.
+The ordering is not a product roadmap. It is chosen to maximize the chance of avoiding unnecessary concepts before testing the candidate most likely to force structural change.
 
 ## Current conclusion
 
-At this checkpoint:
-
 ```text
-wholesale rewrite required          NOT SUPPORTED
-proven Core-shape failure            NONE YET
-possible additive concept seams      YES
-flat F001/F033 scalar compression    FALSIFIED
-next deliberate C-seeking attack     F113
+wholesale rewrite required                 NOT SUPPORTED
+proven Core-shape failure                   NONE YET
+possible additive concept seams             YES
+F001/F033 flat scalar compression            FALSIFIED
+F051/F052 state-noun packaging compression   SURVIVED IN BOUNDED SCOPE
+production pre-Scheduled noun earned         NO
+next deliberate C-seeking attack             F113
 ```
 
 The next observation should attack F113 without generalizing `EventCorrection` in advance.
