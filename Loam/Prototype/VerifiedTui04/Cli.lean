@@ -37,15 +37,23 @@ def CompiledWidget.rowAt
   else
     none
 
+def compiledRowCell (row : Option (Array Cell)) (col : Nat) : Cell :=
+  match row with
+  | none => blankCell
+  | some line =>
+      match line[col]? with
+      | none => blankCell
+      | some cell => cell
+
+theorem compiledRowCell_spec (lines : List (List Cell)) (row col : Nat) :
+    compiledRowCell (widgetArrayLines lines)[row]? col = widgetCellAt lines row col := by
+  simpa [compiledRowCell, widgetCellAtArray] using
+    widgetCellAtArray_spec lines row col
+
 def CompiledWidget.cellAt {bounds : Bounds}
     (frame : CompiledWidget) (top left : Nat) (pos : Position bounds) : Cell :=
   if left ≤ pos.col.val then
-    match frame.rowAt top pos.row.val with
-    | none => blankCell
-    | some line =>
-        match line[pos.col.val - left]? with
-        | none => blankCell
-        | some cell => cell
+    compiledRowCell (frame.rowAt top pos.row.val) (pos.col.val - left)
   else
     blankCell
 
@@ -59,11 +67,9 @@ theorem compileWidget_cellAt_spec
   by_cases hRow : top ≤ pos.row.val
   · by_cases hCol : left ≤ pos.col.val
     · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, compileWidget, renderAt,
-        hRow, hCol, widgetCellAtArray_spec]
-    · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, compileWidget, renderAt,
-        hRow, hCol]
-  · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, compileWidget, renderAt,
-      hRow]
+        hRow, hCol, compiledRowCell_spec]
+    · simp [CompiledWidget.cellAt, renderAt, hRow, hCol]
+  · simp [CompiledWidget.cellAt, CompiledWidget.rowAt, renderAt, hRow]
 
 theorem compileWidget_spec
     (bounds : Bounds) (top left : Nat) (widget : Widget) :
