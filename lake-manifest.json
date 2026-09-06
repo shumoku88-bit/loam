@@ -1,7 +1,20 @@
 {
   "version": "1.2.0",
   "packagesDir": ".lake/packages",
-  "packages": [],
+  "packages": [
+    {
+      "url": "https://github.com/Verilean/lean-tea.git",
+      "type": "git",
+      "subDir": null,
+      "scope": "",
+      "rev": "8f51f1d3ba4bdec7bfb3e10c5a007422e52226d7",
+      "name": "«lean-tea»",
+      "manifestFile": "lake-manifest.json",
+      "inputRev": "8f51f1d3ba4bdec7bfb3e10c5a007422e52226d7",
+      "inherited": false,
+      "configFile": "lakefile.lean"
+    }
+  ],
   "name": "loam",
   "lakeDir": ".lake"
 }
