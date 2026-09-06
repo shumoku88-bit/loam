@@ -1,0 +1,57 @@
+name: Practical Scheduled Open-World Read
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledOpenWorldInspection.lean'
+      - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
+      - '.github/workflows/practical-scheduled-open-world-read.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/Application.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledOpenWorldInspection.lean'
+      - 'Loam/Tests/ScheduledOpenWorldInspection.lean'
+      - '.github/workflows/practical-scheduled-open-world-read.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practical-scheduled-open-world-read-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  open-world:
+    name: Qualify Scheduled open-world read contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Application contract
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Application.ScheduledOpenWorldInspection
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run open-world Scheduled story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ScheduledOpenWorldInspection.lean
