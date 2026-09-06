@@ -215,7 +215,7 @@ handleEvent event = do
 app :: App State () Name
 app = App
   { appDraw = drawUI
-  , appChooseCursor = showFirstCursor
+  , appChooseCursor = neverShowCursor
   , appHandleEvent = handleEvent
   , appStartEvent = pure ()
   , appAttrMap = const $
