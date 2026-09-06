@@ -233,7 +233,11 @@ theorem enter_preserves_day (snapshot : Snapshot) (state : State) :
     (update snapshot state .enter).state.day = state.day := by
   cases state with
   | mk day surface notice =>
-      cases surface <;> simp [update, openSelectedDay]
+      cases surface with
+      | calendar cached => simp [update, openSelectedDay]
+      | list cursor =>
+          cases cursor.selected <;> rfl
+      | detail cursor => rfl
 
 
 theorem back_preserves_day (snapshot : Snapshot) (state : State) :
