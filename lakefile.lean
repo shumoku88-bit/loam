@@ -49,4 +49,4 @@ lean_exe loamShadowScheduledDay where
   root := `Loam.Cli.ShadowScheduledDayCli
 
 lean_exe loamUiPrototype04 where
-  root := `Loam.Prototype.VerifiedTui04.Main
+  root := `Loam.Prototype.VerifiedTui04.Cli
