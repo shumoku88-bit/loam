@@ -5,7 +5,6 @@ on:
     paths:
       - 'Loam/Prototype/VerifiedTui04/**'
       - 'Loam/Prototype/VerifiedTui12/**'
-      - 'Loam/Prototype/RecordEditor13.lean'
       - 'lakefile.lean'
       - '.github/workflows/prototype12-record-editor.yml'
   push:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'Loam/Prototype/VerifiedTui04/**'
       - 'Loam/Prototype/VerifiedTui12/**'
-      - 'Loam/Prototype/RecordEditor13.lean'
       - 'lakefile.lean'
       - '.github/workflows/prototype12-record-editor.yml'
   workflow_dispatch:
