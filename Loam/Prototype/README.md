@@ -2,13 +2,13 @@
 
 Status: **synthetic interaction experiment only**
 
-This prototype exists to move the Interaction Atlas from E1 paper traces toward the smallest possible E2 human dogfood evidence.
+This prototype moves the Interaction Atlas from E1 paper traces toward the smallest possible E2 human dogfood evidence.
 
 It is deliberately **not** a production TUI.
 
 ## Safety boundary
 
-`Loam.Prototype.InteractionShell`:
+`InteractionShellMain.lean`:
 
 - does not read canonical household data;
 - does not write any file;
@@ -17,15 +17,17 @@ It is deliberately **not** a production TUI.
 - uses only synthetic rows and mock publication results;
 - keeps `SYNTHETIC / NO WRITES` visible on every surface.
 
-The point is to test navigation/discoverability questions before paying for a TUI framework or connecting real publication.
+The point is to test navigation and discoverability before paying for a TUI framework or connecting real publication.
 
 ## Run
 
+From the repository root:
+
 ```sh
-lake exe loamUiPrototype
+lake env lean --run Loam/Prototype/InteractionShellMain.lean
 ```
 
-Input is intentionally simple for this first experiment: type a command and press Enter.
+Input is intentionally simple: type a command and press Enter.
 
 Choose either:
 
@@ -34,9 +36,7 @@ Choose either:
 
 Press `m` at any point to switch candidates. Structural counters are kept separately for each candidate.
 
-## Controls
-
-Shared Home controls:
+## Shared controls
 
 ```text
 h / l   move selected day
@@ -95,7 +95,7 @@ Pretend you have not used Correction for a week.
 
 ### HRA-flat
 
-Start from Home and try to rediscover Correction without reading this README.
+Start from Home and try to rediscover Correction without reading this file.
 
 ### Hybrid
 
@@ -135,7 +135,7 @@ They are observations, **not usability scores**.
 
 ## Human evidence to report
 
-After quitting, answer these five questions from the executable:
+After quitting, answer these five questions from the prototype:
 
 1. Where did you hesitate?
 2. Which path could you rediscover after pretending you forgot it?
