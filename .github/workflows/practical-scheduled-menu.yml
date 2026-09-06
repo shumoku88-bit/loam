@@ -87,7 +87,9 @@ jobs:
           .lake/build/bin/loamOpenScheduled "$scheduled" "$memory" </dev/null \
             >"$tmp_dir/noninteractive.out"
 
-          grep -Fq 'Open scheduled movements (ordered by scheduled date):' \
+          grep -Fq 'Explicit current-open Scheduled movements (ordered by scheduled date):' \
+            "$tmp_dir/noninteractive.out"
+          grep -Fq 'unmaterialized future obligations remain Unknown' \
             "$tmp_dir/noninteractive.out"
           grep -Fq '2026-09-10  [scheduled-1]' "$tmp_dir/noninteractive.out"
           grep -Fq '2026-10-10  [scheduled-2]' "$tmp_dir/noninteractive.out"
@@ -147,7 +149,10 @@ jobs:
 
           grep -Fq 'Cancelled scheduled movement: scheduled-2 on 2026-10-10.' \
             "$tmp_dir/cancel-menu.out"
-          grep -Fq 'No open scheduled movements.' "$tmp_dir/cancel-menu.out"
+          grep -Fq 'No explicit current-open Scheduled movements are retained.' \
+            "$tmp_dir/cancel-menu.out"
+          grep -Fq 'Missing future Scheduled rows remain Unknown' \
+            "$tmp_dir/cancel-menu.out"
           grep -Fq $'RETIREMENT\tscheduled-2' "$scheduled.retirements"
 
       - name: Keep Scheduled loci and edit only changed Actual amounts in a terminal
