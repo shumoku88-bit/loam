@@ -4,6 +4,7 @@ import Loam.Application.ConsumptionInspection
 import Loam.Application.ActualRoutingInspection
 import Loam.Application.CapacityWindowInspection
 import Loam.Application.ScheduledInspection
+import Loam.Application.ScheduledOpenWorldInspection
 import Loam.Application.ScheduledCommitmentInspection
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.AttentionInspection
