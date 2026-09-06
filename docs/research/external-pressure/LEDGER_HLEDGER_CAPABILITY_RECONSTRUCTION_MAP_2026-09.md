@@ -1,265 +1,305 @@
 # Ledger / hledger Capability Reconstruction Map — September 2026
 
-Status: **research map after adversarial review; capability-reconstruction hypothesis, not parity claim**
+Status: **reviewed reconstruction map through Observation 210; semantic-reconstruction checkpoint, not parity claim**
 
-Baseline LOAM main for this reviewed version:
+Evidence baseline before this documentation update:
 
 ```text
-efe74c24522fa1c238a645dc12a6cbab1c46369d
+64b8c203baaa531593c669ca46e1ad74af357be7
+experiment: probe Ledger lot gain composition (#461)
 ```
+
+Companion checkpoint:
+
+- `LEDGER_HLEDGER_RECONSTRUCTION_CHECKPOINT_2026-09.md`
 
 This document asks a deliberately narrower question than “does LOAM have all Ledger/hledger features?”
 
-> For mature plain-text accounting capabilities, does LOAM need a larger neutral Core, or can the capability be reconstructed from the current small semantic families plus projections, policies, adapters, or separately typed additive evidence?
+> For selected mature plain-text-accounting semantics, does LOAM need a larger neutral Core, or can the answer be reconstructed from the current Event / Effect / Locus / Measure / Quantity identity plus additive typed evidence, explicit relations, policy, projection, generation, and admission?
 
-The point is not to imitate Ledger or hledger’s vocabulary. Their mature feature sets are used as pressure against LOAM’s current compression discipline.
+Ledger and hledger are pressure sources, not target ontologies. A row marked reconstructed does not imply production implementation, syntax compatibility, or option-for-option parity.
 
-Primary external references reviewed for this pass:
+Primary external references used by this research pass:
 
 - hledger 1.52 manual: https://hledger.org/1.52/hledger.html
 - hledger command overview: https://hledger.org/commands.html
 - Ledger 3 manual / command reference: https://ledger-cli.org/doc/ledger3.html
 
-Related LOAM checkpoints now live under the repository research tree:
+Related LOAM research:
 
-- `../household/HOUSEHOLD_MINIMUM_VOCABULARY.md`
-- `../household/HOUSEHOLD_COMPRESSION_STATUS.md`
 - `EXTERNAL_ACCOUNTING_PRESSURE_SURVEY_2026-09.md`
 - `../falsification/LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md`
+- `../../household/HOUSEHOLD_MINIMUM_VOCABULARY.md`
+- `../../household/HOUSEHOLD_COMPRESSION_STATUS.md`
+- `../../../experiments/207_derived_posting_assertion_boundary.md`
+- `../../../experiments/208_ledger_chart_status_date_boundary.md`
+- `../../../experiments/209_ledger_generation_finality_boundary.md`
+- `../../../experiments/210_ledger_lot_gain_composition.md`
 
 ## Reading the map
 
 ```text
 R  RECONSTRUCTABLE / QUALIFIED IN THE SELECTED SCOPE
-   Current LOAM evidence or already-qualified projections are sufficient for the
-   narrow semantic question named in the row. This is not product parity.
+   Direct LOAM evidence is sufficient for the narrow semantic question named in
+   the row. This is not product parity.
 
-A  ADDITIVE / CORE-PRESERVING CANDIDATE
-   Some independently observable evidence or policy appears necessary, and a
-   narrow additive representation is plausible. This has NOT qualified that
-   Core expansion is unnecessary.
+A  ADDITIVE / CORE-PRESERVING CANDIDATE OR RESIDUAL
+   Independently observable evidence or policy remains outside the neutral Core.
+   In an R/A row, a selected core question is qualified but broader variants remain.
 
 U  UNQUALIFIED
-   LOAM has not yet earned a semantic claim strong enough to say how the feature
-   should be reconstructed or whether an additive representation is sufficient.
+   LOAM has not yet earned a semantic claim strong enough to choose the boundary.
 
 S  SURFACE / TOOLING
-   Primarily query, formatting, parsing, validation, generation, or interaction
-   machinery. A particular implementation can still pull in A/U semantics.
+   Primarily query, formatting, parsing, validation, generation UI, or interaction
+   machinery. Its inputs may still depend on R/A/U semantics.
 ```
 
-The last column deliberately distinguishes three claims:
+The last column distinguishes:
 
 ```text
 No (selected scope)
-    the already-qualified semantic question does not require a new neutral Core
-    primitive.
+    a direct observation has qualified the named selected semantics without a
+    new neutral Core primitive or a changed Event / Effect / EffectKey shape.
 
 Not demonstrated
-    no Core-shape failure has been shown, but neither has its absence been proved.
+    an additive design is plausible or partly supported, but the row itself has
+    not received enough direct pressure for the broader claim.
 
 Unknown
-    the capability remains capable of exposing genuine Core-shape pressure.
+    a genuine semantic boundary remains unqualified.
 ```
 
-This avoids the invalid inference:
+The important logical rule remains:
 
 ```text
-additive candidate looks plausible
-    -> therefore Core expansion is impossible
+looks additive
+    !=
+Core-shape pressure disproved
 ```
+
+Only direct qualified evidence earns `No (selected scope)`.
 
 ---
 
 # Capability map
 
-| # | Ledger / hledger capability family | LOAM reconstruction candidate / pressure | Status | Neutral Core pressure reading |
+| # | Ledger / hledger capability family | LOAM reconstruction reading after Obs. 210 | Status | Neutral Core pressure reading |
 |---|---|---|---|---|
 | 1 | Journal transaction recording | `Event` + exact signed `Effect` over `Locus × Measure`; balanced Movement is a practical entrance where required | **R** | **No (selected scope)** |
-| 2 | Multi-posting / balanced double-entry transaction | Balanced Movement admission; debit/credit presentation derived by Observation 110 | **R** | **No (selected scope)** |
-| 3 | Account balances | quantity projection over selected Locus/Measure and correction frontier | **R** | **No (selected scope)** |
-| 4 | Register / running balance | correction-aware quantity projection is qualified; ordering/tie-break semantics can be presentation policy unless independently observed | **R/A** | **Not demonstrated** |
+| 2 | Multi-posting / balanced double-entry transaction | balanced Movement admission; debit/credit presentation derived rather than stored as physical ontology | **R** | **No (selected scope)** |
+| 3 | Account balances | correction-aware quantity projection over selected Locus / Measure | **R** | **No (selected scope)** |
+| 4 | Register / running balance | correction-aware quantities are qualified; broader register ordering/display policy remains additive | **R/A** | **Not demonstrated** |
 | 5 | Print / journal export | persistence/rendering surface over retained evidence | **S** | **No by itself** |
-| 6 | Account names and account selection | `Locus` identity plus naming/display policy; richer naming provenance remains optional pressure | **R/A** | **Not demonstrated** |
-| 7 | Hierarchical accounts / depth-limited reports | hierarchy is more than typography when type inheritance, parent totals, or assertions depend on it; current LOAM has not qualified a general hierarchy law | **U/A** | **Unknown** |
-| 8 | Account types such as asset/liability/equity/revenue/expense/cash | accounting-role overlay is plausible and Observation 110 separates accounting explanation from physical occurrence | **A** | **Not demonstrated** |
-| 9 | Balance sheet | amount projection is easy once accounting roles are fixed, but the role authority itself is not yet a qualified production boundary | **A** | **Not demonstrated** |
-| 10 | Income statement / profit and loss | accounting-role plus DateRange projection is plausible; recognition time can differ from payment/occurrence time and remains a known gap | **A/U** | **Unknown** |
-| 11 | Cash-flow report | simple liquid-holding movement view is plausible, but “cash” role authority and valuation variants remain additive/unqualified | **A/U** | **Unknown** |
-| 12 | Periodic daily/weekly/monthly/yearly quantity reports | DateRange / temporal query mechanics over Actual evidence | **R** | **No (selected scope)** |
-| 13 | Filtering/query language | query surface over typed evidence; syntax is not canonical semantics | **S** | **No by itself** |
+| 6 | Account names and account selection | `Locus` identity plus naming/display policy; richer naming provenance remains additive | **R/A** | **Not demonstrated** |
+| 7 | Hierarchical accounts / depth-limited reports | Obs. 208 proves hierarchy can change subtree selection and role inheritance while remaining an additive relation over Locus identity | **R/A** | **No (selected scope)** |
+| 8 | Account types such as asset/liability/equity/revenue/expense/cash | Obs. 049 separates physical Locus from AccountingRole; Obs. 208 qualifies parent inheritance and child override for the selected role query | **R/A** | **No (selected scope)** |
+| 9 | Balance sheet | selected accounting-role classification plus quantity projection is reconstructable; complete statement policy and production role authority remain outside Core | **R/A** | **No (selected scope)** |
+| 10 | Income statement / profit and loss | role projection composes with the independently qualified recognition/query-time boundary; full conventional statement policy is not claimed | **R/A** | **No (selected scope)** |
+| 11 | Cash-flow report | liquid/cash-role authority and richer cash-flow classification have not received an equivalent direct composition probe | **A/U** | **Unknown** |
+| 12 | Periodic daily/weekly/monthly/yearly quantity reports | DateRange / temporal query mechanics over retained Actual evidence | **R** | **No (selected scope)** |
+| 13 | Filtering/query language | syntax and command language are surface policy over typed evidence | **S** | **No by itself** |
 | 14 | Description / narration | practical `EventDescription` evidence already exists | **R** | **No (selected scope)** |
-| 15 | Payee/payer-specific queries | likely separate Event-scoped evidence when free description is insufficient | **A** | **Not demonstrated** |
-| 16 | Notes / tags / arbitrary metadata | generic metadata is deliberately not assumed; individual selected meanings may need typed evidence | **U/A** | **Unknown** |
-| 17 | Unmarked / pending / cleared status | hledger/Ledger permit independent transaction/posting marks with user-defined meaning; this is not safely reducible to Scheduled lifecycle or reconciliation by name alone | **A/U** | **Unknown** |
-| 18 | Reconciliation | occurrence is separable from reconciliation evidence, but publication/finality under later correction is still a documented gap | **U/A** | **Unknown** |
-| 19 | Balance assertions / physical count assertions | Observation 201 / F086 proves external assertion is independent of reconstructed history | **A** | **Not demonstrated** |
-| 20 | Discrepancy repair / balance adjustment | Observation 206 / F088 shows a bounded query-local repair/completeness representation can avoid invented Actual; broader repair workflows remain unqualified | **A** | **Not demonstrated** |
-| 21 | CSV / bank import | adapter plus external identity/provenance plus fail-closed admission; source syntax is not Core | **S/A** | **Not demonstrated** |
-| 22 | Duplicate-import prevention / matching | source-owned/imported identity and matching policy | **A/S** | **Not demonstrated** |
-| 23 | Budget report / budget goals | current positive Remaining view composes from Capacity + routing + Actual; negative/debt-funded overspending remains a clear external-pressure gap | **R/A** | **Not demonstrated** |
-| 24 | Forecast transactions | Scheduled + lifecycle + query horizon covers the selected commitment view; mature forecast/generation details remain additive | **R/A** | **Not demonstrated** |
-| 25 | Periodic / recurring transaction rules | F055 proves recurrence shape does not determine generation policy; practical generation remains deferred | **A/U** | **Unknown** |
-| 26 | Automated postings / rewrite rules | hledger/Ledger can generate report-time postings that change balances and interact with assertions; a safe LOAM policy/view boundary is not yet qualified generally | **U** | **Unknown** |
-| 27 | Closing / opening transaction generation | mature `close` behavior generates zeroing/restoring postings and assertions and interacts with status, virtual/auto postings, dates, and costs; `QuantityBasis` answers a different starting-observation question | **U/A/S** | **Unknown** |
-| 28 | Opening balance initialization | observed starting quantity is naturally `QuantityBasis`; parity with conventional generated opening-equity transactions is not claimed | **R/A** | **Not demonstrated** |
-| 29 | Commodities / currencies | neutral `Measure` is already sufficient for the selected commodity-identity distinction | **R** | **No (selected scope)** |
-| 30 | Historical prices / exchange rates | Measure-to-Measure Rate overlay remains outside physical Event; temporal authority/applicability is not complete | **A** | **Not demonstrated** |
-| 31 | Market-value conversion | timed Rate evidence plus valuation policy is plausible, but rate applicability/source authority/rounding remain open | **U/A** | **Unknown** |
-| 32 | Cost basis / lots | acquisition/disposal/source provenance has abstract separation; operational lot booking, splits, fees, average cost, and crossing long/short are not qualified | **U/A** | **Unknown** |
-| 33 | Realised / unrealised gains | requires temporal valuation, cost basis, settlement/disposal provenance, authority, and exact arithmetic; external-pressure survey explicitly leaves operational laws open | **U** | **Unknown** |
-| 34 | Multiple transaction/posting/effective dates | LOAM already resists one universal Event date, but exact mature-ledger auxiliary-date semantics and recognition-time interactions are not qualified | **A/U** | **Unknown** |
-| 35 | Virtual postings / non-real accounting-only postings | Ledger/hledger distinguish postings that affect some reports while being removable from “real” views; current LOAM has no general qualified representation | **U** | **Unknown** |
-| 36 | ROI / investment return reports | downstream calculation only after cash-flow, valuation, lot, and gain semantics are settled | **S/U** | **Unknown** |
-| 37 | Account aliases / display rewrites | display aliases are surface policy; historical semantic rewriting must remain provenance-safe | **S/A** | **Not demonstrated** |
-| 38 | `check` / journal validation | command is tooling, but individual checks can depend on assertions, balancing, chronology, types, and other semantic rules | **S/A** | **Not demonstrated** |
+| 15 | Payee/payer-specific queries | likely separate Event-scoped evidence when description is insufficient | **A** | **Not demonstrated** |
+| 16 | Notes / tags / arbitrary metadata | no generic metadata ontology is assumed; selected meanings must earn typed evidence separately | **U/A** | **Unknown** |
+| 17 | Unmarked / pending / cleared status | Obs. 208 qualifies transaction status plus posting-specific override as additive evidence with report-vs-assertion selection | **R/A** | **No (selected scope)** |
+| 18 | Reconciliation | occurrence remains separable from reconciliation evidence; complete reconciliation publication/workflow authority is still unqualified | **A/U** | **Unknown** |
+| 19 | Balance assertions / physical count assertions | Obs. 201 separates external assertion from reconstruction; Obs. 207 composes assertions with real/accounting/generated planes and correction horizons; Obs. 209 adds prefix/order pressure | **R/A** | **No (selected scope)** |
+| 20 | Discrepancy repair / balance adjustment | Obs. 206 shows bounded query-local repair/completeness can avoid invented Actual; broader repair workflow remains additive | **R/A** | **No (selected scope)** |
+| 21 | CSV / bank import | adapter plus source identity/provenance plus fail-closed admission; source syntax is not Core | **S/A** | **Not demonstrated** |
+| 22 | Duplicate-import prevention / matching | source-owned identity plus explicit matching/admission policy | **A/S** | **Not demonstrated** |
+| 23 | Budget report / budget goals | selected positive Remaining composes from Capacity + routing + Actual; debt-funded/negative variants remain separate pressure | **R/A** | **Not demonstrated** |
+| 24 | Forecast transactions | Scheduled + lifecycle + routing + query horizon reconstruct the selected commitment view; richer forecasting remains additive | **R/A** | **Not demonstrated** |
+| 25 | Periodic / recurring transaction rules | recurrence shape does not determine generation policy; practical rule/generation authority remains deferred | **A/U** | **Unknown** |
+| 26 | Automated postings / rewrite rules | Obs. 207 qualifies query-generated contribution as a separate policy plane that can affect reports/assertions without becoming retained physical history; rule-language parity remains outside scope | **R/A** | **No (selected scope)** |
+| 27 | Closing / opening transaction generation | Obs. 209 qualifies selected close/open/retain/assign/assert generation, context-sensitive validation, ordering, and generated-vs-retained admission; full command behavior/cost handling remains additive | **R/A/S** | **No (selected scope)** |
+| 28 | Opening balance initialization | observed starting quantity is `QuantityBasis`; conventional generated opening transactions are a separate generation policy now partly covered by Obs. 209 | **R/A** | **No (selected scope)** |
+| 29 | Commodities / currencies | neutral `Measure` is sufficient for the selected commodity-identity distinction | **R** | **No (selected scope)** |
+| 30 | Historical prices / exchange rates | Obs. 142–143 qualify valuation coordinate and rate/source-authority separation; concrete market-data persistence and source-selection policy remain additive | **R/A** | **No (selected scope)** |
+| 31 | Market-value conversion | temporal valuation evidence/policy is separated from physical occurrence; Obs. 210 additionally qualifies cost-vs-market selected remaining value in the bounded lot/gain specimen | **R/A** | **No (selected scope)** |
+| 32 | Cost basis / lots | Obs. 066 separates basis from valuation, Obs. 067 qualifies quantity-bearing acquisition-source provenance, and Obs. 210 composes acquisition-specific basis with disposal provenance; rich lot-booking policy remains unqualified | **R/A** | **No (selected scope)** |
+| 33 | Realised / unrealised gains | Obs. 210 qualifies the bounded composition `basis + disposal provenance + proceeds + market valuation + report mode -> gain/value answers`; tax and rich investment policy remain outside scope | **R/A** | **No (selected scope)** |
+| 34 | Multiple transaction/posting/effective dates | Obs. 208 qualifies transaction date plus posting-specific date override for selected report/assertion queries; other recognition/effective-time conventions remain additive | **R/A** | **No (selected scope)** |
+| 35 | Virtual postings / non-real accounting-only postings | Obs. 207 qualifies a distinct accounting-only contribution plane with consumer-specific selection law; this does not earn a universal flag on Effect | **R/A** | **No (selected scope)** |
+| 36 | ROI / investment return reports | downstream analytics still depend on additional cash-flow/time-weighting policy beyond the qualified valuation/gain pieces | **S/U** | **Unknown** |
+| 37 | Account aliases / display rewrites | display aliasing is surface policy; semantic identity rewriting must remain provenance-safe | **S/A** | **Not demonstrated** |
+| 38 | `check` / journal validation | validation command is tooling; several assertion/order/status inputs are now qualified, but the complete command rule set is not | **S/A** | **Not demonstrated** |
 | 39 | `diff` between journals | comparison tooling over parsed/admitted evidence | **S** | **No by itself** |
-| 40 | transaction generation from prior postings (`xact`-like) | drafting/generation surface; inference policy and admission provenance remain separate questions | **A/S** | **Not demonstrated** |
+| 40 | transaction generation from prior postings (`xact`-like) | drafting/inference surface; Obs. 209 qualifies generated-vs-retained separation but not a general prior-posting inference policy | **A/S** | **Not demonstrated** |
 
 ---
 
-# Adversarial review findings
+# What changed after the adversarial review
 
-The first version of this map was too optimistic in several places. The review changed the interpretation in four important ways.
+The earlier reviewed map intentionally moved several apparently additive features back to `A/U` or `U`. That was correct at the time: plausibility was not evidence.
 
-## 1. An additive candidate is not a proof that the Core will stay unchanged
+Observations 207–210 then attacked the four strongest cross-feature clusters directly.
 
-The strongest correction is logical rather than accounting-specific.
+## 1. Derived/accounting-only planes can coexist with assertions and correction history
+
+Observation 207 attacked:
 
 ```text
-A-level candidate survived casual inspection
+retained physical history
++ accounting-only contribution
++ query-generated contribution
++ balance assertion
++ correction-aware historical horizon
+```
+
+The flat candidates failed: one selected report scalar did not determine assertion outcome or provenance. The explicit layered candidate remained deterministic in the bounded model.
+
+Result:
+
+```text
+B / conservative additive composition
+```
+
+This upgrades the selected pressure behind virtual postings, automated postings, and assertions. It does not create production `VirtualPosting` or `AutoPosting` types.
+
+## 2. Hierarchy, role, status, and posting date are real information without becoming Event fields
+
+Observation 208 showed that:
+
+```text
+hierarchy
+role declaration + inheritance/override
+transaction/posting status
+transaction/posting date
+report-vs-assertion selection policy
+```
+
+all affect legitimate selected answers. Flattening them loses information. Keeping them as explicit relations over existing Event / Effect / Locus identities fixes the selected answers.
+
+Result:
+
+```text
+B / conservative additive composition
+C / Core-shape pressure not demonstrated
+```
+
+This replaces the old `Unknown` reading for the selected hierarchy/status/date seam.
+
+## 3. Generated output is not retained history, and final balance is not enough for prefix-sensitive validation
+
+Observation 209 attacked close/open/retain/assign/assert generation together with selection context and Ledger-vs-hledger ordering pressure.
+
+It established, in the bounded selected scope:
+
+```text
+generated values  -/-> generation meaning
+generation        -/-> retention
+final balance      -/-> prefix assertion result
+```
+
+while explicit generation mode, target/context/order/admission inputs determined the selected outputs.
+
+Result:
+
+```text
+B / conservative additive composition
+```
+
+So `QuantityBasis` still does not *mean* conventional close/open. Instead, conventional generation can itself be reconstructed as a separate layer without rewriting physical Event history.
+
+## 4. Basis, disposal provenance, market value, and gain compose without a new Lot-shaped Core
+
+Observations 066–071 had already separated acquisition basis, disposal provenance, attribution, and policy history. Observation 210 composed the selected Ledger-style gain question:
+
+```text
+acquisition-specific basis
++ disposal provenance
++ sale proceeds
++ remaining market valuation
++ cost/market report mode
+    -> realised gain
+     + unrealised gain
+     + selected remaining value
+```
+
+The compressed candidates failed, but the explicit-input candidate was deterministic.
+
+Result:
+
+```text
+B / conservative additive composition
+```
+
+No C-level need to change `Event`, `Effect`, or `EffectKey` was found.
+
+---
+
+# Current architectural reading
+
+Across the selected mature Ledger/hledger semantics tested through Observation 210, the recurring shape is now:
+
+```text
+small neutral physical Core
++ independently observable evidence
++ explicit relations
++ policy / projection / generation
++ explicit admission when generated material becomes retained fact
+    -> mature accounting answers
+```
+
+The research has repeatedly found **missing information**, but has not yet found that the missing information belongs inside neutral Event/Effect shape.
+
+That distinction matters:
+
+```text
+small Core
     !=
-C-level pressure disproved
+few semantics
+
+small Core
+    =
+stable physical identities onto which multiple explicit semantic planes can attach
 ```
 
-Only rows backed by an already-qualified selected semantic question get `No (selected scope)` in the Core-pressure column. Most `A` rows now say `Not demonstrated`, and `U` rows say `Unknown`.
+The evidence is now stronger than the earlier statement “feature breadth alone does not imply Core breadth”. For the selected attacked clusters, additive composition has survived direct C-seeking counterexample work.
 
-This keeps the map consistent with the concept-pressure rule used after Observations 202–206.
-
-## 2. High-level accounting reports inherit the uncertainty of account-role and recognition authority
-
-hledger’s balance-sheet, income-statement, and cash-flow commands use account types such as Asset, Liability, Equity, Revenue, Expense, and Cash. Account type can be explicitly declared, inherited from a parent, or inferred by hledger.
-
-Therefore:
-
-```text
-quantity projection exists
-    !=
-high-level accounting statement semantics qualified
-```
-
-LOAM Observation 110 shows that double-entry presentation can be derived from balanced Movement, but it deliberately does not make accounting explanation or period-recognition policy part of the neutral physical Event.
-
-So BS/P&L/CF rows are additive or unqualified until accounting-role and, where relevant, recognition-time authority are earned.
-
-## 3. Several “features” interact and cannot be reviewed as isolated rows
-
-Mature plain-text accounting has cross-feature interference.
-
-Examples from hledger/Ledger:
-
-```text
-status marks can exist at transaction/posting scope
-balance assertions see statuses regardless of status filters
-virtual postings can affect assertions while `--real` hides them from reports
-auto postings can change balances and therefore change assertion outcomes
-close generates assertions and can be disrupted by status/real/auto/date choices
-```
-
-This means a reconstruction map must attack compositions, not merely one row at a time.
-
-The strongest future pressure is therefore not “does LOAM have virtual postings?” in isolation, but questions such as:
-
-```text
-Can one retained physical history support both
-  real-only quantity truth
-and
-  accounting-only derived postings
-while assertions remain provenance-correct?
-```
-
-That could expose a genuine semantic-plane boundary.
-
-## 4. `QuantityBasis` does not automatically reconstruct conventional close/open semantics
-
-LOAM’s `QuantityBasis` is strong evidence for the question:
-
-> What quantity was observed at the application-origin cut without inventing earlier movement?
-
-hledger `close`, however, can generate closing and opening transactions, restore balances, preserve costs, and emit balance assertions.
-
-Those are not the same semantic question.
-
-So opening initialization remains partly reconstructable, while full close/open generation is moved back to the unqualified frontier.
+It is still not a proof that every future accounting capability will do so.
 
 ---
 
-# What remains genuinely strong
+# Residual frontier
 
-The conservative review does not destroy the small-kernel hypothesis.
-
-The strongest already-qualified reconstruction cases remain:
+The remaining uncertainty is narrower and less like “all of Ledger”. Important residuals include:
 
 ```text
-neutral quantity-bearing occurrence       Event / Effect
-balanced household Movement               balanced admission over Effects
-debit / credit presentation               derived accounting view
-raw balances                              quantity projection
-period quantity reports                   temporal projection
-description                               EventDescription
-selected positive budget Remaining        Capacity + routing + Actual
-selected forecast / Commitment             Scheduled + lifecycle + routing
-starting observed quantity                QuantityBasis
-commodity identity                        Measure
-correction-aware quantities               Correction frontier
-```
-
-These are substantial capabilities built from relatively few semantic families.
-
-The key hypothesis still survives in a weaker and more defensible form:
-
-> Mature accounting surface breadth does not, by itself, imply proportional neutral-Core breadth.
-
-What has *not* survived is the stronger shortcut:
-
-> Every familiar Ledger/hledger feature already looks safely additive.
-
-That is not supported.
-
----
-
-# Current frontier clusters
-
-The uncertain rows cluster into a few deeper problems rather than forty unrelated nouns.
-
-```text
-ACCOUNTING AUTHORITY
-  account hierarchy
-  accounting roles
-  recognition time
-  statement finality / reconciliation
-
-DERIVED-POSTING SEMANTICS
-  virtual postings
-  automated postings
-  close/open generation
-  generated/inferred transactions
-
-VALUATION
-  temporal Rate authority
-  market valuation
-  lots / cost basis
-  realised / unrealised gain
-
-EPISTEMIC / SOURCE EVIDENCE
-  status marks
-  assertions
-  import identity
-  reconciliation
+SOURCE / RECONCILIATION AUTHORITY
+  import identity and matching
+  reconciliation publication/finality workflow
   arbitrary metadata meanings
+
+RULE ENGINES
+  practical recurring-generation authority
+  general automated/rewrite expression semantics
+  xact-like inference policy
+
+RICH INVESTMENT POLICY
+  FIFO / LIFO / average-cost / specific-identification policy
+  tax basis
+  fees
+  stock splits, mergers, spin-offs, and other corporate actions
+  short-position semantics
+  ROI / return methodology
+
+SURFACE PARITY
+  Ledger/hledger parser and file syntax
+  query/expression language
+  command-option compatibility
+  exact formatting and workflow behavior
 ```
 
-This clustering itself supports compression pressure: several product features may share one deeper information boundary. But each cluster still needs direct falsification before production vocabulary is earned.
+These are not hidden claims of Core insufficiency. They are simply not qualified by the current observations.
+
+A useful external-version distinction also remains:
+
+- hledger 1.52 preserves cost/lot annotations and valuation semantics but does not provide the same automated lot/gain machinery as Ledger 3;
+- Ledger 3 has richer cost/lot/gain reporting, but its documented behavior should not be inflated into an assumed automatic FIFO/LIFO engine.
+
+Therefore the map should continue to name the selected semantic pressure instead of pretending “lot support” is one universal feature.
 
 ---
 
@@ -269,46 +309,54 @@ This map does not claim:
 
 - option-for-option Ledger parity;
 - option-for-option hledger parity;
+- parser, journal-syntax, query-language, or command compatibility;
 - identical accounting conventions;
-- identical query language or file syntax;
-- investment/tax/ERP completeness;
-- that every `A` row will survive a direct counterexample attack;
-- that every `U` row can be handled additively;
-- that LOAM as a whole will contain fewer lines of code;
-- that UI, importers, parsers, report formatting, and operational tooling are small.
+- tax-accounting correctness;
+- a production `Account`, `Lot`, `CostBasis`, `VirtualPosting`, or status object;
+- automatic FIFO/LIFO/average-cost/specific-identification;
+- corporate-action or short-position completeness;
+- production market-price persistence;
+- full investment/ROI analytics;
+- that every remaining `A/U` family will stay additive;
+- that LOAM as a whole must remain small in lines of code.
 
-The narrower hypothesis is about **semantic-kernel size**.
+The qualified claim is about the **semantic-kernel boundary**.
 
-A system can have a small semantic kernel and still have a large, capable shell.
+A small semantic kernel can support a large and capable shell.
 
 ---
 
-# Next falsification rule
+# Stop / reopen rule
 
-Do not open new observations merely to fill this table.
+Do not open more Ledger/hledger observations merely to make this table greener.
 
-When dogfood blocks on one of the `A/U` clusters, ask:
+The reconstruction program is now considered **checkpointed through Observation 210**. Reopen it only when real dogfood, product work, or a concrete counterexample supplies a new hinge.
+
+When that happens, ask:
 
 ```text
 1. What exact user answer is independently observable?
-2. Does current evidence already determine it?
-3. If not, can one narrow additive typed family or query policy determine it?
-4. Does that representation preserve provenance when combined with neighboring features?
-5. Only if additive composition also fails, which existing Core family’s semantic shape is actually wrong?
+2. Does retained LOAM evidence already determine it?
+3. If not, what narrow additional evidence, relation, or policy is required?
+4. Does it preserve provenance when composed with neighboring qualified semantics?
+5. Can generated answers remain distinct from admitted retained fact?
+6. Only if that explicit additive composition fails, which existing Core identity or
+   semantic shape is actually insufficient?
 ```
 
-Step 4 is the main addition from this adversarial review. Cross-feature composition is where Ledger/hledger pressure becomes strongest.
+C-level pressure should require an actual failure of step 6, not unfamiliar accounting vocabulary.
 
 ## Current reviewed conclusion
 
 ```text
-broad accounting surface with small semantic kernel   PLAUSIBLE
-feature breadth alone forces larger Event/Effect       NOT SUPPORTED
-several important capabilities already reconstruct     YES
-many mature features still additive/unqualified        YES
-proven need for wholesale Core expansion                NONE
-proven absence of future Core-shape pressure             NO
-Ledger/hledger feature parity                            NOT CLAIMED
+selected broad accounting surface reconstructs over small Core     YES
+Obs. 207 derived-posting/assertion composition                     B
+Obs. 208 hierarchy/status/date composition                         B
+Obs. 209 generation/finality/order composition                     B
+Obs. 210 lot/gain/value composition                                B
+C-level Event/Effect/EffectKey shape pressure found                NO
+proven absence of all future Core-shape pressure                   NO
+production implementation of all qualified semantics              NO
+Ledger/hledger feature parity                                      NOT CLAIMED
+next evidence should come from dogfood or concrete failure         YES
 ```
-
-The useful next evidence should come from real dogfood or one concrete cross-feature failure, not from making the table greener.
