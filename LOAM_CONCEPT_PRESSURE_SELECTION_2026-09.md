@@ -1,6 +1,6 @@
 # LOAM Concept-Pressure Reselection — September 2026
 
-Status: **four probes completed; no production concept earned; no C-level Core-shape failure found; F088 is next**
+Status: **selected concept-pressure checkpoint complete; no production concept earned; no C-level Core-shape failure found**
 
 Baseline selection checkpoint: `2fca5beaed65224a8d29d586fcc6735404bf599f`
 
@@ -47,7 +47,7 @@ A counterexample earns B at most until a concrete observation also falsifies con
 
 ## Execution checkpoint
 
-Four concept-pressure probes are complete.
+Five concept-pressure probes are complete.
 
 ### Observation 202 / F052
 
@@ -119,8 +119,6 @@ Dedicated Observation 205 Alloy CI succeeded on executable head:
 workflow run 34009186374
 ```
 
-The successful PR merge ref already incorporated then-current main `f0cecbec9ef0cb81a3be258ffd15434c6dc4eedc`.
-
 Observed matrix:
 
 ```text
@@ -152,6 +150,67 @@ architectural pressure            B, not C
 
 This does not earn a production `EventRefinement`, `SplitCorrection`, generic graph framework, or generic relation ontology. If real use later requires the fact, begin with a narrow additive family rather than weakening `EventCorrection`.
 
+### Observation 206 / F088 discrepancy epistemic / repair boundary
+
+Observation 201 / F086 established:
+
+```text
+reconstructed history != external / physical assertion
+```
+
+Observation 206 then tested the selected missing-history policy seam:
+
+```text
+reconstructed : Quantity
+asserted      : Quantity
+status        : Complete | Incomplete
+repair        : LeaveUnknown | PadToAssertion
+```
+
+Dedicated Observation 206 Alloy CI succeeded on executable head:
+
+```text
+73505b3d46efabe5f0fa61bb6654c5f5d47ac709
+workflow run 34009588777
+```
+
+Observed matrix:
+
+```text
+representativeLeaveUnknownVsPad                    SAT
+sameEvidenceDifferentCompleteness                   SAT
+sameSelectedDifferentProvenance                    SAT
+ReconstructionAndAssertionDetermineCompleteness    SAT counterexample
+IncompleteEvidenceDeterminesRepairOutcome          SAT counterexample
+SelectedReconstructionDeterminesProvenance         SAT counterexample
+ExplicitAdditiveEvidenceDeterminesSelectedView     UNSAT counterexample
+LeaveUnknownHasNoSelectedReconstruction             UNSAT counterexample
+PadToAssertionSelectsAssertion                      UNSAT counterexample
+```
+
+The result separates three things that must not be silently collapsed:
+
+```text
+numeric reconstruction / assertion discrepancy
+history-completeness knowledge
+repair policy
+```
+
+It also shows that the same selected scalar can come from complete reconstruction or from padding incomplete history, so materializing only the repaired scalar would erase provenance.
+
+However a query-local additive completeness + repair representation fixes the selected bounded repair view without changing retained Events or reconstructed history.
+
+Therefore:
+
+```text
+repair/completeness information       independently observable
+repaired scalar alone                 too small
+additive/query-local candidate        SURVIVED
+architectural pressure                B, not C
+```
+
+No automatic adjustment Event, historical mutation, `HistoryCompleteness`, `RepairPolicy`, or generic uncertainty framework is earned.
+
 ## Current classification
 
 | Pressure | Current reading | Why |
@@ -161,7 +220,7 @@ This does not earn a production `EventRefinement`, `SplitCorrection`, generic gr
 | F001 temporary reservation | **B; not scalar-compressible with F033** | Observation 203 shows operational availability can hide different reservation provenance. |
 | F113 one-to-many corrected interpretation | **B; additive relation survived** | Observation 205 shows current Correction cannot carry the provenance, but a separate relation can without changing Correction shape. |
 | F055 recurrence boundary policy | **future B constraint** | No production recurrence generator currently owns this policy. |
-| F086 external/physical assertion | **B-or-query-layer candidate** | Assertion is independent of reconstruction, but completeness/repair semantics remain untested. |
+| F086 + F088 assertion / reconstruction / repair | **B; additive/query-local repair boundary survived** | Observations 201 and 206 separate assertion, completeness and repair policy without mutating historical evidence. |
 | F076 shared full refund | **A** | Existing burden + refund provenance + discharge compose. |
 
 **No completed concept-pressure probe has demonstrated C.**
@@ -204,23 +263,18 @@ separate additive provenance relation     sufficient in bounded witness
 
 This was the strongest selected C-seeking attack and it still landed at B.
 
-### 4. F088 — discrepancy epistemic/repair boundary — NEXT
+### 4. F088 — discrepancy epistemic/repair boundary — COMPLETE
 
-F086 established that physical/external assertion and reconstructed history are independent evidence. It deliberately did not decide what a conflict means.
-
-F088 asks whether incomplete history must support distinctions such as:
+Observation 206 confirmed:
 
 ```text
-known complete reconstruction
-vs
-known incomplete / unknown reconstruction
-vs
-history repaired/padded by explicit policy
+reconstruction + assertion               do not determine completeness
+incomplete evidence                       does not determine repair policy
+repaired scalar                           does not determine provenance
+explicit additive completeness + repair   sufficient for selected bounded view
 ```
 
-The probe should first ask whether assertion + explicit completeness/repair evidence can remain additive and query-local. Do not let `asserted != reconstructed` silently create an adjustment Event or mutate historical evidence.
-
-Likely first instrument: Alloy.
+No historical mutation or synthetic Event is needed by the selected query.
 
 ## Structural relation
 
@@ -231,6 +285,8 @@ S003 shows quantity-preserving Effect split/merge is invisible to `Event.quantit
 S008 shows that, after successful Correction-frontier admission, frontier membership is remembered-and-untargeted and does not depend on admitted linear path length.
 
 Observation 205 adds complementary topology evidence: the current one-to-one Correction family should remain narrow even when a distinct one-to-many provenance fact is independently observable, because the latter can be added beside it.
+
+Observation 206 adds epistemic/policy evidence: a discrepancy repair view can remain separate from historical facts rather than converting uncertainty into invented history.
 
 S007 remains watchlist pressure and is not automatically promoted.
 
@@ -251,19 +307,19 @@ Do not call for a rewrite unless at least one concrete seam reaches C:
 4. the failure specifically comes from the semantic shape of an existing Core family
 ```
 
-So far every selected concept-pressure result has stopped at A or B.
+Every selected concept-pressure result in this checkpoint stopped at A or B.
 
-## Recommended order
+## Completed order
 
 ```text
 1. F052                              COMPLETE
 2. F001 + F033 compression          COMPLETE
 2.5 F051 + F052 packaging probe     COMPLETE
 3. F113                              COMPLETE
-4. F088                              NEXT
+4. F088                              COMPLETE
 ```
 
-The ordering is not a product roadmap. It is chosen to maximize the chance of avoiding unnecessary concepts before changing an established Core meaning.
+The ordering was not a product roadmap. It was chosen to maximize the chance of avoiding unnecessary concepts before changing an established Core meaning.
 
 ## Current conclusion
 
@@ -276,8 +332,12 @@ F001/F033 flat scalar compression             FALSIFIED
 F051/F052 state-noun packaging compression    SURVIVED IN BOUNDED SCOPE
 F113 Correction-only completeness             FALSIFIED
 F113 conservative additive representation     SURVIVED IN BOUNDED SCOPE
+F088 repaired-scalar-only compression          FALSIFIED
+F088 additive repair/completeness boundary     SURVIVED IN BOUNDED SCOPE
 production concept earned by these probes     NO
-next selected probe                           F088
+next selected concept-pressure probe           NONE
 ```
 
-The current evidence increasingly favors a small exact Core with independently earned additive evidence families rather than broadening established facts to absorb every new case.
+The current evidence favors a small exact Core with independently earned additive evidence families rather than broadening established facts to absorb every new case.
+
+Do not continue numbering merely to keep the experiment queue moving. Reselect only if another concrete architectural question can distinguish A/B from C, or if real household dogfood requires one of the observed seams.
