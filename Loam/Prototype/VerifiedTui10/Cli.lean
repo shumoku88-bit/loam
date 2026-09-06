@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.Prototype.VerifiedTui04.Main
 import Loam.Prototype.VerifiedTui04.Runtime
+import Loam.Prototype.VerifiedTui04.TerminalRuntime
 import Loam.Prototype.VerifiedTui10.Main
 
 namespace Loam.Prototype.VerifiedTui10.Cli
@@ -78,22 +79,6 @@ def keyEvent : Loam.Prototype.VerifiedTui04.Main.Key → Event
   | .quit => .quit
   | _ => .other
 
-/-- Keep the Unicode-safe dirty-row terminal lowering qualified by Prototype 06. -/
-def emitDirtyDiff (old new : CompiledWidget) : IO Unit := do
-  let mut output := ""
-  for row in dirtyRows screenBounds 1 old new do
-    output := output ++ Loam.Prototype.VerifiedTui04.Main.cursorTo row.val 1
-    match new.rowAt 1 row.val with
-    | none => pure ()
-    | some cells =>
-        for cell in cells do
-          output := output ++
-            Loam.Prototype.VerifiedTui04.Main.ansiStyle cell.style ++
-            toString cell.glyph
-    output := output ++ "\x1b[0m\x1b[K"
-  IO.print output
-  (← IO.getStdout).flush
-
 partial def loop
     (snapshot : Snapshot)
     (state : State)
@@ -103,7 +88,8 @@ partial def loop
   if step.quit then
     return
   let nextFrame := compiledFrameFor snapshot step.state
-  emitDirtyDiff frame nextFrame
+  Loam.Prototype.VerifiedTui04.TerminalRuntime.emitDirtyDiff
+    screenBounds 1 1 frame nextFrame
   loop snapshot step.state nextFrame
 
 
@@ -121,7 +107,8 @@ def run (args : List String) : IO UInt32 := do
     let state := initialState
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
-    emitDirtyDiff blank frame
+    Loam.Prototype.VerifiedTui04.TerminalRuntime.emitDirtyDiff
+      screenBounds 1 1 blank frame
     loop snapshot state frame
     return 0
   finally
