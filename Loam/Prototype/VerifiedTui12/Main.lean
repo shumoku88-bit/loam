@@ -8,20 +8,13 @@ set_option autoImplicit false
 
 abbrev Snapshot := Loam.Prototype.VerifiedTui11.Main.Snapshot
 abbrev BaseState := Loam.Prototype.VerifiedTui11.Main.State
-abbrev ReviewRecord := Loam.Prototype.VerifiedTui11.Main.ReviewRecord
 abbrev ScheduledRecord := Loam.Prototype.VerifiedTui11.Main.ScheduledRecord
 abbrev ScheduledEvidence := Loam.Prototype.VerifiedTui11.Main.ScheduledEvidence
-
-inductive HomeTarget where
-  | actual
-  | scheduled
-  deriving Repr, DecidableEq, BEq
 
 /--
 Prototype 12 wraps the already-qualified Prototype 11 state instead of replacing it.
 Actual keeps its existing Home/Browse/Detail model. Scheduled adds exactly one new
-read-only workspace surface, carrying the Home state it was opened from so the same
-SelectedDay is restored exactly on Back.
+read-only workspace surface carrying the Home state it was opened from.
 -/
 inductive Surface where
   | base (state : BaseState)
@@ -29,7 +22,6 @@ inductive Surface where
 
 structure State where
   surface : Surface := .base Loam.Prototype.VerifiedTui11.Main.initialState
-  target : HomeTarget := .actual
 
 inductive Event where
   | left
@@ -50,11 +42,6 @@ structure Step where
 
 def initialState : State := {}
 
-
-def toggleTarget : HomeTarget → HomeTarget
-  | .actual => .scheduled
-  | .scheduled => .actual
-
 private def delegateBase
     (snapshot : Snapshot) (state : State)
     (event : Loam.Prototype.VerifiedTui11.Main.Event) : Step :=
@@ -62,9 +49,13 @@ private def delegateBase
   | .scheduled _ => { state }
   | .base base =>
       let step := Loam.Prototype.VerifiedTui11.Main.update snapshot base event
-      { state := { state with surface := .base step.state }, quit := step.quit }
+      { state := { surface := .base step.state }, quit := step.quit }
 
-
+/--
+`Enter` remains Actual. `Tab` is a deliberately provisional one-key entrance to
+Scheduled so this experiment can pressure-test the workspace without first adding
+Home target state or a generic router.
+-/
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
   | .quit => { state, quit := true }
@@ -77,21 +68,12 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .scheduled _ => { state }
       | .base base =>
           match base.surface with
-          | .home _ => { state := { state with target := toggleTarget state.target } }
+          | .home _ => { state := { surface := .scheduled base } }
           | .actual _ _ => { state }
-  | .enter =>
-      match state.surface with
-      | .scheduled _ => { state }
-      | .base base =>
-          match base.surface with
-          | .home _ =>
-              match state.target with
-              | .scheduled => { state := { state with surface := .scheduled base } }
-              | .actual => delegateBase snapshot state .enter
-          | .actual _ _ => delegateBase snapshot state .enter
+  | .enter => delegateBase snapshot state .enter
   | .back =>
       match state.surface with
-      | .scheduled home => { state := { state with surface := .base home } }
+      | .scheduled home => { state := { surface := .base home } }
       | .base _ => delegateBase snapshot state .back
   | .other => { state }
 
@@ -124,154 +106,16 @@ theorem scheduled_workspace_uses_selected_day
 
 
 theorem back_from_scheduled_restores_exact_home
-    (snapshot : Snapshot) (home : BaseState) (target : HomeTarget) :
-    (update snapshot { surface := .scheduled home, target := target } .back).state.surface =
-      .base home := by
+    (snapshot : Snapshot) (home : BaseState) :
+    (update snapshot { surface := .scheduled home } .back).state.surface = .base home := by
   rfl
 
 
 theorem back_from_scheduled_preserves_day
-    (snapshot : Snapshot) (home : BaseState) (target : HomeTarget) :
-    selectedDate ((update snapshot { surface := .scheduled home, target := target } .back).state) =
+    (snapshot : Snapshot) (home : BaseState) :
+    selectedDate ((update snapshot { surface := .scheduled home } .back).state) =
       Loam.Prototype.VerifiedTui11.Main.selectedDate home := by
   rfl
-
-private def scheduledAt? : List ScheduledRecord → Nat → Option ScheduledRecord
-  | [], _ => none
-  | record :: _, 0 => some record
-  | _ :: records, index + 1 => scheduledAt? records index
-
-private def targetHeaderSpans
-    (selected : Bool) (text : String) : List Span :=
-  let marker := if selected then "▶ " else "  "
-  [ span marker .muted
-  , span text (if selected then .selected else .normal)
-  ]
-
-private def actualPreviewSpans
-    (snapshot : Snapshot) (base : BaseState) (index : Nat) : List Span :=
-  match Loam.Prototype.VerifiedTui10.Main.recordAt?
-      (Loam.Prototype.VerifiedTui11.Main.homeActualPreviewRecords snapshot base) index with
-  | none => [span ""]
-  | some record =>
-      let description :=
-        if record.description.isEmpty then "(no description)"
-        else Loam.ActualReview.shortText 18 record.description
-      let eventId := Loam.ActualReview.shortText 10 record.event.id.token
-      [ span "- " .muted
-      , span description
-      , span (" [" ++ eventId ++ "]") .muted
-      ]
-
-private def scheduledPreviewSpans
-    (snapshot : Snapshot) (base : BaseState) (index : Nat) : List Span :=
-  match scheduledAt?
-      (Loam.Prototype.VerifiedTui11.Main.homeScheduledPreviewRecords snapshot base) index with
-  | none => [span ""]
-  | some record =>
-      let text := Loam.ActualReview.shortText 31 (Loam.ScheduledReview.summary record)
-      let scheduledId := Loam.ActualReview.shortText 11 record.id.token
-      [ span "- " .muted
-      , span text
-      , span (" [" ++ scheduledId ++ "]") .muted
-      ]
-
-private def scheduledHeaderText (snapshot : Snapshot) (base : BaseState) : String :=
-  match Loam.Prototype.VerifiedTui11.Main.homeScheduledEvidence snapshot base with
-  | .due _ rest =>
-      "Scheduled / Due / " ++ toString (rest.length + 1) ++ " explicit"
-  | .unknown => "Scheduled / Unknown"
-  | .unknownCompletionScheduled => "Scheduled / refused completion evidence"
-  | .unknownRetirementScheduled => "Scheduled / refused retirement evidence"
-  | .unknownReplacementScheduled => "Scheduled / refused replacement evidence"
-  | .invalidReplacementGraph => "Scheduled / refused replacement graph"
-  | .conflictingTerminalEvidence => "Scheduled / refused terminal evidence"
-
-private def evidenceSpans
-    (snapshot : Snapshot) (state : State) (base : BaseState) : Nat → List Span
-  | 0 =>
-      targetHeaderSpans (state.target == .actual)
-        ("Actual / " ++
-          toString (Loam.Prototype.VerifiedTui11.Main.homeActualRecords snapshot base).length ++
-          " current")
-  | 1 => actualPreviewSpans snapshot base 0
-  | 2 => actualPreviewSpans snapshot base 1
-  | 3 => actualPreviewSpans snapshot base 2
-  | 4 =>
-      targetHeaderSpans (state.target == .scheduled) (scheduledHeaderText snapshot base)
-  | 5 => scheduledPreviewSpans snapshot base 0
-  | 6 => scheduledPreviewSpans snapshot base 1
-  | _ => [span ""]
-
-private def calendarOrBlankSpans (base : BaseState) (row : Nat) : List Span :=
-  if row < 5 then
-    Loam.Prototype.VerifiedTui10.Main.calendarSpans base row
-  else
-    [span "                            "]
-
-private def homeEvidenceRow
-    (snapshot : Snapshot) (state : State) (base : BaseState) (row : Nat) : Widget :=
-  .row <|
-    calendarOrBlankSpans base row ++ [span "    "] ++ evidenceSpans snapshot state base row
-
-private def actualSummary (snapshot : Snapshot) (base : BaseState) : String :=
-  let total := (Loam.Prototype.VerifiedTui11.Main.homeActualRecords snapshot base).length
-  if total = 0 then
-    "Actual: none on selected day."
-  else
-    "Actual: " ++ toString total ++ " current record(s)."
-
-private def scheduledSummary (snapshot : Snapshot) (base : BaseState) : String :=
-  match Loam.Prototype.VerifiedTui11.Main.homeScheduledEvidence snapshot base with
-  | .due _ rest =>
-      "Scheduled: Due; " ++ toString (rest.length + 1) ++ " explicit occurrence(s)."
-  | .unknown => "Scheduled: Unknown (no explicit evidence)."
-  | .unknownCompletionScheduled => "Scheduled: refused completion evidence."
-  | .unknownRetirementScheduled => "Scheduled: refused retirement evidence."
-  | .unknownReplacementScheduled => "Scheduled: refused replacement evidence."
-  | .invalidReplacementGraph => "Scheduled: refused replacement graph."
-  | .conflictingTerminalEvidence => "Scheduled: refused terminal evidence."
-
-private def targetName : HomeTarget → String
-  | .actual => "Actual"
-  | .scheduled => "Scheduled"
-
-
-def homeView (snapshot : Snapshot) (state : State) (base : BaseState) : Widget :=
-  .column <|
-    [ .row
-        [ span "LOAM Home  [CANONICAL READ-ONLY]"
-        , span "        "
-        , span (" " ++ Loam.Prototype.VerifiedTui11.Main.selectedDate base ++ " ") .selected
-        ]
-    , Loam.Prototype.VerifiedTui09.Main.mutedLine
-        "One SelectedDay; Tab only chooses which semantic workspace Enter opens."
-    , Loam.Prototype.VerifiedTui09.Main.blankLine
-    , .row
-        [ span "    September 2026"
-        , span "              "
-        , span "Selected-day evidence"
-        ]
-    , .row
-        [ span "Mon Tue Wed Thu Fri Sat Sun" .muted
-        , span "     "
-        , span (Loam.Prototype.VerifiedTui11.Main.selectedDate base) .muted
-        ]
-    ] ++
-    (List.range 7).map (homeEvidenceRow snapshot state base) ++
-    [ .row [span "                                ", span (actualSummary snapshot base) .muted]
-    , .row [span "                                ", span (scheduledSummary snapshot base) .muted]
-    , Loam.Prototype.VerifiedTui09.Main.blankLine
-    , .row
-        [ span ("Undated current Actual: " ++ toString snapshot.actual.undatedCount) .muted
-        , span "          "
-        , span ("Open target: " ++ targetName state.target) .muted
-        ]
-    , Loam.Prototype.VerifiedTui09.Main.blankLine
-    , Loam.Prototype.VerifiedTui09.Main.mutedLine
-        "←/→ Day    ↑/↓ Week    Tab Target    Enter Open    q Quit"
-    , Loam.Prototype.VerifiedTui09.Main.mutedLine base.notice
-    ]
 
 private def scheduledRecordLine (record : ScheduledRecord) : Widget :=
   let text := Loam.ActualReview.shortText 56 (Loam.ScheduledReview.summary record)
@@ -345,13 +189,21 @@ def scheduledWorkspaceView (snapshot : Snapshot) (home : BaseState) : Widget :=
   | .conflictingTerminalEvidence =>
       refusedScheduledWorkspace date "Scheduled terminal evidence conflicts."
 
+private def homeWithScheduledHint (snapshot : Snapshot) (base : BaseState) : Widget :=
+  let hint :=
+    if base.notice.isEmpty then
+      "Prototype 12: Tab opens the Scheduled workspace."
+    else
+      base.notice ++ "  |  Tab opens Scheduled workspace."
+  Loam.Prototype.VerifiedTui11.Main.homeView snapshot { base with notice := hint }
+
 
 def view (snapshot : Snapshot) (state : State) : Widget :=
   match state.surface with
   | .scheduled home => scheduledWorkspaceView snapshot home
   | .base base =>
       match base.surface with
-      | .home _ => homeView snapshot state base
+      | .home _ => homeWithScheduledHint snapshot base
       | .actual _ _ => Loam.Prototype.VerifiedTui11.Main.view snapshot base
 
 
