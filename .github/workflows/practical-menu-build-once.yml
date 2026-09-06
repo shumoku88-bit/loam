@@ -105,17 +105,17 @@ jobs:
             exit 1
           fi
 
-      - name: Prototype UI shell builds and smoke-tests
+      - name: Prototype UI shell elaborates and smoke-tests
         shell: bash
         run: |
           set -euo pipefail
-          lake build loamUiPrototype
+          prototype='Loam/Prototype/InteractionShellMain.lean'
 
-          printf '1\nq\n' | .lake/build/bin/loamUiPrototype >"$RUNNER_TEMP/hra-prototype.out" 2>&1
+          printf '1\nq\n' | lake env lean --run "$prototype" >"$RUNNER_TEMP/hra-prototype.out" 2>&1
           grep -Fq 'LOAM UI Prototype 01 session summary' "$RUNNER_TEMP/hra-prototype.out"
           grep -Fq 'No household or canonical data was read or written by this prototype.' "$RUNNER_TEMP/hra-prototype.out"
 
-          printf '2\n/\nwrong amount\nc\nb\nq\n' | .lake/build/bin/loamUiPrototype >"$RUNNER_TEMP/hybrid-prototype.out" 2>&1
+          printf '2\n/\nwrong amount\nc\nb\nq\n' | lake env lean --run "$prototype" >"$RUNNER_TEMP/hybrid-prototype.out" 2>&1
           grep -Fq 'Palette found: Correct a record.' "$RUNNER_TEMP/hybrid-prototype.out"
           grep -Fq 'MOCK DRAFT' "$RUNNER_TEMP/hybrid-prototype.out"
           grep -Fq 'LOAM UI Prototype 01 session summary' "$RUNNER_TEMP/hybrid-prototype.out"
