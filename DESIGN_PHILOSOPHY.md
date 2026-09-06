@@ -2,7 +2,7 @@
 
 ## Build a keeper, not a compatibility museum
 
-LOAM is allowed to be unusually ambitious because it does not currently carry the normal burden of protecting a large installed base. HRA and h-kernel already serve as operational household systems, so LOAM can use the same household reality as a demanding test track while pursuing a cleaner design.
+LOAM is allowed to be unusually ambitious because it does not currently carry the normal burden of protecting a large installed base. LOAM is now the only active household system; HRA and h-kernel remain historical and research pressure, not operational fallback authorities. The same household reality can therefore keep serving as a demanding test track while LOAM pursues a cleaner design without carrying compatibility machinery for the retired systems.
 
 The aspiration is closer to a focused, enduring machine than to a feature catalogue: the compactness and purpose of a Roadster, the concentrated engineering of a GR Yaris, or the uncompromising specialization of a Stratos. The analogy is about focus, not imitation. A memorable product is not memorable because it contains everything. It is memorable because its decisions reinforce one another.
 
