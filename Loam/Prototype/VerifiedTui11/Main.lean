@@ -79,7 +79,7 @@ theorem actual_workspace_and_home_share_day_count
 theorem enter_preserves_shared_day
     (snapshot : Snapshot) (state : State) :
     (update snapshot state .enter).state.day = state.day := by
-  simpa [update] using
+  simpa [update, Loam.Prototype.VerifiedTui10.Main.update] using
     Loam.Prototype.VerifiedTui09.Main.enter_preserves_day snapshot.actual state
 
 private def scheduledAt? : List ScheduledRecord → Nat → Option ScheduledRecord
