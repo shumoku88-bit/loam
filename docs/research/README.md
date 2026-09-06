@@ -43,6 +43,7 @@ Structural/meta falsification has its own subdirectory:
 
 - [`LOAM_INTERACTION_ATLAS.md`](interaction/LOAM_INTERACTION_ATLAS.md)
 - [`LOAM_UI_EVALUATION_FRAMEWORK.md`](interaction/LOAM_UI_EVALUATION_FRAMEWORK.md)
+- [`LOAM_UI_EVALUATION_EXPERIMENT_01.md`](interaction/LOAM_UI_EVALUATION_EXPERIMENT_01.md)
 
 ## Placement rule
 
