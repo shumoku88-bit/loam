@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; initial six-item near queue completed; no domain READY item remains**
+Status: **F001-F200 reviewed; F052 concept-pressure result added; no domain READY item remains**
 
 Baseline corpus:
 
@@ -9,10 +9,11 @@ LOAM_FALSIFICATION_ATLAS.md        F001-F128
 LOAM_FALSIFICATION_ATLAS_WAVE2.md  F129-F200
 ```
 
-Selection checkpoint:
+Selection checkpoints:
 
 ```text
 LOAM_FALSIFICATION_SELECTION_2026-09.md
+LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md
 ```
 
 The atlas files own specimen descriptions, attacked seams, and source context.
@@ -67,8 +68,9 @@ OBSERVING  0
 ```
 
 The initial six-item domain near queue is exhausted.
+Post-counterexample concept-pressure probes may be deliberately opened from `LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md` without turning that shortlist into a standing READY/product queue.
+Observation 202 has now closed F052 while domain `READY` remains zero.
 Do not automatically promote another specimen merely to keep work moving.
-The next domain gate is to re-rank the remaining `REVIEWED / UNTESTED` corpus as a whole, or deliberately choose the separate structural S-queue established by `LOAM_STRUCTURAL_FALSIFICATION_PROGRESS.md`.
 
 # Exact DONE overrides
 
@@ -135,6 +137,7 @@ The next domain gate is to re-rank the remaining `REVIEWED / UNTESTED` corpus as
 | F044 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Capacity + holdings/eligibility do not determine per-Purpose Backing; explicit Backing correspondence is observable. |
 | F045 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #285 / Observation 126 — Backing support and Capacity authority are not mutually determined. |
 | F051 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 196 — identical exact Scheduled evidence can coexist with a known amount-unknown obligation versus no known obligation; existence knowledge and exact quantity knowledge are independently observable. |
+| F052 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 202 — identical exact Scheduled evidence can coexist with different known exact future-amount knowledge, and equal exact amount can coexist with due-undetermined versus exact-due temporal placement; exact quantity knowledge and temporal placement are independently observable for the selected vocabulary. |
 | F053 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — one-to-one ScheduledCompletion is too small for split realization, and quantity-free topology is too small for apportionment. |
 | F054 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — several Scheduled claims sharing one Actual require quantity apportionment beyond endpoint topology. |
 | F055 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 200 — equal Series membership, Monthly recurrence, nominal day 31, and neighboring day-31 observations can coexist with skip-versus-clamp shorter-month outcomes; generation policy is independently observable. |
@@ -162,7 +165,8 @@ Direct results absorb several seams, but unresolved cases remain deliberately li
 
 - PR #305 tests cash-funded versus liability-funded negative Remaining but not arbitrary mixed funding composition, so F043 stays open.
 - Observation 200 closes F055 with a counterexample: Series membership + Monthly recurrence + nominal day 31 + neighboring day-31 observations do not determine the shorter-month generation result. F056 weekend/holiday shifting remains separately untested.
-- Observation 196 now closes F051 by finding a genuine counterexample: exact Scheduled evidence does not determine whether an amount-unknown obligation is already known to exist. F049/F050/F052 remain separate unresolved quantity/date questions.
+- Observation 196 closes F051 with a counterexample: exact Scheduled evidence does not determine whether an amount-unknown obligation is already known to exist.
+- Observation 202 closes F052 with a counterexample: exact Scheduled evidence does not determine all known exact future amount, and equal exact amount does not determine whether temporal placement is still undetermined or exact. Together F051/F052 now pressure a possible smaller pre-Scheduled identity/attachment boundary, but no production representation has been earned. F049/F050 remain separately unresolved approximate/range quantity questions.
 - PR #278 closes the information question for split/merged realization by finding a real counterexample; it does not implement apportionment.
 - PR #306 does not close recognition-policy amendment after service cancellation, or tax-specific recognition applicability.
 - Observations 163-165 close ordinary directional obligation/discharge structure, but interest accrual, refinancing, late-fee generation, creditor migration, and forgiveness without cash remain live.
@@ -212,13 +216,13 @@ Review result:
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 60
+DONE                                 61
   ABSORBED                           49
-  COUNTEREXAMPLE                     11
+  COUNTEREXAMPLE                     12
 
 READY                                 0
 OBSERVING                             0
-REVIEWED / UNTESTED                 140
+REVIEWED / UNTESTED                 139
 
 Runtime IMPLEMENTED                   3
   F047
@@ -226,7 +230,7 @@ Runtime IMPLEMENTED                   3
   F124
 ```
 
-The 140 unresolved cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which are not currently selected into a domain near queue.
+The 139 unresolved cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which are not currently selected into a domain near queue.
 
 # Selection frontier
 
@@ -264,8 +268,29 @@ F086
   Runtime  RESEARCH_ONLY
 ```
 
-The first domain near queue is now exhausted.
-Do not promote the next case automatically. Re-rank the 140 unresolved domain specimens as a whole if domain falsification continues, or deliberately switch to the separate structural S-queue. Keep the two authorities distinct.
+Post-counterexample concept-pressure result:
+
+```text
+F052
+  Work              DONE
+  Finding           COUNTEREXAMPLE
+  Runtime           RESEARCH_ONLY
+  Rebuild pressure  B / CONSERVATIVE EXTENSION
+```
+
+The paired F051/F052 result now justifies a later compression question:
+
+```text
+can one small pre-Scheduled identity / attachment boundary
+represent both
+  existence-before-quantity
+and
+  amount-before-time
+without weakening exact ScheduledOccurrence?
+```
+
+This is a research question, not a production requirement.
+The next item in `LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md` is the F001 + F033 compression probe, but it is not automatically promoted to domain READY by this progress update.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
