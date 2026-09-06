@@ -62,6 +62,7 @@ jobs:
           memory="$tmp_dir/memory.loam"
           relations="$memory.relations"
           discharges="$memory.discharges"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\nLOCUS\tfriend-in\n' >"$memory.locus-admission"
 
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
@@ -87,6 +88,7 @@ jobs:
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
 
           printf 'cash\n25\n\ncoffee\n25\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-05 \
@@ -103,6 +105,7 @@ jobs:
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
           discharges="$memory.discharges"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
 
           cat >"$discharges" <<'EOF'
           LOAM-RELATION-DISCHARGE-MEMORY	1
@@ -124,6 +127,7 @@ jobs:
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\nLOCUS\tfriend-in\n' >"$memory.locus-admission"
 
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
@@ -152,6 +156,7 @@ jobs:
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\nLOCUS\tfriend-in\n' >"$memory.locus-admission"
 
           printf 'paypay\n100\n\ntravel\n100\n\n' \
             | env LOAM_OCCURRENCE_DATE=2026-09-05 \
