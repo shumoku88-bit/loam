@@ -1,0 +1,41 @@
+name: Prototype 12 Record Editor
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui12/**'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype12-record-editor.yml'
+  push:
+    branches:
+      - 'prototype/verified-tui-record-editor-12'
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui12/**'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype12-record-editor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean balanced record form pressure
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build production and Prototype 12
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam loamMovement loamUiPrototype12
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
