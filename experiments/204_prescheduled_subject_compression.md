@@ -1,6 +1,6 @@
 # Observation 204 — Can F051 and F052 share one subject-attached pre-Scheduled carrier?
 
-Status: **OBSERVING concept-pressure compression probe**
+Status: **DONE — bounded compression candidate SURVIVED / RESEARCH_ONLY**
 
 Sources:
 
@@ -52,90 +52,174 @@ For this bounded probe, every `Subject` is already inside the selected pre-Sched
 
 Likewise, absence of `amount` means no exact amount is retained yet. Approximate/range quantity is outside scope.
 
-## Why this is smaller than state-specific concepts
+## Executed result
 
-The candidate does not introduce constructors such as:
+Dedicated Observation 204 CI completed SUCCESS on executable head:
 
 ```text
-UnknownAmountObligation
-KnownAmountUnknownDue
-ExactScheduledObligation
+935fe5fc186c42d453adce52a090e5f9129deb63
 ```
 
-Instead the same subject can be observed through selected snapshots:
+workflow run:
 
 ```text
-known only
-known + exact amount
-known + exact amount + exact due
+34008892319
 ```
 
-The final state is only an observation-local exact-Scheduled-like view. Production `ScheduledOccurrence` remains unchanged.
-
-## Selected attacks
-
-### 1. Represent both adjacent pressures
-
-Can one carrier represent an existence-only subject and an amount-known / due-not-yet-attached subject?
-
-Expected: **SAT**.
-
-### 2. Same amount, different due knowledge
-
-Can equal subject identity and exact amount coexist with no exact due in one world and exact due in another?
-
-Expected: **SAT**.
-
-This should reproduce the F052 separation without a dedicated state-specific noun.
-
-### 3. Attachments do not determine known existence
-
-If amount and due attachments are identical, can known-subject membership still differ?
-
-Expected assertion counterexample: **SAT**.
-
-This is the F051 lower bound: attachment domains alone cannot replace explicit known existence.
-
-### 4. Known + amount do not determine due placement
-
-Expected assertion counterexample: **SAT**.
-
-This is the F052 lower bound inside the candidate carrier.
-
-### 5. Loose evidence pools lose correspondence
-
-With two known subjects, can the same global amount set and due set support different subject-specific amount/due pairings?
-
-Expected: **SAT**, and the corresponding assertion should have a counterexample.
-
-This tests whether stable subject attachment matters, rather than keeping quantity/time evidence as uncorrelated global bags.
-
-### 6. Full subject-attached evidence determines selected views
-
-Once `known`, subject-attached `amount`, and subject-attached `due` are all fixed, can the selected amount pool, due pool, or complete subject/amount/due view still differ?
-
-Expected assertion counterexample: **UNSAT**.
-
-This is only bounded sufficiency for the selected F051/F052 views.
-
-## Architectural interpretation under test
-
-Possible result if the matrix holds:
+job:
 
 ```text
-F051 + F052
-  do not require two state-specific concept families
+101421066043
+```
 
-one stable subject-attached carrier
-  can preserve the selected distinctions
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix:
+
+```text
+representativeExistenceThenAmountBeforeDue    SAT
+sameAmountDifferentDueKnowledge               SAT
+sameLoosePoolsDifferentPairing                SAT
+AttachmentsDetermineKnownSubjects             SAT counterexample
+KnownAndAmountDetermineDuePlacement           SAT counterexample
+LoosePoolsDetermineSubjectPairing             SAT counterexample
+SubjectAttachedCarrierDeterminesSelectedViews UNSAT counterexample
+```
+
+## What the result says
+
+### One carrier can represent both adjacent pressures
+
+The representative witness uses the same subject identity across two selected snapshots:
+
+```text
+Left
+  known S1
+  no exact amount
+  no exact due
+
+Right
+  known S1
+  exact amount A1
+  no exact due
+```
+
+So the selected F051 existence-before-quantity state and the F052 amount-before-placement state do not require separate state-specific subject types inside this bounded vocabulary.
+
+A second witness keeps subject identity and exact amount equal while due evidence differs:
+
+```text
+Left
+  S1 + A1
+  no exact due
+
+Right
+  S1 + A1 + D1
+```
+
+This reproduces the F052 separation without introducing a `KnownAmountUnknownDue` constructor.
+
+### Attachments alone are too small
+
+`AttachmentsDetermineKnownSubjects` has a counterexample.
+
+Two worlds can have identical empty amount/due attachments while one knows subjects to exist and the other does not.
+
+Therefore:
+
+```text
+attachment domains
+  -/->
+known existence
+```
+
+The F051 existence distinction cannot be erased.
+
+### Known existence + amount are still too small
+
+`KnownAndAmountDetermineDuePlacement` has a counterexample.
+
+Equal known-subject membership and equal amount attachment can coexist with different exact due evidence.
+
+Therefore the F052 temporal distinction also survives inside the shared carrier.
+
+### Loose amount/time pools are too small
+
+The two-subject witness is:
+
+```text
+Left
+  S1 -> A1, D1
+  S2 -> A2, D2
+
+Right
+  S1 -> A1, D2
+  S2 -> A2, D1
+```
+
+Both worlds have the same known-subject set, the same global amount set, and the same global due set. But the subject-specific complete triples differ.
+
+Therefore:
+
+```text
+identity-free amount pool + due pool
+  -/->
+subject-specific future expectation
+```
+
+Stable attachment correspondence matters once more than one subject exists.
+
+### Full subject-attached carrier closes the selected gap
+
+`SubjectAttachedCarrierDeterminesSelectedViews` has no counterexample in the selected scope.
+
+Once all three retained dimensions are equal:
+
+```text
+known subject identity
+subject-attached exact amount
+subject-attached exact due
+```
+
+the selected amount pool, due pool, and complete subject/amount/due view are fixed.
+
+This is bounded sufficiency only. It does not prove a universal minimal representation.
+
+## Compression interpretation
+
+Observation 204 therefore gives a more precise answer than either "one new concept" or "two new concepts":
+
+```text
+state-specific nouns
+  can be avoided for the selected F051/F052 states
 
 but
-  existence / quantity / time remain independent information dimensions
+
+stable subject identity
+known existence
+exact quantity evidence
+exact temporal evidence
+  remain separately observable dimensions
 ```
 
-That would still be **B / CONSERVATIVE EXTENSION pressure**, not C. It would support keeping exact `ScheduledOccurrence` exact and, if dogfood later requires partial future knowledge, first considering one small additive family rather than weakening Scheduled or inventing several household-domain nouns.
+The candidate compresses **packaging**, not information.
 
-It would not prove that the observation-local `Subject` is the right production concept.
+This differs from Observation 203. There, flattening reservation provenance and operation-right provenance into one scalar usable-quantity envelope lost meaning. Here, one subject-centered carrier can retain the independent dimensions without inventing a separate type for every partial-knowledge state.
+
+## Rebuild-pressure result
+
+Current architectural reading remains:
+
+```text
+B / CONSERVATIVE EXTENSION PRESSURE
+```
+
+Nothing in Observation 204 requires changing the established exact meaning of `ScheduledOccurrence`.
+
+If real dogfood later requires pre-Scheduled partial knowledge, the current evidence favors testing one small additive subject-attached family before either:
+
+- weakening `ScheduledOccurrence` with nullable fields, or
+- introducing several household-domain state nouns.
+
+That is still only a future implementation candidate, not an earned product concept.
 
 ## Deliberate boundaries
 
@@ -146,9 +230,10 @@ Observation 204 does not establish:
 - nullable fields inside `ScheduledOccurrence`;
 - no-due-date semantics;
 - approximate/range quantity;
+- unrestricted three-way independence of existence, quantity, and time;
 - time-known / amount-unknown symmetry beyond existing bounded evidence;
 - transitions or lifecycle from partial knowledge to Scheduled publication;
 - recurrence generation;
 - Commitment, Remaining, Headroom, Capacity, notification, persistence, CLI/TUI, or canonical-data behavior.
 
-Runtime remains research-only.
+Runtime remains `RESEARCH_ONLY`.
