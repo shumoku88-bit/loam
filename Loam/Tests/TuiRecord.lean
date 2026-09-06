@@ -30,11 +30,11 @@ def main (args : List String) : IO Unit := do
   let edited := update w [] (update w [] editor .tab).state .enter
   expect (edited.state.form.description == readyForm.description) "Edit lost description"
   expect (edited.state.form.rows == readyForm.rows) "Edit lost rows"
-  expect ((Loam.MovementAdmission.admit? w { draft with total := 1 }).isError)
+  expect ((Loam.MovementAdmission.admit? w { draft with total := 1 }).isOk == false)
     "forged total admitted"
-  expect ((Loam.MovementAdmission.admit? w { draft with effects := draft.effects.take 1 }).isError)
+  expect ((Loam.MovementAdmission.admit? w { draft with effects := draft.effects.take 1 }).isOk == false)
     "unbalanced draft admitted"
-  expect ((Loam.MovementAdmission.admit? w { draft with validOn := "2026-02-29" }).isError)
+  expect ((Loam.MovementAdmission.admit? w { draft with validOn := "2026-02-29" }).isOk == false)
     "impossible date admitted"
   let invalid := preview w { form := { readyForm with date := "bad" } }
   expect ((update w [] invalid .enter).publish.isNone) "invalid preview emitted publication"
@@ -51,7 +51,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "change fixture policy")
   let before ← IO.FS.readFile (root / "CURRENT")
   let refused ← Loam.MovementPublisher.publishManifest root draft
-  expect refused.isError "stale preview bypassed current Locus policy"
+  expect (!refused.isOk) "stale preview bypassed current Locus policy"
   expect ((← IO.FS.readFile (root / "CURRENT")) == before) "refusal changed authority"
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
     | throw (IO.userError "restore fixture policy")

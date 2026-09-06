@@ -79,7 +79,19 @@ def readKey : IO Key := do
   else if value < 32 then
     return .other
   else if 126 < value then
-    return .other
+    let count := if value >= 194 && value <= 223 then 2
+      else if value <= 239 && value >= 224 then 3
+      else if value <= 244 && value >= 240 then 4 else 0
+    if count = 0 then return .other
+    let mut bytes := ByteArray.empty.push first
+    for _ in List.range (count - 1) do
+      bytes := bytes.push (← readByte)
+    match String.fromUTF8? bytes with
+    | some text =>
+        match text.toList with
+        | [char] => return .input char
+        | _ => return .other
+    | none => return .other
   else
     return .input (Char.ofNat value)
 
@@ -89,7 +101,7 @@ def setTerminalMode (mode : String) : IO Unit := do
       args := #["-c", "stty " ++ mode ++ " < /dev/tty"] }
 
 def enter : IO Unit := do
-  setTerminalMode "-echo -icanon min 1 time 0"
+  setTerminalMode "-echo -icanon min 0 time 1"
   IO.print "\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
