@@ -121,12 +121,15 @@ assert SameExplicitAndCoverageDetermineCoveredTruth {
       (Right.actualDue & (Subject -> prefix[h]))
 }
 
--- Deliberately too strong. Completeness through one horizon is not recurrence
--- and does not determine due truth outside that horizon.
+-- Deliberately too strong. Even when both worlds really carry the same nonempty
+-- completeness horizon, that bounded claim is not recurrence and does not
+-- determine due truth outside the covered prefix.
 assert CoverageDeterminesAllFutureTruth {
-  Left.explicit = Right.explicit and
-  Left.completeThrough = Right.completeThrough implies
-    Left.actualDue = Right.actualDue
+  (some h: Month |
+    Left.explicit = Right.explicit and
+    Left.completeThrough = h and
+    Right.completeThrough = h) implies
+      Left.actualDue = Right.actualDue
 }
 
 run representativeCoveredBimonthlyLikeRent for exactly 2 Subject, exactly 4 Month, exactly 2 World
