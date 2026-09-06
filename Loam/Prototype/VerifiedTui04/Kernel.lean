@@ -170,7 +170,11 @@ def widgetCellAtArray (lines : Array (Array Cell)) (row col : Nat) : Cell :=
 
 theorem widgetCellAtArray_spec (lines : List (List Cell)) (row col : Nat) :
     widgetCellAtArray (widgetArrayLines lines) row col = widgetCellAt lines row col := by
-  simp [widgetCellAtArray, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?]
+  cases h : lines[row]? with
+  | none =>
+      simp [widgetCellAtArray, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
+  | some line =>
+      simp [widgetCellAtArray, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
 
 def Widget.width (widget : Widget) : Nat :=
   widget.lines.foldl (fun current line => max current line.length) 0
