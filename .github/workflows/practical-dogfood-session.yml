@@ -137,6 +137,13 @@ jobs:
           assert full.count("m. More actions") >= 5, full
 
           shutil.rmtree("scratch/dogfood", ignore_errors=True)
+          Path("scratch/dogfood").mkdir(parents=True, exist_ok=True)
+          Path("scratch/dogfood/memory.loam.locus-admission").write_text(
+              "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\n"
+              "LOCUS\tincome-source\n"
+              "LOCUS\tbank\n",
+              encoding="utf-8",
+          )
           proc = start_session()
           transcript = []
           first = read_until(proc, "> ", transcript)
