@@ -45,18 +45,20 @@ theorem arbitrary_linear_chain_terminal_only
         ∃ correction ∈ corrections.corrections,
           correction.target = event.id) :
     ∀ event ∈ chain, (event ∈ frontier.events ↔ event = terminal) := by
+  classical
   intro event hEventInChain
   constructor
   · intro hInFrontier
     have hCharacterization :=
       (Loam.Application.correctionFrontierMemory?_mem_iff
         events corrections frontier hFrontier event).mp hInFrontier
-    by_contra hDifferent
-    obtain ⟨correction, hCorrection, hTarget⟩ :=
-      hEveryOtherTargeted event hEventInChain hDifferent
-    exact hCharacterization.2 correction hCorrection hTarget
+    by_cases hEqual : event = terminal
+    · exact hEqual
+    · obtain ⟨correction, hCorrection, hTarget⟩ :=
+        hEveryOtherTargeted event hEventInChain hEqual
+      exact False.elim (hCharacterization.2 correction hCorrection hTarget)
   · intro hEqual
-    subst event
+    cases hEqual
     exact
       (Loam.Application.correctionFrontierMemory?_mem_iff
         events corrections frontier hFrontier terminal).2
