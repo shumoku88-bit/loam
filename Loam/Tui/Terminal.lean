@@ -72,14 +72,16 @@ def readKey : IO Key := do
     | _ => return .other
   else if value = 9 then
     return .tab
-  else if value = 10 || value = 13 then
+  else if value = 10 ∨ value = 13 then
     return .enter
-  else if value = 8 || value = 127 then
+  else if value = 8 ∨ value = 127 then
     return .backspace
-  else if 32 ≤ value && value ≤ 126 then
-    return .input (Char.ofNat value)
-  else
+  else if value < 32 then
     return .other
+  else if 126 < value then
+    return .other
+  else
+    return .input (Char.ofNat value)
 
 def setTerminalMode (mode : String) : IO Unit := do
   discard <| IO.Process.run
