@@ -61,20 +61,11 @@ capacity_binary_is_current() {
 daily_quantity_binary_is_current() {
   [[ -x "$daily_quantity_binary" && -e "$daily_quantity_stamp" ]] || return 1
 
-  for input in \
-    Loam/Cli/DailyQuantityCli.lean \
-    Loam/BalanceViewConfig.lean \
-    Loam/Persistence/BasisCutPersistence.lean \
-    Loam/Cli/QuantityBasisCorrectionCli.lean \
-    Loam/Persistence/QuantityBasisCorrectionPersistence.lean \
-    Loam/Persistence/QuantityBasisPersistence.lean \
-    Loam/Application/BasisCut.lean \
-    Loam/Application/CorrectionFrontier.lean \
-    Loam/Application/CurrentQuantity.lean \
-    Loam/Application/QuantityBasisFrontier.lean \
-    Loam/Core/QuantityBasisCorrectionMemory.lean \
-    Loam/Core/QuantityBasisMemory.lean \
-    lakefile.lean lake-manifest.json lean-toolchain; do
+  if find Loam -type f -name '*.lean' -newer "$daily_quantity_stamp" -print -quit | grep -q .; then
+    return 1
+  fi
+
+  for input in lakefile.lean lake-manifest.json lean-toolchain; do
     if [[ -e "$input" && "$input" -nt "$daily_quantity_stamp" ]]; then
       return 1
     fi
@@ -396,6 +387,14 @@ if [[ $# -eq 0 ]]; then
   fi
   data_dir="$(cd "$requested_data_dir" && pwd)"
 
+  # A retired sidecar is not evidence of an empty household. Select the
+  # canonical generation for every supported Movement action, including writes.
+  # Directory presence (not CURRENT presence) ensures damaged authority refuses
+  # rather than silently reverting to sidecars.
+  if [[ ! ${LOAM_MOVEMENT_MANIFEST_ROOT+x} && -e "$data_dir/movement-authority" ]]; then
+    export LOAM_MOVEMENT_MANIFEST_ROOT="$data_dir/movement-authority"
+  fi
+
   memory_file="$data_dir/memory.loam"
   correction_file="$data_dir/corrections.loam"
   basis_file="$data_dir/basis.loam"
@@ -438,12 +437,22 @@ EOF
       fi
     fi
 
+    if [[ ${LOAM_MOVEMENT_MANIFEST_ROOT+x} ]]; then
+      case "$choice" in
+        correct|raw|effective|integrity|scheduled)
+          echo "loam: '$choice' is not yet supported with Movement manifest authority; no sidecar action was run." >&2
+          echo
+          continue
+          ;;
+      esac
+    fi
+
     case "$choice" in
       1)
         run_menu_action "$root/tools/loam-movement" "$memory_file"
         ;;
       2)
-        if [[ ! -e "$memory_file" ]]; then
+        if [[ ! ${LOAM_MOVEMENT_MANIFEST_ROOT+x} && ! -e "$memory_file" ]]; then
           echo "Nothing recorded yet."
         else
           run_menu_action run_loam review "$memory_file" "$correction_file"

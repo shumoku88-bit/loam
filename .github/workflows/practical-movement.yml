@@ -3,6 +3,11 @@ name: Practical Movement
 on:
   pull_request:
     paths:
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Persistence/**'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'
@@ -28,6 +33,11 @@ on:
       - '.github/workflows/practical-movement.yml'
   push:
     paths:
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'Loam/Persistence/**'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'

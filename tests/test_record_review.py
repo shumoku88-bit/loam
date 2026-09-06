@@ -1,6 +1,7 @@
 """Synthetic read-only review, terminal navigation, and writer composition checks."""
 import contextlib
 import datetime as dt
+import hashlib
 import os
 from pathlib import Path
 import pty
@@ -262,6 +263,107 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(raw.returncode, 0, raw.stderr)
         self.assertIn("[record-1]", raw.stdout)
         self.assertIn("2001-01-01  [replacement-1]", raw.stdout)
+
+
+class ManifestMenuTests(unittest.TestCase):
+    """Retired sidecars must not turn a populated household into an empty one."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.authority = self.root / "movement-authority"
+        self.env = {**ENV, "LOAM_DATA_DIR": str(self.root)}
+        self.families = {
+            "Event": "LOAM-EVENT-MEMORY\t1\nEVENT\told\nEFFECT\tfrom\twallet\tjpy\t-100\nEFFECT\tto\tfood\tjpy\t100\n"
+                     "EVENT\tfixed\nEFFECT\tfrom\twallet\tjpy\t-75\nEFFECT\tto\tfood\tjpy\t75\n",
+            "ActualValidity": f"LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\told\t{TODAY}\nBASE\tfixed\t{TODAY}\n",
+            "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tfixed\tmanifest receipt\n",
+            "RelationUnit": "LOAM-RELATION-UNIT-MEMORY\t1\n",
+            "RelationDischarge": "LOAM-RELATION-DISCHARGE-MEMORY\t1\n",
+        }
+        self.publish()
+        (self.root / "corrections.loam").write_text(
+            "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\told\tfixed\n")
+        (self.root / "basis.loam").write_text(
+            "LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tb1\twallet\tjpy\t1000\n")
+        (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
+
+    def publish(self):
+        rows = ["LOAM-MOVEMENT-MANIFEST\t1"]
+        for family, text in self.families.items():
+            digest = hashlib.sha256(text.encode()).hexdigest()
+            relative = f"objects/{family}/{digest}.loam"
+            target = self.authority / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+            rows.append(f"{family}\t{relative}\t{digest}")
+        (self.authority / "CURRENT").write_text("\n".join(rows) + "\n")
+
+    def snapshot(self):
+        return {str(p.relative_to(self.root)): p.read_bytes()
+                for p in self.root.rglob("*") if p.is_file()}
+
+    def menu(self, commands):
+        return run(ROOT / "tools/loam", input=commands, env=self.env)
+
+    def test_retired_sidecars_review_balances_and_basis_cut(self):
+        before = self.snapshot()
+        result = self.menu("2\n3\nq\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("manifest receipt", result.stdout)
+        self.assertIn("wallet: 925 jpy", result.stdout)
+        self.assertNotIn("Nothing recorded yet", result.stdout)
+        self.assertEqual(self.snapshot(), before)
+        (self.root / "basis-cut.tsv").write_text("b1\told\n")
+        result = self.menu("3\nq\n")
+        self.assertIn("wallet: 1000 jpy", result.stdout)
+
+    def test_broken_selected_authority_never_falls_back(self):
+        # Even a plausible stale sidecar must not mask damaged selected objects.
+        (self.root / "memory.loam").write_text(self.families["Event"])
+        for path in (self.authority / "objects/RelationDischarge").iterdir():
+            path.write_text("corrupt\n")
+        before = self.snapshot()
+        result = self.menu("2\n3\nq\n")
+        self.assertIn("loam:", result.stderr)
+        self.assertNotIn("Balances (", result.stdout)
+        self.assertNotIn("manifest receipt", result.stdout)
+        self.assertNotIn("Nothing recorded yet", result.stdout)
+        self.assertEqual(self.snapshot(), before)
+        (self.authority / "CURRENT").unlink()
+        result = self.menu("2\n3\nq\n")
+        self.assertIn("CURRENT is missing", result.stderr)
+        self.assertNotIn("Balances (", result.stdout)
+
+    def test_unported_menu_actions_refuse_without_writes(self):
+        before = self.snapshot()
+        result = self.menu("correct\nraw\neffective\nintegrity\nscheduled\nq\n")
+        self.assertEqual(result.stderr.count("no sidecar action was run"), 5)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_record_uses_manifest_and_next_views_see_it(self):
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY, LOAM_DESCRIPTION="new manifest purchase")
+        result = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Recorded movement: 25 jpy", result.stdout)
+        result = self.menu("2\n3\nq\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("new manifest purchase", result.stdout)
+        self.assertIn("wallet: 900 jpy", result.stdout)
+        self.assertFalse((self.root / "memory.loam").exists())
+        self.assertFalse((self.root / "memory.loam.actual-validity").exists())
+        self.assertFalse((self.root / "memory.loam.descriptions").exists())
+
+    def test_direct_quantity_commands_refuse_invalid_selection(self):
+        binary = ROOT / ".lake/build/bin/loamDailyQuantity"
+        for command in ("balances", "current"):
+            for selection in ("", str(self.root / "missing")):
+                result = run(binary, command, self.root / "memory.loam",
+                             self.root / "corrections.loam", self.root / "basis.loam",
+                             env={**ENV, "LOAM_MOVEMENT_MANIFEST_ROOT": selection})
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
 
 
 if __name__ == "__main__":
