@@ -10,7 +10,7 @@ LOAM is an experimental household system whose current job is to discover the sm
 - **Destructive redesign is allowed.** Do not add indirection merely to keep an obsolete representation alive.
 - **Canonical dogfood data may be migrated or rewritten when the model improves.** Preserve semantic truth and provenance that still matter; do not preserve an old encoding merely because it already exists.
 - **Prefer one-time migration over permanent compatibility machinery.** A temporary conversion script is usually better than a compatibility layer that becomes part of the product.
-- **Do not design for hypothetical external consumers.** HRA and h-kernel remain available as operational household systems while LOAM experiments with stronger redesigns.
+- **Do not design for hypothetical external consumers.** LOAM is the only active household system. HRA and h-kernel remain historical / research comparators, not operational authorities or compatibility targets.
 - **Every retained primitive must earn its place.** If a household answer can be reconstructed without storing another fact, prefer the reconstruction.
 - **Share mechanics without erasing meaning.** Reuse algebra, relation shape, routing history, or temporal machinery when possible, but preserve semantic partitions whenever removing one changes an independently observable answer.
 - **Keep projections as projections.** Reports, labels, statuses, summaries, and convenience views should not become canonical state unless an observation demonstrates that the upstream evidence is insufficient.
