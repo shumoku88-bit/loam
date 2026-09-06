@@ -44,6 +44,13 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Prototype 02 LeanTEA shell elaborates
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake update lean-tea
+          lake env lean Loam/Prototype/InteractionShellTeaMain.lean
+
       - name: First menu launch builds all practical binaries once
         shell: bash
         run: |
