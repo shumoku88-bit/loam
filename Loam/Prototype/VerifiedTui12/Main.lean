@@ -1,4 +1,5 @@
 import Loam.Core.BalancedMovement
+import Loam.Core.Effect
 import Loam.Prototype.VerifiedTui04.Kernel
 
 namespace Loam.Prototype.VerifiedTui12.Main
@@ -244,12 +245,16 @@ theorem attemptPreview_preserves_draft (state : State) :
 
 theorem edit_preserves_draft (state : State) :
     (update state .edit).state.draft = state.draft := by
-  cases state.mode <;> rfl
+  cases state with
+  | mk mode focus candidate draft notice =>
+      cases mode <;> rfl
 
 theorem preview_enter_preserves_draft (state : State) :
     state.mode = .preview → (update state .enter).state.draft = state.draft := by
   intro h
-  cases state.mode <;> simp_all [update]
+  cases state with
+  | mk mode focus candidate draft notice =>
+      cases mode <;> simp_all [update]
 
 def screenBounds : Bounds :=
   { width := 80, height := 24 }
