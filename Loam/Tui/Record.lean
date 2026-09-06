@@ -59,7 +59,8 @@ def editActive (form : Form) (edit : String → String) : Form :=
       let row := if (form.focus.val - 2) % 2 = 0
         then { row with locus := edit row.locus }
         else { row with amount := edit row.amount }
-      { form with rows := (form.rows.set index row),
+      { form with
+        rows := form.rows.set index row
         focus := ⟨form.focus.val, by simpa using form.focus.isLt⟩ }
     else form
 
@@ -105,7 +106,9 @@ def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
   | .ok draft =>
       match Loam.MovementAdmission.admit? world draft with
       | .error message => { state with notice := message }
-      | .ok _ => { state with mode := .preview draft ⟨0, by omega⟩, notice := "" }
+      | .ok _ => { state with
+          mode := .preview draft ⟨0, by omega⟩
+          notice := "" }
 
 def dropRow (form : Form) : Form :=
   -- The action removes the last row; at least one row on each side remains.
@@ -138,10 +141,13 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
         | .tab => { state := { state with form := moveFocus state.form false } }
         | .shiftTab => { state := { state with form := moveFocus state.form true } }
         | .backspace =>
-            { state := { state with form := (editActive state.form
-                (fun text => String.ofList (text.toList.dropLast))), notice := "" } }
+            { state := { state with
+                form := editActive state.form (fun text => String.ofList (text.toList.dropLast))
+                notice := "" } }
         | .input char =>
-            { state := { state with form := editActive state.form (fun text => text.push char), notice := "" } }
+            { state := { state with
+                form := editActive state.form (fun text => text.push char)
+                notice := "" } }
         | .right => { state := { state with form := acceptCandidate known state.form } }
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
