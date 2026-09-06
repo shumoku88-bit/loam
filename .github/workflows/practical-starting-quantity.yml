@@ -76,6 +76,7 @@ jobs:
           event_corrections="$tmp/event-corrections.loam"
           basis="$tmp/basis.loam"
           basis_corrections="$tmp/basis-corrections.loam"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tbank\nLOCUS\twallet\nLOCUS\tpension\nLOCUS\tfood\n' >"$memory.locus-admission"
 
           printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
@@ -113,6 +114,7 @@ jobs:
           basis="$tmp/basis.loam"
           basis_corrections="$tmp/basis-corrections.loam"
           view="$tmp/balance-view.tsv"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tbank\nLOCUS\twallet\nLOCUS\tpension\nLOCUS\tfood\n' >"$memory.locus-admission"
 
           printf 'bank\n100000\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
           printf 'wallet\n0\n' | .lake/build/bin/loamDailyQuantity starting-quantity "$basis"
@@ -141,6 +143,7 @@ jobs:
           memory="$tmp/memory.loam"
           event_corrections="$tmp/event-corrections.loam"
           missing_basis="$tmp/missing-basis.loam"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tsource\nLOCUS\tbank\n' >"$memory.locus-admission"
 
           printf 'source\n100\n\nbank\n100\n\n' | .lake/build/bin/loamMovement "$memory"
           set +e
