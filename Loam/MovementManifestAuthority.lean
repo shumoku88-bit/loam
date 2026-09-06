@@ -2,6 +2,7 @@ import Loam.MovementAdmission
 import Loam.Persistence
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.LocusAdmissionPersistence
 import Loam.Persistence.OpenRelationPersistence
 import Loam.Persistence.RelationDischargePersistence
 import Loam.Sha256
@@ -14,18 +15,21 @@ set_option autoImplicit false
 /-!
 # Movement generation-manifest authority
 
-This is a Movement-specific physical authority boundary for the five canonical
-fact families needed by the practical Movement writer. It deliberately does not
-merge those meanings into one semantic family and does not perform Movement
-admission.
+This is a Movement-specific physical authority boundary for the canonical fact
+families needed by the practical Movement writer plus the independently meaningful
+Locus new-write admission vocabulary earned by Observation 212. It deliberately
+does not merge those meanings into one semantic family and does not perform
+Movement admission.
 
 A selected generation is named only by `CURRENT`. Family images are immutable,
 content-addressed objects. Preparing objects does not make them authoritative;
 `commitPrepared?` changes authority through one `CURRENT` replacement.
 
-The module is intentionally narrower than a generic repository or transaction
-framework. Application 035 uses it behind an explicit experimental production
-mode before any default sidecar -> manifest cutover is considered.
+Version 1 manifests contained only the five historical Movement evidence families.
+They remain readable so existing household history and read-only projections do
+not disappear during migration. They decode with an empty Locus admission
+vocabulary, which means every new quantity-bearing Movement fails closed until a
+version 2 generation explicitly publishes the sixth policy family.
 -/
 
 private structure FamilyRef where
@@ -39,6 +43,7 @@ private structure Manifest where
   descriptions : FamilyRef
   relations : FamilyRef
   discharges : FamilyRef
+  locusAdmission : Option FamilyRef
   deriving Repr, BEq
 
 private structure WorldBytes where
@@ -47,6 +52,7 @@ private structure WorldBytes where
   descriptions : String
   relations : String
   discharges : String
+  locusAdmission : String
   deriving Repr, BEq
 
 /--
@@ -59,7 +65,8 @@ structure Prepared where
   reusedObjects : Nat
   deriving Repr, BEq
 
-private def manifestHeader : String := "LOAM-MOVEMENT-MANIFEST\t1"
+private def manifestHeaderV1 : String := "LOAM-MOVEMENT-MANIFEST\t1"
+private def manifestHeaderV2 : String := "LOAM-MOVEMENT-MANIFEST\t2"
 
 private def objectRelativePath (family digest : String) : String :=
   "objects/" ++ family ++ "/" ++ digest ++ ".loam"
@@ -68,14 +75,26 @@ private def manifestRow (family : String) (ref : FamilyRef) : String :=
   family ++ "\t" ++ ref.path ++ "\t" ++ ref.sha256
 
 private def encodeManifest (manifest : Manifest) : String :=
-  String.intercalate "\n" [
-    manifestHeader,
-    manifestRow "Event" manifest.events,
-    manifestRow "ActualValidity" manifest.validity,
-    manifestRow "EventDescription" manifest.descriptions,
-    manifestRow "RelationUnit" manifest.relations,
-    manifestRow "RelationDischarge" manifest.discharges
-  ] ++ "\n"
+  match manifest.locusAdmission with
+  | none =>
+      String.intercalate "\n" [
+        manifestHeaderV1,
+        manifestRow "Event" manifest.events,
+        manifestRow "ActualValidity" manifest.validity,
+        manifestRow "EventDescription" manifest.descriptions,
+        manifestRow "RelationUnit" manifest.relations,
+        manifestRow "RelationDischarge" manifest.discharges
+      ] ++ "\n"
+  | some locusAdmission =>
+      String.intercalate "\n" [
+        manifestHeaderV2,
+        manifestRow "Event" manifest.events,
+        manifestRow "ActualValidity" manifest.validity,
+        manifestRow "EventDescription" manifest.descriptions,
+        manifestRow "RelationUnit" manifest.relations,
+        manifestRow "RelationDischarge" manifest.discharges,
+        manifestRow "LocusAdmission" locusAdmission
+      ] ++ "\n"
 
 private def decodeManifestRow? (expected : String) (row : String) : Option FamilyRef :=
   match row.splitOn "\t" with
@@ -90,7 +109,7 @@ private def decodeManifestRow? (expected : String) (row : String) : Option Famil
 private def decodeManifest? (input : String) : Option Manifest :=
   match input.splitOn "\n" with
   | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow, trailing] =>
-      if header != manifestHeader || trailing != "" then
+      if header != manifestHeaderV1 || trailing != "" then
         none
       else do
         let events ← decodeManifestRow? "Event" eventRow
@@ -98,7 +117,22 @@ private def decodeManifest? (input : String) : Option Manifest :=
         let descriptions ← decodeManifestRow? "EventDescription" descriptionRow
         let relations ← decodeManifestRow? "RelationUnit" relationRow
         let discharges ← decodeManifestRow? "RelationDischarge" dischargeRow
-        some { events, validity, descriptions, relations, discharges }
+        some { events, validity, descriptions, relations, discharges, locusAdmission := none }
+  | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow,
+      locusAdmissionRow, trailing] =>
+      if header != manifestHeaderV2 || trailing != "" then
+        none
+      else do
+        let events ← decodeManifestRow? "Event" eventRow
+        let validity ← decodeManifestRow? "ActualValidity" validityRow
+        let descriptions ← decodeManifestRow? "EventDescription" descriptionRow
+        let relations ← decodeManifestRow? "RelationUnit" relationRow
+        let discharges ← decodeManifestRow? "RelationDischarge" dischargeRow
+        let locusAdmission ← decodeManifestRow? "LocusAdmission" locusAdmissionRow
+        some {
+          events, validity, descriptions, relations, discharges,
+          locusAdmission := some locusAdmission
+        }
   | _ => none
 
 private def boolNat (value : Bool) : Nat := if value then 1 else 0
@@ -110,7 +144,9 @@ private def encodeWorld?
   let descriptions ← Loam.Persistence.encodeEventDescriptionMemory? world.descriptions
   let relations ← Loam.Persistence.encodeOpenRelationUnits? world.relations
   let discharges ← Loam.Persistence.encodeRelationDischarges? world.discharges
-  some { events, validity, descriptions, relations, discharges }
+  let locusAdmission ←
+    Loam.Persistence.encodeLocusAdmissionVocabulary? world.locusAdmission
+  some { events, validity, descriptions, relations, discharges, locusAdmission }
 
 private def decodeWorld? (bytes : WorldBytes) : Option Loam.MovementAdmission.World := do
   let events ← Loam.Persistence.decodeEventMemory? bytes.events
@@ -118,7 +154,26 @@ private def decodeWorld? (bytes : WorldBytes) : Option Loam.MovementAdmission.Wo
   let descriptions ← Loam.Persistence.decodeEventDescriptionMemory? bytes.descriptions
   let relations ← Loam.Persistence.decodeOpenRelationUnits? bytes.relations
   let discharges ← Loam.Persistence.decodeRelationDischarges? bytes.discharges
-  some { events, validity, descriptions, relations, discharges }
+  let locusAdmission ←
+    Loam.Persistence.decodeLocusAdmissionVocabulary? bytes.locusAdmission
+  some { events, validity, descriptions, relations, discharges, locusAdmission }
+
+private def decodeLegacyWorld?
+    (events validity descriptions relations discharges : String) :
+    Option Loam.MovementAdmission.World := do
+  let eventMemory ← Loam.Persistence.decodeEventMemory? events
+  let validityHistory ← Loam.Persistence.decodeActualValidityHistory? validity
+  let descriptionMemory ← Loam.Persistence.decodeEventDescriptionMemory? descriptions
+  let relationUnits ← Loam.Persistence.decodeOpenRelationUnits? relations
+  let relationDischarges ← Loam.Persistence.decodeRelationDischarges? discharges
+  some {
+    events := eventMemory
+    validity := validityHistory
+    descriptions := descriptionMemory
+    relations := relationUnits
+    discharges := relationDischarges
+    locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty
+  }
 
 private def ensureObject?
     (root : System.FilePath) (family text : String) : IO (Except String (FamilyRef × Bool)) := do
@@ -157,6 +212,10 @@ private def loadReferenced?
 Load exactly one selected Movement generation. There is no sidecar discovery or
 legacy fallback: missing, malformed, unsupported, or digest-invalid selected
 authority fails closed.
+
+A version 1 generation remains readable but receives the empty new-write
+vocabulary. It can therefore support review/projection while refusing every new
+Movement at `MovementAdmission.admit?` until an explicit version 2 cutover.
 -/
 def loadSelectedWorld?
     (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
@@ -187,13 +246,26 @@ def loadSelectedWorld?
     match ← loadReferenced? root manifest.discharges with
     | Except.ok text => pure text
     | Except.error message => return Except.error message
-  match decodeWorld? { events, validity, descriptions, relations, discharges } with
-  | some world => return Except.ok world
-  | none => return Except.error "loam: selected Movement generation failed production typed decoding"
+  match manifest.locusAdmission with
+  | none =>
+      match decodeLegacyWorld? events validity descriptions relations discharges with
+      | some world => return Except.ok world
+      | none => return Except.error "loam: selected Movement generation failed production typed decoding"
+  | some locusAdmissionRef =>
+      let locusAdmission ←
+        match ← loadReferenced? root locusAdmissionRef with
+        | Except.ok text => pure text
+        | Except.error message => return Except.error message
+      match decodeWorld? {
+          events, validity, descriptions, relations, discharges, locusAdmission
+        } with
+      | some world => return Except.ok world
+      | none => return Except.error "loam: selected Movement generation failed production typed decoding"
 
 /--
-Prepare all five typed family images off authority. Existing byte-identical
-content-addressed objects are reused. No `CURRENT` change occurs here.
+Prepare all six typed family images off authority. Existing byte-identical
+content-addressed objects are reused. No `CURRENT` change occurs here. Every new
+prepared generation is version 2 and therefore carries explicit new-write policy.
 -/
 def prepareWorld?
     (root : System.FilePath)
@@ -223,9 +295,16 @@ def prepareWorld?
     match ← ensureObject? root "RelationDischarge" bytes.discharges with
     | Except.ok value => pure value
     | Except.error message => return Except.error message
-  let manifest : Manifest := { events, validity, descriptions, relations, discharges }
+  let (locusAdmission, reusedLocusAdmission) ←
+    match ← ensureObject? root "LocusAdmission" bytes.locusAdmission with
+    | Except.ok value => pure value
+    | Except.error message => return Except.error message
+  let manifest : Manifest := {
+    events, validity, descriptions, relations, discharges,
+    locusAdmission := some locusAdmission
+  }
   let reused := boolNat reusedEvents + boolNat reusedValidity + boolNat reusedDescriptions +
-    boolNat reusedRelations + boolNat reusedDischarges
+    boolNat reusedRelations + boolNat reusedDischarges + boolNat reusedLocusAdmission
   return Except.ok {
     manifestText := encodeManifest manifest
     reusedObjects := reused
