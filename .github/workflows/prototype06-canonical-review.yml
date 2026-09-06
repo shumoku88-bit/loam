@@ -1,0 +1,71 @@
+name: Prototype 06 Canonical Review
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'Loam/Prototype/VerifiedTui06/**'
+      - 'tests/test_record_review.py'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype06-canonical-review.yml'
+  push:
+    branches:
+      - 'prototype/verified-tui-canonical-review-06'
+    paths:
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'Loam/Prototype/VerifiedTui06/**'
+      - 'tests/test_record_review.py'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype06-canonical-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean canonical review pressure test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build production review and UI specimens
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam loamMovement loamDailyQuantity loamUiPrototype04 loamUiPrototype05 loamUiPrototype06
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run pure review projection checks
+        shell: bash
+        run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Run review manifest and fail-closed regression checks
+        shell: bash
+        run: python3 tests/test_record_review.py -v
+
+      - name: Canonical TUI refuses missing manifest authority before terminal entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing="$(mktemp -d)/missing-data"
+          if ./.lake/build/bin/loamUiPrototype06 "$missing" >/tmp/prototype06.out 2>/tmp/prototype06.err; then
+            echo 'Prototype 06 unexpectedly accepted missing authority' >&2
+            exit 1
+          fi
+          test ! -s /tmp/prototype06.out
+          grep -q 'CURRENT is missing' /tmp/prototype06.err
