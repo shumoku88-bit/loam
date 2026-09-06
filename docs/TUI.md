@@ -57,12 +57,14 @@ Escape cancels. The current 80×24 editor supports six effect rows; dropping the
 last row retains at least one row on each side. Preview shows every effect and
 allows Publish, Edit, or Cancel. No transaction kind is retained.
 
-`Loam.MovementPublisher` is the non-CLI publication entrance for collected
-`MovementAdmission.Draft` values. Both line CLI and TUI use it. It acquires the
-existing WriterOwnership lock, rereads the current selected manifest world,
-runs production `MovementAdmission.admit?`, then publishes that world. It does
-not read human input or print terminal output. The sidecar fixture path retains
-its existing support-before-Event ordering inside the same shared module.
+`Loam.MovementPublisher` is the surface-independent production publication
+entrance for collected `MovementAdmission.Draft` values. Both line CLI and TUI
+use it for selected-manifest publication. It acquires the existing
+WriterOwnership lock, rereads the current selected manifest world, runs
+production `MovementAdmission.admit?`, then publishes that world. It does not
+read human input or print terminal output. The isolated sidecar regression
+fixture remains local to the line Movement CLI and is not a second production
+publisher.
 
 Draft balance, positive totals, JPY measure, valid effect tokens and occurrence
 date are validated at the shared admission entrance. These are practical
