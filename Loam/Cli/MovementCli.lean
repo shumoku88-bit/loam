@@ -6,6 +6,7 @@ import Loam.Persistence.OpenRelationPersistence
 import Loam.Persistence.RelationDischargePersistence
 import Loam.MovementAdmission
 import Loam.MovementManifestAuthority
+import Loam.MovementPublisher
 import Loam.MovementEntry
 import Loam.MovementRelationEntry
 import Loam.MovementDischargeEntry
@@ -357,45 +358,6 @@ private def publishDraftUnderOwnership
                                   return 2
 
 /--
-Manifest production path.
-
-The selected manifest generation is re-read under writer ownership and is the
-only state used for world-dependent admission and publication. Version 2 carries
-the explicit Locus new-write vocabulary in the same selected generation. Version
-1 remains readable but its closed default vocabulary refuses publication.
-
-There is deliberately no fallback to sidecars if selected manifest authority is
-missing or malformed.
--/
-private def publishDraftUnderManifestOwnership
-    (rootPath : String)
-    (draft : Loam.MovementAdmission.Draft) : IO UInt32 := do
-  let root := System.FilePath.mk rootPath
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-  | Except.error message =>
-      IO.eprintln message
-      return 2
-  | Except.ok world =>
-      match Loam.MovementAdmission.admit? world draft with
-      | Except.error message =>
-          IO.eprintln message
-          return 2
-      | Except.ok admitted =>
-          showAdmissionPreview
-            draft.total draft.validOn draft.description
-            admitted.newRelations.length admitted.newDischarges.length
-            admitted.event.id
-          match ← Loam.MovementManifestAuthority.publishWorld? root admitted.world with
-          | Except.error message =>
-              IO.eprintln message
-              return 2
-          | Except.ok _ =>
-              IO.println
-                ("Recorded movement: " ++ toString draft.total ++
-                  " jpy. Date: " ++ draft.validOn ++ ".")
-              return 0
-
-/--
 Record one balanced human-facing JPY movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
 more explicit relation discharges.
@@ -436,14 +398,19 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
             memoryFile
             (publishDraftUnderOwnership memoryPath draft)
       | some rootPath =>
-          if rootPath.isEmpty then
-            IO.eprintln "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-            return 2
-          else
-            let root := System.FilePath.mk rootPath
-            Loam.WriterOwnership.withOwnership
-              (root / "CURRENT")
-              (publishDraftUnderManifestOwnership rootPath draft)
+          match ← Loam.MovementPublisher.publishManifestDraftWithPreview
+              rootPath draft fun receipt =>
+                showAdmissionPreview
+                  draft.total draft.validOn draft.description
+                  receipt.relationCount receipt.dischargeCount receipt.eventId with
+          | Except.error message =>
+              IO.eprintln message
+              return 2
+          | Except.ok _ =>
+              IO.println
+                ("Recorded movement: " ++ toString draft.total ++
+                  " jpy. Date: " ++ draft.validOn ++ ".")
+              return 0
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
