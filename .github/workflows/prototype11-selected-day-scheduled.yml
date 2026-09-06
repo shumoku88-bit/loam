@@ -1,0 +1,32 @@
+name: Prototype 11 Selected-day Scheduled
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui09/**'
+      - 'Loam/Prototype/VerifiedTui10/**'
+      - 'Loam/Prototype/VerifiedTui11/**'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Persistence/Scheduled*.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/prototype11-selected-day-scheduled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean shared-day Actual and Scheduled projection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build previous and composed prototypes
+        run: lake build loamUiPrototype10 loamUiPrototype11
