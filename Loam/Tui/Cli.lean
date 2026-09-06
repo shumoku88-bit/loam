@@ -95,8 +95,8 @@ partial def recordLoop (root : System.FilePath)
   if step.cancel then return "Record cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.MovementPublisher.publishManifest root draft with
-      | .ok id => return "Recorded " ++ id.token ++ "."
+      match ← Loam.MovementPublisher.publishManifestDraft root.toString draft with
+      | .ok receipt => return "Recorded " ++ receipt.eventId.token ++ "."
       | .error message =>
           let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
           let nextFrame := compileWidget (Loam.Tui.Record.view known next)
