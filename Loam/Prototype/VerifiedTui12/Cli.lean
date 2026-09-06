@@ -70,15 +70,15 @@ def readEvent (state : State) : IO Event := do
     return .quit
   else if value = 9 then
     return .tab
-  else if value = 10 || value = 13 then
+  else if value == 10 || value == 13 then
     return .enter
-  else if value = 8 || value = 127 then
+  else if value == 8 || value == 127 then
     return .backspace
-  else if state.mode == .preview && (value = 101 || value = 69) then
+  else if state.mode == .preview && (value == 101 || value == 69) then
     return .edit
-  else if state.mode == .preview && (value = 98 || value = 66) then
+  else if state.mode == .preview && (value == 98 || value == 66) then
     return .back
-  else if state.mode == .preview && (value = 113 || value = 81) then
+  else if state.mode == .preview && (value == 113 || value == 81) then
     return .quit
   else if 32 ≤ value then
     if value ≤ 126 then
