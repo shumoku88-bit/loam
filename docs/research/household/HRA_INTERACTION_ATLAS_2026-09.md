@@ -217,16 +217,57 @@ Palette
 Entitlement
 ```
 
-Expected bounded result:
+### Observed bounded result
+
+Qualified at exact research head:
+
+```text
+9d9030707a85e0285deacdf1990eba05b38a700c
+```
+
+with Alloy 6.2.0 / SAT4J and 5-bit integer scope:
+
+```text
+workspaceCore                       SAT
+splitActualCore                     SAT
+hraAdditiveEntitlement              SAT
+NoFourSurfaceSufficient             UNSAT
+FiveSurfaceCoreIsWorkspace          UNSAT
+MinimalExcludesPaletteAndEntitlement UNSAT
+```
+
+Within the stated goal mapping this means:
 
 - the one-workspace Actual shape satisfies all current goals with five top-level
   surfaces total: Home, Actual, Scheduled, Issue, Report;
 - the split Actual shape also satisfies the goals, but needs six surfaces;
-- no sufficient configuration with four or fewer surfaces exists under the stated
-  goal mapping;
-- any sufficient five-surface configuration is exactly the one-workspace core, so
-  Palette and Entitlement cannot enter the minimal set without displacing a surface
-  that provides a required goal.
+- no sufficient configuration with four or fewer surfaces exists in the bounded
+  candidate set;
+- any sufficient five-surface configuration is exactly the one-workspace core;
+- Palette, Entitlement, ActualList, and ActualDetail cannot enter that five-surface
+  minimum without displacing a surface that provides one of the stated goals.
+
+The result is intentionally conditional on the capability map. For example, if
+future evidence shows that Home itself can satisfy a goal currently assigned only
+to a workspace, or that Scheduled and Issue should not be independent interaction
+goals, the model must be changed and the five-surface result no longer follows.
+It is a pruning check over the present hypothesis, not a discovery of permanent UI
+ontology.
+
+### Model-checking incident
+
+The first solver-complete run produced an apparent counterexample to
+`NoFourSurfaceSufficient`. That was not a four-surface UI witness. The model used
+Alloy's default 4-bit signed integers while allowing nine candidate surfaces, so a
+large `#kept` cardinality could overflow and falsify `#kept >= 5`.
+
+The commands now use `5 Int`, enough to represent all cardinalities from zero
+through nine. With that corrected scope the counterexample disappears and all three
+assertions are UNSAT.
+
+This incident is part of the result: formal tools also pressure the model and its
+bounds. A green check is not useful if the arithmetic scope cannot represent the
+question being asked.
 
 This does **not** prove that five screens are globally optimal, that the named
 semantic families are permanent, or that fewer key presses always feel better. It
