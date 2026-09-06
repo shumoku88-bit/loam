@@ -1,6 +1,6 @@
 # Observation 200 — Does a monthly day-31 Series determine its shorter-month generation rule?
 
-Status: **F055 active falsification observation**
+Status: **F055 completed — COUNTEREXAMPLE / RESEARCH_ONLY**
 
 ## Question
 
@@ -67,53 +67,49 @@ ClampLast
 
 These are enough to test independence. They are not claimed exhaustive. Carry-forward, business-day adjustment, holiday rules, provider-specific semantics, and other policies remain outside this observation.
 
-## Selected probes
+## Executed Alloy result
 
-### Representative clamp policy
+Alloy 6.2.0 + Sat4j returned exactly the selected matrix:
 
-Can a monthly day-31 rule generate on `LastDay` in a shorter month?
+```text
+representativeClampAtShortMonth                       SAT
+sameSeriesAndObservedPatternDifferentBoundary         SAT
+ExistingSeriesEvidenceDeterminesShortMonthGeneration  SAT counterexample
+NeighboringOccurrencesDetermineGenerationPolicy      SAT counterexample
+ExplicitGenerationPolicyDeterminesBoundary            UNSAT counterexample
+```
 
-Expected: **SAT**.
+Dedicated Observation 200 CI completed SUCCESS on the exact observation head.
 
-### Same Series and observed pattern, different boundary result
+## Central witness
 
-Can Left and Right have exactly the same:
+Left and Right agree on all retained recurring-thread evidence selected for the test:
 
-- Series membership;
-- Monthly recurrence;
-- nominal day 31;
-- observed day 31 in JanLike;
-- observed day 31 in MarLike;
+```text
+same Series membership
+same Monthly recurrence
+same nominal day 31
+same observed day 31 in JanLike
+same observed day 31 in MarLike
+```
 
-while Left skips the shorter month and Right clamps to its last day?
+but differ at the missing-day boundary:
 
-Expected: **SAT**.
+```text
+Left
+  policy = SkipMissing
+  generatedShort = none
 
-This is the central F055 witness.
+Right
+  policy = ClampLast
+  generatedShort = LastDay
+```
 
-## Deliberately too-strong checks
+Therefore the same recurring thread and the same observed regularity can support different shorter-month generated results.
 
-### Existing Series evidence determines short-month generation
+## Finding
 
-Does equal Series membership + recurrence + nominal day + neighboring observations force the same shorter-month result?
-
-Expected: **SAT counterexample**.
-
-### Neighboring occurrences determine generation policy
-
-Does observing the same day-31 pattern on both sides of the boundary reconstruct whether the Series skips or clamps?
-
-Expected: **SAT counterexample**.
-
-## Positive sufficiency check
-
-### Explicit generation policy determines the selected boundary result
-
-Once Series membership, recurrence, nominal day, and the explicit generation policy are fixed, can the shorter-month result still differ?
-
-Expected counterexample: **UNSAT**.
-
-If this holds, the selected information boundary is:
+The bounded separation is:
 
 ```text
 Series membership + recurrence shape
@@ -129,17 +125,17 @@ same recurring thread + same observed regularity
 shorter-month generated occurrence
 ```
 
-## Candidate interpretation if the matrix holds
+Even neighboring successful day-31 occurrences do not reconstruct the missing-day policy.
 
-F055 would close as a genuine counterexample to the tested compression:
+Once explicit generation policy is fixed, the selected shorter-month answer is fixed in the bounded model. So the observation earns an independently observable policy distinction, or an information-equivalent representation, for this query.
+
+F055 therefore closes as:
 
 ```text
 Work     DONE
 Finding  COUNTEREXAMPLE
 Runtime  RESEARCH_ONLY
 ```
-
-The earned information would be only that a generation policy, or some information-equivalent distinction, is independently observable for this query.
 
 This does **not** automatically earn a production `GenerationPolicy` enum or automatic schedule generator.
 
@@ -158,4 +154,4 @@ Observation 200 does not establish:
 - a first-class production Series object;
 - persistence, CLI, TUI, or household-data changes.
 
-Runtime remains `RESEARCH_ONLY` regardless of the result. Production waits for real dogfood pressure.
+Runtime remains `RESEARCH_ONLY`. Production waits for real dogfood pressure.
