@@ -193,8 +193,8 @@ def selectedDayLine (state : State) : Widget :=
     ]
 
 def sectionTitle (selected : Bool) (label : String) : Widget :=
-  let prefix := if selected then "▶ " else "  "
-  .row [span (prefix ++ label) (if selected then .selected else .normal)]
+  let marker := if selected then "▶ " else "  "
+  .row [span (marker ++ label) (if selected then .selected else .normal)]
 
 def homeView (state : State) : Widget :=
   .column <|
