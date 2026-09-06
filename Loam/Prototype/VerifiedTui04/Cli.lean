@@ -51,7 +51,8 @@ theorem compiledRowCell_spec (lines : List (List Cell)) (row col : Nat) :
   | none =>
       simp [compiledRowCell, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
   | some line =>
-      simp [compiledRowCell, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h]
+      cases hCol : line[col]? <;>
+        simp [compiledRowCell, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?, h, hCol]
 
 def CompiledWidget.cellAt {bounds : Bounds}
     (frame : CompiledWidget) (top left : Nat) (pos : Position bounds) : Cell :=
