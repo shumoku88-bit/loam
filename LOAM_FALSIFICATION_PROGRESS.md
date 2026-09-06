@@ -1,6 +1,6 @@
 # LOAM Falsification Progress
 
-Status: **F001-F200 reviewed; F051, F033, F001, F076, and F055 completed; one-item near queue remains**
+Status: **F001-F200 reviewed; initial six-item near queue completed; no domain READY item remains**
 
 Baseline corpus:
 
@@ -44,7 +44,7 @@ Interpretation:
 - a `COUNTEREXAMPLE` does not automatically create product work.
 - `IMPLEMENTED` is used only when real practical work already required and obtained the corresponding production capability.
 
-## Default after F051, F033, F001, F076, and F055
+## Default after the first six selected specimens
 
 Every F001-F200 specimen has now been cross-referenced.
 
@@ -62,19 +62,13 @@ This keeps the completed review sparse: unresolved cases do not need duplicated 
 ## Queue
 
 ```text
-READY      1
+READY      0
 OBSERVING  0
 ```
 
-Exact READY order:
-
-| Order | ID | Pressure |
-|---:|---|---|
-| 1 | F086 | physical/external quantity assertion vs reconstructed history |
-
-It remains `Finding = UNTESTED` and `Runtime = RESEARCH_ONLY`.
-Only one should normally advance to `OBSERVING` at a time.
-Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2026-09.md`.
+The initial six-item domain near queue is exhausted.
+Do not automatically promote another specimen merely to keep work moving.
+The next domain gate is to re-rank the remaining `REVIEWED / UNTESTED` corpus as a whole, or deliberately choose the separate structural S-queue established by `LOAM_STRUCTURAL_FALSIFICATION_PROGRESS.md`.
 
 # Exact DONE overrides
 
@@ -145,6 +139,7 @@ Detailed scoring and WATCHLIST rationale live in `LOAM_FALSIFICATION_SELECTION_2
 | F054 | COUNTEREXAMPLE | RESEARCH_ONLY | PR #278 / Observation 120 — several Scheduled claims sharing one Actual require quantity apportionment beyond endpoint topology. |
 | F055 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 200 — equal Series membership, Monthly recurrence, nominal day 31, and neighboring day-31 observations can coexist with skip-versus-clamp shorter-month outcomes; generation policy is independently observable. |
 | F073 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 163 — physical payment and final net movement do not determine economic burden allocation before settlement. |
+| F086 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 201 — equal retained history and equal reconstructed quantity can coexist with different physical/external quantity assertions and therefore different conflict answers; assertion evidence is independently observable. |
 | F099 | COUNTEREXAMPLE | RESEARCH_ONLY | Observation 067 — aggregate holding, disposal quantity and even source identity set are too small; per-acquisition consumed quantity is independently observable. |
 
 # Completed review notes
@@ -178,6 +173,7 @@ Direct results absorb several seams, but unresolved cases remain deliberately li
 Review result:
 
 - reconciliation remains explicit evidence rather than a synonym for confirmation;
+- Observation 201 closes F086 with a counterexample: retained history and its reconstructed quantity do not determine an independently observed physical/external quantity assertion or whether the two conflict. This does not choose an authority or repair policy; F085/F087/F088 remain separate pressures;
 - temporal valuation, source authority, exact residual, acquisition basis and disposal provenance absorb several Atlas pressures;
 - operational realised/unrealised FX calculations remain untested;
 - policy-specific FIFO/average-cost gain calculation remains untested even though policy-selected attribution is already separated from physical provenance;
@@ -216,11 +212,11 @@ Review result:
 Corpus total                        200
 Cross-reference reviewed            200
 
-DONE                                 59
+DONE                                 60
   ABSORBED                           49
-  COUNTEREXAMPLE                     10
+  COUNTEREXAMPLE                     11
 
-READY                                 1
+READY                                 0
 OBSERVING                             0
 REVIEWED / UNTESTED                 140
 
@@ -230,11 +226,11 @@ Runtime IMPLEMENTED                   3
   F124
 ```
 
-The 140 unresolved non-READY cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which were not selected into the current near queue.
+The 140 unresolved cases are not claimed novel. They are the reviewed cases for which no direct information-equivalent bounded result was found and which are not currently selected into a domain near queue.
 
 # Selection frontier
 
-F051, F033, F001, F076, and F055 are complete:
+The initial six selected specimens are complete:
 
 ```text
 F051
@@ -261,17 +257,15 @@ F055
   Work     DONE
   Finding  COUNTEREXAMPLE
   Runtime  RESEARCH_ONLY
+
+F086
+  Work     DONE
+  Finding  COUNTEREXAMPLE
+  Runtime  RESEARCH_ONLY
 ```
 
-The next READY representative is F086:
-
-```text
-physical / external quantity assertion
-    vs
-reconstructed history
-```
-
-Before opening it, preserve the one-observation-at-a-time rule and re-check whether Observations 196-200 change any ranking rationale. Do not open another observation in parallel.
+The first domain near queue is now exhausted.
+Do not promote the next case automatically. Re-rank the 140 unresolved domain specimens as a whole if domain falsification continues, or deliberately switch to the separate structural S-queue. Keep the two authorities distinct.
 Do not expand the corpus merely to keep numbering moving.
 Do not convert a formal counterexample into production work without dogfood pressure.
 
