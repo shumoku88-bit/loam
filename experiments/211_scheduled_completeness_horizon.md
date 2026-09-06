@@ -1,6 +1,6 @@
 # Observation 211 — Can a completeness horizon make absent Scheduled evidence safe for AI advice?
 
-Status: **OBSERVING / RESEARCH_ONLY**
+Status: **COMPLETE — bounded completeness survives / RESEARCH_ONLY**
 
 ## Household pressure
 
@@ -84,7 +84,7 @@ no explicit occurrence
     -> Unknown
 ```
 
-`Unknown` is an important candidate result, not an error. It lets LOAM refuse to invent monthly/bimonthly semantics when canonical evidence is silent.
+`Unknown` is an important result, not an error. It lets LOAM refuse to invent monthly/bimonthly semantics when canonical evidence is silent.
 
 ## Alloy vocabulary
 
@@ -124,7 +124,15 @@ The observation asks for:
 7. a check that equal explicit evidence + equal completeness fixes truth inside the covered horizon;
 8. a counterexample to treating completeness as recurrence or unlimited future knowledge.
 
-Expected result matrix before execution:
+## Executed result
+
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix on model head:
+
+```text
+850b0cf842e4d8cab6cff43821772f9626182412
+```
+
+Dedicated workflow run `34040959113`, job `101507509697`, completed **SUCCESS**, including the expected-result checker.
 
 ```text
 representativeCoveredBimonthlyLikeRent              SAT
@@ -137,9 +145,44 @@ SameExplicitAndCoverageDetermineCoveredTruth         UNSAT counterexample
 CoverageDeterminesAllFutureTruth                     SAT counterexample
 ```
 
-## Why this matters before recurrence
+The central counterexample keeps the finite explicit Scheduled evidence equal while changing only the hidden October-rent truth. Without completeness evidence, the same visible September/November schedule therefore supports both `NotDue` and `due but not materialized` worlds.
 
-If the matrix survives, there are three distinct product levels:
+The positive covered checks close the selected bounded gap: once an explicit completeness horizon covers the queried month, absence of a Scheduled occurrence safely determines `NotDue` in the model. Equal explicit occurrences plus the same completeness horizon also determine the selected due/not-due truth inside that covered prefix.
+
+The final counterexample deliberately requires a real, equal, nonempty completeness horizon on both worlds. The worlds can still disagree beyond it. Therefore:
+
+```text
+complete-through
+    !=
+recurrence
+    !=
+unbounded future knowledge
+```
+
+## Finding
+
+For the selected AI-advice query, finite Scheduled should be read as **open-world** evidence:
+
+```text
+present  -> Due
+absent   -> Unknown
+```
+
+That rule alone is enough to prevent the specific failure mode where an AI silently invents a monthly or bimonthly obligation from missing future rows. It requires no new canonical fact.
+
+If LOAM also wants a safe negative answer such as "there is no rent due next month", the bounded observation shows that one completeness boundary is information-sufficient inside its covered planning window:
+
+```text
+present                         -> Due
+absent + covered by completeness -> NotDue
+absent + not covered             -> Unknown
+```
+
+Recurrence is therefore **not earned by this AI false-warning problem alone**.
+
+It may still be needed later for a stronger question, such as projecting unmaterialized occurrences beyond the explicit complete window. Observation 064/122/200 already show that such a path must keep Series identity, continuation, recurrence shape, and generation policy distinctions honest rather than collapsing them into one magic rule.
+
+## Product levels after the result
 
 ```text
 Level 0
@@ -157,7 +200,7 @@ Level 2
   -> only needed if LOAM must project unmaterialized occurrences beyond the explicit complete window
 ```
 
-This ordering directly pressures whether the user's AI-consultation problem can be solved without multiplying canonical fact families.
+This ordering directly pressures whether the household AI-consultation problem can be solved without multiplying canonical fact families.
 
 ## Persistence topology note
 
@@ -174,7 +217,7 @@ CHANGE ...
 
 and publishes the complete file through sibling staging plus rename.
 
-Therefore, **if** a completeness boundary is later earned, a separate canonical file is not mechanically required. One plausible storage experiment would be a versioned successor such as:
+Therefore, **if** a completeness boundary is later earned by practical dogfood, a separate canonical file is not mechanically required. One plausible storage experiment would be a versioned successor such as:
 
 ```text
 LOAM-SCHEDULED-MEMORY\t2
@@ -212,4 +255,4 @@ Observation 211 does not establish:
 - that LOAM should rewrite canonical data now;
 - a final persistence version or TUI design.
 
-The result should decide only whether bounded completeness is information-sufficient for the selected negative-inference query, and whether finite Scheduled alone is too small.
+The bounded result establishes only that finite Scheduled alone is too small for safe negative inference, while one explicit completeness boundary is sufficient for the selected covered-window query.
