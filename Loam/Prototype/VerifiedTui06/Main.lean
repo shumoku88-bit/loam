@@ -102,7 +102,7 @@ def update {count : Nat} (state : State count) (event : Event) : Step count :=
   | .other => { state }
 
 theorem selection_bounds {count : Nat} (state : State count) (index : Fin count)
-    (h : state.selected = some index) : index.val < count := by
+    (_h : state.selected = some index) : index.val < count := by
   exact index.isLt
 
 theorem enter_preserves_selection {count : Nat} (state : State count) :
@@ -139,12 +139,12 @@ def selectedRecord? (snapshot : Snapshot)
     (state : State snapshot.displayed.size) : Option ReviewRecord :=
   match state.selected with
   | none => none
-  | some index => some snapshot.displayed[index.val]'index.isLt
+  | some index => some (snapshot.displayed.get index)
 
 def reviewRow (snapshot : Snapshot)
     (state : State snapshot.displayed.size)
     (index : Fin snapshot.displayed.size) : Widget :=
-  let record := snapshot.displayed[index.val]'index.isLt
+  let record := snapshot.displayed.get index
   let selected := decide (state.selected = some index)
   let marker := if selected then "▶ " else "  "
   let date := Loam.ActualReview.displayText (record.date.getD "date unknown")
