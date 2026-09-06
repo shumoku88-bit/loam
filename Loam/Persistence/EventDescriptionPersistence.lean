@@ -28,6 +28,12 @@ Escaping rules:
 - All other Unicode characters, spaces, punctuation, quotes are preserved verbatim.
 - Invalid escape sequences or dangling trailing backslashes fail closed (`none`).
 
+Publication invariant:
+- U+FFFD REPLACEMENT CHARACTER is not emitted as canonical description text. It
+  signals prior Unicode loss rather than trustworthy human-recognition evidence.
+  Decoding remains permissive so an already-selected damaged generation can be
+  loaded and repaired through a one-time migration.
+
 Invariants:
 - Unknown header or version returns `none`.
 - Missing trailing newline or malformed row structure returns `none`.
@@ -58,6 +64,14 @@ def escapeText (s : String) : String :=
     | other => acc.push other) ""
 
 /--
+Canonical EventDescription publication refuses U+FFFD because that character is
+normally evidence that some earlier Unicode text was already lost. Ordinary
+Unicode, spaces, semicolons, punctuation, and empty text remain admissible.
+-/
+def eventDescriptionTextAdmissible (text : String) : Bool :=
+  !(text.toList.contains '�')
+
+/--
 Decode escaped text.
 Returns `none` if an unrecognized escape sequence or dangling trailing backslash is found.
 -/
@@ -77,7 +91,7 @@ def unescapeText? (s : String) : Option String :=
   loop s.toList ""
 
 private def encodeDescriptionRow? (desc : EventDescription) : Option String :=
-  if validToken desc.event.token then
+  if validToken desc.event.token && eventDescriptionTextAdmissible desc.text then
     some ("DESC\t" ++ desc.event.token ++ "\t" ++ escapeText desc.text)
   else
     none
@@ -107,7 +121,9 @@ private def decodeDescriptionRows : List String → Option (List EventDescriptio
 /--
 Decode Event-description memory from its version-1 text representation.
 Fails closed (`none`) on malformed headers, malformed escapes, invalid tokens,
-or duplicate EventIds.
+or duplicate EventIds. U+FFFD is deliberately still decodable so already-retained
+damaged evidence can be loaded and migrated without teaching the decoder a
+fallback representation.
 -/
 def decodeEventDescriptionMemory? (input : String) : Option EventDescriptionMemory :=
   match input.splitOn "\n" with

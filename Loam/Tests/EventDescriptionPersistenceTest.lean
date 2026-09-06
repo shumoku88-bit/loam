@@ -56,8 +56,9 @@ def main : IO Unit := do
   let edge6 : EventDescription := { event := ⟨"edge-spaces"⟩, text := "   spaces leading and trailing   " }
   let edge7 : EventDescription := { event := ⟨"edge-empty"⟩, text := "" }
   let edge8 : EventDescription := { event := ⟨"edge-unicode"⟩, text := "☕ 🥐 🚀 漢字 カタカナ ひらがな English" }
+  let edge9 : EventDescription := { event := ⟨"edge-punctuation"⟩, text := "群論への第一歩; 結城浩" }
 
-  let edgeEntries := [edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8]
+  let edgeEntries := [edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9]
   let edgeMem ← match EventDescriptionMemory.ofEntries? edgeEntries with
     | some m => pure m
     | none => throw <| IO.userError "Failed to construct edgeMem"
@@ -73,6 +74,34 @@ def main : IO Unit := do
   -- Verify escaped text format manually
   expect (escapeText "a\tb\nc\rd\\e" == "a\\tb\\nc\\rd\\\\e") "escapeText mapping incorrect"
   expect (unescapeText? "a\\tb\\nc\\rd\\\\e" == some "a\tb\nc\rd\\e") "unescapeText? mapping incorrect"
+
+  -- Publication guard: ordinary punctuation remains valid, U+FFFD does not.
+  expect (eventDescriptionTextAdmissible "群論への第一歩; 結城浩")
+    "Semicolon/space punctuation was incorrectly rejected"
+  expect (!eventDescriptionTextAdmissible "三和焼きそば+ねぎ�+バナナ")
+    "U+FFFD replacement character was incorrectly admitted"
+
+  let replacementDesc : EventDescription := {
+    event := ⟨"replacement-damaged"⟩
+    text := "三和焼きそば+ねぎ�+バナナ"
+  }
+  let replacementMem : EventDescriptionMemory := {
+    entries := [replacementDesc]
+    eventNodup := by simp
+  }
+  expect (encodeEventDescriptionMemory? replacementMem).isNone
+    "Failed closed: U+FFFD EventDescription was encoded"
+
+  -- Decode stays migration-readable so already-retained damaged evidence can be repaired.
+  let replacementWire :=
+    "LOAM-EVENT-DESCRIPTION-MEMORY\t1\n" ++
+    "DESC\treplacement-damaged\t三和焼きそば+ねぎ�+バナナ\n"
+  match decodeEventDescriptionMemory? replacementWire with
+  | some memory =>
+      expect (memory.findText? ⟨"replacement-damaged"⟩ == some "三和焼きそば+ねぎ�+バナナ")
+        "Migration-readable U+FFFD description changed during decode"
+  | none =>
+      throw <| IO.userError "Already-retained U+FFFD description was not migration-readable"
 
   -- 4. Fail-closed persistence invariants
   -- Invariant 4.1: duplicate EventId in wire format
