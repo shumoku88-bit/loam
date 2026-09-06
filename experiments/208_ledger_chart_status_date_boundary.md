@@ -1,6 +1,6 @@
 # Observation 208 — Ledger chart / status / posting-date boundary
 
-Status: **Ledger/hledger reconstruction gate; C-seeking bounded composition probe**
+Status: **Ledger/hledger reconstruction gate; qualified bounded additive composition**
 
 ## Question
 
@@ -165,7 +165,7 @@ The model does not yet reproduce every assertion form or ordering rule.
 
 Hold role declarations, status/date evidence, and query policy fixed. Change only hierarchy.
 
-Expected: **counterexample exists**.
+Observed: **counterexample exists**.
 
 A child can move in or out of the selected subtree while every physical Event/Effect and flat role declaration remains unchanged.
 
@@ -175,7 +175,7 @@ So hierarchy is not merely typography for this query.
 
 Hold physical evidence and hierarchy fixed. Give a parent Asset in one world and Expense in another while the child has no declaration.
 
-Expected: **SAT witness**.
+Observed: **SAT witness**.
 
 The child’s selected accounting reading changes without changing its physical Locus.
 
@@ -183,7 +183,7 @@ The child’s selected accounting reading changes without changing its physical 
 
 Give the parent Asset and child Expense.
 
-Expected: **SAT witness** where the child is selected as Expense and not Asset.
+Observed: **SAT witness** where the child is selected as Expense and not Asset.
 
 This checks that an inherited-role candidate does not erase explicit local authority.
 
@@ -191,7 +191,7 @@ This checks that an inherited-role candidate does not erase explicit local autho
 
 Hold transaction status and all other relations fixed. Change only one posting-specific status.
 
-Expected: **counterexample exists**.
+Observed: **counterexample exists**.
 
 So one Event-level status is too small for a vocabulary that can observe posting-specific status.
 
@@ -199,7 +199,7 @@ So one Event-level status is too small for a vocabulary that can observe posting
 
 Keep physical evidence fixed while posting status changes report inclusion.
 
-Expected: **SAT witness** where report selection changes but assertion selection does not.
+Observed: **SAT witness** where report selection changes but assertion selection does not.
 
 This is the same kind of selection-law separation exposed by Observation 207: one universal “selected balance” knob is too small.
 
@@ -207,7 +207,7 @@ This is the same kind of selection-law separation exposed by Observation 207: on
 
 Hold transaction date fixed. Change only posting-specific date across the query boundary.
 
-Expected: **counterexample exists**.
+Observed: **counterexample exists**.
 
 So Event occurrence date alone is too small for Ledger/hledger-style posting-date questions.
 
@@ -226,9 +226,11 @@ existing Event / Effect / Locus identity
      + assertion-selected Effect set
 ```
 
-If fixing those relations fixes both selected sets, the pressure remains additive/compositional rather than a demonstrated need to change Event or Effect itself.
+Fixing those relations fixed both selected sets in the bounded model. The pressure therefore remains additive/compositional rather than a demonstrated need to change Event or Effect itself.
 
-## Expected Alloy matrix
+## Observed Alloy matrix
+
+Alloy 6.2.0 + Sat4j on the exact executable branch head `cd4276494c1b2e0547800d5ead749e223f8cd3a5` produced the selected matrix:
 
 ```text
 hierarchyChangesSubtreeReport                       SAT
@@ -244,25 +246,41 @@ AssertionSelectionIndependentOfStatusQuery          UNSAT counterexample
 ExplicitOverlaysDetermineSelectedViews              UNSAT counterexample
 ```
 
-## Interpretation gate
+Dedicated workflow run `34014875669`, job `101436815742`, completed SUCCESS.
+
+The preceding run failed before solving because an observation-local variable named `root` shadowed the `World.root` field in Alloy. Renaming only that local variable to `rootLocus` repaired the type error; no relation, predicate, assertion, scope, expected result, or semantic hypothesis changed.
+
+## Interpretation
+
+The bounded result is:
 
 ```text
-hierarchy/status/posting-date distinctions observable
-    -> selected Ledger information is genuinely independent
+hierarchy
+transaction/posting status distinction
+transaction/posting date distinction
+report-vs-assertion selection law
+    = independently observable Ledger information
 
-separate relations + query policy determine selected views
-    -> B / conservative additive composition
+but
 
-only if those relations still cannot determine a legitimate selected answer
-because Event/Effect itself lacks necessary shape
-    -> C / Core-shape pressure
+existing Event / Effect / Locus identity
++ explicit additive relations
++ query policy
+    -> selected report and assertion Effect sets
 ```
 
-Do not call an additive distinction a Core failure.
+So Observation 208 classifies this selected Ledger pressure as:
+
+```text
+B / CONSERVATIVE ADDITIVE COMPOSITION
+C / CORE-SHAPE PRESSURE NOT DEMONSTRATED
+```
+
+The result does not say hierarchy, status, or posting date are “just UI”. They are genuine information. It says their selected semantics need not be encoded by enlarging the neutral physical Event/Effect shape.
 
 ## Production boundary
 
-Even if the expected matrix succeeds, this observation does **not** earn:
+This observation does **not** earn:
 
 - a production `Account` object;
 - a production account tree;
@@ -279,11 +297,11 @@ Even if the expected matrix succeeds, this observation does **not** earn:
 - close/open/retain/assign semantics;
 - cost, lot, market-value, or realised/unrealised gain semantics.
 
-The narrow result would be that the selected ordinary Ledger chart/status/date behavior can be reconstructed without enlarging the neutral physical Event/Effect shape.
+The narrow qualified result is that the selected ordinary Ledger chart/status/date behavior can be reconstructed without enlarging the neutral physical Event/Effect shape.
 
 ## Next Ledger gate
 
-If this survives, the next unresolved cluster should be generation/finality rather than more chart metadata:
+The next unresolved cluster is generation/finality rather than more chart metadata:
 
 ```text
 balance assignment
