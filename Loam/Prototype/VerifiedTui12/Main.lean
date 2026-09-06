@@ -239,7 +239,7 @@ theorem admitted_preview_is_balanced
 
 theorem attemptPreview_preserves_draft (state : State) :
     (attemptPreview state).draft = state.draft := by
-  simp [attemptPreview]
+  unfold attemptPreview
   split <;> rfl
 
 theorem edit_preserves_draft (state : State) :
@@ -278,7 +278,7 @@ def fieldValue (draft : Draft) : FieldIndex → String
   | _ => draft.toAmount
 
 def fieldLine (state : State) (field : FieldIndex) : Widget :=
-  let selected := state.mode == .edit && state.focus = field
+  let selected := state.mode == .edit && state.focus == field
   let marker := if selected then "▶ " else "  "
   let value := fieldValue state.draft field
   .row
@@ -287,7 +287,7 @@ def fieldLine (state : State) (field : FieldIndex) : Widget :=
     ]
 
 def candidateLine (state : State) (candidate : CandidateIndex) : Widget :=
-  let selected := state.candidate = candidate
+  let selected := state.candidate == candidate
   let marker := if selected then "▶ " else "  "
   .row [span (marker ++ candidateLocus candidate) (if selected then .selected else .normal)]
 
