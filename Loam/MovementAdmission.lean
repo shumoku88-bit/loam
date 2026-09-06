@@ -36,6 +36,10 @@ completion cache. The remaining fields are retained household evidence. This is
 an in-memory semantic boundary, not a persistence bundle or a claim that the
 families are one meaning. Physical publishers remain responsible for how an
 admitted world becomes authority.
+
+The default is deliberately closed. Older call sites or version-1 manifests that
+supply no explicit policy therefore remain readable but cannot authorize a new
+quantity-bearing Movement.
 -/
 structure World where
   events : Loam.Core.EventMemory
@@ -43,7 +47,8 @@ structure World where
   descriptions : Loam.Core.EventDescriptionMemory
   relations : List Loam.Core.RelationUnit
   discharges : List Loam.Core.RelationDischarge
-  locusAdmission : Loam.Core.LocusAdmissionVocabulary
+  locusAdmission : Loam.Core.LocusAdmissionVocabulary :=
+    Loam.Core.LocusAdmissionVocabulary.empty
 
 /--
 One successfully admitted Movement plus the updated typed world.
@@ -144,7 +149,7 @@ private def materializeRelationUnits? :
         sourceEvent := eventId
         sourceEffect := draft.sourceEffect
         debtor := draft.debtor
-        creditor := draft.creditor
+        creditor := draft.credititor
         quantity := draft.quantity
       } :: rest)
   | _, _, _ => none
