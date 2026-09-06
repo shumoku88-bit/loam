@@ -9,7 +9,7 @@ executable loam-ui-prototype03
     main-is:          Main.hs
     hs-source-dirs:   .
     default-language: Haskell2010
-    ghc-options:      -Wall
+    ghc-options:      -Wall -threaded
     build-depends:    base >= 4.14 && < 5
                     , brick >= 1.0
                     , vty >= 6.0
