@@ -59,7 +59,7 @@ def editActive (form : Form) (edit : String → String) : Form :=
       let row := if (form.focus.val - 2) % 2 = 0
         then { row with locus := edit row.locus }
         else { row with amount := edit row.amount }
-      { form with rows := form.rows.set index row,
+      { form with rows := (form.rows.set index row),
         focus := ⟨form.focus.val, by simpa using form.focus.isLt⟩ }
     else form
 
@@ -138,8 +138,8 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
         | .tab => { state := { state with form := moveFocus state.form false } }
         | .shiftTab => { state := { state with form := moveFocus state.form true } }
         | .backspace =>
-            { state := { state with form := editActive state.form
-                (fun text => String.ofList (text.toList.dropLast)), notice := "" } }
+            { state := { state with form := (editActive state.form
+                (fun text => String.ofList (text.toList.dropLast))), notice := "" } }
         | .input char =>
             { state := { state with form := editActive state.form (fun text => text.push char), notice := "" } }
         | .right => { state := { state with form := acceptCandidate known state.form } }
@@ -151,11 +151,11 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
             else if (focus = firstAction || focus = firstAction + 1) && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six effect rows." } }
             else if focus = firstAction then
-              { state := { state with form := replaceRows state.form
-                  (state.form.rows.push { fromSide := true }) } }
+              { state := { state with form := (replaceRows state.form
+                  (state.form.rows.push { fromSide := true })) } }
             else if focus = firstAction + 1 then
-              { state := { state with form := replaceRows state.form
-                  (state.form.rows.push { fromSide := false }) } }
+              { state := { state with form := (replaceRows state.form
+                  (state.form.rows.push { fromSide := false })) } }
             else if focus = firstAction + 2 then
               { state := { state with form := dropRow state.form } }
             else if focus = firstAction + 3 then
