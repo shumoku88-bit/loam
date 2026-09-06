@@ -193,8 +193,8 @@ def detailView (snapshot : Snapshot)
         [ plainLine "Recent Actual detail  [CANONICAL READ-ONLY]"
         , blankLine
         ] ++
-        (Loam.ActualReview.detailLines snapshot.allRecords record).map fun line =>
-          plainLine (Loam.ActualReview.shortText 76 line) ++
+        ((Loam.ActualReview.detailLines snapshot.allRecords record).map fun line =>
+          plainLine (Loam.ActualReview.shortText 76 line)) ++
         [ blankLine
         , mutedLine "The selected EventId is presentation state only; this surface cannot write."
         , mutedLine "b Back    q Quit"
