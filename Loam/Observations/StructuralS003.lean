@@ -1,13 +1,13 @@
 import Loam.Core.Event
 
-namespace Loam.Observation200
+namespace Loam.StructuralS003
 
 open Loam.Core
 
 set_option autoImplicit false
 
 /-!
-# Observation 200 — quantity-preserving Effect split / merge invariance
+# Structural S003 — quantity-preserving Effect split / merge invariance
 
 Structural falsification item S003 asks a deliberately query-relative question.
 
@@ -77,10 +77,9 @@ theorem split_merge_representation_remains_distinct
   simp [mergedEvent, splitEvent]
 
 /-!
-## Candidate finding
+## Finding
 
-If the theorem above qualifies on the exact observation head, S003 has a narrow
-positive answer:
+S003 has the narrow positive answer:
 
 ```text
 quantity-preserving Effect split / merge
@@ -95,7 +94,7 @@ Effect decomposition / identity
 ```
 
 No generic quotient type, Event normalization, Effect deletion, persistence
-change, or production rewrite follows from this observation.
+change, or production rewrite follows from this structural result.
 -/
 
-end Loam.Observation200
+end Loam.StructuralS003

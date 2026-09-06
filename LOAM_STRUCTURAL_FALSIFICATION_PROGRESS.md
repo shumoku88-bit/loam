@@ -1,15 +1,37 @@
 # LOAM Structural Falsification Progress
 
-Status: **S003 completed; S008 remains the structural near queue**
+Status: **S003 completed; S008 is the only structural READY item**
 
 Review date: 2026-09-06
-Review baseline main: `28af8afc1cbf7e57d4b3f7ee7477e5dc692ccff0`
-S003 executable qualification head: `914a9e59f50b36c0c442d2accf492c0a41755b1c`
+Structural corpus: `LOAM_STRUCTURAL_FALSIFICATION_ATLAS.md`
 
-This file is the current progress authority for `LOAM_STRUCTURAL_FALSIFICATION_ATLAS.md`.
-The atlas owns the structural specimen descriptions and attack modes. This file owns current Work / Finding state after cross-reference and structural observations.
+This file is the current Work / Finding authority for S001-S012.
+The atlas owns specimen definitions and attack modes. Detailed evidence remains in the referenced Observation / Application / structural records.
 
-The structural corpus is deliberately separate from F001-F200. A structural result does not change domain-falsification counts and does not create production work by itself.
+The structural corpus is separate from the domain-facing F001-F200 corpus and does not alter its counts.
+
+## Namespace authority
+
+Structural specimen identity is the `S` identifier.
+
+S003 was initially published in PR #441 using the label `Observation 200`, but domain falsification had already assigned Observation 200 to F055 and Observation 201 to F086. That duplicate numeric label is retired.
+
+Current executable authority for S003 is:
+
+```text
+Loam/Observations/StructuralS003.lean
+experiments/structural_s003_split_merge_invariance.md
+.github/workflows/structural-s003-split-merge-invariance.yml
+```
+
+The domain Observation sequence remains untouched:
+
+```text
+Observation 200 = F055 shorter-month generation policy
+Observation 201 = F086 external quantity assertion vs reconstructed history
+```
+
+Future structural executable evidence should prefer its existing S identity instead of competing for the domain Observation number sequence unless one unified numbering authority is deliberately introduced later.
 
 ## State model
 
@@ -21,17 +43,13 @@ Finding
   UNTESTED | SURVIVED | COUNTEREXAMPLE | REDUNDANT
 ```
 
-Interpretation:
+- `DONE / REDUNDANT`: equivalent structural pressure was already directly tested elsewhere.
+- `DONE / SURVIVED`: a new explicit structural attack was run and the selected law survived its stated boundary.
+- `DONE / COUNTEREXAMPLE`: the attacked structural claim failed.
+- `READY / UNTESTED`: reviewed and selected for a small next structural probe.
+- `REVIEWED / UNTESTED`: real unresolved pressure, but not selected into the near queue.
 
-- `DONE / REDUNDANT` means existing LOAM evidence already contained a direct representative of the structural question before the structural atlas selected it.
-- `DONE / SURVIVED` means a new explicit structural attack was run and the selected law survived its stated proof/check boundary.
-- `DONE / COUNTEREXAMPLE` means the attacked structural claim failed.
-- `READY / UNTESTED` means the structural family survived cross-reference and has a small enough next witness to justify near formal work.
-- `REVIEWED / UNTESTED` means the gap appears real, but it is not currently a better near observation than the selected queue.
-
-`REDUNDANT` here does not mean the structural pattern is unimportant. It means the repository had already tested that pattern before the structural atlas gave it one catalogue name.
-
-## Current result
+## Current checkpoint
 
 ```text
 Corpus total                   12
@@ -44,178 +62,24 @@ REVIEWED / UNTESTED             1
 OBSERVING                       0
 ```
 
-The main structural finding remains that most meta pressure was already present in LOAM as scattered observations. The atlas is primarily a reverse index and gap detector, not a second large research roadmap.
-
-# DONE / REDUNDANT
-
-## S001 — retained-primitive deletion
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Direct evidence already exists in Observation 146.
-
-Observation 146 asks which historical-admission identities are structural and which are representation debt. It attempts deletion/reconstruction separately for Event identity, Effect identity, and ActualValidityFact identity.
-
-Result:
-
-```text
-EventId
-  retain
-
-EffectKey
-  retain
-
-one independently identified initial ActualValidity fact
-  not required
-
-later temporal revision identity
-  retain on demand
-```
-
-This is a direct specimen of the S001 procedure: remove one retained distinction, ask what selected later queries lose, and keep only what remains independently observable.
-
-## S002 — quotient / identity granularity
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Observations 052, 067, and 146 already attack concrete identity quotients.
-
-They show:
-
-```text
-Effect coordinate/value
-  -/-> Effect identity
-
-Event content + date
-  -/-> Event identity
-```
-
-Two Effects may share selected coordinates/value while later provenance distinguishes them. Two Events may share payload/date while later Correction distinguishes them. Collapsing those identities into coarser equivalence classes therefore loses legitimate queries.
-
-## S004 — permutation / alpha-renaming invariance
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Several direct representatives already exist:
-
-- `Event.quantityAt_perm` proves Effect list permutation cannot change the selected quantity-at-coordinate answer;
-- `EventMemory.findById?_perm` proves identity lookup is independent of Event-memory representation order under unique identity;
-- correction / Scheduled lifecycle persistence deliberately gives row order no chronology authority;
-- Observation 078 proves selected quantity projections are invariant under fresh EventId / EffectKey renaming while identity lookup remains an explicit negative boundary.
-
-This is exactly the S004 discipline: allowed transformations are query-relative, and identity-sensitive questions are excluded rather than normalized away.
-
-## S005 — conservative / neutral extension
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Application 006 directly proves conservative fact extension in Lean.
-
-For an arbitrary later fact family it proves that adding the family and forgetting it returns exactly the old image, preserves old memberships, and leaves a representative old projection unchanged.
-
-```text
-new independent evidence
-  need not perturb old projections that do not opt into it
-```
-
-S005's possible `zero-net pair` variant remains a future metamorphic test if a concrete projection needs it, but no broad new structural observation is required merely to establish neutral extension as a LOAM pattern.
-
-## S006 — local composition
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Observation 199 is a direct composition experiment.
-
-It composes:
-
-```text
-burden allocation
-+ refund source provenance
-+ prior discharge evidence
-```
-
-and asks whether a fourth independent degree of freedom is required for the selected full-refund consequence. Smaller partial combinations admit counterexamples, while the full existing-evidence combination determines the selected answer in the bounded model. No new evidence family is earned.
-
-## S009 — query-relative minimality
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-This structural law predates the atlas.
-
-Observations 004 and 005 first establish that sufficient retained memory depends on the future operation/question vocabulary. Observation 029 generalizes the relationship in Lean:
-
-```text
-future vocabulary
-  -> observational equivalence
-  -> sufficient retained summary
-```
-
-For `small ⊆ large`, equivalence under the larger vocabulary implies equivalence under the smaller one, and a summary sufficient for the larger vocabulary remains sufficient for the smaller.
-
-The Observations 079-084 audit later reuses the same law for checker interpretation, result reuse, privacy projections, marginals/joint questions, and query-shape-dependent evidence.
-
-## S010 — verification-of-verification
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-The robustness pattern already exists in Observation 060, with Observation 080 supplying the epistemic boundary.
-
-Observation 060 supplies a concrete crash/recovery witness, checks an inductive invariant rather than one fixed trace length, and includes an `UnsafeNext` sensitivity model where reversing writer order must produce the bad state. Observation 080 separately establishes that bounded search, finite scope, and a Lean theorem under premises do not collapse into one context-free `SUCCESS` fact.
-
-## S011 — formal abstraction -> production semantics
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Observations 192 and 193 form a direct bridge.
-
-Observation 192 proves a general future-context observational-equivalence law in Lean. Observation 193 then instantiates that pressure with existing production semantics:
-
-```text
-EventMemory
-+ EventCorrectionMemory
-+ EventCorrection
-+ CorrectionFrontier
-+ quantityAtCorrectionFrontier?
-```
-
-Two worlds equal under the current selected production question become distinguishable after the same future Correction relation is appended, exactly matching the Observation-192 law.
-
-## S012 — cross-authority partial publication
-
-**Work:** DONE  
-**Finding:** REDUNDANT
-
-Observations 059 and 060 already study physically separate Event and Correction authorities.
-
-Observation 059 finds that individually atomic stream replacement is not enough. The selected bounded protocol requires:
-
-```text
-writer: relation -> Event
-reader: Event -> relation
-```
-
-Observation 060 adds crash/restart, explicit retry, an interrupted-publication witness, and an unsafe-order sensitivity model.
-
-PR #431 later applies the same relation-first activation law in practical Scheduled replacement publication. Cross-authority partial publication is therefore both formally observed and practically exercised.
-
-# DONE / SURVIVED
-
-## S003 — split / merge representation invariance
-
-**Work:** DONE  
-**Finding:** SURVIVED
-
-Observation 200 directly attacked the first unresolved structural specimen against existing `Loam.Core.Event` semantics.
-
-The proved comparison is:
+| ID | Work | Finding | Direct evidence / current interpretation |
+|---|---|---|---|
+| S001 | DONE | REDUNDANT | Observation 146 directly tests retained-identity deletion/compression: EventId and EffectKey remain earned, eager initial ActualValidityFactId does not. |
+| S002 | DONE | REDUNDANT | Observations 052, 067, 146 show coordinate/value quotients cannot collapse Event/Effect identity when later provenance or Correction observes it. |
+| S003 | DONE | SURVIVED | `StructuralS003` proves quantity-preserving one-to-two Effect decomposition is invisible to `Event.quantityAt`, while the retained Effect representations remain distinct. |
+| S004 | DONE | REDUNDANT | `Event.quantityAt_perm`, `EventMemory.findById?_perm`, row-order-independent persistence, and Observation 078 already qualify selected permutation / rename invariance. |
+| S005 | DONE | REDUNDANT | Application 006 proves conservative fact extension and preservation of old projections that do not opt into the new family. |
+| S006 | DONE | REDUNDANT | Observation 199 composes burden allocation + refund provenance + prior discharge and finds no fourth independent degree of freedom for the selected full-refund consequence. |
+| S007 | REVIEWED | UNTESTED | Pairwise-safe / triple-unsafe pressure remains plausible, but no concrete current three-way seam earns the state-space cost yet. |
+| S008 | READY | UNTESTED | Application 007 has short correction-chain specimens, but no general law yet says arbitrary admitted finite linear-chain length leaves exactly the terminal Event contributing. |
+| S009 | DONE | REDUNDANT | Observations 004, 005, 029 establish vocabulary-relative observational equivalence and sufficiency; 079-084 re-exercise it at later evidence layers. |
+| S010 | DONE | REDUNDANT | Observation 060 includes witness, inductive invariant and unsafe-order sensitivity; Observation 080 preserves bounded-vs-theorem epistemic strength. |
+| S011 | DONE | REDUNDANT | Observations 192-193 bridge an abstract future-context law into existing Event/Correction/CorrectionFrontier production semantics. |
+| S012 | DONE | REDUNDANT | Observations 059-060 plus practical PR #431 qualify relation-first activation / partial-publication recovery for representative cross-authority seams. |
+
+## S003 qualification
+
+The selected comparison is:
 
 ```text
 World A
@@ -228,35 +92,11 @@ selected query
   Event.quantityAt c
 ```
 
-`Loam/Observations/Observation200.lean` proves for arbitrary Event identity, Effect identities, `LocusId`, `MeasureId`, and exact signed `Quantity` values:
+`StructuralS003.quantityAt_split_merge` proves equality for arbitrary Event identity, Effect identities, Locus, Measure, and exact signed `Quantity` values.
 
-```text
-quantityAt_split_merge
-```
+`StructuralS003.split_merge_representation_remains_distinct` proves that the retained Effect lists are nevertheless different representations.
 
-Therefore the selected quantity projection is invariant under this quantity-preserving one-to-two decomposition.
-
-The same observation also proves:
-
-```text
-split_merge_representation_remains_distinct
-```
-
-so the retained Effect lists remain observably different representations. The result is deliberately not global Event equivalence and does not erase Effect identity or provenance.
-
-Dedicated Observation 200 CI completed **SUCCESS** on executable head:
-
-```text
-914a9e59f50b36c0c442d2accf492c0a41755b1c
-```
-
-workflow run:
-
-```text
-34006843677
-```
-
-The qualified boundary is:
+The qualified boundary is therefore:
 
 ```text
 quantity-preserving Effect split / merge
@@ -268,97 +108,56 @@ Effect decomposition / identity
   -> remains retained and available to other questions
 ```
 
-Observation 120 remains explicit counterpressure: split/merged realization semantics can require independently observable apportionment. S003 therefore establishes a query-induced invariance, not a universal split/merge equivalence.
+Dedicated renamed Structural S003 CI completed SUCCESS on the namespace-correction executable head in workflow run `34007264693`.
+
+This is query-induced invariance, not global Event equivalence. Observation 120 remains explicit counterpressure because split / merged realization semantics can require independently observable apportionment.
 
 No production change is earned.
 
-# Unresolved structural pressure
-
-## S008 — history length / bounded-topology pressure
-
-**Work:** READY  
-**Finding:** UNTESTED
-
-Application 007 is strong nearby evidence but remains a representative executable specimen rather than a general frontier theorem. Its main sample includes:
+## Structural near queue
 
 ```text
-A -> B -> C
-X -> Y
-U
+READY      1
+OBSERVING  0
 ```
 
-and checks row-order independence plus rejection of branching, cycles, and dangling references.
+| Order | ID | Pressure |
+|---:|---|---|
+| 1 | S008 | arbitrary admitted finite Correction-chain length vs terminal-contribution law |
 
-Observation 060 proves an inductive transition invariant for its publication protocol, but that is not a theorem that every current finite correction/replacement frontier law is independent of graph path length.
+S007 remains watchlist pressure only.
 
-The remaining question is:
+For S008, start from the existing Correction frontier. Do not introduce a generic graph framework merely to state the question.
 
-> Does an important current frontier property survive arbitrary admitted linear-chain length, or is it only demonstrated by short examples?
-
-### First witness recommendation
-
-Start with the existing Correction frontier rather than inventing a generic graph library.
-
-Candidate law:
+Candidate narrow law:
 
 ```text
 for an admitted finite linear Correction chain,
 exactly the terminal Event contributes to the selected correction-aware quantity
 ```
 
-Keep sibling conflict, missing endpoints, and cycles outside the admitted premise rather than defining winner semantics.
-
-Likely first instrument: **Lean** if the current Application structure supports a small general theorem; Alloy first only if the admission topology itself remains uncertain.
-
-## S007 — pairwise-safe / triple-unsafe composition
-
-**Work:** REVIEWED  
-**Finding:** UNTESTED
-
-Observations 083 and 084 provide nearby pressure: separately adequate marginals can lose a later joint question, and evidence sufficient for a 2 x 2 joint shape can fail at 3 x 3.
-
-But the exact S007 topology has not been directly tested:
-
-```text
-A + B admissible
-A + C admissible
-B + C admissible
-A + B + C not admissible / ambiguous
-```
-
-No current practical three-way seam justifies paying the state-space cost now. Keep S007 on the watchlist until a concrete three-authority or three-relation interaction appears.
-
-# Structural near queue
-
-| Order | ID | C | D | W | N | Total | Reason |
-|---:|---|---:|---:|---:|---:|---:|---|
-| 1 | S008 | 3 | 2 | 3 | 2 | 10 | Current correction/replacement frontiers make path-length independence practical, and the next theorem can stay narrow. |
-| watch | S007 | 1 | 3 | 1 | 3 | 8 | Potentially destructive but no concrete current triple seam and likely larger state space. |
-
-Only one structural item should normally move to `OBSERVING` at a time.
+Sibling conflict, missing endpoints and cycles stay outside the admitted premise rather than acquiring winner semantics.
 
 ## Relation to the domain queue
 
-The structural queue does **not** automatically preempt the F-series domain queue.
+Re-read `LOAM_FALSIFICATION_PROGRESS.md` before choosing the next overall item.
 
-Observation 199 closed F076 as absorbed composition. S003 is now also complete. Before starting another structural item, re-read `LOAM_FALSIFICATION_PROGRESS.md` and prefer current domain pressure unless S008 is directly implicated by practical work.
-
-At this checkpoint the intended rhythm is therefore:
+At this checkpoint the initial six-item domain near queue is exhausted:
 
 ```text
-S003 complete
-  -> return to the domain queue
-  -> keep S008 as the next structural candidate
+Domain READY      0
+Structural READY  1  (S008)
 ```
 
-## Recommended next structural observation
+Do not promote another F specimen merely to keep activity moving. The next honest choices are:
 
-**S008**, but not automatically next overall.
+1. run S008 because it is already the one selected structural gap; or
+2. deliberately re-rank the remaining domain `REVIEWED / UNTESTED` corpus as a whole.
 
-The structural question is now narrow: whether an existing correction-frontier terminal-contribution law can be lifted from short executable specimens to arbitrary admitted finite linear-chain length without inventing a generic graph framework.
+Neither choice creates runtime/product work by itself.
 
 ## Boundary
 
-This progress update adds no production type, persistence format, CLI/TUI surface, canonical household data, generic quotient/equivalence framework, mutation-testing framework, or multi-authority transaction mechanism.
+This progress checkpoint introduces no production type, persistence format, CLI/TUI surface, canonical household data, generic quotient/equivalence framework, mutation-testing framework, graph framework, or multi-authority transaction mechanism.
 
-Observation 200 adds one proved representation-invariance law and leaves the retained Core unchanged.
+Its job is only to keep current structural research state and naming authority unambiguous.

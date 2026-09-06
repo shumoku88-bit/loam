@@ -1,34 +1,34 @@
-name: Observation 200
+name: Structural S003
 
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/Observation200.lean'
+      - 'Loam/Observations/StructuralS003.lean'
       - 'Loam/Observations.lean'
       - 'Loam/Core/Event.lean'
       - 'Loam/Core/Effect.lean'
       - 'Loam/Core/Measure.lean'
       - 'Loam/Core/Quantity.lean'
-      - 'experiments/200_structural_split_merge_invariance.md'
+      - 'experiments/structural_s003_split_merge_invariance.md'
       - 'LOAM_STRUCTURAL_FALSIFICATION_PROGRESS.md'
-      - '.github/workflows/observation-200-structural-split-merge-invariance.yml'
+      - '.github/workflows/structural-s003-split-merge-invariance.yml'
       - 'lakefile.lean'
       - 'lean-toolchain'
       - 'lake-manifest.json'
   push:
     branches:
-      - 'experiment/200-structural-split-merge-invariance'
+      - 'chore/structural-s003-namespace'
       - main
     paths:
-      - 'Loam/Observations/Observation200.lean'
+      - 'Loam/Observations/StructuralS003.lean'
       - 'Loam/Observations.lean'
       - 'Loam/Core/Event.lean'
       - 'Loam/Core/Effect.lean'
       - 'Loam/Core/Measure.lean'
       - 'Loam/Core/Quantity.lean'
-      - 'experiments/200_structural_split_merge_invariance.md'
+      - 'experiments/structural_s003_split_merge_invariance.md'
       - 'LOAM_STRUCTURAL_FALSIFICATION_PROGRESS.md'
-      - '.github/workflows/observation-200-structural-split-merge-invariance.yml'
+      - '.github/workflows/structural-s003-split-merge-invariance.yml'
       - 'lakefile.lean'
       - 'lean-toolchain'
       - 'lake-manifest.json'
@@ -38,8 +38,8 @@ permissions:
   contents: read
 
 jobs:
-  structural-split-merge-invariance:
-    name: Lean structural split / merge invariance
+  structural-s003:
+    name: Lean structural S003 split / merge invariance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -56,5 +56,5 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Check structural split / merge invariance
-        run: lake build Loam.Observations.Observation200
+      - name: Check structural S003
+        run: lake build Loam.Observations.StructuralS003
