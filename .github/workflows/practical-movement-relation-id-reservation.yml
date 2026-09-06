@@ -50,6 +50,7 @@ jobs:
           memory="$tmp_dir/memory.loam"
           relations="$memory.relations"
           discharges="$memory.discharges"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tcoffee\nLOCUS\tpaypay\nLOCUS\ttravel\n' >"$memory.locus-admission"
 
           printf 'cash\n25\n\ncoffee\n25\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-05 \

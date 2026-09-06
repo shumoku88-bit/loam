@@ -2,6 +2,7 @@ import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
+import Loam.Core.LocusAdmission
 import Loam.MovementRelationEntry
 import Loam.MovementDischargeEntry
 import Loam.Persistence
@@ -27,11 +28,18 @@ structure Draft where
   total : Int
 
 /--
-The five typed evidence families Movement admission reads and may extend.
+The independently meaningful evidence and policy families Movement admission
+reads and may extend.
 
-This is an in-memory semantic boundary, not a persistence bundle or a claim that
-the families are one meaning. Physical publishers remain responsible for how an
+`locusAdmission` is current new-write policy, not Event history and not a display
+completion cache. The remaining fields are retained household evidence. This is
+an in-memory semantic boundary, not a persistence bundle or a claim that the
+families are one meaning. Physical publishers remain responsible for how an
 admitted world becomes authority.
+
+The default is deliberately closed. Older call sites or version-1 manifests that
+supply no explicit policy therefore remain readable but cannot authorize a new
+quantity-bearing Movement.
 -/
 structure World where
   events : Loam.Core.EventMemory
@@ -39,6 +47,8 @@ structure World where
   descriptions : Loam.Core.EventDescriptionMemory
   relations : List Loam.Core.RelationUnit
   discharges : List Loam.Core.RelationDischarge
+  locusAdmission : Loam.Core.LocusAdmissionVocabulary :=
+    Loam.Core.LocusAdmissionVocabulary.empty
 
 /--
 One successfully admitted Movement plus the updated typed world.
@@ -220,13 +230,19 @@ private def dischargePublicationAdmissible
 /--
 Admit one already-collected Movement against one current typed world.
 
-This function owns the current practical identity allocation and world-dependent
+The first world-dependent rule is the explicit Observation-212 Locus vocabulary:
+every proposed Effect must use a currently approved Locus. Event history and UI
+completion hints are not consulted for this decision.
+
+This function also owns the current practical identity allocation and
 relation/discharge admission rules, but performs no IO, persistence, authority
 switch, terminal rendering, or writer locking. A caller either receives one
-fully admitted five-family typed world or the same error boundary used by the
-current practical writer.
+fully admitted typed world or the same error boundary used by the current
+practical writer.
 -/
 def admit? (world : World) (draft : Draft) : Except String Admitted := do
+  if !world.locusAdmission.admitsEffects draft.effects then
+    throw "loam: movement uses a Locus not approved for new publication"
   let eventId ← match freshRecordEventId? world with
     | some id => pure id
     | none => throw "loam: could not generate fresh recording identities"
@@ -278,6 +294,7 @@ def admit? (world : World) (draft : Draft) : Except String Admitted := do
       descriptions := updatedDescriptions
       relations := updatedRelations
       discharges := updatedDischarges
+      locusAdmission := world.locusAdmission
     }
     event := event
     newRelations := newRelations
