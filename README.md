@@ -49,6 +49,21 @@ Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus 
 
 Purchases, transfers, income, split payments, and other value flows use this same entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
+### Household manifest authority
+
+The no-argument menu automatically selects `DATA_DIR/movement-authority` when
+that directory exists (the default data directory is `../loam-data`). Recording,
+record review, and balances then use the selected manifest generation, not the
+retired `memory.loam` sidecars. Missing or corrupt selected authority refuses
+instead of displaying an empty household. `LOAM_MOVEMENT_MANIFEST_ROOT` can
+explicitly select the manifest root; direct CLI invocations require this variable.
+
+In manifest mode the menu currently refuses correction, raw/effective quantity,
+correction-integrity, and scheduled actions whose implementations remain
+sidecar-only. They must be ported before being used against this authority.
+See [the cutover repair and qualification](docs/movement_manifest_menu_cutover.md)
+and its [remaining-work checklist](docs/movement_manifest_menu_cutover.md#remaining-work-open-checklist).
+
 ### Focused record review
 
 The primary menu keeps recording, record review, and balances at the entrance;

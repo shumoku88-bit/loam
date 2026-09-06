@@ -6,6 +6,7 @@ import Loam.Cli.QuantityBasisCorrectionCli
 import Loam.Persistence.QuantityBasisCorrectionPersistence
 import Loam.Persistence.QuantityBasisPersistence
 import Loam.WriterOwnership
+import Loam.MovementManifestAuthority
 import Std
 
 namespace Loam.DailyQuantityCli
@@ -109,11 +110,22 @@ def recordStartingJpy (basisPath : String) : IO UInt32 :=
     (recordStartingJpyUnlocked basisPath)
 
 private def loadEventMemoryForView?
-    (path : System.FilePath) : IO (Option EventMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventMemory? path
-  else
-    return EventMemory.ofEvents? []
+    (path : System.FilePath) : IO (Except String EventMemory) := do
+  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
+  | some rootPath =>
+      if rootPath.isEmpty then
+        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      | .error message => return .error message
+      | .ok world => return .ok world.events
+  | none =>
+      let memory ← if ← path.pathExists then
+          Loam.Persistence.loadEventMemory? path
+        else
+          pure (EventMemory.ofEvents? [])
+      match memory with
+      | none => return .error "loam: malformed or unsupported event-memory file"
+      | some events => return .ok events
 
 private def loadEventCorrectionMemoryForView?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
@@ -231,10 +243,10 @@ def showCurrentQuantities
   let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
   let basisFile := System.FilePath.mk basisPath
   match ← loadEventMemoryForView? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
+  | .error message =>
+      IO.eprintln message
       return 2
-  | some events =>
+  | .ok events =>
       match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
@@ -306,10 +318,10 @@ def showBalances
   let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
   let basisFile := System.FilePath.mk basisPath
   match ← loadEventMemoryForView? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
+  | .error message =>
+      IO.eprintln message
       return 2
-  | some events =>
+  | .ok events =>
       match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
