@@ -79,6 +79,8 @@ jobs:
           memory="$tmp/memory.loam"
           corrections="$tmp/corrections.loam"
           validity="$memory.actual-validity"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tcoffee\n' \
+            >"$memory.locus-admission"
 
           printf 'paypay\n160\n\ncoffee\n160\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-03 .lake/build/bin/loamMovement "$memory" \
