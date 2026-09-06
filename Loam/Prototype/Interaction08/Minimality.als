@@ -77,12 +77,12 @@ fact CandidateNavigation {
                  IssueWorkspace + ReportWorkspace
 }
 
-fun steps[c: Config]: Surface -> Surface {
+fun activeEdges[c: Config]: Surface -> Surface {
   next & (c.kept -> c.kept)
 }
 
 pred reaches[c: Config, source, target: Surface] {
-  let relation = steps[c] |
+  let relation = activeEdges[c] |
     target in source.*relation
 }
 
