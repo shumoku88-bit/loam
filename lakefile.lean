@@ -53,3 +53,6 @@ lean_exe loamHistoricalPrepare where
 
 lean_exe loamHistoricalPublish where
   root := `Loam.Cli.HistoricalPublishCli
+
+lean_exe loamUiPrototype where
+  root := `Loam.Prototype.InteractionShell
