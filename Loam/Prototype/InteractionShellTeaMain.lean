@@ -80,7 +80,7 @@ def homeRows (state : State) : List (Widget Msg) :=
     textRow state.notice dimStyle
   ]
 
-def actualRows (state : State) : List (Widget Msg) :=
+def actualRows (_state : State) : List (Widget Msg) :=
   [
     textRow "Actual evidence" titleStyle,
     textRow "",
@@ -92,7 +92,7 @@ def actualRows (state : State) : List (Widget Msg) :=
     textRow "Esc/b Back    q Quit" dimStyle
   ]
 
-def scheduledRows (state : State) : List (Widget Msg) :=
+def scheduledRows (_state : State) : List (Widget Msg) :=
   [
     textRow "Scheduled expectation" titleStyle,
     textRow "",
@@ -190,7 +190,7 @@ def app : App State Msg := {
   initialFocus := "root"
 }
 
-def main : IO Unit :=
+def run : IO Unit :=
   App.runWith app {
     width := 84,
     height := 24,
@@ -198,3 +198,6 @@ def main : IO Unit :=
   }
 
 end Loam.Prototype.InteractionShellTeaMain
+
+def main : IO Unit :=
+  Loam.Prototype.InteractionShellTeaMain.run
