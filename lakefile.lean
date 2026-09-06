@@ -52,6 +52,6 @@ lean_exe loamShadowScheduledDay where
 lean_exe loamUiPrototype12 where
   root := `Loam.Prototype.VerifiedTui12.Cli
 
-/-- Unambiguous dogfood entry point for the Movement record editor experiment. -/
+/-- Unambiguous executable name for the independent Movement record-editor dogfood. -/
 lean_exe loamUiRecordEditor13 where
-  root := `Loam.Prototype.RecordEditor13
+  root := `Loam.Prototype.VerifiedTui12.Cli
