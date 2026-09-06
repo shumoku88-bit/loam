@@ -8,19 +8,21 @@ open Loam.Prototype.VerifiedTui04.Main
 set_option autoImplicit false
 
 /--
-Lower one semantic patch to a single stdout write.
+Lower a dense frame diff to one stdout write.
 
-The first dogfood run exposed visible input-to-redraw lag in the cell-at-a-time
-adapter. Keep the verified Screen/diff semantics unchanged and batch only the
-external ANSI lowering here so the experiment can distinguish kernel cost from
-terminal I/O cost.
+The semantic Screen remains the specification. Each rendered semantic frame is
+materialized once into fixed-size vectors; subsequent diff lookup is O(1) per
+cell and does not re-run the old/new Screen functions while emitting the patch.
+`denseDiffAt_materialize` proves that each dense diff cell agrees with the
+semantic `screenDiff` cell.
 -/
-def emitPatchFast (changes : Patch screenBounds) : IO Unit := do
+def emitDenseDiff
+    (old new : DenseScreen screenBounds) : IO Unit := do
   let mut output := ""
   for row in List.finRange screenBounds.height do
     for col in List.finRange screenBounds.width do
       let pos : Position screenBounds := { row, col }
-      match changes pos with
+      match denseDiffAt old new pos with
       | none => pure ()
       | some cell =>
           output := output ++
@@ -30,26 +32,24 @@ def emitPatchFast (changes : Patch screenBounds) : IO Unit := do
   IO.print (output ++ "\x1b[0m")
   (← IO.getStdout).flush
 
-def emitOpsFast (ops : List (TerminalOp screenBounds)) : IO Unit := do
-  for op in ops do
-    match op with
-    | .patch changes => emitPatchFast changes
-
-partial def loopFast (state : State) (screen : Screen screenBounds) : IO Unit := do
+partial def loopFast
+    (state : State)
+    (screen : DenseScreen screenBounds) : IO Unit := do
   let event := keyEvent (← readKey)
   let step := update state event
   if step.quit then
     return
-  let nextScreen := screenFor step.state
-  emitOpsFast (diff screen nextScreen)
+  let nextScreen := materialize (screenFor step.state)
+  emitDenseDiff screen nextScreen
   loopFast step.state nextScreen
 
 def run : IO Unit := do
   enterTerminal
   try
     let state := initialState
-    let screen := screenFor state
-    emitOpsFast (diff (blankScreen screenBounds) screen)
+    let screen := materialize (screenFor state)
+    let blank := materialize (blankScreen screenBounds)
+    emitDenseDiff blank screen
     loopFast state screen
   finally
     leaveTerminal
