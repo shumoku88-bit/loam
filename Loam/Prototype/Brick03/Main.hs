@@ -2,7 +2,7 @@
 
 module Main (main) where
 
-import Brick hiding (clamp)
+import Brick
 import qualified Graphics.Vty as V
 import Graphics.Vty.CrossPlatform (mkVty)
 
@@ -34,52 +34,53 @@ mutedAttr = attrName "muted"
 initialState :: State
 initialState = State
   { currentSurface = Home
-  , currentDay = 3
+  , currentDay = 6
   , currentRow = 0
   , notice = ""
   }
 
-days :: [String]
-days = ["Sep 3", "Sep 4", "Sep 5", "Sep 6", "Sep 7"]
-
 selectedDay :: State -> String
-selectedDay state = days !! clamp 0 4 (currentDay state)
-
-clamp :: Ord a => a -> a -> a -> a
-clamp low high = max low . min high
+selectedDay state = "Sep " <> show (currentDay state)
 
 moveDay :: Int -> State -> State
 moveDay delta state =
-  let next = clamp 0 4 (currentDay state + delta)
-      message
-        | next == currentDay state && delta < 0 = "Already at the first synthetic day."
-        | next == currentDay state && delta > 0 = "Already at the last synthetic day."
-        | otherwise = ""
-  in state { currentDay = next, notice = message }
+  let candidate = currentDay state + delta
+  in if candidate < 1 || candidate > 30
+      then state { notice = "Adjacent month omitted in this prototype." }
+      else state { currentDay = candidate, notice = "" }
 
-moveRow :: Int -> State -> State
-moveRow delta state =
-  let next = (currentRow state + delta) `mod` 2
-  in state { currentRow = next, notice = "" }
+moveRow :: State -> State
+moveRow state =
+  state { currentRow = (currentRow state + 1) `mod` 2, notice = "" }
 
-calendarCell :: State -> Int -> String -> Widget Name
-calendarCell state index label =
-  padRight (Pad 1) $
-    if currentDay state == index
-      then withAttr selectedAttr (str (" " <> label <> " "))
-      else str (" " <> label <> " ")
+monthRows :: [[Maybe Int]]
+monthRows =
+  [ [Nothing, Just 1, Just 2, Just 3, Just 4, Just 5, Just 6]
+  , map Just [7 .. 13]
+  , map Just [14 .. 20]
+  , map Just [21 .. 27]
+  , [Just 28, Just 29, Just 30, Nothing, Nothing, Nothing, Nothing]
+  ]
 
-calendarRow :: State -> Widget Name
-calendarRow state =
-  hBox
-    [ str "‹ "
-    , calendarCell state 0 "Sep 3"
-    , calendarCell state 1 "Sep 4"
-    , calendarCell state 2 "Sep 5"
-    , calendarCell state 3 "Sep 6"
-    , calendarCell state 4 "Sep 7"
-    , str "›"
-    ]
+dayCellText :: Int -> String
+dayCellText day =
+  let raw = show day
+  in replicate (2 - length raw) ' ' <> raw <> "  "
+
+calendarCell :: State -> Maybe Int -> Widget Name
+calendarCell _ Nothing = str "    "
+calendarCell state (Just day) =
+  let content = str (dayCellText day)
+  in if currentDay state == day
+      then withAttr selectedAttr content
+      else content
+
+calendarView :: State -> Widget Name
+calendarView state =
+  vBox $
+    [ str "    September 2026"
+    , withAttr mutedAttr (str "Mon Tue Wed Thu Fri Sat Sun")
+    ] <> map (hBox . map (calendarCell state)) monthRows
 
 selectedDayRow :: State -> Widget Name
 selectedDayRow state =
@@ -104,9 +105,9 @@ homeView :: State -> Widget Name
 homeView state =
   vBox
     [ str "LOAM UI Prototype 03  [SYNTHETIC / NO WRITES]"
-    , withAttr mutedAttr (str "Brick stable-redraw mechanics spike")
+    , withAttr mutedAttr (str "Brick calendar-navigation mechanics spike")
     , str ""
-    , calendarRow state
+    , calendarView state
     , selectedDayRow state
     , str ""
     , sectionTitle (currentRow state == 0) "Actual"
@@ -117,7 +118,7 @@ homeView state =
     , effectRow "bank" "-50,000 JPY"
     , effectRow "rent" "+50,000 JPY"
     , str ""
-    , withAttr mutedAttr (str "←/→ Day    ↑/↓ Select    Enter Open    r Record    q Quit")
+    , withAttr mutedAttr (str "←/→ Day    ↑/↓ Week    Tab Object    Enter Open    r Record    q Quit")
     , withAttr mutedAttr (str (notice state))
     ]
 
@@ -189,9 +190,11 @@ handleEvent event = do
     VtyEvent (V.EvKey V.KRight [])
       | currentSurface state == Home -> put (moveDay 1 state)
     VtyEvent (V.EvKey V.KUp [])
-      | currentSurface state == Home -> put (moveRow (-1) state)
+      | currentSurface state == Home -> put (moveDay (-7) state)
     VtyEvent (V.EvKey V.KDown [])
-      | currentSurface state == Home -> put (moveRow 1 state)
+      | currentSurface state == Home -> put (moveDay 7 state)
+    VtyEvent (V.EvKey (V.KChar '\t') [])
+      | currentSurface state == Home -> put (moveRow state)
     VtyEvent (V.EvKey V.KEnter []) ->
       case currentSurface state of
         Home ->
