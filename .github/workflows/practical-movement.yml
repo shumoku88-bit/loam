@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Application/BasisCut.lean'
       - 'Loam/Application/CurrentQuantity.lean'
@@ -34,6 +35,7 @@ on:
   push:
     paths:
       - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Application/BasisCut.lean'
       - 'Loam/Application/CurrentQuantity.lean'
