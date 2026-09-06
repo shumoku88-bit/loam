@@ -36,7 +36,6 @@ import Loam.Observations.Observation193
 import Loam.Observations.Observation194
 import Loam.Observations.Observation195
 import Loam.Observations.StructuralS003
-import Loam.Observations.StructuralS008
 
 /-!
 # Historical Lean observations
