@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.Prototype.VerifiedTui04.Main
 import Loam.Prototype.VerifiedTui04.Runtime
-import Loam.Prototype.VerifiedTui10.Cli
+import Loam.Prototype.VerifiedTui04.TerminalRuntime
 import Loam.Prototype.VerifiedTui11.Main
 import Loam.ScheduledReview
 
@@ -75,8 +75,15 @@ theorem compiledFrameFor_spec (snapshot : Snapshot) (state : State) :
     compileWidget_spec screenBounds 1 1 (view snapshot state)
 
 
-def keyEvent (key : Loam.Prototype.VerifiedTui04.Main.Key) : Event :=
-  Loam.Prototype.VerifiedTui10.Cli.keyEvent key
+def keyEvent : Loam.Prototype.VerifiedTui04.Main.Key → Event
+  | .left => .left
+  | .right => .right
+  | .up => .up
+  | .down => .down
+  | .enter => .enter
+  | .back => .back
+  | .quit => .quit
+  | _ => .other
 
 partial def loop
     (snapshot : Snapshot)
@@ -87,7 +94,8 @@ partial def loop
   if step.quit then
     return
   let nextFrame := compiledFrameFor snapshot step.state
-  Loam.Prototype.VerifiedTui10.Cli.emitDirtyDiff frame nextFrame
+  Loam.Prototype.VerifiedTui04.TerminalRuntime.emitDirtyDiff
+    screenBounds 1 1 frame nextFrame
   loop snapshot step.state nextFrame
 
 
@@ -105,7 +113,8 @@ def run (args : List String) : IO UInt32 := do
     let state := initialState
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
-    Loam.Prototype.VerifiedTui10.Cli.emitDirtyDiff blank frame
+    Loam.Prototype.VerifiedTui04.TerminalRuntime.emitDirtyDiff
+      screenBounds 1 1 blank frame
     loop snapshot state frame
     return 0
   finally
