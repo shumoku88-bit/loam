@@ -31,6 +31,8 @@ Observations 006–007 are the historical miniKanren example. Their first Racket
 
 Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
 
+Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
+
 ## Local practical CLI
 
 LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then run the wrapper from the repository root:
@@ -159,7 +161,7 @@ The external household source remains read-only pressure. Its Account, Plan, rec
 
 During the current dual-dogfood period, the HRA canonical household source remains the authority for household truth while LOAM remains the reconstruction experiment and comparison target.
 
-See [`HOUSEHOLD_CHECKPOINT.md`](HOUSEHOLD_CHECKPOINT.md) for the compact current checkpoint after Observation 104 and Applications 010–014.
+See [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md) for the compact current checkpoint after Observation 104 and Applications 010–014.
 
 ## Current map
 
@@ -173,7 +175,7 @@ Observations 072–084 establish the first private real-data shadow boundary, ru
 
 The integrated [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) currently records that history through Observation 084 in detail.
 
-Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The current compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](HOUSEHOLD_CHECKPOINT.md).
+Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The current compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md).
 
 The latest practical result is not a claim that familiar household concepts are permanently unnecessary. It is evidence that several useful household questions can already be answered by small retained facts / relations, question-specific projections, and terminal composition without importing the source application's ontology wholesale.
 

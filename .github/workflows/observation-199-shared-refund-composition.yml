@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/199_shared_refund_composition.als'
       - 'experiments/199_shared_refund_composition.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-199-shared-refund-composition.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/199_shared_refund_composition.als'
       - 'experiments/199_shared_refund_composition.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-199-shared-refund-composition.yml'
   workflow_dispatch:
 

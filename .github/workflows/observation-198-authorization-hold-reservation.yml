@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/198_authorization_hold_reservation.als'
       - 'experiments/198_authorization_hold_reservation.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-198-authorization-hold-reservation.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/198_authorization_hold_reservation.als'
       - 'experiments/198_authorization_hold_reservation.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-198-authorization-hold-reservation.yml'
   workflow_dispatch:
 

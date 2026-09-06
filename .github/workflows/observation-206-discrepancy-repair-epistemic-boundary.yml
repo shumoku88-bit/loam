@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/206_discrepancy_repair_epistemic_boundary.als'
       - 'experiments/206_discrepancy_repair_epistemic_boundary.md'
-      - 'LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md'
       - '.github/workflows/observation-206-discrepancy-repair-epistemic-boundary.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/206_discrepancy_repair_epistemic_boundary.als'
       - 'experiments/206_discrepancy_repair_epistemic_boundary.md'
-      - 'LOAM_CONCEPT_PRESSURE_SELECTION_2026-09.md'
       - '.github/workflows/observation-206-discrepancy-repair-epistemic-boundary.yml'
   workflow_dispatch:
 

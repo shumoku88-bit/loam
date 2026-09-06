@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/200_monthly_day31_generation_policy.als'
       - 'experiments/200_monthly_day31_generation_policy.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-200-monthly-day31-generation-policy.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/200_monthly_day31_generation_policy.als'
       - 'experiments/200_monthly_day31_generation_policy.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-200-monthly-day31-generation-policy.yml'
   workflow_dispatch:
 

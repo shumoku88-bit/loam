@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/196_known_obligation_unknown_amount.als'
       - 'experiments/196_known_obligation_unknown_amount.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-196-known-obligation-unknown-amount.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/196_known_obligation_unknown_amount.als'
       - 'experiments/196_known_obligation_unknown_amount.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-196-known-obligation-unknown-amount.yml'
   workflow_dispatch:
 
