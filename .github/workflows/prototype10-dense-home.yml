@@ -1,0 +1,29 @@
+name: Prototype 10 Dense Temporal Home
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui09/**'
+      - 'Loam/Prototype/VerifiedTui10/**'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ActualDate.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/prototype10-dense-home.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean dense Home projection and executable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build dense Home prototype and projection laws
+        run: lake build loamUiPrototype10
