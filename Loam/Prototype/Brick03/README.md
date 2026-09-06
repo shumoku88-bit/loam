@@ -23,7 +23,7 @@ From the repository root:
 
 ```sh
 cd Loam/Prototype/Brick03
-cabal run loam-ui-prototype-03
+cabal run loam-ui-prototype03
 ```
 
 ## Keys
