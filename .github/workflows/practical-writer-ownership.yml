@@ -55,7 +55,7 @@ jobs:
               wait "$holder_pid" 2>/dev/null || true
             fi
             rm -f "$memory" "$event" "$correction" "$ready" \
-              "$memory.loam-writer-lock" \
+              "$memory.locus-admission" "$memory.loam-writer-lock" \
               /tmp/practical-writer-ownership-*.out
           }
           trap cleanup EXIT
@@ -112,6 +112,8 @@ jobs:
           # Start the daily-recording specimen from an empty admitted memory so
           # the following correction has exactly one selectable movement.
           printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tfood\n' \
+            > "$memory.locus-admission"
 
           start_holder
           printf 'cash\n50\n\nfood\n50\n\n' | "$movement_bin" "$memory" \

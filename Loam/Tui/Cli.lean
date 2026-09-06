@@ -1,3 +1,6 @@
+import Loam.Tui.Record
+import Loam.MovementPublisher
+import Loam.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
@@ -83,14 +86,59 @@ def eventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'Q' => .quit
   | _ => .other
 
-partial def loop
+/-- A Record session emits one explicit publication intent at most.
+After success it returns to Home; a reload error exits instead of offering retry. -/
+partial def recordLoop (root : System.FilePath)
+    (world : Loam.MovementAdmission.World) (known : List String)
+    (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Record cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.MovementPublisher.publishManifest root draft with
+      | .ok id => return "Recorded " ++ id.token ++ "."
+      | .error message =>
+          let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
+          let nextFrame := compileWidget (Loam.Tui.Record.view known next)
+          Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+          recordLoop root world known next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
+      Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+      recordLoop root world known step.state nextFrame
+
+partial def loop (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
-  let event := eventOfKey (← Loam.Tui.Terminal.readKey)
-  let step := update snapshot state event
-  if step.quit then return
-  let nextFrame := compiledFrameFor snapshot step.state
-  Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
-  loop snapshot step.state nextFrame
+  let key ← Loam.Tui.Terminal.readKey
+  let isHome := match state.surface with | .home _ => true | _ => false
+  if isHome && key = .input 'r' then
+    let world ←
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+      | .error message => throw (IO.userError message)
+      | .ok world => pure world
+    let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+      Loam.CompletionPrompt.knownLoci world.events).eraseDups
+    let editor := Loam.Tui.Record.initial state.selectedDate
+    let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame editorFrame
+    let notice ← recordLoop root world known editor editorFrame
+    -- Never reuse cached review cursors after publication. Reload canonical evidence.
+    let fresh ←
+      match ← loadSnapshot dataDir with
+      | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+      | .ok fresh => pure fresh
+    let home := { state with surface := .home none, notice := notice }
+    let nextFrame := compiledFrameFor fresh home
+    -- Editor's final frame is local to recordLoop: clear the physical surface once.
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
+    loop dataDir root fresh home nextFrame
+  else
+    let step := update snapshot state (eventOfKey key)
+    if step.quit then return
+    let nextFrame := compiledFrameFor snapshot step.state
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+    loop dataDir root snapshot step.state nextFrame
 
 
 def run (args : List String) : IO UInt32 := do
@@ -102,13 +150,17 @@ def run (args : List String) : IO UInt32 := do
     match ← loadSnapshot dataDir with
     | .error message => IO.eprintln message; return 2
     | .ok snapshot => pure snapshot
+  let root ←
+    match ← resolveManifestRoot dataDir with
+    | .error message => IO.eprintln message; return 2
+    | .ok root => pure root
   Loam.Tui.Terminal.enter
   try
     let state := initialState snapshot.actual.today
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 blank frame
-    loop snapshot state frame
+    loop dataDir root snapshot state frame
     return 0
   finally
     Loam.Tui.Terminal.leave

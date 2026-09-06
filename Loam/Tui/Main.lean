@@ -304,7 +304,7 @@ def homeView (snapshot : Snapshot) (state : State) : Widget :=
     (List.range 7).map (homeEvidenceRow snapshot state) ++
     [ blankLine
     , mutedLine ("Undated current Actual: " ++ toString snapshot.actual.undatedCount)
-    , mutedLine "←/→ day   ↑/↓ week   Enter Actual   Tab Scheduled   q quit"
+    , mutedLine "←/→ day   ↑/↓ week   Enter Actual   Tab Scheduled   r Record   q quit"
     , mutedLine state.notice
     ]
 

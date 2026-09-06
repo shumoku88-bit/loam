@@ -96,6 +96,7 @@ jobs:
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
           validity="$memory.actual-validity"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$memory.locus-admission"
 
           printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
             | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
@@ -106,16 +107,6 @@ jobs:
           grep -Fq 'outstanding: balanced FROM / TO movement' /tmp/loam-movement.out
           grep -Fq '[ok] balanced movement: 1000 jpy' /tmp/loam-movement.out
           grep -Fq 'ready to request admission' /tmp/loam-movement.out
-          grep -Fq 'Admission preview' /tmp/loam-movement.out
-          grep -Fq 'movement: 1000 jpy' /tmp/loam-movement.out
-          grep -Fq 'date: 2026-09-02' /tmp/loam-movement.out
-          grep -Fq 'event: record-1' /tmp/loam-movement.out
-          grep -Fq '[ok] movement totals agree' /tmp/loam-movement.out
-          grep -Fq '[ok] effect identities admitted' /tmp/loam-movement.out
-          grep -Fq '[ok] Event identity admitted in memory' /tmp/loam-movement.out
-          grep -Fq '[ok] occurrence-date evidence admitted' /tmp/loam-movement.out
-          ! grep -Fq 'validity fact:' /tmp/loam-movement.out
-          grep -Fq 'ready to publish' /tmp/loam-movement.out
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
 
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
@@ -140,6 +131,7 @@ jobs:
           first_out="$tmp_dir/first.out"
           first_err="$tmp_dir/first.err"
           second_out="$tmp_dir/second.out"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
           mkfifo "$fifo"
 
           LOAM_OCCURRENCE_DATE=2026-09-02 \
@@ -188,6 +180,7 @@ jobs:
         run: |
           data_dir="$(mktemp -d)"
           today="$(date +%Y-%m-%d)"
+          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$data_dir/memory.loam.locus-admission"
 
           printf '1\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
             | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out

@@ -1,6 +1,8 @@
+import Loam.MovementPublisher
 import Loam.ActualDate
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.LocusAdmissionPersistence
 import Loam.Persistence.OpenRelationPersistence
 import Loam.Persistence.RelationDischargePersistence
 import Loam.MovementAdmission
@@ -77,10 +79,11 @@ Read exactly one Movement authority backend before interactive input.
 
 Without a manifest root this retains the sidecar behavior used by isolated
 regression fixtures. With `LOAM_MOVEMENT_MANIFEST_ROOT`, the selected manifest
-generation supplies the hints and all five selected families are verified before
-human input. The same manifest is re-read under writer ownership after human
-think time, so preflight remains observational rather than publication authority.
-There is no fallback to sidecars in manifest mode.
+generation supplies the hints and verifies its selected families before human
+input. The same selected authority, including current Locus publication policy,
+is re-read under writer ownership after human think time, so preflight remains
+observational rather than publication authority. There is no fallback to
+sidecars in manifest mode.
 -/
 private def preflightForDraft
     (memoryFile : System.FilePath) : IO (Except String Loam.Core.EventMemory) := do
@@ -185,198 +188,6 @@ private def collectMovementDraft
                       }
 
 /--
-Expose only admission boundaries crossed before publication. Relation and
-discharge evidence are reported separately from signed Movement Effects; no
-sign-based or automatic settlement interpretation is introduced.
--/
-private def showAdmissionPreview
-    (total : Int)
-    (validOn : String)
-    (description : Option String)
-    (relationCount : Nat)
-    (dischargeCount : Nat)
-    (eventId : Loam.Core.EventId) : IO Unit := do
-  IO.println ""
-  IO.println "Admission preview"
-  IO.println ("  movement: " ++ toString total ++ " jpy")
-  IO.println ("  date: " ++ validOn)
-  match description with
-  | some text => IO.println ("  description: " ++ text)
-  | none => pure ()
-  IO.println ("  event: " ++ eventId.token)
-  IO.println "  [ok] movement totals agree"
-  IO.println "  [ok] effect identities admitted"
-  IO.println "  [ok] Event identity admitted in memory"
-  IO.println "  [ok] occurrence-date evidence admitted"
-  if relationCount = 0 then
-    IO.println "  [ok] open relation decision: none"
-  else
-    IO.println ("  [ok] open relation evidence admitted: " ++ toString relationCount)
-  if dischargeCount = 0 then
-    IO.println "  [ok] relation discharge decision: none"
-  else
-    IO.println ("  [ok] relation discharge evidence admitted: " ++ toString dischargeCount)
-  IO.println "  ready to publish"
-
-/--
-Re-read current canonical state and publish one already-collected draft while
-holding the existing writer-ownership boundary.
-
-Fresh Event/RelationUnit identities are chosen by `MovementAdmission.admit?`, not
-while the user types. The same typed admission seam is usable by a different
-physical publisher without teaching admission about sidecars or authority
-selectors.
-
-Publication order remains the currently qualified sidecar protocol:
-
-```text
-validity / optional description supporting evidence
--> required positive RelationUnit stream update when any
--> required RelationDischarge stream update when any
--> Event last as authority commit
-```
-
-The relative order among supporting families is not a cross-stream transaction.
-If Event publication fails after a relation or discharge update, retained rows
-remain raw inert provenance under the existing sidecar recovery rules.
--/
-private def publishDraftUnderOwnership
-    (memoryPath : String)
-    (draft : Loam.MovementAdmission.Draft) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
-  let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
-  let relationFile := Loam.Persistence.openRelationUnitPathForEventMemory memoryFile
-  let dischargeFile := Loam.Persistence.relationDischargePathForEventMemory memoryFile
-  match ← loadEventMemoryForEntry? memoryFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
-      return 2
-  | some memory =>
-      match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
-      | none =>
-          IO.eprintln "loam: malformed or unsupported actual-validity history"
-          return 2
-      | some history =>
-          match ← loadEventDescriptionMemoryOrEmpty? descriptionFile with
-          | none =>
-              IO.eprintln "loam: malformed or unsupported event-description memory"
-              return 2
-          | some descriptions =>
-              match ← loadOpenRelationUnitsOrEmpty? relationFile with
-              | none =>
-                  IO.eprintln "loam: malformed or unsupported open-relation stream"
-                  return 2
-              | some relations =>
-                  match ← loadRelationDischargesOrEmpty? dischargeFile with
-                  | none =>
-                      IO.eprintln "loam: malformed or unsupported relation-discharge stream"
-                      return 2
-                  | some discharges =>
-                      let world : Loam.MovementAdmission.World := {
-                        events := memory
-                        validity := history
-                        descriptions := descriptions
-                        relations := relations
-                        discharges := discharges
-                      }
-                      match Loam.MovementAdmission.admit? world draft with
-                      | Except.error message =>
-                          IO.eprintln message
-                          return 2
-                      | Except.ok admitted =>
-                          showAdmissionPreview
-                            draft.total draft.validOn draft.description
-                            admitted.newRelations.length admitted.newDischarges.length
-                            admitted.event.id
-                          if ← Loam.Persistence.saveActualValidityHistory?
-                              validityFile admitted.world.validity then
-                            let descriptionPublished ←
-                              match draft.description with
-                              | none => pure true
-                              | some _ =>
-                                  Loam.Persistence.saveEventDescriptionMemory?
-                                    descriptionFile admitted.world.descriptions
-                            if !descriptionPublished then
-                              IO.eprintln
-                                "loam: description was not published; the already-published date evidence remains inert"
-                              return 2
-                            else
-                              let relationPublished ←
-                                if admitted.newRelations.isEmpty then
-                                  pure true
-                                else
-                                  Loam.Persistence.saveOpenRelationUnits?
-                                    relationFile admitted.world.relations
-                              if !relationPublished then
-                                IO.eprintln
-                                  "loam: open relation evidence was not published; Event authority was not published"
-                                return 2
-                              else
-                                let dischargePublished ←
-                                  if admitted.newDischarges.isEmpty then
-                                    pure true
-                                  else
-                                    Loam.Persistence.saveRelationDischarges?
-                                      dischargeFile admitted.world.discharges
-                                if !dischargePublished then
-                                  IO.eprintln
-                                    "loam: relation discharge evidence was not published; Event authority was not published"
-                                  return 2
-                                else if ← Loam.Persistence.saveEventMemory?
-                                    memoryFile admitted.world.events then
-                                  IO.println
-                                    ("Recorded movement: " ++ toString draft.total ++
-                                      " jpy. Date: " ++ draft.validOn ++ ".")
-                                  return 0
-                                else
-                                  IO.eprintln
-                                    "loam: event was not published; already-published supporting, open-relation, and relation-discharge evidence remains inert until that EventId exists"
-                                  return 2
-                          else
-                            IO.eprintln "loam: occurrence date evidence could not be published"
-                            return 2
-
-/--
-Manifest production path.
-
-The selected manifest generation is re-read under writer ownership and is the
-only state used for world-dependent admission and publication. The resulting
-admitted five-family world is prepared as immutable typed objects and becomes
-authority through one `CURRENT` replacement.
-
-There is deliberately no fallback to sidecars if selected manifest authority is
-missing or malformed.
--/
-private def publishDraftUnderManifestOwnership
-    (rootPath : String)
-    (draft : Loam.MovementAdmission.Draft) : IO UInt32 := do
-  let root := System.FilePath.mk rootPath
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-  | Except.error message =>
-      IO.eprintln message
-      return 2
-  | Except.ok world =>
-      match Loam.MovementAdmission.admit? world draft with
-      | Except.error message =>
-          IO.eprintln message
-          return 2
-      | Except.ok admitted =>
-          showAdmissionPreview
-            draft.total draft.validOn draft.description
-            admitted.newRelations.length admitted.newDischarges.length
-            admitted.event.id
-          match ← Loam.MovementManifestAuthority.publishWorld? root admitted.world with
-          | Except.error message =>
-              IO.eprintln message
-              return 2
-          | Except.ok _ =>
-              IO.println
-                ("Recorded movement: " ++ toString draft.total ++
-                  " jpy. Date: " ++ draft.validOn ++ ".")
-              return 0
-
-/--
 Record one balanced human-facing JPY movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
 more explicit relation discharges.
@@ -411,20 +222,21 @@ def recordMovement (memoryPath : String) : IO UInt32 := do
       IO.eprintln message
       return 2
   | Except.ok draft =>
-      match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-      | none =>
-          Loam.WriterOwnership.withOwnership
-            memoryFile
-            (publishDraftUnderOwnership memoryPath draft)
-      | some rootPath =>
-          if rootPath.isEmpty then
-            IO.eprintln "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-            return 2
-          else
-            let root := System.FilePath.mk rootPath
-            Loam.WriterOwnership.withOwnership
-              (root / "CURRENT")
-              (publishDraftUnderManifestOwnership rootPath draft)
+      let result ←
+        match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
+        | none => Loam.MovementPublisher.publishSidecar memoryFile draft
+        | some rootPath =>
+            if rootPath.isEmpty then
+              pure (.error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty")
+            else
+              Loam.MovementPublisher.publishManifest (System.FilePath.mk rootPath) draft
+      match result with
+      | .error message => IO.eprintln message; return 2
+      | .ok _ =>
+          IO.println ("Recorded movement: " ++ toString draft.total ++
+            " jpy. Date: " ++ draft.validOn ++ ".")
+          return 0
+
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
