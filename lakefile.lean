@@ -65,3 +65,6 @@ lean_exe loamUiPrototype09 where
 
 lean_exe loamUiPrototype10 where
   root := `Loam.Prototype.VerifiedTui10.Cli
+
+lean_exe loamUiPrototype11 where
+  root := `Loam.Prototype.VerifiedTui11.Cli
