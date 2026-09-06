@@ -87,10 +87,10 @@ pred refinementAdmissible[r: RefinementFact] {
   #r.children >= 2
 }
 
-fun refinementChildren[rs: set RefinementFact, parent: Event]: set Event {
+fun refinementChildren[rs: set RefinementFact, subject: Event]: set Event {
   { child: Event |
       some r: rs |
-        r.parent = parent and child in r.children }
+        r.parent = subject and child in r.children }
 }
 
 -- The additive candidate retains the two child identities explicitly while an
