@@ -1,0 +1,43 @@
+name: Prototype 05 Verified Review
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/Runtime.lean'
+      - 'Loam/Prototype/VerifiedTui04/Cli.lean'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype05-verified-review.yml'
+  push:
+    branches:
+      - 'prototype/verified-tui-review-05'
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/Runtime.lean'
+      - 'Loam/Prototype/VerifiedTui04/Cli.lean'
+      - 'Loam/Prototype/VerifiedTui05/**'
+      - 'lakefile.lean'
+      - '.github/workflows/prototype05-verified-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean calendar + review pressure test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Prototype 04 and 05
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamUiPrototype04 loamUiPrototype05
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
