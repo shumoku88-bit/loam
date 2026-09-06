@@ -1,0 +1,30 @@
+name: Prototype 09 HRA Actual Workspace
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Prototype/VerifiedTui04/**'
+      - 'Loam/Prototype/VerifiedTui09/**'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ActualDate.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/prototype09-hra-actual-workspace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Lean Actual workspace laws and executable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Check interaction laws
+        run: lake env lean Loam/Prototype/VerifiedTui09/Main.lean
+      - name: Build read-only prototype
+        run: lake build loamUiPrototype09
