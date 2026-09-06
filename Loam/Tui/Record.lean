@@ -12,7 +12,7 @@ structure Row where
   fromSide : Bool
   locus : String := ""
   amount : String := ""
-  deriving Repr, DecidableEq
+  deriving Repr, DecidableEq, Inhabited
 
 structure Form where
   date : String
@@ -41,7 +41,9 @@ def moveFocus (form : Form) (back : Bool) : Form :=
   let count := 2 + form.rows.size * 2 + 5
   let next := if back then (form.focus.val + count - 1) % count
               else (form.focus.val + 1) % count
-  { form with focus := ⟨next, Nat.mod_lt _ (by omega)⟩ }
+  { form with focus := ⟨next, by
+      dsimp [next]
+      split <;> exact Nat.mod_lt _ (by dsimp [count]; omega)⟩ }
 
 def replaceRows (form : Form) (rows : Array Row) : Form :=
   { date := form.date, description := form.description, rows := rows,
@@ -57,7 +59,8 @@ def editActive (form : Form) (edit : String → String) : Form :=
       let row := if (form.focus.val - 2) % 2 = 0
         then { row with locus := edit row.locus }
         else { row with amount := edit row.amount }
-      { form with rows := form.rows.set index row }
+      { form with rows := form.rows.set index row,
+        focus := ⟨form.focus.val, by simpa using form.focus.isLt⟩ }
     else form
 
 def activeLocus? (form : Form) : Option String := do
@@ -66,8 +69,8 @@ def activeLocus? (form : Form) : Option String := do
     some row.locus
 
 def candidate? (known : List String) (form : Form) : Option String := do
-  let prefix ← activeLocus? form
-  known.find? fun token => prefix.isPrefixOf token && token != prefix
+  let entered ← activeLocus? form
+  known.find? fun token => entered.isPrefixOf token && token != entered
 
 /-- Candidates change only the focused text field and carry no write authority. -/
 def acceptCandidate (known : List String) (form : Form) : Form :=
@@ -122,11 +125,9 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
     | .preview draft choice =>
         match key with
         | .tab | .right =>
-            { state := { state with mode := .preview draft
-                ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩ } }
+            { state := { state with mode := (.preview draft ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩) } }
         | .shiftTab | .left =>
-            { state := { state with mode := .preview draft
-                ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩ } }
+            { state := { state with mode := (.preview draft ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩) } }
         | .enter =>
             if choice.val = 0 then { state, publish := some draft }
             else if choice.val = 1 then { state := { state with mode := .editing } }
