@@ -1,6 +1,6 @@
 # Observation 205 — Does one-to-many correction force EventCorrection to change shape?
 
-Status: **OBSERVING / UNTESTED**
+Status: **COMPLETE / B — CONSERVATIVE EXTENSION; C NOT DEMONSTRATED**
 
 Concept-pressure source: **F113 — one historical Event -> two jointly effective replacement Events**
 
@@ -46,9 +46,9 @@ ChildB
 
 An ordinary Correction `Parent -> ChildA` can leave `ChildB` on a frontier simply because `ChildB` is untargeted. That does not establish that `ChildB` belongs to the correction of `Parent`.
 
-Therefore F113 is not falsified or satisfied merely by observing two Events in the same derived frontier. The relation provenance itself is selected information.
+Therefore F113 is not answered merely by observing two Events in the same derived frontier. The relation provenance itself is selected information.
 
-## Attack 1 — current Correction only
+## Model
 
 The Alloy model retains the structural part of current `CorrectionFrontier` admission relevant here:
 
@@ -58,24 +58,22 @@ one replacement has at most one target
 correction paths are acyclic
 ```
 
-It then constructs two raw sibling correction facts:
+It then attacks two candidate representations.
+
+### Current Correction only
+
+Raw sibling facts:
 
 ```text
 Parent -> ChildA
 Parent -> ChildB
 ```
 
-Expected result:
+can be stated, but they cannot be admitted simultaneously under the current Correction shape.
 
-- the raw sibling topology exists;
-- current Correction admission rejects it;
-- there is no admitted Correction-only representation in which `Parent` explicitly names both `ChildA` and `ChildB` as correction children.
+### Conservative additive relation
 
-This is an intended boundary of current Correction, not yet evidence that the boundary is wrong.
-
-## Attack 2 — conservative additive relation
-
-The model then introduces one experiment-local relation shape:
+One experiment-local relation shape is added beside Correction:
 
 ```text
 RefinementFact
@@ -89,24 +87,101 @@ with the selected witness:
 Parent -> {ChildA, ChildB}
 ```
 
-At the same time, an unrelated ordinary Correction remains admitted under the existing Correction rules.
+An unrelated ordinary Correction remains admitted under the unchanged current rules.
 
-If this witness is SAT, the narrow architectural result is:
+The model also compares two worlds with **identical admitted Correction evidence** but different refinement evidence, so the F113 provenance difference cannot be reconstructed from Correction alone.
+
+## Mechanical result
+
+Dedicated Observation 205 Alloy CI succeeded on executable head:
 
 ```text
-F113 information is missing from Correction
-but
-it can be represented beside Correction
-without weakening or changing Correction itself
+4363d402fe3148a8a314d258e78af3b71bb77cfa
 ```
 
-That is B-level conservative-extension evidence, not C-level Core-shape pressure.
+Workflow run:
 
-The experiment-local name `RefinementFact` is deliberately disposable. A successful witness does **not** earn a production `EventRefinement`, `SplitCorrection`, graph framework, or generic relation ontology.
+```text
+34009186374
+```
+
+The PR merge ref used by that successful run already incorporated then-current main `f0cecbec9ef0cb81a3be258ffd15434c6dc4eedc`, so the witness was checked against the current main context rather than only the older branch base.
+
+Observed matrix:
+
+```text
+rawSiblingF113                               SAT
+siblingPairRejectedByCorrectionAdmission     SAT
+correctionOnlyJointReplacement               UNSAT
+AdmittedCorrectionNamesAtMostOneChild        UNSAT counterexample
+additiveRefinementWitness                     SAT
+sameCorrectionDifferentRefinementProvenance   SAT
+```
+
+The expected-result gate passed.
+
+## Finding
+
+F113 establishes a real information boundary:
+
+```text
+current admitted EventCorrection evidence
+  -/-> one parent with two jointly effective replacement children
+```
+
+The same admitted Correction evidence can coexist with two worlds:
+
+```text
+WithoutSplit
+  no one-to-many replacement provenance
+
+WithSplit
+  Parent -> {ChildA, ChildB}
+```
+
+So the one-to-many provenance is independently observable information.
+
+However the stronger C-level claim does **not** survive this bounded attack.
+
+A separate additive relation can retain exactly the missing provenance while leaving current `EventCorrection` meaning and admission unchanged:
+
+```text
+EventCorrection stays one target -> one replacement
+
+separate additive evidence, if ever earned
+  carries one parent -> several jointly effective children
+```
+
+Therefore the architectural result for this specimen is:
+
+```text
+Correction-only completeness     FALSIFIED
+missing independent information  YES
+conservative additive shape      SAT
+Core-shape pressure C             NOT DEMONSTRATED
+classification                    B
+```
+
+This is a stronger survival result for the existing Correction boundary than merely saying the current API lacks a case. The selected missing case can be represented without weakening sibling-conflict semantics or turning `EventCorrection` into a generic graph edge.
+
+## What is not earned
+
+The experiment-local name `RefinementFact` is disposable.
+
+Observation 205 does **not** earn a production:
+
+- `EventRefinement`;
+- `SplitCorrection`;
+- generic graph framework;
+- generic relation ontology;
+- new persistence syntax;
+- new correction winner semantics.
+
+If real dogfood later requires one-to-many correction provenance, the evidence says to begin with a separate narrow typed family rather than redesigning `EventCorrection` in advance.
 
 ## Relation to Structural S003
 
-Structural S003 already established a separate, query-relative quantity fact:
+Structural S003 established a different, query-relative quantity result:
 
 ```text
 one Effect carrying q1 + q2
@@ -116,21 +191,13 @@ two distinct Effects carrying q1 and q2 at the same coordinate
 
 are indistinguishable to `Event.quantityAt` while their retained representation remains different.
 
-Observation 205 therefore does not need to rediscover scalar quantity decomposition. Its selected pressure is Event identity and correction provenance across a one-to-many replacement topology.
-
-## C-level decision rule
-
-Observation 205 reaches C only if the selected F113 query cannot be represented while preserving the existing meaning and shape of `EventCorrection` through a separate additive evidence family.
-
-A bounded additive witness is sufficient to defeat that C claim for this specimen, though it does not prove one universal refinement design for all future one-to-many cases.
+Observation 205 does not reinterpret that as Event identity equivalence. F113 concerns Event-level correction provenance, and the successful additive witness preserves both replacement Event identities explicitly.
 
 ## Boundary
 
 Research only.
 
 No Core/Application/Persistence/CLI/TUI/canonical-data change.
-
-No production relation type is introduced.
 
 The observation does not decide:
 
