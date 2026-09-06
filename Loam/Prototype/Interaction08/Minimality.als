@@ -132,9 +132,11 @@ assert MinimalExcludesPaletteAndEntitlement {
       no c.kept & (Palette + EntitlementWorkspace + ActualList + ActualDetail)
 }
 
-run workspaceCore for exactly 7 Goal, exactly 9 Surface, 6 Config
-run splitActualCore for exactly 7 Goal, exactly 9 Surface, 6 Config
-run hraAdditiveEntitlement for exactly 7 Goal, exactly 9 Surface, 6 Config
-check NoFourSurfaceSufficient for exactly 7 Goal, exactly 9 Surface, 6 Config
-check FiveSurfaceCoreIsWorkspace for exactly 7 Goal, exactly 9 Surface, 6 Config
-check MinimalExcludesPaletteAndEntitlement for exactly 7 Goal, exactly 9 Surface, 6 Config
+-- 5-bit integers are intentional: the model contains nine candidate surfaces,
+-- so cardinality checks must represent 0..9 without signed overflow.
+run workspaceCore for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
+run splitActualCore for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
+run hraAdditiveEntitlement for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
+check NoFourSurfaceSufficient for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
+check FiveSurfaceCoreIsWorkspace for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
+check MinimalExcludesPaletteAndEntitlement for exactly 7 Goal, exactly 9 Surface, 6 Config, 5 Int
