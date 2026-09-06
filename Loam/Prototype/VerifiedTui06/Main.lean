@@ -139,12 +139,12 @@ def selectedRecord? (snapshot : Snapshot)
     (state : State snapshot.displayed.size) : Option ReviewRecord :=
   match state.selected with
   | none => none
-  | some index => some (snapshot.displayed.get index)
+  | some index => some snapshot.displayed[index]
 
 def reviewRow (snapshot : Snapshot)
     (state : State snapshot.displayed.size)
     (index : Fin snapshot.displayed.size) : Widget :=
-  let record := snapshot.displayed.get index
+  let record := snapshot.displayed[index]
   let selected := decide (state.selected = some index)
   let marker := if selected then "▶ " else "  "
   let date := Loam.ActualReview.displayText (record.date.getD "date unknown")
