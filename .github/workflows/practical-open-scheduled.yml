@@ -113,7 +113,8 @@ jobs:
 
           ./tools/loam open-scheduled "$scheduled" "$memory" > /tmp/loam-open-scheduled.out
 
-          grep -Fq 'Open scheduled movements (ordered by scheduled date):' /tmp/loam-open-scheduled.out
+          grep -Fq 'Explicit current-open Scheduled movements (ordered by scheduled date):' /tmp/loam-open-scheduled.out
+          grep -Fq 'Coverage: explicit Scheduled evidence only; unmaterialized future obligations remain Unknown.' /tmp/loam-open-scheduled.out
           grep -Fq 'scheduled-early' /tmp/loam-open-scheduled.out
           grep -Fq 'scheduled-interrupted' /tmp/loam-open-scheduled.out
           grep -Fq 'scheduled-late' /tmp/loam-open-scheduled.out
