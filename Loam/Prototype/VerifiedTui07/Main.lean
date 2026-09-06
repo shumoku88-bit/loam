@@ -236,7 +236,9 @@ theorem enter_preserves_day (snapshot : Snapshot) (state : State) :
       cases surface with
       | calendar cached => simp [update, openSelectedDay]
       | list cursor =>
-          cases cursor.selected <;> rfl
+          cases h : cursor.selected with
+          | none => simp [update, h]
+          | some index => simp [update, h]
       | detail cursor => rfl
 
 
