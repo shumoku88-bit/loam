@@ -1,6 +1,6 @@
 # Observation 212 — Is observed Locus history enough to guard new writes?
 
-Status: **ACTIVE — selected formal pressure / RESEARCH_ONLY**
+Status: **COMPLETE — explicit new-write vocabulary survives / RESEARCH_ONLY**
 
 ## Household pressure
 
@@ -153,7 +153,11 @@ The observation asks whether:
 7. equal explicit approval sets determine the selected admission answer;
 8. a token outside the explicit approval set is always rejected.
 
-Expected matrix:
+## Executed result
+
+Alloy 6.2.0 + Sat4j produced the expected matrix on PR #479 head `628844e9a8db93a0d824c75fa088580133a20879`.
+
+Dedicated workflow run `34046725046`, job `101522974892`, completed **SUCCESS**:
 
 ```text
 approvedUnusedCanExist                    SAT
@@ -166,11 +170,17 @@ EqualApprovalDeterminesNewWriteAdmission   UNSAT counterexample
 UnapprovedLocusIsRejected                  UNSAT counterexample
 ```
 
-## Candidate finding if the matrix survives
+The first counterexample is the central negative result: two worlds may retain exactly the same observed Locus history while making different decisions about whether a new Effect may use a token. Event history therefore cannot be the authority for new-write admission.
 
-If the selected checks survive, the smallest information for this safety requirement is not richer `LocusId` semantics. It is one explicit **new-write admission vocabulary** over existing `LocusId` identities.
+The historical-disallow witness closes the other important direction. An old Event may continue to mention a token that is no longer legal for new publication. Historical reconstructability and present input permission are independent.
 
-That would support the product contract:
+The equal-approval check establishes information sufficiency for the selected question: once the explicit approval set is fixed, no Account/category semantics or Event-history inference is needed to decide whether a proposed Locus is allowed.
+
+## Finding
+
+The smallest information found for this safety requirement is not richer `LocusId` semantics. It is one explicit **new-write admission vocabulary** over existing `LocusId` identities.
+
+That supports the product contract:
 
 ```text
 known approved locus
@@ -188,11 +198,13 @@ old canonical evidence containing a no-longer-approved token
     -> remains readable and reconstructable
 ```
 
-This would earn an independently retained operational policy only if practical dogfood continues to require closed vocabulary. It would **not** earn Account, AccountType, ExpenseCategory, or a chart-of-accounts ontology.
+Observation 212 therefore earns a new operational policy distinction if LOAM adopts the requested closed-vocabulary product behavior. It does **not** earn Account, AccountType, ExpenseCategory, or a chart-of-accounts ontology.
+
+It also strengthens the publication boundary: because the approval set can change while Event history remains equal, a UI preflight check cannot authorize a later write by itself. The current approval authority must be re-read and enforced at publication/admission time under compatible writer ownership.
 
 ## Production pressure after qualification
 
-A practical implementation would still need to determine:
+A practical implementation still needs to determine:
 
 - where the admission vocabulary is physically authoritative;
 - how its writer is owned and atomically published;
@@ -206,12 +218,14 @@ The guard must not live only in the TUI. Ordinary Movement, Scheduled creation, 
 
 ## Current household migration note
 
-The current canonical Event authority already contains many stable Locus tokens, including payment locations, expense/income labels, liabilities, and historical names. Therefore an initial admission vocabulary cannot safely be synthesized as “every token ever seen” and immediately treated as the final curated list.
+The current household data confirms why the distinction matters. Movement Event history contains long-lived source-shaped names such as `expenses:缶コーヒー`, while current Scheduled evidence contains operational tokens that may not yet have appeared in Actual history, such as `wifi`, `povo`, `gpt-plus`, `health-insurance`, `google-one`, `pension`, `support`, `debt-friend-k`, `rent`, and `utilities`. Quantity basis also names `cash`, `paypay`, `smbc`, `yucho`, and `all-country`.
+
+Therefore an initial admission vocabulary cannot safely be synthesized as “every Event token ever seen” and treated as the final curated set. Event history is simultaneously too broad for legacy spellings and too narrow for approved future-use identities.
 
 Bootstrap should instead be an explicit cutover step:
 
 1. enumerate every Locus referenced by current canonical families;
-2. review the set for legacy/accidental identities;
+2. review the set for legacy/accidental identities and desired future-use identities;
 3. publish the intentionally approved new-write vocabulary;
 4. verify every intended daily writer against it;
 5. only then turn rejection on.
@@ -233,4 +247,4 @@ Observation 212 does not establish:
 - migration of current household data;
 - permission to reject historical reads.
 
-It tests only whether observed history is information-sufficient for safe new-write admission, and whether one explicit set is sufficient for that selected question.
+It establishes only that observed history is information-insufficient for safe new-write admission, while one explicit approved set is information-sufficient for that selected question.
