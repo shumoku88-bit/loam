@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/203_availability_admissibility_compression.als'
       - 'experiments/203_availability_admissibility_compression.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-203-availability-admissibility-compression.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/203_availability_admissibility_compression.als'
       - 'experiments/203_availability_admissibility_compression.md'
-      - 'LOAM_FALSIFICATION_PROGRESS.md'
       - '.github/workflows/observation-203-availability-admissibility-compression.yml'
   workflow_dispatch:
 
