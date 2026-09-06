@@ -47,12 +47,12 @@ fun nextSurface[s: State, e: Event]: one Surface {
   else s.surface
 }
 
-pred next[s, s': State, e: Event] {
+pred next[s, sNext: State, e: Event] {
   valid[s]
-  valid[s']
-  s'.day = nextDay[s, e]
-  s'.focus = nextFocus[s, e]
-  s'.surface = nextSurface[s, e]
+  valid[sNext]
+  sNext.day = nextDay[s, e]
+  sNext.focus = nextFocus[s, e]
+  sNext.surface = nextSurface[s, e]
 }
 
 pred sameStateShape[a, b: State] {
@@ -62,14 +62,14 @@ pred sameStateShape[a, b: State] {
 }
 
 assert SelectionBounds {
-  all s, s': State, e: Event |
-    next[s, s', e] implies valid[s']
+  all s, sNext: State, e: Event |
+    next[s, sNext, e] implies valid[sNext]
 }
 
 assert FocusClosure {
-  all s, s': State, e: Event |
-    next[s, s', e] implies
-      (s'.focus = ActualFocus or s'.focus = ScheduledFocus)
+  all s, sNext: State, e: Event |
+    next[s, sNext, e] implies
+      (sNext.focus = ActualFocus or sNext.focus = ScheduledFocus)
 }
 
 assert EventDeterminism {
@@ -78,30 +78,30 @@ assert EventDeterminism {
 }
 
 assert MonthBoundaryCloses {
-  all s, s': State |
-    valid[s] and s.surface = Home and s.day = 1 and next[s, s', Left]
-      implies s'.day = 1
+  all s, sNext: State |
+    valid[s] and s.surface = Home and s.day = 1 and next[s, sNext, Left]
+      implies sNext.day = 1
 
-  all s, s': State |
-    valid[s] and s.surface = Home and s.day = 30 and next[s, s', Right]
-      implies s'.day = 30
+  all s, sNext: State |
+    valid[s] and s.surface = Home and s.day = 30 and next[s, sNext, Right]
+      implies sNext.day = 30
 }
 
 assert NonHomeArrowStable {
-  all s, s': State, e: Left + Right + Up + Down |
-    valid[s] and s.surface != Home and next[s, s', e]
-      implies sameStateShape[s, s']
+  all s, sNext: State, e: Left + Right + Up + Down |
+    valid[s] and s.surface != Home and next[s, sNext, e]
+      implies sameStateShape[s, sNext]
 }
 
 pred calendarMovementWitness {
-  some s, s': State |
+  some s, sNext: State |
     s.surface = Home and
     s.day = 15 and
     s.focus = ActualFocus and
-    next[s, s', Down] and
-    s'.day = 22 and
-    s'.focus = ActualFocus and
-    s'.surface = Home
+    next[s, sNext, Down] and
+    sNext.day = 22 and
+    sNext.focus = ActualFocus and
+    sNext.surface = Home
 }
 
 pred tabThenOpenScheduledWitness {
