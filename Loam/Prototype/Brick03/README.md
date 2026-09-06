@@ -26,6 +26,8 @@ cd Loam/Prototype/Brick03
 cabal run loam-ui-prototype03
 ```
 
+The Cabal package/executable is named `loam-ui-prototype03` because Cabal package-name components separated by hyphens cannot end in an all-numeric component such as `-03`.
+
 ## Keys
 
 - Left / Right: move selected day immediately
