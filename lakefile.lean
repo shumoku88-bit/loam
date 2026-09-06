@@ -3,6 +3,9 @@ open Lake DSL
 
 package loam
 
+require «lean-tea» from git
+  "https://github.com/Verilean/lean-tea.git" @ "8f51f1d3ba4bdec7bfb3e10c5a007422e52226d7"
+
 @[default_target]
 lean_lib Loam
 
