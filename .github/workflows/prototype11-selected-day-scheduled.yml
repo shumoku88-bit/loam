@@ -9,6 +9,7 @@ on:
       - 'Loam/Prototype/VerifiedTui10/**'
       - 'Loam/Prototype/VerifiedTui11/**'
       - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/ScheduledOpenWorldInspection.lean'
       - 'Loam/Persistence/Scheduled*.lean'
       - 'Loam/MovementManifestAuthority.lean'
       - 'lakefile.lean'
