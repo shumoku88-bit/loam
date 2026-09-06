@@ -30,6 +30,12 @@ one sig RefinementFact {
   children: some Event
 }
 
+abstract sig World {
+  corrections: set CorrectionFact,
+  refinements: set RefinementFact
+}
+one sig WithoutSplit, WithSplit extends World {}
+
 fun correctionEdges[cs: set CorrectionFact]: Event -> Event {
   { from, to: Event |
       some c: cs |
@@ -81,12 +87,14 @@ pred refinementAdmissible[r: RefinementFact] {
   #r.children >= 2
 }
 
-fun refinementChildren[r: RefinementFact, parent: Event]: set Event {
-  (r.parent = parent) => r.children else none
+fun refinementChildren[rs: set RefinementFact, parent: Event]: set Event {
+  { child: Event |
+      some r: rs |
+        r.parent = parent and child in r.children }
 }
 
 -- The additive candidate retains the two child identities explicitly while an
--- unrelated ordinary Correction remains admissible under its existing rules.
+-- unrelated ordinary Correction remains admitted under its existing rules.
 -- Nothing about Correction is weakened or generalized to make the split fit.
 pred additiveRefinementWitness {
   Existing.target = Old
@@ -101,25 +109,32 @@ pred additiveRefinementWitness {
   refinementChildren[RefinementFact, Parent] = ChildA + ChildB
 }
 
--- With the same admitted Correction evidence, refinement provenance can still
--- be independently present or absent. Therefore the F113 relation is not
--- derivable from Correction alone.
+-- Atlas-style independence witness: the two worlds retain exactly the same
+-- admitted Correction evidence, but only one retains the additional F113
+-- provenance. Therefore the selected one-to-many relation query is not
+-- recoverable from current Correction evidence alone.
 pred sameCorrectionDifferentRefinementProvenance {
   Existing.target = Old
   Existing.replacement = New
   correctionAdmissible[Existing]
 
+  WithoutSplit.corrections = Existing
+  WithSplit.corrections = Existing
+
+  no WithoutSplit.refinements
+  WithSplit.refinements = RefinementFact
+
   RefinementFact.parent = Parent
   RefinementFact.children = ChildA + ChildB
   refinementAdmissible[RefinementFact]
 
-  no correctionChildren[Existing, Parent]
-  some refinementChildren[RefinementFact, Parent]
+  no refinementChildren[WithoutSplit.refinements, Parent]
+  refinementChildren[WithSplit.refinements, Parent] = ChildA + ChildB
 }
 
-run rawSiblingF113 for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
-run siblingPairRejectedByCorrectionAdmission for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
-run correctionOnlyJointReplacement for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
-check AdmittedCorrectionNamesAtMostOneChild for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
-run additiveRefinementWitness for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
-run sameCorrectionDifferentRefinementProvenance for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact
+run rawSiblingF113 for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
+run siblingPairRejectedByCorrectionAdmission for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
+run correctionOnlyJointReplacement for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
+check AdmittedCorrectionNamesAtMostOneChild for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
+run additiveRefinementWitness for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
+run sameCorrectionDifferentRefinementProvenance for exactly 5 Event, exactly 3 CorrectionFact, exactly 1 RefinementFact, exactly 2 World
