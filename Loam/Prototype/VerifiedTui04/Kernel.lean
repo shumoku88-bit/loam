@@ -38,7 +38,7 @@ abbrev DenseScreen (bounds : Bounds) :=
 
 def DenseScreen.cellAt {bounds : Bounds}
     (screen : DenseScreen bounds) (pos : Position bounds) : Cell :=
-  (screen.get pos.row).get pos.col
+  (screen[pos.row.val]'pos.row.isLt)[pos.col.val]'pos.col.isLt
 
 def materialize {bounds : Bounds} (screen : Screen bounds) : DenseScreen bounds :=
   Vector.ofFn fun row =>
