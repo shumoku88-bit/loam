@@ -40,6 +40,10 @@ def DenseScreen.cellAt {bounds : Bounds}
     (screen : DenseScreen bounds) (pos : Position bounds) : Cell :=
   (screen[pos.row.val]'pos.row.isLt)[pos.col.val]'pos.col.isLt
 
+def DenseScreen.toScreen {bounds : Bounds}
+    (screen : DenseScreen bounds) : Screen bounds :=
+  fun pos => screen.cellAt pos
+
 def materialize {bounds : Bounds} (screen : Screen bounds) : DenseScreen bounds :=
   Vector.ofFn fun row =>
     Vector.ofFn fun col =>
@@ -132,6 +136,15 @@ def listGet? {α : Type} : List α → Nat → Option α
   | value :: _, 0 => some value
   | _ :: rest, index + 1 => listGet? rest index
 
+theorem listGet?_eq_getElem? {α : Type} (values : List α) (index : Nat) :
+    listGet? values index = values[index]? := by
+  induction values generalizing index with
+  | nil => simp [listGet?]
+  | cons value rest ih =>
+      cases index with
+      | zero => simp [listGet?]
+      | succ index => simp [listGet?, ih]
+
 def widgetCellAt (lines : List (List Cell)) (row col : Nat) : Cell :=
   match listGet? lines row with
   | none => blankCell
@@ -139,6 +152,25 @@ def widgetCellAt (lines : List (List Cell)) (row col : Nat) : Cell :=
       match listGet? line col with
       | none => blankCell
       | some cell => cell
+
+/--
+Runtime-friendly form of a rendered widget. This is rebuilt once per frame and
+then supports O(1) row/column lookup while the dense frame is filled.
+-/
+def widgetArrayLines (lines : List (List Cell)) : Array (Array Cell) :=
+  (lines.map List.toArray).toArray
+
+def widgetCellAtArray (lines : Array (Array Cell)) (row col : Nat) : Cell :=
+  match lines[row]? with
+  | none => blankCell
+  | some line =>
+      match line[col]? with
+      | none => blankCell
+      | some cell => cell
+
+theorem widgetCellAtArray_spec (lines : List (List Cell)) (row col : Nat) :
+    widgetCellAtArray (widgetArrayLines lines) row col = widgetCellAt lines row col := by
+  simp [widgetCellAtArray, widgetArrayLines, widgetCellAt, listGet?_eq_getElem?]
 
 def Widget.width (widget : Widget) : Nat :=
   widget.lines.foldl (fun current line => max current line.length) 0
@@ -157,5 +189,31 @@ def renderAt (bounds : Bounds) (top left : Nat) (widget : Widget) : Screen bound
       widgetCellAt lines (pos.row.val - top) (pos.col.val - left)
     else
       blankCell
+
+/--
+Direct runtime renderer. It compiles widget lines to arrays once, then fills the
+fixed-size dense screen without first constructing or evaluating a semantic
+`Position → Cell` screen.
+-/
+def denseRenderAt (bounds : Bounds) (top left : Nat) (widget : Widget) : DenseScreen bounds :=
+  let lines := widget.lines
+  let arrayLines := widgetArrayLines lines
+  Vector.ofFn fun row =>
+    Vector.ofFn fun col =>
+      if top ≤ row.val ∧ left ≤ col.val then
+        widgetCellAtArray arrayLines (row.val - top) (col.val - left)
+      else
+        blankCell
+
+theorem cellAt_denseRenderAt
+    (bounds : Bounds) (top left : Nat) (widget : Widget) (pos : Position bounds) :
+    (denseRenderAt bounds top left widget).cellAt pos = renderAt bounds top left widget pos := by
+  simp [denseRenderAt, DenseScreen.cellAt, renderAt, widgetCellAtArray_spec]
+
+theorem denseRenderAt_spec
+    (bounds : Bounds) (top left : Nat) (widget : Widget) :
+    (denseRenderAt bounds top left widget).toScreen = renderAt bounds top left widget := by
+  funext pos
+  exact cellAt_denseRenderAt bounds top left widget pos
 
 end Loam.Prototype.VerifiedTui04.Kernel
