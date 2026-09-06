@@ -157,9 +157,11 @@ The current household-facing slice includes:
 - a separate scheduled-day view using explicit completion / retirement evidence and a known-through horizon;
 - a terminal composition that shows recorded and scheduled answers for the same selected day without introducing a canonical Home or Day model.
 
-The external household source remains read-only pressure. Its Account, Plan, recurrence, Series, and report vocabulary are not automatically imported into LOAM Core.
+External household systems remain comparison and operational pressure. Their Account, Plan, recurrence, Series, and report vocabulary are not automatically imported into LOAM Core.
 
-During the current dual-dogfood period, the HRA canonical household source remains the authority for household truth while LOAM remains the reconstruction experiment and comparison target.
+After the Historical Actual cutover, LOAM is the canonical authority for household Actual facts. HRA may still be used as auxiliary operational support while LOAM lacks some household capabilities, but new HRA entries must not silently become a second canonical Actual history.
+
+The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain immutable migration provenance in `loam-data`; shadow and comparison adapters remain temporary observation tools rather than authority.
 
 See [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md) for the compact current checkpoint after Observation 104 and Applications 010–014.
 
