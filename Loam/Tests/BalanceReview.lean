@@ -1,5 +1,5 @@
 import Loam.BalanceReview
-import Loam.Persistence.QuantityBasisPersistence
+import Loam.Persistence.ZeroOriginCoveragePersistence
 
 open Loam.Core
 
@@ -15,13 +15,20 @@ private def effect (id locus : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨id⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
 
 private def movementWorld : IO Loam.MovementAdmission.World := do
-  let event ← requireSome
+  let opening ← requireSome
+    (Event.ofEffects? ⟨"opening"⟩
+      [effect "opening-source" "opening-source" (-100), effect "opening-wallet" "wallet" 100])
+    "opening event"
+  let purchase ← requireSome
     (Event.ofEffects? ⟨"actual-1"⟩
       [effect "wallet-out" "wallet" (-30), effect "food-in" "food" 30])
-    "event"
-  let events ← requireSome (EventMemory.ofEvents? [event]) "event memory"
+    "purchase event"
+  let events ← requireSome (EventMemory.ofEvents? [opening, purchase]) "event memory"
   let validity : ActualValidityHistory String := {
-    facts := [{ id := ⟨"validity-1"⟩, event := ⟨"actual-1"⟩, validOn := "2026-09-07" }]
+    facts := [
+      { id := ⟨"validity-opening"⟩, event := ⟨"opening"⟩, validOn := "2026-09-01" },
+      { id := ⟨"validity-1"⟩, event := ⟨"actual-1"⟩, validOn := "2026-09-07" }
+    ]
     factIdNodup := by decide
     corrections := []
     correctionIdNodup := by simp
@@ -40,6 +47,10 @@ private def findRow?
     (locus : String) : Option Loam.BalanceReview.Row :=
   snapshot.rows.find? fun row => row.coordinate.locus.token == locus
 
+private def validCoverage : ZeroOriginCoverage :=
+  { coordinates := [⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩, ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]
+    nodup := by decide }
+
 
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
@@ -47,13 +58,10 @@ def main (args : List String) : IO Unit := do
   let manifestRoot := root / "movement-authority"
   IO.FS.createDirAll root
 
-  let wallet := QuantityBasis.ofQuantity
-    ⟨"basis-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
-  let cash := QuantityBasis.ofQuantity
-    ⟨"basis-cash"⟩ ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 0)
-  let bases ← requireSome (QuantityBasisMemory.ofBases? [wallet, cash]) "basis memory"
-  expect (← Loam.Persistence.saveQuantityBasisMemory? (root / "basis.loam") bases)
-    "save basis memory"
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (root / "zero-origin-coverage.loam") validCoverage)
+    "save zero-origin coverage"
   IO.FS.writeFile (root / "balance-view.tsv") "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
   let world ← movementWorld
@@ -67,17 +75,35 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "balance review refused valid fixture")
   expect (snapshot.rows.length == 2) "balance-view duplicate was not normalized"
   let walletRow ← requireSome (findRow? snapshot "wallet") "missing wallet row"
-  expect (walletRow.quantity.quanta == 70) "wallet balance did not compose basis and manifest Event"
+  expect (walletRow.quantity.quanta == 70)
+    "wallet balance did not derive from reconstructed zero-origin Event history"
   let cashRow ← requireSome (findRow? snapshot "cash") "missing cash row"
-  expect (cashRow.quantity.quanta == 0) "explicit zero balance disappeared"
+  expect (cashRow.quantity.quanta == 0) "explicit covered zero disappeared"
 
+  -- Event activity and presentation selection do not create origin completeness.
   IO.FS.writeFile (root / "balance-view.tsv") "food\tjpy\n"
-  let missingBasis ← Loam.BalanceReview.loadSnapshot root manifestRoot
-  expect (!missingBasis.isOk) "selected coordinate without basis did not fail closed"
+  let missingCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  expect (!missingCoverage.isOk) "Event activity outside zero-origin coverage became known"
 
+  -- Duplicate coverage is malformed evidence, not a set-normalization hint.
+  IO.FS.writeFile (root / "zero-origin-coverage.loam")
+    "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n"
+  let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  expect (!duplicateCoverage.isOk) "duplicate zero-origin coverage did not fail closed"
+
+  IO.FS.writeFile (root / "zero-origin-coverage.loam") "BROKEN\n"
+  let malformedCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  expect (!malformedCoverage.isOk) "malformed zero-origin coverage did not fail closed"
+
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (root / "zero-origin-coverage.loam") validCoverage)
+    "restore zero-origin coverage"
   IO.FS.writeFile (root / "balance-view.tsv") "wallet\tjpy\n"
-  IO.FS.writeFile (root / "basis-corrections.loam") "BROKEN\n"
-  let brokenBasisFrontier ← Loam.BalanceReview.loadSnapshot root manifestRoot
-  expect (!brokenBasisFrontier.isOk) "malformed basis-correction evidence did not refuse"
+  IO.FS.writeFile (root / "corrections.loam")
+    "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\tactual-1\tmissing\n"
+  let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
 
-  IO.println "Balance Review: manifest authority, explicit zero, view selection and fail-closed basis evidence passed."
+  IO.println
+    "Balance Review: manifest authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
