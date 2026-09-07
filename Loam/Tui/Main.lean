@@ -357,7 +357,7 @@ def actualBrowseView (cursor : ReviewCursor) (state : State) : Widget :=
     , mutedLine (toString cursor.totalCount ++ " current record(s) on this day")
     , blankLine
     ] ++
-    (visibleReviewRows cursor).map fun row => reviewRow cursor row.1 row.2 ++
+    ((visibleReviewRows cursor).map fun row => reviewRow cursor row.1 row.2) ++
     [ blankLine
     , mutedLine "↑/↓ select/scroll   Enter detail   r Record   b home   q quit"
     , mutedLine state.notice
