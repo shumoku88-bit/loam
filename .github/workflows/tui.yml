@@ -7,8 +7,10 @@ on:
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
+      - 'Loam/CorrectionPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
@@ -46,8 +48,10 @@ on:
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
+      - 'Loam/CorrectionPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
@@ -109,6 +113,9 @@ jobs:
 
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
+
+      - name: Verify manifest-backed shared correction publication
+        run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
 
       - name: Verify full-day Actual local window navigation
         run: lake env lean --run Loam/Tests/TuiActual.lean
