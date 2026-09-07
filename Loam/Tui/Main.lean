@@ -78,7 +78,7 @@ def recordsForDay (snapshot : Snapshot) (date : String) : List ReviewRecord :=
 
 def cursorForDay (snapshot : Snapshot) (date : String) : ReviewCursor :=
   let records := recordsForDay snapshot date
-  let displayed := (records.take 10).toArray
+  let displayed := records.toArray
   let selected : Option (Fin displayed.size) :=
     if h : 0 < displayed.size then some ⟨0, h⟩ else none
   { date := date, totalCount := records.length, displayed := displayed, selected := selected }
@@ -317,9 +317,31 @@ def selectedRecord? (cursor : ReviewCursor) : Option ReviewRecord :=
   | some index => some cursor.displayed[index]
 
 
-def reviewRow (cursor : ReviewCursor) (index : Fin cursor.displayed.size) : Widget :=
-  let record := cursor.displayed[index]
-  let selected := decide (cursor.selected = some index)
+def reviewWindowSize : Nat := 10
+
+
+def reviewWindowStart (cursor : ReviewCursor) : Nat :=
+  match cursor.selected with
+  | none => 0
+  | some index =>
+      if index.val < reviewWindowSize then 0
+      else index.val + 1 - reviewWindowSize
+
+
+def visibleReviewRows (cursor : ReviewCursor) : List (Nat × ReviewRecord) :=
+  let start := reviewWindowStart cursor
+  (List.range reviewWindowSize).filterMap fun offset =>
+    let index := start + offset
+    match cursor.displayed[index]? with
+    | none => none
+    | some record => some (index, record)
+
+
+def reviewRow (cursor : ReviewCursor) (index : Nat) (record : ReviewRecord) : Widget :=
+  let selected :=
+    match cursor.selected with
+    | none => false
+    | some current => current.val == index
   let marker := if selected then "▶ " else "  "
   let description :=
     if record.description.isEmpty then "(no description)"
@@ -335,9 +357,9 @@ def actualBrowseView (cursor : ReviewCursor) (state : State) : Widget :=
     , mutedLine (toString cursor.totalCount ++ " current record(s) on this day")
     , blankLine
     ] ++
-    (List.finRange cursor.displayed.size).map (reviewRow cursor) ++
+    ((visibleReviewRows cursor).map fun row => reviewRow cursor row.1 row.2) ++
     [ blankLine
-    , mutedLine "↑/↓ select   Enter detail   r Record   b home   q quit"
+    , mutedLine "↑/↓ select/scroll   Enter detail   r Record   b home   q quit"
     , mutedLine state.notice
     ]
 
