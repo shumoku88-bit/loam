@@ -85,6 +85,9 @@ def main : IO Unit := do
   let correctionStep := Loam.Tui.SelectedDay.update snapshot state .correctActual
   expect (correctionStep.command == .correctActual)
     "Selected-day Actual selection stopped delegating Correction intent"
+  let dateStep := Loam.Tui.SelectedDay.update snapshot state .correctDate
+  expect (dateStep.command == .correctDate)
+    "Selected-day Actual selection stopped delegating date-correction intent"
 
   let scheduledState := (Loam.Tui.SelectedDay.update snapshot state .focusRight).state
   let scheduledText := widgetText (Loam.Tui.SelectedDay.view { width := 100, height := 30 } snapshot scheduledState)
@@ -93,6 +96,15 @@ def main : IO Unit := do
   let refusedCorrection := Loam.Tui.SelectedDay.update snapshot scheduledState .correctActual
   expect (refusedCorrection.command == .stay)
     "Scheduled pane emitted an Actual Correction intent"
+  let refusedDate := Loam.Tui.SelectedDay.update snapshot scheduledState .correctDate
+  expect (refusedDate.command == .stay)
+    "Scheduled pane emitted an Actual date-correction intent"
+
+  let movedSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := { snapshot.actual with allRecords := [] } }
+  let refreshed := Loam.Tui.SelectedDay.refreshed movedSnapshot state
+  expect (refreshed.focusDate == "2026-09-07" && refreshed.actualRow == 0)
+    "fresh reload moved the selected-day coordinate instead of only clamping local row state"
 
   let newStep := Loam.Tui.SelectedDay.update snapshot state .recordNew
   expect (newStep.command == .recordNew)
@@ -107,4 +119,4 @@ def main : IO Unit := do
   expect (contains "Unknown: absence of an explicit due occurrence is not NotDue." unknownText)
     "Selected-day workspace collapsed Scheduled Unknown into NotDue"
 
-  IO.println "TUI selected day: shared composition, detail, Record/Correction delegation and Unknown passed."
+  IO.println "TUI selected day: shared composition, Record/Correction/date delegation, refresh and Unknown passed."
