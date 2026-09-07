@@ -95,7 +95,7 @@ def eventOfKey : Loam.Tui.Terminal.Key → Event
   | _ => .other
 
 /-- A Record session emits one explicit publication intent at most.
-After success it returns to Home; a reload error exits instead of offering retry. -/
+The caller reloads canonical evidence and chooses the presentation destination. -/
 partial def recordLoop (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
@@ -184,6 +184,7 @@ partial def loop (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
   let isHome := match state.surface with | .home _ => true | _ => false
+  let isActualBrowse := match state.surface with | .actual _ .browse => true | _ => false
   if isHome && (key = .input 'a' || key = .input 'A') then
     let evidence ←
       match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
@@ -244,7 +245,7 @@ partial def loop (dataDir root : System.FilePath)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
     loop dataDir root snapshot home nextFrame
-  else if isHome && key = .input 'r' then
+  else if (isHome || isActualBrowse) && key = .input 'r' then
     let world ←
       match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
@@ -260,12 +261,18 @@ partial def loop (dataDir root : System.FilePath)
       match ← loadSnapshot dataDir with
       | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
       | .ok fresh => pure fresh
-    let home := { state with surface := .home none, notice := notice }
-    let nextFrame := compiledFrameFor fresh home
+    let destination :=
+      if isActualBrowse then
+        { state with
+            surface := .actual (cursorForDay fresh state.selectedDate) .browse
+            notice := notice }
+      else
+        { state with surface := .home none, notice := notice }
+    let nextFrame := compiledFrameFor fresh destination
     -- Editor's final frame is local to recordLoop: clear the physical surface once.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
-    loop dataDir root fresh home nextFrame
+    loop dataDir root fresh destination nextFrame
   else
     let step := update snapshot state (eventOfKey key)
     if step.quit then return
