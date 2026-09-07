@@ -42,9 +42,25 @@ jobs:
           lint: false
           use-mathlib-cache: false
           leanchecker: true
-          axiom-audit: true
-          axiom-audit-root: Loam.Observation078
+          axiom-audit: false
           use-github-cache: false
+
+      - name: Audit Observation 078 axioms
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT_DIR="$RUNNER_TEMP/axiom-audit-078"
+          rm -rf "$AUDIT_DIR"
+          git clone --depth 1 --branch v0.1.2 \
+            https://github.com/leanprover-community/axiom-audit.git "$AUDIT_DIR"
+          test "$(git -C "$AUDIT_DIR" rev-parse HEAD)" = \
+            "46024e005996495c65ef609368e11ab39c4222e3"
+          cp lean-toolchain "$AUDIT_DIR/"
+          (cd "$AUDIT_DIR" && lake build)
+          lake env "$AUDIT_DIR/.lake/build/bin/axiom-audit" \
+            --root Loam.Observation078 \
+            --modules Loam.Observations.Observation078 \
+            --allow propext,Classical.choice,Quot.sound
 
       - name: Check Observation 078 proof directly
         run: lake env lean Loam/Observations/Observation078.lean
