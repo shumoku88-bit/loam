@@ -30,16 +30,27 @@ structure ReviewCursor where
   displayed : Array ReviewRecord
   selected : Option (Fin displayed.size)
 
+structure ScheduledCursor where
+  date : String
+  totalCount : Nat
+  displayed : Array ScheduledRecord
+  selected : Option (Fin displayed.size)
+
 inductive ActualMode where
   | browse
   | detail
   deriving Repr, DecidableEq, BEq
 
-/-- Production interaction surfaces. Browse/detail stay local to one Actual workspace. -/
+inductive ScheduledMode where
+  | browse
+  | detail
+  deriving Repr, DecidableEq, BEq
+
+/-- Production interaction surfaces. Browse/detail stay local to one workspace. -/
 inductive Surface where
   | home (lastReview : Option ReviewCursor)
   | actual (cursor : ReviewCursor) (mode : ActualMode)
-  | scheduled (lastReview : Option ReviewCursor)
+  | scheduled (lastReview : Option ReviewCursor) (cursor : ScheduledCursor) (mode : ScheduledMode)
 
 structure State where
   selectedDate : String
@@ -84,6 +95,15 @@ def cursorForDay (snapshot : Snapshot) (date : String) : ReviewCursor :=
   { date := date, totalCount := records.length, displayed := displayed, selected := selected }
 
 
+def scheduledCursorForDay (snapshot : Snapshot) (date : String) : ScheduledCursor :=
+  let evidence := Loam.ScheduledReview.dayEvidence snapshot.scheduled date
+  let records := Loam.ScheduledReview.explicitDueRecords evidence
+  let displayed := records.toArray
+  let selected : Option (Fin displayed.size) :=
+    if h : 0 < displayed.size then some ⟨0, h⟩ else none
+  { date := date, totalCount := records.length, displayed := displayed, selected := selected }
+
+
 def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
@@ -110,6 +130,26 @@ def moveReviewNext (cursor : ReviewCursor) : ReviewCursor × String :=
         (cursor, "No next row in this day view.")
 
 
+def moveScheduledPrevious (cursor : ScheduledCursor) : ScheduledCursor × String :=
+  match cursor.selected with
+  | none => (cursor, "No explicit current-open Scheduled occurrence is available on this day.")
+  | some index =>
+      if h : index.val = 0 then
+        (cursor, "No previous Scheduled row in this day view.")
+      else
+        ({ cursor with selected := some ⟨index.val - 1, by omega⟩ }, "")
+
+
+def moveScheduledNext (cursor : ScheduledCursor) : ScheduledCursor × String :=
+  match cursor.selected with
+  | none => (cursor, "No explicit current-open Scheduled occurrence is available on this day.")
+  | some index =>
+      if h : index.val + 1 < cursor.displayed.size then
+        ({ cursor with selected := some ⟨index.val + 1, h⟩ }, "")
+      else
+        (cursor, "No next Scheduled row in this day view.")
+
+
 def openActual (snapshot : Snapshot) (state : State) (cached : Option ReviewCursor) : State :=
   let cursor :=
     match cached with
@@ -118,6 +158,11 @@ def openActual (snapshot : Snapshot) (state : State) (cached : Option ReviewCurs
         else cursorForDay snapshot state.selectedDate
     | none => cursorForDay snapshot state.selectedDate
   { state with surface := .actual cursor .browse, notice := "" }
+
+
+def openScheduled (snapshot : Snapshot) (state : State) (cached : Option ReviewCursor) : State :=
+  let cursor := scheduledCursorForDay snapshot state.selectedDate
+  { state with surface := .scheduled cached cursor .browse, notice := "" }
 
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
@@ -137,6 +182,9 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .actual cursor .browse =>
           let (nextCursor, notice) := moveReviewPrevious cursor
           { state := { state with surface := .actual nextCursor .browse, notice := notice } }
+      | .scheduled cached cursor .browse =>
+          let (nextCursor, notice) := moveScheduledPrevious cursor
+          { state := { state with surface := .scheduled cached nextCursor .browse, notice := notice } }
       | _ => { state }
   | .down =>
       match state.surface with
@@ -144,10 +192,13 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .actual cursor .browse =>
           let (nextCursor, notice) := moveReviewNext cursor
           { state := { state with surface := .actual nextCursor .browse, notice := notice } }
+      | .scheduled cached cursor .browse =>
+          let (nextCursor, notice) := moveScheduledNext cursor
+          { state := { state with surface := .scheduled cached nextCursor .browse, notice := notice } }
       | _ => { state }
   | .tab =>
       match state.surface with
-      | .home cached => { state := { state with surface := .scheduled cached, notice := "" } }
+      | .home cached => { state := openScheduled snapshot state cached }
       | _ => { state }
   | .enter =>
       match state.surface with
@@ -156,11 +207,17 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
           match cursor.selected with
           | some _ => { state := { state with surface := .actual cursor .detail, notice := "" } }
           | none => { state := { state with notice := "No current Actual record is available on this day." } }
+      | .scheduled cached cursor .browse =>
+          match cursor.selected with
+          | some _ => { state := { state with surface := .scheduled cached cursor .detail, notice := "" } }
+          | none => { state := { state with notice := "No explicit current-open Scheduled occurrence is available on this day." } }
       | _ => { state }
   | .back =>
       match state.surface with
       | .home _ => { state }
-      | .scheduled cached => { state := { state with surface := .home cached, notice := "" } }
+      | .scheduled cached cursor .detail =>
+          { state := { state with surface := .scheduled cached cursor .browse, notice := "" } }
+      | .scheduled cached _ .browse => { state := { state with surface := .home cached, notice := "" } }
       | .actual cursor .detail =>
           { state := { state with surface := .actual cursor .browse, notice := "" } }
       | .actual cursor .browse =>
@@ -176,10 +233,11 @@ theorem back_from_actual_detail_preserves_cursor
 
 
 theorem back_from_scheduled_preserves_date
-    (snapshot : Snapshot) (state : State) (cached : Option ReviewCursor) :
-    (update snapshot { state with surface := .scheduled cached } .back).state.selectedDate =
+    (snapshot : Snapshot) (state : State) (cached : Option ReviewCursor)
+    (cursor : ScheduledCursor) (mode : ScheduledMode) :
+    (update snapshot { state with surface := .scheduled cached cursor mode } .back).state.selectedDate =
       state.selectedDate := by
-  rfl
+  cases mode <;> rfl
 
 
 theorem enter_preserves_selected_date
@@ -189,8 +247,11 @@ theorem enter_preserves_selected_date
   | mk date surface notice =>
       cases surface with
       | home cached => simp [update, openActual]
-      | scheduled cached => rfl
       | actual cursor mode =>
+          cases mode with
+          | detail => rfl
+          | browse => cases h : cursor.selected <;> simp [update, h]
+      | scheduled cached cursor mode =>
           cases mode with
           | detail => rfl
           | browse => cases h : cursor.selected <;> simp [update, h]
@@ -317,6 +378,12 @@ def selectedRecord? (cursor : ReviewCursor) : Option ReviewRecord :=
   | some index => some cursor.displayed[index]
 
 
+def selectedScheduledRecord? (cursor : ScheduledCursor) : Option ScheduledRecord :=
+  match cursor.selected with
+  | none => none
+  | some index => some cursor.displayed[index]
+
+
 def reviewWindowSize : Nat := 10
 
 
@@ -337,6 +404,23 @@ def visibleReviewRows (cursor : ReviewCursor) : List (Nat × ReviewRecord) :=
     | some record => some (index, record)
 
 
+def scheduledWindowStart (cursor : ScheduledCursor) : Nat :=
+  match cursor.selected with
+  | none => 0
+  | some index =>
+      if index.val < reviewWindowSize then 0
+      else index.val + 1 - reviewWindowSize
+
+
+def visibleScheduledRows (cursor : ScheduledCursor) : List (Nat × ScheduledRecord) :=
+  let start := scheduledWindowStart cursor
+  (List.range reviewWindowSize).filterMap fun offset =>
+    let index := start + offset
+    match cursor.displayed[index]? with
+    | none => none
+    | some record => some (index, record)
+
+
 def reviewRow (cursor : ReviewCursor) (index : Nat) (record : ReviewRecord) : Widget :=
   let selected :=
     match cursor.selected with
@@ -347,6 +431,16 @@ def reviewRow (cursor : ReviewCursor) (index : Nat) (record : ReviewRecord) : Wi
     if record.description.isEmpty then "(no description)"
     else Loam.ActualReview.shortText 52 record.description
   .row [span (marker ++ description) (if selected then .selected else .normal)]
+
+
+def scheduledRow (cursor : ScheduledCursor) (index : Nat) (record : ScheduledRecord) : Widget :=
+  let selected :=
+    match cursor.selected with
+    | none => false
+    | some current => current.val == index
+  let marker := if selected then "▶ " else "  "
+  let text := Loam.ActualReview.shortText 68 (Loam.ScheduledReview.summary record)
+  .row [span (marker ++ text) (if selected then .selected else .normal)]
 
 
 def actualBrowseView (cursor : ReviewCursor) (state : State) : Widget :=
@@ -376,10 +470,6 @@ def actualDetailView (snapshot : Snapshot) (cursor : ReviewCursor) : Widget :=
         [blankLine, mutedLine "b browse   q quit"]
 
 
-def scheduledRecordLine (record : ScheduledRecord) : Widget :=
-  .row [span "- " .muted, span (Loam.ActualReview.shortText 68 (Loam.ScheduledReview.summary record))]
-
-
 def refusedScheduledView (state : State) (message : String) : Widget :=
   .column
     [ plainLine "Scheduled / Refused"
@@ -392,23 +482,59 @@ def refusedScheduledView (state : State) (message : String) : Widget :=
     ]
 
 
-def scheduledView (snapshot : Snapshot) (state : State) : Widget :=
-  match homeScheduledEvidence snapshot state with
-  | .due first rest =>
-      let all := first :: rest
-      .column <|
-        [ plainLine "Scheduled / Due"
-        , mutedLine "Home > Scheduled"
-        , plainLine state.selectedDate
-        , mutedLine (toString all.length ++ " explicit current-open occurrence(s)")
+def scheduledBrowseView (cursor : ScheduledCursor) (state : State) : Widget :=
+  .column <|
+    [ plainLine "Scheduled / Browse"
+    , mutedLine "Home > Scheduled"
+    , plainLine cursor.date
+    , mutedLine (toString cursor.totalCount ++ " explicit current-open occurrence(s)")
+    , blankLine
+    ] ++
+    ((visibleScheduledRows cursor).map fun row => scheduledRow cursor row.1 row.2) ++
+    [ blankLine
+    , mutedLine "Expectation evidence, not Actual evidence."
+    , mutedLine "↑/↓ select/scroll   Enter detail   b home   q quit"
+    , mutedLine state.notice
+    ]
+
+
+def scheduledDetailView (cursor : ScheduledCursor) : Widget :=
+  match selectedScheduledRecord? cursor with
+  | none =>
+      .column
+        [ plainLine "Scheduled / Detail"
         , blankLine
+        , mutedLine "No selected Scheduled occurrence."
+        , mutedLine "b browse   q quit"
+        ]
+  | some record =>
+      .column <|
+        [ plainLine "Scheduled / Detail"
+        , mutedLine "Home > Scheduled > Detail"
+        , blankLine
+        , plainLine ("id: " ++ record.id.token)
+        , plainLine ("scheduled: " ++ record.scheduledOn)
+        , plainLine ("summary: " ++ Loam.ScheduledReview.summary record)
+        , blankLine
+        , mutedLine "Expected movement"
         ] ++
-        (all.take 10).map scheduledRecordLine ++
+        (record.movement.changes.take 10).map fun change =>
+          plainLine
+            ("  " ++ change.coordinate.token ++ ": " ++
+              toString change.quantity.quanta ++ " " ++ record.measure.token) ++
         [ blankLine
         , mutedLine "Expectation evidence, not Actual evidence."
-        , mutedLine "No recurrence or completeness is inferred beyond retained evidence."
-        , mutedLine "b home   q quit"
+        , mutedLine "b browse   q quit"
         ]
+
+
+def scheduledView
+    (snapshot : Snapshot) (state : State) (cursor : ScheduledCursor) (mode : ScheduledMode) : Widget :=
+  match homeScheduledEvidence snapshot state with
+  | .due _ _ =>
+      match mode with
+      | .browse => scheduledBrowseView cursor state
+      | .detail => scheduledDetailView cursor
   | .unknown =>
       .column
         [ plainLine "Scheduled / Unknown"
@@ -432,7 +558,7 @@ def view (snapshot : Snapshot) (state : State) : Widget :=
   | .home _ => homeView snapshot state
   | .actual cursor .browse => actualBrowseView cursor state
   | .actual cursor .detail => actualDetailView snapshot cursor
-  | .scheduled _ => scheduledView snapshot state
+  | .scheduled _ cursor mode => scheduledView snapshot state cursor mode
 
 
 def screenBounds : Bounds := { width := 80, height := 24 }
