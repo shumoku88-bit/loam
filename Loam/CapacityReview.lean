@@ -11,9 +11,11 @@ set_option autoImplicit false
 /-!
 # Shared Capacity review
 
-This module is the surface-independent all-retained Capacity read boundary used
-by line and terminal frontends. It preserves the existing practical policy that
-an absent Capacity stream means no retained Capacity movements yet.
+This module is a surface-independent all-retained Capacity read boundary for the
+production TUI and future frontends. It preserves the existing practical line
+Capacity policy that an absent Capacity stream means no retained movements yet,
+and delegates Entitlement itself to the same Application `entitlementAt`
+projection used by the line CLI.
 
 It does not choose a cycle or time window. Windowed household questions remain
 explicit callers of `CapacityWindowInspection`.
