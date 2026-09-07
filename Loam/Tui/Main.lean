@@ -337,7 +337,7 @@ def actualBrowseView (cursor : ReviewCursor) (state : State) : Widget :=
     ] ++
     (List.finRange cursor.displayed.size).map (reviewRow cursor) ++
     [ blankLine
-    , mutedLine "↑/↓ select   Enter detail   b home   q quit"
+    , mutedLine "↑/↓ select   Enter detail   r Record   b home   q quit"
     , mutedLine state.notice
     ]
 
