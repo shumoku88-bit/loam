@@ -38,6 +38,10 @@ private def moveNextN : Nat → Loam.Tui.Main.ReviewCursor → Loam.Tui.Main.Rev
       moveNextN count next
 
 def main : IO Unit := do
+  let recent := Loam.Tui.Main.recentActualPreview ((List.range 5).map testRecord)
+  expect (recent.map (·.description) == ["row-4", "row-3", "row-2"])
+    "Home Actual preview did not show the three most recent selected-day records first"
+
   let start := initialCursor
   expect (start.displayed.size == 12)
     "Actual cursor still truncated a 12-record day"
@@ -87,4 +91,4 @@ def main : IO Unit := do
         "Actual end-of-list refusal moved the selection"
   | _, _ => throw (IO.userError "Actual end-of-list selection became unavailable")
 
-  IO.println "TUI Actual: full-day navigation and derived ten-row window passed."
+  IO.println "TUI Actual: recent Home preview, full-day navigation and derived ten-row window passed."
