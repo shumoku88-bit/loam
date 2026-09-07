@@ -114,7 +114,7 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   ] ++
   calendarRows state ++
   [ ruleLine bounds '-'
-  , plainLine (" Selected Day : " ++ state.selectedDate)
+  , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
   , plainLine (" Known Through: " ++ snapshot.actual.today)
   , plainLine (statusLine snapshot state)
   , ruleLine bounds '-'
@@ -133,10 +133,10 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   ]
 
 private def helpLines (bounds : Bounds) : List Widget :=
-  if bounds.width >= 112 then
-    [mutedLine "[h/l] day  [k/j] week  [g] known  [r] record  [a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports  [q] quit"]
+  if bounds.width >= 120 then
+    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports  [q] quit"]
   else
-    [ mutedLine "[h/l] day  [k/j] week  [g] known  [r] record  [q] quit"
+    [ mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [q] quit"
     , mutedLine "[a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports"
     ]
 
