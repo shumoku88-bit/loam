@@ -114,6 +114,9 @@ jobs:
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
 
+      - name: Build shared Correction publisher boundary
+        run: lake build Loam.CorrectionPublisher
+
       - name: Verify manifest-backed shared correction publication
         run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
 
