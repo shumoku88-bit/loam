@@ -3,6 +3,7 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tools/loam'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -40,6 +41,7 @@ on:
     branches:
       - 'feat/tui'
     paths:
+      - 'tools/loam'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
