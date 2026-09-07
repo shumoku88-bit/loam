@@ -1,6 +1,6 @@
 # Observation 213 — Locus identity, alias, AccountingRole, and Purpose separation
 
-Status: **PROBE — real household dogfood hinge**
+Status: **COMPLETE — additive alias separation survives / RESEARCH_ONLY**
 
 ## Trigger
 
@@ -186,24 +186,23 @@ because a friendly alias points at it.
 Keep the historical Locus identity retained and approved. Add the friendly alias
 `TobaccoLabel` and ask whether it can resolve the existing historical identity.
 
-Expected: **SAT witness**.
+Observed: **SAT witness**.
 
-If so, friendly input/display does not by itself force Event-history rewriting.
+Friendly input/display therefore does not by itself force Event-history rewriting.
 
 ### 2. Same semantics require the same aliases
 
 Hold admission, AccountingRole, and Purpose fixed while changing alias relations.
 
-Expected: **SAT witness** with different aliases.
+Observed: **SAT witness** with different aliases.
 
-This would show that presentation spelling is not identical to the selected
-semantic planes.
+Presentation spelling is not identical to the selected semantic planes.
 
 ### 3. Alias determines AccountingRole
 
 Hold alias and admission fixed while varying only AccountingRole.
 
-Expected: **SAT counterexample** to the stronger assertion.
+Observed: **SAT counterexample** to the stronger assertion.
 
 So `expenses:` or a friendly word such as `タバコ` must not itself be treated as
 proof of Expense role.
@@ -212,7 +211,7 @@ proof of Expense role.
 
 Hold alias and admission fixed while varying only Purpose.
 
-Expected: **SAT counterexample**.
+Observed: **SAT counterexample**.
 
 This protects the already-explicit `ActualRouting` plane from being folded back
 into Locus spelling.
@@ -221,7 +220,7 @@ into Locus spelling.
 
 Allow two currently approved Loci to share one alias.
 
-Expected: **SAT witness**.
+Observed: **SAT witness**.
 
 Therefore a write surface must not assume every friendly label is globally unique.
 
@@ -229,23 +228,78 @@ Therefore a write surface must not assume every friendly label is globally uniqu
 
 Fix one alias to exactly one currently approved target.
 
-Expected check: **UNSAT counterexample**.
+Observed check: **UNSAT counterexample**.
 
 This is the positive sufficiency result for the narrow input-selection question.
 
 ### 7. Ambiguous alias resolves anyway
 
-Expected check: **UNSAT counterexample**. An ambiguous approved target set has no
+Observed check: **UNSAT counterexample**. An ambiguous approved target set has no
 selected Locus under this candidate.
 
 ### 8. Alias can bypass new-write admission
 
-Expected check: **UNSAT counterexample**. Resolution always lands inside the
+Observed check: **UNSAT counterexample**. Resolution always lands inside the
 current approved vocabulary.
 
-## Candidate interpretation if the matrix survives
+## Executed result
 
-The narrow candidate is:
+Alloy 6.2.0 + Sat4j ran on exact branch head
+`ea714b4984756deb383c7f12d4212c99ea665ecc` before this result write-up.
+Dedicated workflow run `34081442895`, job `101617345317`, completed **SUCCESS**.
+
+```text
+friendlyAliasCanResolveHistoricalIdentity        SAT
+sameSemanticsDifferentAliases                    SAT
+sameAliasDifferentRole                           SAT
+sameAliasDifferentPurpose                        SAT
+ambiguousAliasCanExist                           SAT
+AliasDeterminesAccountingRole                    SAT counterexample
+AliasDeterminesPurpose                           SAT counterexample
+UniqueApprovedAliasTargetDeterminesResolution    UNSAT counterexample
+AmbiguousAliasNeverResolves                      UNSAT counterexample
+AliasResolutionCannotBypassAdmission              UNSAT counterexample
+```
+
+The bounded result is therefore:
+
+```text
+canonical identity
+    != display/input alias
+    != AccountingRole
+    != Purpose routing
+
+alias + current approval
+    -> one approved target   => resolvable input
+     | zero approved targets => unresolved
+     | many approved targets => ambiguous / refuse
+```
+
+No colon-prefix naming semantics are needed for this selected question.
+
+## Finding
+
+The dogfood pressure does **not** justify bulk Locus renaming or a conventional
+Account object. It justifies treating friendly naming as an independent additive
+plane over stable Locus identity.
+
+For the narrow write-input problem, the smallest information found is:
+
+```text
+explicit alias candidates
++ current LocusAdmission vocabulary
++ unique approved-target check
+```
+
+That is sufficient to resolve one friendly label to one existing writable
+`LocusId` while preserving publication-time admission. Alias alone is not
+sufficient to determine AccountingRole or Purpose.
+
+This means the old HRA/hledger-shaped token can remain readable in historical
+canonical evidence while the TUI can eventually present or accept a friendlier
+name. Destructive history rewriting is not required merely to improve input UX.
+
+## Candidate production shape
 
 ```text
 retained Event history keeps stable Locus identity
@@ -265,7 +319,7 @@ AccountingRole and Purpose
     remain independent relations/projections
 ```
 
-This would support a TUI interaction such as:
+This supports an interaction such as:
 
 ```text
 TO: タバコ
@@ -277,7 +331,7 @@ spelling proves Expense semantics.
 
 ## Production boundary
 
-Even a successful result does **not** immediately authorize:
+This result does **not** immediately authorize:
 
 - bulk renaming canonical household Event history;
 - deleting HRA-shaped historical Loci;
@@ -292,9 +346,15 @@ Even a successful result does **not** immediately authorize:
 - merging distinct historical identities merely because their display labels look
   similar.
 
-The next production decision, only if this probe survives, should be narrower:
+## Next production gate
 
-> Can a small explicit alias/display vocabulary improve completion and Record input
-> while preserving current canonical Locus identity and publication-time admission?
+The next step should be deliberately smaller than DD-002 normalization:
 
-That should be dogfooded before DD-002 is resolved by any destructive data rewrite.
+> add a small explicit alias/display vocabulary to completion and Record input,
+> resolve aliases only against current approved Loci, and dogfood it without
+> rewriting canonical Event history.
+
+If that works in real use, DD-002 can later distinguish historical-only source
+identities from identities that genuinely need canonical re-keying. If it fails,
+the failure should identify the missing semantic distinction before any bulk data
+rewrite is attempted.
