@@ -9,6 +9,8 @@ import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
+import Loam.Tui.CapacityTransfer
+import Loam.Tui.CapacityTransferSession
 import Loam.Tui.Reports
 import Loam.MovementPublisher
 import Loam.CompletionPrompt
@@ -560,8 +562,9 @@ partial def balancesLoop (bounds : Bounds)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       balancesLoop bounds next nextFrame
 
-/-- Read-only all-retained Capacity session. `true` means quit LOAM. -/
-partial def capacityLoop (bounds : Bounds)
+/-- All-retained Capacity session with a local transfer entrance. `true` means quit LOAM. -/
+partial def capacityLoop
+    (bounds : Bounds) (dataDir : System.FilePath) (focusDate : String)
     (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Bool := do
   let key ← Loam.Tui.Terminal.readKey
   if key = .input 'q' || key = .input 'Q' then
@@ -573,13 +576,31 @@ partial def capacityLoop (bounds : Bounds)
       match key with
       | .up | .input 'k' | .input 'K' => .up
       | .down | .input 'j' | .input 'J' => .down
+      | .input 't' | .input 'T' => .transfer
       | _ => .other
   match Loam.Tui.Capacity.update state event with
   | .back => return false
+  | .transfer current =>
+      let editor := Loam.Tui.CapacityTransfer.initial
+        current.snapshot focusDate (Loam.Tui.Capacity.selectedPurpose? current)
+      let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      let notice ← Loam.Tui.CapacityTransferSession.run
+        bounds (dataDir / "capacity.loam") editor editorFrame
+      let fresh ←
+        match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+        | .ok fresh => pure fresh
+      let refreshed := Loam.Tui.Capacity.refreshed fresh current
+      let next := { refreshed with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
+      IO.print "\x1b[2J"
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      capacityLoop bounds dataDir focusDate next nextFrame
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      capacityLoop bounds next nextFrame
+      capacityLoop bounds dataDir focusDate next nextFrame
 
 /-- Explicit-coordinate Reports session. `true` means quit LOAM. -/
 partial def reportsLoop (bounds : Bounds)
@@ -668,7 +689,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let capacity := Loam.Tui.Capacity.initial capacitySnapshot
     let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-    if ← capacityLoop bounds capacity capacityFrame then
+    if ← capacityLoop bounds dataDir state.selectedDate capacity capacityFrame then
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
