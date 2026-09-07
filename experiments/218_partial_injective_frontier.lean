@@ -118,9 +118,9 @@ private theorem advance?_add
       simp [advance?]
       cases hNext : nextSuccessor? edges start with
       | none =>
-          simp [hNext]
+          simp
       | some next =>
-          simp [hNext, ih]
+          simp [ih]
 
 /-- Every defined finite iterate of an injective successor lookup is injective. -/
 theorem advance?_injective_of_successor_nodup
@@ -158,7 +158,7 @@ theorem advance?_injective_of_successor_nodup
 
 /--
 Cancellation across an injective walk: if the same endpoint occurs after
-`prefix` steps and again after `period + prefix` steps, then the original start
+`prefixSteps` steps and again after `period + prefixSteps` steps, then the original start
 itself returns after `period` steps. An external tail into a cycle would violate
 successor injectivity.
 -/
@@ -166,21 +166,21 @@ theorem repeated_advance_forces_start_return
     {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id))
     (hNodup : (edges.map ReplacementEdge.successor).Nodup)
-    (period prefix : Nat)
+    (period prefixSteps : Nat)
     {start repeated : Id}
-    (hPrefix : advance? edges prefix start = some repeated)
-    (hRepeated : advance? edges (period + prefix) start = some repeated) :
+    (hPrefix : advance? edges prefixSteps start = some repeated)
+    (hRepeated : advance? edges (period + prefixSteps) start = some repeated) :
     advance? edges period start = some start := by
-  rw [advance?_add edges period prefix start] at hRepeated
+  rw [advance?_add edges period prefixSteps start] at hRepeated
   cases hPeriod : advance? edges period start with
   | none =>
       simp [hPeriod] at hRepeated
   | some afterPeriod =>
-      have hTail : advance? edges prefix afterPeriod = some repeated := by
+      have hTail : advance? edges prefixSteps afterPeriod = some repeated := by
         simpa [hPeriod] using hRepeated
       have hEq : afterPeriod = start :=
         advance?_injective_of_successor_nodup
-          edges hNodup prefix hTail hPrefix
+          edges hNodup prefixSteps hTail hPrefix
       simpa [hEq] using hPeriod
 
 /-- Seen-set cycle detector, matching Event Correction and Scheduled Replacement. -/
