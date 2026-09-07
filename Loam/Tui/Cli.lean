@@ -4,6 +4,8 @@ import Loam.Tui.ActualDateCorrection
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledReplacement
+import Loam.Tui.ScheduledCreation
+import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -131,7 +133,10 @@ def selectedDayEventOfKey
   | .down | .input 'j' | .input 'J' => .next
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
-  | .input 'n' | .input 'N' => .recordNew
+  | .input 'n' | .input 'N' =>
+      match pane with
+      | .actual => .recordNew
+      | .scheduled => .createScheduled
   | .input 'c' | .input 'C' =>
       match pane with
       | .actual => .correctActual
@@ -322,6 +327,28 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (selectedDayEventOfKey state.pane (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .createScheduled =>
+      let world ←
+        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        | .error message => throw (IO.userError message)
+        | .ok world => pure world
+      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+        Loam.CompletionPrompt.knownLoci world.events).eraseDups
+      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate
+      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      let notice ← Loam.Tui.ScheduledCreationSession.run
+        bounds (dataDir / "scheduled.loam") root known editor editorFrame
+      let fresh ←
+        match ← loadSnapshot dataDir with
+        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+        | .ok fresh => pure fresh
+      let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+      let next := { refreshed with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+      IO.print "\x1b[2J"
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      selectedDayLoop bounds dataDir root fresh next nextFrame
   | .completeScheduled =>
       match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
       | none =>
