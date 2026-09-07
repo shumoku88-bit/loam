@@ -1,6 +1,6 @@
 # Observation 219 — Can pointwise-zero QuantityBasis factor into origin coverage?
 
-Status: **PROBE**
+Status: **QUALIFIED CURRENT-SHAPE FACTORIZATION**
 
 ## Question
 
@@ -134,6 +134,27 @@ arbitrary QuantityBasis
     does not
 ```
 
+## Executed result
+
+The Observation 219 Lean job compiled the production `CurrentQuantity` slice and
+all executable equality / inequality witnesses successfully on the first probe
+head.
+
+The result therefore qualifies exactly the intended current-shape boundary:
+
+```text
+covered pointwise-zero basis
+    = zero-origin coverage + existing Event quantity
+
+uncovered coordinate
+    = basisMissing
+
+non-zero basis
+    != zero-origin coverage + Event quantity
+```
+
+No production source or persistence format was changed by the probe.
+
 ## Accounting comparison
 
 Conventional bookkeeping often resolves a bootstrap by introducing opening
@@ -148,31 +169,39 @@ QuantityBasis universally redundant. It asks whether a fully reconstructed
 history whose remaining basis values are all zero still needs five or more
 independent quantity facts merely to retain a completeness domain.
 
-## Candidate finding if the Lean checks pass
+## Finding
 
-The expected qualified result is:
+The qualified result is:
 
 ```text
 zero basis quantity
     -> numerically redundant
+
+per-basis stable identity
+    -> not observed by the zero-only current answer when no basis correction/cut exists
 
 basis coordinate membership
     -> still semantically observable
        because missing != zero
 ```
 
-This would make the current dogfood basis shape a factorization candidate rather
-than justify deleting the general `QuantityBasis` type immediately.
+So the current dogfood shape is a factorization candidate rather than evidence
+for deleting the general `QuantityBasis` type immediately.
 
-A later production change would still need to choose explicitly between:
+The remaining production question is now much sharper. LOAM must choose whether
+it actually needs a general partial-history bootstrap in its intended future
+operating model.
 
-1. retaining general `QuantityBasis` for partial-history / non-zero bootstrap;
-2. adopting a stronger LOAM operating invariant in which non-zero initial state
-   is represented elsewhere, leaving only explicit history coverage;
-3. supporting both without building two overlapping quantity engines.
+Three possibilities remain:
 
-Observation 219 should not choose among those before the current zero-only
-factorization is mechanically established.
+1. retain general `QuantityBasis` because an observed non-zero application-start
+   state is genuinely required without pretending it was an Event;
+2. adopt a stronger real-data reconstruction invariant in which non-zero starting
+   state is represented elsewhere and retain only explicit history coverage;
+3. support both, but only if that can be done without creating overlapping
+   quantity engines and correction machinery.
+
+Observation 219 gives no evidence for option 3 merely for compatibility.
 
 ## Non-goals
 
@@ -188,10 +217,10 @@ This observation does not introduce or authorize:
 
 ## Practical Core impact
 
-None for the probe.
+None for Observation 219 itself.
 
-If qualified, the next question is practical and destructive:
+The next destructive question is now explicit:
 
-> Does current LOAM still need the **general** partial-history bootstrap capability,
-> or can the selected real-data operating model require explicit history coverage
-> and reconstruct starting state without QuantityBasis?
+> Does future LOAM actually need the general partial-history/non-zero bootstrap
+> capability, or is current `QuantityBasis` machinery preserving a use case that
+> the HRA-backed reconstruction operating model no longer needs?
