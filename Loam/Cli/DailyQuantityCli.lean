@@ -48,7 +48,7 @@ private def loadCoverageForView?
   if ← path.pathExists then
     Loam.Persistence.loadZeroOriginCoverage? path
   else
-    return none
+    return some ZeroOriginCoverage.empty
 
 private def addCoordinateIfAbsent
     (coordinates : List EffectCoordinate)
@@ -94,19 +94,22 @@ private def collectCurrentLines
       | .missingEventCorrectionEndpoint => .missingEventCorrectionEndpoint
       | .eventFrontierRequired => .eventFrontierRequired
 
-private def reportCollectionFailure (prefix : String) : CollectionResult → IO UInt32
+private def reportCollectionFailure
+    (contextLabel : String) : CollectionResult → IO UInt32
   | .lines _ => pure 0
   | .coverageMissing coordinate => do
       IO.eprintln
-        ("loam: " ++ prefix ++ " unavailable: zero-origin coverage missing for " ++
+        ("loam: " ++ contextLabel ++ " unavailable: zero-origin coverage missing for " ++
           coordinate.locus.token ++ " / " ++ coordinate.measure.token)
       pure 1
   | .missingEventCorrectionEndpoint => do
-      IO.eprintln ("loam: " ++ prefix ++ " unavailable: correction references are not closed")
+      IO.eprintln
+        ("loam: " ++ contextLabel ++ " unavailable: correction references are not closed")
       pure 1
   | .eventFrontierRequired => do
       IO.eprintln
-        ("loam: " ++ prefix ++ " unavailable: event corrections do not justify one frontier")
+        ("loam: " ++ contextLabel ++
+          " unavailable: event corrections do not justify one frontier")
       pure 1
 
 /-- Show all nonzero current quantities whose retained history is explicitly complete from zero. -/
@@ -127,7 +130,7 @@ def showCurrentQuantities
       | some eventCorrections =>
           match ← loadCoverageForView? coverageFile with
           | none =>
-              IO.eprintln "loam: missing, malformed or unsupported zero-origin coverage file"
+              IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
               return 2
           | some coverage =>
               let coordinates := coverage.coordinates
@@ -165,7 +168,7 @@ def showBalances
       | some eventCorrections =>
           match ← loadCoverageForView? coverageFile with
           | none =>
-              IO.eprintln "loam: missing, malformed or unsupported zero-origin coverage file"
+              IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
               return 2
           | some coverage =>
               let coordinates? ←
