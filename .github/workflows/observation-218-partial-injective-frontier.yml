@@ -5,6 +5,7 @@ on:
     paths:
       - 'experiments/218_partial_injective_frontier.lean'
       - 'experiments/218_minimal_frontier_kernel.lean'
+      - 'experiments/218_finite_partial_injection_cycle.lean'
       - 'experiments/218_partial_injective_frontier.md'
       - 'experiments/218_partial_injective_frontier_followup.md'
       - '.github/workflows/observation-218-partial-injective-frontier.yml'
@@ -51,8 +52,10 @@ jobs:
           main_status=$?
           lake env lean experiments/218_minimal_frontier_kernel.lean >> /tmp/observation-218-lean.log 2>&1
           minimal_status=$?
+          lake env lean experiments/218_finite_partial_injection_cycle.lean >> /tmp/observation-218-lean.log 2>&1
+          cycle_status=$?
           cat /tmp/observation-218-lean.log
-          if [ "$main_status" -ne 0 ] || [ "$minimal_status" -ne 0 ]; then
+          if [ "$main_status" -ne 0 ] || [ "$minimal_status" -ne 0 ] || [ "$cycle_status" -ne 0 ]; then
             exit 1
           fi
       - name: Upload Observation 218 Lean log
