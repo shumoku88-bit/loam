@@ -1,6 +1,7 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.ScheduledReplacement
+import Loam.Core.QuantityBasisCorrectionMemory
 
 namespace Loam.Experiments.Observation218
 
@@ -51,6 +52,10 @@ private def nextSuccessor? {Id : Type} [DecidableEq Id] :
       else
         nextSuccessor? rest id
 
+/--
+Seen-set cycle detector, matching the shape used by Event Correction and
+Scheduled Replacement frontiers.
+-/
 private def pathAcyclic {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id))
     (current : Id)
@@ -64,11 +69,39 @@ private def pathAcyclic {Id : Type} [DecidableEq Id]
         | none => true
         | some next => pathAcyclic edges next (current :: seen) fuel
 
-/-- A finite partial injection is accepted only when following successors cannot cycle. -/
+/-- A finite replacement graph is cycle-free under the seen-set detector. -/
 def acyclic {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id)) : Bool :=
   edges.all fun edge =>
     pathAcyclic edges edge.superseded [] (edges.length + 1)
+
+/--
+Start-return cycle detector, matching the smaller traversal shape used by
+ActualValidity and QuantityBasis correction frontiers.
+
+Unlike the seen-set traversal, one path started outside a cycle can finish its
+fuel without returning to that particular start. The production-style global
+check starts from every retained edge source, so a real cycle still supplies one
+of its own members as a start.
+-/
+private def pathAcyclicFromStart {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (start : Id) : Nat → Id → Bool
+  | 0, _ => true
+  | fuel + 1, current =>
+      match nextSuccessor? edges current with
+      | none => true
+      | some next =>
+          if next = start then
+            false
+          else
+            pathAcyclicFromStart edges start fuel next
+
+/-- Global start-return cycle check: start once from every represented edge source. -/
+def acyclicByStartReturn {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) : Bool :=
+  edges.all fun edge =>
+    pathAcyclicFromStart edges edge.superseded edges.length edge.superseded
 
 /--
 Structural admission shared by the candidate frontier families.
@@ -96,7 +129,7 @@ def frontier {Id : Type} [DecidableEq Id]
 /-! ## Production-shape adapters
 
 These functions do not replace any production boundary. They expose the common
-replacement graph already present in three independently meaningful families.
+replacement graph already present in four independently meaningful families.
 -/
 
 /-- Event Correction uses `target -> replacement`. -/
@@ -120,6 +153,13 @@ def scheduledReplacementEdges
     { superseded := replacement.source
       successor := replacement.replacement }
 
+/-- QuantityBasis Correction uses `target basis -> replacement basis`. -/
+def quantityBasisCorrectionEdges
+    (memory : QuantityBasisCorrectionMemory) : List (ReplacementEdge QuantityBasisId) :=
+  memory.corrections.map fun correction =>
+    { superseded := correction.target
+      successor := correction.replacement }
+
 /-! ## Bounded witnesses -/
 
 private def chain : List (ReplacementEdge Nat) :=
@@ -128,6 +168,13 @@ private def chain : List (ReplacementEdge Nat) :=
 
 /-- A closed one-to-one acyclic chain is structurally admitted. -/
 example : structurallyAdmissible [0, 1, 2, 3] chain = true := by
+  decide
+
+/-- Both production-style cycle detectors accept the ordinary chain. -/
+example : acyclic chain = true := by
+  decide
+
+example : acyclicByStartReturn chain = true := by
   decide
 
 /-- The frontier keeps the terminal successor and untouched carrier identity. -/
@@ -150,12 +197,45 @@ private def merging : List (ReplacementEdge Nat) :=
 example : structurallyAdmissible [0, 1, 2] merging = false := by
   decide
 
-/-- A one-to-one cycle is still rejected. -/
+/-- A one-to-one cycle is rejected by both detector shapes. -/
 private def cycle : List (ReplacementEdge Nat) :=
   [ { superseded := 0, successor := 1 },
     { superseded := 1, successor := 0 } ]
 
+example : acyclic cycle = false := by
+  decide
+
+example : acyclicByStartReturn cycle = false := by
+  decide
+
 example : structurallyAdmissible [0, 1] cycle = false := by
+  decide
+
+/--
+A tail entering a cycle exposes the local difference between the algorithms:
+starting at the tail, start-return alone does not rediscover that tail, while the
+seen-set traversal detects the repeated interior node.
+-/
+private def lasso : List (ReplacementEdge Nat) :=
+  [ { superseded := 0, successor := 1 },
+    { superseded := 1, successor := 2 },
+    { superseded := 2, successor := 1 } ]
+
+example : pathAcyclicFromStart lasso 0 lasso.length 0 = true := by
+  decide
+
+example : pathAcyclic lasso 0 [] (lasso.length + 1) = false := by
+  decide
+
+/--
+The global start-return check nevertheless rejects the lasso because it also
+starts from the cycle member `1`. This explains why the smaller production
+algorithm can still serve as a whole-graph cycle check.
+-/
+example : acyclicByStartReturn lasso = false := by
+  decide
+
+example : acyclic lasso = false := by
   decide
 
 /-- An otherwise well-shaped edge with an absent endpoint is not closed. -/
