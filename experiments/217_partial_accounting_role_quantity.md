@@ -1,6 +1,6 @@
 # Observation 217 — Quantity frontier for partial AccountingRole reports
 
-Status: **PROBE — quantity/report completeness boundary / RESEARCH_ONLY**
+Status: **COMPLETE — bounded quantity/report completeness observation / RESEARCH_ONLY**
 
 ## Trigger
 
@@ -16,15 +16,13 @@ unresolved Effects
 ```
 
 That observation deliberately did not add quantity aggregation.
-
-The next question is whether role totals can safely summarize a partial report, or
-whether numeric cancellation can make unresolved history disappear from view.
+Observation 217 asks whether numeric summaries can erase that uncertainty frontier.
 
 ## Question
 
 > Can resolved AccountingRole quantities be published truthfully while some Effects
-> remain unclassified, and what extra frontier must remain visible so that a partial
-> result is not mistaken for a complete Balance Sheet / P&L-shaped answer?
+> remain unclassified, and what must remain visible so that a partial result is not
+> mistaken for a complete Balance Sheet / P&L-shaped answer?
 
 ## Specimen
 
@@ -54,26 +52,19 @@ The net quantity is zero, but two Effects still exist.
 
 Assigning this coordinate to a role necessarily changes that role's resolved total.
 
-The two cases let the model distinguish:
+The two cases distinguish:
 
 ```text
-quantity completeness
+quantity value
 from
 evidence/classification completeness
 ```
 
-## Candidate partial quantity report
+## Qualified result
 
-```text
-RoleQuantityInspection
-  role totals
-  unresolved Effects
-  unresolved quantity projection
-```
-
-This is observation vocabulary only. No production type is proposed yet.
-
-## Expected matrix
+Dedicated branch run `34086560597` completed SUCCESS at head
+`6d926a4e494ed0ef28abbba67ceac4479b15a6ef`.
+The workflow required this exact SAT/UNSAT matrix and passed:
 
 ```text
 partialQuantityReportWitness                         SAT
@@ -89,56 +80,120 @@ SameRoleMapDeterminesSameQuantityReport              UNSAT
 
 For Alloy `check`, `UNSAT` means no counterexample was found in the bounded scope.
 
-## Expected interpretation
+## Findings
 
-### Partial totals are still useful
+### Partial exact totals are useful
 
-Known roles may have exact resolved totals even while other evidence remains
-unclassified. A report need not choose between lying and refusing every quantity.
-It can publish a qualified partial answer.
+Known roles may have exact resolved totals while other evidence remains unclassified.
+A truthful report therefore need not choose between refusing every quantity and
+pretending the whole accounting view is complete.
+
+The bounded specimen supports:
+
+```text
+resolved role quantities
++
+unresolved Effect frontier
+```
 
 ### Unresolved net zero is not completeness
 
-If unresolved Effects are `+5` and `-5`, then:
+The canceling witness establishes:
+
+```text
+unresolved Effects = { +5, -5 }
+unresolved total   = 0
+```
+
+while unresolved evidence still exists.
+
+Therefore:
 
 ```text
 unresolvedTotal = 0
-```
-
-but:
-
-```text
-unresolvedEffects != ∅
-```
-
-Therefore `0` cannot be used as a completeness bit.
-
-### Same displayed totals can hide different epistemic state
-
-If the canceling coordinate is later assigned to `ExpenseRole`, the Expense total may
-remain numerically unchanged because `+5 + -5 = 0`.
-
-The two worlds can then have identical role totals while one is partial and the other
-complete.
-
-So:
-
-```text
-same numbers
 !=
-same evidence state
+Complete
 ```
 
-This is the main pressure result sought by Observation 217.
+A scalar unresolved quantity cannot serve as the report's completeness bit.
 
-### Nonzero completion changes quantity
+### Same displayed totals can hide different evidence state
 
-For the `+3` unresolved coordinate, assigning a role changes that role total. A UI
-cannot fill the gap with a default role merely to make a complete-looking table.
+The strongest witness assigns the canceling Locus to `ExpenseRole` in one world and
+leaves it unresolved in another. Because `+5 + -5 = 0`, every role total can remain
+numerically identical while one world is partial and the other fully classified.
+
+Thus:
+
+```text
+same role totals
+!=
+same completeness
+```
+
+This means a table of numbers alone is insufficient to communicate how much of the
+retained evidence those numbers explain.
+
+### Nonzero completion changes resolved quantity
+
+For the separate `+3` unresolved coordinate, assigning `ExpenseRole` changes the
+resolved Expense total. Filling a missing role is therefore a semantic decision, not
+a formatting convenience.
+
+### Partition remains exact
+
+As in Observation 216, classified and unresolved Effects form an exact partition.
+No evidence disappears merely because it lacks a role.
+
+### Fully classified totals cover the specimen
+
+When the unresolved frontier is empty, summing the role totals accounts for the full
+modeled quantity. This establishes the ordinary complete case without changing the
+meaning of the partial case.
+
+### No hidden quantity classifier
+
+The same explicit role map determines the same role totals, unresolved Effect set, and
+unresolved quantity projection. Prefix syntax or presentation defaults are unnecessary.
+
+## Qualified interpretation
+
+The smallest surviving quantity-level shape is not merely:
+
+```text
+role -> quantity
+```
+
+but something equivalent to:
+
+```text
+resolvedByRole
+unresolvedEffects
+```
+
+with an optional unresolved quantity projection for convenience.
+
+The Effect frontier is stronger than the scalar because unresolved Effects can cancel.
+
+Conceptually:
+
+```text
+value dimension:
+  what exact quantity is justified for each classified role?
+
+completeness dimension:
+  which retained Effects remain outside the classification?
+```
+
+These dimensions are independent enough that one cannot be reconstructed from the
+other.
+
+This is a small local law. Observation 217 does not introduce a general abstract-
+interpretation framework or a new completeness lattice into production.
 
 ## Deliberate boundaries
 
-Even if qualified, Observation 217 does **not** establish:
+Observation 217 does **not** establish:
 
 - production AccountingRole persistence;
 - a production `RoleQuantityInspection` type;
@@ -149,10 +204,10 @@ Even if qualified, Observation 217 does **not** establish:
 - that a zero-net unresolved frontier is economically unimportant;
 - destructive canonical migration.
 
-In fact, the canceling witness is pressure **against** treating one unresolved scalar
-as sufficient evidence. The unresolved Effect frontier remains the stronger witness.
+The canceling witness is specifically pressure against treating one unresolved scalar
+as sufficient evidence.
 
-## Next gate if qualified
+## Next gate
 
 Apply this law to the concrete household migration candidate:
 
@@ -160,7 +215,7 @@ Apply this law to the concrete household migration candidate:
 2. keep lossy/unresolved Loci outside those role totals;
 3. compute selected role totals and unresolved Effect/quantity evidence from canonical
    data;
-4. compare candidate report answers before and after any proposed Locus migration;
+4. compare candidate report answers before and after proposed Locus migration;
 5. refuse any cutover that turns a partial answer into an apparently complete one
    without new evidence.
 
