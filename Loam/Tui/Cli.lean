@@ -3,6 +3,7 @@ import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledCancellation
+import Loam.Tui.ScheduledReplacement
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -122,7 +123,7 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
-/-- HRA-shaped one-date grammar; `c` is object-local to the active pane. -/
+/-- HRA-shaped one-date grammar; object-local verbs depend on the active pane. -/
 def selectedDayEventOfKey
     (pane : Loam.Tui.SelectedDay.Pane) :
     Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
@@ -139,6 +140,7 @@ def selectedDayEventOfKey
       match pane with
       | .actual => .other
       | .scheduled => .completeScheduled
+  | .input 's' | .input 'S' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
   | .escape | .input 'q' | .input 'Q' => .back
@@ -254,6 +256,30 @@ partial def scheduledCancellationLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       scheduledCancellationLoop bounds scheduledFile root step.state nextFrame
 
+/-- Scheduled replacement editor emits one source-bound replacement draft at most. -/
+partial def scheduledReplacementLoop
+    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (known : List String)
+    (state : Loam.Tui.ScheduledReplacement.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.ScheduledReplacement.update known state
+    (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Scheduled supersede cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+          scheduledFile.toString root.toString draft with
+      | .ok receipt =>
+          return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
+      | .error message =>
+          let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          scheduledReplacementLoop bounds scheduledFile root known next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      scheduledReplacementLoop bounds scheduledFile root known step.state nextFrame
+
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
@@ -354,6 +380,41 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           IO.print "\x1b[2J"
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
           selectedDayLoop bounds dataDir root fresh next nextFrame
+  | .replaceScheduled =>
+      match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for supersede." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ScheduledReplacement.initial? record with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let world ←
+                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                | .error message => throw (IO.userError message)
+                | .ok world => pure world
+              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← scheduledReplacementLoop
+                bounds (dataDir / "scheduled.loam") root known editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
   | .correctDate =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
       | none =>
