@@ -1,0 +1,48 @@
+name: Observation 221
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/221_scoped_completeness_information_order.lean'
+      - 'experiments/221_scoped_completeness_information_order.md'
+      - '.github/workflows/observation-221-scoped-completeness-information-order.yml'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  scoped-completeness-information-order:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build supporting production slice
+        run: |
+          lake build Loam.Core.Event
+      - name: Check Observation 221 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/221_scoped_completeness_information_order.lean > /tmp/observation-221-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-221-lean.log
+          exit "$status"
+      - name: Upload Observation 221 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-221-lean-log
+          path: /tmp/observation-221-lean.log
