@@ -1,6 +1,6 @@
 # Observation 219 — can zero-only QuantityBasis be eliminated after historical reconstruction?
 
-Status: **EXPERIMENTAL**
+Status: **QUALIFIED REWRITE CANDIDATE**
 
 Research starting point: LOAM `b95e2b418365b7960b0087a1b9329b52578f16b5`
 
@@ -79,9 +79,35 @@ The probe checks:
 4. a nonzero QuantityBasis cannot be eliminated;
 5. therefore erasing the domain entirely would strengthen unknown coordinates into known-zero origins.
 
+## Qualified result
+
+The Lean probe compiles and all executable witnesses pass against production `EventMemory` and `QuantityBasis` types.
+
+The qualified factorization is therefore:
+
+```text
+zero-only QuantityBasis
+  = quantity contribution 0
+  + coordinate membership / coverage evidence
+```
+
+For exact-zero basis rows, the quantity contribution is extensionally neutral for the current recorded-Event arithmetic. The independently meaningful remainder is the finite set of coordinates for which the application-start quantity is known exactly zero.
+
+The negative controls matter equally:
+
+```text
+nonzero QuantityBasis
+  != eliminable quantity evidence
+
+coordinate outside explicit domain
+  != known zero
+```
+
+So Observation 219 does not earn a global zero default.
+
 ## What this does and does not show
 
-If the probe succeeds, it supports only this factorization:
+For the current zero-only shape it supports this factorization:
 
 ```text
 current zero-only basis memory
@@ -110,28 +136,32 @@ It also does not show that nonzero starting quantities, basis correction, or bas
 
 ## Accounting comparison
 
-This experiment deliberately tests whether current LOAM has reached a familiar ledger shape after historical reconstruction:
+The result is consistent with a familiar ledger shape after historical reconstruction:
 
 ```text
 opening entries + retained movements
 ```
 
-If the historical Event world itself now carries the opening quantities, then a separate zero-valued quantity basis may no longer be quantity evidence. The remaining question is only whether LOAM still needs explicit evidence that the selected history is complete from zero for a finite coordinate domain.
+When historical Event evidence itself carries the opening quantities, a separate zero-valued quantity basis is no longer quantity evidence. What remains is an evidence question about coverage:
 
-That is a useful convergence result even if the answer resembles ordinary bookkeeping rather than a novel accounting construction.
+> For which coordinates is the selected retained history known to start from exact zero?
 
-## Promotion criterion
+That convergence is useful even though it resembles ordinary bookkeeping rather than inventing a new accounting structure.
 
-Do not change production merely because the synthetic arithmetic probe passes.
+## Practical promotion criterion
 
-A production/data simplification is earned only if a follow-up practical check establishes for the current household image that:
+Production/data simplification is now a qualified candidate, not yet a production change.
+
+A follow-up practical check must establish for the current household image that:
 
 1. the five selected bases are all exact zero;
 2. no selected/current basis correction depends on their stable ids;
 3. no basis-cut evidence depends on their stable ids;
 4. the same five coordinates remain explicit as a coverage domain somewhere that is not inferred from presentation or accounting classification;
-5. the practical balance answers are identical before and after the representation change;
+5. practical balance answers are identical before and after the representation change;
 6. an unadmitted coordinate still refuses instead of becoming zero.
+
+If those hold, the current household path can plausibly retire the five `QuantityBasisId` facts and preserve only the smaller zero-origin domain evidence.
 
 ## Non-goals
 
@@ -147,4 +177,4 @@ Observation 219 does not introduce:
 
 ## Practical Core impact
 
-None at this stage.
+None yet. The candidate is Application/data-shape pressure until the practical household check earns a production replacement.
