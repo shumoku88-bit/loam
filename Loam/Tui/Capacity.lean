@@ -5,16 +5,17 @@ import Lean.Elab.Tactic.Omega
 
 namespace Loam.Tui.Capacity
 
-open Loam.Tui.Kernel
+open Loam.Core Loam.Tui.Kernel
 
 set_option autoImplicit false
 
 /-!
-# Read-only Capacity workspace
+# Capacity workspace
 
-This surface consumes the shared all-retained `CapacityReview` answer. It does
-not choose a cycle, infer a time window, classify operation kinds, or publish
-Capacity movements.
+This surface consumes the shared all-retained `CapacityReview` answer. Selection
+and transfer intent are local presentation state. It does not choose a cycle,
+infer a time window, classify operation kinds, or publish Capacity movements;
+publication remains in the shared `CapacityPublisher` reached by the caller.
 -/
 
 structure State where
@@ -25,12 +26,14 @@ structure State where
 inductive Event where
   | up
   | down
+  | transfer
   | back
   | other
   deriving Repr, DecidableEq, BEq
 
 inductive Step where
   | stay (state : State)
+  | transfer (state : State)
   | back
 
 
@@ -38,6 +41,27 @@ def initial (snapshot : Loam.CapacityReview.Snapshot) : State :=
   let selected : Option (Fin snapshot.rows.length) :=
     if h : 0 < snapshot.rows.length then some ⟨0, h⟩ else none
   { snapshot := snapshot, selected := selected }
+
+/-- Current selected Purpose, when the all-retained review has one. -/
+def selectedPurpose? (state : State) : Option PurposeId := do
+  let index ← state.selected
+  let row ← state.snapshot.rows[index.val]?
+  pure row.purpose
+
+/-- Preserve the local row coordinate when a fresh shared Capacity snapshot arrives. -/
+def refreshed (snapshot : Loam.CapacityReview.Snapshot) (state : State) : State :=
+  let selected : Option (Fin snapshot.rows.length) :=
+    match state.selected with
+    | some index =>
+        if h : index.val < snapshot.rows.length then
+          some ⟨index.val, h⟩
+        else if h : 0 < snapshot.rows.length then
+          some ⟨0, h⟩
+        else
+          none
+    | none =>
+        if h : 0 < snapshot.rows.length then some ⟨0, h⟩ else none
+  { snapshot := snapshot, selected := selected, notice := state.notice }
 
 
 def movePrevious (state : State) : State :=
@@ -65,6 +89,7 @@ def moveNext (state : State) : State :=
 def update (state : State) (event : Event) : Step :=
   match event with
   | .back => .back
+  | .transfer => .transfer state
   | .up => .stay (movePrevious state)
   | .down => .stay (moveNext state)
   | .other => .stay state
@@ -107,7 +132,7 @@ private def rowLine
         (if selected then .selected else .normal)
     ]
 
-/-- Render the current all-retained JPY entitlement projection only. -/
+/-- Render the current all-retained JPY entitlement projection and local transfer entrance. -/
 def view (state : State) : Widget :=
   if state.snapshot.rows.isEmpty then
     .column
@@ -118,7 +143,10 @@ def view (state : State) : Widget :=
       , line "No spending-purpose capacity is retained."
       , blank
       , muted "All-retained view; no cycle or time window is inferred."
-      , muted "b home   q quit"
+      , muted "t transfer can grant Capacity from unallocated to a new Purpose token."
+      , muted "unallocated is an allocation boundary, not money available to allocate."
+      , muted "t transfer   b home   q quit"
+      , muted state.notice
       ]
   else
     .column <|
@@ -132,8 +160,9 @@ def view (state : State) : Widget :=
       , muted "Entitlement is derived from all retained JPY Capacity movements."
       , muted "Order shown is first retained appearance, not priority."
       , muted "No cycle, period, or selected-day meaning is inferred here."
-      , muted "Read-only: Capacity publication remains outside this surface."
-      , muted "↑/↓ select/scroll   b home   q quit"
+      , muted "t opens a local transfer editor; shared CapacityPublisher owns publication."
+      , muted "unallocated is an allocation boundary, not money available to allocate."
+      , muted "↑/↓ select/scroll   t transfer   b home   q quit"
       , muted state.notice
       ]
 
