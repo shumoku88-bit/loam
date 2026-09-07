@@ -240,8 +240,15 @@ private theorem traceChecks_succ_eq_cons_walkAfter
       | none =>
           simp [traceChecks, walkAfter, hNext]
       | some next =>
-          simp only [traceChecks, walkAfter, hNext]
-          rw [ih next]
+          change
+            (current :: (match next? current with
+              | none => []
+              | some next => traceChecks next? (fuel + 1) next)) =
+            current :: (match next? current with
+              | none => []
+              | some next => next :: walkAfter next? fuel next)
+          rw [hNext]
+          exact congrArg (List.cons current) (ih next)
 
 private def avoids {Id : Type} [DecidableEq Id]
     (nodes seen : List Id) : Prop :=
@@ -281,6 +288,27 @@ private theorem pathAcyclic_eq_true_iff
         | some next =>
             simp [pathAcyclic, traceChecks, reachesTerminal, avoids,
               hSeen, hNext, ih]
+            constructor
+            · rintro ⟨hNodup, hAvoid, hTerminal⟩
+              have hFresh : ¬current ∈ traceChecks next? fuel next := by
+                intro hMem
+                exact (hAvoid current hMem).1 rfl
+              have hAvoidSeen :
+                  ∀ id, id ∈ traceChecks next? fuel next → ¬id ∈ seen := by
+                intro id hMem
+                exact (hAvoid id hMem).2
+              exact ⟨⟨hFresh, hNodup⟩, hAvoidSeen, hTerminal⟩
+            · rintro ⟨⟨hFresh, hNodup⟩, hAvoidSeen, hTerminal⟩
+              have hAvoid :
+                  ∀ id, id ∈ traceChecks next? fuel next →
+                    ¬id = current ∧ ¬id ∈ seen := by
+                intro id hMem
+                constructor
+                · intro hEq
+                  apply hFresh
+                  simpa [hEq] using hMem
+                · exact hAvoidSeen id hMem
+              exact ⟨hNodup, hAvoid, hTerminal⟩
 
 private theorem traceChecks_subset_sources_of_not_terminal
     {Id : Type} [DecidableEq Id]
