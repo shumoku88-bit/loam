@@ -83,8 +83,9 @@ def main : IO Unit := do
   let second := (Loam.Tui.HraActual.update snapshot right .next).state
   match Loam.Tui.HraActual.selectedRecord? snapshot second with
   | none => throw (IO.userError "HRA Actual transaction selection disappeared")
-  | some record => expect (record.description == "beta")
-      "HRA Actual j/down-style selection did not move to the second transaction"
+  | some record =>
+      expect (record.description == "beta")
+        "HRA Actual j/down-style selection did not move to the second transaction"
   let hraText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot second)
   expect (contains "Household Actuals Workspace" hraText)
     "HRA Actual shell heading disappeared"
