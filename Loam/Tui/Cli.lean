@@ -1,9 +1,11 @@
 import Loam.Tui.Record
+import Loam.Tui.Attention
 import Loam.MovementPublisher
 import Loam.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
+import Loam.AttentionReview
 import Loam.Tui.Main
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -107,11 +109,41 @@ partial def recordLoop (root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
       recordLoop root world known step.state nextFrame
 
+/-- Read-only Attention session. `true` means the user chose to quit LOAM. -/
+partial def attentionLoop
+    (state : Loam.Tui.Attention.State) (frame : CompiledWidget) : IO Bool := do
+  let key ← Loam.Tui.Terminal.readKey
+  if key = .input 'q' || key = .input 'Q' then
+    return true
+  let back := key = .escape || key = .input 'b' || key = .input 'B'
+  match Loam.Tui.Attention.update state back with
+  | .back => return false
+  | .stay next =>
+      let nextFrame := compileWidget (Loam.Tui.Attention.view next)
+      Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+      attentionLoop next nextFrame
+
 partial def loop (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
   let isHome := match state.surface with | .home _ => true | _ => false
-  if isHome && key = .input 'r' then
+  if isHome && (key = .input 'a' || key = .input 'A') then
+    let evidence ←
+      match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
+      | .error message => throw (IO.userError message)
+      | .ok evidence => pure evidence
+    let attention := Loam.Tui.Attention.initial evidence
+    let attentionFrame := compileWidget (Loam.Tui.Attention.view attention)
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame attentionFrame
+    if ← attentionLoop attention attentionFrame then
+      return
+    let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor snapshot home
+    -- The local Attention loop does not expose its last physical frame.
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
+    loop dataDir root snapshot home nextFrame
+  else if isHome && key = .input 'r' then
     let world ←
       match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
