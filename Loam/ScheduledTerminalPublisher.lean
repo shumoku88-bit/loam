@@ -1,0 +1,355 @@
+import Loam.Application.ActualValidityFrontier
+import Loam.Application.ScheduledInspection
+import Loam.MovementAdmission
+import Loam.MovementManifestAuthority
+import Loam.Persistence
+import Loam.Persistence.ScheduledCompletionPersistence
+import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledReplacementPersistence
+import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.WriterOwnership
+
+namespace Loam.ScheduledTerminalPublisher
+
+open Loam.Core
+
+set_option autoImplicit false
+
+/-!
+# Shared Scheduled terminal publication
+
+Scheduled lifecycle evidence remains in the Scheduled authority family while
+Actual Events remain in selected Movement manifest authority. This publisher
+coordinates those existing authorities without creating a combined repository.
+
+The lock order is deliberately fixed:
+
+```text
+Scheduled authority -> Movement CURRENT
+```
+
+Human input must already be collected before this boundary is entered.
+Completion publishes the ScheduledCompletion relation first and the complete
+Movement manifest generation second. A retained relation whose Actual endpoint
+is still absent is inert to existing Scheduled readers, so interruption remains
+fail-closed and a later retry can finish the same endpoint. Cancellation refuses
+such an interrupted completion instead of competing with it.
+-/
+
+structure CompletionDraft where
+  scheduled : ScheduledId
+  movement : Loam.MovementAdmission.Draft
+
+structure CompletionReceipt where
+  scheduled : ScheduledId
+  actual : EventId
+  validOn : String
+  total : Int
+  resumed : Bool
+  deriving Repr
+
+structure CancellationDraft where
+  scheduled : ScheduledId
+
+structure CancellationReceipt where
+  scheduled : ScheduledId
+  deriving Repr
+
+private structure LifecycleState where
+  scheduled : ScheduledMemory String
+  completions : ScheduledCompletionMemory
+  retirements : ScheduledRetirementMemory
+  replacements : ScheduledReplacementMemory
+
+private def completionEventId (scheduled : ScheduledId) : EventId :=
+  ⟨"scheduled-completion:" ++ scheduled.token⟩
+
+private def completionValidityFactId (scheduled : ScheduledId) : ActualValidityFactId :=
+  ⟨"scheduled-completion-validity:" ++ scheduled.token⟩
+
+private def loadLifecycle?
+    (scheduledFile : System.FilePath) : IO (Except String LifecycleState) := do
+  if !(← scheduledFile.pathExists) then
+    return .error "loam: scheduled authority is unavailable"
+  let some scheduled ← Loam.Persistence.loadScheduledMemory? scheduledFile
+    | return .error "loam: malformed or unsupported scheduled file"
+  let completionFile :=
+    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
+  let retirementFile :=
+    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
+  let replacementFile :=
+    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
+  let some completions ←
+      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
+    | return .error "loam: malformed or unsupported scheduled-completion file"
+  let some retirements ←
+      Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile
+    | return .error "loam: malformed or unsupported scheduled-retirement file"
+  let some replacements ←
+      Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile
+    | return .error "loam: malformed or unsupported scheduled-replacement file"
+  return .ok { scheduled, completions, retirements, replacements }
+
+private def currentOpen?
+    (lifecycle : LifecycleState)
+    (events : EventMemory) : Except String (List (ScheduledOccurrence String)) :=
+  match Loam.Application.currentOpenScheduledWithReplacement
+      lifecycle.scheduled lifecycle.completions lifecycle.retirements
+      lifecycle.replacements events with
+  | .unknownCompletionScheduled =>
+      .error "loam: scheduled-completion file refers to an unknown Scheduled identity"
+  | .unknownRetirementScheduled =>
+      .error "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+  | .unknownReplacementScheduled =>
+      .error "loam: scheduled-replacement file refers to an unknown Scheduled identity"
+  | .invalidReplacementGraph =>
+      .error "loam: scheduled-replacement graph is cyclic or otherwise invalid"
+  | .conflictingTerminalEvidence =>
+      .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
+  | .open occurrences => .ok occurrences
+
+private def findOpen?
+    (lifecycle : LifecycleState)
+    (events : EventMemory)
+    (target : ScheduledId) : Except String (ScheduledOccurrence String) := do
+  let occurrences ← currentOpen? lifecycle events
+  match occurrences.find? fun occurrence => decide (occurrence.id = target) with
+  | some occurrence => pure occurrence
+  | none => throw "loam: selected Scheduled identity is no longer current-open"
+
+private def historyMentionsEvent
+    (history : ActualValidityHistory String)
+    (eventId : EventId) : Bool :=
+  history.facts.any fun fact => decide (fact.event = eventId)
+
+private def relationsMentionEvent
+    (relations : List RelationUnit)
+    (eventId : EventId) : Bool :=
+  relations.any fun relation => decide (relation.sourceEvent = eventId)
+
+private def dischargesMentionEvent
+    (discharges : List RelationDischarge)
+    (eventId : EventId) : Bool :=
+  discharges.any fun discharge => decide (discharge.event = eventId)
+
+private def appendCompletionActual?
+    (world : Loam.MovementAdmission.World)
+    (target : ScheduledId)
+    (actualId : EventId)
+    (draft : Loam.MovementAdmission.Draft) :
+    Except String Loam.MovementAdmission.World := do
+  Loam.MovementAdmission.validateDraft draft
+  if !draft.relations.isEmpty || !draft.discharges.isEmpty then
+    throw "loam: Scheduled completion currently admits plain Actual Movement effects only"
+  if !world.locusAdmission.admitsEffects draft.effects then
+    throw "loam: Scheduled completion uses a Locus not approved for new publication"
+  let factId := completionValidityFactId target
+  if (EventMemory.findById? world.events actualId).isSome ||
+      historyMentionsEvent world.validity actualId ||
+      (EventDescriptionMemory.findText? world.descriptions actualId).isSome ||
+      relationsMentionEvent world.relations actualId ||
+      dischargesMentionEvent world.discharges actualId then
+    throw "loam: Scheduled completion Actual identity already has retained Movement evidence"
+  if (world.validity.findFactById? factId).isSome then
+    throw "loam: Scheduled completion occurrence-date identity already exists"
+  let event ←
+    match Event.ofEffects? actualId draft.effects with
+    | some event => pure event
+    | none => throw "loam: could not admit Scheduled completion Actual Event"
+  let fact : ActualValidityFact String := {
+    id := factId
+    event := actualId
+    validOn := draft.validOn
+  }
+  let events ←
+    match EventMemory.add? world.events event with
+    | some events => pure events
+    | none => throw "loam: could not append Scheduled completion Actual Event"
+  let validity ←
+    match world.validity.addFact? fact with
+    | some validity => pure validity
+    | none => throw "loam: could not append Scheduled completion occurrence date"
+  let descriptions ←
+    match draft.description with
+    | none => pure world.descriptions
+    | some text =>
+        match EventDescriptionMemory.ofEntries?
+            (world.descriptions.entries ++ [{ event := actualId, text := text }]) with
+        | some descriptions => pure descriptions
+        | none => throw "loam: could not append Scheduled completion description"
+  let some admittedDates := Loam.Application.admittedActualValidityFacts? validity
+    | throw "loam: Scheduled completion date evidence does not justify one current date per Event"
+  if !(admittedDates.any fun admitted =>
+      decide (admitted.event = actualId ∧ admitted.validOn = draft.validOn)) then
+    throw "loam: Scheduled completion occurrence date did not become current"
+  pure {
+    events := events
+    validity := validity
+    descriptions := descriptions
+    relations := world.relations
+    discharges := world.discharges
+    locusAdmission := world.locusAdmission
+  }
+
+private def completionClosesTarget?
+    (lifecycle : LifecycleState)
+    (events : EventMemory)
+    (target : ScheduledId) : Except String Unit := do
+  let occurrences ← currentOpen? lifecycle events
+  if occurrences.any fun occurrence => decide (occurrence.id = target) then
+    throw "loam: proposed completion did not close the selected Scheduled identity"
+  pure ()
+
+private def publishCompletionUnderOwnership
+    (scheduledFile root : System.FilePath)
+    (draft : CompletionDraft) : IO (Except String CompletionReceipt) := do
+  let lifecycle ←
+    match ← loadLifecycle? scheduledFile with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
+  let world ←
+    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+    | .ok world => pure world
+    | .error message => return .error message
+  let _ ←
+    match findOpen? lifecycle world.events draft.scheduled with
+    | .ok occurrence => pure occurrence
+    | .error message => return .error message
+  let existing := ScheduledCompletionMemory.findByScheduled?
+    lifecycle.completions draft.scheduled
+  let actualId := match existing with
+    | some completion => completion.actual
+    | none => completionEventId draft.scheduled
+  match EventMemory.findById? world.events actualId with
+  | some _ =>
+      return .error "loam: selected Scheduled identity is already completed"
+  | none => pure ()
+  match ScheduledCompletionMemory.findByActual? lifecycle.completions actualId with
+  | some completion =>
+      if completion.scheduled != draft.scheduled then
+        return .error "loam: Scheduled completion Actual identity belongs to another Scheduled occurrence"
+  | none => pure ()
+  let updatedWorld ←
+    match appendCompletionActual? world draft.scheduled actualId draft.movement with
+    | .ok updated => pure updated
+    | .error message => return .error message
+  let relation : ScheduledCompletion := {
+    scheduled := draft.scheduled
+    actual := actualId
+  }
+  let updatedCompletions ←
+    match existing with
+    | some _ => pure lifecycle.completions
+    | none =>
+        match lifecycle.completions.add? relation with
+        | some completions => pure completions
+        | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
+  let updatedLifecycle := { lifecycle with completions := updatedCompletions }
+  match completionClosesTarget? updatedLifecycle updatedWorld.events draft.scheduled with
+  | .error message => return .error message
+  | .ok () => pure ()
+  let completionFile :=
+    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
+  match existing with
+  | none =>
+      if !(← Loam.Persistence.saveScheduledCompletionMemory? completionFile updatedCompletions) then
+        return .error "loam: Scheduled completion relation could not be published"
+  | some _ => pure ()
+  match ← Loam.MovementManifestAuthority.publishWorld? root updatedWorld with
+  | .error message =>
+      return .error
+        ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
+  | .ok _ =>
+      return .ok {
+        scheduled := draft.scheduled
+        actual := actualId
+        validOn := draft.movement.validOn
+        total := draft.movement.total
+        resumed := existing.isSome
+      }
+
+private def publishCancellationUnderOwnership
+    (scheduledFile root : System.FilePath)
+    (draft : CancellationDraft) : IO (Except String CancellationReceipt) := do
+  let lifecycle ←
+    match ← loadLifecycle? scheduledFile with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
+  let world ←
+    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+    | .ok world => pure world
+    | .error message => return .error message
+  match ScheduledCompletionMemory.findByScheduled? lifecycle.completions draft.scheduled with
+  | some completion =>
+      if (EventMemory.findById? world.events completion.actual).isSome then
+        return .error "loam: selected Scheduled identity is already completed"
+      else
+        return .error "loam: selected Scheduled identity has an interrupted completion; retry completion before cancellation"
+  | none => pure ()
+  let _ ←
+    match findOpen? lifecycle world.events draft.scheduled with
+    | .ok occurrence => pure occurrence
+    | .error message => return .error message
+  let retirement : ScheduledRetirement := { scheduled := draft.scheduled }
+  let updatedRetirements ←
+    match lifecycle.retirements.add? retirement with
+    | some retirements => pure retirements
+    | none => return .error "loam: could not append Scheduled retirement evidence"
+  let updatedLifecycle := { lifecycle with retirements := updatedRetirements }
+  match currentOpen? updatedLifecycle world.events with
+  | .error message => return .error message
+  | .ok occurrences =>
+      if occurrences.any fun occurrence => decide (occurrence.id = draft.scheduled) then
+        return .error "loam: proposed cancellation did not close the selected Scheduled identity"
+  let retirementFile :=
+    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
+  if !(← Loam.Persistence.saveScheduledRetirementMemory? retirementFile updatedRetirements) then
+    return .error "loam: Scheduled retirement evidence could not be published"
+  return .ok { scheduled := draft.scheduled }
+
+private def withTerminalOwnership {α : Type}
+    (scheduledFile root : System.FilePath)
+    (action : IO (Except String α)) : IO (Except String α) :=
+  Loam.WriterOwnership.withOwnership scheduledFile <|
+    Loam.WriterOwnership.withOwnership (root / "CURRENT") action
+
+/--
+Publish one Scheduled realization as a manifest-backed Actual Event.
+
+The Scheduled identity is re-read as current-open while both authority locks are
+held. Expected values are not authority here: the supplied Actual Movement draft
+is independently validated against current Movement/Locus policy. Publication is
+relation-first so an interruption never makes an unlinked Actual Event appear.
+-/
+def publishManifestCompletion
+    (scheduledPath rootPath : String)
+    (draft : CompletionDraft) : IO (Except String CompletionReceipt) := do
+  if scheduledPath.isEmpty then
+    return .error "loam: scheduled path must not be empty"
+  if rootPath.isEmpty then
+    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+  let scheduledFile := System.FilePath.mk scheduledPath
+  let root := System.FilePath.mk rootPath
+  withTerminalOwnership scheduledFile root
+    (publishCompletionUnderOwnership scheduledFile root draft)
+
+/--
+Cancel one current-open Scheduled occurrence against the same manifest-selected
+Event frontier used by production Scheduled readers.
+
+Any retained but still-inert completion relation is treated as an interrupted
+terminal claim and blocks cancellation until completion is retried or recovered.
+-/
+def publishManifestCancellation
+    (scheduledPath rootPath : String)
+    (draft : CancellationDraft) : IO (Except String CancellationReceipt) := do
+  if scheduledPath.isEmpty then
+    return .error "loam: scheduled path must not be empty"
+  if rootPath.isEmpty then
+    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+  let scheduledFile := System.FilePath.mk scheduledPath
+  let root := System.FilePath.mk rootPath
+  withTerminalOwnership scheduledFile root
+    (publishCancellationUnderOwnership scheduledFile root draft)
+
+end Loam.ScheduledTerminalPublisher
