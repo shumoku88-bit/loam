@@ -1,0 +1,129 @@
+import Loam.ActualReview
+import Loam.ScheduledCreationPublisher
+import Loam.ScheduledReview
+import Loam.Tui.ScheduledCreation
+import Loam.Tui.SelectedDay
+import Lean.Elab.Tactic.Omega
+
+open Loam.Core
+
+private def expect (condition : Bool) (message : String) : IO Unit := do
+  unless condition do throw (IO.userError message)
+
+private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
+  match value with
+  | some result => pure result
+  | none => throw (IO.userError message)
+
+private def emptyWorld : IO Loam.MovementAdmission.World := do
+  let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"paypay"⟩, ⟨"rent"⟩, ⟨"food"⟩]
+    | throw (IO.userError "vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := []
+      factIdNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
+
+private def loadSnapshot
+    (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
+    | throw (IO.userError "load manifest Actual review")
+  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+    | throw (IO.userError "load Scheduled evidence")
+  let actual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-08"
+    allRecords := actualRecords
+    undatedCount := (Loam.ActualReview.select actualRecords .undated).length }
+  return { actual := actual, scheduled := scheduled }
+
+private def hasScheduled
+    (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=
+  records.any fun record => decide (record.id = id)
+
+def main (args : List String) : IO Unit := do
+  let [dataPath] := args | throw (IO.userError "supply isolated data directory")
+  let dataDir := System.FilePath.mk dataPath
+  IO.FS.createDirAll dataDir
+  let root := dataDir / "movement-authority"
+  let scheduledFile := dataDir / "scheduled.loam"
+
+  let initialWorld ← emptyWorld
+  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initialWorld
+    | throw (IO.userError "initialize manifest fixture")
+
+  let snapshot ← loadSnapshot scheduledFile root
+  let actualState := Loam.Tui.SelectedDay.initial "2026-09-12"
+  let scheduledState :=
+    (Loam.Tui.SelectedDay.update snapshot actualState .focusRight).state
+  expect ((Loam.Tui.SelectedDay.scheduledRecords snapshot scheduledState).isEmpty)
+    "empty-day Scheduled fixture unexpectedly had an explicit due occurrence"
+
+  let createCommand :=
+    Loam.Tui.SelectedDay.update snapshot scheduledState .createScheduled
+  expect (createCommand.command == .createScheduled)
+    "Scheduled pane did not emit new-Scheduled intent without an existing selected row"
+  let refusedActual :=
+    Loam.Tui.SelectedDay.update snapshot actualState .createScheduled
+  expect (refusedActual.command == .stay)
+    "Actual pane emitted a Scheduled creation intent"
+  let refusedNewActual :=
+    Loam.Tui.SelectedDay.update snapshot scheduledState .recordNew
+  expect (refusedNewActual.command == .stay)
+    "Scheduled pane emitted a new-Actual intent"
+
+  let editor := Loam.Tui.ScheduledCreation.initial scheduledState.focusDate
+  expect (editor.form.date == "2026-09-12" && editor.form.rows.size == 2)
+    "new Scheduled editor did not seed the focused date and two neutral posting rows"
+  let rows : Array Loam.Tui.Record.Row :=
+    #[ { locus := "paypay", amount := "-700" }
+     , { locus := "food", amount := "700" } ]
+  let edited : Loam.Tui.ScheduledCreation.State := {
+    editor with form := { editor.form with rows := rows } }
+  let .ok draft := Loam.Tui.ScheduledCreation.draft? edited
+    | throw (IO.userError "build new Scheduled draft")
+  expect (draft.scheduledOn == "2026-09-12" && draft.total == 700)
+    "new Scheduled editor changed the explicit date or balanced total"
+
+  let previewState : Loam.Tui.ScheduledCreation.State := {
+    edited with mode := .preview draft ⟨0, by omega⟩ }
+  let publishStep := Loam.Tui.ScheduledCreation.update
+    ["paypay", "rent", "food"] previewState .enter
+  let intent ← requireSome publishStep.publish
+    "new Scheduled preview did not emit shared publisher intent"
+  let .ok receipt ← Loam.ScheduledCreationPublisher.publishManifestCreation
+      scheduledFile.toString root.toString intent
+    | throw (IO.userError "publish new Scheduled from TUI intent")
+
+  let fresh ← loadSnapshot scheduledFile root
+  let due := Loam.ScheduledReview.explicitDueRecords
+    (Loam.ScheduledReview.dayEvidence fresh.scheduled "2026-09-12")
+  expect (hasScheduled due receipt.scheduled)
+    "fresh Scheduled read did not expose the newly created occurrence on its explicit day"
+  expect (fresh.actual.allRecords.isEmpty)
+    "Scheduled creation also created Actual evidence"
+
+  let refreshed := Loam.Tui.SelectedDay.refreshed fresh scheduledState
+  expect (refreshed.focusDate == "2026-09-12" && refreshed.pane == .scheduled)
+    "new Scheduled publication moved the selected-day coordinate or active pane"
+  expect ((Loam.Tui.SelectedDay.scheduledRecords fresh refreshed).length == 1)
+    "fresh selected-day Scheduled pane did not expose the created occurrence"
+
+  let unbalanced : Loam.Tui.ScheduledCreation.State := {
+    editor with form := { editor.form with rows :=
+      #[ { locus := "paypay", amount := "-700" }
+       , { locus := "food", amount := "600" } ] } }
+  expect ((Loam.Tui.ScheduledCreation.draft? unbalanced).isError)
+    "new Scheduled editor previewed an unbalanced movement"
+  let cancelled := Loam.Tui.ScheduledCreation.update ["paypay", "food"] editor .escape
+  expect (cancelled.cancel && cancelled.publish.isNone)
+    "Esc from new Scheduled editor emitted publication"
+
+  IO.println "TUI Scheduled create: pane-local intent, focused-date editor, shared publication, fresh Due read and Actual independence passed."
