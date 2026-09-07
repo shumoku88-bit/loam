@@ -1,5 +1,6 @@
 import Loam.Tui.Record
 import Loam.Tui.Attention
+import Loam.Tui.Balances
 import Loam.Tui.Capacity
 import Loam.Tui.Reports
 import Loam.MovementPublisher
@@ -8,6 +9,7 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.AttentionReview
+import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.BudgetWindowReview
 import Loam.Tui.Main
@@ -127,6 +129,20 @@ partial def attentionLoop
       Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
       attentionLoop next nextFrame
 
+/-- Read-only balance-view session. `true` means quit LOAM. -/
+partial def balancesLoop
+    (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Bool := do
+  let key ← Loam.Tui.Terminal.readKey
+  if key = .input 'q' || key = .input 'Q' then
+    return true
+  let back := key = .escape || key = .input 'b' || key = .input 'B'
+  match Loam.Tui.Balances.update state back with
+  | .back => return false
+  | .stay next =>
+      let nextFrame := compileWidget (Loam.Tui.Balances.view next)
+      Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+      balancesLoop next nextFrame
+
 /-- Read-only all-retained Capacity session. `true` means quit LOAM. -/
 partial def capacityLoop
     (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Bool := do
@@ -181,6 +197,22 @@ partial def loop (dataDir root : System.FilePath)
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor snapshot home
     -- The local Attention loop does not expose its last physical frame.
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
+    loop dataDir root snapshot home nextFrame
+  else if isHome && (key = .input 'b' || key = .input 'B') then
+    let balanceSnapshot ←
+      match ← Loam.BalanceReview.loadSnapshot dataDir root with
+      | .error message => throw (IO.userError message)
+      | .ok balanceSnapshot => pure balanceSnapshot
+    let balances := Loam.Tui.Balances.initial balanceSnapshot
+    let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame balancesFrame
+    if ← balancesLoop balances balancesFrame then
+      return
+    let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor snapshot home
+    -- The local Balances loop does not expose its last physical frame.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
     loop dataDir root snapshot home nextFrame
@@ -257,7 +289,7 @@ def run (args : List String) : IO UInt32 := do
     | .ok root => pure root
   Loam.Tui.Terminal.enter
   try
-    let state := { initialState snapshot.actual.today with notice := "a Attention   c Capacity   p Reports" }
+    let state := { initialState snapshot.actual.today with notice := "a Attention   b Balances   c Capacity   p Reports" }
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 blank frame
