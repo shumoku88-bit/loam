@@ -132,7 +132,7 @@ example :
   decide
 
 /-- Distinct stable basis identities are retained evidence, but not observed here. -/
-example : basesA ≠ basesB := by
+example : basesA.bases ≠ basesB.bases := by
   decide
 
 example :
@@ -158,7 +158,8 @@ private def correctedBases : QuantityBasisMemory :=
 
 private def correctedBasisMemory : QuantityBasisCorrectionMemory :=
   { corrections :=
-      [{ target := ⟨"wallet-v1"⟩,
+      [{ id := ⟨"basis-correction-1"⟩,
+         target := ⟨"wallet-v1"⟩,
          replacement := ⟨"wallet-v2"⟩ }]
     idNodup := by decide }
 
@@ -197,10 +198,10 @@ example :
   decide
 
 /-- But the retained histories themselves are not the same evidence. -/
-example : correctedBases ≠ directCurrentBases := by
+example : correctedBases.bases ≠ directCurrentBases.bases := by
   decide
 
-example : correctedBasisMemory ≠ noBasisCorrections := by
+example : correctedBasisMemory.corrections ≠ noBasisCorrections.corrections := by
   decide
 
 end Loam.Experiments.Observation220
