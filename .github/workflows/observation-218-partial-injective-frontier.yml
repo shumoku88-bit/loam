@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'experiments/218_partial_injective_frontier.lean'
+      - 'experiments/218_minimal_frontier_kernel.lean'
       - 'experiments/218_partial_injective_frontier.md'
       - 'experiments/218_partial_injective_frontier_followup.md'
       - '.github/workflows/observation-218-partial-injective-frontier.yml'
@@ -38,14 +39,19 @@ jobs:
           use-github-cache: true
       - name: Build Observation 218 imported frontier families
         run: lake build Loam.Core.QuantityBasisCorrectionMemory
-      - name: Check Observation 218 Lean probe
+      - name: Check Observation 218 Lean probes
         shell: bash
         run: |
           set +e
-          lake env lean experiments/218_partial_injective_frontier.lean > /tmp/observation-218-lean.log 2>&1
-          status=$?
+          : > /tmp/observation-218-lean.log
+          lake env lean experiments/218_partial_injective_frontier.lean >> /tmp/observation-218-lean.log 2>&1
+          main_status=$?
+          lake env lean experiments/218_minimal_frontier_kernel.lean >> /tmp/observation-218-lean.log 2>&1
+          minimal_status=$?
           cat /tmp/observation-218-lean.log
-          exit "$status"
+          if [ "$main_status" -ne 0 ] || [ "$minimal_status" -ne 0 ]; then
+            exit 1
+          fi
       - name: Upload Observation 218 Lean log
         if: always()
         uses: actions/upload-artifact@v4
