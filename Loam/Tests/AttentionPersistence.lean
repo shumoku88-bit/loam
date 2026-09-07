@@ -78,9 +78,12 @@ def main (args : List String) : IO Unit := do
       expect snapshot.openItems.isEmpty "explicit empty Attention stream was not empty"
   | _ => throw (IO.userError "explicit empty Attention stream became unavailable or malformed")
 
+  let danglingClosure : AttentionClosure String :=
+    { attention := ⟨"attention-missing"⟩
+      knownOn := "2026-09-07"
+      kind := .dropped }
   let danglingClosures ← requireSome
-    (AttentionClosureMemory.ofClosures? [{ attention := ⟨"attention-missing"⟩,
-      knownOn := "2026-09-07", kind := .dropped }])
+    (AttentionClosureMemory.ofClosures? [danglingClosure])
     "dangling closure specimen was rejected before review"
   let danglingPath := root / "attention-dangling.loam"
   expect (← Loam.Persistence.saveAttentionMemory? danglingPath items danglingClosures)
