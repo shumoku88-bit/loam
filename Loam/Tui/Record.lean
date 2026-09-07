@@ -7,9 +7,8 @@ namespace Loam.Tui.Record
 open Loam.Tui.Kernel
 set_option autoImplicit false
 
-/-- FROM/TO is form grammar only. It becomes ordinary signed Effects. -/
+/-- One local editor row. Quantity text is signed; row order carries no meaning. -/
 structure Row where
-  fromSide : Bool
   locus : String := ""
   amount : String := ""
   deriving Repr, DecidableEq, Inhabited
@@ -17,9 +16,9 @@ structure Row where
 structure Form where
   date : String
   description : String := ""
-  rows : Array Row := #[{ fromSide := true }, { fromSide := false }]
-  -- Date, description, two fields per row, then five actions.
-  focus : Fin (2 + rows.size * 2 + 5) := ⟨0, by omega⟩
+  rows : Array Row := #[{}, {}]
+  -- Date, description, two fields per row, then four actions.
+  focus : Fin (2 + rows.size * 2 + 4) := ⟨0, by omega⟩
 
 inductive Mode where
   | editing
@@ -38,7 +37,7 @@ structure Step where
 def initial (date : String) : State := { form := { date := date } }
 
 def moveFocus (form : Form) (back : Bool) : Form :=
-  let count := 2 + form.rows.size * 2 + 5
+  let count := 2 + form.rows.size * 2 + 4
   let next := if back then (form.focus.val + count - 1) % count
               else (form.focus.val + 1) % count
   { form with focus := ⟨next, by
@@ -48,6 +47,12 @@ def moveFocus (form : Form) (back : Bool) : Form :=
 def replaceRows (form : Form) (rows : Array Row) : Form :=
   { date := form.date, description := form.description, rows := rows,
     focus := ⟨0, by omega⟩ }
+
+/-- Append one neutral posting row and put focus directly on its Locus field. -/
+def appendRow (form : Form) : Form :=
+  let rows := form.rows.push {}
+  { date := form.date, description := form.description, rows := rows,
+    focus := ⟨2 + form.rows.size * 2, by simp [rows]; omega⟩ }
 
 def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus.val = 0 then { form with date := edit form.date }
@@ -79,20 +84,19 @@ def acceptCandidate (known : List String) (form : Form) : Form :=
   | none => form
   | some token => editActive form (fun _ => token)
 
-/-- Parse form syntax; semantic validation and admission remain shared production code. -/
+/-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
   let mut effects := []
   let mut total := 0
   for index in List.range form.rows.size do
     let row := form.rows[index]!
     let some amount := row.amount.toInt?
-      | throw "Enter a positive integer amount for every row."
-    if amount <= 0 then throw "Enter a positive integer amount for every row."
-    let quantity := if row.fromSide then -amount else amount
+      | throw "Enter a nonzero signed integer JPY amount for every posting."
+    if amount = 0 then throw "Enter a nonzero signed integer JPY amount for every posting."
     effects := effects ++ [Loam.Core.Effect.ofQuantity
       ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ ⟨"jpy"⟩
-      (Loam.Core.Quantity.ofQuanta quantity)]
-    if !row.fromSide then total := total + amount
+      (Loam.Core.Quantity.ofQuanta amount)]
+    if amount > 0 then total := total + amount
   let draft : Loam.MovementAdmission.Draft := {
     validOn := form.date
     description := if form.description.isEmpty then none else some form.description
@@ -111,13 +115,8 @@ def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
           notice := "" }
 
 def dropRow (form : Form) : Form :=
-  -- The action removes the last row; at least one row on each side remains.
-  match form.rows.back? with
-  | none => form
-  | some last =>
-      if (form.rows.toList.filter fun row => row.fromSide == last.fromSide).length > 1 then
-        replaceRows form form.rows.pop
-      else form
+  -- Keep two rows so an ordinary balanced movement remains visible by default.
+  if form.rows.size > 2 then replaceRows form form.rows.pop else form
 
 def update (world : Loam.MovementAdmission.World) (known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
@@ -156,17 +155,13 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
               { state := preview world state }
             else if focus < firstAction then
               { state := { state with form := moveFocus state.form false } }
-            else if (focus = firstAction || focus = firstAction + 1) && state.form.rows.size >= 6 then
-              { state := { state with notice := "This editor supports up to six effect rows." } }
+            else if focus = firstAction && state.form.rows.size >= 6 then
+              { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = firstAction then
-              { state := { state with form := (replaceRows state.form
-                  (state.form.rows.push { fromSide := true })) } }
+              { state := { state with form := appendRow state.form } }
             else if focus = firstAction + 1 then
-              { state := { state with form := (replaceRows state.form
-                  (state.form.rows.push { fromSide := false })) } }
-            else if focus = firstAction + 2 then
               { state := { state with form := dropRow state.form } }
-            else if focus = firstAction + 3 then
+            else if focus = firstAction + 2 then
               { state := preview world state }
             else { state, cancel := true }
         | _ => { state }
@@ -176,7 +171,7 @@ theorem cancel_never_publishes (world : Loam.MovementAdmission.World)
     (update world known state .escape).publish = none := by rfl
 
 theorem focus_always_exists (form : Form) :
-    form.focus.val < 2 + form.rows.size * 2 + 5 := form.focus.isLt
+    form.focus.val < 2 + form.rows.size * 2 + 4 := form.focus.isLt
 
 theorem preview_edit_preserves_form (world : Loam.MovementAdmission.World)
     (known : List String) (state : State) (draft : Loam.MovementAdmission.Draft) :
@@ -196,17 +191,18 @@ def view (known : List String) (state : State) : Widget :=
       let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
       let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
         let row := form.rows[index]!
-        [field form (2 + index * 2) (if row.fromSide then "FROM" else "TO") row.locus,
+        [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
          field form (3 + index * 2) "  JPY" row.amount]
-      let actions := ["Add FROM", "Add TO", "Drop last row", "Preview", "Cancel"]
+      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
       .column <| [line "Record / Edit", field form 0 "Date" form.date,
         field form 1 "Description" form.description] ++ rowLines ++
         [.row ((actions.zipIdx).map fun (label, index) =>
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
          line ("Candidate: " ++ (candidate? known form).getD ""),
+         line "Posting JPY is signed; negative and positive rows may appear in any order.",
          line "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate",
-         line "Esc cancel   Backspace delete   Drop keeps one FROM and one TO",
+         line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>
       .column <| [line "Record / Preview", line draft.validOn,
