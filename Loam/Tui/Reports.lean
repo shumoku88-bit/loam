@@ -54,7 +54,7 @@ def withError (state : State) (message : String) : State :=
 
 def moveFocus (form : Form) (back : Bool) : Form :=
   let next := if back then (form.focus.val + 2) % 3 else (form.focus.val + 1) % 3
-  { form with focus := ⟨next, Nat.mod_lt _ (by decide)⟩ }
+  { form with focus := ⟨next, Nat.mod_lt _ (by decide : 0 < 3)⟩ }
 
 
 def editActive (form : Form) (edit : String → String) : Form :=
