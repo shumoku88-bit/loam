@@ -37,4 +37,16 @@ jobs:
           axiom-audit: false
           use-github-cache: true
       - name: Check Observation 218 Lean probe
-        run: lake env lean experiments/218_partial_injective_frontier.lean
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/218_partial_injective_frontier.lean > /tmp/observation-218-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-218-lean.log
+          exit "$status"
+      - name: Upload Observation 218 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-218-lean-log
+          path: /tmp/observation-218-lean.log
