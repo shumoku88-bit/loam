@@ -95,12 +95,14 @@ def main (args : List String) : IO Unit := do
   expect (shifted.state.editor.form.focus.val != 0)
     "Correction focus reached the fixed Date field"
 
+  let correctedRows : Array Loam.Tui.Record.Row := #[
+    { locus := "paypay", amount := "-650" },
+    { locus := "coffee", amount := "650" }]
   let correctedForm : Loam.Tui.Record.Form := {
-    editor.editor.form with
+    date := editor.editor.form.date
     description := "after"
-    rows := #[
-      { locus := "paypay", amount := "-650" },
-      { locus := "coffee", amount := "650" }] }
+    rows := correctedRows
+    focus := ⟨1, by omega⟩ }
   let .ok replacementDraft := Loam.Tui.Record.draft? correctedForm
     | throw (IO.userError "corrected form did not parse")
   let previewEditor : Loam.Tui.Record.State := {
