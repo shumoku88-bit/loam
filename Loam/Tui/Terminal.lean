@@ -95,6 +95,33 @@ def readKey : IO Key := do
   else
     return .input (Char.ofNat value)
 
+private def fallbackBounds : Bounds := { width := 80, height := 24 }
+
+/--
+Read the active tty geometry. The physical terminal owns this fact; callers use
+it only as presentation geometry. Failure falls back to the historical 80×24
+viewport rather than changing household semantics.
+-/
+def currentBounds : IO Bounds := do
+  try
+    let output ← IO.Process.output {
+      cmd := "sh"
+      args := #["-c", "stty size < /dev/tty"]
+    }
+    if output.exitCode != 0 then return fallbackBounds
+    let text := output.stdout.trimAsciiEnd.toString.trimAsciiStart.toString
+    let parts := (text.splitOn " ").filter fun part => !part.isEmpty
+    match parts with
+    | [rowsText, colsText] =>
+        match rowsText.toNat?, colsText.toNat? with
+        | some rows, some cols =>
+            if rows = 0 || cols = 0 then return fallbackBounds
+            return { width := cols, height := rows }
+        | _, _ => return fallbackBounds
+    | _ => return fallbackBounds
+  catch _ =>
+    return fallbackBounds
+
 def setTerminalMode (mode : String) : IO Unit := do
   discard <| IO.Process.run
     { cmd := "sh"
