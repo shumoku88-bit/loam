@@ -1,5 +1,6 @@
 import Loam.Tui.Record
 import Loam.Tui.Correction
+import Loam.Tui.ActualDateCorrection
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -127,6 +128,7 @@ def selectedDayEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'n' | .input 'N' => .recordNew
   | .input 'c' | .input 'C' => .correctActual
+  | .input 'd' | .input 'D' => .correctDate
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -174,6 +176,31 @@ partial def correctionLoop (bounds : Bounds) (root correctionFile : System.FileP
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       correctionLoop bounds root correctionFile world known step.state nextFrame
 
+/-- Date editing stays local; the shared publisher performs every authoritative re-check. -/
+partial def actualDateCorrectionLoop
+    (bounds : Bounds) (root correctionFile : System.FilePath)
+    (state : Loam.Tui.ActualDateCorrection.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.ActualDateCorrection.update state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Date correction cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.ActualValidityPublisher.publishManifestDate
+          root.toString correctionFile.toString draft with
+      | .ok receipt =>
+          if receipt.changed then
+            return "Date corrected to " ++ receipt.validOn ++ "."
+          else
+            return "Date is already current; nothing changed."
+      | .error message =>
+          let next := Loam.Tui.ActualDateCorrection.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          actualDateCorrectionLoop bounds root correctionFile next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      actualDateCorrectionLoop bounds root correctionFile step.state nextFrame
+
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
@@ -216,6 +243,35 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (selectedDayEventOfKey (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .correctDate =>
+      match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current Actual is selected for date correction." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ActualDateCorrection.initial? record with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let editorFrame := compileWidget (Loam.Tui.ActualDateCorrection.view editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← actualDateCorrectionLoop
+                bounds root (dataDir / "corrections.loam") editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
   | .correctActual =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
       | none =>
@@ -386,7 +442,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    -- The local Attention loop does not expose its last physical frame.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
@@ -402,7 +457,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    -- The local Balances loop does not expose its last physical frame.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
@@ -419,7 +473,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    -- The local Capacity loop does not expose its last physical frame.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
@@ -431,7 +484,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    -- Reports owns a local editor/result frame, so rebuild Home once on return.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
@@ -452,7 +504,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← recordLoop bounds root world known editor editorFrame
-    -- Never reuse cached review cursors after publication. Reload canonical evidence.
     let fresh ←
       match ← loadSnapshot dataDir with
       | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
@@ -465,7 +516,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       else
         { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds fresh destination
-    -- Editor's final frame is local to recordLoop: clear the physical surface once.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root fresh destination nextFrame
