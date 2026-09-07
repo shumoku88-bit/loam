@@ -38,6 +38,46 @@ def daysInMonth? (month : Month) : Option Nat :=
 def dateForDay (month : Month) (day : Nat) : String :=
   padded 4 month.year ++ "-" ++ padded 2 month.month ++ "-" ++ padded 2 day
 
+/-- The next Gregorian calendar month. -/
+def nextMonth (month : Month) : Month :=
+  if month.month = 12 then
+    { year := month.year + 1, month := 1 }
+  else
+    { year := month.year, month := month.month + 1 }
+
+/-- The previous Gregorian calendar month when representable by this Nat year. -/
+def previousMonth? (month : Month) : Option Month :=
+  if month.month = 1 then
+    if month.year = 0 then none
+    else some { year := month.year - 1, month := 12 }
+  else if 1 < month.month && month.month ≤ 12 then
+    some { year := month.year, month := month.month - 1 }
+  else
+    none
+
+/-- Explicit half-open coordinates for one Gregorian calendar month. -/
+def monthWindow (month : Month) : String × String :=
+  (dateForDay month 1, dateForDay (nextMonth month) 1)
+
+/-- Calendar-month coordinates containing one valid ISO date. This is a UI
+coordinate constructor, not a household cycle policy. -/
+def calendarMonthWindowForDate? (text : String) : Option (String × String) := do
+  let month ← monthOf? text
+  pure (monthWindow month)
+
+/-- Recognize an exact Gregorian calendar-month half-open window. -/
+def calendarMonthOfWindow? (start endExclusive : String) : Option Month := do
+  let month ← monthOf? start
+  let expected := monthWindow month
+  if start = expected.1 && endExclusive = expected.2 then some month else none
+
+/-- Shift only an already-explicit calendar-month window by one month. -/
+def shiftCalendarMonthWindow?
+    (start endExclusive : String) (forward : Bool) : Option (String × String) := do
+  let month ← calendarMonthOfWindow? start endExclusive
+  let target ← if forward then some (nextMonth month) else previousMonth? month
+  pure (monthWindow target)
+
 private def monthOffset : Nat → Nat
   | 1 => 0
   | 2 => 3
@@ -76,5 +116,8 @@ def monthLabel (month : Month) : String :=
 example : firstWeekdayMonday { year := 2026, month := 9 } = 1 := by native_decide
 example : (slots { year := 2026, month := 9 })[1]? = some (some "2026-09-01") := by native_decide
 example : (slots { year := 2026, month := 9 })[30]? = some (some "2026-09-30") := by native_decide
+example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by native_decide
+example : shiftCalendarMonthWindow? "2026-12-01" "2027-01-01" true =
+    some ("2027-01-01", "2027-02-01") := by native_decide
 
 end Loam.Tui.Calendar
