@@ -126,6 +126,33 @@ def frontier {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) : List Id :=
   carrier.filter fun id => !(isSuperseded edges id)
 
+/-- Frontier membership is carrier membership plus a false superseded predicate. -/
+theorem mem_frontier_iff {Id : Type} [DecidableEq Id]
+    (carrier : List Id) (edges : List (ReplacementEdge Id)) (id : Id) :
+    id ∈ frontier carrier edges ↔
+      id ∈ carrier ∧ isSuperseded edges id = false := by
+  simp [frontier]
+
+/-- `isSuperseded = false` means exactly that no represented edge has this source. -/
+theorem isSuperseded_eq_false_iff {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) (id : Id) :
+    isSuperseded edges id = false ↔
+      ∀ edge ∈ edges, edge.superseded ≠ id := by
+  induction edges with
+  | nil => simp [isSuperseded]
+  | cons edge rest ih =>
+      simp [isSuperseded, ih]
+
+/--
+Mathematical frontier specification: retain exactly carrier identities outside
+the domain of the replacement partial map.
+-/
+theorem mem_frontier_iff_not_domain {Id : Type} [DecidableEq Id]
+    (carrier : List Id) (edges : List (ReplacementEdge Id)) (id : Id) :
+    id ∈ frontier carrier edges ↔
+      id ∈ carrier ∧ ∀ edge ∈ edges, edge.superseded ≠ id := by
+  rw [mem_frontier_iff, isSuperseded_eq_false_iff]
+
 /-! ## Production-shape adapters
 
 These functions do not replace any production boundary. They expose the common
@@ -180,6 +207,10 @@ example : acyclicByStartReturn chain = true := by
 /-- The frontier keeps the terminal successor and untouched carrier identity. -/
 example : frontier [0, 1, 2, 3] chain = [2, 3] := by
   decide
+
+/-- The generic theorem recovers the same frontier answer extensionally. -/
+example : 2 ∈ frontier [0, 1, 2, 3] chain := by
+  exact (mem_frontier_iff_not_domain [0, 1, 2, 3] chain 2).2 (by decide)
 
 /-- Competing successors violate partial-function structure. -/
 private def branching : List (ReplacementEdge Nat) :=
