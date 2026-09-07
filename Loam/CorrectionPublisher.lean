@@ -24,7 +24,6 @@ structure Draft where
   target : EventId
   effects : List Effect
   description : Option String := none
-  deriving Repr
 
 /-- Small frontend receipt after one manifest-backed correction publication. -/
 structure Receipt where
