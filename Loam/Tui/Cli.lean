@@ -1,11 +1,13 @@
 import Loam.Tui.Record
 import Loam.Tui.Attention
+import Loam.Tui.Capacity
 import Loam.MovementPublisher
 import Loam.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.AttentionReview
+import Loam.CapacityReview
 import Loam.Tui.Main
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -123,6 +125,20 @@ partial def attentionLoop
       Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
       attentionLoop next nextFrame
 
+/-- Read-only all-retained Capacity session. `true` means quit LOAM. -/
+partial def capacityLoop
+    (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Bool := do
+  let key ← Loam.Tui.Terminal.readKey
+  if key = .input 'q' || key = .input 'Q' then
+    return true
+  let back := key = .escape || key = .input 'b' || key = .input 'B'
+  match Loam.Tui.Capacity.update state back with
+  | .back => return false
+  | .stay next =>
+      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
+      Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame nextFrame
+      capacityLoop next nextFrame
+
 partial def loop (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
@@ -140,6 +156,22 @@ partial def loop (dataDir root : System.FilePath)
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor snapshot home
     -- The local Attention loop does not expose its last physical frame.
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
+    loop dataDir root snapshot home nextFrame
+  else if isHome && (key = .input 'c' || key = .input 'C') then
+    let capacitySnapshot ←
+      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      | .error message => throw (IO.userError message)
+      | .ok capacitySnapshot => pure capacitySnapshot
+    let capacity := Loam.Tui.Capacity.initial capacitySnapshot
+    let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
+    Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame capacityFrame
+    if ← capacityLoop capacity capacityFrame then
+      return
+    let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor snapshot home
+    -- The local Capacity loop does not expose its last physical frame.
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
     loop dataDir root snapshot home nextFrame
@@ -188,7 +220,7 @@ def run (args : List String) : IO UInt32 := do
     | .ok root => pure root
   Loam.Tui.Terminal.enter
   try
-    let state := { initialState snapshot.actual.today with notice := "a Attention" }
+    let state := { initialState snapshot.actual.today with notice := "a Attention   c Capacity" }
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 blank frame
