@@ -1,6 +1,6 @@
 # Observation 214 — AccountingRole-preserving Locus normalization
 
-Status: **PROBE — canonical migration pressure / RESEARCH_ONLY**
+Status: **COMPLETE — role-preserving re-key survives / RESEARCH_ONLY**
 
 ## Trigger
 
@@ -116,63 +116,87 @@ old AccountingRole(o)
 
 The role is **transported explicitly**. It is not inferred from the new token and the runtime is not asked to parse `assets:` / `expenses:` / `income:` prefixes as semantics.
 
-## C-seeking attacks
+## Executed result
 
-### 1. One-to-one re-key plus role transport preserves role-selected reports
+Alloy 6.2.0 + Sat4j ran on exact branch head
+`da7a3599ecc376d1733587fdac52f8084fd7d50b`.
+Dedicated workflow run `34083640585` completed **SUCCESS**.
 
-Require an injective old-to-new Locus mapping and transport the old role to each new target.
-
-Expected: **SAT witness** with several distinct roles and all selected report Effect sets preserved.
-
-This would show that spelling normalization need not erase accounting classification.
-
-### 2. Flat identity alone determines report classification
-
-Hold the old evidence and old-to-new mapping fixed while allowing only the new AccountingRole relation to differ.
-
-Expected: **SAT witness** with different role-selected answers.
-
-So a flat token such as `pension`, `smbc`, or `tobacco` cannot by itself replace the classification information previously carried by source account declarations/naming conventions.
-
-### 3. Same-role many-to-one merge can preserve accounting report selection
-
-Collapse two distinct old Loci with the same role onto one new Locus and transport that role.
-
-Expected: **SAT witness** where role-selected Effect sets remain equal but the re-key is not injective.
-
-This is deliberately dangerous in a useful way. It shows:
+Observed matrix:
 
 ```text
-accounting report parity != identity preservation
+injectiveRoleTransportPreservesReports              SAT
+sameFlatIdentitiesDifferentRoleAnswers               SAT
+sameRoleMergePreservesAccountingButLosesIdentity     SAT
+differentRoleMergeCandidate                          SAT
+RoleTransportDeterminesSelectedReports               UNSAT counterexample
+DifferentRoleMergeCannotPreserveSelectedReports      UNSAT counterexample
+AccountingParityImpliesIdentityPreservation           SAT counterexample
 ```
 
-Per-Locus history, balance, routing, provenance, or other household questions can still distinguish the two source coordinates.
+## Findings
 
-### 4. Different-role many-to-one merge pressure exists
+### 1. One-to-one re-key plus role transport preserves the selected accounting partition
 
-Allow two old Loci with different roles to collide on one new Locus.
+A witness exists with several distinct AccountingRoles where the Locus mapping is injective, the old role is transported to the new target, and every role-selected Effect set is unchanged.
 
-Expected: **SAT candidate**.
+So source-shaped spelling is not required to retain the selected accounting classification.
 
-The model then attacks whether one post-migration role can preserve both source classifications.
+### 2. Flat identity alone is insufficient
 
-### 5. Role transport determines the selected report partition
+Holding old evidence and the old-to-new mapping fixed while changing only the post-migration AccountingRole produced different role-selected report answers.
 
-Expected check: **UNSAT counterexample**.
+Therefore:
 
-### 6. A different-role merge can preserve all selected role reports
+```text
+flat Locus token
+    !=
+AccountingRole evidence
+```
 
-Expected check: **UNSAT counterexample**. With every modeled source Locus observed by at least one Effect, one new Locus with one role cannot preserve two conflicting source classifications.
+A token such as `pension`, `smbc`, or `tobacco` cannot by itself replace the classification information that was previously recoverable from source account declarations or naming conventions.
 
-### 7. Accounting report parity implies identity preservation
+### 3. Same-role merge can fool an accounting-only parity check
 
-Expected check: **SAT counterexample**.
+Alloy found a many-to-one mapping where two distinct old Loci share the same AccountingRole and the selected accounting report Effect sets are preserved.
 
-A same-role merge should refute this stronger claim.
+But the mapping is not injective.
 
-## Interpretation if the matrix survives
+Therefore:
 
-The candidate migration boundary becomes:
+```text
+accounting report parity
+    !=
+stable Locus identity preservation
+```
+
+Per-Locus history, balance, routing, provenance, or another household query may still distinguish those source coordinates.
+
+### 4. Different-role merge cannot preserve the selected role vocabulary with one post-migration role
+
+The model allows two differently classified source Loci to collide on one new Locus, so the pressure is not ruled out syntactically.
+
+But with every source Locus observed by at least one Effect, Alloy found no counterexample to the claim that such a collision cannot preserve all role-selected report answers when the new Locus has at most one AccountingRole.
+
+This is a concrete stop sign against mechanical leaf-name merging.
+
+### 5. Explicit role transport is sufficient for the selected report classification
+
+Alloy found no counterexample where role transport holds but the selected report partition changes.
+
+For the bounded migration vocabulary:
+
+```text
+one-to-one re-key
++ transported AccountingRole
+    -> selected accounting report classification preserved
+```
+
+The quantity fold itself remains ordinary existing LOAM arithmetic over unchanged Effect quantities.
+
+## Migration boundary
+
+The qualified candidate is:
 
 ```text
 one-to-one Locus re-key
@@ -185,7 +209,7 @@ many-to-one Locus merge
     -> accounting parity alone is insufficient evidence
 ```
 
-This is materially different from both of the tempting shortcuts:
+This is materially different from both tempting shortcuts:
 
 ```text
 strip `expenses:` and forget the role
@@ -197,13 +221,15 @@ and:
 merge anything with the same human leaf name
 ```
 
-Neither shortcut is justified by prior LOAM results.
+Neither shortcut is justified.
 
-## Production implications if qualified
+## Production implication
 
-A later production slice may be justified to introduce the **smallest explicit role evidence needed by actual report questions**, then use it during a quiescent canonical vocabulary cutover.
+The observation now justifies the **next gate**, not an immediate data rewrite:
 
-A candidate cutover would need to translate every retained Locus reference consistently, not only Event effects. Depending on the final selected mapping this can include:
+> inventory the current household Locus vocabulary, assign explicit candidate AccountingRole evidence where actually needed by household report questions, and prepare a one-to-one normalization candidate separately from any merge candidates.
+
+A future cutover should translate every retained Locus reference consistently, not only Event effects. Depending on the then-current authority topology this can include:
 
 - selected Movement Event evidence;
 - LocusAdmission;
@@ -211,13 +237,13 @@ A candidate cutover would need to translate every retained Locus reference consi
 - balance-view selection;
 - ActualRouting source coordinates;
 - Scheduled or other retained evidence that names Loci;
-- any future role evidence itself.
+- the new role evidence itself.
 
-The exact inventory must be generated from the then-current authority topology immediately before cutover.
+The exact inventory must be regenerated immediately before cutover.
 
 ## Deliberate boundaries
 
-Even a successful Observation 214 does **not** establish:
+Observation 214 does **not** establish:
 
 - a permanent production five-role taxonomy;
 - that every Locus must always have exactly one role through all time;
@@ -235,9 +261,9 @@ Even a successful Observation 214 does **not** establish:
 
 In particular, "account balance" and "all assets" remain different possible queries. `balance-view.tsv` already demonstrates that presentation/holding selection can be narrower than an accounting role partition.
 
-## Next gate if qualified
+## Next gate
 
-Before writing canonical data, build a complete **migration candidate table** over the current household vocabulary:
+Build a complete migration candidate table over the current household vocabulary:
 
 ```text
 old Locus
@@ -257,4 +283,4 @@ possible merge requiring separate proof
 unresolved
 ```
 
-Only then should a single quiescent data cutover be prepared and parity-tested.
+Only after that inventory should a production AccountingRole representation and a single quiescent canonical data cutover be designed.
