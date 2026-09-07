@@ -1,6 +1,6 @@
 # Observation 218 follow-up — production decomposition and cycle-detector pressure
 
-Status: **RESEARCH_ONLY / exact-equivalence gate still open**
+Status: **RESEARCH_ONLY / no-merge production-shaped probe / exact-equivalence gate still open**
 
 Baseline production main: `4cf5370a54f2e8aebb37b55077cdb1dee8efc822`
 
@@ -93,54 +93,10 @@ local
   frontier QuantityCoordinate uniqueness
 ```
 
-## Two production cycle-detector shapes
-
-Event Correction and Scheduled Replacement use a seen-set traversal:
-
-```text
-walk successors
-remember every visited identity
-reject on any revisit
-```
-
-ActualValidity and QuantityBasis use a start-return traversal:
-
-```text
-for every represented source s:
-  walk successors
-  reject when the path returns to s
-```
-
-These are not path-locally equivalent for arbitrary deterministic graphs.
-
-The witness
-
-```text
-0 -> 1 -> 2 -> 1
-```
-
-is rejected by the seen-set walk from `0`, while the start-return walk from `0`
-does not return to `0`.
-
-However the witness is **not a partial injection**:
-
-```text
-0 -> 1
-2 -> 1
-```
-
-share successor `1`.
-
-All four production families already reject this shape through replacement
-uniqueness. Therefore the remaining production bridge may be proved under the
-actually admitted endpoint-unique shape rather than for arbitrary edge lists.
-
 ## Universal Lean results now proved
 
 The generic Observation 218 probe establishes the following for arbitrary
 identity types with decidable equality.
-
-### Endpoint specification
 
 ```text
 endpointUnique edges = true
@@ -148,207 +104,197 @@ iff
 sources(edges).Nodup AND successors(edges).Nodup
 ```
 
-### Reference-closure specification
-
 ```text
 referencesClosed carrier edges = true
 iff
-for every edge e:
-  e.superseded ∈ carrier
-  e.successor  ∈ carrier
+every represented endpoint belongs to carrier
 ```
 
-### One-step successor injectivity
+Successor lookup is injective when successor identities are `Nodup`, and every
+defined finite iterate remains injective. The cancellation theorem then shows
+that an external tail cannot enter a cycle without violating successor
+injectivity.
+
+Frontier membership is proved extensionally:
 
 ```text
-successors(edges).Nodup
-nextSuccessor? edges left  = some endpoint
-nextSuccessor? edges right = some endpoint
--------------------------------------------
-left = right
+id ∈ frontier carrier edges
+iff
+id ∈ carrier AND id ∉ dom(f)
 ```
 
-### Finite-iterate injectivity
+## Cycle detector factorization
 
-For every finite `steps`:
+Production has two cycle-detector implementations:
 
 ```text
-successors(edges).Nodup
-advance? edges steps left  = some endpoint
-advance? edges steps right = some endpoint
--------------------------------------------
-left = right
+Event / Scheduled                 seen-set walk
+ActualValidity / QuantityBasis    start-return from every represented source
 ```
 
-### No external tail into a cycle
-
-The cancellation theorem is proved:
+They are not path-locally equivalent on arbitrary deterministic graphs. The
+lasso
 
 ```text
-advance? edges prefixSteps start = some repeated
-advance? edges (period + prefixSteps) start = some repeated
------------------------------------------------------------
-advance? edges period start = some start
+0 -> 1 -> 2 -> 1
 ```
 
-under successor endpoint `Nodup`.
+separates the path-local checks from source `0`, but also violates replacement
+injectivity because successor `1` has two incoming edges.
 
-This formalizes the partial-injection fact that a distinct external tail cannot
-feed an existing cycle without creating a shared successor.
-
-### Start-return factors through cycle existence
-
-The production-style start-return detector has now been factored through a
-separate whole-graph predicate:
+The start-return whole-graph implementation has now been factored through a
+third semantic predicate:
 
 ```text
 hasCycleByReturn edges
 ```
 
-where a represented cycle exists exactly when some represented source returns
-to itself within the finite edge-count bound.
-
-Lean proves:
+Lean proves universally:
 
 ```text
 acyclicByStartReturn edges = !hasCycleByReturn edges
 ```
 
-for arbitrary finite deterministic successor lookup, with no endpoint-uniqueness
-premise required for this factorization.
-
-This is important because the two production algorithms no longer need to be
-compared directly. The remaining task is to connect the seen-set detector to the
-same cycle-existence specification on the admitted production shape.
-
-### Frontier specification
-
-```text
-id ∈ frontier carrier edges
-iff
-id ∈ carrier AND
-no represented edge has superseded = id
-```
-
-So the generic frontier is exactly `carrier \\ dom(f)` extensionally.
-
-## Bounded witnesses retained
-
-The executable witnesses check:
-
-```text
-ordinary chain               accepted by both cycle detectors
-simple cycle                 rejected by both
-lasso                         path-local algorithms differ
-lasso                         rejected by endpoint uniqueness
-lasso                         rejected by both whole-graph checks
-branching source              rejected
-shared successor / merge     rejected
-open reference                rejected
-```
+The remaining difficult bridge is therefore only to connect the seen-set
+implementation to the same cycle-existence specification on the admitted
+endpoint-unique shape.
 
 ## Minimal runtime extraction probe
 
-The research now contains a second executable probe:
+`experiments/218_minimal_frontier_kernel.lean` strips proofs and witnesses and
+keeps only the structural runtime plus four adapters.
+
+The complete executable probe is **81 lines**, including imports, namespace
+boilerplate and all four adapters. Dedicated Observation 218 CI compiles both
+this minimal probe and the theorem-heavy probe on Lean 4.33.1.
+
+## Two-family production-shaped probe
+
+The research branch now goes one step further. It contains a deliberately
+**no-merge production-shaped patch**:
 
 ```text
-experiments/218_minimal_frontier_kernel.lean
+Loam/Application/ReplacementFrontier.lean
+Loam/Application/ActualValidityFrontier.lean
+Loam/Application/QuantityBasisFrontier.lean
 ```
 
-It deliberately strips all proof lemmas, bounded witnesses, explanatory helper
-machinery, and production-specific semantic laws. It keeps only:
+This changes Application files on the research branch only so that actual source
+deletion and adapter burden can be measured. Production `main` remains unchanged.
+
+Only structural mechanics moved into the shared module:
 
 ```text
 Edge
 endpoint uniqueness
 reference closure
-successor lookup
-bounded return / cycle-free check
-structural admission
-replacement-domain test
-frontier projection
-four thin production-shape adapters
+bounded cycle-free check
+supersession-domain membership
+frontier filtering
 ```
 
-The complete file is **81 lines**, including imports, namespace boilerplate and
-all four adapters.
-
-Its declaration surface is approximately:
+The following remain local:
 
 ```text
-9 shared structural declarations
-4 adapters
+ActualValidity: preserves EventId, frontier EventId uniqueness
+QuantityBasis:  preserves QuantityCoordinate, frontier coordinate uniqueness
 ```
 
-The dedicated Observation 218 CI compiles both the theorem-heavy research probe
-and this minimal kernel successfully on Lean 4.33.1.
+Public Application entry-point names are retained.
 
-This does not yet prove that production would shrink by exactly 81 lines. Typed
-carrier lookup, domain-local preservation laws, and existing public result APIs
-must remain. But it materially changes the complexity assessment: the candidate
-runtime abstraction is demonstrably small rather than merely mathematically
-attractive.
+### Measured source delta
 
-## What remains for seen-set equivalence
-
-The remaining hard bridge is the Event / Scheduled seen-set implementation.
-Under endpoint uniqueness, the likely finite-list proof is:
-
-1. every nonterminal visited identity is a represented source;
-2. successor injectivity prevents an external tail from entering a cycle;
-3. source `Nodup` prevents more than `edges.length` distinct nonterminal source
-   visits;
-4. therefore seen-set fuel exhaustion cannot occur without a repeat;
-5. a repeat corresponds to a represented cycle, connecting the detector to
-   `hasCycleByReturn`.
-
-Lean's existing `List.Nodup.length_le_of_subset` is sufficient for the finite
-cardinality step, so no general graph-theory dependency appears necessary yet.
-
-If this bridge becomes large despite the small runtime kernel, that proof cost is
-still evidence against production promotion. Mathematical sameness alone is not
-enough.
-
-## Build-topology side observation
-
-Adding the fourth QuantityBasis adapter initially failed because its imported
-module had not been built on the existing probe path. The adapter and algebra
-were not at fault. Explicitly building the imported frontier-family modules made
-the four-adapter probe pass.
-
-This is relevant to the wider simplification study: semantic decomposition can
-leave hidden complexity in module/build topology. Extraction cost therefore
-includes dependency topology, not only source-line count.
-
-## Current complexity judgement
-
-Observation 218 has now crossed one important threshold:
+Compared with the immediately preceding research checkpoint:
 
 ```text
-mathematical commonality      established strongly
-minimal runtime shape         small and executable (81 lines)
-start-return specification    universally factored
-frontier specification        universally proved
-seen-set exact bridge         still open
-production deletion delta     not yet measured by an actual replacement patch
+ReplacementFrontier.lean          +54
+ActualValidityFrontier.lean        +13 / -52
+QuantityBasisFrontier.lean         +12 / -58
+---------------------------------------------
+Application source total           +79 / -110
+net                                 -31 lines
 ```
 
-So the current judgement moves from merely `promising` to
-**credible production simplification candidate**, but not yet `promote`.
+So the shared runtime's fixed cost is already recovered by only the two
+start-return families. This is a materially stronger result than the 81-line
+standalone probe: the candidate is source-negative against existing production
+machinery before Event Correction or Scheduled Replacement are migrated.
+
+The two adapters also preserve existing public function names; the deleted
+surface is predominantly private structural machinery.
+
+This line count is evidence, not the final promotion decision. Exact behavioral
+CI and the seen-set bridge still matter more than raw LOC.
+
+## Build and compatibility gates
+
+The dedicated Observation 218 workflow now builds the two modified Application
+modules directly before compiling both research probes.
+
+The especially relevant existing production checks are:
+
+```text
+Lean Application
+Practical Actual Validity Correction
+```
+
+A production-shaped promotion is not qualified until those and the dedicated
+exact-head check pass on the candidate head.
+
+## Information-order side observation
+
+A parallel read-only audit suggests a separate future lattice/order experiment,
+but also supplies an important counterexample against premature unification.
+
+```text
+RelationSourceState.unknown
+Scheduled day evidence .unknown
+```
+
+are evidence-level open-world absence states, while
+
+```text
+AttentionDue.dueUndetermined
+```
+
+is a value-level statement that due meaning exists but its time is
+undetermined.
+
+Therefore a future information-order model must separate at least:
+
+```text
+knowledge/evidence axis
+value-semantic axis
+```
+
+rather than collapsing every constructor named "unknown" into one lattice
+point.
 
 ## Production gate
 
-Still **do not promote** Observation 218.
+Still **do not merge/promote** Observation 218.
 
-The remaining gate is:
+Current status:
 
-1. connect the seen-set detector to the same cycle specification on the admitted
-   endpoint-unique shape;
-2. reconstruct all four production admissions as shared structural mechanics plus
-   their local semantic laws;
-3. make a no-merge production replacement patch and measure actual deletions,
-   dependency fanout, and adapter burden;
-4. promote only if that patch is materially smaller and clearer.
+```text
+mathematical commonality             strongly established
+minimal runtime shape                small and executable
+start-return cycle specification     universally factored
+two-family real source delta         -31 Application lines
+public entry-point churn             none in the two-family probe
+seen-set exact bridge                still open
+candidate exact-head production CI   must finish
+```
+
+Next gate:
+
+1. obtain green exact-head CI for the production-shaped two-family patch;
+2. connect seen-set to the same cycle specification without importing a general
+   graph framework;
+3. only then prototype Event / Scheduled adapters and measure the four-family
+   deletion delta;
+4. promote only if the final patch stays materially smaller, clearer, and has no
+   new semantic owner outside the domain-local laws.
 
 The desired result remains:
 
