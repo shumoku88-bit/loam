@@ -1,0 +1,50 @@
+name: Observation 219
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/219_zero_basis_elimination.lean'
+      - 'experiments/219_zero_basis_elimination.md'
+      - '.github/workflows/observation-219-zero-basis-elimination.yml'
+      - 'Loam/Core/QuantityBasisMemory.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  zero-basis-elimination:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build production quantity slice
+        run: |
+          lake build Loam.Application.CurrentQuantity
+      - name: Check Observation 219 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/219_zero_basis_elimination.lean > /tmp/observation-219-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-219-lean.log
+          exit "$status"
+      - name: Upload Observation 219 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-219-lean-log
+          path: /tmp/observation-219-lean.log
