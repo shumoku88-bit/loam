@@ -1,9 +1,15 @@
 import Loam.Tui.Main
+import Loam.Tui.HraActual
 
 open Loam.Core Loam.Tui.Kernel
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
+
+private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
+  match value with
+  | some result => pure result
+  | none => throw (IO.userError message)
 
 private def widgetText (widget : Widget) : String :=
   String.intercalate "\n" <| widget.lines.map fun cells =>
@@ -22,6 +28,37 @@ private def testRecord (index : Nat) : Loam.Tui.Main.ReviewRecord :=
     replacement := none
     isCurrent := true }
 
+private def actualRecord?
+    (id date description fromLocus toLocus : String) (quanta : Int) : Option Loam.Tui.Main.ReviewRecord := do
+  let event ← Event.ofEffects? ⟨id⟩
+    [ Effect.ofQuantity ⟨id ++ "-from"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-quanta))
+    , Effect.ofQuantity ⟨id ++ "-to"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
+    ]
+  pure { event, date := some date, description, replacement := none, isCurrent := true }
+
+private def emptyScheduledSnapshot : IO Loam.ScheduledReview.EvidenceSnapshot := do
+  let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "empty Scheduled memory was not admitted"
+  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? []) "empty completion memory was not admitted"
+  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? []) "empty retirement memory was not admitted"
+  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? []) "empty replacement memory was not admitted"
+  let events ← requireSome (EventMemory.ofEvents? []) "empty Event memory was not admitted"
+  pure { scheduled, completions, retirements, replacements, events }
+
+private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
+  let first ← requireSome (actualRecord? "event-0" "2026-09-07" "alpha" "paypay" "food" 100)
+    "first HRA Actual fixture was not admitted"
+  let second ← requireSome (actualRecord? "event-1" "2026-09-07" "beta" "smbc" "paypay" 200)
+    "second HRA Actual fixture was not admitted"
+  let previous ← requireSome (actualRecord? "event-2" "2026-09-06" "gamma" "paypay" "books" 300)
+    "previous-day HRA Actual fixture was not admitted"
+  let scheduled ← emptyScheduledSnapshot
+  let actual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-07"
+    allRecords := [previous, second, first]
+    undatedCount := 0
+  }
+  pure { actual, scheduled }
+
 private def initialCursor : Loam.Tui.Main.ReviewCursor :=
   let displayed := ((List.range 12).map testRecord).toArray
   let selected : Option (Fin displayed.size) :=
@@ -38,6 +75,25 @@ private def moveNextN : Nat → Loam.Tui.Main.ReviewCursor → Loam.Tui.Main.Rev
       moveNextN count next
 
 def main : IO Unit := do
+  let snapshot ← hraSnapshot
+  let hraStart := Loam.Tui.HraActual.initial "2026-09-07"
+  expect ((Loam.Tui.HraActual.visibleRecords snapshot hraStart).length == 2)
+    "HRA Actual Focus Day did not use the shared selected-day Actual answer"
+  let right := (Loam.Tui.HraActual.update snapshot hraStart .focusRight).state
+  let second := (Loam.Tui.HraActual.update snapshot right .next).state
+  match Loam.Tui.HraActual.selectedRecord? snapshot second with
+  | none => throw (IO.userError "HRA Actual transaction selection disappeared")
+  | some record => expect (record.description == "beta")
+      "HRA Actual j/down-style selection did not move to the second transaction"
+  let hraText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot second)
+  expect (contains "Household Actuals Workspace" hraText)
+    "HRA Actual shell heading disappeared"
+  expect (contains "Selected Actual Details:" hraText && contains "beta" hraText)
+    "HRA Actual did not keep selected transaction details visible without a detail transition"
+  let allCurrent := (Loam.Tui.HraActual.update snapshot second .cycleFilter).state
+  expect ((Loam.Tui.HraActual.visibleRecords snapshot allCurrent).length == 3)
+    "HRA Actual filter did not expand from Focus Day to all current Actual evidence"
+
   let recent := Loam.Tui.Main.recentActualPreview ((List.range 5).map testRecord)
   expect (recent.map (·.description) == ["row-4", "row-3", "row-2"])
     "Home Actual preview did not show the three most recent selected-day records first"
@@ -91,4 +147,4 @@ def main : IO Unit := do
         "Actual end-of-list refusal moved the selection"
   | _, _ => throw (IO.userError "Actual end-of-list selection became unavailable")
 
-  IO.println "TUI Actual: recent Home preview, full-day navigation and derived ten-row window passed."
+  IO.println "TUI Actual: HRA workspace mechanics and retained legacy navigation checks passed."
