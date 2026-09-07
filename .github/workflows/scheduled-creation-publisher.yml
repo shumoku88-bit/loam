@@ -1,0 +1,63 @@
+name: Shared Scheduled Creation Publisher
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Tests/ScheduledCreationPublisher.lean'
+      - '.github/workflows/scheduled-creation-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Tests/ScheduledCreationPublisher.lean'
+      - '.github/workflows/scheduled-creation-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test manifest-backed Scheduled creation publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared Scheduled creation dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.ScheduledCreationPublisher Loam.ScheduledReview
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify manifest-backed Scheduled creation publication
+        run: lake env lean --run Loam/Tests/ScheduledCreationPublisher.lean "$(mktemp -d)/scheduled-creation-publisher"
