@@ -1,0 +1,63 @@
+name: Shared ActualValidity Publisher
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Tests/ActualValidityPublisher.lean'
+      - '.github/workflows/actual-validity-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Tests/ActualValidityPublisher.lean'
+      - '.github/workflows/actual-validity-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test manifest-backed date publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared publisher test dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify manifest-backed occurrence-date publication
+        run: lake env lean --run Loam/Tests/ActualValidityPublisher.lean "$(mktemp -d)/actual-validity-publisher"
