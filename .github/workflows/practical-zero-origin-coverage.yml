@@ -1,0 +1,192 @@
+name: Practical Zero-Origin Coverage
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'tools/loam'
+      - '.github/workflows/practical-zero-origin-coverage.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'tools/loam'
+      - '.github/workflows/practical-zero-origin-coverage.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build and test zero-origin coverage slice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build practical quantity binary
+        run: lake build loamDailyQuantity
+
+      - name: Derive current quantities from explicit zero-origin coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          coverage="$tmp/zero-origin-coverage.loam"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	opening
+          EFFECT	opening-source	opening-source	jpy	-100000
+          EFFECT	opening-bank	bank	jpy	100000
+          EVENT	income
+          EFFECT	income-source	pension	jpy	-20000
+          EFFECT	income-bank	bank	jpy	20000
+          EVENT	food
+          EFFECT	food-bank	bank	jpy	-5000
+          EFFECT	food-use	food	jpy	5000
+          EVENT	wallet
+          EFFECT	wallet-bank	bank	jpy	-10000
+          EFFECT	wallet-cash	wallet	jpy	10000
+          EOF
+
+          cat >"$coverage" <<'EOF'
+          LOAM-ZERO-ORIGIN-COVERAGE	1
+          COORDINATE	bank	jpy
+          COORDINATE	wallet	jpy
+          COORDINATE	pension	jpy
+          COORDINATE	food	jpy
+          EOF
+
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$corrections" "$coverage" >"$tmp/current.out"
+          grep -F 'bank: 105000 jpy' "$tmp/current.out"
+          grep -F 'wallet: 10000 jpy' "$tmp/current.out"
+          grep -F 'pension: -20000 jpy' "$tmp/current.out"
+          grep -F 'food: 5000 jpy' "$tmp/current.out"
+          if grep -Fq 'opening-source:' "$tmp/current.out"; then
+            echo 'Event activity outside zero-origin coverage leaked into current domain' >&2
+            exit 1
+          fi
+
+      - name: Keep balance view presentation-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          coverage="$tmp/zero-origin-coverage.loam"
+          view="$tmp/balance-view.tsv"
+
+          cat >"$memory" <<'EOF'
+          LOAM-EVENT-MEMORY	1
+          EVENT	opening
+          EFFECT	e1	opening-source	jpy	-100
+          EFFECT	e2	bank	jpy	100
+          EVENT	spend
+          EFFECT	e3	bank	jpy	-30
+          EFFECT	e4	food	jpy	30
+          EOF
+          cat >"$coverage" <<'EOF'
+          LOAM-ZERO-ORIGIN-COVERAGE	1
+          COORDINATE	bank	jpy
+          COORDINATE	cash	jpy
+          EOF
+          printf 'bank\tjpy\ncash\tjpy\n' >"$view"
+
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$corrections" "$coverage" "$view" >"$tmp/balances.out"
+          grep -F 'bank: 70 jpy' "$tmp/balances.out"
+          grep -F 'cash: 0 jpy' "$tmp/balances.out"
+
+          printf 'food\tjpy\n' >"$view"
+          set +e
+          .lake/build/bin/loamDailyQuantity balances \
+            "$memory" "$corrections" "$coverage" "$view" \
+            >"$tmp/uncovered.out" 2>"$tmp/uncovered.err"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          test ! -s "$tmp/uncovered.out"
+          grep -F 'zero-origin coverage missing for food / jpy' "$tmp/uncovered.err"
+
+      - name: Fail closed on duplicate or malformed coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
+          coverage="$tmp/zero-origin-coverage.loam"
+          printf 'LOAM-EVENT-MEMORY\t1\n' >"$memory"
+
+          cat >"$coverage" <<'EOF'
+          LOAM-ZERO-ORIGIN-COVERAGE	1
+          COORDINATE	bank	jpy
+          COORDINATE	bank	jpy
+          EOF
+          set +e
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$corrections" "$coverage" >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/duplicate.out"
+          grep -F 'malformed or unsupported zero-origin coverage file' "$tmp/duplicate.err"
+
+          printf 'BROKEN\n' >"$coverage"
+          set +e
+          .lake/build/bin/loamDailyQuantity current \
+            "$memory" "$corrections" "$coverage" >"$tmp/malformed.out" 2>"$tmp/malformed.err"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          test ! -s "$tmp/malformed.out"
+
+      - name: Keep starting-quantity writers retired
+        shell: bash
+        run: |
+          set -euo pipefail
+          for command in starting-quantity correct-starting-quantity; do
+            set +e
+            .lake/build/bin/loamDailyQuantity "$command" /tmp/unused /tmp/unused-2 \
+              >"/tmp/$command.out" 2>"/tmp/$command.err"
+            status=$?
+            set -e
+            test "$status" -eq 2
+            test ! -s "/tmp/$command.out"
+            grep -F 'retired' "/tmp/$command.err"
+          done
+          if ./tools/loam help | grep -Eq 'starting-quantity|correct-starting-quantity'; then
+            echo 'retired starting writer still advertised by human-facing help' >&2
+            exit 1
+          fi
