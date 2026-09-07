@@ -1,6 +1,6 @@
 # Observation 215 — AccountingRole granularity under legacy mixed-use pressure
 
-Status: **PROBE — migration/runtime boundary / RESEARCH_ONLY**
+Status: **COMPLETE — migration-time split survives / RESEARCH_ONLY**
 
 ## Trigger
 
@@ -70,7 +70,7 @@ For the mixed coordinate it should fail because one value cannot equal two diffe
 Effect -> AccountingRole
 ```
 
-This is expected to preserve the whole specimen. The important question is whether it is **necessary**, not merely sufficient.
+This can preserve the whole specimen. The important question is whether it is **necessary**, not merely sufficient.
 
 ### C. Migration-time Effect split followed by stable new-Locus role
 
@@ -84,9 +84,9 @@ new Locus
 
 The mixed source Effects may be sent to two distinct new Loci, while role-homogeneous source evidence can still use an ordinary one-Locus re-key.
 
-If this succeeds, mixed legacy data does not by itself force a permanent runtime `Effect -> AccountingRole` relation.
+## Executed Alloy result
 
-## Expected matrix
+Alloy 6.2.0 + Sat4j on branch head `ee1c48566a08fb6e2dd607117359294eaeaf08a3` produced exactly the expected matrix. Dedicated workflow run `34084883698` completed SUCCESS.
 
 ```text
 stableLegacyPermanentRoleWorks                    SAT
@@ -105,21 +105,26 @@ The second UNSAT distinguishes ordinary re-keying from splitting: mapping the mi
 
 The split witness is the conservative escape: migration can translate retained Effects separately into clean new coordinates, after which new-Locus role is sufficient for the selected bounded answer.
 
-## Interpretation if qualified
+The `MixedLegacyForcesMixedNewLocus` counterexample confirms that source granularity does not force destination granularity. One mixed legacy identity can be split into distinct role-homogeneous new identities.
 
-The intended boundary is:
+## Finding
+
+The qualified bounded separation is:
 
 ```text
-role-homogeneous Locus
-    -> Locus-level AccountingRole may be sufficient
+role-homogeneous legacy Locus
+    -> one Locus-level AccountingRole can be sufficient
 
 mixed legacy Locus
-    -> one old-Locus role is too coarse
+    -> one role on that old identity is too coarse
+
+Effect-relative AccountingRole
+    -> sufficient
 
 but
 
 mixed legacy Locus
-    does NOT by itself imply
+    does NOT force
 permanent Effect-level AccountingRole in production
 
 because
@@ -127,7 +132,7 @@ because
 migration-time Effect split
 + clean new Locus identities
 + new-Locus AccountingRole
-    may preserve the selected answer
+    -> selected accounting classification can also be preserved
 ```
 
 This keeps two different questions separate:
@@ -139,19 +144,19 @@ What granularity should clean LOAM production evidence use after migration?
 
 The former need not dictate the latter.
 
-## Production implications if the matrix survives
+## Production implications
 
 Before production AccountingRole persistence is designed, the migration inventory's `SPLIT_OR_RECLASSIFY` rows should be reviewed at Event + description level.
 
 For each mixed source coordinate, classify retained Effects into candidate clean identities. Only after that review can LOAM test whether every resulting production Locus is role-homogeneous enough for a small Locus-level relation.
 
-This also suggests that a canonical cutover tool, if eventually built, may need a finer migration map than Observation 214's:
+A canonical cutover tool, if eventually built, may therefore need a finer migration map than Observation 214's ordinary:
 
 ```text
 OldLocus -> NewLocus
 ```
 
-For mixed coordinates it may need an explicit, finite, reviewed mapping such as:
+For mixed coordinates it may need an explicit, finite, reviewed map such as:
 
 ```text
 EffectKey -> NewLocus
@@ -161,7 +166,7 @@ as **migration scaffolding only**. That mapping need not survive as ordinary run
 
 ## Deliberate boundaries
 
-Even a successful Observation 215 does **not** establish:
+Observation 215 does **not** establish:
 
 - production `Locus -> AccountingRole` persistence;
 - production `Effect -> AccountingRole` persistence;
@@ -176,7 +181,7 @@ Even a successful Observation 215 does **not** establish:
 
 ## Next gate
 
-If migration-time splitting survives, review the concrete `SPLIT_OR_RECLASSIFY` rows from `loam-data` and ask:
+Review the concrete `SPLIT_OR_RECLASSIFY` rows from `loam-data` and ask:
 
 > After a reviewed split, are the resulting candidate Loci role-homogeneous across the retained household history?
 
