@@ -1,4 +1,5 @@
 import Loam.Core.RelationAdmission
+import Loam.Application.ReplacementFrontier
 
 namespace Loam.Application
 
@@ -25,59 +26,16 @@ private def targetsEvent : List EventCorrection → EventId → Bool
       else
         targetsEvent rest id
 
-private def replacesWith : List EventCorrection → EventId → Bool
-  | [], _ => false
-  | correction :: rest, id =>
-      if correction.replacement = id then
-        true
-      else
-        replacesWith rest id
+private def correctionEdges
+    (corrections : EventCorrectionMemory) :
+    List (ReplacementFrontier.Edge EventId) :=
+  corrections.corrections.map fun correction =>
+    { source := correction.target, successor := correction.replacement }
 
-private def uniqueTargets : List EventCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      !(targetsEvent rest correction.target) && uniqueTargets rest
-
-private def uniqueReplacements : List EventCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      !(replacesWith rest correction.replacement) && uniqueReplacements rest
-
-private def closedReferences
-    (events : EventMemory) : List EventCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      EventCorrection.referencesPresent events correction &&
-        closedReferences events rest
-
-private def findByTarget? : List EventCorrection → EventId → Option EventCorrection
-  | [], _ => none
-  | correction :: rest, id =>
-      if correction.target = id then
-        some correction
-      else
-        findByTarget? rest id
-
-private def pathAcyclic
-    (corrections : List EventCorrection)
-    (current : EventId)
-    (seen : List EventId) : Nat → Bool
-  | 0 => false
-  | fuel + 1 =>
-      if current ∈ seen then
-        false
-      else
-        match findByTarget? corrections current with
-        | none => true
-        | some correction =>
-            pathAcyclic corrections correction.replacement (current :: seen) fuel
-
-private def allPathsAcyclic
-    (corrections : List EventCorrection) : List EventCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      pathAcyclic corrections correction.target [] (corrections.length + 1) &&
-        allPathsAcyclic corrections rest
+private def eventPresent
+    (events : EventMemory)
+    (id : EventId) : Bool :=
+  (EventMemory.findById? events id).isSome
 
 /--
 Whether the retained correction facts justify one order-free frontier using
@@ -98,11 +56,8 @@ beyond the explicit correction relation itself.
 def correctionFrontierAdmissible
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
-  let items := corrections.corrections
-  uniqueTargets items &&
-    uniqueReplacements items &&
-    closedReferences events items &&
-    allPathsAcyclic items items
+  ReplacementFrontier.structurallyAdmissible
+    (eventPresent events) (correctionEdges corrections)
 
 private def frontierEvents
     (events : EventMemory)
