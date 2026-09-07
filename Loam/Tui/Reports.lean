@@ -1,4 +1,5 @@
 import Loam.BudgetWindowReview
+import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 
@@ -11,10 +12,12 @@ set_option autoImplicit false
 /-!
 # Reports / Budget Window
 
-This local interaction state edits only explicit query coordinates. It does not
-choose a cycle, month, selected-day window, or persisted report identity.
-Canonical evidence loading and budget semantics remain outside this module in
-`BudgetWindowReview` / Application.
+This local interaction state edits explicit query coordinates. For convenience,
+production may seed those coordinates with the Gregorian calendar month containing
+the Home selected day. That constructor is presentation-only: it does not choose
+a household cycle, budget period, or retained report identity. Canonical evidence
+loading and budget semantics remain outside this module in `BudgetWindowReview` /
+Application.
 -/
 
 structure Form where
@@ -30,6 +33,7 @@ structure Query where
 
 structure State where
   form : Form := {}
+  calendarAnchor : String := ""
   snapshot : Option Loam.BudgetWindowReview.Snapshot := none
   notice : String := ""
   deriving Repr, DecidableEq
@@ -42,6 +46,21 @@ structure Step where
 
 def initial : State := {}
 
+/-- Seed the editor with the explicit Gregorian month containing the selected day.
+The resulting coordinates remain editable and carry no household-cycle meaning. -/
+def initialForDate (selectedDate : String) : State :=
+  match Loam.Tui.Calendar.calendarMonthWindowForDate? selectedDate with
+  | some (start, endExclusive) =>
+      {
+        form := { start := start, endExclusive := endExclusive, focus := ⟨2, by decide⟩ }
+        calendarAnchor := selectedDate
+      }
+  | none =>
+      {
+        calendarAnchor := selectedDate
+        notice := "Calendar-month prefill unavailable; enter an explicit window."
+      }
+
 
 def withSnapshot
     (state : State) (snapshot : Loam.BudgetWindowReview.Snapshot) : State :=
@@ -49,7 +68,7 @@ def withSnapshot
 
 
 def withError (state : State) (message : String) : State :=
-  { state with notice := message }
+  { state with snapshot := none, notice := message }
 
 
 def moveFocus (form : Form) (back : Bool) : Form :=
@@ -64,19 +83,54 @@ def editActive (form : Form) (edit : String → String) : Form :=
   else if form.focus.val = 1 then { form with endExclusive := edit form.endExclusive }
   else form
 
+private def setCalendarWindow
+    (state : State) (start endExclusive : String) : State :=
+  { state with
+      form := { state.form with start := start, endExclusive := endExclusive }
+      snapshot := none
+      notice := "" }
+
+/-- Restore the calendar month containing the Home selected day. -/
+def resetCalendarMonth (state : State) : State :=
+  match Loam.Tui.Calendar.calendarMonthWindowForDate? state.calendarAnchor with
+  | some (start, endExclusive) =>
+      { (setCalendarWindow state start endExclusive) with
+          form := { state.form with
+            start := start
+            endExclusive := endExclusive
+            focus := ⟨2, by decide⟩ } }
+  | none =>
+      { state with
+          snapshot := none
+          notice := "Calendar-month reset unavailable; enter an explicit window." }
+
+/-- Shift only when the currently visible coordinates are exactly one calendar month. -/
+def shiftCalendarMonth (state : State) (forward : Bool) : State :=
+  match Loam.Tui.Calendar.shiftCalendarMonthWindow?
+      state.form.start state.form.endExclusive forward with
+  | some (start, endExclusive) => setCalendarWindow state start endExclusive
+  | none =>
+      { state with
+          notice := "Arrow keys shift calendar-month windows only; press m to restore one." }
+
 
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape => { state, back := true }
+  | .left => { state := shiftCalendarMonth state false }
+  | .right => { state := shiftCalendarMonth state true }
   | .tab => { state := { state with form := moveFocus state.form false, notice := "" } }
   | .shiftTab => { state := { state with form := moveFocus state.form true, notice := "" } }
   | .backspace =>
       { state := { state with
           form := editActive state.form (fun text => String.ofList text.toList.dropLast)
+          snapshot := none
           notice := "" } }
+  | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
   | .input char =>
       { state := { state with
           form := editActive state.form (fun text => text.push char)
+          snapshot := none
           notice := "" } }
   | .enter =>
       if state.form.focus.val < 2 then
@@ -121,15 +175,17 @@ def view (state : State) : Widget :=
   .column <|
     [ line "Reports / Budget Window"
     , muted "Home > Reports > Budget Window"
+    , muted "Calendar month is only a coordinate convenience, not a household cycle."
     , blank
     , field state 0 "Start" state.form.start
     , field state 1 "End (exclusive)" state.form.endExclusive
     , .row [span "[Run]" (if state.form.focus.val = 2 then .selected else .normal)]
-    , muted "Window is explicit [start, end); no cycle, month, or selected day is inferred."
+    , muted "Coordinates stay explicit [start, end); no cycle or budget period is inferred."
     , blank
     ] ++
     resultLines state ++
     [ blank
+    , muted "← / → calendar month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
     , muted "b / Esc home   q quit"
     , line state.notice
