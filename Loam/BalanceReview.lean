@@ -90,14 +90,16 @@ private def loadCoverage
     | some coverage => return .ok coverage
     | none => return .error "loam: malformed or unsupported zero-origin coverage file"
   else
-    return .error "loam: zero-origin coverage file is missing"
+    return .ok ZeroOriginCoverage.empty
 
 /--
 Load the production household balance answer from the current authority topology.
 
 Movement Effects come only from the selected manifest. Event corrections,
 zero-origin coverage, and replaceable view selection remain independent inputs.
-`balance-view.tsv` selects a question only; it never creates coverage.
+An absent coverage file means no coordinates are evidenced complete from zero;
+it does not make any coordinate zero. `balance-view.tsv` selects a question only
+and never creates coverage.
 -/
 def loadSnapshot
     (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
