@@ -36,6 +36,8 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Build Observation 218 imported frontier families
+        run: lake build Loam.Core.QuantityBasisCorrectionMemory
       - name: Check Observation 218 Lean probe
         shell: bash
         run: |
