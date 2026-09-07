@@ -19,6 +19,11 @@ private def ruleLine (bounds : Bounds) (char : Char) : Widget :=
 private def monthTitle (state : State) : String :=
   Loam.Tui.Calendar.monthLabel (selectedMonth state)
 
+private def centeredMonthTitle (state : State) : String :=
+  let title := monthTitle state
+  let padding := if title.length < 35 then (35 - title.length) / 2 else 0
+  repeatChar padding ' ' ++ title
+
 private def calendarHeader : Widget :=
   plainLine " Mon  Tue  Wed  Thu  Fri  Sat  Sun"
 
@@ -32,7 +37,7 @@ private def hraCalendarSpans (state : State) (row : Nat) : List Span :=
           | [_, _, text] => text
           | _ => "  "
         if date == state.selectedDate then
-          span ("[" ++ day ++ "]") .selected
+          span ("[" ++ day ++ " ]") .selected
         else
           span (" " ++ day ++ "  ")
 
@@ -104,7 +109,7 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
       , span "]" .muted
       ]
   , ruleLine bounds '='
-  , plainLine ("            " ++ monthTitle state)
+  , plainLine (centeredMonthTitle state)
   , calendarHeader
   ] ++
   calendarRows state ++
@@ -135,11 +140,13 @@ private def helpLines (bounds : Bounds) : List Widget :=
     , mutedLine "[a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports"
     ]
 
-private def padBeforeFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=
-  let used := body.length + footer.length
+/-- Reserve the bottom rows for HRA-style stable help and truncate only body rows. -/
+private def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
-  let padding := if used < available then available - used else 0
-  body ++ (List.replicate padding blankLine) ++ footer
+  let bodyCapacity := available - footer.length
+  let visibleBody := body.take bodyCapacity
+  let padding := bodyCapacity - visibleBody.length
+  visibleBody ++ (List.replicate padding blankLine) ++ footer
 
 /--
 HRA-shaped Home presentation over LOAM's already-admitted read answers.
@@ -150,7 +157,7 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
   let body := homeBody bounds snapshot state
   let footer :=
     (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ helpLines bounds
-  .column (padBeforeFooter bounds body footer)
+  .column (fitWithFooter bounds body footer)
 
 /-- Use the HRA-shaped Home while retaining existing production workspace views. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
