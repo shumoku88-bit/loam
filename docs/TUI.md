@@ -37,10 +37,10 @@ does **not** mean current cycle, current month, selected day, or any inferred
 budget period. Windowed Capacity remains an explicit Application query with
 caller-supplied `[start, end)` coordinates.
 
-Reports begins with one Budget Window report. It requires the operator to supply
-both half-open coordinates explicitly. Home's selected day is not passed into the
-Reports state machine, and the TUI does not infer a month, cycle, cadence, first
-Capacity date, or host-local period boundary.
+Reports begins with one Budget Window report. The visible coordinates are explicit,
+but the editor is initially seeded with the Gregorian calendar month containing
+Home's selected day as a presentation convenience. This does not claim that the
+month is a household cycle, budget period, cadence, or canonical current window.
 
 ## Production rule
 
@@ -120,10 +120,29 @@ no-window statement, ordering non-claim, and read-only navigation.
 
 ## Reports / Budget Window
 
-Home `p` opens `Reports / Budget Window`. The initial Start and End fields are
-blank. The operator must provide both ISO dates and run the query explicitly.
-No selected-day, calendar-month, current-cycle, first-Capacity-date, or cadence
-policy is supplied by the TUI.
+Home `p` opens `Reports / Budget Window`. The initial coordinates are the explicit
+Gregorian calendar month containing Home's selected day. For example, selected
+`2026-09-07` seeds:
+
+```text
+[2026-09-01, 2026-10-01)
+```
+
+Run is initially focused, so Enter can query that visible month immediately.
+Left and Right shift an exact calendar-month window by one month. `m` restores the
+calendar month containing the original Home selected day. Start and End remain
+ordinary editable fields, so an operator can replace the convenience month with
+any explicit valid half-open window.
+
+Arrow movement refuses to rewrite a manually edited non-calendar window; `m`
+provides the explicit way back to the selected-day calendar month. Editing or
+changing the coordinates clears any previously displayed result so a stale
+Remaining value is never shown beside a new unrun window.
+
+This calendar constructor is presentation policy only. It says nothing about the
+household's current cycle, budget period, cadence, first Capacity date, or other
+canonical temporal regime. The coordinates stay visible and are the exact values
+sent to the shared Review boundary.
 
 `Loam.BudgetWindowReview` is the surface-independent production read boundary.
 It follows the current authority topology rather than the frozen pre-cutover
@@ -144,7 +163,7 @@ steady-state authority.
 
 For every Purpose represented by retained Capacity evidence, the shared Review
 calls the existing `CapacityWindowInspection` component projections over the
-operator-supplied `[start, end)` window. It displays:
+operator-visible `[start, end)` window. It displays:
 
 ```text
 Entitlement
@@ -154,19 +173,21 @@ Remaining = Entitlement - Consumption
 
 Remaining is useful presentation but not retained state. Observation 181 already
 qualified it as derived from the two resolved component answers. Observation 196
-qualified the separate window-selection boundary: the same selected Home day can
-belong to two valid windows that produce different answers, while differently
+qualified the separate household window-selection boundary: the same selected Home
+day can belong to two valid windows that produce different answers, while differently
 named Cycle identities with equal coordinates do not change coordinate-derived
-answers. Therefore automatic Home integration waits for separately earned shared
-window-selection policy; Reports does not smuggle that policy into presentation.
+answers. Therefore the calendar-month convenience is not promoted into a household
+`current window` claim, and automatic Home Remaining still waits for separately
+earned shared window-selection policy.
 
 `Loam/Tests/BudgetWindowReview.lean` builds a selected Movement manifest, writes
 independent Capacity/effective/routing evidence, poisons a legacy `memory.loam`,
 and requires the manifest-backed `100 entitlement / 30 consumption / 70 remaining`
 answer. It also checks reversed-window and missing-manifest refusal.
-`Loam/Tests/TuiReports.lean` checks blank initial coordinates, exact query-intent
-preservation, derived Remaining presentation, explicit no-cycle wording, and Home
-navigation.
+`Loam/Tests/TuiReports.lean` checks selected-day calendar-month seeding, previous
+and next month navigation including year rollover, manual-window preservation,
+`m` reset, stale-result clearing, exact query-intent preservation, derived Remaining
+presentation, explicit no-cycle wording, and Home navigation.
 
 ## Write boundary
 
