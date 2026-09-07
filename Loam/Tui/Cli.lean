@@ -14,6 +14,7 @@ import Loam.CapacityReview
 import Loam.BudgetWindowReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
+import Loam.Tui.HraActual
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 
@@ -102,9 +103,19 @@ def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'l' | .input 'L' => .right
   | .input 'k' | .input 'K' => .up
   | .input 'j' | .input 'J' => .down
-  | .input 'a' | .input 'A' => .enter
   | .input 'p' | .input 'P' => .tab
   | key => eventOfKey key
+
+/-- HRA Actual interaction grammar over presentation-only pane and cursor state. -/
+def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
+  | .up | .input 'k' | .input 'K' => .previous
+  | .down | .input 'j' | .input 'J' => .next
+  | .left | .input 'h' | .input 'H' => .focusLeft
+  | .right | .input 'l' | .input 'L' => .focusRight
+  | .input 'f' | .input 'F' => .cycleFilter
+  | .input 'n' | .input 'N' => .recordNew
+  | .escape | .input 'q' | .input 'Q' => .back
+  | _ => .other
 
 /-- A Record session emits one explicit publication intent at most.
 The caller reloads canonical evidence and chooses the presentation destination. -/
@@ -126,6 +137,40 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
       let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       recordLoop bounds root world known step.state nextFrame
+
+/-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
+partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
+    (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
+    (frame : CompiledWidget) : IO Snapshot := do
+  let step := Loam.Tui.HraActual.update snapshot state
+    (hraActualEventOfKey (← Loam.Tui.Terminal.readKey))
+  match step.command with
+  | .back => return snapshot
+  | .recordNew =>
+      let world ←
+        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        | .error message => throw (IO.userError message)
+        | .ok world => pure world
+      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+        Loam.CompletionPrompt.knownLoci world.events).eraseDups
+      let editor := Loam.Tui.Record.initial state.focusDate
+      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      let notice ← recordLoop bounds root world known editor editorFrame
+      let fresh ←
+        match ← loadSnapshot dataDir with
+        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+        | .ok fresh => pure fresh
+      let refreshed := Loam.Tui.HraActual.refreshed fresh step.state
+      let next := { refreshed with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds fresh next)
+      IO.print "\x1b[2J"
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      hraActualLoop bounds dataDir root fresh next nextFrame
+  | .stay =>
+      let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      hraActualLoop bounds dataDir root snapshot step.state nextFrame
 
 /-- Read-only Attention session. `true` means the user chose to quit LOAM. -/
 partial def attentionLoop (bounds : Bounds)
@@ -204,7 +249,17 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   let key ← Loam.Tui.Terminal.readKey
   let isHome := match state.surface with | .home _ => true | _ => false
   let isActualBrowse := match state.surface with | .actual _ .browse => true | _ => false
-  if isHome && (key = .input 'i' || key = .input 'I') then
+  if isHome && (key = .input 'a' || key = .input 'A') then
+    let actual := Loam.Tui.HraActual.initial state.selectedDate
+    let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
+    let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
+    let home := { state with surface := .home none, notice := "" }
+    let nextFrame := compiledFrameFor bounds fresh home
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    loop bounds dataDir root fresh home nextFrame
+  else if isHome && (key = .input 'i' || key = .input 'I') then
     let evidence ←
       match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
       | .error message => throw (IO.userError message)
