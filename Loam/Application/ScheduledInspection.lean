@@ -3,6 +3,7 @@ import Loam.Core.ScheduledCompletion
 import Loam.Core.ScheduledMemory
 import Loam.Core.ScheduledReplacement
 import Loam.Core.ScheduledRetirement
+import Loam.Application.ReplacementFrontier
 
 namespace Loam.Application
 
@@ -64,12 +65,16 @@ private def retirementReferencesKnownScheduled {Time : Type}
   retirementMemory.retirements.all fun retirement =>
     (ScheduledMemory.findById? scheduledMemory retirement.scheduled).isSome
 
-private def replacementReferencesKnownScheduled {Time : Type}
+private def replacementEdges
+    (replacementMemory : ScheduledReplacementMemory) :
+    List (ReplacementFrontier.Edge ScheduledId) :=
+  replacementMemory.replacements.map fun replacement =>
+    { source := replacement.source, successor := replacement.replacement }
+
+private def scheduledPresent {Time : Type}
     (scheduledMemory : ScheduledMemory Time)
-    (replacementMemory : ScheduledReplacementMemory) : Bool :=
-  replacementMemory.replacements.all fun replacement =>
-    (ScheduledMemory.findById? scheduledMemory replacement.source).isSome &&
-      (ScheduledMemory.findById? scheduledMemory replacement.replacement).isSome
+    (id : ScheduledId) : Bool :=
+  (ScheduledMemory.findById? scheduledMemory id).isSome
 
 private def terminalEvidenceCompatible
     (completionMemory : ScheduledCompletionMemory)
@@ -87,27 +92,6 @@ private def replacementTerminalEvidenceCompatible
       completionMemory replacement.source).isNone &&
     (ScheduledRetirementMemory.findByScheduled?
       retirementMemory replacement.source).isNone
-
-private def replacementPathAcyclic
-    (replacementMemory : ScheduledReplacementMemory)
-    (current : ScheduledId)
-    (seen : List ScheduledId) : Nat → Bool
-  | 0 => false
-  | fuel + 1 =>
-      if current ∈ seen then
-        false
-      else
-        match ScheduledReplacementMemory.findBySource? replacementMemory current with
-        | none => true
-        | some replacement =>
-            replacementPathAcyclic
-              replacementMemory replacement.replacement (current :: seen) fuel
-
-private def replacementGraphAcyclic
-    (replacementMemory : ScheduledReplacementMemory) : Bool :=
-  replacementMemory.replacements.all fun replacement =>
-    replacementPathAcyclic
-      replacementMemory replacement.source [] (replacementMemory.replacements.length + 1)
 
 private def hasEffectiveCompletion
     (completionMemory : ScheduledCompletionMemory)
@@ -182,13 +166,15 @@ def currentOpenScheduledWithReplacement {Time : Type}
     (retirementMemory : ScheduledRetirementMemory)
     (replacementMemory : ScheduledReplacementMemory)
     (eventMemory : EventMemory) : CurrentOpenScheduledWithReplacementResult Time :=
+  let edges := replacementEdges replacementMemory
   if !completionReferencesKnownScheduled scheduledMemory completionMemory then
     .unknownCompletionScheduled
   else if !retirementReferencesKnownScheduled scheduledMemory retirementMemory then
     .unknownRetirementScheduled
-  else if !replacementReferencesKnownScheduled scheduledMemory replacementMemory then
+  else if !ReplacementFrontier.referencesClosed
+      (scheduledPresent scheduledMemory) edges then
     .unknownReplacementScheduled
-  else if !replacementGraphAcyclic replacementMemory then
+  else if !ReplacementFrontier.acyclic edges then
     .invalidReplacementGraph
   else if !terminalEvidenceCompatible completionMemory retirementMemory ||
       !replacementTerminalEvidenceCompatible
