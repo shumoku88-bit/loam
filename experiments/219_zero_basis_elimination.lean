@@ -1,4 +1,4 @@
-import Loam.Core.Event
+import Loam.Core.EventMemory
 import Loam.Core.QuantityBasisMemory
 
 namespace Loam.Observation219
@@ -60,18 +60,15 @@ private def savingsJpy : EffectCoordinate := ⟨savings, jpy⟩
 private def zeroDomain : ZeroOriginDomain :=
   { coordinates := [walletJpy, savingsJpy], nodup := by decide }
 
+private def sampleEvent : Event :=
+  { id := ⟨"event-1"⟩
+    effects :=
+      [ Effect.ofQuantity ⟨"effect-1"⟩ wallet jpy (Quantity.ofQuanta 100)
+      , Effect.ofQuantity ⟨"effect-2"⟩ savings jpy (Quantity.ofQuanta (-100)) ]
+    keyNodup := by decide }
+
 private def sampleEvents : EventMemory :=
-  let e1 : Event :=
-    { id := ⟨"event-1"⟩
-      effects :=
-        [ { id := ⟨"effect-1"⟩, locus := wallet,
-            amount := SomeAmount.ofQuantity jpy (Quantity.ofQuanta 100) }
-        , { id := ⟨"effect-2"⟩, locus := savings,
-            amount := SomeAmount.ofQuantity jpy (Quantity.ofQuanta (-100)) } ]
-      effectIdNodup := by decide }
-  match EventMemory.ofEvents? [e1] with
-  | some memory => memory
-  | none => { events := [], eventIdNodup := by simp, effectIdNodup := by simp }
+  { events := [sampleEvent], idNodup := by simp }
 
 private def zeroWalletBasis : QuantityBasis :=
   QuantityBasis.ofQuantity ⟨"basis-wallet"⟩ wallet jpy 0
