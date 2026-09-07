@@ -1,9 +1,11 @@
 import Loam.ActualReview
 import Loam.ScheduledReview
+import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.Tui.SelectedDay
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledCompletion
+import Loam.Tui.ScheduledReplacement
 import Lean.Elab.Tactic.Omega
 
 open Loam.Core
@@ -75,7 +77,8 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "initialize manifest fixture")
   let first ← occurrence "scheduled-1" "rent" 1000
   let second ← occurrence "scheduled-2" "food" 200
-  let some scheduledMemory := ScheduledMemory.ofOccurrences? [first, second]
+  let third ← occurrence "scheduled-3" "rent" 300
+  let some scheduledMemory := ScheduledMemory.ofOccurrences? [first, second, third]
     | throw (IO.userError "scheduled memory")
   expect (← Loam.Persistence.saveScheduledMemory? scheduledFile scheduledMemory)
     "save Scheduled fixture"
@@ -131,7 +134,8 @@ def main (args : List String) : IO Unit := do
   let dueAfterCompletion := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterCompletion.scheduled "2026-09-10")
   expect (!hasScheduled dueAfterCompletion "scheduled-1" &&
-      hasScheduled dueAfterCompletion "scheduled-2")
+      hasScheduled dueAfterCompletion "scheduled-2" &&
+      hasScheduled dueAfterCompletion "scheduled-3")
     "fresh Scheduled read did not close only the completed occurrence"
   let actualDay := Loam.ActualReview.select afterCompletion.actual.allRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>
@@ -147,7 +151,7 @@ def main (args : List String) : IO Unit := do
     (Loam.Tui.SelectedDay.selectedScheduled? afterCompletion afterState)
     "remaining Scheduled occurrence was not selected"
   expect (cancelTarget.id.token == "scheduled-2")
-    "fresh selected-day clamp did not select the remaining Scheduled occurrence"
+    "fresh selected-day clamp did not select the next Scheduled occurrence"
 
   let cancelEditor := Loam.Tui.ScheduledCancellation.initial cancelTarget
   expect (cancelEditor.choice.val == 1)
@@ -170,10 +174,72 @@ def main (args : List String) : IO Unit := do
   let afterCancellation ← loadSnapshot scheduledFile root
   let explicitAfterCancellation := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterCancellation.scheduled "2026-09-10")
-  expect explicitAfterCancellation.isEmpty
-    "fresh Scheduled read retained a completed or cancelled occurrence"
-  let refreshed := Loam.Tui.SelectedDay.refreshed afterCancellation afterState
-  expect (refreshed.focusDate == "2026-09-10" && refreshed.scheduledRow == 0)
-    "Scheduled terminal write moved the day coordinate instead of only clamping local selection"
+  expect (explicitAfterCancellation.length == 1 && hasScheduled explicitAfterCancellation "scheduled-3")
+    "fresh Scheduled read did not leave only the untouched third occurrence"
+  let replacementState := Loam.Tui.SelectedDay.refreshed afterCancellation afterState
+  let replaceCommand := Loam.Tui.SelectedDay.update
+    afterCancellation replacementState .replaceScheduled
+  expect (replaceCommand.command == .replaceScheduled)
+    "Scheduled pane did not emit selected supersede intent"
+  let replaceTarget ← requireSome
+    (Loam.Tui.SelectedDay.selectedScheduled? afterCancellation replacementState)
+    "Scheduled supersede target disappeared"
+  expect (replaceTarget.id.token == "scheduled-3")
+    "selected-day clamp did not select the remaining replacement source"
 
-  IO.println "TUI Scheduled terminal: editable completion seed, shared completion/cancel publication, safe confirmation and fresh reads passed."
+  let .ok replacementEditor := Loam.Tui.ScheduledReplacement.initial? replaceTarget
+    | throw (IO.userError "initialize Scheduled replacement editor")
+  expect
+    (replacementEditor.form.date == "2026-09-10" &&
+      replacementEditor.form.rows.size == 2 &&
+      replacementEditor.form.rows[0]!.locus == "paypay" &&
+      replacementEditor.form.rows[0]!.amount == "-300" &&
+      replacementEditor.form.rows[1]!.locus == "rent" &&
+      replacementEditor.form.rows[1]!.amount == "300")
+    "Scheduled replacement did not seed date plus signed postings exactly"
+
+  let amountReplacement := { replacementEditor with
+    form := { replacementEditor.form with focus := 2 } }
+  let amountEdited := Loam.Tui.ScheduledReplacement.update
+    ["paypay", "rent", "food"] amountReplacement .backspace
+  expect (amountEdited.state.form.rows[0]!.amount == "-30")
+    "Scheduled replacement posting seed was not editable local state"
+
+  let movedEditor := { replacementEditor with
+    form := { replacementEditor.form with date := "2026-09-12" } }
+  let .ok replacementDraft := Loam.Tui.ScheduledReplacement.draft? movedEditor
+    | throw (IO.userError "build Scheduled replacement draft")
+  let replacementPreview : Loam.Tui.ScheduledReplacement.State := {
+    movedEditor with mode := .preview replacementDraft ⟨0, by omega⟩ }
+  let replacementIntentStep := Loam.Tui.ScheduledReplacement.update
+    ["paypay", "rent", "food"] replacementPreview .enter
+  let replacementIntent ← requireSome replacementIntentStep.publish
+    "replacement preview did not emit shared publisher intent"
+  expect
+    (replacementIntent.source.token == "scheduled-3" &&
+      replacementIntent.scheduledOn == "2026-09-12" &&
+      replacementIntent.total == 300)
+    "replacement editor lost selected source or edited content"
+  let .ok replacement ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+      scheduledFile.toString root.toString replacementIntent
+    | throw (IO.userError "publish selected Scheduled replacement")
+  expect (replacement.source.token == "scheduled-3")
+    "shared replacement receipt changed selected source identity"
+
+  let afterReplacement ← loadSnapshot scheduledFile root
+  let oldDay := Loam.ScheduledReview.explicitDueRecords
+    (Loam.ScheduledReview.dayEvidence afterReplacement.scheduled "2026-09-10")
+  let newDay := Loam.ScheduledReview.explicitDueRecords
+    (Loam.ScheduledReview.dayEvidence afterReplacement.scheduled "2026-09-12")
+  expect oldDay.isEmpty
+    "fresh Scheduled read retained completed, cancelled, or superseded sources on the old day"
+  expect
+    (newDay.length == 1 &&
+      hasScheduled newDay replacement.replacement.token &&
+      !hasScheduled newDay "scheduled-3")
+    "fresh Scheduled read did not expose only the replacement endpoint on its edited day"
+  let refreshed := Loam.Tui.SelectedDay.refreshed afterReplacement replacementState
+  expect (refreshed.focusDate == "2026-09-10" && refreshed.scheduledRow == 0)
+    "Scheduled write moved the selected-day coordinate instead of only clamping local selection"
+
+  IO.println "TUI Scheduled terminal: completion, safe cancellation, editable supersede, shared publication and fresh reads passed."
