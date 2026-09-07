@@ -43,6 +43,7 @@ jobs:
           use-mathlib-cache: false
           leanchecker: true
           axiom-audit: true
+          axiom-audit-root: Loam.Observation078
           use-github-cache: false
 
       - name: Check Observation 078 proof directly
