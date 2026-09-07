@@ -1,9 +1,9 @@
-import Loam.Core.EventMemory
-import Loam.Core.QuantityBasisMemory
+import Loam.Application.CurrentQuantity
 
 namespace Loam.Observation219
 
 open Loam.Core
+open Loam.Application
 
 set_option autoImplicit false
 
@@ -12,102 +12,224 @@ Experiment-local evidence that one finite coordinate domain is known to begin at
 exact zero at the selected application-history boundary.
 
 This deliberately preserves the distinction `outside domain != known zero`.
-It is not a production proposal yet.
+It carries no per-coordinate stable basis identity and no stored quantity beyond
+the common zero premise.
 -/
 structure ZeroOriginDomain where
   coordinates : List EffectCoordinate
   nodup : coordinates.Nodup
+  deriving Repr, DecidableEq
 
 namespace ZeroOriginDomain
 
-/-- Membership is the only current meaning of the experiment-local origin domain. -/
+/-- Fail-closed construction of a ZeroOriginDomain: duplicates refuse. -/
+def ofCoordinates? (coordinates : List EffectCoordinate) : Option ZeroOriginDomain :=
+  if h : coordinates.Nodup then
+    some ⟨coordinates, h⟩
+  else
+    none
+
+/-- Membership in the finite coordinate domain. -/
 def contains (domain : ZeroOriginDomain) (coordinate : EffectCoordinate) : Bool :=
   decide (coordinate ∈ domain.coordinates)
 
 end ZeroOriginDomain
 
+private def liftInspection : QuantityInspectionAnswer → CurrentQuantityAnswer
+  | .recorded quantity => .current quantity
+  | .singleCorrectionEffective quantity => .current quantity
+  | .frontierEffective quantity => .current quantity
+  | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
+  | .frontierRequired => .eventFrontierRequired
+
 /--
-Current quantity derived directly from retained Event history when one coordinate
-is explicitly admitted into an application-start exact-zero domain.
+Project one current quantity from an explicit finite zero-origin domain:
+- coordinate in domain: correction-aware effective Event quantity;
+- coordinate outside domain: basisMissing (refusal / missing evidence, never implicit zero).
 -/
-def currentFromZeroOrigin?
+def inspectWithZeroOriginDomain
     (domain : ZeroOriginDomain)
     (events : EventMemory)
-    (locus : LocusId)
-    (measure : MeasureId) : Option Quantity :=
-  let coordinate : EffectCoordinate := ⟨locus, measure⟩
+    (eventCorrections : EventCorrectionMemory)
+    (coordinate : EffectCoordinate) : CurrentQuantityAnswer :=
   if domain.contains coordinate then
-    some (EventMemory.quantityAtRecorded events locus measure)
+    liftInspection <|
+      inspectQuantity events eventCorrections coordinate.locus coordinate.measure
   else
-    none
+    .basisMissing
 
-/--
-The corresponding arithmetic shape of one ordinary QuantityBasis fact, before
-basis-correction or basis-cut machinery is considered.
--/
-def currentFromBasis
-    (basis : QuantityBasis)
-    (events : EventMemory) : Quantity :=
-  basis.quantity + EventMemory.quantityAtRecorded events basis.locus basis.measure
-
-private def wallet : LocusId := ⟨"wallet"⟩
-private def savings : LocusId := ⟨"savings"⟩
+-- Coordinates corresponding to current household dogfood
+private def cash : LocusId := ⟨"cash"⟩
+private def paypay : LocusId := ⟨"paypay"⟩
+private def smbc : LocusId := ⟨"smbc"⟩
+private def yucho : LocusId := ⟨"yucho"⟩
+private def allCountry : LocusId := ⟨"all-country"⟩
+private def food : LocusId := ⟨"food"⟩
 private def unknown : LocusId := ⟨"unknown"⟩
 private def jpy : MeasureId := ⟨"jpy"⟩
-private def walletJpy : EffectCoordinate := ⟨wallet, jpy⟩
-private def savingsJpy : EffectCoordinate := ⟨savings, jpy⟩
 
-private def zeroDomain : ZeroOriginDomain :=
-  { coordinates := [walletJpy, savingsJpy], nodup := by decide }
+private def cashJpy : EffectCoordinate := ⟨cash, jpy⟩
+private def paypayJpy : EffectCoordinate := ⟨paypay, jpy⟩
+private def smbcJpy : EffectCoordinate := ⟨smbc, jpy⟩
+private def yuchoJpy : EffectCoordinate := ⟨yucho, jpy⟩
+private def allCountryJpy : EffectCoordinate := ⟨allCountry, jpy⟩
+private def foodJpy : EffectCoordinate := ⟨food, jpy⟩
+private def unknownJpy : EffectCoordinate := ⟨unknown, jpy⟩
+
+private def householdCoordinates : List EffectCoordinate :=
+  [cashJpy, paypayJpy, smbcJpy, yuchoJpy, allCountryJpy]
+
+private def householdZeroDomain : ZeroOriginDomain :=
+  match ZeroOriginDomain.ofCoordinates? householdCoordinates with
+  | some d => d
+  | none => ⟨[], by decide⟩
+
+private def emptyEventCorrections : EventCorrectionMemory :=
+  { corrections := [], idNodup := by simp }
+
+private def emptyBasisCorrections : QuantityBasisCorrectionMemory :=
+  { corrections := [], idNodup := by simp }
+
+private def householdZeroBases : QuantityBasisMemory :=
+  { bases :=
+      [ QuantityBasis.ofQuantity ⟨"hpb-cash"⟩ cash jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-paypay"⟩ paypay jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-smbc"⟩ smbc jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-yucho"⟩ yucho jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-all-country"⟩ allCountry jpy 0
+      ]
+    idNodup := by decide }
 
 private def sampleEvent : Event :=
   { id := ⟨"event-1"⟩
     effects :=
-      [ Effect.ofQuantity ⟨"effect-1"⟩ wallet jpy (Quantity.ofQuanta 100)
-      , Effect.ofQuantity ⟨"effect-2"⟩ savings jpy (Quantity.ofQuanta (-100)) ]
+      [ Effect.ofQuantity ⟨"eff-1"⟩ cash jpy (Quantity.ofQuanta 909)
+      , Effect.ofQuantity ⟨"eff-2"⟩ paypay jpy (Quantity.ofQuanta 728)
+      , Effect.ofQuantity ⟨"eff-3"⟩ smbc jpy (Quantity.ofQuanta 81575)
+      , Effect.ofQuantity ⟨"eff-4"⟩ yucho jpy (Quantity.ofQuanta 5000)
+      , Effect.ofQuantity ⟨"eff-5"⟩ allCountry jpy (Quantity.ofQuanta 5600)
+      , Effect.ofQuantity ⟨"eff-6"⟩ food jpy (Quantity.ofQuanta (-93812))
+      ]
     keyNodup := by decide }
 
 private def sampleEvents : EventMemory :=
   { events := [sampleEvent], idNodup := by simp }
 
-private def zeroWalletBasis : QuantityBasis :=
-  QuantityBasis.ofQuantity ⟨"basis-wallet"⟩ wallet jpy 0
-
-private def nonzeroWalletBasis : QuantityBasis :=
-  QuantityBasis.ofQuantity
-    ⟨"basis-wallet-nonzero"⟩ wallet jpy (Quantity.ofQuanta 40)
-
-/-- A zero QuantityBasis contributes no arithmetic information beyond domain admission. -/
+/-- 1. Exact parity on cash / jpy -/
 example :
-    currentFromBasis zeroWalletBasis sampleEvents =
-      EventMemory.quantityAtRecorded sampleEvents wallet jpy := by
-  native_decide
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections householdZeroBases emptyBasisCorrections cash jpy =
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections cashJpy := by
+  decide
 
-/-- The explicit zero-origin domain yields the same selected-coordinate answer. -/
+/-- 2. Exact parity on paypay / jpy -/
 example :
-    currentFromZeroOrigin? zeroDomain sampleEvents wallet jpy =
-      some (currentFromBasis zeroWalletBasis sampleEvents) := by
-  native_decide
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections householdZeroBases emptyBasisCorrections paypay jpy =
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections paypayJpy := by
+  decide
 
-/-- The same factorization holds for another admitted coordinate. -/
+/-- 3. Exact parity on smbc / jpy -/
 example :
-    currentFromZeroOrigin? zeroDomain sampleEvents savings jpy =
-      some (EventMemory.quantityAtRecorded sampleEvents savings jpy) := by
-  native_decide
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections householdZeroBases emptyBasisCorrections smbc jpy =
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections smbcJpy := by
+  decide
 
-/-- Outside the finite origin domain, absence remains absence rather than implicit zero. -/
+/-- 4. Exact parity on yucho / jpy -/
 example :
-    currentFromZeroOrigin? zeroDomain sampleEvents unknown jpy = none := by
-  native_decide
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections householdZeroBases emptyBasisCorrections yucho jpy =
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections yuchoJpy := by
+  decide
 
-/-- Nonzero opening quantity is real information and cannot be eliminated this way. -/
+/-- 5. Exact parity on all-country / jpy -/
 example :
-    currentFromBasis nonzeroWalletBasis sampleEvents !=
-      EventMemory.quantityAtRecorded sampleEvents wallet jpy := by
-  native_decide
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections householdZeroBases emptyBasisCorrections allCountry jpy =
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections allCountryJpy := by
+  decide
 
-/-- Erasing the domain would strengthen unknown coordinates into known-zero origins. -/
-example : zeroDomain.contains ⟨unknown, jpy⟩ = false := by
-  native_decide
+/-! ## Negative Controls -/
+
+private def domainWithoutCash : ZeroOriginDomain :=
+  { coordinates := [paypayJpy, smbcJpy, yuchoJpy, allCountryJpy], nodup := by decide }
+
+/--
+Negative Control 1: Removing a coordinate makes it unavailable (basisMissing),
+never implicit zero.
+-/
+example :
+    inspectWithZeroOriginDomain
+        domainWithoutCash sampleEvents emptyEventCorrections cashJpy =
+      .basisMissing := by
+  decide
+
+example :
+    inspectWithZeroOriginDomain
+        domainWithoutCash sampleEvents emptyEventCorrections cashJpy ≠
+      .current (Quantity.ofQuanta 0) := by
+  decide
+
+/--
+Negative Control 2: An unrelated coordinate with recorded Event activity (food)
+does not automatically become an admitted balance unless the domain explicitly includes it.
+-/
+example :
+    inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections foodJpy =
+      .basisMissing := by
+  decide
+
+example :
+    inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections unknownJpy =
+      .basisMissing := by
+  decide
+
+private def nonzeroBases : QuantityBasisMemory :=
+  { bases :=
+      [ QuantityBasis.ofQuantity ⟨"hpb-cash"⟩ cash jpy (Quantity.ofQuanta 100)
+      , QuantityBasis.ofQuantity ⟨"hpb-paypay"⟩ paypay jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-smbc"⟩ smbc jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-yucho"⟩ yucho jpy 0
+      , QuantityBasis.ofQuantity ⟨"hpb-all-country"⟩ allCountry jpy 0
+      ]
+    idNodup := by decide }
+
+/--
+Negative Control 3: Synthetic nonzero basis cannot be eliminated into an
+Event-only zero-origin answer.
+-/
+example :
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections nonzeroBases emptyBasisCorrections cash jpy ≠
+      inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections cashJpy := by
+  decide
+
+example :
+    inspectCurrentQuantityWithBasisCorrections
+        sampleEvents emptyEventCorrections nonzeroBases emptyBasisCorrections cash jpy =
+      .current (Quantity.ofQuanta 1009) := by
+  decide
+
+example :
+    inspectWithZeroOriginDomain
+        householdZeroDomain sampleEvents emptyEventCorrections cashJpy =
+      .current (Quantity.ofQuanta 909) := by
+  decide
+
+/--
+Negative Control 4: Duplicate coordinate rows in domain specification fail closed.
+-/
+example :
+    ZeroOriginDomain.ofCoordinates? [cashJpy, cashJpy] = none := by
+  decide
 
 end Loam.Observation219

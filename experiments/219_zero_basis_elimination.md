@@ -1,8 +1,9 @@
 # Observation 219 — can zero-only QuantityBasis be eliminated after historical reconstruction?
 
-Status: **QUALIFIED REWRITE CANDIDATE**
+Status: **QUALIFIED REAL-DATA FACTORIZATION (CANDIDATE A: RETIRE CURRENT HOUSEHOLD QuantityBasis)**
 
-Research starting point: LOAM `b95e2b418365b7960b0087a1b9329b52578f16b5`
+Research starting point: LOAM `b95e2b418365b7960b0087a1b9329b52578f16b5`  
+Dogfood data starting point: `loam-data` `188319456d96fa24ac0af7b251ff612800ab6522`
 
 ## Question
 
@@ -17,16 +18,16 @@ is not itself an Event/change.
 That remains a valid distinction in general. But the current household image has changed shape after historical reconstruction. The retained historical Event world now includes opening entries and the current `loam-data/basis.loam` contains only five exact-zero rows:
 
 ```text
-cash         jpy  0
-paypay       jpy  0
-smbc         jpy  0
-yucho        jpy  0
-all-country  jpy  0
+BASIS   hpb-f03c35726ecef0bd2a75f55924a16c59   cash         jpy  0
+BASIS   hpb-6fd930c873f75aa46b895927e0f1a04c   paypay       jpy  0
+BASIS   hpb-e6f335b5e4b7c469fb0c01edfe39f475   smbc         jpy  0
+BASIS   hpb-2bcac2e31accbde5dc38be20db060e7d   yucho        jpy  0
+BASIS   hpb-66457c1f2ca809c70115b0dd7339aebb   all-country  jpy  0
 ```
 
-The question is therefore narrower than deleting `QuantityBasis` from LOAM:
+The question is now practical:
 
-> When every selected basis quantity is exact zero and historical Event evidence supplies all retained quantity movement, does one basis fact per coordinate retain any quantity information beyond explicit admission of the coordinate into a known-zero application-start domain?
+> In the current real `loam-data` household image, can the five exact-zero QuantityBasis facts be replaced by one explicit finite zero-origin domain while preserving all practical balance answers and fail-closed behavior?
 
 ## Existing law that must survive
 
@@ -47,134 +48,108 @@ c in D
   -> application-start quantity is known exactly zero
 
 c not in D
-  -> no zero-origin claim
+  -> no zero-origin claim (basisMissing / refusal)
 ```
 
-## Synthetic Lean probe
+## Inventory of dependent evidence
 
-`219_zero_basis_elimination.lean` introduces only one experiment-local shape:
+Current `loam-data` was inspected for any dependencies:
 
-```text
-ZeroOriginDomain
-  coordinates : finite Nodup list of EffectCoordinate
+1. `basis-corrections.loam`: ABSENT. Production interprets absent as empty (`ofCorrections? []`).
+2. `basis-cut.tsv`: ABSENT. Production interprets absent as empty (`some []`).
+3. Search for the five stable `QuantityBasisId` values (`hpb-f03c35726ecef0bd2a75f55924a16c59`, `hpb-6fd930c873f75aa46b895927e0f1a04c`, `hpb-e6f335b5e4b7c469fb0c01edfe39f475`, `hpb-2bcac2e31accbde5dc38be20db060e7d`, `hpb-66457c1f2ca809c70115b0dd7339aebb`):
+   - Only observable in `basis.loam` itself.
+   - Zero occurrences in `loam` repository (core, application, persistence, TUI, CLI, tests, workflows).
+   - Zero occurrences in `loam-data` outside `basis.loam`.
+
+Conclusion: **The five stable basis IDs are not observable anywhere in LOAM behavior or data relationships.**
+
+## Practical balance parity on current household image
+
+Using production `Loam.BalanceReview.loadSnapshot` over the selected Movement manifest generation in `loam-data` (`movement-authority/CURRENT` manifest 2) and comparing against candidate `ZeroOriginDomain` evaluation using correction-aware Event quantity projection (`Loam.Application.inspectQuantity`):
+
+| Coordinate | Production A (`BalanceReview`) | Candidate B (`ZeroOriginDomain`) | Parity |
+| :--- | :--- | :--- | :--- |
+| `cash / jpy` | 909 | 909 | **EXACT EQUALITY** |
+| `paypay / jpy` | 728 | 728 | **EXACT EQUALITY** |
+| `smbc / jpy` | 81575 | 81575 | **EXACT EQUALITY** |
+| `yucho / jpy` | 5000 | 5000 | **EXACT EQUALITY** |
+| `all-country / jpy` | 5600 | 5600 | **EXACT EQUALITY** |
+
+Arithmetic parity holds at 100% precision across all five coordinates.
+
+## Synthetic and negative controls in Lean
+
+`experiments/219_zero_basis_elimination.lean` defines the scratch candidate:
+
+```lean
+structure ZeroOriginDomain where
+  coordinates : List EffectCoordinate
+  nodup : coordinates.Nodup
+  deriving Repr, DecidableEq
+
+def inspectWithZeroOriginDomain
+    (domain : ZeroOriginDomain)
+    (events : EventMemory)
+    (eventCorrections : EventCorrectionMemory)
+    (coordinate : EffectCoordinate) : CurrentQuantityAnswer :=
+  if domain.contains coordinate then
+    liftInspection <|
+      inspectQuantity events eventCorrections coordinate.locus coordinate.measure
+  else
+    .basisMissing
 ```
 
-For a coordinate in that domain it derives:
+The probe verifies:
 
-```text
-current = EventMemory.quantityAtRecorded
+1. **Exact Parity**: On all 5 household coordinates (`cash`, `paypay`, `smbc`, `yucho`, `all-country`), the candidate answer exactly equals production `inspectCurrentQuantityWithBasisCorrections` with zero bases.
+2. **Negative Control 1 (Domain Removal)**: Removing `cash` from `ZeroOriginDomain` results in `.basisMissing`, NOT `.current 0`.
+3. **Negative Control 2 (Unrelated Coordinate)**: Coordinates with recorded Event activity outside the domain (e.g. `food / jpy`, `unknown / jpy`) evaluate to `.basisMissing`. Recorded Event activity alone does not earn an admitted balance.
+4. **Negative Control 3 (Nonzero Basis)**: A synthetic nonzero basis (e.g. `cash` starting at 100) produces `1009`, which strictly differs from the candidate Event-only answer (`909`). Nonzero starting quantities cannot be eliminated into zero-origin domain.
+5. **Negative Control 4 (Malformed / Duplicate Domain)**: `ZeroOriginDomain.ofCoordinates? [cashJpy, cashJpy] = none`. Duplicate entries fail closed at construction.
+
+All controls compile and pass with Lean native decision procedures.
+
+## Accounting and opening-history inspection
+
+Inspection of the selected Movement manifest events in `loam-data`:
+
+- `smbc`: Reconstructed history begins on 2026-04-04 with event `e0186` (+9843 jpy) balanced against `equity:opening-balances` (-9843 jpy), description "Opening Balance".
+- `paypay`: Reconstructed history begins on 2026-04-04 with event `e0219` (+192 jpy) balanced against `equity:opening-balances` (-192 jpy), description "Opening Balance".
+- `yucho`: Contains opening adjustment event `e0532` (+16 jpy) on 2026-06-07 balanced against `equity:opening-balances` (-16 jpy), description "ゆうちょ残高調整", alongside inter-account transfers from `smbc`.
+- `all-country`: History starts from zero on 2026-05-18 with event `e0188` (investment purchase transfer of 1000 jpy from `smbc`). It genuinely originated at zero prior to the first transaction.
+- `cash`: Earliest recorded event is earned income `e0414` (+3000 jpy) on 2026-07-20.
+
+Because the HRA reconstruction absorbed opening balances directly into the Event stream (via `equity:opening-balances` or initial transfers), `basis.loam` had its quantities set to zero for all five coordinates.
+
+**Distinction: Arithmetic parity vs. Coverage evidence:**
+The five rows in `basis.loam` carry **no quantity information**. Their actual production function is strictly serving as a **finite coordinate whitelist** (coverage domain). The candidate `ZeroOriginDomain` preserves this exact coverage domain without retaining five redundant zero integers or unused stable UUIDs.
+
+## Conclusion: Candidate A — RETIRE CURRENT HOUSEHOLD QuantityBasis
+
+All practical conditions are satisfied:
+1. All 5 selected basis quantities are exact zero.
+2. No basis corrections or cuts exist or depend on the stable basis IDs.
+3. The five stable basis IDs are completely unobserved elsewhere.
+4. Exact practical balance parity holds across all 5 coordinates.
+5. Fail-closed negative controls prove that missing coordinates do not become zero.
+6. The historical provenance shows that opening quantities are already held in reconstructed Events.
+
+Current five zero basis facts carry no quantity information beyond explicit zero-origin domain coverage.
+
+## Proposed smallest production boundary
+
+When the final cutover is implemented in production:
+
+```lean
+/-- Explicit finite set of coordinates known to originate at exact zero. -/
+structure ZeroOriginDomain where
+  coordinates : List EffectCoordinate
+  nodup : coordinates.Nodup
 ```
 
-which is the same arithmetic as:
+Persistence representation can be a simple coordinate list file (e.g. `zero-origin-domain.tsv` or retaining `balance-view.tsv` / explicit domain file).
 
-```text
-current = zero QuantityBasis + EventMemory.quantityAtRecorded
-```
-
-The probe checks:
-
-1. a zero QuantityBasis adds no arithmetic information;
-2. one explicit finite zero-origin domain produces the same answer for admitted coordinates;
-3. a coordinate outside the domain remains `none`, not zero;
-4. a nonzero QuantityBasis cannot be eliminated;
-5. therefore erasing the domain entirely would strengthen unknown coordinates into known-zero origins.
-
-## Qualified result
-
-The Lean probe compiles and all executable witnesses pass against production `EventMemory` and `QuantityBasis` types.
-
-The qualified factorization is therefore:
-
-```text
-zero-only QuantityBasis
-  = quantity contribution 0
-  + coordinate membership / coverage evidence
-```
-
-For exact-zero basis rows, the quantity contribution is extensionally neutral for the current recorded-Event arithmetic. The independently meaningful remainder is the finite set of coordinates for which the application-start quantity is known exactly zero.
-
-The negative controls matter equally:
-
-```text
-nonzero QuantityBasis
-  != eliminable quantity evidence
-
-coordinate outside explicit domain
-  != known zero
-```
-
-So Observation 219 does not earn a global zero default.
-
-## What this does and does not show
-
-For the current zero-only shape it supports this factorization:
-
-```text
-current zero-only basis memory
-
-  five stable QuantityBasis identities
-  five quantities all equal 0
-  five coordinates
-
-may factor into
-
-  one application-start zero interpretation
-  + one explicit finite coordinate domain
-```
-
-It does **not** show that the domain can be inferred from:
-
-- AccountingRole;
-- `balance-view.tsv`;
-- Locus spelling;
-- current Event support;
-- all possible future coordinates.
-
-Those would each erase independent absence/coverage meaning.
-
-It also does not show that nonzero starting quantities, basis correction, or basis-cut evidence are obsolete in all possible LOAM worlds.
-
-## Accounting comparison
-
-The result is consistent with a familiar ledger shape after historical reconstruction:
-
-```text
-opening entries + retained movements
-```
-
-When historical Event evidence itself carries the opening quantities, a separate zero-valued quantity basis is no longer quantity evidence. What remains is an evidence question about coverage:
-
-> For which coordinates is the selected retained history known to start from exact zero?
-
-That convergence is useful even though it resembles ordinary bookkeeping rather than inventing a new accounting structure.
-
-## Practical promotion criterion
-
-Production/data simplification is now a qualified candidate, not yet a production change.
-
-A follow-up practical check must establish for the current household image that:
-
-1. the five selected bases are all exact zero;
-2. no selected/current basis correction depends on their stable ids;
-3. no basis-cut evidence depends on their stable ids;
-4. the same five coordinates remain explicit as a coverage domain somewhere that is not inferred from presentation or accounting classification;
-5. practical balance answers are identical before and after the representation change;
-6. an unadmitted coordinate still refuses instead of becoming zero.
-
-If those hold, the current household path can plausibly retire the five `QuantityBasisId` facts and preserve only the smaller zero-origin domain evidence.
-
-## Non-goals
-
-Observation 219 does not introduce:
-
-- a production `Origin` abstraction;
-- a global zero default;
-- Account or AccountType;
-- Event chronology;
-- deletion of `QuantityBasis` for every possible LOAM dataset;
-- inference of completeness from Git history;
-- inference of the zero-origin domain from `balance-view.tsv` or AccountingRole.
-
-## Practical Core impact
-
-None yet. The candidate is Application/data-shape pressure until the practical household check earns a production replacement.
+**Non-goals:**
+- Do NOT introduce a generic `Origin`, `Account`, `Ledger`, global chronology, or new framework.
+- Do NOT infer zero-origin from `balance-view.tsv` or AccountingRole without explicit domain admission.

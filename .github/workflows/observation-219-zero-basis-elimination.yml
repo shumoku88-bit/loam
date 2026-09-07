@@ -6,8 +6,10 @@ on:
       - 'experiments/219_zero_basis_elimination.lean'
       - 'experiments/219_zero_basis_elimination.md'
       - '.github/workflows/observation-219-zero-basis-elimination.yml'
-      - 'Loam/Core/Event.lean'
       - 'Loam/Core/QuantityBasisMemory.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Application/QuantityBasisFrontier.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -31,8 +33,7 @@ jobs:
           use-github-cache: true
       - name: Build production quantity slice
         run: |
-          lake build Loam.Core.Event
-          lake build Loam.Core.QuantityBasisMemory
+          lake build Loam.Application.CurrentQuantity
       - name: Check Observation 219 Lean probe
         shell: bash
         run: |
