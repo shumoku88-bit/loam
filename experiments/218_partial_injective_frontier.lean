@@ -237,10 +237,63 @@ private def pathAcyclicFromStart {Id : Type} [DecidableEq Id]
           else
             pathAcyclicFromStart edges start fuel next
 
+/-- Semantic reachability predicate: does `start` occur again within the fuel bound? -/
+private def returnsToStartWithin {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (start : Id) : Nat → Id → Bool
+  | 0, _ => false
+  | fuel + 1, current =>
+      match nextSuccessor? edges current with
+      | none => false
+      | some next =>
+          if next = start then
+            true
+          else
+            returnsToStartWithin edges start fuel next
+
+/-- The production-style start-return walk is exactly negated bounded return reachability. -/
+theorem pathAcyclicFromStart_eq_not_returnsToStartWithin
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (start current : Id)
+    (fuel : Nat) :
+    pathAcyclicFromStart edges start fuel current =
+      !returnsToStartWithin edges start fuel current := by
+  induction fuel generalizing current with
+  | zero =>
+      rfl
+  | succ fuel ih =>
+      cases hNext : nextSuccessor? edges current with
+      | none =>
+          simp [pathAcyclicFromStart, returnsToStartWithin, hNext]
+      | some next =>
+          by_cases hReturn : next = start
+          · simp [pathAcyclicFromStart, returnsToStartWithin, hNext, hReturn]
+          · simp [pathAcyclicFromStart, returnsToStartWithin, hNext, hReturn, ih]
+
+/-- A bounded finite successor graph contains a represented cycle when some source returns. -/
+def hasCycleByReturn {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) : Bool :=
+  edges.any fun edge =>
+    returnsToStartWithin edges edge.superseded edges.length edge.superseded
+
 def acyclicByStartReturn {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id)) : Bool :=
   edges.all fun edge =>
     pathAcyclicFromStart edges edge.superseded edges.length edge.superseded
+
+/-- Start-return whole-graph admission is exactly absence of a bounded represented cycle. -/
+theorem acyclicByStartReturn_eq_not_hasCycleByReturn
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) :
+    acyclicByStartReturn edges = !hasCycleByReturn edges := by
+  induction edges with
+  | nil =>
+      rfl
+  | cons edge rest ih =>
+      simp [acyclicByStartReturn, hasCycleByReturn,
+        pathAcyclicFromStart_eq_not_returnsToStartWithin]
+
 
 def structurallyAdmissible {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) : Bool :=
@@ -320,6 +373,9 @@ example : acyclic chain = true := by
 example : acyclicByStartReturn chain = true := by
   decide
 
+example : hasCycleByReturn chain = false := by
+  decide
+
 example : frontier [0, 1, 2, 3] chain = [2, 3] := by
   decide
 
@@ -350,6 +406,9 @@ example : acyclic cycle = false := by
 example : acyclicByStartReturn cycle = false := by
   decide
 
+example : hasCycleByReturn cycle = true := by
+  decide
+
 example : structurallyAdmissible [0, 1] cycle = false := by
   decide
 
@@ -365,12 +424,13 @@ example : pathAcyclicFromStart lasso 0 lasso.length 0 = true := by
 example : pathAcyclic lasso 0 [] (lasso.length + 1) = false := by
   decide
 
-/-- The lasso lies outside the partial-injection candidate: successor `1` is shared. -/
 example : endpointUnique lasso = false := by
   decide
 
-/-- Whole-graph checks still agree on rejecting the lasso. -/
 example : acyclicByStartReturn lasso = false := by
+  decide
+
+example : hasCycleByReturn lasso = true := by
   decide
 
 example : acyclic lasso = false := by
