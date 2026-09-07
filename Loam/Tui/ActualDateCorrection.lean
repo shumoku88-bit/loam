@@ -83,7 +83,11 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
 def withPublishError (state : State) (message : String) : State :=
   { state with mode := .editing, notice := message }
 
-private def line (text : String) : Widget := plainLine text
+private def line (text : String) : Widget :=
+  .row [span text]
+
+private def muted (text : String) : Widget :=
+  .row [span text .muted]
 
 /-- Minimal date-only editor. It contains no ActualValidity frontier or writer logic. -/
 def view (state : State) : Widget :=
@@ -94,7 +98,7 @@ def view (state : State) : Widget :=
         line ("Target: " ++ state.target.token),
         line ("Current: " ++ state.originalDate),
         line ("New date: " ++ state.input),
-        mutedLine "Type YYYY-MM-DD   Backspace edit   Enter preview   Esc/q cancel",
+        muted "Type YYYY-MM-DD   Backspace edit   Enter preview   Esc/q cancel",
         line state.notice
       ]
   | .preview =>
@@ -103,7 +107,7 @@ def view (state : State) : Widget :=
         line ("Target remains: " ++ state.target.token),
         line ("Current date: " ++ state.originalDate),
         line ("Proposed date: " ++ state.input),
-        mutedLine "Enter publish   Esc/e edit   q cancel",
+        muted "Enter publish   Esc/e edit   q cancel",
         line state.notice
       ]
 
