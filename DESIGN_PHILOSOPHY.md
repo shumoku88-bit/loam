@@ -2,7 +2,9 @@
 
 ## Build a keeper, not a compatibility museum
 
-LOAM is allowed to be unusually ambitious because it does not currently carry the normal burden of protecting a large installed base. LOAM is now the only active household system; HRA and h-kernel remain historical and research pressure, not operational fallback authorities. The same household reality can therefore keep serving as a demanding test track while LOAM pursues a cleaner design without carrying compatibility machinery for the retired systems.
+LOAM is allowed to be unusually ambitious because it does not currently carry the normal burden of protecting a large installed base. HRA is currently the day-to-day household authority while LOAM is rebuilt in parallel with real household dogfood. HRA therefore supplies operational continuity and research pressure without becoming a compatibility target or an ontology that LOAM must preserve. The same household reality can keep serving as a demanding test track while LOAM pursues a cleaner design, including destructive changes to its own canonical data and authority layout.
+
+The current HRA / LOAM relationship is fixed in [`docs/HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md). A future return of LOAM to operational authority requires an explicit cutover rather than an implicit change of assumptions.
 
 The aspiration is closer to a focused, enduring machine than to a feature catalogue: the compactness and purpose of a Roadster, the concentrated engineering of a GR Yaris, or the uncompromising specialization of a Stratos. The analogy is about focus, not imitation. A memorable product is not memorable because it contains everything. It is memorable because its decisions reinforce one another.
 
@@ -36,11 +38,13 @@ When later work exposes a smaller or more coherent model, LOAM may:
 
 Historical work should survive when the information or law it discovered still matters. Its concrete implementation does not receive the same protection.
 
-## Canonical dogfood data is part of the experiment
+## LOAM canonical dogfood data is part of the experiment
 
-Real household data is not a museum specimen for an old schema. It is a pressure source for the current model.
+Real household data is not a museum specimen for an old LOAM schema. It is a pressure source for the current model.
 
-If a better representation is earned, canonical dogfood data may be migrated or rewritten to that representation. The important distinction is semantic:
+During the current operating mode, `canonical` inside LOAM means selected authority for the current LOAM experiment, not final operational authority for household reality. HRA currently carries the day-to-day operational record. LOAM canonical data, identifiers, manifests, provenance structures, and publication boundaries may therefore be redesigned or regenerated when that produces a better model.
+
+If a better representation is earned, LOAM dogfood data may be migrated or rewritten to that representation. The important distinction is semantic:
 
 ```text
 change of representation
@@ -50,12 +54,12 @@ identity / alias normalization
     may rewrite naming when identity is intentionally unified
 
 correction of what actually happened
-    remains a different claim and should retain whatever provenance the model requires
+    remains a different claim and needs evidence appropriate to that claim
 ```
 
-Do not retain obsolete spellings, identifiers, fields, or compatibility records solely to avoid a migration.
+Do not retain obsolete spellings, identifiers, fields, authority layouts, or compatibility records solely to avoid a migration.
 
-When conversion is needed, prefer a disposable, explicit migration step over a permanent compatibility subsystem.
+When conversion is needed, prefer a disposable, explicit migration or reconstruction step over a permanent compatibility subsystem. When an experiment claims parity with HRA or a particular historical fact, preserve or reconstruct only the evidence needed to support that claim rather than treating every earlier LOAM byte as sacred provenance.
 
 ## The central compression rule
 

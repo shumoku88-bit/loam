@@ -143,11 +143,13 @@ The household and research slice documented by this checkpoint includes:
 
 External household systems remain comparison and research pressure. Their Account, Plan, recurrence, Series, and report vocabulary are not automatically imported into LOAM Core.
 
-LOAM is now the only active household system and the canonical authority for household Actual facts. HRA and h-kernel are no longer operational fallbacks; they remain historical and research evidence only. No new household fact should be recorded there as part of current operation.
+HRA is currently the day-to-day operational household authority. Ordinary real-life recording continues there while LOAM is developed in parallel. LOAM may also receive the same or other real household events through explicit user or AI-assisted entrances so that practical use continues to pressure the design.
 
-The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain immutable migration provenance in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than operational bridges or authority.
+Within LOAM, selected `loam-data` objects and manifests remain canonical for the current LOAM experiment, but they are not the final operational authority for household reality during this phase. LOAM may destructively redesign and regenerate its own Core, Application, persistence, authority layout, and canonical data without preserving backward compatibility. Exact HRA ↔ LOAM parity is required only when a named experiment or reconciliation explicitly claims it. See [`HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md) for the standing current policy.
 
-See [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md) for the compact current checkpoint after Observation 104 and Applications 010–014.
+The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain immutable migration provenance for that historical cutover in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than current operational bridges or authority.
+
+See [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md) for the compact historical checkpoint after Observation 104 and Applications 010–014. Statements there describe the phase that produced that checkpoint; the current cross-system operating authority is defined by `docs/HOUSEHOLD_OPERATING_MODE.md`.
 
 ## Current map
 
@@ -161,7 +163,7 @@ Observations 072–084 establish the first private real-data shadow boundary, ru
 
 The integrated [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) currently records that history through Observation 084 in detail.
 
-Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The current compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md).
+Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md).
 
 The latest practical result is not a claim that familiar household concepts are permanently unnecessary. It is evidence that several useful household questions can already be answered by small retained facts / relations, question-specific projections, and terminal composition without importing the source application's ontology wholesale.
 
