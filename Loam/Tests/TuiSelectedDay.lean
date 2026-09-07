@@ -82,10 +82,17 @@ def main : IO Unit := do
   expect (contains "コンビニ" actualText && contains "Selected Actual:" actualText)
     "Selected-day workspace did not keep Actual evidence and detail together"
 
+  let correctionStep := Loam.Tui.SelectedDay.update snapshot state .correctActual
+  expect (correctionStep.command == .correctActual)
+    "Selected-day Actual selection stopped delegating Correction intent"
+
   let scheduledState := (Loam.Tui.SelectedDay.update snapshot state .focusRight).state
   let scheduledText := widgetText (Loam.Tui.SelectedDay.view { width := 100, height := 30 } snapshot scheduledState)
   expect (contains "scheduled-day" scheduledText && contains "Selected Scheduled:" scheduledText)
     "Selected-day workspace did not keep Scheduled evidence and detail together"
+  let refusedCorrection := Loam.Tui.SelectedDay.update snapshot scheduledState .correctActual
+  expect (refusedCorrection.command == .stay)
+    "Scheduled pane emitted an Actual Correction intent"
 
   let newStep := Loam.Tui.SelectedDay.update snapshot state .recordNew
   expect (newStep.command == .recordNew)
@@ -100,4 +107,4 @@ def main : IO Unit := do
   expect (contains "Unknown: absence of an explicit due occurrence is not NotDue." unknownText)
     "Selected-day workspace collapsed Scheduled Unknown into NotDue"
 
-  IO.println "TUI selected day: shared Actual/Scheduled composition, detail, Record delegation and Unknown passed."
+  IO.println "TUI selected day: shared composition, detail, Record/Correction delegation and Unknown passed."

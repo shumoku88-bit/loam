@@ -1,4 +1,5 @@
 import Loam.Tui.Record
+import Loam.Tui.Correction
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -118,13 +119,14 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
-/-- One-date workspace grammar. Mutating actions are limited to the shared Record path. -/
+/-- One-date workspace grammar. Mutating actions delegate to shared publishers. -/
 def selectedDayEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
   | .up | .input 'k' | .input 'K' => .previous
   | .down | .input 'j' | .input 'J' => .next
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'n' | .input 'N' => .recordNew
+  | .input 'c' | .input 'C' => .correctActual
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -148,6 +150,29 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
       let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       recordLoop bounds root world known step.state nextFrame
+
+/-- A Correction session emits one target-bound replacement intent at most.
+Only the shared CorrectionPublisher performs the authoritative re-read and write. -/
+partial def correctionLoop (bounds : Bounds) (root correctionFile : System.FilePath)
+    (world : Loam.MovementAdmission.World) (known : List String)
+    (state : Loam.Tui.Correction.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.Correction.update world known state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Correction cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.CorrectionPublisher.publishManifestCorrection
+          root.toString correctionFile.toString draft with
+      | .ok receipt =>
+          return "Corrected " ++ receipt.target.token ++ " -> " ++ receipt.replacement.token ++ "."
+      | .error message =>
+          let next := Loam.Tui.Correction.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.Correction.view known next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          correctionLoop bounds root correctionFile world known next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.Correction.view known step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      correctionLoop bounds root correctionFile world known step.state nextFrame
 
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
@@ -183,7 +208,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       hraActualLoop bounds dataDir root snapshot step.state nextFrame
 
-/-- Selected-day session. It composes shared reads and delegates new Actual to MovementPublisher. -/
+/-- Selected-day session. Shared reads remain the workspace source; writes are delegated. -/
 partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.SelectedDay.State)
     (frame : CompiledWidget) : IO Snapshot := do
@@ -191,6 +216,41 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (selectedDayEventOfKey (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .correctActual =>
+      match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current Actual is selected for correction." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.Correction.initial? record with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let world ←
+                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                | .error message => throw (IO.userError message)
+                | .ok world => pure world
+              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let editorFrame := compileWidget (Loam.Tui.Correction.view known editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← correctionLoop bounds root (dataDir / "corrections.loam")
+                world known editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
         match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
