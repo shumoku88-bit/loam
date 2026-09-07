@@ -8,10 +8,14 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/Persistence/AttentionPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/AttentionPersistence.lean'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   push:
@@ -23,10 +27,14 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/Persistence/AttentionPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/AttentionPersistence.lean'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   workflow_dispatch:
@@ -61,3 +69,12 @@ jobs:
 
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
+
+      - name: Build shared Attention review boundary
+        run: lake build Loam.AttentionReview
+
+      - name: Verify shared Attention persistence and review boundary
+        run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
+
+      - name: Verify read-only Attention workspace
+        run: lake env lean --run Loam/Tests/TuiAttention.lean
