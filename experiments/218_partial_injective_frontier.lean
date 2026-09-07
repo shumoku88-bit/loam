@@ -34,6 +34,7 @@ private def nextSuccessor? {Id : Type} [DecidableEq Id] :
       else
         nextSuccessor? rest id
 
+/-- Seen-set cycle detector, matching Event Correction and Scheduled Replacement. -/
 private def pathAcyclic {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id))
     (current : Id)
@@ -51,6 +52,25 @@ def acyclic {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id)) : Bool :=
   edges.all fun edge =>
     pathAcyclic edges edge.superseded [] (edges.length + 1)
+
+/-- Start-return detector, matching ActualValidity and QuantityBasis. -/
+private def pathAcyclicFromStart {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (start : Id) : Nat → Id → Bool
+  | 0, _ => true
+  | fuel + 1, current =>
+      match nextSuccessor? edges current with
+      | none => true
+      | some next =>
+          if next = start then
+            false
+          else
+            pathAcyclicFromStart edges start fuel next
+
+def acyclicByStartReturn {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) : Bool :=
+  edges.all fun edge =>
+    pathAcyclicFromStart edges edge.superseded edges.length edge.superseded
 
 def structurallyAdmissible {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) : Bool :=
@@ -95,6 +115,12 @@ private def chain : List (ReplacementEdge Nat) :=
 example : structurallyAdmissible [0, 1, 2, 3] chain = true := by
   decide
 
+example : acyclic chain = true := by
+  decide
+
+example : acyclicByStartReturn chain = true := by
+  decide
+
 example : frontier [0, 1, 2, 3] chain = [2, 3] := by
   decide
 
@@ -116,7 +142,32 @@ private def cycle : List (ReplacementEdge Nat) :=
   [ { superseded := 0, successor := 1 },
     { superseded := 1, successor := 0 } ]
 
+example : acyclic cycle = false := by
+  decide
+
+example : acyclicByStartReturn cycle = false := by
+  decide
+
 example : structurallyAdmissible [0, 1] cycle = false := by
+  decide
+
+/-- Tail entering a cycle: the path-local predicates differ. -/
+private def lasso : List (ReplacementEdge Nat) :=
+  [ { superseded := 0, successor := 1 },
+    { superseded := 1, successor := 2 },
+    { superseded := 2, successor := 1 } ]
+
+example : pathAcyclicFromStart lasso 0 lasso.length 0 = true := by
+  decide
+
+example : pathAcyclic lasso 0 [] (lasso.length + 1) = false := by
+  decide
+
+/-- Whole-graph checks still agree on rejecting the lasso. -/
+example : acyclicByStartReturn lasso = false := by
+  decide
+
+example : acyclic lasso = false := by
   decide
 
 private def openReference : List (ReplacementEdge Nat) :=
