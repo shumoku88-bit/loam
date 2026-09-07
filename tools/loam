@@ -253,6 +253,12 @@ run_open_scheduled() {
   fi
 }
 
+run_tui() {
+  echo "Building LOAM production TUI..." >&2
+  lake build loamTui
+  exec "$root/.lake/build/bin/loamTui" "$@"
+}
+
 run_shadow_audit() {
   if shadow_binary_is_current; then
     exec "$shadow_binary" "$@"
@@ -295,6 +301,9 @@ print_help() {
   cat <<'EOF'
 LOAM practical dogfood
 
+Open the production TUI:
+  ./tools/loam tui [LOAM_DATA_DIR]
+
 Record one balanced JPY movement:
   ./tools/loam movement MEMORY_FILE
 
@@ -332,6 +341,11 @@ EOF
 run_menu_action() {
   "$@" || true
 }
+
+if [[ "${1:-}" == "tui" ]]; then
+  shift
+  run_tui "$@"
+fi
 
 if [[ "${1:-}" == "shadow-audit" ]]; then
   shift
