@@ -355,4 +355,208 @@ private theorem traceChecks_length_of_not_terminal
             simpa [reachesTerminal, hNext] using hNotTerminal
           simp [traceChecks, hNext, ih next hTailNotTerminal]
 
+/-- Under injectivity, absence of a bounded start return makes the checked trace duplicate-free. -/
+private theorem traceChecks_nodup_of_no_return
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (hInjective : ∀ {left right endpoint : Id},
+      next? left = some endpoint → next? right = some endpoint → left = right)
+    (fuel : Nat)
+    (current : Id)
+    (hNoReturn : returnsWithin next? current fuel current = false) :
+    (traceChecks next? (fuel + 1) current).Nodup := by
+  induction fuel generalizing current with
+  | zero =>
+      cases hNext : next? current <;>
+        simp [traceChecks, hNext]
+  | succ fuel ih =>
+      cases hNext : next? current with
+      | none =>
+          simp [traceChecks, hNext]
+      | some next =>
+          have hTailNoReturn :
+              returnsWithin next? next fuel next = false := by
+            cases hTail : returnsWithin next? next fuel next with
+            | false => rfl
+            | true =>
+                have hStartCycle :=
+                  successor_cycle_forces_start_cycle
+                    next? hInjective current next fuel hNext hTail
+                simp [hNoReturn] at hStartCycle
+          have hTailNodup := ih next hTailNoReturn
+          have hNoMemWalk :
+              current ∉ walkAfter next? (fuel + 1) current := by
+            intro hMem
+            have hReturnTrue :=
+              (returnsWithin_eq_true_iff_mem_walkAfter
+                next? current current (fuel + 1)).2 hMem
+            simp [hNoReturn] at hReturnTrue
+          have hTailEq :
+              traceChecks next? (fuel + 1) next =
+                walkAfter next? (fuel + 1) current := by
+            calc
+              traceChecks next? (fuel + 1) next =
+                  next :: walkAfter next? fuel next :=
+                traceChecks_succ_eq_cons_walkAfter next? fuel next
+              _ = walkAfter next? (fuel + 1) current := by
+                simp [walkAfter, hNext]
+          have hFresh :
+              current ∉ traceChecks next? (fuel + 1) next := by
+            intro hMem
+            apply hNoMemWalk
+            rw [← hTailEq]
+            exact hMem
+          change
+            (current :: (match next? current with
+              | none => []
+              | some next => traceChecks next? (fuel + 1) next)).Nodup
+          rw [hNext]
+          exact List.nodup_cons.mpr ⟨hFresh, hTailNodup⟩
+
+/-- A finite domain cannot sustain one more duplicate-free nonterminal check than its length. -/
+private theorem reachesTerminal_of_no_return_finite
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (sources : List Id)
+    (hDomain : ∀ {source successor : Id},
+      next? source = some successor → source ∈ sources)
+    (hInjective : ∀ {left right endpoint : Id},
+      next? left = some endpoint → next? right = some endpoint → left = right)
+    (current : Id)
+    (hNoReturn :
+      returnsWithin next? current sources.length current = false) :
+    reachesTerminal next? (sources.length + 1) current = true := by
+  cases hTerminal : reachesTerminal next? (sources.length + 1) current with
+  | true => rfl
+  | false =>
+      have hTraceNodup :=
+        traceChecks_nodup_of_no_return
+          next? hInjective sources.length current hNoReturn
+      have hSubset :=
+        traceChecks_subset_sources_of_not_terminal
+          next? sources hDomain (sources.length + 1) current hTerminal
+      have hLength :=
+        traceChecks_length_of_not_terminal
+          next? (sources.length + 1) current hTerminal
+      have hLe :
+          (traceChecks next? (sources.length + 1) current).length ≤
+            sources.length :=
+        List.Nodup.length_le_of_subset hTraceNodup hSubset
+      rw [hLength] at hLe
+      omega
+
+private theorem pathAcyclic_true_of_no_return_finite
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (sources : List Id)
+    (hDomain : ∀ {source successor : Id},
+      next? source = some successor → source ∈ sources)
+    (hInjective : ∀ {left right endpoint : Id},
+      next? left = some endpoint → next? right = some endpoint → left = right)
+    (current : Id)
+    (hNoReturn :
+      returnsWithin next? current sources.length current = false) :
+    pathAcyclic next? current [] (sources.length + 1) = true := by
+  apply (pathAcyclic_eq_true_iff
+    next? current [] (sources.length + 1)).2
+  have hTraceNodup :=
+    traceChecks_nodup_of_no_return
+      next? hInjective sources.length current hNoReturn
+  have hTerminal :=
+    reachesTerminal_of_no_return_finite
+      next? sources hDomain hInjective current hNoReturn
+  exact ⟨hTraceNodup, by simp [avoids], hTerminal⟩
+
+private theorem pathAcyclic_false_of_return
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (current : Id)
+    (fuel : Nat)
+    (hReturn : returnsWithin next? current fuel current = true) :
+    pathAcyclic next? current [] (fuel + 1) = false := by
+  cases hPath : pathAcyclic next? current [] (fuel + 1) with
+  | false => rfl
+  | true =>
+      have hTraceNodup :=
+        ((pathAcyclic_eq_true_iff
+          next? current [] (fuel + 1)).1 hPath).1
+      have hMem :=
+        (returnsWithin_eq_true_iff_mem_walkAfter
+          next? current current fuel).1 hReturn
+      rw [traceChecks_succ_eq_cons_walkAfter next? fuel current] at hTraceNodup
+      simp only [List.nodup_cons] at hTraceNodup
+      exact False.elim (hTraceNodup.1 hMem)
+
+/--
+For one start in a finite injective partial successor map, the seen-set detector
+and bounded start-return detector make exactly the same decision.
+-/
+theorem pathAcyclic_eq_not_returnsWithin_finite_injective
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (sources : List Id)
+    (hDomain : ∀ {source successor : Id},
+      next? source = some successor → source ∈ sources)
+    (hInjective : ∀ {left right endpoint : Id},
+      next? left = some endpoint → next? right = some endpoint → left = right)
+    (current : Id) :
+    pathAcyclic next? current [] (sources.length + 1) =
+      !returnsWithin next? current sources.length current := by
+  cases hReturn : returnsWithin next? current sources.length current with
+  | false =>
+      have hPath :=
+        pathAcyclic_true_of_no_return_finite
+          next? sources hDomain hInjective current hReturn
+      simp [hReturn, hPath]
+  | true =>
+      have hPath :=
+        pathAcyclic_false_of_return
+          next? current sources.length hReturn
+      simp [hReturn, hPath]
+
+private def seenSetAcyclic {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id) (sources : List Id) : Bool :=
+  sources.all fun source =>
+    pathAcyclic next? source [] (sources.length + 1)
+
+private def startReturnAcyclic {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id) (sources : List Id) : Bool :=
+  sources.all fun source =>
+    !returnsWithin next? source sources.length source
+
+private theorem all_eq_of_pointwise
+    {α : Type}
+    (items : List α)
+    (left right : α → Bool)
+    (hEq : ∀ item ∈ items, left item = right item) :
+    items.all left = items.all right := by
+  induction items with
+  | nil => rfl
+  | cons item rest ih =>
+      have hHead := hEq item (by simp)
+      have hTail : ∀ candidate ∈ rest, left candidate = right candidate := by
+        intro candidate hMem
+        exact hEq candidate (by simp [hMem])
+      simp [hHead, ih hTail]
+
+/-- Whole-domain detector equivalence for a finite injective partial successor map. -/
+theorem seenSetAcyclic_eq_startReturnAcyclic
+    {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (sources : List Id)
+    (hDomain : ∀ {source successor : Id},
+      next? source = some successor → source ∈ sources)
+    (hInjective : ∀ {left right endpoint : Id},
+      next? left = some endpoint → next? right = some endpoint → left = right) :
+    seenSetAcyclic next? sources = startReturnAcyclic next? sources := by
+  unfold seenSetAcyclic startReturnAcyclic
+  exact all_eq_of_pointwise
+    sources
+    (fun source => pathAcyclic next? source [] (sources.length + 1))
+    (fun source => !returnsWithin next? source sources.length source)
+    (by
+      intro source _
+      exact pathAcyclic_eq_not_returnsWithin_finite_injective
+        next? sources hDomain hInjective source)
+
 end Loam.Experiments.Observation218FinitePartialInjection
