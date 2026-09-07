@@ -120,7 +120,7 @@ def main (args : List String) : IO Unit := do
     editor with form := { editor.form with rows :=
       #[ { locus := "paypay", amount := "-700" }
        , { locus := "food", amount := "600" } ] } }
-  expect ((Loam.Tui.ScheduledCreation.draft? unbalanced).isError)
+  expect (!(Loam.Tui.ScheduledCreation.draft? unbalanced).isOk)
     "new Scheduled editor previewed an unbalanced movement"
   let cancelled := Loam.Tui.ScheduledCreation.update ["paypay", "food"] editor .escape
   expect (cancelled.cancel && cancelled.publish.isNone)
