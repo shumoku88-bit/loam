@@ -188,7 +188,7 @@ def run (args : List String) : IO UInt32 := do
     | .ok root => pure root
   Loam.Tui.Terminal.enter
   try
-    let state := initialState snapshot.actual.today
+    let state := { initialState snapshot.actual.today with notice := "a Attention" }
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 blank frame
