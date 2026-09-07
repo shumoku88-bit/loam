@@ -68,5 +68,8 @@ jobs:
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
 
+      - name: Build shared Attention review boundary
+        run: lake build Loam.AttentionReview
+
       - name: Verify shared Attention persistence and review boundary
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
