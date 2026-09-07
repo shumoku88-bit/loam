@@ -41,6 +41,19 @@ def main (args : List String) : IO Unit := do
   let edited := update w [] (update w [] editor .tab).state .enter
   expect (edited.state.form.description == readyForm.description) "Edit lost description"
   expect (edited.state.form.rows == readyForm.rows) "Edit lost rows"
+
+  let finalAmountForm := { readyForm with focus := ⟨5, by decide⟩ }
+  let directPreview := update w [] { form := finalAmountForm } .enter
+  match directPreview.state.mode with
+  | .preview _ choice => expect (choice.val == 0) "direct preview did not select Publish"
+  | .editing => throw (IO.userError "final amount Enter did not open preview")
+  expect (directPreview.publish.isNone) "direct preview published without confirmation"
+  expect ((update w [] directPreview.state .enter).publish.isSome)
+    "direct preview did not preserve explicit publish confirmation"
+  let finalAmountTab := update w [] { form := finalAmountForm } .tab
+  expect (finalAmountTab.state.form.focus.val == 6)
+    "Tab from final amount no longer reaches row actions"
+
   expect ((Loam.MovementAdmission.admit? w { draft with total := 1 }).isOk == false)
     "forged total admitted"
   expect ((Loam.MovementAdmission.admit? w { draft with effects := draft.effects.take 1 }).isOk == false)
@@ -74,4 +87,4 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
-  IO.println "TUI Record: admission, stale policy rejection, publication and fresh review passed."
+  IO.println "TUI Record: direct preview, admission, stale policy rejection, publication and fresh review passed."

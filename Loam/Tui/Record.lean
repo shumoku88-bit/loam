@@ -152,7 +152,9 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
             let focus := state.form.focus.val
-            if focus < firstAction then
+            if focus + 1 = firstAction then
+              { state := preview world state }
+            else if focus < firstAction then
               { state := { state with form := moveFocus state.form false } }
             else if (focus = firstAction || focus = firstAction + 1) && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six effect rows." } }
@@ -203,7 +205,7 @@ def view (known : List String) (state : State) : Widget :=
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
          line ("Candidate: " ++ (candidate? known form).getD ""),
-         line "Tab / Shift-Tab focus   Enter next/action   Right accept candidate",
+         line "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate",
          line "Esc cancel   Backspace delete   Drop keeps one FROM and one TO",
          line state.notice]
   | .preview draft choice =>
