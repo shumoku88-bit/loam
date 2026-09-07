@@ -282,17 +282,24 @@ def acyclicByStartReturn {Id : Type} [DecidableEq Id]
   edges.all fun edge =>
     pathAcyclicFromStart edges edge.superseded edges.length edge.superseded
 
+private theorem all_not_eq_not_any
+    {α : Type} (items : List α) (p : α → Bool) :
+    items.all (fun item => !(p item)) = !(items.any p) := by
+  induction items with
+  | nil =>
+      rfl
+  | cons item rest ih =>
+      cases h : p item <;> simp [h, ih]
+
 /-- Start-return whole-graph admission is exactly absence of a bounded represented cycle. -/
 theorem acyclicByStartReturn_eq_not_hasCycleByReturn
     {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id)) :
     acyclicByStartReturn edges = !hasCycleByReturn edges := by
-  induction edges with
-  | nil =>
-      rfl
-  | cons edge rest ih =>
-      simp [acyclicByStartReturn, hasCycleByReturn,
-        pathAcyclicFromStart_eq_not_returnsToStartWithin]
+  unfold acyclicByStartReturn hasCycleByReturn
+  simp_rw [pathAcyclicFromStart_eq_not_returnsToStartWithin]
+  exact all_not_eq_not_any edges (fun edge =>
+    returnsToStartWithin edges edge.superseded edges.length edge.superseded)
 
 
 def structurallyAdmissible {Id : Type} [DecidableEq Id]
