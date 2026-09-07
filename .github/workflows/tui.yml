@@ -9,18 +9,27 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
+      - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/QuantityBasisPersistence.lean'
+      - 'Loam/Persistence/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
       - 'Loam/Tests/BudgetWindowReview.lean'
       - 'lakefile.lean'
@@ -35,18 +44,27 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
+      - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Application/BasisCut.lean'
+      - 'Loam/Application/CurrentQuantity.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/BasisCutPersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/QuantityBasisPersistence.lean'
+      - 'Loam/Persistence/QuantityBasisCorrectionPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
       - 'Loam/Tests/BudgetWindowReview.lean'
       - 'lakefile.lean'
@@ -92,6 +110,15 @@ jobs:
 
       - name: Verify read-only Attention workspace
         run: lake env lean --run Loam/Tests/TuiAttention.lean
+
+      - name: Build manifest-backed Balance review boundary
+        run: lake build Loam.BalanceReview
+
+      - name: Verify manifest-backed Balance review boundary
+        run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
+
+      - name: Verify read-only Balances workspace
+        run: lake env lean --run Loam/Tests/TuiBalances.lean
 
       - name: Verify shared Capacity review boundary
         run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
