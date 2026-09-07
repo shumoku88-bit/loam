@@ -201,7 +201,7 @@ partial def loop (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 (compileWidget (.row [])) nextFrame
     loop dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'p' || key = .input 'P') then
-    let reports := Loam.Tui.Reports.initial
+    let reports := Loam.Tui.Reports.initialForDate state.selectedDate
     let reportsFrame := compileWidget (Loam.Tui.Reports.view reports)
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 frame reportsFrame
     if ← reportsLoop dataDir root reports reportsFrame then
@@ -257,10 +257,7 @@ def run (args : List String) : IO UInt32 := do
     | .ok root => pure root
   Loam.Tui.Terminal.enter
   try
-    let state := {
-      initialState snapshot.actual.today with
-      notice := "a Attention   c Capacity   p Reports"
-    }
+    let state := { initialState snapshot.actual.today with notice := "a Attention   c Capacity   p Reports" }
     let frame := compiledFrameFor snapshot state
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff screenBounds 1 1 blank frame
