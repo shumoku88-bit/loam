@@ -145,9 +145,9 @@ for every represented source s:
 
 This smaller traversal does not remember every intermediate identity.
 
-## Important lasso witness
+## Important lasso witness — and why it is outside the candidate algebra
 
-The updated Lean probe adds:
+The updated Lean probe includes:
 
 ```text
 0 -> 1 -> 2 -> 1
@@ -160,39 +160,69 @@ seen-set traversal       rejects
 start-return from 0      does not return to 0 within the bounded walk
 ```
 
-So the two *path-local* predicates are not equivalent.
+So the two *path-local* predicates are not equivalent on an arbitrary finite
+deterministic-successor graph.
 
-But the production-style start-return algorithm runs once from every represented
-edge source. It therefore also starts at `1`, which is itself on the cycle, and
-rejects the graph.
-
-The Lean witness consequently confirms:
+However this lasso has incoming edges
 
 ```text
-seen-set whole-graph check      rejects the lasso
-start-return whole-graph check  rejects the lasso
+0 -> 1
+2 -> 1
 ```
 
-This is an important qualification. The candidate shared concept is a
-**whole-graph acyclicity property**, not either traversal implementation.
+and therefore uses replacement identity `1` twice. It violates the
+`uniqueReplacements` / `replacementNodup` premise already required by all four
+production families before the candidate partial-injection algebra is admitted.
+
+This materially narrows the proof obligation.
+
+For a partial injection, an external tail cannot enter an existing cycle without
+creating a shared successor at the entry point. Therefore a repeated node on a
+walk should force the original source itself to lie on that cycle.
+
+The generic Lean probe now begins formalizing exactly this fact by proving the
+local injectivity lemma:
+
+```text
+successor endpoints are Nodup
+nextSuccessor? left  = some successor
+nextSuccessor? right = some successor
+--------------------------------------
+left = right
+```
+
+If that proof remains small, the cycle-equivalence theorem should be stated under
+endpoint uniqueness rather than for arbitrary edge lists.
 
 ## What is and is not proved now
 
-Observation 218 currently proves executable bounded witnesses for:
+Observation 218 has executable bounded witnesses for:
 
 ```text
 ordinary chain               accepted by both cycle-detector shapes
 simple cycle                 rejected by both
 lasso                         rejected by both whole-graph checks
+lasso                         rejected by endpoint uniqueness itself
 branching source              rejected by endpoint uniqueness
 shared replacement / merge   rejected by injectivity
 open endpoint                 rejected by closure
 ```
 
-It does **not yet prove** a universal Lean theorem that the two whole-graph cycle
-algorithms are extensionally equivalent for every finite represented edge list.
+It also attempts the first universal structural lemma needed by the equivalence
+proof: successor lookup is injective when represented replacement identities are
+Nodup.
 
-That universal theorem is now a concrete extraction gate.
+It does **not yet prove** the final universal theorem
+
+```text
+endpointUnique edges = true ->
+  acyclic edges = acyclicByStartReturn edges
+```
+
+for every finite represented edge list.
+
+That conditional theorem is now the concrete extraction gate. This is strictly
+smaller than the previous unconditional target.
 
 ## Exact-equivalence proof ladder
 
@@ -202,36 +232,54 @@ The smaller proof order is:
 1. **endpoint uniqueness**
    - show the recursive production checks and `Nodup` endpoint formulation are
      extensionally equivalent;
+   - prove successor lookup injectivity from replacement `Nodup`;
 
-2. **whole-graph acyclicity**
-   - prove seen-set and start-return whole-graph checks express the same finite
-     deterministic-successor cycle-free property;
+2. **partial-injection cycle shape**
+   - show that a walk in a finite partial injection cannot enter a cycle from a
+     distinct external tail, because doing so would violate successor injectivity;
 
-3. **reference closure**
+3. **conditional cycle-detector equivalence**
+   - prove seen-set and start-return traversal agree under endpoint uniqueness;
+
+4. **reference closure**
    - relate carrier membership to each typed Memory lookup without replacing the
      typed Memory representation;
 
-4. **frontier membership**
+5. **frontier membership**
    - prove that generic frontier membership is exactly retained carrier
      membership plus absence from the replacement domain;
 
-5. **domain adapters**
+6. **domain adapters**
    - reconstruct each production admission as shared structural mechanics plus
      its local laws;
 
-6. **complexity audit**
+7. **complexity audit**
    - count generic definitions / proofs added versus duplicated local machinery
      actually deleted before any production promotion.
+
+## Build-topology side observation
+
+Adding the fourth QuantityBasis adapter initially failed the dedicated probe even
+though the adapter itself was structurally ordinary. The cause was not a semantic
+or type mismatch: `QuantityBasisCorrectionMemory.olean` had not been built on the
+probe's existing path. Explicitly building the imported frontier-family modules
+made the four-adapter probe pass.
+
+That is a useful secondary observation for the larger simplification study:
+semantic decomposition can leave complexity in the build/module graph even when
+Core concepts remain small. Production extraction should therefore measure not
+only source duplication but also dependency and build-topology cost.
 
 ## Current production recommendation
 
 Still **do not promote** the abstraction.
 
 The evidence is stronger than the first field trial because four production
-families now fit the same decomposition, and the apparently different cycle
-algorithms have a precise common intended property.
+families now fit the same decomposition, and the apparent cycle-algorithm gap is
+smaller inside the actually admitted partial-injection class than it first
+appeared.
 
-But promotion is earned only if the universal equivalence proofs remain small.
+But promotion is earned only if the universal conditional proofs remain small.
 If proving the generic abstraction requires a large graph-theory framework that
 is harder to understand than the four local copies, the correct result is to
 keep the duplication.
