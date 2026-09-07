@@ -27,14 +27,16 @@ private def readyForm : Form := {
   date := "2026-09-06"
   description := "数学ガール"
   rows := #[
-    { fromSide := true, locus := "paypay", amount := "2470" },
-    { fromSide := false, locus := "books", amount := "2470" }] }
+    { locus := "paypay", amount := "-2470" },
+    { locus := "books", amount := "2470" }] }
 
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated manifest root")
   let root := System.FilePath.mk rootPath
   let w ← world
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
+  expect (draft.effects[0]!.quantity.quanta == -2470) "negative posting lost its sign"
+  expect (draft.effects[1]!.quantity.quanta == 2470) "positive posting lost its sign"
   let editor := preview w { form := readyForm }
   expect ((update w [] editor .enter).publish.isSome) "preview must produce explicit intent"
   expect ((update w [] editor .escape).publish.isNone) "cancel must not publish"
@@ -53,6 +55,28 @@ def main (args : List String) : IO Unit := do
   let finalAmountTab := update w [] { form := finalAmountForm } .tab
   expect (finalAmountTab.state.form.focus.val == 6)
     "Tab from final amount no longer reaches row actions"
+
+  let addPostingForm := { readyForm with focus := ⟨6, by decide⟩ }
+  let added := update w [] { form := addPostingForm } .enter
+  expect (added.state.form.rows.size == 3) "Add posting did not append one row"
+  expect (added.state.form.focus.val == 6) "Add posting did not focus the new Locus"
+  expect (added.state.form.rows[2]!.locus.isEmpty && added.state.form.rows[2]!.amount.isEmpty)
+    "Add posting did not append one neutral row"
+
+  let reversedForm : Form := {
+    readyForm with
+    rows := #[
+      { locus := "books", amount := "2470" },
+      { locus := "paypay", amount := "-2470" }] }
+  expect ((draft? reversedForm).isOk) "posting order became semantic"
+  expect ((draft? { readyForm with rows := #[
+    { locus := "paypay", amount := "2470" },
+    { locus := "books", amount := "2470" }] }).isOk == false)
+    "unbalanced same-sign postings were accepted"
+  expect ((draft? { readyForm with rows := #[
+    { locus := "paypay", amount := "0" },
+    { locus := "books", amount := "0" }] }).isOk == false)
+    "zero postings were accepted"
 
   expect ((Loam.MovementAdmission.admit? w { draft with total := 1 }).isOk == false)
     "forged total admitted"
@@ -87,4 +111,4 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
-  IO.println "TUI Record: direct preview, admission, stale policy rejection, publication and fresh review passed."
+  IO.println "TUI Record: signed postings, direct preview, admission, stale policy rejection, publication and fresh review passed."
