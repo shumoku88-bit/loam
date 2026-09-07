@@ -15,14 +15,14 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
 private def smbc : LocusId := ⟨"smbc"⟩
 private def rent : LocusId := ⟨"expenses:家賃"⟩
 private def reserve : LocusId := ⟨"expenses:予備"⟩
-private def opaque : LocusId := ⟨"opaque-expense-looking"⟩
+private def misleadingName : LocusId := ⟨"opaque-expense-looking"⟩
 
 def main : IO Unit := do
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments?
       [{ locus := smbc, role := .asset },
        { locus := rent, role := .expense },
-       { locus := opaque, role := .asset }])
+       { locus := misleadingName, role := .asset }])
     "explicit AccountingRole fixture was not admitted"
 
   expect (roles.roleOf? smbc == some .asset)
@@ -31,7 +31,7 @@ def main : IO Unit := do
     "explicit ExpenseRole assignment was not recovered"
   expect (roles.roleOf? reserve == none)
     "missing AccountingRole stopped being unresolved"
-  expect (roles.roleOf? opaque == some .asset)
+  expect (roles.roleOf? misleadingName == some .asset)
     "Locus spelling overrode explicit AccountingRole evidence"
 
   let encoded ← requireSome
@@ -50,7 +50,7 @@ def main : IO Unit := do
 
   let permuted ← requireSome
     (AccountingRoleMap.ofAssignments?
-      [{ locus := opaque, role := .asset },
+      [{ locus := misleadingName, role := .asset },
        { locus := rent, role := .expense },
        { locus := smbc, role := .asset }])
     "permuted AccountingRole fixture was not admitted"
