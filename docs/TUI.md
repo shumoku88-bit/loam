@@ -16,6 +16,7 @@ Loam/Tui/Calendar   presentation-only Gregorian month projection
 Loam/Tui/Main       Home / Actual / Scheduled interaction state
 Loam/Tui/Record     local Record editor / preview state
 Loam/Tui/Attention  local read-only Attention workspace
+Loam/Tui/Balances   local read-only replaceable balance-view workspace
 Loam/Tui/Capacity   local read-only Capacity workspace
 Loam/Tui/Reports    local explicit-query Reports workspace
 Loam/Tui/Cli        canonical loading and executable loop
@@ -30,6 +31,10 @@ Attention is currently a global current-open workspace rather than selected-day
 evidence. The TUI does not infer day membership from a due date, sort open items
 by due date, or add a priority taxonomy. Those would require separately earned
 query/policy semantics.
+
+Balances is a replaceable current-question projection over explicitly selected
+neutral `Locus × Measure` coordinates. It does **not** classify those loci as
+Accounts, Assets, Liabilities, cash, or any other accounting role.
 
 Capacity is currently an all-retained JPY Entitlement projection. `Current` in
 that workspace means the current answer over all retained Capacity movements; it
@@ -88,6 +93,50 @@ checks persistence round-trip, source unavailable versus explicit empty, escaped
 human context, due distinctions, and dangling-closure refusal.
 `Loam/Tests/TuiAttention.lean` checks that the surface preserves those distinctions
 and remains read-only.
+
+## Balances review
+
+Home `b` opens the read-only Balances workspace. It consumes
+`Loam.BalanceReview`, a surface-independent household reader over the already-
+qualified current-quantity and basis-cut projections.
+
+The production read topology is deliberately mixed rather than collapsed into a
+new umbrella authority:
+
+```text
+selected Movement manifest -> Event effects
+corrections.loam            -> EventCorrection, absent means empty
+basis.loam                  -> QuantityBasis, absent means no basis facts
+basis-corrections.loam      -> QuantityBasisCorrection, absent means empty
+basis-cut.tsv               -> already-reflected occurrence relation, absent means empty
+balance-view.tsv            -> replaceable selected Locus × Measure coordinates, absent means empty selection
+```
+
+Movement never falls back to the retired `memory.loam` sidecar. The other files
+retain their existing independent evidence/configuration meanings; this read does
+not claim an atomic snapshot across them.
+
+`balance-view.tsv` is a question-selection seam, not an Account registry. It can
+choose which neutral coordinates should appear without changing quantity evidence.
+Row order is presentation order only, duplicate coordinates are normalized, and
+no Asset/Liability/Income/Expense role, ranking, valuation, or total is inferred.
+
+For each selected coordinate the shared review delegates to the existing
+`BasisCut.inspectCurrentQuantityWithBasisCut?` path, which composes the admitted
+starting-basis frontier with correction-aware Event activity. A missing starting
+basis is **not** interpreted as zero. Invalid basis corrections, invalid basis-cut
+roots, or an inadmissible Event correction frontier refuse the whole view rather
+than publishing a partial set of plausible balances. An explicitly derived zero
+remains visible.
+
+`Loam/Tests/BalanceReview.lean` publishes a selected Movement manifest, poisons a
+legacy `memory.loam`, and requires `wallet = 70` from a `100` starting basis plus a
+`-30` selected-manifest Event. It also preserves an explicit `cash = 0`, normalizes
+a duplicate view coordinate, refuses a selected coordinate without basis evidence,
+and refuses malformed basis-correction evidence.
+`Loam/Tests/TuiBalances.lean` checks neutral-coordinate wording, nonzero and zero
+rows, balance-view presentation order, explicit-empty selection, and read-only
+Home navigation.
 
 ## Capacity review
 
