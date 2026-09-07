@@ -305,7 +305,9 @@ def homeView (snapshot : Snapshot) (state : State) : Widget :=
     [ blankLine
     , mutedLine ("Undated current Actual: " ++ toString snapshot.actual.undatedCount)
     , mutedLine "←/→ day   ↑/↓ week   Enter Actual   Tab Scheduled   r Record   q quit"
-    , mutedLine state.notice
+    , mutedLine (if state.notice.isEmpty then
+        "a Attention   b Balances   c Capacity   p Reports"
+      else state.notice)
     ]
 
 
@@ -412,7 +414,6 @@ def view (snapshot : Snapshot) (state : State) : Widget :=
 
 
 def screenBounds : Bounds := { width := 80, height := 24 }
-
 def screenFor (snapshot : Snapshot) (state : State) : Screen screenBounds :=
   renderAt screenBounds 1 1 (view snapshot state)
 
