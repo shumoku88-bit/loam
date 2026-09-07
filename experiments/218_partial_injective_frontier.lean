@@ -82,6 +82,12 @@ def scheduledReplacementEdges
     { superseded := replacement.source
       successor := replacement.replacement }
 
+def quantityBasisCorrectionEdges
+    (memory : QuantityBasisCorrectionMemory) : List (ReplacementEdge QuantityBasisId) :=
+  memory.corrections.map fun correction =>
+    { superseded := correction.target
+      successor := correction.replacement }
+
 private def chain : List (ReplacementEdge Nat) :=
   [ { superseded := 0, successor := 1 },
     { superseded := 1, successor := 2 } ]
