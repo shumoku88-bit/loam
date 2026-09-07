@@ -5,6 +5,7 @@ on:
     paths:
       - 'experiments/218_partial_injective_frontier.lean'
       - 'experiments/218_partial_injective_frontier.md'
+      - 'experiments/218_partial_injective_frontier_followup.md'
       - '.github/workflows/observation-218-partial-injective-frontier.yml'
       - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
