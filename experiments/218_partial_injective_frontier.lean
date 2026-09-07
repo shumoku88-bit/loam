@@ -94,6 +94,95 @@ theorem nextSuccessor?_injective_of_successor_nodup
             simpa [nextSuccessor?, hRightHead] using hRight
           exact ih hRestNodup hLeftRest hRightRest
 
+/-- Advance exactly `steps` represented successor edges, failing on a terminal node. -/
+private def advance? {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) : Nat → Id → Option Id
+  | 0, id => some id
+  | steps + 1, id =>
+      match nextSuccessor? edges id with
+      | none => none
+      | some next => advance? edges steps next
+
+private theorem advance?_add
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (first second : Nat)
+    (start : Id) :
+    advance? edges (first + second) start =
+      (advance? edges first start).bind (advance? edges second) := by
+  induction first generalizing start with
+  | zero =>
+      simp [advance?]
+  | succ first ih =>
+      simp only [Nat.succ_add]
+      simp [advance?]
+      cases hNext : nextSuccessor? edges start with
+      | none =>
+          simp [hNext]
+      | some next =>
+          simp [hNext, ih]
+
+/-- Every defined finite iterate of an injective successor lookup is injective. -/
+theorem advance?_injective_of_successor_nodup
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (hNodup : (edges.map ReplacementEdge.successor).Nodup)
+    (steps : Nat)
+    {left right endpoint : Id}
+    (hLeft : advance? edges steps left = some endpoint)
+    (hRight : advance? edges steps right = some endpoint) :
+    left = right := by
+  induction steps generalizing left right endpoint with
+  | zero =>
+      simp [advance?] at hLeft hRight
+      exact hLeft.trans hRight.symm
+  | succ steps ih =>
+      cases hLeftNext : nextSuccessor? edges left with
+      | none =>
+          simp [advance?, hLeftNext] at hLeft
+      | some leftNext =>
+          cases hRightNext : nextSuccessor? edges right with
+          | none =>
+              simp [advance?, hRightNext] at hRight
+          | some rightNext =>
+              have hLeftTail : advance? edges steps leftNext = some endpoint := by
+                simpa [advance?, hLeftNext] using hLeft
+              have hRightTail : advance? edges steps rightNext = some endpoint := by
+                simpa [advance?, hRightNext] using hRight
+              have hNextEq : leftNext = rightNext :=
+                ih hLeftTail hRightTail
+              have hLeftNext' : nextSuccessor? edges left = some rightNext := by
+                simpa [hNextEq] using hLeftNext
+              exact nextSuccessor?_injective_of_successor_nodup
+                edges hNodup hLeftNext' hRightNext
+
+/--
+Cancellation across an injective walk: if the same endpoint occurs after
+`prefix` steps and again after `period + prefix` steps, then the original start
+itself returns after `period` steps. An external tail into a cycle would violate
+successor injectivity.
+-/
+theorem repeated_advance_forces_start_return
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id))
+    (hNodup : (edges.map ReplacementEdge.successor).Nodup)
+    (period prefix : Nat)
+    {start repeated : Id}
+    (hPrefix : advance? edges prefix start = some repeated)
+    (hRepeated : advance? edges (period + prefix) start = some repeated) :
+    advance? edges period start = some start := by
+  rw [advance?_add edges period prefix start] at hRepeated
+  cases hPeriod : advance? edges period start with
+  | none =>
+      simp [hPeriod] at hRepeated
+  | some afterPeriod =>
+      have hTail : advance? edges prefix afterPeriod = some repeated := by
+        simpa [hPeriod] using hRepeated
+      have hEq : afterPeriod = start :=
+        advance?_injective_of_successor_nodup
+          edges hNodup prefix hTail hPrefix
+      simpa [hEq] using hPeriod
+
 /-- Seen-set cycle detector, matching Event Correction and Scheduled Replacement. -/
 private def pathAcyclic {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id))
