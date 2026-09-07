@@ -1,8 +1,8 @@
 # Observation 222 — Is BasisCut an independent primitive or overlap repair?
 
-Status: **EXPERIMENTAL**
+Status: **QUALIFIED CURRENT-OPERATING-MODE RESULT**
 
-Research starting point: LOAM `fbec04fbd241d4b14d0c8c06c1e23b875e64b438`
+Research starting point: LOAM `260437ec3f3c374732bde4a609a21b9aefbdca1b`
 
 ## Pressure
 
@@ -132,6 +132,26 @@ one-time arithmetic folded into OriginSnapshot
 
 The cut carries a real semantic choice about which evidence anchors current quantity when a pre-origin occurrence is corrected later.
 
+## Executed result
+
+The dedicated Observation 222 workflow compiled production `Loam.Application.BasisCut` and then checked every executable witness against the latest main-based branch head.
+
+The selected matrix succeeded:
+
+```text
+overlap without cut                     -> 81
+production root cut                     -> 93
+later-origin + post-origin Events        -> 93
+earlier-origin + full Events             -> 93
+root cut after another Event correction  -> 93
+static absorbed origin after correction  -> 96
+reconstructed/rebased origin             -> 93
+```
+
+The negative-control inequality between static absorption and reconstructed origin was also accepted by Lean.
+
+Workflow run `34121369198`, job `101739926267`, completed **SUCCESS**.
+
 ## Interpretation
 
 `BasisCut` is best understood as **overlap evidence** between two quantity sources:
@@ -190,7 +210,7 @@ Observation 219 already established exact current-balance parity for those five 
 
 So no current household answer presently requires BasisCut.
 
-## Finding candidate
+## Finding
 
 ```text
 BasisCut semantic pressure
@@ -209,7 +229,7 @@ one-time cut-to-origin arithmetic rewrite
     UNSAFE as a durable equivalence under later Event correction
 ```
 
-The next production step, if this probe qualifies, should not merely delete `basis-cut.tsv` support. It should make the non-overlap invariant explicit at the OriginSnapshot writer boundary, then remove BasisCut from the practical current-state path only where that invariant is enforced.
+The next production step should not merely delete `basis-cut.tsv` support. It should make the non-overlap invariant explicit at the OriginSnapshot writer boundary, then remove BasisCut from the practical current-state path only where that invariant is enforced.
 
 ## Non-goals
 
