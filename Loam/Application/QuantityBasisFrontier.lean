@@ -1,4 +1,5 @@
 import Loam.Core.QuantityBasisCorrectionMemory
+import Loam.Application.ReplacementFrontier
 
 namespace Loam.Application
 
@@ -6,33 +7,14 @@ open Loam.Core
 
 set_option autoImplicit false
 
+private def correctionEdges
+    (corrections : QuantityBasisCorrectionMemory) :
+    List (ReplacementFrontier.Edge QuantityBasisId) :=
+  corrections.corrections.map fun correction =>
+    { source := correction.target, successor := correction.replacement }
+
 private def basisPresent (bases : QuantityBasisMemory) (id : QuantityBasisId) : Bool :=
-  match QuantityBasisMemory.findById? bases id with
-  | some _ => true
-  | none => false
-
-private def targetUsed
-    (corrections : QuantityBasisCorrectionMemory)
-    (id : QuantityBasisId) : Bool :=
-  corrections.corrections.any fun correction => decide (correction.target = id)
-
-private def uniqueTargets : List QuantityBasisCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      !(rest.any fun other => decide (other.target = correction.target)) &&
-        uniqueTargets rest
-
-private def uniqueReplacements : List QuantityBasisCorrection → Bool
-  | [] => true
-  | correction :: rest =>
-      !(rest.any fun other => decide (other.replacement = correction.replacement)) &&
-        uniqueReplacements rest
-
-private def closedReferences
-    (bases : QuantityBasisMemory)
-    (corrections : QuantityBasisCorrectionMemory) : Bool :=
-  corrections.corrections.all fun correction =>
-    basisPresent bases correction.target && basisPresent bases correction.replacement
+  (QuantityBasisMemory.findById? bases id).isSome
 
 private def preservesCoordinate
     (bases : QuantityBasisMemory)
@@ -43,38 +25,12 @@ private def preservesCoordinate
     | some target, some replacement => decide (target.coordinate = replacement.coordinate)
     | _, _ => false
 
-private def nextReplacement? :
-    List QuantityBasisCorrection → QuantityBasisId → Option QuantityBasisId
-  | [], _ => none
-  | correction :: rest, id =>
-      if correction.target = id then
-        some correction.replacement
-      else
-        nextReplacement? rest id
-
-private def pathAcyclicFrom
-    (corrections : List QuantityBasisCorrection)
-    (start : QuantityBasisId) : Nat → QuantityBasisId → Bool
-  | 0, _ => true
-  | fuel + 1, current =>
-      match nextReplacement? corrections current with
-      | none => true
-      | some next =>
-          if next = start then
-            false
-          else
-            pathAcyclicFrom corrections start fuel next
-
-private def acyclic (corrections : QuantityBasisCorrectionMemory) : Bool :=
-  corrections.corrections.all fun correction =>
-    pathAcyclicFrom
-      corrections.corrections correction.target corrections.corrections.length correction.target
-
 /-- Historical basis facts remain stored; only correction targets leave the current frontier. -/
 def quantityBasisFrontier
     (bases : QuantityBasisMemory)
     (corrections : QuantityBasisCorrectionMemory) : List QuantityBasis :=
-  bases.bases.filter fun basis => !(targetUsed corrections basis.id)
+  ReplacementFrontier.frontier
+    QuantityBasis.id bases.bases (correctionEdges corrections)
 
 private def uniqueCoordinates : List QuantityBasis → Bool
   | [] => true
@@ -94,11 +50,9 @@ explicit resolution relation rather than changing Correction meaning.
 def quantityBasisFrontierAdmissible
     (bases : QuantityBasisMemory)
     (corrections : QuantityBasisCorrectionMemory) : Bool :=
-  uniqueTargets corrections.corrections &&
-    uniqueReplacements corrections.corrections &&
-    closedReferences bases corrections &&
+  ReplacementFrontier.structurallyAdmissible
+      (basisPresent bases) (correctionEdges corrections) &&
     preservesCoordinate bases corrections &&
-    acyclic corrections &&
     uniqueCoordinates (quantityBasisFrontier bases corrections)
 
 /-- Return one current basis frontier only when all correction premises hold. -/
