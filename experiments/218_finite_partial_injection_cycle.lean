@@ -115,7 +115,10 @@ private theorem returnsWithin_eq_true_iff_mem_walkAfter
       | some next =>
           by_cases hReturn : next = start
           · simp [returnsWithin, walkAfter, hNext, hReturn]
-          · simp [returnsWithin, walkAfter, hNext, hReturn, ih]
+          · have hReverse : start ≠ next := by
+              intro h
+              exact hReturn h.symm
+            simp [returnsWithin, walkAfter, hNext, hReturn, hReverse, ih]
 
 private theorem returnsWithin_true_exists_advance
     {Id : Type} [DecidableEq Id]
@@ -138,7 +141,7 @@ private theorem returnsWithin_true_exists_advance
             simp [advance?, hNext, hImmediate]
           · have hTail : returnsWithin next? start fuel next = true := by
               simpa [returnsWithin, hNext, hImmediate] using hReturn
-            rcases ih hTail with ⟨steps, hPositive, hBound, hAdvance⟩
+            rcases ih next hTail with ⟨steps, hPositive, hBound, hAdvance⟩
             refine ⟨steps + 1, by omega, by omega, ?_⟩
             simp [advance?, hNext, hAdvance]
 
@@ -230,15 +233,31 @@ private theorem traceChecks_succ_eq_cons_walkAfter
       current :: walkAfter next? fuel current := by
   induction fuel generalizing current with
   | zero =>
-      simp [traceChecks, walkAfter]
+      cases hNext : next? current <;>
+        simp [traceChecks, walkAfter, hNext]
   | succ fuel ih =>
       cases hNext : next? current with
-      | none => simp [traceChecks, walkAfter, hNext]
-      | some next => simp [traceChecks, walkAfter, hNext, ih]
+      | none =>
+          simp [traceChecks, walkAfter, hNext]
+      | some next =>
+          simp only [traceChecks, walkAfter, hNext]
+          rw [ih next]
 
 private def avoids {Id : Type} [DecidableEq Id]
     (nodes seen : List Id) : Prop :=
   ∀ id, id ∈ nodes → id ∉ seen
+
+private def pathAcyclic {Id : Type} [DecidableEq Id]
+    (next? : Id → Option Id)
+    (current : Id)
+    (seen : List Id) : Nat → Bool
+  | 0 => false
+  | fuel + 1 =>
+      if current ∈ seen then false
+      else
+        match next? current with
+        | none => true
+        | some next => pathAcyclic next? next (current :: seen) fuel
 
 private theorem pathAcyclic_eq_true_iff
     {Id : Type} [DecidableEq Id]
@@ -246,29 +265,22 @@ private theorem pathAcyclic_eq_true_iff
     (current : Id)
     (seen : List Id)
     (fuel : Nat) :
-    (let rec pathAcyclic (current : Id) (seen : List Id) : Nat → Bool
-      | 0 => false
-      | fuel + 1 =>
-          if current ∈ seen then false
-          else
-            match next? current with
-            | none => true
-            | some next => pathAcyclic next (current :: seen) fuel
-     pathAcyclic current seen fuel = true) ↔
+    pathAcyclic next? current seen fuel = true ↔
       (traceChecks next? fuel current).Nodup ∧
         avoids (traceChecks next? fuel current) seen ∧
         reachesTerminal next? fuel current = true := by
   induction fuel generalizing current seen with
   | zero =>
-      simp [traceChecks, reachesTerminal, avoids]
+      simp [pathAcyclic, traceChecks, reachesTerminal, avoids]
   | succ fuel ih =>
       by_cases hSeen : current ∈ seen
-      · simp [traceChecks, reachesTerminal, avoids, hSeen]
+      · simp [pathAcyclic, traceChecks, reachesTerminal, avoids, hSeen]
       · cases hNext : next? current with
         | none =>
-            simp [traceChecks, reachesTerminal, avoids, hSeen, hNext]
+            simp [pathAcyclic, traceChecks, reachesTerminal, avoids, hSeen, hNext]
         | some next =>
-            simp [traceChecks, reachesTerminal, avoids, hSeen, hNext, ih]
+            simp [pathAcyclic, traceChecks, reachesTerminal, avoids,
+              hSeen, hNext, ih]
 
 private theorem traceChecks_subset_sources_of_not_terminal
     {Id : Type} [DecidableEq Id]
