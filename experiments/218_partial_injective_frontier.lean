@@ -20,10 +20,31 @@ def endpointUnique {Id : Type} [DecidableEq Id]
     ((edges.map ReplacementEdge.superseded).Nodup ∧
       (edges.map ReplacementEdge.successor).Nodup)
 
+/-- The executable endpoint check is exactly source/replacement `Nodup`. -/
+theorem endpointUnique_eq_true_iff
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) :
+    endpointUnique edges = true ↔
+      (edges.map ReplacementEdge.superseded).Nodup ∧
+        (edges.map ReplacementEdge.successor).Nodup := by
+  simp [endpointUnique]
+
 def referencesClosed {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) : Bool :=
   edges.all fun edge =>
     decide (edge.superseded ∈ carrier ∧ edge.successor ∈ carrier)
+
+/-- Closure means exactly that every represented endpoint belongs to the carrier. -/
+theorem referencesClosed_eq_true_iff
+    {Id : Type} [DecidableEq Id]
+    (carrier : List Id) (edges : List (ReplacementEdge Id)) :
+    referencesClosed carrier edges = true ↔
+      ∀ edge ∈ edges, edge.superseded ∈ carrier ∧ edge.successor ∈ carrier := by
+  induction edges with
+  | nil =>
+      simp [referencesClosed]
+  | cons edge rest ih =>
+      simp [referencesClosed, ih]
 
 private def nextSuccessor? {Id : Type} [DecidableEq Id] :
     List (ReplacementEdge Id) → Id → Option Id
@@ -229,9 +250,38 @@ private def isSuperseded {Id : Type} [DecidableEq Id]
     (edges : List (ReplacementEdge Id)) (id : Id) : Bool :=
   edges.any fun edge => decide (edge.superseded = id)
 
+private theorem isSuperseded_eq_false_iff
+    {Id : Type} [DecidableEq Id]
+    (edges : List (ReplacementEdge Id)) (id : Id) :
+    isSuperseded edges id = false ↔
+      ∀ edge ∈ edges, edge.superseded ≠ id := by
+  induction edges with
+  | nil =>
+      simp [isSuperseded]
+  | cons edge rest ih =>
+      by_cases hSource : edge.superseded = id
+      · simp [isSuperseded, hSource]
+      · simp [isSuperseded, hSource, ih]
+
 def frontier {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) : List Id :=
   carrier.filter fun id => !(isSuperseded edges id)
+
+private theorem mem_frontier_iff
+    {Id : Type} [DecidableEq Id]
+    (carrier : List Id) (edges : List (ReplacementEdge Id)) (id : Id) :
+    id ∈ frontier carrier edges ↔
+      id ∈ carrier ∧ isSuperseded edges id = false := by
+  simp [frontier]
+
+/-- The frontier is exactly the carrier outside the domain of the replacement map. -/
+theorem mem_frontier_iff_not_domain
+    {Id : Type} [DecidableEq Id]
+    (carrier : List Id) (edges : List (ReplacementEdge Id)) (id : Id) :
+    id ∈ frontier carrier edges ↔
+      id ∈ carrier ∧ ∀ edge ∈ edges, edge.superseded ≠ id := by
+  exact (mem_frontier_iff carrier edges id).trans <|
+    and_congr Iff.rfl (isSuperseded_eq_false_iff edges id)
 
 def eventCorrectionEdges
     (memory : EventCorrectionMemory) : List (ReplacementEdge EventId) :=
@@ -272,6 +322,9 @@ example : acyclicByStartReturn chain = true := by
 
 example : frontier [0, 1, 2, 3] chain = [2, 3] := by
   decide
+
+example : 2 ∈ frontier [0, 1, 2, 3] chain := by
+  exact (mem_frontier_iff_not_domain [0, 1, 2, 3] chain 2).2 (by decide)
 
 private def branching : List (ReplacementEdge Nat) :=
   [ { superseded := 0, successor := 1 },
