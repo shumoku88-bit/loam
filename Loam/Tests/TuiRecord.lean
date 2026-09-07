@@ -35,8 +35,8 @@ def main (args : List String) : IO Unit := do
   let root := System.FilePath.mk rootPath
   let w ← world
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
-  expect (draft.effects[0]!.quantity.quanta == -2470) "negative posting lost its sign"
-  expect (draft.effects[1]!.quantity.quanta == 2470) "positive posting lost its sign"
+  expect (draft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
+    "signed postings did not preserve their quantities"
   let editor := preview w { form := readyForm }
   expect ((update w [] editor .enter).publish.isSome) "preview must produce explicit intent"
   expect ((update w [] editor .escape).publish.isNone) "cancel must not publish"
