@@ -284,9 +284,13 @@ def calendarSpans (state : State) (row : Nat) : List Span :=
 def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   recordsForDay snapshot state.selectedDate
 
+/-- Home is a recency surface over the deterministic Actual review ordering. -/
+def recentActualPreview (records : List ReviewRecord) : List ReviewRecord :=
+  records.reverse.take 3
+
 
 def homeActualPreview (snapshot : Snapshot) (state : State) : List ReviewRecord :=
-  (homeActualRecords snapshot state).take 3
+  recentActualPreview (homeActualRecords snapshot state)
 
 
 def homeScheduledEvidence (snapshot : Snapshot) (state : State) : ScheduledEvidence :=
@@ -311,10 +315,8 @@ def actualPreviewSpans (snapshot : Snapshot) (state : State) (index : Nat) : Lis
   match listAt? (homeActualPreview snapshot state) index with
   | none => [span ""]
   | some record =>
-      let description :=
-        if record.description.isEmpty then "(no description)"
-        else Loam.ActualReview.shortText 18 record.description
-      [span "- " .muted, span description]
+      [span "- " .muted,
+       span (Loam.ActualReview.shortText 44 (Loam.ActualReview.summary record))]
 
 
 def scheduledPreviewSpans (snapshot : Snapshot) (state : State) (index : Nat) : List Span :=
@@ -335,7 +337,7 @@ def scheduledHeader (snapshot : Snapshot) (state : State) : String :=
 
 
 def homeEvidenceSpans (snapshot : Snapshot) (state : State) : Nat → List Span
-  | 0 => [span ("Actual / " ++ toString (homeActualRecords snapshot state).length ++ " current")]
+  | 0 => [span ("Actual / " ++ toString (homeActualRecords snapshot state).length ++ " current / recent")]
   | 1 => actualPreviewSpans snapshot state 0
   | 2 => actualPreviewSpans snapshot state 1
   | 3 => actualPreviewSpans snapshot state 2
