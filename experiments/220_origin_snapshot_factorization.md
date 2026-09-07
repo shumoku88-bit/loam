@@ -1,6 +1,6 @@
-# Observation 220 — Does uncorrected QuantityBasis factor through one origin snapshot?
+# Observation 220 — Does QuantityBasis current state factor through one origin snapshot?
 
-Status: **PROBE**
+Status: **QUALIFIED CURRENT-VALUE FACTORIZATION**
 
 ## Pressure
 
@@ -15,15 +15,15 @@ explicit coverage domain + existing Event quantity
 The common zero was numerically redundant, but the finite coverage domain remained
 observable because `basisMissing != zero`.
 
-That leaves a stronger question. The historical LOAM dogfood previously used
-non-zero starting quantities. If non-zero bootstrap remains useful, does that force
-LOAM to keep one independently identified `QuantityBasis` fact per coordinate?
+That leaves a stronger question. Historical LOAM dogfood previously used non-zero
+starting quantities. If non-zero bootstrap remains useful, does that force LOAM to
+keep one independently identified `QuantityBasis` fact per coordinate?
 
 The narrower question is:
 
-> Before basis correction ancestry is observed, is a finite
-> `Coordinate -> starting Quantity` image sufficient for the same current-quantity
-> answers?
+> For the current-quantity answer, is a finite
+> `Coordinate -> starting Quantity` image sufficient even when the starting value
+> is non-zero?
 
 ## Candidate
 
@@ -83,16 +83,16 @@ Two separate production `QuantityBasisMemory` values retain exactly those
 coordinate/value facts but use completely different stable `QuantityBasisId`
 values.
 
-The probe checks:
+The executable checks establish:
 
 1. non-zero `wallet` production current equals the snapshot current (`93`);
 2. covered zero `reserve` remains exact current zero;
 3. uncovered `use` remains `basisMissing` despite Event activity;
-4. the two basis memories are different retained evidence;
+4. the two basis fact lists are different retained evidence;
 5. changing only the stable basis ids does not change either current answer.
 
-This asks directly whether line identity is observed by the current quantity
-question before correction edges exist.
+So stable per-line identity is not observed by this current-value question before
+basis correction ancestry is queried.
 
 ## Correction ancestry control
 
@@ -112,41 +112,98 @@ current answer, as does an origin snapshot containing `wallet = 120`.
 But the retained evidence is deliberately unequal:
 
 ```text
-corrected basis memory != direct current basis memory
-correction memory       != empty correction memory
+corrected basis fact list != direct current basis fact list
+correction list           != empty correction list
 ```
 
-So the current quantity projection does not by itself observe basis ancestry.
-That ancestry may still matter for provenance, future correction, or another
-query. Observation 220 must not silently erase it merely because a current-value
-projection factors through a smaller state image.
+So the current quantity projection does not observe basis ancestry even though
+that ancestry remains stronger retained provenance.
 
-## Interpretation
+## Executed result
 
-There are now three distinct information levels:
+The first CI attempt exposed only experiment-fixture mistakes:
+
+- `QuantityBasisMemory` contains proof fields and does not itself provide the
+  `DecidableEq` needed for a direct `by decide` memory inequality;
+- the synthetic `QuantityBasisCorrection` omitted its required correction `id`.
+
+The probe was corrected to compare the underlying decidable fact lists and to
+supply the explicit correction identity. No semantic candidate or expected
+quantity was changed.
+
+The corrected Observation 220 Lean job then compiled every equality and
+inequality witness successfully against production `CurrentQuantity`.
+
+## Finding
+
+The qualified boundary is:
 
 ```text
 current quantity answer
         ^
         |
-Coordinate -> current origin quantity
+finite Coordinate -> origin Quantity snapshot
         ^
         |
-per-line basis identity + correction ancestry
+per-line QuantityBasis identity + correction ancestry
 ```
 
-The top layer may be a sufficient statistic for one current query while failing
-to preserve the lower layer's provenance.
+For the tested current-value projection, the middle layer is sufficient even for
+a non-zero starting quantity.
 
-This is directly relevant to the current HRA-backed operating mode. LOAM no longer
-needs to preserve historical LOAM correction machinery merely for operational
-continuity. Therefore the burden of proof changes:
+More precisely:
 
-> If no intended LOAM question observes basis correction ancestry, retaining a
-> correction graph for hypothetical future edits may be unnecessary machinery.
+```text
+starting quantity value + explicit coverage
+    -> observed by current quantity
 
-That is a product/design question, not something this extensional probe alone can
-settle.
+stable QuantityBasisId alone
+    -> not observed by current quantity
+
+basis correction ancestry
+    -> stronger retained evidence
+       but can collapse to the same current origin snapshot
+```
+
+This is not a claim that provenance is false or useless. It is a separation of
+questions: current value does not require all evidence needed to reconstruct how
+that value was revised.
+
+## Current production pressure
+
+The production repository still has an active human-facing
+`correct-starting-quantity` entrance. It currently implements a `100000 -> 95000`
+style correction append-only using:
+
+```text
+new QuantityBasisId
++ QuantityBasisCorrectionId
++ target -> replacement edge
++ admitted current frontier
+```
+
+So basis correction is not merely dead code.
+
+However, the original Application 009 design explicitly introduced that
+append-only correction relation because destructive replacement was disallowed by
+LOAM's then-current append-only operating direction. The present operating mode is
+different: HRA supplies day-to-day authority and LOAM-local canonical state may be
+destructively redesigned when the stronger evidence is recoverable.
+
+Therefore the remaining pressure is no longer:
+
+> Do users need to correct a starting quantity?
+
+They clearly may.
+
+It is:
+
+> Does LOAM need the correction **ancestry graph** as present household state, or
+> can one origin snapshot be atomically replaced while Git/HRA preserve the
+> historical/reconstruction evidence?
+
+Observation 220 does not answer that policy question automatically, but it shows
+that the current-value projection itself does not force the graph to exist.
 
 ## Accounting comparison
 
@@ -154,7 +211,7 @@ A conventional opening balance is naturally a finite state vector over accounts.
 The candidate here has a similar mathematical shape but deliberately avoids
 claiming that LOAM Core therefore needs Account or debit/credit ontology.
 
-The interesting convergence is smaller:
+The useful convergence is smaller:
 
 ```text
 starting state
@@ -164,37 +221,35 @@ starting state
 rather than one separately identified fact per coordinate merely because the
 initial implementation used append-only memories.
 
-## Expected finding if the probe passes
+## Consequence for the next step
 
-The intended bounded finding is:
+The next practical question is now sharp enough to test directly:
 
-```text
-uncorrected/non-ancestry current quantity
-    factors through
-finite origin snapshot + Event quantity
+> Under the current HRA-authority / destructively-reconstructible LOAM operating
+> mode, can `starting-quantity` and `correct-starting-quantity` both be served by
+> one atomically replaceable origin snapshot without weakening any currently used
+> balance answer or fail-closed coverage distinction?
 
-stable QuantityBasisId
-    is not observed by that current answer
+If yes, the production pressure for:
 
-basis correction ancestry
-    is stronger evidence than the snapshot
-    even when both give the same current value
-```
+- `QuantityBasisId`;
+- `QuantityBasisCorrectionId`;
+- `QuantityBasisCorrectionMemory`;
+- correction-frontier admission for starting state;
+- basis-correction persistence;
 
-This would make the next question explicit:
+may disappear from the practical current-state path.
 
-> Does future LOAM have an independently useful query or workflow that requires
-> retained basis correction ancestry?
-
-If not, `QuantityBasisMemory + QuantityBasisCorrectionMemory + BasisCut` may be a
-historically earned implementation family whose remaining production pressure has
-collapsed to a much smaller origin-state boundary.
+`BasisCut` must still be assessed separately because it represented a different
+problem: avoiding double-counting Events already reflected in an observed basis.
+The current private data no longer contains a basis cut after historical
+reconstruction, but that does not make the old semantic pressure nonexistent.
 
 ## Non-goals
 
 Observation 220 does not authorize:
 
-- deleting QuantityBasis production code;
+- deleting QuantityBasis production code immediately;
 - converting every opening state into a fictional Event;
 - dropping `basisMissing != zero`;
 - inferring origin coverage from AccountingRole or balance-view;
@@ -204,4 +259,4 @@ Observation 220 does not authorize:
 
 ## Practical Core impact
 
-None for the probe.
+None for Observation 220 itself.
