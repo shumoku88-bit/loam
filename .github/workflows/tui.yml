@@ -9,6 +9,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
@@ -45,6 +46,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
@@ -106,6 +108,9 @@ jobs:
 
       - name: Verify full-day Actual local window navigation
         run: lake env lean --run Loam/Tests/TuiActual.lean
+
+      - name: Verify Scheduled browse, detail, and open-world Unknown
+        run: lake env lean --run Loam/Tests/TuiScheduled.lean
 
       - name: Build shared Attention review boundary
         run: lake build Loam.AttentionReview
