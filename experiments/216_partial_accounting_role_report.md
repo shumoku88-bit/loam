@@ -1,6 +1,6 @@
 # Observation 216 — Partial AccountingRole reports under lossy-history pressure
 
-Status: **PROBE — report/classification boundary / RESEARCH_ONLY**
+Status: **COMPLETE — bounded report/classification observation / RESEARCH_ONLY**
 
 ## Trigger
 
@@ -20,7 +20,7 @@ For such evidence, migration has a third possibility besides "classify" and
 leave classification unresolved
 ```
 
-The new question is:
+The question is:
 
 > Does truthful role-aware reporting require a retained `UnknownRole` value, or can
 > a partial `Locus -> AccountingRole` relation plus an explicit unresolved Effect
@@ -28,7 +28,7 @@ The new question is:
 
 ## Why not invent `UnknownRole` first?
 
-`Unknown` can mean two very different things:
+`Unknown` can mean two different things:
 
 ```text
 ontology:
@@ -38,10 +38,10 @@ observation:
   this query cannot currently justify a role for this evidence
 ```
 
-The household pressure is currently the second kind. Treating uncertainty as a sixth
+The household pressure is currently the second kind. Treating uncertainty as another
 accounting class would risk turning missing evidence into positive semantic evidence.
 
-Observation 216 therefore gives the role relation cardinality `lone` and asks whether
+Observation 216 therefore gives the role relation cardinality `lone` and tests whether
 that smaller representation is enough.
 
 ## Observation-local specimen
@@ -64,10 +64,10 @@ LossyEffectB     -> LossyLocus
 ```
 
 The first two coordinates are intentionally classifiable. The third represents
-retained household evidence whose source history does not justify a production role
-at this boundary.
+retained household evidence whose source history does not justify a role at this
+boundary.
 
-Production candidate relation:
+Candidate relation:
 
 ```text
 Locus -> lone AccountingRole
@@ -83,7 +83,11 @@ unresolved Effects
 
 There is deliberately no `UnknownRole` atom in the model.
 
-## Expected matrix
+## Qualified result
+
+Branch execution at head `4575684f23b5f7cfc96ea89206e6762b35b42702`
+completed successfully in dedicated Observation 216 run `34086151674`.
+The workflow independently required the following exact SAT/UNSAT matrix and passed:
 
 ```text
 partialRoleReportKeepsLossyEvidence                  SAT
@@ -95,54 +99,57 @@ NoUnresolvedIffEveryObservedLocusClassified           UNSAT
 SameRoleMapDeterminesSamePartialReport                UNSAT
 ```
 
-Interpretation of Alloy `check` results follows repository convention: `UNSAT` means
-no counterexample was found within the bounded scope.
+For Alloy `check`, `UNSAT` means no counterexample was found within the bounded scope.
 
-## What each command asks
+## Findings
 
-### Partial report witness
+### Partial report keeps lossy evidence visible
 
-The first run asks whether known Asset/Expense evidence can still be reported while
-both Effects at the lossy coordinate remain explicitly observable as unresolved.
+Known Asset/Expense evidence can be selected normally while both Effects at the lossy
+coordinate remain explicitly present in `unresolvedEffects`.
 
-Expected: **SAT**.
+The report therefore does not need to discard unclassified history or pretend that it
+belongs to an accounting role.
 
 ### Complete classification remains representable
 
-The second run assigns the lossy coordinate an ordinary role only as observation
-scaffolding. If independent evidence eventually justified such a classification, the
-same partial relation should reduce to a complete report with no unresolved Effects.
+If independent evidence later resolves every observed Locus, the same partial relation
+naturally reduces to a complete report with an empty unresolved set.
 
-Expected: **SAT**.
+This is representational sufficiency only. The witness does not authorize a real
+classification for canonical lossy household history.
 
-This does not authorize that classification for canonical household data.
+### A default role is a semantic decision
 
-### A default role is not presentation-only
+Two worlds can contain the same Effects and the same clean role assignments while one
+leaves the lossy Locus unresolved and the other assigns it `ExpenseRole`.
 
-The third run compares two worlds with the same Effects and the same clean roles. One
-leaves the lossy Locus unresolved; the other fills it with `ExpenseRole`.
+That completion changes both the Expense-selected evidence and the unresolved set.
+Therefore a report or UI cannot safely use "unclassified means Expense" as a display
+default.
 
-The selected Expense evidence and unresolved set must change.
+### Classified and unresolved form an exact partition
 
-Expected: **SAT**.
+The qualified assertion is:
 
-So a UI/report layer cannot safely say "unclassified means Expense" merely to get a
-total.
+```text
+classified ∪ unresolved = all evidence in scope
+classified ∩ unresolved = ∅
+```
 
-### Exact partition
-
-Every Effect should be either selected by some explicit role or present in the
-unresolved set, never both and never neither.
-
-Expected check result: **UNSAT**.
+So lack of classification does not make an Effect disappear.
 
 ### Missing role is not missing evidence
 
-The assertion that an unclassified Locus contains no Effects should fail.
+The assertion
 
-Expected check result: **SAT counterexample**.
+```text
+no role -> no evidence
+```
 
-This is the key open-world distinction:
+has a counterexample.
+
+The open-world distinction is therefore concrete:
 
 ```text
 no role
@@ -150,25 +157,21 @@ no role
 no evidence
 ```
 
-### Completeness requires no extra role value
+### Completeness needs no extra role atom
 
 For this fully observed specimen, the unresolved set is empty exactly when every
-observed Locus has some explicit role.
+observed Locus has some explicit role. The bounded model needs no additional
+`UnknownRole` value to state whether a report is complete.
 
-Expected check result: **UNSAT**.
+### No hidden classifier is needed
 
-### No hidden classifier
+Two worlds with the same explicit role relation produce the same selected and
+unresolved Effect sets. Prefix spelling, UI defaults, and presentation code therefore
+need not participate in the semantic answer.
 
-Two worlds with the same explicit role relation should produce the same selected and
-unresolved Effect sets.
+## Qualified interpretation
 
-Expected check result: **UNSAT**.
-
-This keeps token spelling, colon prefixes, and UI defaults out of the semantic answer.
-
-## Interpretation if qualified
-
-The smallest surviving representation would be:
+The smallest surviving representation is:
 
 ```text
 AccountingRole relation
@@ -179,14 +182,7 @@ Role-aware report
   unresolved evidence
 ```
 
-with the law:
-
-```text
-classified ∪ unresolved = all evidence in scope
-classified ∩ unresolved = ∅
-```
-
-This yields a useful distinction:
+with:
 
 ```text
 missing AccountingRole
@@ -195,15 +191,19 @@ missing AccountingRole
     != irrelevant
 
 missing AccountingRole
-    = this report has unresolved classification evidence
+    = unresolved classification evidence at this report boundary
 ```
 
-That is attractive for LOAM because uncertainty remains at the observation boundary
-instead of becoming a retained ontology value merely to make a table rectangular.
+Current lossy-history pressure therefore does **not** earn a retained `UnknownRole`
+constructor.
 
-## Production pressure if the matrix survives
+This is compatible with Observation 215: recoverable historical Effects may be split
+into clean role-homogeneous Loci, while genuinely lossy rows can remain observable but
+unclassified instead of forcing a more complicated production ontology.
 
-A future role-aware Application review could return something shaped like:
+## Production pressure
+
+A future role-aware Application review could return something equivalent to:
 
 ```text
 RoleReportInspection
@@ -211,9 +211,7 @@ RoleReportInspection
   unresolvedEffects
 ```
 
-or an equivalent small projection.
-
-The report may then distinguish:
+and derive report completeness locally:
 
 ```text
 Complete
@@ -223,14 +221,11 @@ Partial
   unresolvedEffects != ∅
 ```
 
-without inventing a Core `UnknownRole` constructor.
-
-This would also let a historical lossy coordinate remain visible while clean migrated
-Loci participate in accounting-shaped reports normally.
+That is a projection candidate, not yet production API or retained Core state.
 
 ## Deliberate boundaries
 
-Even a successful Observation 216 does **not** establish:
+Observation 216 does **not** establish:
 
 - production AccountingRole persistence;
 - the final set of AccountingRole constructors;
@@ -242,16 +237,18 @@ Even a successful Observation 216 does **not** establish:
 - destructive canonical migration;
 - migration from description text alone.
 
-It only asks whether current lossy-history pressure requires a new semantic role value.
+It only establishes, within the bounded specimen, that current lossy-history pressure
+does not require a new semantic role value in order to keep unresolved evidence
+observable.
 
 ## Next gate
 
-If the partial projection survives, the next practical question is narrower:
+The next practical question is quantity-level:
 
 > For the current household migration candidate, can clean role assignments and
 > unresolved historical evidence be combined with report quantities without silently
-> changing Balance Sheet / P&L style answers?
+> changing Balance Sheet / P&L-shaped answers?
 
-That would be the point to add quantity aggregation and compare a partial report with
-selected current household evidence. Do not add production persistence before that
-quantity-level pressure exists.
+That is the point to compare resolved role totals plus an unresolved quantity/evidence
+frontier against selected current household data. Production persistence should still
+wait for that pressure.
