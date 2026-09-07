@@ -8,6 +8,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
@@ -26,6 +27,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
@@ -73,3 +75,6 @@ jobs:
 
       - name: Verify shared Attention persistence and review boundary
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
+
+      - name: Verify read-only Attention workspace
+        run: lake env lean --run Loam/Tests/TuiAttention.lean
