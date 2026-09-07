@@ -17,6 +17,7 @@ Loam/Tui/Main       Home / Actual / Scheduled interaction state
 Loam/Tui/Record     local Record editor / preview state
 Loam/Tui/Attention  local read-only Attention workspace
 Loam/Tui/Capacity   local read-only Capacity workspace
+Loam/Tui/Reports    local explicit-query Reports workspace
 Loam/Tui/Cli        canonical loading and executable loop
 ```
 
@@ -35,6 +36,11 @@ that workspace means the current answer over all retained Capacity movements; it
 does **not** mean current cycle, current month, selected day, or any inferred
 budget period. Windowed Capacity remains an explicit Application query with
 caller-supplied `[start, end)` coordinates.
+
+Reports begins with one Budget Window report. It requires the operator to supply
+both half-open coordinates explicitly. Home's selected day is not passed into the
+Reports state machine, and the TUI does not infer a month, cycle, cadence, first
+Capacity date, or host-local period boundary.
 
 ## Production rule
 
@@ -111,6 +117,56 @@ surface.
 agreement for reallocation, and malformed-stream refusal.
 `Loam/Tests/TuiCapacity.lean` checks the all-retained presentation, explicit
 no-window statement, ordering non-claim, and read-only navigation.
+
+## Reports / Budget Window
+
+Home `p` opens `Reports / Budget Window`. The initial Start and End fields are
+blank. The operator must provide both ISO dates and run the query explicitly.
+No selected-day, calendar-month, current-cycle, first-Capacity-date, or cadence
+policy is supplied by the TUI.
+
+`Loam.BudgetWindowReview` is the surface-independent production read boundary.
+It follows the current authority topology rather than the frozen pre-cutover
+Movement sidecars:
+
+```text
+selected Movement manifest -> Event + ActualValidity
+capacity.loam              -> Capacity
+capacity.loam.effective    -> CapacityEffective
+actual-routing.loam        -> ActualRouting
+corrections.loam           -> EventCorrection when present; absent means empty
+```
+
+A malformed or missing required authority refuses. There is no fallback to
+`memory.loam` or its frozen ActualValidity sidecar. This matters because Movement
+cutover deliberately left those files as rollback/history material rather than
+steady-state authority.
+
+For every Purpose represented by retained Capacity evidence, the shared Review
+calls the existing `CapacityWindowInspection` component projections over the
+operator-supplied `[start, end)` window. It displays:
+
+```text
+Entitlement
+Consumption
+Remaining = Entitlement - Consumption
+```
+
+Remaining is useful presentation but not retained state. Observation 181 already
+qualified it as derived from the two resolved component answers. Observation 196
+qualified the separate window-selection boundary: the same selected Home day can
+belong to two valid windows that produce different answers, while differently
+named Cycle identities with equal coordinates do not change coordinate-derived
+answers. Therefore automatic Home integration waits for separately earned shared
+window-selection policy; Reports does not smuggle that policy into presentation.
+
+`Loam/Tests/BudgetWindowReview.lean` builds a selected Movement manifest, writes
+independent Capacity/effective/routing evidence, poisons a legacy `memory.loam`,
+and requires the manifest-backed `100 entitlement / 30 consumption / 70 remaining`
+answer. It also checks reversed-window and missing-manifest refusal.
+`Loam/Tests/TuiReports.lean` checks blank initial coordinates, exact query-intent
+preservation, derived Remaining presentation, explicit no-cycle wording, and Home
+navigation.
 
 ## Write boundary
 
