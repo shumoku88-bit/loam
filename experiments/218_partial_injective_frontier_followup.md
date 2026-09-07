@@ -4,76 +4,56 @@ Status: **RESEARCH_ONLY / exact-equivalence gate still open**
 
 Baseline production main: `4cf5370a54f2e8aebb37b55077cdb1dee8efc822`
 
-## Fourth direct production instance
+## Candidate structure
 
-The first Observation 218 pass named three production families. A second audit
-found the same replacement-frontier mechanics in a fourth family:
-
-```text
-Loam/Application/QuantityBasisFrontier.lean
-```
-
-It independently checks:
+A production audit found the same replacement-frontier topology in four semantic
+families:
 
 ```text
-unique target
-unique replacement
-closed references
-acyclic replacement paths
-frontier = retained bases minus targeted bases
+Event Correction
+ActualValidity Correction
+Scheduled Replacement
+QuantityBasis Correction
 ```
 
-and then adds two QuantityBasis-specific laws:
+The shared structural candidate remains:
 
 ```text
-replacement preserves QuantityCoordinate
-frontier has at most one basis per QuantityCoordinate
+f : I ⇀ I
+partial + injective + closed + acyclic
+frontier = carrier \\ dom(f)
 ```
 
-This is the same separation already visible in ActualValidity:
+This does not identify the four household meanings. It factors only the finite
+replacement topology beneath them.
 
-```text
-shared replacement topology
-+
-local semantic preservation law
-+
-local frontier uniqueness law
-```
-
-The candidate is therefore repeated in **four** production families, not three.
-
-## Production decomposition matrix
-
-The current audit can be written more sharply as follows.
+## Domain decomposition
 
 ### Event Correction
 
 ```text
-shared graph mechanics
+shared
   target uniqueness
   replacement uniqueness
   Event-reference closure
   acyclicity
-  frontier = Event carrier minus correction targets
+  frontier = Event carrier minus targets
 
-local meaning
+local
   Correction remains distinct from EventResolution
 ```
-
-No extra same-coordinate or same-parent law is needed once the relation has
-passed the current Correction admission shape.
 
 ### ActualValidity Correction
 
 ```text
-shared graph mechanics
+shared
   target uniqueness
   replacement uniqueness
   validity-fact-reference closure
   acyclicity
-  frontier = fact carrier minus correction targets
+  frontier = fact carrier minus targets
 
-local laws
+local
   replacement preserves EventId
   frontier EventId uniqueness
 ```
@@ -81,213 +61,260 @@ local laws
 ### Scheduled Replacement
 
 ```text
-shared graph mechanics
-  source uniqueness              already retained by ScheduledReplacementMemory
-  replacement uniqueness         already retained by ScheduledReplacementMemory
+shared
+  source uniqueness
+  replacement uniqueness
   Scheduled-reference closure
   acyclicity
-  replacement source leaves the current-open frontier
+  replacement source leaves current-open frontier
 
 local lifecycle laws
-  completion references known Scheduled identity
-  retirement references known Scheduled identity
-  replacement is terminal-compatible with completion / retirement
-  completion becomes effective only through a retained Actual Event
+  completion / retirement reference closure
+  replacement terminal compatibility
+  completion effective only through retained Actual Event
 ```
 
-Scheduled therefore reuses less of the generic *admission* check at Application
-level because endpoint uniqueness is already proved by its raw memory type, but
-it still has the same mathematical replacement topology.
+Scheduled endpoint uniqueness is already carried by
+`ScheduledReplacementMemory`, so its Application adapter should not re-prove a
+law already retained by the typed raw memory.
 
 ### QuantityBasis Correction
 
 ```text
-shared graph mechanics
+shared
   target uniqueness
   replacement uniqueness
   basis-reference closure
   acyclicity
-  frontier = basis carrier minus correction targets
+  frontier = basis carrier minus targets
 
-local laws
+local
   replacement preserves QuantityCoordinate
   frontier QuantityCoordinate uniqueness
 ```
 
 ## Two production cycle-detector shapes
 
-The audit found two independently implemented algorithms for the same intended
-whole-graph property.
-
-### Seen-set traversal
-
-Used by Event Correction and Scheduled Replacement.
-
-Conceptually:
+Event Correction and Scheduled Replacement use a seen-set traversal:
 
 ```text
-walk successor edges
+walk successors
 remember every visited identity
 reject on any revisit
 ```
 
-### Start-return traversal
-
-Used by ActualValidity and QuantityBasis.
-
-Conceptually:
+ActualValidity and QuantityBasis use a start-return traversal:
 
 ```text
 for every represented source s:
-  walk successor edges
-  reject if the path returns to s
+  walk successors
+  reject when the path returns to s
 ```
 
-This smaller traversal does not remember every intermediate identity.
+These are not path-locally equivalent for arbitrary deterministic graphs.
 
-## Important lasso witness — and why it is outside the candidate algebra
-
-The updated Lean probe includes:
+The witness
 
 ```text
 0 -> 1 -> 2 -> 1
 ```
 
-When the path starts at `0`:
+is rejected by the seen-set walk from `0`, while the start-return walk from `0`
+does not return to `0`.
 
-```text
-seen-set traversal       rejects
-start-return from 0      does not return to 0 within the bounded walk
-```
-
-So the two *path-local* predicates are not equivalent on an arbitrary finite
-deterministic-successor graph.
-
-However this lasso has incoming edges
+However the witness is **not a partial injection**:
 
 ```text
 0 -> 1
 2 -> 1
 ```
 
-and therefore uses replacement identity `1` twice. It violates the
-`uniqueReplacements` / `replacementNodup` premise already required by all four
-production families before the candidate partial-injection algebra is admitted.
+share successor `1`.
 
-This materially narrows the proof obligation.
-
-For a partial injection, an external tail cannot enter an existing cycle without
-creating a shared successor at the entry point. Therefore a repeated node on a
-walk should force the original source itself to lie on that cycle.
-
-The generic Lean probe now begins formalizing exactly this fact by proving the
-local injectivity lemma:
-
-```text
-successor endpoints are Nodup
-nextSuccessor? left  = some successor
-nextSuccessor? right = some successor
---------------------------------------
-left = right
-```
-
-If that proof remains small, the cycle-equivalence theorem should be stated under
-endpoint uniqueness rather than for arbitrary edge lists.
-
-## What is and is not proved now
-
-Observation 218 has executable bounded witnesses for:
-
-```text
-ordinary chain               accepted by both cycle-detector shapes
-simple cycle                 rejected by both
-lasso                         rejected by both whole-graph checks
-lasso                         rejected by endpoint uniqueness itself
-branching source              rejected by endpoint uniqueness
-shared replacement / merge   rejected by injectivity
-open endpoint                 rejected by closure
-```
-
-It also attempts the first universal structural lemma needed by the equivalence
-proof: successor lookup is injective when represented replacement identities are
-Nodup.
-
-It does **not yet prove** the final universal theorem
+All four production families already reject this shape through replacement
+uniqueness. Therefore the correct equivalence target is conditional:
 
 ```text
 endpointUnique edges = true ->
   acyclic edges = acyclicByStartReturn edges
 ```
 
-for every finite represented edge list.
+not unconditional equivalence on arbitrary directed graphs.
 
-That conditional theorem is now the concrete extraction gate. This is strictly
-smaller than the previous unconditional target.
+## Universal Lean results now proved
 
-## Exact-equivalence proof ladder
+The generic Observation 218 probe now establishes the following for arbitrary
+identity types with decidable equality.
 
-Do not attempt one giant theorem connecting all four Application modules at once.
-The smaller proof order is:
+### Endpoint specification
 
-1. **endpoint uniqueness**
-   - show the recursive production checks and `Nodup` endpoint formulation are
-     extensionally equivalent;
-   - prove successor lookup injectivity from replacement `Nodup`;
+```text
+endpointUnique edges = true
+iff
+sources(edges).Nodup AND successors(edges).Nodup
+```
 
-2. **partial-injection cycle shape**
-   - show that a walk in a finite partial injection cannot enter a cycle from a
-     distinct external tail, because doing so would violate successor injectivity;
+### Reference-closure specification
 
-3. **conditional cycle-detector equivalence**
-   - prove seen-set and start-return traversal agree under endpoint uniqueness;
+```text
+referencesClosed carrier edges = true
+iff
+for every edge e:
+  e.superseded ∈ carrier
+  e.successor  ∈ carrier
+```
 
-4. **reference closure**
-   - relate carrier membership to each typed Memory lookup without replacing the
-     typed Memory representation;
+### One-step successor injectivity
 
-5. **frontier membership**
-   - prove that generic frontier membership is exactly retained carrier
-     membership plus absence from the replacement domain;
+```text
+successors(edges).Nodup
+nextSuccessor? edges left  = some endpoint
+nextSuccessor? edges right = some endpoint
+-------------------------------------------
+left = right
+```
 
-6. **domain adapters**
-   - reconstruct each production admission as shared structural mechanics plus
-     its local laws;
+So represented replacement lookup cannot merge two sources.
 
-7. **complexity audit**
-   - count generic definitions / proofs added versus duplicated local machinery
-     actually deleted before any production promotion.
+### Finite-iterate injectivity
+
+For every finite `steps`:
+
+```text
+successors(edges).Nodup
+advance? edges steps left  = some endpoint
+advance? edges steps right = some endpoint
+-------------------------------------------
+left = right
+```
+
+Injectivity survives arbitrary defined finite iteration.
+
+### No external tail into a cycle
+
+The crucial cancellation theorem is now proved:
+
+```text
+advance? edges prefixSteps start = some repeated
+advance? edges (period + prefixSteps) start = some repeated
+-----------------------------------------------------------
+advance? edges period start = some start
+```
+
+under successor endpoint `Nodup`.
+
+This formalizes the key partial-injection fact behind the cycle-detector
+comparison: if a walk repeats an interior point, injectivity forces the original
+start to participate in the same period. A distinct external tail cannot feed an
+existing cycle without creating a shared successor.
+
+### Frontier specification
+
+```text
+id ∈ frontier carrier edges
+iff
+id ∈ carrier AND
+no represented edge has superseded = id
+```
+
+So the generic frontier is exactly `carrier \\ dom(f)` extensionally, not merely
+by examples.
+
+## Bounded witnesses retained
+
+The executable witnesses still check:
+
+```text
+ordinary chain               accepted by both cycle detectors
+simple cycle                 rejected by both
+lasso                         path-local algorithms differ
+lasso                         rejected by endpoint uniqueness
+lasso                         rejected by both whole-graph checks
+branching source              rejected
+shared successor / merge     rejected
+open reference                rejected
+```
+
+## What remains for cycle equivalence
+
+The difficult conceptual part of the lasso problem is now gone. The remaining
+work is finite rather than graph-semantic:
+
+```text
+an acyclic partial injection with n represented sources
+cannot follow n + 1 source steps without terminating
+```
+
+Equivalently, a fuel exhaustion in the seen-set detector must imply a repeated
+represented source; under the proved cancellation theorem that repetition then
+forces a start return.
+
+A likely small proof route is:
+
+1. expose the finite walk prefix;
+2. show every nonterminal visited identity belongs to the `Nodup` source list;
+3. show a no-start-return prefix is `Nodup` using finite-iterate injectivity and
+   the cancellation theorem;
+4. use the list-length bound to rule out `edges.length + 1` distinct represented
+   sources;
+5. conclude the conditional detector equivalence.
+
+This route deliberately avoids importing a general graph theory framework.
+If the finite-list proof becomes large, that itself counts against production
+extraction.
 
 ## Build-topology side observation
 
-Adding the fourth QuantityBasis adapter initially failed the dedicated probe even
-though the adapter itself was structurally ordinary. The cause was not a semantic
-or type mismatch: `QuantityBasisCorrectionMemory.olean` had not been built on the
-probe's existing path. Explicitly building the imported frontier-family modules
-made the four-adapter probe pass.
+Adding the fourth QuantityBasis adapter initially failed because its imported
+module had not been built on the existing probe path. The adapter and algebra
+were not at fault. Explicitly building the imported frontier-family modules made
+the four-adapter probe pass.
 
-That is a useful secondary observation for the larger simplification study:
-semantic decomposition can leave complexity in the build/module graph even when
-Core concepts remain small. Production extraction should therefore measure not
-only source duplication but also dependency and build-topology cost.
+This is relevant to the wider simplification study: semantic decomposition can
+leave hidden complexity in module/build topology. Extraction cost therefore
+includes dependency topology, not only source-line count.
 
-## Current production recommendation
+## Complexity checkpoint
 
-Still **do not promote** the abstraction.
-
-The evidence is stronger than the first field trial because four production
-families now fit the same decomposition, and the apparent cycle-algorithm gap is
-smaller inside the actually admitted partial-injection class than it first
-appeared.
-
-But promotion is earned only if the universal conditional proofs remain small.
-If proving the generic abstraction requires a large graph-theory framework that
-is harder to understand than the four local copies, the correct result is to
-keep the duplication.
-
-The desired win is:
+The current research Lean probe is intentionally larger than a production
+candidate because it contains:
 
 ```text
-one tiny structural theorem library
+candidate runtime definitions
+four production-shape adapters
+bounded positive/negative witnesses
+universal equivalence lemmas
+research-only explanatory structure
+```
+
+At the current checkpoint the file is about 385 lines. That number must **not**
+be presented as the size of a future shared library.
+
+The meaningful comparison happens only after the conditional cycle theorem is
+finished:
+
+```text
+strip bounded witnesses
+strip research adapters not needed at runtime
+retain the smallest generic runtime + useful proof surface
+compare against local machinery actually deleted from four production families
+```
+
+If that extracted form is not materially smaller and clearer, keep the local
+duplication even though the mathematical structure is shared.
+
+## Production gate
+
+Still **do not promote** Observation 218.
+
+The research has moved from resemblance to several universal laws, but the exact
+cycle-detector bridge remains open and the four production admissions have not
+yet been reconstructed extensionally from the generic structure plus local laws.
+
+The desired result remains:
+
+```text
+one tiny structural library
 +
 four thin semantic adapters
 ```
@@ -295,7 +322,7 @@ four thin semantic adapters
 not:
 
 ```text
-one impressive universal framework
+one universal framework
 +
-a forest of adapter obligations
+a forest of proof and adapter obligations
 ```
