@@ -142,11 +142,11 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .preview draft choice =>
           match key with
           | .tab | .right =>
-              { state := { state with mode := .preview draft
-                  ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩ } }
+              { state := { state with mode := (.preview draft
+                  ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩) } }
           | .shiftTab | .left =>
-              { state := { state with mode := .preview draft
-                  ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩ } }
+              { state := { state with mode := (.preview draft
+                  ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩) } }
           | .enter =>
               if choice.val = 0 then { state, publish := some draft }
               else if choice.val = 1 then { state := { state with mode := .editing } }
