@@ -149,8 +149,14 @@ partial def capacityLoop
   let key ← Loam.Tui.Terminal.readKey
   if key = .input 'q' || key = .input 'Q' then
     return true
-  let back := key = .escape || key = .input 'b' || key = .input 'B'
-  match Loam.Tui.Capacity.update state back with
+  let event : Loam.Tui.Capacity.Event :=
+    if key = .escape || key = .input 'b' || key = .input 'B' then .back
+    else
+      match key with
+      | .up => .up
+      | .down => .down
+      | _ => .other
+  match Loam.Tui.Capacity.update state event with
   | .back => return false
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
