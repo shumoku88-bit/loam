@@ -328,10 +328,10 @@ Correct a movement append-only:
 Correct an occurrence date append-only:
   ./tools/loam correct-date MEMORY_FILE CORRECTION_FILE
 
-Starting quantities and balance projections:
-  ./tools/loam starting-quantity BASIS_FILE
-  ./tools/loam correct-starting-quantity BASIS_FILE BASIS_CORRECTION_FILE
-  ./tools/loam balances EVENT_MEMORY EVENT_CORRECTIONS BASIS_FILE [BASIS_CORRECTIONS] [BALANCE_VIEW] [BASIS_CUT]
+Balance projections from explicit reconstruction evidence:
+  ./tools/loam balances EVENT_MEMORY EVENT_CORRECTIONS ZERO_ORIGIN_COVERAGE [BALANCE_VIEW]
+
+Zero-origin coverage has no ordinary household writer. Change it only during an explicit reconstruction/cutover.
 
 For lower-level commands:
   ./tools/loam help low-level
@@ -379,7 +379,7 @@ if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
   exit 0
 fi
 
-if [[ "${1:-}" == "starting-quantity" || "${1:-}" == "correct-starting-quantity" || "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
+if [[ "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
   run_daily_quantity "$@" || exit $?
   exit 0
 fi
@@ -411,10 +411,8 @@ if [[ $# -eq 0 ]]; then
 
   memory_file="$data_dir/memory.loam"
   correction_file="$data_dir/corrections.loam"
-  basis_file="$data_dir/basis.loam"
-  basis_correction_file="$data_dir/basis-corrections.loam"
+  zero_origin_coverage_file="$data_dir/zero-origin-coverage.loam"
   balance_view_file="$data_dir/balance-view.tsv"
-  basis_cut_file="$data_dir/basis-cut.tsv"
   capacity_file="$data_dir/capacity.loam"
   scheduled_file="$data_dir/scheduled.loam"
 
@@ -435,8 +433,6 @@ EOF
     if [[ "$choice" == "m" ]]; then
       cat <<'EOF'
 correct    Correct a record
-starting   Set a starting balance
-basis      Correct a starting balance
 capacity   Move spending capacity
 available  Show spending capacity
 scheduled  Show open scheduled movements
@@ -510,14 +506,8 @@ EOF
       integrity)
         run_menu_action run_loam correction-integrity "$memory_file" "$correction_file"
         ;;
-      starting)
-        run_menu_action run_daily_quantity starting-quantity "$basis_file"
-        ;;
       3)
-        run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$basis_file" "$basis_correction_file" "$balance_view_file" "$basis_cut_file"
-        ;;
-      basis)
-        run_menu_action run_daily_quantity correct-starting-quantity "$basis_file" "$basis_correction_file"
+        run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$zero_origin_coverage_file" "$balance_view_file"
         ;;
       capacity)
         run_menu_action run_capacity "$capacity_file"

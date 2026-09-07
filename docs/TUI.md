@@ -97,46 +97,46 @@ and remains read-only.
 ## Balances review
 
 Home `b` opens the read-only Balances workspace. It consumes
-`Loam.BalanceReview`, a surface-independent household reader over the already-
-qualified current-quantity and basis-cut projections.
+`Loam.BalanceReview`, the same surface-independent household reader used by the
+line balance surface. The TUI does not reconstruct quantities locally.
 
-The production read topology is deliberately mixed rather than collapsed into a
-new umbrella authority:
+The production read topology keeps independent evidence independent:
 
 ```text
-selected Movement manifest -> Event effects
-corrections.loam            -> EventCorrection, absent means empty
-basis.loam                  -> QuantityBasis, absent means no basis facts
-basis-corrections.loam      -> QuantityBasisCorrection, absent means empty
-basis-cut.tsv               -> already-reflected occurrence relation, absent means empty
-balance-view.tsv            -> replaceable selected Locus × Measure coordinates, absent means empty selection
+selected Movement manifest   -> Event effects
+corrections.loam              -> EventCorrection, absent means empty
+zero-origin-coverage.loam     -> finite explicit Locus × Measure zero-origin evidence
+balance-view.tsv              -> replaceable selected Locus × Measure coordinates, absent means empty selection
 ```
 
-Movement never falls back to the retired `memory.loam` sidecar. The other files
-retain their existing independent evidence/configuration meanings; this read does
-not claim an atomic snapshot across them.
+An absent zero-origin coverage file means no coordinate has zero-origin evidence.
+It does **not** mean every unseen coordinate is zero. A malformed or duplicate
+coverage representation refuses. Movement never falls back to the retired
+`memory.loam` sidecar, and the balance reader does not infer coverage from Event
+activity or presentation selection.
 
 `balance-view.tsv` is a question-selection seam, not an Account registry. It can
 choose which neutral coordinates should appear without changing quantity evidence.
 Row order is presentation order only, duplicate coordinates are normalized, and
 no Asset/Liability/Income/Expense role, ranking, valuation, or total is inferred.
 
-For each selected coordinate the shared review delegates to the existing
-`BasisCut.inspectCurrentQuantityWithBasisCut?` path, which composes the admitted
-starting-basis frontier with correction-aware Event activity. A missing starting
-basis is **not** interpreted as zero. Invalid basis corrections, invalid basis-cut
-roots, or an inadmissible Event correction frontier refuse the whole view rather
-than publishing a partial set of plausible balances. An explicitly derived zero
+For each selected coordinate the shared review first requires explicit
+`ZeroOriginCoverage` membership and then delegates quantity calculation to the
+existing correction-aware Event inspection. Therefore a selected coordinate
+outside coverage remains unknown even when retained Events mention it. Event
+correction endpoints must remain closed and multi-correction evidence must still
+justify one frontier. Any refusal rejects the whole requested balance view rather
+than publishing a partial set of plausible balances. An explicitly covered zero
 remains visible.
 
-`Loam/Tests/BalanceReview.lean` publishes a selected Movement manifest, poisons a
-legacy `memory.loam`, and requires `wallet = 70` from a `100` starting basis plus a
-`-30` selected-manifest Event. It also preserves an explicit `cash = 0`, normalizes
-a duplicate view coordinate, refuses a selected coordinate without basis evidence,
-and refuses malformed basis-correction evidence.
-`Loam/Tests/TuiBalances.lean` checks neutral-coordinate wording, nonzero and zero
-rows, balance-view presentation order, explicit-empty selection, and read-only
-Home navigation.
+`Loam/Tests/BalanceReview.lean` publishes a selected Movement manifest with an
+opening reconstruction Event and a later `-30` wallet Event. Explicit coverage for
+`wallet` and `cash` requires `wallet = 70` and preserves `cash = 0`. It also
+normalizes a duplicate view coordinate, refuses Event activity outside coverage,
+refuses duplicate or malformed coverage, and preserves fail-closed Event correction
+behavior. `Loam/Tests/TuiBalances.lean` checks neutral-coordinate wording, nonzero
+and zero rows, balance-view presentation order, explicit-empty selection, and
+read-only Home navigation.
 
 ## Capacity review
 

@@ -45,6 +45,7 @@ jobs:
           use-github-cache: true
       - name: Build practical binaries
         run: lake build loam loamMovement loamDailyQuantity
+
       - name: Keep ordinary data outside the source repository
         shell: bash
         run: |
@@ -54,10 +55,11 @@ jobs:
           test -d ../loam-data
           grep -Fq 'Data: ../loam-data' "$RUNNER_TEMP/default-data.out"
           test ! -e ../loam-data/memory.loam
-          test ! -e ../loam-data/basis.loam
+          test ! -e ../loam-data/zero-origin-coverage.loam
           test ! -e ../loam-data/balance-view.tsv
           rm -rf ../loam-data
-      - name: Exercise persistent movement-only menu and fail-closed recovery
+
+      - name: Exercise persistent movement and explicit zero-origin evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -65,6 +67,8 @@ jobs:
           from pathlib import Path
           import shutil
           import subprocess
+
+          root = Path("scratch/dogfood")
 
           def start_session():
               return subprocess.Popen(
@@ -103,51 +107,42 @@ jobs:
                   )
               return "".join(transcript)
 
-          def select_bank_balance():
-              Path("scratch/dogfood/balance-view.tsv").write_text(
-                  "bank\tjpy\n", encoding="utf-8"
-              )
-
-          shutil.rmtree("scratch/dogfood", ignore_errors=True)
+          shutil.rmtree(root, ignore_errors=True)
           proc = start_session()
           transcript = []
           first = read_until(proc, "> ", transcript)
           assert "Data: scratch/dogfood" in first, "".join(transcript)
-          send(proc, "starting")
-          read_until(proc, "Starting at? ", transcript)
-          send(proc, "bank")
-          read_until(proc, "Starting quantity? ", transcript)
-          send(proc, "100000")
-          read_until(proc, "> ", transcript)
-          select_bank_balance()
-          send(proc, "3")
-          before = read_until(proc, "> ", transcript)
-          assert "  bank: 100000 jpy" in before, "".join(transcript)
-          send(proc, "basis")
-          read_until(proc, "Select number: ", transcript)
-          send(proc, "1")
-          read_until(proc, "Correct starting quantity to? ", transcript)
-          send(proc, "90000")
-          read_until(proc, "> ", transcript)
-          send(proc, "3")
-          after = read_until(proc, "> ", transcript)
-          assert "  bank: 90000 jpy" in after, "".join(transcript)
-          send(proc, "q")
-          full = finish(proc, transcript)
-          assert full.count("m. More actions") >= 5, full
 
-          shutil.rmtree("scratch/dogfood", ignore_errors=True)
-          Path("scratch/dogfood").mkdir(parents=True, exist_ok=True)
-          Path("scratch/dogfood/memory.loam.locus-admission").write_text(
+          # No coverage evidence and no selected question is a clean empty view.
+          send(proc, "3")
+          empty = read_until(proc, "> ", transcript)
+          assert "No balances are selected in the current balance view." in empty, "".join(transcript)
+
+          # The ordinary menu must not expose the retired snapshot writers.
+          send(proc, "m")
+          more = read_until(proc, "> ", transcript)
+          assert "starting" not in more.lower(), "".join(transcript)
+          assert "Correct a starting balance" not in more, "".join(transcript)
+          send(proc, "b")
+          read_until(proc, "> ", transcript)
+
+          root.mkdir(parents=True, exist_ok=True)
+          (root / "zero-origin-coverage.loam").write_text(
+              "LOAM-ZERO-ORIGIN-COVERAGE\t1\n"
+              "COORDINATE\tbank\tjpy\n",
+              encoding="utf-8",
+          )
+          (root / "balance-view.tsv").write_text("bank\tjpy\n", encoding="utf-8")
+          (root / "memory.loam.locus-admission").write_text(
               "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\n"
               "LOCUS\tincome-source\n"
               "LOCUS\tbank\n",
               encoding="utf-8",
           )
-          proc = start_session()
-          transcript = []
-          first = read_until(proc, "> ", transcript)
-          assert "Data: scratch/dogfood" in first, "".join(transcript)
+
+          send(proc, "3")
+          anchored_zero = read_until(proc, "> ", transcript)
+          assert "  bank: 0 jpy" in anchored_zero, "".join(transcript)
 
           send(proc, "1")
           read_until(proc, "From locus (blank when done)? ", transcript)
@@ -165,23 +160,15 @@ jobs:
           read_until(proc, "> ", transcript)
 
           send(proc, "3")
-          unselected = read_until(proc, "> ", transcript)
-          assert "No balances are selected in the current balance view." in unselected, "".join(transcript)
+          current = read_until(proc, "> ", transcript)
+          assert "  bank: 100 jpy" in current, "".join(transcript)
 
-          select_bank_balance()
+          # Event activity outside coverage remains unknown even if presentation asks for it.
+          (root / "balance-view.tsv").write_text("income-source\tjpy\n", encoding="utf-8")
           send(proc, "3")
-          unanchored = read_until(proc, "> ", transcript)
-          assert "loam: balances unavailable: starting balance missing for bank / jpy" in unanchored, "".join(transcript)
+          refused = read_until(proc, "> ", transcript)
+          assert "zero-origin coverage missing for income-source / jpy" in refused, "".join(transcript)
 
-          send(proc, "starting")
-          read_until(proc, "Starting at? ", transcript)
-          send(proc, "bank")
-          read_until(proc, "Starting quantity? ", transcript)
-          send(proc, "0")
-          read_until(proc, "> ", transcript)
-          send(proc, "3")
-          recovered = read_until(proc, "> ", transcript)
-          assert "  bank: 100 jpy" in recovered, "".join(transcript)
           send(proc, "q")
           full = finish(proc, transcript)
           assert full.count("m. More actions") >= 6, full

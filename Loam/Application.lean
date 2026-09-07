@@ -1,4 +1,5 @@
 import Loam.Application.QuantityInspection
+import Loam.Application.ZeroOriginQuantity
 import Loam.Application.CapacityInspection
 import Loam.Application.ConsumptionInspection
 import Loam.Application.ActualRoutingInspection
