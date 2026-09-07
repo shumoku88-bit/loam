@@ -62,7 +62,8 @@ def main : IO Unit := do
     "Capacity did not expose the selected purpose as local transfer seed"
 
   let refreshed := Loam.Tui.Capacity.refreshed
-    { rows := [food, groceries, { purpose := ⟨"buffer"⟩, entitlement := 0 }] }
+    { rows := [food, groceries,
+        { purpose := ⟨"buffer"⟩, entitlement := Quantity.ofQuanta 0 }] }
     (Loam.Tui.Capacity.moveNext state)
   expect (Loam.Tui.Capacity.selectedPurpose? refreshed == some ⟨"groceries"⟩)
     "fresh Capacity review did not preserve the local selected row coordinate"
