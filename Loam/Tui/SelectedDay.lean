@@ -215,13 +215,9 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
 
 private def footer (bounds : Bounds) : List Widget :=
   if bounds.width >= 72 then
-    [ mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [q] back"
-    , mutedLine "Correction and Scheduled realization appear here only after shared publisher boundaries exist."
-    ]
+    [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [q] back"]
   else
-    [ mutedLine "[j/k] select [h/l] pane [n] new [q] back"
-    , mutedLine "Correction/realization wait for shared publishers."
-    ]
+    [mutedLine "[j/k] select [h/l] pane [n] new [q] back"]
 
 private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
