@@ -12,6 +12,7 @@ on:
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Core/ScheduledReplacement.lean'
       - 'Loam/Core/QuantityBasisCorrectionMemory.lean'
+      - 'Loam/Application/ReplacementFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/ScheduledInspection.lean'
@@ -37,8 +38,10 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Build Observation 218 imported frontier families
-        run: lake build Loam.Core.QuantityBasisCorrectionMemory
+      - name: Build production-shaped factor probe
+        run: |
+          lake build Loam.Application.ActualValidityFrontier
+          lake build Loam.Application.QuantityBasisFrontier
       - name: Check Observation 218 Lean probes
         shell: bash
         run: |
