@@ -1,0 +1,52 @@
+name: Observation 196
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Observations/Observation196.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/196_budget_window_selection_pressure.md'
+      - '.github/workflows/observation-196-budget-window-selection-pressure.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - 'experiment/196-budget-window-selection-pressure'
+      - main
+    paths:
+      - 'Loam/Observations/Observation196.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Observations.lean'
+      - 'experiments/196_budget_window_selection_pressure.md'
+      - '.github/workflows/observation-196-budget-window-selection-pressure.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-window-selection-pressure:
+    name: Lean budget-window selection pressure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check budget-window selection observation
+        run: lake build Loam.Observations.Observation196
