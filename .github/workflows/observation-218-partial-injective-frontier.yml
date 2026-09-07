@@ -41,7 +41,9 @@ jobs:
           use-github-cache: true
       - name: Build production-shaped factor probe
         run: |
+          lake build Loam.Application.CorrectionFrontier
           lake build Loam.Application.ActualValidityFrontier
+          lake build Loam.Application.ScheduledInspection
           lake build Loam.Application.QuantityBasisFrontier
       - name: Check Observation 218 Lean probes
         shell: bash
