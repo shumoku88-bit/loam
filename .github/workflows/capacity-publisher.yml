@@ -1,0 +1,63 @@
+name: Shared Capacity Publisher
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/CapacityReview.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - '.github/workflows/capacity-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/CapacityReview.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Persistence/CapacityEffectivePersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - '.github/workflows/capacity-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test shared Capacity publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared Capacity publisher
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.CapacityPublisher Loam.CapacityReview
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify shared Capacity publication
+        run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
