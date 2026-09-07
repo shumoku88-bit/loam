@@ -518,10 +518,10 @@ def scheduledDetailView (cursor : ScheduledCursor) : Widget :=
         , blankLine
         , mutedLine "Expected movement"
         ] ++
-        (record.movement.changes.take 10).map fun change =>
+        ((record.movement.changes.take 10).map fun change =>
           plainLine
             ("  " ++ change.coordinate.token ++ ": " ++
-              toString change.quantity.quanta ++ " " ++ record.measure.token) ++
+              toString change.quantity.quanta ++ " " ++ record.measure.token)) ++
         [ blankLine
         , mutedLine "Expectation evidence, not Actual evidence."
         , mutedLine "b browse   q quit"
