@@ -2,6 +2,7 @@ import Loam.Core.Quantity
 import Loam.Core.Measure
 import Loam.Core.Effect
 import Loam.Core.LocusAdmission
+import Loam.Core.AccountingRole
 import Loam.Core.Purpose
 import Loam.Core.RoutingEffective
 import Loam.Core.HistoricalRouting
