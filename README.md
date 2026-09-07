@@ -69,7 +69,7 @@ and its [remaining-work checklist](docs/movement_manifest_menu_cutover.md#remain
 ### Focused record review
 
 The primary menu keeps recording, record review, and balances at the entrance;
-`m` reveals correction, setup, scheduled, capacity, and inspection actions. Those
+`m` reveals correction, scheduled, capacity, and inspection actions. Those
 named actions can also be entered directly at the menu prompt.
 
 ```text
@@ -112,7 +112,7 @@ scope and local composition checks. Review adds no persistence or writer path.
 
 ### Quantities and shadow readers
 
-A Locus is not silently given a zero starting basis. If `current` encounters a recorded Locus without basis evidence, set its starting quantity explicitly, including an explicit `0` when that is the truthful application-origin basis. The replaceable balance view can select only the loci intended for a household balance display without turning Locus into an Account primitive. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
+Current quantity and balance reads combine correction-aware Event effects with explicit `ZeroOriginCoverage`. A coordinate is answerable only when that independent coverage evidence states that its selected retained Event history is complete from zero. Event activity, Locus admission, and `balance-view.tsv` selection do not create coverage; an uncovered coordinate remains unavailable rather than becoming an implicit zero. The replaceable balance view selects presentation questions only and does not turn Locus into an Account primitive. Routine starting-quantity writers are retired; zero-origin coverage changes only through explicit reconstruction or cutover. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
 
 A separate stateless shadow entrance remains available for read-only research against historical or external journal snapshots. It does not participate in current household authority:
 
@@ -134,9 +134,9 @@ LOAM has now crossed a second practical boundary beyond the first stateless quan
 
 The household and research slice documented by this checkpoint includes:
 
-- correction-aware practical balances with explicit `QuantityBasis`;
-- replaceable balance selection that does not treat basis presence as hidden Account classification;
-- an explicit correction-root basis cut for occurrences already reflected in a basis observation;
+- correction-aware practical balances from selected Movement Event effects plus explicit `ZeroOriginCoverage`;
+- replaceable balance selection that remains presentation-only and cannot create zero-origin coverage;
+- the former QuantityBasis / BasisCut production path retained as historical research provenance rather than current household balance authority;
 - historically qualified read-only recorded-day views over external journal snapshots, retained as research evidence rather than current authority;
 - a separate scheduled-day view using explicit completion / retirement evidence and a known-through horizon;
 - a terminal composition that shows recorded and scheduled answers for the same selected day without introducing a canonical Home or Day model.
