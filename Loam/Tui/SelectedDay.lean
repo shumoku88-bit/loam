@@ -26,6 +26,7 @@ inductive Event where
   | focusLeft
   | focusRight
   | recordNew
+  | correctActual
   | back
   | other
   deriving Repr, DecidableEq, BEq
@@ -33,6 +34,7 @@ inductive Event where
 inductive Command where
   | stay
   | recordNew
+  | correctActual
   | back
   deriving Repr, DecidableEq, BEq
 
@@ -107,6 +109,15 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .focusLeft => { state := { state with pane := .actual, notice := "" } }
   | .focusRight => { state := { state with pane := .scheduled, notice := "" } }
   | .recordNew => { state, command := .recordNew }
+  | .correctActual =>
+      match state.pane with
+      | .scheduled =>
+          { state := { state with notice := "Correction is available from the Actual pane." } }
+      | .actual =>
+          match selectedActual? snapshot state with
+          | none =>
+              { state := { state with notice := "No current Actual is selected for correction." } }
+          | some _ => { state, command := .correctActual }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -214,10 +225,10 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   | .scheduled => scheduledDetail snapshot state
 
 private def footer (bounds : Bounds) : List Widget :=
-  if bounds.width >= 72 then
-    [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [q] back"]
+  if bounds.width >= 84 then
+    [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct Actual  [q] back"]
   else
-    [mutedLine "[j/k] select [h/l] pane [n] new [q] back"]
+    [mutedLine "[j/k] select [h/l] pane [n] new [c] correct [q] back"]
 
 private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
@@ -228,8 +239,8 @@ private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : Li
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
-answers and owns only pane/cursor state. No correction or Scheduled lifecycle
-authority is introduced here.
+answers and owns only pane/cursor state. Record and Correction commands are local
+interaction intents; publication authority stays in the shared publishers.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState

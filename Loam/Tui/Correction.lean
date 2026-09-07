@@ -31,15 +31,17 @@ private def rowsFromRecord (record : Loam.Tui.Main.ReviewRecord) : Array Loam.Tu
 /--
 Seed one replacement editor from visible current Actual evidence.
 
-The six-row limit is a presentation limit inherited from the production Record
-editor, not a publisher or Core law. Larger retained Events remain readable and
-are refused here rather than truncated.
+The JPY and six-row checks are presentation representability checks only. They do
+not authorize correction publication; the shared publisher still re-reads current
+canonical evidence and applies the qualified correction entrance.
 -/
 def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
   let date ←
     match record.date with
     | some date => pure date
     | none => throw "This Actual has no current occurrence date and cannot use the day correction editor."
+  if !record.event.effects.all (fun effect => decide (effect.measure = ⟨"jpy"⟩)) then
+    throw "This Actual uses a non-JPY measure and cannot be represented by the JPY correction editor."
   let rows := rowsFromRecord record
   if rows.size < 2 then
     throw "This Actual is outside the practical balanced-Movement correction editor."
