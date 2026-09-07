@@ -9,13 +9,17 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
+      - 'Loam/CapacityReview.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/CapacityReview.lean'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   push:
@@ -28,13 +32,17 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
+      - 'Loam/CapacityReview.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/CapacityReview.lean'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   workflow_dispatch:
@@ -78,3 +86,9 @@ jobs:
 
       - name: Verify read-only Attention workspace
         run: lake env lean --run Loam/Tests/TuiAttention.lean
+
+      - name: Verify shared Capacity review boundary
+        run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
+
+      - name: Verify read-only Capacity workspace
+        run: lake env lean --run Loam/Tests/TuiCapacity.lean

@@ -16,6 +16,7 @@ Loam/Tui/Calendar   presentation-only Gregorian month projection
 Loam/Tui/Main       Home / Actual / Scheduled interaction state
 Loam/Tui/Record     local Record editor / preview state
 Loam/Tui/Attention  local read-only Attention workspace
+Loam/Tui/Capacity   local read-only Capacity workspace
 Loam/Tui/Cli        canonical loading and executable loop
 ```
 
@@ -28,6 +29,12 @@ Attention is currently a global current-open workspace rather than selected-day
 evidence. The TUI does not infer day membership from a due date, sort open items
 by due date, or add a priority taxonomy. Those would require separately earned
 query/policy semantics.
+
+Capacity is currently an all-retained JPY Entitlement projection. `Current` in
+that workspace means the current answer over all retained Capacity movements; it
+does **not** mean current cycle, current month, selected day, or any inferred
+budget period. Windowed Capacity remains an explicit Application query with
+caller-supplied `[start, end)` coordinates.
 
 ## Production rule
 
@@ -75,6 +82,35 @@ checks persistence round-trip, source unavailable versus explicit empty, escaped
 human context, due distinctions, and dangling-closure refusal.
 `Loam/Tests/TuiAttention.lean` checks that the surface preserves those distinctions
 and remains read-only.
+
+## Capacity review
+
+Home `c` opens the read-only Capacity workspace. It consumes
+`Loam.CapacityReview`, whose quantities delegate to the existing Application
+`entitlementAt` projection. The TUI does not maintain balances or derive Capacity
+by replaying a second local accounting model.
+
+The configured stream is `capacity.loam` under `LOAM_DATA_DIR`. Capacity keeps its
+existing practical bootstrap policy: an absent stream means no retained Capacity
+movements yet, so the all-retained review is empty. A configured malformed stream
+still refuses. This differs intentionally from Attention, whose absent source is
+`Unavailable`.
+
+Rows show remembered Purpose coordinates and their all-retained JPY Entitlement.
+Purpose order is first retained representation appearance only; it is not priority
+or a budget ranking. Zero or negative derived values are not hidden by the TUI.
+
+This workspace deliberately does not use `CapacityEffective` to manufacture a
+cycle. `CapacityWindowInspection` already supports explicit half-open windows, but
+choosing which window represents a household cycle requires separately earned
+query policy. The first production Capacity workspace therefore claims only the
+untimed current all-retained answer already available from the line Capacity
+surface.
+
+`Loam/Tests/CapacityReview.lean` checks missing/explicit-empty behavior, projection
+agreement for reallocation, and malformed-stream refusal.
+`Loam/Tests/TuiCapacity.lean` checks the all-retained presentation, explicit
+no-window statement, ordering non-claim, and read-only navigation.
 
 ## Write boundary
 
