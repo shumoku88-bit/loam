@@ -58,7 +58,7 @@ jobs:
           cp lean-toolchain "$AUDIT_DIR/"
           (cd "$AUDIT_DIR" && lake build)
           lake env "$AUDIT_DIR/.lake/build/bin/axiom-audit" \
-            --root Loam.Observation078 \
+            --root Loam.Observations.Observation078 \
             --modules Loam.Observations.Observation078 \
             --allow propext,Classical.choice,Quot.sound
 
