@@ -26,6 +26,7 @@ inductive Event where
   | focusLeft
   | focusRight
   | recordNew
+  | createScheduled
   | correctActual
   | correctDate
   | completeScheduled
@@ -38,6 +39,7 @@ inductive Event where
 inductive Command where
   | stay
   | recordNew
+  | createScheduled
   | correctActual
   | correctDate
   | completeScheduled
@@ -116,7 +118,16 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .next => { state := moveNext snapshot state }
   | .focusLeft => { state := { state with pane := .actual, notice := "" } }
   | .focusRight => { state := { state with pane := .scheduled, notice := "" } }
-  | .recordNew => { state, command := .recordNew }
+  | .recordNew =>
+      match state.pane with
+      | .actual => { state, command := .recordNew }
+      | .scheduled =>
+          { state := { state with notice := "New Actual is available from the Actual pane." } }
+  | .createScheduled =>
+      match state.pane with
+      | .actual =>
+          { state := { state with notice := "New Scheduled is available from the Scheduled pane." } }
+      | .scheduled => { state, command := .createScheduled }
   | .correctActual =>
       match state.pane with
       | .scheduled =>
@@ -277,9 +288,9 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
         [mutedLine "[j/k] select [h/l] pane [n] new [c] correct [d] date [q] back"]
   | .scheduled =>
       if bounds.width >= 96 then
-        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [c/Enter] complete  [s] supersede  [x] cancel  [q] back"]
+        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [s] supersede  [x] cancel  [q] back"]
       else
-        [mutedLine "[j/k] select [h/l] pane [c/Enter] complete [s] supersede [x] cancel [q] back"]
+        [mutedLine "[j/k] select [h/l] pane [n] new [c/Enter] complete [s] supersede [x] cancel [q] back"]
 
 private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
@@ -291,8 +302,8 @@ private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : Li
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
 answers and owns only pane/cursor state. Actual Record/Correction/date actions and
-Scheduled completion/cancellation/replacement are local interaction intents;
-publication authority stays in shared publishers.
+Scheduled creation/completion/cancellation/replacement are local interaction
+intents; publication authority stays in shared publishers.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
