@@ -297,9 +297,9 @@ theorem acyclicByStartReturn_eq_not_hasCycleByReturn
     (edges : List (ReplacementEdge Id)) :
     acyclicByStartReturn edges = !hasCycleByReturn edges := by
   unfold acyclicByStartReturn hasCycleByReturn
-  simp_rw [pathAcyclicFromStart_eq_not_returnsToStartWithin]
-  exact all_not_eq_not_any edges (fun edge =>
-    returnsToStartWithin edges edge.superseded edges.length edge.superseded)
+  simpa only [pathAcyclicFromStart_eq_not_returnsToStartWithin] using
+    (all_not_eq_not_any edges (fun edge =>
+      returnsToStartWithin edges edge.superseded edges.length edge.superseded))
 
 
 def structurallyAdmissible {Id : Type} [DecidableEq Id]
