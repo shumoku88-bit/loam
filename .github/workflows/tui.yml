@@ -11,6 +11,7 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/CapacityPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -24,6 +25,7 @@ on:
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
+      - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -57,6 +59,7 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/CapacityPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -70,6 +73,7 @@ on:
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
+      - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -178,10 +182,16 @@ jobs:
       - name: Verify read-only Balances workspace
         run: lake env lean --run Loam/Tests/TuiBalances.lean
 
+      - name: Build shared Capacity publisher boundary
+        run: lake build Loam.CapacityPublisher
+
+      - name: Verify Capacity transfer and fresh shared review
+        run: lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
+
       - name: Verify shared Capacity review boundary
         run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
 
-      - name: Verify read-only Capacity workspace
+      - name: Verify Capacity workspace
         run: lake env lean --run Loam/Tests/TuiCapacity.lean
 
       - name: Build manifest-backed Budget Window review boundary
