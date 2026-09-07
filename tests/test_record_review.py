@@ -228,6 +228,7 @@ class ReviewTests(unittest.TestCase):
         self.assertNotIn("integrity", opening)
         self.assertIn("No balances are selected", result.stdout)
         self.assertIn("integrity  Review correction integrity", result.stdout)
+        self.assertNotIn("starting", result.stdout.lower())
         self.assertNotIn("choice not understood", result.stderr)
         self.assertEqual(self.snapshot(), before)
 
@@ -276,9 +277,12 @@ class ManifestMenuTests(unittest.TestCase):
         self.authority = self.root / "movement-authority"
         self.env = {**ENV, "LOAM_DATA_DIR": str(self.root)}
         self.families = {
-            "Event": "LOAM-EVENT-MEMORY\t1\nEVENT\told\nEFFECT\tfrom\twallet\tjpy\t-100\nEFFECT\tto\tfood\tjpy\t100\n"
+            "Event": "LOAM-EVENT-MEMORY\t1\n"
+                     "EVENT\topening\nEFFECT\topening-source\topening-source\tjpy\t-1000\n"
+                     "EFFECT\topening-wallet\twallet\tjpy\t1000\n"
+                     "EVENT\told\nEFFECT\tfrom\twallet\tjpy\t-100\nEFFECT\tto\tfood\tjpy\t100\n"
                      "EVENT\tfixed\nEFFECT\tfrom\twallet\tjpy\t-75\nEFFECT\tto\tfood\tjpy\t75\n",
-            "ActualValidity": f"LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\told\t{TODAY}\nBASE\tfixed\t{TODAY}\n",
+            "ActualValidity": f"LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\topening\t{TODAY}\nBASE\told\t{TODAY}\nBASE\tfixed\t{TODAY}\n",
             "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tfixed\tmanifest receipt\n",
             "RelationUnit": "LOAM-RELATION-UNIT-MEMORY\t1\n",
             "RelationDischarge": "LOAM-RELATION-DISCHARGE-MEMORY\t1\n",
@@ -287,8 +291,8 @@ class ManifestMenuTests(unittest.TestCase):
         self.publish()
         (self.root / "corrections.loam").write_text(
             "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\told\tfixed\n")
-        (self.root / "basis.loam").write_text(
-            "LOAM-QUANTITY-BASIS-MEMORY\t1\nBASIS\tb1\twallet\tjpy\t1000\n")
+        (self.root / "zero-origin-coverage.loam").write_text(
+            "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\n")
         (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
 
     def publish(self, version=2):
@@ -313,7 +317,7 @@ class ManifestMenuTests(unittest.TestCase):
     def menu(self, commands):
         return run(ROOT / "tools/loam", input=commands, env=self.env)
 
-    def test_retired_sidecars_review_balances_and_basis_cut(self):
+    def test_retired_sidecars_review_and_zero_origin_balances(self):
         before = self.snapshot()
         result = self.menu("2\n3\nq\n")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -321,9 +325,6 @@ class ManifestMenuTests(unittest.TestCase):
         self.assertIn("wallet: 925 jpy", result.stdout)
         self.assertNotIn("Nothing recorded yet", result.stdout)
         self.assertEqual(self.snapshot(), before)
-        (self.root / "basis-cut.tsv").write_text("b1\told\n")
-        result = self.menu("3\nq\n")
-        self.assertIn("wallet: 1000 jpy", result.stdout)
 
     def test_broken_selected_authority_never_falls_back(self):
         (self.root / "memory.loam").write_text(self.families["Event"])
@@ -396,7 +397,7 @@ class ManifestMenuTests(unittest.TestCase):
         for command in ("balances", "current"):
             for selection in ("", str(self.root / "missing")):
                 result = run(binary, command, self.root / "memory.loam",
-                             self.root / "corrections.loam", self.root / "basis.loam",
+                             self.root / "corrections.loam", self.root / "zero-origin-coverage.loam",
                              env={**ENV, "LOAM_MOVEMENT_MANIFEST_ROOT": selection})
                 self.assertEqual(result.returncode, 2)
                 self.assertEqual(result.stdout, "")
