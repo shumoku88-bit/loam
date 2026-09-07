@@ -1,332 +1,310 @@
 # Observation 218 — finite partial-injective frontier factorization
 
-Status: **FIELD TRIAL / RESEARCH_ONLY**
+Status: **QUALIFIED PRODUCTION SIMPLIFICATION CANDIDATE**
 
-Baseline: LOAM `4cf5370a54f2e8aebb37b55077cdb1dee8efc822`
+Research starting point: LOAM `4cf5370a54f2e8aebb37b55077cdb1dee8efc822`
+Current production main during final qualification: `0cd1ca1e618dac3bd4eac409602d99d6981ef3fb`
 
-## Trigger
+## Question
 
-LOAM deliberately keeps the Practical Core small, but that is useful only if
-complexity is actually removed rather than displaced into Application,
-Persistence, canonical authority, or UI code.
+LOAM deliberately keeps the Practical Core small. That is only a win if the
+complexity is removed rather than displaced into Application, Persistence,
+canonical data, or UI code.
 
-A concrete audit of current production code found the same structural frontier
-problem independently implemented in several semantic families.
+Observation 218 therefore started from repeated production code and asked:
 
-The question is:
+> Can a small mathematical structure remove duplicated runtime machinery while
+> leaving independently meaningful household concepts and local laws intact?
 
-> Can one piece of mathematics remove repeated structural machinery while
-> leaving each domain's independently meaningful evidence and local laws intact?
+## Repeated production structure
 
-This observation deliberately starts from repeated production code rather than
-from a desired abstraction.
-
-## Production duplication found
-
-### Event Correction
-
-`Loam/Application/CorrectionFrontier.lean` checks:
-
-- unique correction targets;
-- unique correction replacements;
-- closed Event references;
-- acyclic replacement paths;
-- then removes targeted Events from the current frontier.
-
-Its own documentation already identifies the admitted shape as a collection of
-**disjoint finite paths**.
-
-### Actual-validity Correction
-
-`Loam/Application/ActualValidityFrontier.lean` independently checks:
-
-- unique correction targets;
-- unique correction replacements;
-- closed fact references;
-- acyclic replacement paths;
-- then removes targeted validity facts from the current frontier.
-
-It additionally requires same-Event replacement and one current validity fact
-per Event. Those are domain laws, not graph laws.
-
-### Scheduled Replacement
-
-`Loam/Core/ScheduledReplacement.lean` already retains one-to-one replacement
-endpoints. `Loam/Application/ScheduledInspection.lean` independently adds:
-
-- closed Scheduled references;
-- acyclic replacement paths;
-- then removes replacement sources from the current-open frontier.
-
-It additionally checks completion / retirement compatibility. Again, that is a
-Scheduled lifecycle law rather than a graph law.
-
-## Small mathematical factor
-
-For a finite identity carrier `I`, the shared structural object is:
-
-```text
-f : I ⇀ I
-```
-
-with the following restrictions:
-
-```text
-partial function      each superseded identity has at most one successor
-injective             each successor has at most one predecessor
-closed                every endpoint belongs to the retained carrier
-acyclic               repeated application of f never returns to a prior identity
-```
-
-A finite acyclic partial injection decomposes into disjoint finite directed
-paths plus isolated carrier elements.
-
-The structural current frontier is simply:
-
-```text
-carrier \ dom(f)
-```
-
-That is exactly the operation currently spelled separately as "filter out
-correction targets" or "filter out replacement sources".
-
-The companion Lean probe `218_partial_injective_frontier.lean` implements only
-this factor and provides adapters for:
-
-```text
-EventCorrection       target -> replacement
-ActualValidityCorrection
-                      target -> replacement
-ScheduledReplacement  source -> replacement
-```
-
-Bounded witnesses demonstrate admission of a chain and refusal of branching,
-merging, cycles, and open references.
-
-## Why this is a better abstraction candidate than a generic domain relation
-
-The proposed factor does **not** say that Correction, Actual-validity correction,
-and Scheduled replacement have the same household meaning.
-
-It factors only the graph mechanics they currently duplicate:
-
-```text
-endpoint uniqueness
-reference closure
-acyclic traversal
-frontier membership
-```
-
-The semantic wrappers remain distinct.
-
-This is important because the following laws remain local:
+Four semantic families independently contained the same replacement-frontier
+mechanics:
 
 ```text
 Event Correction
-  Event endpoints must exist
-  Resolution remains distinct from merge-shaped Correction
-
-Actual-validity Correction
-  replacement preserves Event identity
-  frontier has at most one current validity fact per Event
-
+ActualValidity Correction
 Scheduled Replacement
-  completion / retirement / replacement terminal evidence must be compatible
+QuantityBasis Correction
 ```
 
-So a successful production extraction would reduce machinery without creating a
-universal household `Relation` ontology.
+Their household meanings are different. Their structural relation is the same:
 
-## Important near-counterexample: OpenRelation revision
+```text
+f : I ⇀ I
 
-`OpenRelationFrontier` looks similar but is not immediately the same structure.
-A `RelationRevision` can contain:
+partial       each source has at most one successor
+injective     each successor has at most one predecessor
+closed        represented endpoints exist in the retained carrier
+acyclic       repeated application never forms a represented cycle
+
+frontier = carrier \ dom(f)
+```
+
+For a finite carrier, such a relation is a collection of disjoint finite paths
+plus isolated elements.
+
+## Lean qualification
+
+The theorem-heavy probes establish the structural facts without importing a
+general graph framework.
+
+`experiments/218_partial_injective_frontier.lean` proves and exercises:
+
+- executable endpoint uniqueness is exactly source and successor `Nodup`;
+- reference closure is exactly membership of every represented endpoint;
+- successor lookup is injective when successor identities are `Nodup`;
+- every defined finite iterate of that lookup is injective;
+- an interior repetition can be cancelled back to a return of the original start;
+- frontier membership is exactly carrier membership outside the source domain.
+
+`experiments/218_finite_partial_injection_cycle.lean` closes the remaining cycle
+question. Production originally used two different algorithms:
+
+```text
+Event / Scheduled                 seen-set traversal
+ActualValidity / QuantityBasis    start-return traversal
+```
+
+They are not path-locally equivalent on arbitrary deterministic graphs. A lasso
+can separate them from a tail start. Under the finite partial-injection premises
+used by these production families, however, Lean proves the whole-graph admission
+result is equivalent.
+
+The proof uses only small finite ingredients:
+
+```text
+injective finite iteration
++ cancellation of repeated endpoints
++ Nodup traces
++ subset of the finite source domain
++ List.Nodup.length_le_of_subset
+```
+
+No universal graph ontology is introduced.
+
+## Production-shaped extraction
+
+The shared runtime is deliberately internal to Application:
+
+```text
+Loam/Application/ReplacementFrontier.lean
+```
+
+It owns only structural mechanics:
+
+```text
+Edge
+endpointUnique
+referencesClosed
+acyclic
+structurallyAdmissible
+isSuperseded
+frontier
+```
+
+Each semantic family adapts its own retained evidence to `Edge` only where useful.
+The extraction is intentionally asymmetric rather than forcing every family into
+an identical wrapper shape.
+
+### Event Correction
+
+Shared:
+
+- endpoint uniqueness;
+- reference closure;
+- cycle admission.
+
+Local:
+
+- `EventCorrection` meaning;
+- distinction from multi-parent `EventResolution`;
+- public Event frontier and quantity projection;
+- the small target-membership helper used by its public membership theorem.
+
+### ActualValidity Correction
+
+Shared:
+
+- endpoint uniqueness;
+- reference closure;
+- cycle admission;
+- frontier filtering.
+
+Local:
+
+- replacement preserves Event identity;
+- at most one current frontier fact per Event.
+
+### Scheduled Replacement
+
+`ScheduledReplacementMemory` already carries `sourceNodup` and
+`replacementNodup` proof fields, so Application does not re-check endpoint
+uniqueness merely for uniformity.
+
+Shared:
+
+- reference closure;
+- cycle admission.
+
+Local:
+
+- completion / retirement / replacement terminal compatibility;
+- current-open Scheduled result vocabulary;
+- raw one-to-one memory admission in Core.
+
+### QuantityBasis Correction
+
+Shared:
+
+- endpoint uniqueness;
+- reference closure;
+- cycle admission;
+- frontier filtering.
+
+Local:
+
+- replacement preserves QuantityCoordinate;
+- at most one current basis per coordinate.
+
+## Measured production source delta
+
+Against production main `0cd1ca1e618dac3bd4eac409602d99d6981ef3fb`,
+counting only the five affected Application source files:
+
+```text
+ReplacementFrontier.lean          +54 /  -0
+ActualValidityFrontier.lean        +13 / -52
+CorrectionFrontier.lean            +12 / -57
+QuantityBasisFrontier.lean         +12 / -58
+ScheduledInspection.lean           +14 / -28
+------------------------------------------------
+production-shaped Application     +105 / -195
+net                                      -90 lines
+```
+
+The two-family probe had already recovered the shared fixed cost at `-31` lines.
+Extending the same narrow structure to all four qualified families improves the
+reduction to `-90` lines.
+
+This is the desired scaling behavior: the shared abstraction pays rent as reuse
+grows instead of creating an expanding adapter framework.
+
+## Practical qualification
+
+At the four-family checkpoint `d3df0c96d28e8bb82336d5465b1ff112d22161af`:
+
+```text
+Observation 218                         SUCCESS
+  four-family production-shaped build   SUCCESS
+  theorem-heavy Lean probes              SUCCESS
+
+Lean Application                        SUCCESS
+
+Practical Scheduled Replacement Frontier SUCCESS
+Practical Actual Validity Correction     SUCCESS
+Practical Basis Cut                      SUCCESS
+Practical Starting Quantity              SUCCESS
+Practical Movement                       SUCCESS
+```
+
+The Scheduled practical story specifically preserves:
+
+- valid replacement chains;
+- replacement-row permutation invariance;
+- missing-endpoint fail-closed behavior;
+- cycle refusal;
+- completion/replacement conflict refusal;
+- retirement/replacement conflict refusal;
+- duplicate source refusal;
+- duplicate successor refusal;
+- persistence round-trip stability.
+
+The other practical workflows exercise the affected Event, ActualValidity, and
+QuantityBasis paths through their existing production stories.
+
+## Ownership result
+
+Observation 218 does **not** earn a new Practical Core household concept.
+
+The common structure is implementation mathematics beneath several distinct
+semantic families, so the best current home is an intentionally small internal
+Application module.
+
+That matters for the original complexity-displacement concern:
+
+```text
+bad outcome
+small Core
++ four independent Application graph engines
+
+qualified outcome
+small Core
++ one 54-line structural Application helper
++ four thin semantic uses
+```
+
+The Core stays small without making Application carry four copies of the same
+algorithm.
+
+## Deliberate boundaries
+
+### OpenRelation revision stays outside
+
+`RelationRevision` permits:
 
 ```text
 replacement : Option RelationUnitId
 ```
 
-where `none` is explicit retraction rather than an ordinary successor.
+where `none` represents explicit retraction. Widening the shared abstraction to
+capture this would be abstraction-first design, so Observation 218 does not do it.
 
-Therefore Observation 218 does **not** classify OpenRelation revision as a direct
-instance of the partial-injection factor. It may fit a later extension such as a
-partial injection into `Option I`, but introducing that extension now would be
-abstraction-first design.
+### No universal household Relation type
 
-This near-counterexample is useful: the candidate factor has a visible boundary.
+Correction, validity correction, Scheduled replacement, and basis correction
+remain separate evidence types. Mathematical sameness of their finite path
+mechanics does not identify their household meanings.
 
-## Other mathematical simplification candidates found by the same audit
+### No forced frontier adapter
 
-### 1. Finite partial maps — strong boilerplate candidate
+Where a local target-membership helper remains smaller and clearer, it remains
+local. The shared module is not allowed to grow merely to eliminate every small
+piece of syntactic similarity.
 
-Several Core families independently have the shape:
+## Side candidates discovered by the audit
 
-```text
-K ⇀ V
-```
+Observation 218 also found other possible mathematical simplifications, but they
+remain separate work:
 
-represented as a list with a key `Nodup` proof and order-independent lookup:
+- finite partial-map lookup/proof boilerplate appears in several Core memories;
+- free-Abelian quantity semantics are already useful as an observational model,
+  but retained Movement representation remains observable;
+- information-order / lattice models remain promising for open-world answers,
+  but evidence uncertainty and value-level uncertainty must not be collapsed;
+- observational closure remains useful as an audit criterion rather than a new
+  production framework.
 
-- `ActualValidityMemory`: `EventId ⇀ Time`
-- `CapacityEffectiveMemory`: `CapacityMovementId ⇀ Time`
-- `EventDescriptionMemory`: `EventId ⇀ String`
-- `AccountingRoleMap`: `LocusId ⇀ AccountingRole`
-
-There is real proof / lookup duplication here.
-
-However, this probably reduces **implementation and proof machinery**, not the
-number of household semantic concepts. A future extraction should therefore be
-judged as a small reusable library structure, not promoted as a new domain
-primitive.
-
-### 2. Free-Abelian / finitely-supported quantity semantics — already observed
-
-This is not new work. Observation 159 already showed that finite
-`MovementChange` presentations project to an integer-valued coordinate vector,
-with `BalancedMovement` living at the zero-augmentation boundary.
-
-Observations 179, 180, and 191 then connected that projection to preservation
-polarity, observational closure, and quotient factorization.
-
-So the right next question is not "can LOAM use free Abelian groups?". It
-already can, at the observational boundary.
-
-The production audit also found current code that deliberately observes
-`BalancedMovement.changes` representation directly in persistence and interface
-paths. Therefore quotient-collapsing the retained list would currently erase an
-observable representation distinction. The earlier stop condition remains
-correct.
-
-### 3. Information order / lattice — promising, not yet qualified
-
-Two current answer families expose a striking common shape:
-
-```text
-OpenRelation source
-  unknown
-  known-none
-  known-positive
-
-Scheduled exact day
-  unknown
-  due
-```
-
-With a future qualified completeness witness, Scheduled could also gain a
-truthful negative answer analogous to relation `known-none`.
-
-This suggests a possible information order in which adding evidence refines an
-answer rather than mutating domain state.
-
-But the production result types also mix structural refusal states with semantic
-answers, and positive evidence may contain multiple retained witnesses. A clean
-lattice cannot be claimed until those two axes are separated.
-
-A later bounded observation should test something closer to:
-
-```text
-semantic evidence state
-  ×
-structural admission/refusal
-```
-
-rather than turning every current result constructor into a lattice element.
-
-### 4. Galois / observational closure — already available as an audit tool
-
-Observations 179, 180, and 191 give a useful criterion for this simplification
-project:
-
-> If a proposed retained field or Application answer is already forced by an
-> existing selected observation family, it may be derived rather than retained.
-
-Conversely, if a proposed normalization changes an observation outside the
-selected quotient, it is not semantics-preserving for that surface.
-
-This is more immediately useful than adding a generic production Galois
-framework.
-
-## Complexity-conservation criterion
-
-A mathematical extraction is useful only when it decreases total conceptual
-machinery across the whole system.
-
-For each candidate extraction record:
-
-```text
-production families reusing it
-new generic concepts introduced
-local laws deleted
-local laws still required
-persistence shapes deleted or unchanged
-canonical authorities deleted or unchanged
-new proof obligations
-new illegal states made representable
-```
-
-A smaller Core file with more Application/Data wiring is not a win.
-
-Likewise, fewer source lines with a harder universal framework is not a win.
-
-## Current ranking
-
-```text
-HIGH
-  finite partial-injective frontier
-    repeated three times in production
-    clear mathematical boundary
-    local semantic laws remain visible
-
-MEDIUM-HIGH
-  finite partial-map proof/lookup library
-    repeated at least four times
-    likely boilerplate reduction
-    does not itself reduce semantic fact families
-
-OBSERVED / KEEP AS RESEARCH TOOL
-  free-Abelian projection
-  preservation polarity
-  observational closure
-  quotient factorization
-
-PROMISING / NEEDS COUNTEREXAMPLE SEARCH
-  information-order / semilattice view of open-world answers
-
-LOW CURRENT VALUE
-  generic category-theory framework
-  generic universal relation ontology
-```
+None of these are imported into the replacement-frontier extraction.
 
 ## Result
 
-The initial hypothesis survives in a qualified form:
+The original hypothesis survives in a stronger, concrete form:
 
-> More advanced mathematics can simplify LOAM, but the strongest current win is
-> not importing a larger mathematical vocabulary into the domain. It is
-> recognizing repeated small structures and factoring only their mechanics.
+> Slightly stronger mathematics can make LOAM materially smaller when it is used
+> to recognize a repeated small structure rather than to enlarge the domain
+> vocabulary.
 
-The first concrete candidate is a finite acyclic partial injection whose frontier
-is the complement of its domain.
+Observation 218 has now demonstrated:
 
-That candidate is narrow enough to explain three independent production
-implementations without claiming their household meanings are identical.
+```text
+one small structural library
++ four distinct semantic families
++ preserved practical behavior
++ 90 fewer production-shaped Application lines
+```
 
-## Production gate
-
-Do **not** move Observation 218 into `Loam/Core` or `Loam/Application` from this
-field trial alone.
-
-Before extraction, test at least:
-
-1. exact equivalence with Event Correction frontier behavior;
-2. exact equivalence with ActualValidity structural checks before its local
-   same-Event/current-date laws;
-3. exact equivalence with Scheduled replacement graph checks before lifecycle
-   compatibility;
-4. whether the generic code and proofs are materially smaller / clearer than the
-   three local copies;
-5. whether OpenRelation revision remains safely outside rather than distorting
-   the abstraction to include it.
-
-If those checks fail, keep the duplicated local implementations. Mathematical
-elegance alone is not sufficient.
+The production promotion criterion is therefore satisfied in principle.
+Promotion should keep `ReplacementFrontier` internal to Application, retain the
+existing family-specific public entry points, and leave the theorem-heavy probes
+as research evidence rather than moving their proof machinery into runtime code.
