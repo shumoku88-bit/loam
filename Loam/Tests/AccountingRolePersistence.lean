@@ -88,4 +88,27 @@ def main : IO Unit := do
   expect (emptyRoles.roleOf? rent == none)
     "expenses: prefix silently became ExpenseRole"
 
+  let tmpDir := System.FilePath.mk "scratch/test-accounting-role-persistence"
+  IO.FS.createDirAll tmpDir
+  let tmpFile := tmpDir / "accounting-roles.tsv"
+  let stageFile := System.FilePath.mk (tmpFile.toString ++ ".loam-stage")
+
+  let saved ← saveAccountingRoleMap? tmpFile roles
+  expect saved "AccountingRole map was not published to disk"
+  expect (!(← stageFile.pathExists))
+    "AccountingRole stage file survived successful publication"
+
+  let loaded ← requireSome
+    (← loadAccountingRoleMap? tmpFile)
+    "published AccountingRole map did not load"
+  expect (loaded.roleOf? smbc == some .asset)
+    "filesystem round-trip changed explicit AssetRole"
+  expect (loaded.roleOf? rent == some .expense)
+    "filesystem round-trip changed explicit ExpenseRole"
+  expect (loaded.roleOf? reserve == none)
+    "filesystem round-trip invented unresolved classification"
+
+  IO.FS.removeFile tmpFile
+  IO.FS.removeDirAll tmpDir
+
   IO.println "Partial AccountingRole persistence practical story succeeded."
