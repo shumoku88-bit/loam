@@ -14,13 +14,20 @@ Loam/Tui/Runtime    compiled sparse-row redraw representation
 Loam/Tui/Terminal   raw terminal mechanics only
 Loam/Tui/Calendar   presentation-only Gregorian month projection
 Loam/Tui/Main       Home / Actual / Scheduled interaction state
-Loam/Tui/Cli        canonical snapshot loading and executable loop
+Loam/Tui/Record     local Record editor / preview state
+Loam/Tui/Attention  local read-only Attention workspace
+Loam/Tui/Cli        canonical loading and executable loop
 ```
 
 One selected day drives Home evidence, Actual review, Scheduled review, and the
-future Record date seed. Actual and Scheduled remain separate semantic families.
+Record date seed. Actual and Scheduled remain separate semantic families.
 Missing explicit Scheduled evidence remains `Unknown`; the UI must not strengthen
 it into `NotDue` without completeness evidence.
+
+Attention is currently a global current-open workspace rather than selected-day
+evidence. The TUI does not infer day membership from a due date, sort open items
+by due date, or add a priority taxonomy. Those would require separately earned
+query/policy semantics.
 
 ## Production rule
 
@@ -38,6 +45,37 @@ lake build loamTui
 `LOAM_DATA_DIR` may select the household data directory; otherwise the executable
 uses `../loam-data`. Movement reads use selected manifest authority and fail closed.
 
+## Attention review
+
+Home `a` opens the read-only Attention workspace. It consumes
+`Loam.AttentionReview`, which in turn delegates current-open lifecycle selection
+to the shared Application `openAttentions?` projection. The TUI does not repeat
+closure interpretation.
+
+The configured stream is `attention.loam` under `LOAM_DATA_DIR`. A missing stream
+is rendered as `Attention / Unavailable`; this is deliberately not the same claim
+as an explicitly configured stream with `0 open` items. Malformed evidence or a
+closure that references an unknown Attention identity fails closed at the shared
+review boundary.
+
+The three qualified due meanings remain distinct on screen:
+
+```text
+due YYYY-MM-DD
+no due date
+due unknown
+```
+
+Rows remain in representation order. That order is not priority, chronology, or
+due ordering. This first workspace has no add, resolve, drop, or relation writer;
+`b`/Escape returns Home and `q` quits LOAM.
+
+Qualification is split deliberately: `Loam/Tests/AttentionPersistence.lean`
+checks persistence round-trip, source unavailable versus explicit empty, escaped
+human context, due distinctions, and dangling-closure refusal.
+`Loam/Tests/TuiAttention.lean` checks that the surface preserves those distinctions
+and remains read-only.
+
 ## Write boundary
 
 Record editing is not considered complete until an already-collected typed
@@ -45,7 +83,6 @@ Record editing is not considered complete until an already-collected typed
 current-world re-read, admission, and manifest publication path used by the line
 Movement entrance. The TUI must not duplicate that publisher or create its own
 canonical write path.
-
 
 ## Record publication
 
