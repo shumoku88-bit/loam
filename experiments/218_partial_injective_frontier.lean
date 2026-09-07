@@ -139,9 +139,12 @@ theorem isSuperseded_eq_false_iff {Id : Type} [DecidableEq Id]
     isSuperseded edges id = false ↔
       ∀ edge ∈ edges, edge.superseded ≠ id := by
   induction edges with
-  | nil => simp [isSuperseded]
+  | nil =>
+      simp [isSuperseded]
   | cons edge rest ih =>
-      simp [isSuperseded, ih]
+      by_cases h : edge.superseded = id
+      · simp [isSuperseded, h]
+      · simp [isSuperseded, h, ih]
 
 /--
 Mathematical frontier specification: retain exactly carrier identities outside
@@ -151,7 +154,8 @@ theorem mem_frontier_iff_not_domain {Id : Type} [DecidableEq Id]
     (carrier : List Id) (edges : List (ReplacementEdge Id)) (id : Id) :
     id ∈ frontier carrier edges ↔
       id ∈ carrier ∧ ∀ edge ∈ edges, edge.superseded ≠ id := by
-  rw [mem_frontier_iff, isSuperseded_eq_false_iff]
+  exact (mem_frontier_iff carrier edges id).trans <|
+    and_congr Iff.rfl (isSuperseded_eq_false_iff edges id)
 
 /-! ## Production-shape adapters
 
