@@ -104,3 +104,6 @@ jobs:
 
       - name: Verify manifest-backed Budget Window review boundary
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
+
+      - name: Verify explicit-window Reports workspace
+        run: lake env lean --run Loam/Tests/TuiReports.lean
