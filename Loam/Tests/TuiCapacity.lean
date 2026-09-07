@@ -12,6 +12,14 @@ private def widgetText (widget : Widget) : String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
+private def moveNextN : Nat → Loam.Tui.Capacity.State → Loam.Tui.Capacity.State
+  | 0, state => state
+  | count + 1, state => moveNextN count (Loam.Tui.Capacity.moveNext state)
+
+private def purposeRow (index : Nat) : Loam.CapacityReview.Row :=
+  { purpose := ⟨"purpose-" ++ toString index⟩
+    entitlement := Quantity.ofQuanta (Int.ofNat index) }
+
 def main : IO Unit := do
   let empty := Loam.Tui.Capacity.initial { rows := [] }
   let emptyText := widgetText (Loam.Tui.Capacity.view empty)
@@ -20,10 +28,10 @@ def main : IO Unit := do
   expect (contains "no cycle or time window is inferred" emptyText)
     "empty Capacity surface lost its no-window boundary"
 
-  match Loam.Tui.Capacity.update empty true with
+  match Loam.Tui.Capacity.update empty .back with
   | .back => pure ()
   | _ => throw (IO.userError "Capacity back action did not return Home intent")
-  match Loam.Tui.Capacity.update empty false with
+  match Loam.Tui.Capacity.update empty .other with
   | .stay _ => pure ()
   | _ => throw (IO.userError "ordinary Capacity input escaped the read-only surface")
 
@@ -43,4 +51,38 @@ def main : IO Unit := do
     "Capacity surface accidentally implied temporal policy"
   expect (contains "Read-only" text) "Capacity surface lost its read-only boundary"
 
-  IO.println "TUI Capacity: all-retained projection, no-window boundary and read-only navigation passed."
+  let many := Loam.Tui.Capacity.initial { rows := (List.range 14).map purposeRow }
+  match many.selected with
+  | none => throw (IO.userError "non-empty Capacity snapshot had no selection")
+  | some selected => expect (selected.val == 0) "Capacity did not select the first purpose"
+
+  let shifted := moveNextN 12 many
+  match shifted.selected with
+  | none => throw (IO.userError "Capacity selection disappeared after row 12")
+  | some selected =>
+      expect (selected.val == 12)
+        "Capacity selection could not reach the thirteenth remembered purpose"
+  expect (Loam.Tui.Capacity.windowStart shifted == 1)
+    "Capacity local window did not follow the thirteenth selected purpose"
+  let visible := Loam.Tui.Capacity.visibleRows shifted
+  expect (visible.length == 12)
+    "Capacity local window did not retain twelve visible rows"
+  expect (visible.any fun row => row.1 == 12)
+    "Capacity local window omitted the selected thirteenth purpose"
+  let shiftedText := widgetText (Loam.Tui.Capacity.view shifted)
+  expect (contains "purpose-12: 12 jpy" shiftedText)
+    "Capacity view did not render the reachable thirteenth purpose"
+  expect (!contains "purpose-0: 0 jpy" shiftedText)
+    "Capacity local window remained pinned to the first twelve purposes"
+
+  let atEnd := moveNextN 13 many
+  let beyond := Loam.Tui.Capacity.moveNext atEnd
+  match beyond.selected with
+  | none => throw (IO.userError "Capacity selection disappeared at the final row")
+  | some selected =>
+      expect (selected.val == 13)
+        "Capacity moved beyond the final remembered purpose"
+  expect (contains "No next Capacity row" beyond.notice)
+    "Capacity final-row boundary did not fail safely"
+
+  IO.println "TUI Capacity: full-list local navigation, all-retained projection, no-window boundary and read-only behavior passed."
