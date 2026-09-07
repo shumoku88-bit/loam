@@ -73,7 +73,7 @@ def roleOf? (roles : AccountingRoleMap) (locus : LocusId) : Option AccountingRol
 
 @[simp] theorem roleOf?_empty (locus : LocusId) :
     empty.roleOf? locus = none := by
-  simp [roleOf?]
+  rfl
 
 end AccountingRoleMap
 
