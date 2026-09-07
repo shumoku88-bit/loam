@@ -16,7 +16,7 @@ Scheduled Replacement
 QuantityBasis Correction
 ```
 
-The shared structural candidate remains:
+The shared structural candidate is:
 
 ```text
 f : I ⇀ I
@@ -27,76 +27,10 @@ frontier = carrier \\ dom(f)
 This does not identify the four household meanings. It factors only the finite
 replacement topology beneath them.
 
-## Domain decomposition
+## Universal Lean results proved
 
-### Event Correction
-
-```text
-shared
-  target uniqueness
-  replacement uniqueness
-  Event-reference closure
-  acyclicity
-  frontier = Event carrier minus targets
-
-local
-  Correction remains distinct from EventResolution
-```
-
-### ActualValidity Correction
-
-```text
-shared
-  target uniqueness
-  replacement uniqueness
-  validity-fact-reference closure
-  acyclicity
-  frontier = fact carrier minus targets
-
-local
-  replacement preserves EventId
-  frontier EventId uniqueness
-```
-
-### Scheduled Replacement
-
-```text
-shared
-  source uniqueness
-  replacement uniqueness
-  Scheduled-reference closure
-  acyclicity
-  replacement source leaves current-open frontier
-
-local lifecycle laws
-  completion / retirement reference closure
-  replacement terminal compatibility
-  completion effective only through retained Actual Event
-```
-
-Scheduled endpoint uniqueness is already carried by
-`ScheduledReplacementMemory`, so its Application adapter should not re-prove a
-law already retained by the typed raw memory.
-
-### QuantityBasis Correction
-
-```text
-shared
-  target uniqueness
-  replacement uniqueness
-  basis-reference closure
-  acyclicity
-  frontier = basis carrier minus targets
-
-local
-  replacement preserves QuantityCoordinate
-  frontier QuantityCoordinate uniqueness
-```
-
-## Universal Lean results now proved
-
-The generic Observation 218 probe establishes the following for arbitrary
-identity types with decidable equality.
+The theorem-heavy Observation 218 probe establishes, for arbitrary identity
+types with decidable equality:
 
 ```text
 endpointUnique edges = true
@@ -111,9 +45,9 @@ every represented endpoint belongs to carrier
 ```
 
 Successor lookup is injective when successor identities are `Nodup`, and every
-defined finite iterate remains injective. The cancellation theorem then shows
-that an external tail cannot enter a cycle without violating successor
-injectivity.
+defined finite iterate remains injective. A cancellation theorem shows that an
+external tail cannot enter a cycle under successor injectivity without creating
+a shared successor.
 
 Frontier membership is proved extensionally:
 
@@ -132,18 +66,8 @@ Event / Scheduled                 seen-set walk
 ActualValidity / QuantityBasis    start-return from every represented source
 ```
 
-They are not path-locally equivalent on arbitrary deterministic graphs. The
-lasso
-
-```text
-0 -> 1 -> 2 -> 1
-```
-
-separates the path-local checks from source `0`, but also violates replacement
-injectivity because successor `1` has two incoming edges.
-
-The start-return whole-graph implementation has now been factored through a
-third semantic predicate:
+The start-return implementation has been factored through a third semantic
+predicate:
 
 ```text
 hasCycleByReturn edges
@@ -155,9 +79,13 @@ Lean proves universally:
 acyclicByStartReturn edges = !hasCycleByReturn edges
 ```
 
-The remaining difficult bridge is therefore only to connect the seen-set
-implementation to the same cycle-existence specification on the admitted
-endpoint-unique shape.
+The two path-local algorithms are not equivalent on arbitrary deterministic
+graphs. A lasso can make a tail-started start-return walk miss the interior
+cycle. But whole-graph start-return examines every represented source, including
+a source on the cycle itself. A small exhaustive finite check also found no
+whole-graph mismatch. The remaining Lean task is therefore to connect the
+seen-set whole-graph detector to `hasCycleByReturn`; this may not need endpoint
+injectivity at all.
 
 ## Minimal runtime extraction probe
 
@@ -165,13 +93,11 @@ endpoint-unique shape.
 keeps only the structural runtime plus four adapters.
 
 The complete executable probe is **81 lines**, including imports, namespace
-boilerplate and all four adapters. Dedicated Observation 218 CI compiles both
-this minimal probe and the theorem-heavy probe on Lean 4.33.1.
+boilerplate and all four adapters.
 
 ## Two-family production-shaped probe
 
-The research branch now goes one step further. It contains a deliberately
-**no-merge production-shaped patch**:
+The research branch contains a deliberately **no-merge production-shaped patch**:
 
 ```text
 Loam/Application/ReplacementFrontier.lean
@@ -179,8 +105,7 @@ Loam/Application/ActualValidityFrontier.lean
 Loam/Application/QuantityBasisFrontier.lean
 ```
 
-This changes Application files on the research branch only so that actual source
-deletion and adapter burden can be measured. Production `main` remains unchanged.
+Production `main` remains unchanged.
 
 Only structural mechanics moved into the shared module:
 
@@ -193,14 +118,14 @@ supersession-domain membership
 frontier filtering
 ```
 
-The following remain local:
+Domain laws remain local:
 
 ```text
 ActualValidity: preserves EventId, frontier EventId uniqueness
 QuantityBasis:  preserves QuantityCoordinate, frontier coordinate uniqueness
 ```
 
-Public Application entry-point names are retained.
+Existing public Application entry-point names are retained.
 
 ### Measured source delta
 
@@ -215,31 +140,69 @@ Application source total           +79 / -110
 net                                 -31 lines
 ```
 
-So the shared runtime's fixed cost is already recovered by only the two
-start-return families. This is a materially stronger result than the 81-line
-standalone probe: the candidate is source-negative against existing production
-machinery before Event Correction or Scheduled Replacement are migrated.
+Thus the shared runtime fixed cost is already recovered by only the two
+start-return families.
 
-The two adapters also preserve existing public function names; the deleted
-surface is predominantly private structural machinery.
+### Exact-head CI result
 
-This line count is evidence, not the final promotion decision. Exact behavioral
-CI and the seen-set bridge still matter more than raw LOC.
-
-## Build and compatibility gates
-
-The dedicated Observation 218 workflow now builds the two modified Application
-modules directly before compiling both research probes.
-
-The especially relevant existing production checks are:
+At research head `b83ce30545b18a5ad8edede6f52a229810623974`:
 
 ```text
-Lean Application
-Practical Actual Validity Correction
+Observation 218                    SUCCESS
+  build modified ActualValidity    SUCCESS
+  build modified QuantityBasis     SUCCESS
+  theorem-heavy Lean probe         SUCCESS
+  81-line minimal kernel           SUCCESS
+
+Lean Application                   SUCCESS
+  build application + umbrella     SUCCESS
+
+Practical Actual Validity Correction  SUCCESS
+  date-correction frontier            SUCCESS
+  record / correct / re-correct       SUCCESS
+  first date on older undated record  SUCCESS
 ```
 
-A production-shaped promotion is not qualified until those and the dedicated
-exact-head check pass on the candidate head.
+This removes the main immediate concern that the source reduction merely moved
+complexity into broken module or adapter boundaries.
+
+## Domain decomposition still preserved
+
+### ActualValidity
+
+```text
+shared
+  target uniqueness
+  replacement uniqueness
+  reference closure
+  acyclicity
+  frontier by replacement domain
+
+local
+  same-Event replacement
+  one frontier fact per Event
+```
+
+### QuantityBasis
+
+```text
+shared
+  target uniqueness
+  replacement uniqueness
+  reference closure
+  acyclicity
+  frontier by replacement domain
+
+local
+  same-coordinate replacement
+  one frontier basis per QuantityCoordinate
+```
+
+### Event Correction and Scheduled Replacement
+
+They remain untouched by the production-shaped probe until the seen-set bridge
+is justified. Mathematical resemblance alone is not used as permission to
+replace their working algorithm.
 
 ## Information-order side observation
 
@@ -260,21 +223,18 @@ AttentionDue.dueUndetermined
 is a value-level statement that due meaning exists but its time is
 undetermined.
 
-Therefore a future information-order model must separate at least:
+A future information-order model must therefore separate at least:
 
 ```text
 knowledge/evidence axis
 value-semantic axis
 ```
 
-rather than collapsing every constructor named "unknown" into one lattice
-point.
+rather than collapsing every constructor named `unknown` into one lattice point.
 
-## Production gate
+## Current judgement
 
-Still **do not merge/promote** Observation 218.
-
-Current status:
+Observation 218 has crossed a meaningful threshold:
 
 ```text
 mathematical commonality             strongly established
@@ -282,19 +242,25 @@ minimal runtime shape                small and executable
 start-return cycle specification     universally factored
 two-family real source delta         -31 Application lines
 public entry-point churn             none in the two-family probe
+dedicated exact-head CI              green
+Lean Application                     green
+ActualValidity practical behavior    green
 seen-set exact bridge                still open
-candidate exact-head production CI   must finish
 ```
 
-Next gate:
+This is now a **credible production simplification**, not merely a promising
+abstraction. It is still not a merge recommendation because Event/Scheduled and
+the final placement/ownership question remain open.
 
-1. obtain green exact-head CI for the production-shaped two-family patch;
-2. connect seen-set to the same cycle specification without importing a general
-   graph framework;
-3. only then prototype Event / Scheduled adapters and measure the four-family
-   deletion delta;
-4. promote only if the final patch stays materially smaller, clearer, and has no
-   new semantic owner outside the domain-local laws.
+## Next gate
+
+1. prove the seen-set whole-graph detector against the same cycle-existence
+   specification without importing a general graph framework;
+2. if that proof remains small, prototype Event / Scheduled adapters;
+3. measure the four-family deletion delta and dependency fanout;
+4. decide whether the shared helper belongs as a deliberately internal
+   Application structural module rather than a new Practical Core concept;
+5. promote only if the final patch stays materially smaller and clearer.
 
 The desired result remains:
 
