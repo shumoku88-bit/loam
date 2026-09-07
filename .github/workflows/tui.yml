@@ -9,6 +9,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -16,6 +17,7 @@ on:
       - 'Loam/Tests/TuiActualDateCorrection.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
+      - 'Loam/Tests/TuiScheduledTerminal.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
@@ -51,6 +53,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -58,6 +61,7 @@ on:
       - 'Loam/Tests/TuiActualDateCorrection.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
+      - 'Loam/Tests/TuiScheduledTerminal.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
@@ -136,6 +140,12 @@ jobs:
 
       - name: Verify Scheduled browse, detail, and open-world Unknown
         run: lake env lean --run Loam/Tests/TuiScheduled.lean
+
+      - name: Build shared Scheduled terminal publisher boundary
+        run: lake build Loam.ScheduledTerminalPublisher
+
+      - name: Verify selected-day Scheduled completion and cancellation
+        run: lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal"
 
       - name: Verify selected-day Actual and Scheduled composition
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean

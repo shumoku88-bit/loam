@@ -1,6 +1,8 @@
 import Loam.Tui.Record
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
+import Loam.Tui.ScheduledCompletion
+import Loam.Tui.ScheduledCancellation
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -120,14 +122,24 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
-/-- One-date workspace grammar. Mutating actions delegate to shared publishers. -/
-def selectedDayEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
+/-- HRA-shaped one-date grammar; `c` is object-local to the active pane. -/
+def selectedDayEventOfKey
+    (pane : Loam.Tui.SelectedDay.Pane) :
+    Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
   | .up | .input 'k' | .input 'K' => .previous
   | .down | .input 'j' | .input 'J' => .next
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'n' | .input 'N' => .recordNew
-  | .input 'c' | .input 'C' => .correctActual
+  | .input 'c' | .input 'C' =>
+      match pane with
+      | .actual => .correctActual
+      | .scheduled => .completeScheduled
+  | .enter =>
+      match pane with
+      | .actual => .other
+      | .scheduled => .completeScheduled
+  | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
@@ -201,6 +213,47 @@ partial def actualDateCorrectionLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualDateCorrectionLoop bounds root correctionFile step.state nextFrame
 
+/-- Scheduled completion edits an Actual draft; shared publication re-reads both authorities. -/
+partial def scheduledCompletionLoop
+    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (world : Loam.MovementAdmission.World) (known : List String)
+    (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.ScheduledCompletion.update world known state
+    (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Scheduled completion cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+          scheduledFile.toString root.toString draft with
+      | .ok receipt =>
+          return "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+      | .error message =>
+          let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          scheduledCompletionLoop bounds scheduledFile root world known next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      scheduledCompletionLoop bounds scheduledFile root world known step.state nextFrame
+
+/-- Cancellation confirmation is presentation-only; publisher refusal returns to fresh day evidence. -/
+partial def scheduledCancellationLoop
+    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (state : Loam.Tui.ScheduledCancellation.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.ScheduledCancellation.update state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Scheduled cancellation kept the occurrence open."
+  match step.publish with
+  | some draft =>
+      match ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+          scheduledFile.toString root.toString draft with
+      | .ok receipt => return "Cancelled " ++ receipt.scheduled.token ++ "."
+      | .error message => return "Scheduled cancellation refused: " ++ message
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.ScheduledCancellation.view step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      scheduledCancellationLoop bounds scheduledFile root step.state nextFrame
+
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
@@ -240,9 +293,67 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.SelectedDay.State)
     (frame : CompiledWidget) : IO Snapshot := do
   let step := Loam.Tui.SelectedDay.update snapshot state
-    (selectedDayEventOfKey (← Loam.Tui.Terminal.readKey))
+    (selectedDayEventOfKey state.pane (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .completeScheduled =>
+      match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for completion." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ScheduledCompletion.initial? record snapshot.actual.today with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let world ←
+                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                | .error message => throw (IO.userError message)
+                | .ok world => pure world
+              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← scheduledCompletionLoop
+                bounds (dataDir / "scheduled.loam") root world known editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
+  | .cancelScheduled =>
+      match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for cancellation." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          let confirmation := Loam.Tui.ScheduledCancellation.initial record
+          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
+          let notice ← scheduledCancellationLoop
+            bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
+          let fresh ←
+            match ← loadSnapshot dataDir with
+            | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+            | .ok fresh => pure fresh
+          let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+          let next := { refreshed with notice := notice }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+          IO.print "\x1b[2J"
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+          selectedDayLoop bounds dataDir root fresh next nextFrame
   | .correctDate =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
       | none =>

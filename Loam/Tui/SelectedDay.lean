@@ -28,6 +28,8 @@ inductive Event where
   | recordNew
   | correctActual
   | correctDate
+  | completeScheduled
+  | cancelScheduled
   | back
   | other
   deriving Repr, DecidableEq, BEq
@@ -37,6 +39,8 @@ inductive Command where
   | recordNew
   | correctActual
   | correctDate
+  | completeScheduled
+  | cancelScheduled
   | back
   deriving Repr, DecidableEq, BEq
 
@@ -129,6 +133,24 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
           | none =>
               { state := { state with notice := "No current Actual is selected for date correction." } }
           | some _ => { state, command := .correctDate }
+  | .completeScheduled =>
+      match state.pane with
+      | .actual =>
+          { state := { state with notice := "Completion is available from the Scheduled pane." } }
+      | .scheduled =>
+          match selectedScheduled? snapshot state with
+          | none =>
+              { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
+          | some _ => { state, command := .completeScheduled }
+  | .cancelScheduled =>
+      match state.pane with
+      | .actual =>
+          { state := { state with notice := "Cancellation is available from the Scheduled pane." } }
+      | .scheduled =>
+          match selectedScheduled? snapshot state with
+          | none =>
+              { state := { state with notice := "No current-open Scheduled occurrence is selected for cancellation." } }
+          | some _ => { state, command := .cancelScheduled }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -235,11 +257,18 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   | .actual => actualDetail snapshot state
   | .scheduled => scheduledDetail snapshot state
 
-private def footer (bounds : Bounds) : List Widget :=
-  if bounds.width >= 96 then
-    [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c] correct  [d] date  [q] back"]
-  else
-    [mutedLine "[j/k] select [h/l] pane [n] new [c] correct [d] date [q] back"]
+private def footer (bounds : Bounds) (state : State) : List Widget :=
+  match state.pane with
+  | .actual =>
+      if bounds.width >= 96 then
+        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [d] date  [q] back"]
+      else
+        [mutedLine "[j/k] select [h/l] pane [n] new [c] correct [d] date [q] back"]
+  | .scheduled =>
+      if bounds.width >= 96 then
+        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [c/Enter] complete  [x] cancel  [n] new Actual  [q] back"]
+      else
+        [mutedLine "[j/k] select [h/l] pane [c/Enter] complete [x] cancel [q] back"]
 
 private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
@@ -250,9 +279,9 @@ private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : Li
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
-answers and owns only pane/cursor state. Record, Movement Correction, and date
-correction commands are local interaction intents; publication authority stays in
-shared publishers.
+answers and owns only pane/cursor state. Actual Record/Correction/date actions and
+Scheduled completion/cancellation are local interaction intents; publication
+authority stays in shared publishers.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
@@ -277,6 +306,6 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     (List.range 8).map (paneRow snapshot state leftWidth rightWidth) ++
     [rule bounds '-'] ++ detailLines snapshot state ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (fitWithFooter bounds body (footer bounds))
+  .column (fitWithFooter bounds body (footer bounds state))
 
 end Loam.Tui.SelectedDay
