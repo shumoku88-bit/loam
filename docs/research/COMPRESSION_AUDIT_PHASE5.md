@@ -1,6 +1,6 @@
 # Compression audit Phase 5 — research and CI graduation
 
-Status: **IN PROGRESS — QUANTITYBASIS GENERATION SELECTED FOR FIRST GRADUATION**
+Status: **COMPLETE — FIRST GENERATION GRADUATED**
 
 Phases 1–4 established a distinction that the repository did not previously enforce strongly enough:
 
@@ -109,12 +109,56 @@ superseded history     -> prose + Git history, dedicated CI retired
 
 Long-lived workflows should primarily protect current executable behavior, current authority formats/protocols, current reusable mechanics, and explicitly active research questions.
 
+## Graduation executed — first generation results
+
+Commit `d3ef447` executed the full graduation of the QuantityBasis/BasisCut generation and AccountingRole persistence residue:
+
+- **10 production-residue files deleted (-1,063 lines)**:
+  - `Loam/Core/QuantityBasisMemory.lean`
+  - `Loam/Core/QuantityBasisCorrectionMemory.lean`
+  - `Loam/Application/QuantityBasisFrontier.lean`
+  - `Loam/Application/CurrentQuantity.lean`
+  - `Loam/Application/BasisCut.lean`
+  - `Loam/Persistence/QuantityBasisPersistence.lean`
+  - `Loam/Persistence/QuantityBasisCorrectionPersistence.lean`
+  - `Loam/Persistence/BasisCutPersistence.lean`
+  - `Loam/Cli/QuantityBasisCorrectionCli.lean`
+  - `Loam/Persistence/AccountingRolePersistence.lean`
+- **10 historical dedicated workflows deleted (-480 lines)**:
+  - `observation-091`, `observation-102`, `observation-103`, `observation-145`
+  - `observation-218`, `observation-219` (both), `observation-220`, `observation-222`
+  - `practical-accounting-role-persistence`
+- **9 superseded Lean experiment/observation proofs deleted (-1,993 lines)**:
+  - `Observation145.lean`
+  - `experiments/091`, `experiments/102`, `experiments/103`, `experiments/218`
+  - `experiments/219` (both), `experiments/220`, `experiments/222`
+- **1 persistence unit test deleted (-114 lines)**:
+  - `Loam/Tests/AccountingRolePersistence.lean`
+
+**Total deletion: 30 files, 3,660 lines.**
+
+All 16 practical Python tests continue to pass in ~4s; `lake build` builds cleanly with zero errors; and the candidate unreachable surface in practical Lean is now **exactly 0 files / 0 lines**.
+
+## Post-graduation surface comparison
+
+| Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
+| --- | ---: | ---: | ---: |
+| Candidate practical lines | 23,057 | **21,567** | **-1,490 lines (-6.5%)** |
+| Candidate practical files | 151 | **137** | **-14 files (-9.3%)** |
+| Unreachable practical lines | 1,155 | **0** | **-1,155 lines (-100%)** |
+| Unreachable practical files | 11 | **0** | **-11 files (-100%)** |
+| Practical-library-only lines | 676 | **341** | **-335 lines (-49.6%)** |
+| Practical-library-only files | 6 | **3** | **-3 files (-50.0%)** |
+| Dedicated CI workflows | ~90 | ~80 | **-10 workflows** |
+
 ## Exit rule
 
-Phase 5 completes when:
+Phase 5 is **COMPLETE**:
 
-1. the QuantityBasis/BasisCut historical probes and dedicated workflows that depend on retired APIs have graduated;
-2. the nine retired production modules can be physically deleted without leaving broken current source imports;
-3. AccountingRole persistence-only residue is retired without prejudging Core report research;
-4. integrated research documentation no longer describes retired numeric kernels or QuantityBasis authority as current Practical Core;
-5. the audit records a repeatable graduation rule for future observations.
+1. The QuantityBasis/BasisCut historical probes and dedicated workflows have graduated;
+2. All 10 retired practical production modules have been physically deleted with zero broken imports;
+3. AccountingRole persistence residue is retired while Core `AccountingRole` remains available for provisional report research;
+4. Integrated research documentation no longer treats QuantityBasis or retired numeric kernels as active Practical Core;
+5. The repeatable graduation rule is established for all future observations.
+
+Phase 6 (compare before/after complexity) may now proceed.
