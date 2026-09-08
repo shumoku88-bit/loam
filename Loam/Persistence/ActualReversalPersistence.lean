@@ -1,6 +1,7 @@
 import Loam.Core.ActualReversal
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -36,7 +37,7 @@ private def encodeRow? (relation : ActualReversal) : Option String :=
 /-- Encode one complete reversal authority image. -/
 def encodeActualReversalMemory? (memory : ActualReversalMemory) : Option String := do
   let rows ← memory.reversals.mapM encodeRow?
-  pure (String.intercalate "\n" (actualReversalMemoryHeader :: rows) ++ "\n")
+  pure (encodeVersionedRows actualReversalMemoryHeader rows)
 
 private def decodeRow? (row : String) : Option ActualReversal :=
   match row.splitOn "\t" with
@@ -48,18 +49,10 @@ private def decodeRow? (row : String) : Option ActualReversal :=
   | _ => none
 
 /-- Decode version 1 and re-admit endpoint uniqueness fail-closed. -/
-def decodeActualReversalMemory? (input : String) : Option ActualReversalMemory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != actualReversalMemoryHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let relations ← reversedRows.reverse.mapM decodeRow?
-            ActualReversalMemory.ofReversals? relations
-        | _ => none
-  | _ => none
+def decodeActualReversalMemory? (input : String) : Option ActualReversalMemory := do
+  let rows ← decodeVersionedRows? actualReversalMemoryHeader input
+  let relations ← rows.mapM decodeRow?
+  ActualReversalMemory.ofReversals? relations
 
 /-- Publish a complete reversal image by sibling staging plus rename. -/
 def saveActualReversalMemory?
