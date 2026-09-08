@@ -1,4 +1,5 @@
 import Loam.ActualReversalPublisher
+import Loam.CorrectionPublisher
 import Loam.Persistence.ActualReversalPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -101,6 +102,20 @@ def main (args : List String) : IO Unit := do
   expect (relation.reversal = receipt.reversal)
     "reversal provenance does not name the inverse Actual"
 
+  let correctionEffects :=
+    [ Effect.ofQuantity ⟨"corrected-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-710))
+    , Effect.ofQuantity ⟨"corrected-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 710) ]
+  let correctTarget ← Loam.CorrectionPublisher.publishManifestCorrection
+    root.toString correctionFile.toString {
+      target := receipt.target, effects := correctionEffects, description := none }
+  expect correctTarget.isError
+    "Correction changed a Reversal target and invalidated exact inverse provenance"
+  let correctInverse ← Loam.CorrectionPublisher.publishManifestCorrection
+    root.toString correctionFile.toString {
+      target := receipt.reversal, effects := correctionEffects, description := none }
+  expect correctInverse.isError
+    "Correction changed a Reversal inverse and invalidated exact inverse provenance"
+
   let second ← Loam.ActualReversalPublisher.publishManifestReversal
     scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
   expect second.isError
@@ -114,4 +129,4 @@ def main (args : List String) : IO Unit := do
   expect reverseAgainResult.isError
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
-  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + fail-closed repeat passed."
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + cross-writer Correction refusal + fail-closed repeat passed."
