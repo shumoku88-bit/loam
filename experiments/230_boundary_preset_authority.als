@@ -117,9 +117,9 @@ assert PresetIdentityAloneCannotChangeCoordinateAnswer {
       windowFacts[left, d] = windowFacts[right, d]
 }
 
-run presetEditChangesLiveWindowButReceiptStaysOld for exactly 6 Day, 2 PresetState, 1 Preset, 4 Fact, 1 Receipt
-run replaceablePresetCanChangeCurrentQuestionWithoutChangingFacts for exactly 6 Day, 2 PresetState, 1 Preset, 4 Fact
-run explicitFactMembershipMakesPresetIdentityObservable for exactly 4 Day, 2 PresetState, 2 Preset, 2 Fact
-check CapturedReceiptReplaysOriginalCoordinateAnswer for 7 Day, 3 PresetState, 3 Preset, 6 Fact, 3 Receipt
-check SameResolvedWindowGivesSameCoordinateAnswer for 7 Day, 3 PresetState, 3 Preset, 6 Fact
-check PresetIdentityAloneCannotChangeCoordinateAnswer for 7 Day, 3 PresetState, 3 Preset, 6 Fact
+run presetEditChangesLiveWindowButReceiptStaysOld for 6 but exactly 6 Day, exactly 2 PresetState, exactly 1 Preset, exactly 4 Fact, exactly 1 Receipt
+run replaceablePresetCanChangeCurrentQuestionWithoutChangingFacts for 6 but exactly 6 Day, exactly 2 PresetState, exactly 1 Preset, exactly 4 Fact
+run explicitFactMembershipMakesPresetIdentityObservable for 4 but exactly 4 Day, exactly 2 PresetState, exactly 2 Preset, exactly 2 Fact
+check CapturedReceiptReplaysOriginalCoordinateAnswer for 7 but exactly 7 Day, exactly 3 PresetState, exactly 3 Preset, exactly 6 Fact, exactly 3 Receipt
+check SameResolvedWindowGivesSameCoordinateAnswer for 7 but exactly 7 Day, exactly 3 PresetState, exactly 3 Preset, exactly 6 Fact
+check PresetIdentityAloneCannotChangeCoordinateAnswer for 7 but exactly 7 Day, exactly 3 PresetState, exactly 3 Preset, exactly 6 Fact
