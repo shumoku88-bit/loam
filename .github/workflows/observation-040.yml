@@ -3,33 +3,19 @@ name: Observation 040
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/CorrectableExplanationEdge.tla'
+      - 'tla/CorrectableExplanationEdge.cfg'
+      - 'tla/CorrectableExplanationEdgeMutableBoundary.cfg'
+      - 'tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg'
       - '.github/workflows/observation-040.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/CorrectableExplanationEdge.tla'
+      - 'tla/CorrectableExplanationEdge.cfg'
+      - 'tla/CorrectableExplanationEdgeMutableBoundary.cfg'
+      - 'tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg'
       - '.github/workflows/observation-040.yml'
   workflow_dispatch:
 
