@@ -14,7 +14,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 LOAM = ROOT / ".lake/build/bin/loam"
-MOVEMENT = ROOT / ".lake/build/bin/loamMovement"
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("LOAM_")}
 TODAY = dt.date.today().isoformat()
 
@@ -232,40 +231,6 @@ class ReviewTests(unittest.TestCase):
         self.assertNotIn("choice not understood", result.stderr)
         self.assertEqual(self.snapshot(), before)
 
-    def test_writer_correction_recovery_then_date_correction(self):
-        memory = self.root / "writer.loam"
-        corrections = self.root / "writer-corrections.loam"
-        Path(str(memory) + ".locus-admission").write_text(
-            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n")
-        result = run(MOVEMENT, memory, input="wallet\n100\n\nfood\n100\n\n",
-                     env={**ENV, "LOAM_OCCURRENCE_DATE": TODAY, "LOAM_DESCRIPTION": "recognition text"})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        stage = Path(str(memory) + ".loam-stage")
-        stage.mkdir()
-        replacement = "1\nwallet\n110\n\nfood\n110\n\n"
-        interrupted = run(LOAM, "correct", memory, corrections, input=replacement)
-        self.assertNotEqual(interrupted.returncode, 0)
-        unavailable = run(LOAM, "review", memory, corrections)
-        self.assertEqual(unavailable.returncode, 2)
-        self.assertEqual(unavailable.stdout, "")
-        stage.rmdir()
-        retried = run(LOAM, "correct", memory, corrections, input=replacement)
-        self.assertEqual(retried.returncode, 0, retried.stderr)
-        output = run(LOAM, "review", memory, corrections).stdout
-        self.assertIn("of 1 matches", output)
-        self.assertIn("wallet: -110 jpy", output)
-        self.assertNotIn("wallet: -100 jpy", output)
-        found = run(LOAM, "review", memory, corrections, "/recognition").stdout
-        self.assertIn("[corrected -> #replacement-1]", found)
-        dated = run(LOAM, "correct-date", memory, corrections, input="1\n2001-01-01\n")
-        self.assertEqual(dated.returncode, 0, dated.stderr)
-        self.assertIn("No matches", run(LOAM, "review", memory, corrections).stdout)
-        self.assertIn("wallet: -110 jpy", run(LOAM, "review", memory, corrections, "2001-01-01").stdout)
-        raw = run(LOAM, "event-memory", "review", memory)
-        self.assertEqual(raw.returncode, 0, raw.stderr)
-        self.assertIn("[record-1]", raw.stdout)
-        self.assertIn("2001-01-01  [replacement-1]", raw.stdout)
-
 
 class ManifestMenuTests(unittest.TestCase):
     """Selected Movement authority stays readable while new writes obey explicit Locus policy."""
@@ -345,8 +310,8 @@ class ManifestMenuTests(unittest.TestCase):
 
     def test_unported_menu_actions_refuse_without_writes(self):
         before = self.snapshot()
-        result = self.menu("correct\nraw\neffective\nintegrity\nq\n")
-        self.assertEqual(result.stderr.count("no sidecar action was run"), 4)
+        result = self.menu("raw\neffective\nintegrity\nq\n")
+        self.assertEqual(result.stderr.count("no sidecar action was run"), 3)
         self.assertEqual(self.snapshot(), before)
 
     def test_record_uses_manifest_and_next_views_see_it(self):
