@@ -1,5 +1,6 @@
 import Loam.Core.OpenRelation
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -147,10 +148,6 @@ def decodeOpenRelationUnits? (input : String) : Option (List RelationUnit) :=
         none
   | _ => none
 
-private def openRelationUnitStagePath
-    (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /--
 Publish the complete raw RelationUnit stream through sibling staging + rename.
 -/
@@ -160,9 +157,7 @@ def saveOpenRelationUnits?
   match encodeOpenRelationUnits? relations with
   | none => pure false
   | some text =>
-      let stagePath := openRelationUnitStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       pure true
 
 /-- Load and syntactically decode one raw RelationUnit stream. -/
