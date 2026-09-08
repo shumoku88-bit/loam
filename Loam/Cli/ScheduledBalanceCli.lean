@@ -2,11 +2,8 @@ import Loam.ActualDate
 import Loam.Application.ScheduledBalanceHypothetical
 import Loam.Application.ScheduledBalanceInspection
 import Loam.BalanceViewConfig
-import Loam.Persistence
-import Loam.Persistence.ScheduledCompletionPersistence
-import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.MovementManifestAuthority
+import Loam.Persistence.ScheduledLifecyclePersistence
 
 namespace Loam.ScheduledBalanceCli
 
@@ -14,20 +11,6 @@ open Loam.Core
 open Loam.Application
 
 set_option autoImplicit false
-
-private def loadScheduledMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadScheduledMemory? path
-  else
-    return ScheduledMemory.ofOccurrences? []
-
-private def loadEventMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option EventMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventMemory? path
-  else
-    return EventMemory.ofEvents? []
 
 private structure QueryContext where
   scheduled : ScheduledMemory String
@@ -40,47 +23,27 @@ private structure QueryContext where
 private def loadContext (rootPath : String) : IO (Except String QueryContext) := do
   let root := System.FilePath.mk rootPath
   let scheduledPath := root / "scheduled.loam"
-  let memoryPath := root / "memory.loam"
+  let manifestRoot := root / "movement-authority"
   let balanceViewPath := root / "balance-view.tsv"
-  let completionPath :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledPath
-  let retirementPath :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledPath
-  let replacementPath :=
-    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledPath
 
-  match ← loadScheduledMemoryOrEmpty? scheduledPath with
+  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath
+    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  let world ←
+    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
+    | .ok world => pure world
+    | .error message => return .error message
+  match ← Loam.BalanceViewConfig.load? balanceViewPath with
   | none =>
-      return .error "loam: malformed or unsupported Scheduled memory"
-  | some scheduled =>
-      match ← Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionPath with
-      | none =>
-          return .error "loam: malformed or unsupported Scheduled completion memory"
-      | some completions =>
-          match ← Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementPath with
-          | none =>
-              return .error "loam: malformed or unsupported Scheduled retirement memory"
-          | some retirements =>
-              match ← Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementPath with
-              | none =>
-                  return .error "loam: malformed or unsupported Scheduled replacement memory"
-              | some replacements =>
-                  match ← loadEventMemoryOrEmpty? memoryPath with
-                  | none =>
-                      return .error "loam: malformed or unsupported Event memory"
-                  | some events =>
-                      match ← Loam.BalanceViewConfig.load? balanceViewPath with
-                      | none =>
-                          return .error "loam: malformed or unsupported balance-view config"
-                      | some coordinates =>
-                          return .ok {
-                            scheduled := scheduled
-                            completions := completions
-                            retirements := retirements
-                            replacements := replacements
-                            events := events
-                            coordinates := coordinates
-                          }
+      return .error "loam: malformed or unsupported balance-view config"
+  | some coordinates =>
+      return .ok {
+        scheduled := lifecycle.scheduled
+        completions := lifecycle.completions
+        retirements := lifecycle.retirements
+        replacements := lifecycle.replacements
+        events := world.events
+        coordinates := coordinates
+      }
 
 private def printEffect (effect : ScheduledBalanceEffect) : IO Unit := do
   IO.println
@@ -102,11 +65,8 @@ private def printCoverageCaveat : IO Unit :=
 Project replacement-aware current-open Scheduled effects through the current
 replaceable balance view before one end-exclusive calendar boundary.
 
-This command does not read QuantityBasis or current balances and therefore does
-not invent a forecast balance. It answers only the already-qualified signed
-Scheduled-effect question from Observations 108 and 119 after applying explicit
-Observation-105 replacement provenance. Observation 211 additionally means this
-projection must not be presented as a complete set of all future obligations.
+The query consumes exactly one complete Scheduled lifecycle authority and the
+selected Movement manifest Event frontier. It does not invent a forecast balance.
 -/
 def report (rootPath endExclusive : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate endExclusive then
@@ -136,11 +96,6 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
 /--
 Compare the replacement-aware Scheduled balance projection with one read-only
 hypothetical that suppresses exactly one currently open Scheduled identity.
-
-The command never writes retirement/completion/replacement evidence or a second
-Scheduled memory. A superseded identity is not currently open and is therefore
-rejected as a hypothetical suppression target. Both baseline and projected
-answers retain the same explicit-only coverage boundary.
 -/
 def reportSuppression
     (rootPath endExclusive scheduledId : String) : IO UInt32 := do

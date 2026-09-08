@@ -1,0 +1,57 @@
+name: Scheduled Lifecycle Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
+      - '.github/workflows/scheduled-lifecycle-persistence.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
+      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
+      - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
+      - '.github/workflows/scheduled-lifecycle-persistence.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test complete Scheduled lifecycle persistence
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build lifecycle persistence
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Persistence.ScheduledLifecyclePersistence
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify complete lifecycle codec and fail-closed authority
+        run: lake env lean --run Loam/Tests/ScheduledLifecyclePersistence.lean "$(mktemp -d)/scheduled-lifecycle"

@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence
-import Loam.Persistence.ScheduledPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.WriterOwnership
 
@@ -18,13 +18,6 @@ private def usage : String :=
   "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS managed PURPOSE\n\n" ++
   "Mark one Scheduled locus explicitly unmanaged from an effective date:\n" ++
   "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS unmanaged"
-
-private def loadRoutingOrEmpty?
-    (path : System.FilePath) : IO (Option (ScheduledRoutingHistory String)) := do
-  if ← path.pathExists then
-    loadScheduledRoutingHistory? path
-  else
-    return RoutingHistory.ofEntries? []
 
 private def occurrenceHasLocus
     (occurrence : ScheduledOccurrence String)
@@ -54,30 +47,30 @@ private def recordUnlocked
         return 2
     | some purpose =>
         let scheduledFile := System.FilePath.mk scheduledPath
-        if !(← scheduledFile.pathExists) then
-          IO.eprintln ("loam: scheduled file not found: " ++ scheduledPath)
-          return 2
-        else
-          match ← loadScheduledMemory? scheduledFile with
-          | none =>
-              IO.eprintln "loam: malformed or unsupported scheduled file"
-              return 2
-          | some scheduledMemory =>
-              let scheduledId : ScheduledId := ⟨scheduledToken⟩
-              let locus : LocusId := ⟨locusToken⟩
-              match ScheduledMemory.findById? scheduledMemory scheduledId with
-              | none =>
-                  IO.eprintln "loam: scheduled identity not found"
+        match ← loadScheduledLifecycleImage? scheduledFile with
+        | none =>
+            IO.eprintln "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+            return 2
+        | some lifecycle =>
+            let scheduledId : ScheduledId := ⟨scheduledToken⟩
+            let locus : LocusId := ⟨locusToken⟩
+            match ScheduledMemory.findById? lifecycle.scheduled scheduledId with
+            | none =>
+                IO.eprintln "loam: scheduled identity not found"
+                return 1
+            | some occurrence =>
+                if !occurrenceHasLocus occurrence locus then
+                  IO.eprintln "loam: Scheduled occurrence does not contain that Locus"
                   return 1
-              | some occurrence =>
-                  if !occurrenceHasLocus occurrence locus then
-                    IO.eprintln "loam: Scheduled occurrence does not contain that Locus"
-                    return 1
+                else
+                  let routingFile := System.FilePath.mk routingPath
+                  if !(← routingFile.pathExists) then
+                    IO.eprintln "loam: Scheduled routing authority is missing"
+                    return 2
                   else
-                    let routingFile := System.FilePath.mk routingPath
-                    match ← loadRoutingOrEmpty? routingFile with
+                    match ← loadScheduledRoutingHistory? routingFile with
                     | none =>
-                        IO.eprintln "loam: malformed or unsupported Scheduled routing file"
+                        IO.eprintln "loam: malformed or unsupported Scheduled routing authority"
                         return 2
                     | some history =>
                         let subject : ScheduledRoutingSubject := {
@@ -110,8 +103,9 @@ private def recordUnlocked
 
 /--
 Record one dated Scheduled routing assertion under routing-file ownership.
-The referenced Scheduled occurrence is read-only retained evidence; the route is
-admitted only when its exact `ScheduledId × LocusId` subject exists.
+Both the complete Scheduled lifecycle authority and independent routing authority
+must already exist. The route is admitted only when its exact
+`ScheduledId × LocusId` subject exists.
 -/
 def record
     (routingPath scheduledPath effectiveOn scheduledToken locusToken mode : String)
