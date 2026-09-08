@@ -709,7 +709,7 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       capacityLoop bounds dataDir root observedAt next nextFrame
 
-/-- Read-only Budget, with an exit into the unchanged raw Capacity workspace. -/
+/-- Current-cycle Budget composes shared actions without adding a second semantic engine. -/
 partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (state : Loam.Tui.CycleBudget.State) (frame : CompiledWidget) : IO Bool := do
   let key ← Loam.Tui.Terminal.readKey
@@ -734,6 +734,28 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
           return true
         pure ""
     -- Existing actions may have changed evidence. Never return to stale Budget answers.
+    let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
+    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    cycleBudgetLoop bounds dataDir root next nextFrame
+  | .rebalance =>
+    let notice ←
+      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      | .error message => pure ("Capacity unavailable: " ++ message)
+      | .ok capacitySnapshot =>
+        let coverage :=
+          match state.snapshot.coverage with
+          | .ok coverage => some coverage
+          | .error _ => none
+        let editor := Loam.Tui.CapacityRebalance.initial
+          capacitySnapshot coverage state.snapshot.observedAt
+        let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
+        IO.print "\x1b[2J"
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) editorFrame
+        Loam.Tui.CapacityRebalanceSession.run
+          bounds (dataDir / "capacity.loam") editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
