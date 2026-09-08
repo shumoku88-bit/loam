@@ -1,8 +1,10 @@
 # Observation 231 — Can an explicit completeness assumption substitute for Scheduled completeness evidence?
 
-Status: **IN PROGRESS — typed evidence-vs-assumption boundary**
+Status: **QUALIFIED TYPED BOUNDARY — equal payload does not collapse evidence and assumption**
 
 Research baseline: LOAM `406b892a240928a3a9b417967e2c499b32c907ed`
+
+Qualified Lean head: `315cf6210ad38434f25b66ac3309d7bed5a60dce`
 
 ## Pressure
 
@@ -19,11 +21,11 @@ The remaining future-evidence pressure is not mainly arithmetic.
 
 Observation 211 already showed that finite Scheduled is open-world and that a bounded completeness claim can justify negative absence inside its scope without recurrence. Observation 221 then showed that completeness is a family-specific information gate rather than a generic Coverage ontology.
 
-A practical Report Lab question remains:
+The practical Report Lab question is:
 
 > If production does not yet retain Scheduled completeness evidence, may a user ask for a useful path by explicitly saying “assume the Scheduled set is complete through H”?
 
-Two candidate inputs can therefore share the same date while having different meanings:
+Two candidate inputs can share the same date while having different meanings:
 
 ```text
 A. retained completeness evidence
@@ -33,7 +35,7 @@ B. query-local assumption
    "for this calculation, assume Scheduled is complete through H"
 ```
 
-The question is whether B can safely substitute for A, or whether it must remain visibly conditional even when both produce the same numbers.
+Observation 231 tests whether B may substitute for A, or whether it must remain visibly conditional even when both produce the same numbers.
 
 ## Prior boundaries held fixed
 
@@ -46,9 +48,9 @@ This observation reuses rather than reopens:
 
 The current production TUI therefore remains correct to show `UNKNOWN` when no qualified complete-future input exists.
 
-## Candidate typed answer
+## Typed answer under test
 
-Observation 231 deliberately keeps three result states distinct:
+Observation 231 keeps three result states distinct:
 
 ```text
 Unknown
@@ -72,8 +74,6 @@ same epistemic status
     !=
 same provenance
 ```
-
-This is the key boundary under test.
 
 ## Lean probe
 
@@ -115,25 +115,51 @@ otherwise
 
 Retained evidence has priority if both are supplied.
 
-## Selected probes
+## Executed result
 
-The Lean file checks:
+The dedicated Observation 231 workflow run `34187272140`, job `101938023203`, completed **SUCCESS** on exact Lean head `315cf6210ad38434f25b66ac3309d7bed5a60dce`.
 
-1. the two-day prefix path is `[7, 12]`;
-2. completeness evidence through day 2 yields `Qualified ... [7, 12]`;
-3. only an assumption through day 2 yields `Conditional ... [7, 12]`;
-4. the two answers have equal numerical payload;
-5. the two answers themselves are unequal;
-6. an assumption-only answer is never marked qualified;
-7. no evidence and no assumption remains `Unknown`;
-8. an assumption shorter than the requested horizon remains `Unknown`;
-9. short evidence plus a covering assumption yields `Conditional`, not `Qualified`;
-10. covering evidence wins over a broader assumption;
-11. the read-only review preserves its canonical input exactly.
+The Lean probe mechanically checks all selected witnesses:
 
-## Architectural hypothesis
+```text
+prefix path                                  [7, 12]
+covering evidence                            Qualified [7, 12]
+covering assumption only                     Conditional [7, 12]
+evidence payload = assumption payload        true
+evidence answer != assumption answer         true
+assumption-only isQualified                  false
+assumption-only isConditional                true
+no evidence + no assumption                  Unknown
+short assumption                             Unknown
+short evidence + covering assumption         Conditional
+covering evidence + broader assumption       Qualified
+canonical input preserved                    theorem
+```
 
-If the selected typed boundary survives, the two product directions are not rivals. They answer different questions.
+The selected boundary therefore survives.
+
+## Finding
+
+An explicit completeness assumption **cannot substitute for retained completeness evidence as knowledge**.
+
+It can substitute only as a premise for a conditional calculation.
+
+```text
+EVIDENCE
+  may refine Unknown -> Qualified
+
+ASSUMPTION
+  may refine Unknown -> Conditional
+
+same numerical path
+  does not collapse those two statuses
+```
+
+This is not merely presentation wording. The distinction is typed in the observation and survives equal numerical payload.
+
+## Architectural consequence
+
+The two product directions are not rivals. They answer different questions.
 
 ### A. Retained completeness evidence
 
@@ -141,7 +167,7 @@ Potential meaning:
 
 > LOAM has retained a current claim that the Scheduled authority is complete through H for the relevant query scope.
 
-This could support an unconditional **qualified** path inside H, subject to the other Observation 229 boundaries.
+This may support an unconditional **qualified** path inside H, subject to the other Observation 229 boundaries.
 
 But it creates real authority-maintenance pressure:
 
@@ -156,7 +182,7 @@ Observation 211 already noted that the whole-file Scheduled publication shape co
 
 ### B. Explicit query assumption
 
-Potential meaning:
+Meaning:
 
 > Show the derived path **if** the currently retained Scheduled set is treated as complete through H for this query only.
 
@@ -170,11 +196,11 @@ canonical Scheduled unchanged
 
 It requires no canonical completeness fact merely to perform the calculation.
 
-The cost is that the answer must remain visibly conditional. It must not be silently relabeled as Known, Qualified, safe-to-spend, or a guaranteed forecast.
+The answer must remain visibly conditional. It must not be silently relabeled as Known, Qualified, safe-to-spend, or a guaranteed forecast.
 
 ## Practical Report Lab consequence
 
-If the result is qualified, the smallest useful dogfood path may be:
+The smallest useful dogfood path is now clearer:
 
 ```text
 production baseline
@@ -189,7 +215,7 @@ optional explicit query
 
 The baseline refusal remains intact. The conditional view is an overlay, not replacement evidence.
 
-A human-facing surface should therefore say something closer to:
+A human-facing surface should say something closer to:
 
 ```text
 CONDITIONAL OUTLOOK
@@ -202,11 +228,11 @@ This path is conditional on that assumption.
 
 rather than simply `Forecast` or `Known low-water`.
 
-This follows the same no-write provenance boundary already qualified for typed hypotheticals in Observation 185.
+This follows the no-write provenance boundary already qualified for typed hypotheticals in Observation 185.
 
-## Why this may be preferable before persistence
+## Why B is the smaller next dogfood move
 
-The assumption route can buy practical observational power without first adding:
+The assumption route buys practical observational power without first adding:
 
 - a new canonical fact family;
 - a Scheduled persistence version;
@@ -215,9 +241,9 @@ The assumption route can buy practical observational power without first adding:
 - a generic scenario engine;
 - a canonical LiquidityRole.
 
-It therefore makes a good dogfood probe.
+It therefore earns a practical probe before persistence.
 
-If repeated use shows that users constantly supply the same assumption and expect the result to be treated as ordinary retained knowledge, that practical pressure would be evidence in favor of a real maintained completeness claim later.
+If repeated use shows that the same completeness assumption is constantly re-entered and users expect the result to count as ordinary retained knowledge, that practical pressure would be evidence in favor of a real maintained completeness claim later.
 
 ## What this observation does not earn
 
@@ -237,19 +263,18 @@ Observation 231 does not authorize:
 - canonical scenario persistence;
 - automatic TUI writes.
 
-## Expected decision boundary
+## Result
 
-The likely small result is:
+The evidence-vs-assumption fork is resolved narrowly:
 
 ```text
-EVIDENCE
-  may refine Unknown -> Qualified
+A. retained completeness evidence
+   -> candidate source for Qualified future-path knowledge
+   -> maintenance semantics still unqualified
 
-ASSUMPTION
-  may refine Unknown -> Conditional
-
-same numerical path
-  does not collapse those two statuses
+B. explicit query-local assumption
+   -> qualified as a source for Conditional future-path calculation
+   -> no persistence or authority required
 ```
 
-If the Lean probe passes, the next practical move should be to dogfood **B first** as an explicit, read-only conditional report surface. Only if that becomes repeatedly useful should LOAM pressure the maintenance semantics required for **A**.
+The preferred next practical move is therefore **B first**: dogfood an explicitly labeled, read-only conditional selected-balance path. Only if that surface proves repeatedly useful should LOAM pressure the authority-maintenance semantics required for A.
