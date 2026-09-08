@@ -1,6 +1,7 @@
 import Init.Data.Order
 import Loam.Application.ConsumptionInspection
 import Loam.Application.ScheduledInspection
+import Loam.Core.AccountingRole
 import Loam.Core.ScheduledRouting
 
 namespace Loam.Application
@@ -31,8 +32,15 @@ Observation 153 then pruned the practical Scheduled routing subject. Whole
 `ScheduledId` is too coarse for split-purpose movement; bare `LocusId` is too
 coarse across distinct Scheduled intent; a fresh Claim identity is not yet earned
 when it is only a bijective wrapper. The reusable coordinate is owned by
-`Loam.Core.ScheduledRouting`; this module only consumes it for Commitment and
-Headroom projections.
+`Loam.Core.ScheduledRouting`.
+
+Observation 227 strengthened the production household projection without adding
+a fixed-cost or eligibility authority. Scheduled is a future-cashflow surface,
+so a positive quantity is not by itself Capacity pressure. Explicit
+ScheduledRouting selects positive pressure directly. Without a route, positive
+Expense and Liability coordinates exert pressure by default, positive
+Asset/Income/Equity coordinates are resolved non-pressure, and a missing
+AccountingRole remains an unresolved eligibility frontier.
 
 The current Scheduled lifecycle has no learned-time coordinate, so this module
 answers only the current-open view. `observedAt` selects historical routing; it
@@ -41,16 +49,18 @@ became known.
 -/
 
 /--
-Query-local Commitment partition for one Purpose and Measure.
+Query-local Scheduled Capacity-pressure partition for one Purpose and Measure.
 
 `managed` is only the amount routed to the queried Purpose. `unmanaged` and
-`unrouted` retain the visible uncertainty pressure instead of silently treating
-those claims as zero commitment.
+`unrouted` retain selected pressure whose Purpose status is not managed.
+`unresolvedEligibility` retains positive, unrouted quantity whose AccountingRole
+is absent; it is neither silently counted as Commitment nor silently discarded.
 -/
 structure ScheduledCommitmentView where
   managed : Quantity
   unmanaged : Quantity
   unrouted : Quantity
+  unresolvedEligibility : Quantity
 deriving Repr, DecidableEq
 
 /-- Arithmetic evidence for one current Headroom answer. -/
@@ -60,12 +70,14 @@ structure HeadroomView where
   headroom : Quantity
   unmanagedCommitment : Quantity
   unroutedCommitment : Quantity
+  unresolvedEligibility : Quantity
 deriving Repr, DecidableEq
 
 private structure CommitmentQuanta where
   managed : Int := 0
   unmanaged : Int := 0
   unrouted : Int := 0
+  unresolvedEligibility : Int := 0
 
 private def inEndExclusiveHorizon
     (scheduledOn endExclusive : Time) : Bool :=
@@ -87,7 +99,16 @@ private def scheduledLoci
     (fun loci change => addLocusIfAbsent loci change.coordinate)
     []
 
+/--
+Add one positive Scheduled coordinate according to Observation 227.
+
+Explicit routing owns explicit pressure intent. Only an unrouted positive
+coordinate falls back to partial AccountingRole classification. Missing role
+evidence remains visible as unresolved eligibility rather than becoming a
+default role or zero pressure.
+-/
 private def addPositiveScheduledLocus
+    (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (observedAt : Time)
@@ -109,9 +130,23 @@ private def addPositiveScheduledLocus
     | .unmanaged =>
         { total with unmanaged := total.unmanaged + quantity.quanta }
     | .unrouted =>
-        { total with unrouted := total.unrouted + quantity.quanta }
+        match roles.roleOf? locus with
+        | some .expense =>
+            { total with unrouted := total.unrouted + quantity.quanta }
+        | some .liability =>
+            { total with unrouted := total.unrouted + quantity.quanta }
+        | some .asset =>
+            total
+        | some .income =>
+            total
+        | some .equity =>
+            total
+        | none =>
+            { total with
+                unresolvedEligibility := total.unresolvedEligibility + quantity.quanta }
 
 private def addOpenOccurrence
+    (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
@@ -124,33 +159,33 @@ private def addOpenOccurrence
     total
   else
     (scheduledLoci occurrence).foldl
-      (addPositiveScheduledLocus routing purpose observedAt occurrence)
+      (addPositiveScheduledLocus roles routing purpose observedAt occurrence)
       total
 
 private def commitmentFromOpenOccurrences
     (occurrences : List (ScheduledOccurrence Time))
+    (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
     (observedAt endExclusive : Time) : ScheduledCommitmentView :=
   let total := occurrences.foldl
-    (addOpenOccurrence routing purpose measure observedAt endExclusive)
+    (addOpenOccurrence roles routing purpose measure observedAt endExclusive)
     {}
   {
     managed := Quantity.ofQuanta total.managed
     unmanaged := Quantity.ofQuanta total.unmanaged
     unrouted := Quantity.ofQuanta total.unrouted
+    unresolvedEligibility := Quantity.ofQuanta total.unresolvedEligibility
   }
 
-/--
-Project current Scheduled Commitment for one Purpose and Measure in the
-pre-replacement practical world retained by earlier observations.
--/
+/-- Project current Scheduled Capacity pressure for one Purpose and Measure. -/
 def currentScheduledCommitment?
     (scheduled : ScheduledMemory Time)
     (completions : ScheduledCompletionMemory)
     (retirements : ScheduledRetirementMemory)
     (events : EventMemory)
+    (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
@@ -161,13 +196,11 @@ def currentScheduledCommitment?
   | .conflictingTerminalEvidence => none
   | .open occurrences =>
       some <| commitmentFromOpenOccurrences
-        occurrences routing purpose measure observedAt endExclusive
+        occurrences roles routing purpose measure observedAt endExclusive
 
 /--
-Project current Scheduled Commitment through explicit replacement provenance.
-Superseded Scheduled sources cannot continue consuming Purpose capacity once the
-replacement graph is admissible. Any replacement-graph or lifecycle refusal
-fails closed as `none` rather than guessing which occurrence remains effective.
+Project current Scheduled Capacity pressure through explicit replacement
+provenance. Any replacement-graph or lifecycle refusal fails closed as `none`.
 -/
 def currentScheduledCommitmentWithReplacement?
     (scheduled : ScheduledMemory Time)
@@ -175,6 +208,7 @@ def currentScheduledCommitmentWithReplacement?
     (retirements : ScheduledRetirementMemory)
     (replacements : ScheduledReplacementMemory)
     (events : EventMemory)
+    (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
@@ -183,12 +217,13 @@ def currentScheduledCommitmentWithReplacement?
       scheduled completions retirements replacements events with
   | .open occurrences =>
       some <| commitmentFromOpenOccurrences
-        occurrences routing purpose measure observedAt endExclusive
+        occurrences roles routing purpose measure observedAt endExclusive
   | _ => none
 
 /--
-Compose correction-aware Actual Remaining with current open Scheduled Commitment
-for the pre-replacement practical world.
+Compose correction-aware Actual Remaining with current open Scheduled pressure.
+Only managed pressure for the queried Purpose is subtracted from Remaining;
+other pressure and unresolved eligibility stay visible in the answer.
 -/
 def headroomAtCorrectionFrontier?
     (capacityMovements : List CapacityMovement)
@@ -199,6 +234,7 @@ def headroomAtCorrectionFrontier?
     (scheduled : ScheduledMemory Time)
     (completions : ScheduledCompletionMemory)
     (retirements : ScheduledRetirementMemory)
+    (roles : AccountingRoleMap)
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
@@ -208,7 +244,7 @@ def headroomAtCorrectionFrontier?
       capacityMovements events corrections validities actualRouting purpose measure
   let commitment ←
     currentScheduledCommitment?
-      scheduled completions retirements events scheduledRouting purpose measure
+      scheduled completions retirements events roles scheduledRouting purpose measure
       observedAt endExclusive
   return {
     remaining := remaining
@@ -216,11 +252,12 @@ def headroomAtCorrectionFrontier?
     headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
     unmanagedCommitment := commitment.unmanaged
     unroutedCommitment := commitment.unrouted
+    unresolvedEligibility := commitment.unresolvedEligibility
   }
 
 /--
 Compose correction-aware Actual Remaining with replacement-aware Scheduled
-Commitment. Replacement provenance changes only which retained Scheduled
+pressure. Replacement provenance changes only which retained Scheduled
 occurrences contribute; Remaining remains the same correction-aware Actual
 projection.
 -/
@@ -234,6 +271,7 @@ def headroomAtCorrectionFrontierWithReplacement?
     (completions : ScheduledCompletionMemory)
     (retirements : ScheduledRetirementMemory)
     (replacements : ScheduledReplacementMemory)
+    (roles : AccountingRoleMap)
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
@@ -243,7 +281,7 @@ def headroomAtCorrectionFrontierWithReplacement?
       capacityMovements events corrections validities actualRouting purpose measure
   let commitment ←
     currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events scheduledRouting
+      scheduled completions retirements replacements events roles scheduledRouting
       purpose measure observedAt endExclusive
   return {
     remaining := remaining
@@ -251,6 +289,7 @@ def headroomAtCorrectionFrontierWithReplacement?
     headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
     unmanagedCommitment := commitment.unmanaged
     unroutedCommitment := commitment.unrouted
+    unresolvedEligibility := commitment.unresolvedEligibility
   }
 
 end Loam.Application
