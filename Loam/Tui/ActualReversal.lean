@@ -131,8 +131,8 @@ def view (state : State) : Widget :=
         , line ("Reversal date: " ++ state.inputDate)
         , line "Inverse postings:"
         ] ++
-        (inversePreview state).map fun (locus, quantity, measure) =>
-          line ("  " ++ locus.token ++ "  " ++ toString quantity.quanta ++ " " ++ measure.token) ++
+        ((inversePreview state).map fun (locus, quantity, measure) =>
+          line ("  " ++ locus.token ++ "  " ++ toString quantity.quanta ++ " " ++ measure.token)) ++
         [ muted "Both Actuals remain retained. This is not an input correction."
         , muted "Enter publish   Esc/e edit date   q cancel"
         , line state.notice
