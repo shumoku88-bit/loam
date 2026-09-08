@@ -1,11 +1,12 @@
 import Loam.ActualReversalPublisher
 import Loam.Tui.ActualReversal
-import Loam.Tui.Kernel
+import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.ActualReversalSession
 
 open Loam.Tui.Kernel
+open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
