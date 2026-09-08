@@ -1,5 +1,7 @@
 # Movement manifest household entrance repair
 
+> Historical cutover note. This document records the retired no-argument shell-menu repair and its then-open checklist. Current household entrance guidance lives in `README.md` and `docs/TUI.md`; `./tools/loam` now opens the production TUI by default.
+
 ## Observed seam
 
 Private household dogfood retired the legacy Movement sidecars after selecting
