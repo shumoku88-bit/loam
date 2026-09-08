@@ -1,4 +1,4 @@
-import Loam.Tui.Main
+import Loam.Tui.HraHome
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -134,4 +134,35 @@ def main : IO Unit := do
   expect (contains "Unknown is not NotDue" unknownText)
     "Scheduled workspace collapsed open-world Unknown into NotDue"
 
-  IO.println "TUI Scheduled: full-day browse, detail, and open-world Unknown passed."
+  let pendingActual : Loam.Tui.Main.ActualSnapshot := {
+    snapshot.actual with today := "2026-09-08"
+  }
+  let pendingSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := pendingActual
+  }
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-08" with
+  | .error message => throw (IO.userError message)
+  | .ok pending =>
+      expect (pending.length == 12)
+        "past-date current-open Scheduled projection lost retained occurrences"
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-07" with
+  | .error message => throw (IO.userError message)
+  | .ok pending =>
+      expect pending.isEmpty
+        "Scheduled due on the boundary was incorrectly classified as past-date pending"
+
+  let pendingHome := Loam.Tui.Main.initialState "2026-09-08"
+  let bounds : Bounds := { width := 140, height := 42 }
+  let pendingText := widgetText (Loam.Tui.HraHome.view bounds pendingSnapshot pendingHome)
+  expect (contains "Pending: 12" pendingText)
+    "Home status did not expose the past-date current-open Scheduled count"
+  expect (contains "Pending Scheduled:" pendingText)
+    "Home did not expose its pending Scheduled section"
+  expect (contains "2026-09-07  [Still open]" pendingText)
+    "Home pending section lost the original expected date"
+  expect (contains "07!" pendingText)
+    "Home calendar did not mark the original date of a past-date current-open Scheduled"
+  expect (contains "expected date passed; Scheduled is still current-open" pendingText)
+    "Home calendar marker lost its non-rescheduling explanation"
+
+  IO.println "TUI Scheduled: browse/detail, open-world Unknown, and derived pending Home markers passed."
