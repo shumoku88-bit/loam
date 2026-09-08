@@ -8,21 +8,17 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Scheduled retirement persistence
+# Scheduled retirement codec
 
-Retirement remains explicit evidence separate from the Scheduled occurrence.
-The stream has no row-order chronology and does not mutate or delete the
-original expectation.
+Retirement remains explicit evidence separate from the Scheduled occurrence at
+the semantic level. Observation 226 retired an independently published
+retirement sidecar: this module now supplies only the typed inner codec embedded
+in the complete Scheduled lifecycle authority image.
 -/
 
 /-- Version marker for the first Scheduled-retirement evidence format. -/
 def scheduledRetirementMemoryHeader : String :=
   "LOAM-SCHEDULED-RETIREMENT-MEMORY\t1"
-
-/-- Keep retirement evidence adjacent to the Scheduled stream. -/
-def scheduledRetirementPathForScheduledMemory
-    (scheduledPath : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (scheduledPath.toString ++ ".retirements")
 
 private def encodeRetirementRow? (retirement : ScheduledRetirement) : Option String :=
   if validToken retirement.scheduled.token then
@@ -60,34 +56,5 @@ def decodeScheduledRetirementMemory?
       else
         none
   | _ => none
-
-private def scheduledRetirementStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
-/-- Publish one retirement-evidence stream through sibling staging plus rename. -/
-def saveScheduledRetirementMemory?
-    (path : System.FilePath)
-    (memory : ScheduledRetirementMemory) : IO Bool := do
-  match encodeScheduledRetirementMemory? memory with
-  | none => return false
-  | some text =>
-      let stagePath := scheduledRetirementStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
-      return true
-
-/-- Read and fail-closed decode one Scheduled-retirement stream. -/
-def loadScheduledRetirementMemory?
-    (path : System.FilePath) : IO (Option ScheduledRetirementMemory) := do
-  let input ← IO.FS.readFile path
-  return decodeScheduledRetirementMemory? input
-
-/-- Missing retirement storage means no retained retirement evidence yet. -/
-def loadScheduledRetirementMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option ScheduledRetirementMemory) := do
-  if ← path.pathExists then
-    loadScheduledRetirementMemory? path
-  else
-    return ScheduledRetirementMemory.ofRetirements? []
 
 end Loam.Persistence
