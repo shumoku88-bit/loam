@@ -83,7 +83,10 @@ try:
     wait_for("LOAM Home")
     os.write(master, b"q")
     while select.select([master], [], [], 0.1)[0]:
-        if not os.read(master, 1024):
+        try:
+            if not os.read(master, 1024):
+                break
+        except OSError:
             break
     assert process.wait(timeout=10) == 0
     assert digest() == before, "Read-only navigation changed fixture evidence/config"
