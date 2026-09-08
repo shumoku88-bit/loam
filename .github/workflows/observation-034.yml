@@ -3,33 +3,19 @@ name: Observation 034
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/TimeIndexedRelation.tla'
+      - 'tla/TimeIndexedRelation.cfg'
+      - 'tla/TimeIndexedRelationHistoricalBoundary.cfg'
+      - 'tla/TimeIndexedRelationFutureBoundary.cfg'
       - '.github/workflows/observation-034.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/TimeIndexedRelation.tla'
+      - 'tla/TimeIndexedRelation.cfg'
+      - 'tla/TimeIndexedRelationHistoricalBoundary.cfg'
+      - 'tla/TimeIndexedRelationFutureBoundary.cfg'
       - '.github/workflows/observation-034.yml'
   workflow_dispatch:
 
