@@ -212,6 +212,26 @@ Keep all historical model, J, TLA+, and prose sources. Graduate these eight dedi
 
 Observation 011 deliberately remains. Its workflow is narrowly triggered only by `model/011_derived_availability.als` or the workflow itself, and it preserves an independent Alloy witness/check rather than taxing unrelated production or research changes. Graduation is based on current execution role and trigger scope, not observation number.
 
+## Follow-up graduation - provenance and correction Observation CI 018-024
+
+Observations 018-024 continued the same broad-trigger pattern while exploring provenance, append-only correction, correction-chain ambiguity, conflict resolution, and the meaning of resolution. Each workflow executed only its own historical TLA+ and/or Alloy fixture, yet unrelated changes anywhere under the shared research trees, `Loam/Observations/**`, `Loam.lean`, `lakefile.lean`, the manifest, or toolchain could rerun the lane.
+
+The surviving result has already moved into the current compressed law: correction and resolution are explicit provenance rather than list-position mutation. Later production work also reuses generic `ReplacementFrontier` mechanics across current domains without collapsing their meanings. None of Observations 018-024 is a selected live Lean obligation in `Loam.Observations`.
+
+Keep all historical model, TLA+, and research prose sources. Graduate only these seven broad dedicated workflows:
+
+```text
+.github/workflows/observation-018.yml
+.github/workflows/observation-019.yml
+.github/workflows/observation-020.yml
+.github/workflows/observation-021.yml
+.github/workflows/observation-022.yml
+.github/workflows/observation-023.yml
+.github/workflows/observation-024.yml
+```
+
+A renewed correction or resolution question should earn a new probe against the current replacement/frontier boundary. Historical success alone does not require these early cross-tool fixtures to rerun on unrelated repository changes.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
