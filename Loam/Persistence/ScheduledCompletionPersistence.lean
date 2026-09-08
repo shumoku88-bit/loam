@@ -1,5 +1,6 @@
 import Loam.Core.ScheduledCompletion
 import Loam.Persistence
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -36,8 +37,7 @@ private def encodeCompletionRow? (completion : ScheduledCompletion) : Option Str
 def encodeScheduledCompletionMemory?
     (memory : ScheduledCompletionMemory) : Option String := do
   let rows ← memory.completions.mapM encodeCompletionRow?
-  pure
-    (String.intercalate "\n" (scheduledCompletionMemoryHeader :: rows) ++ "\n")
+  pure (encodeVersionedRows scheduledCompletionMemoryHeader rows)
 
 private def decodeCompletionRow? (row : String) : Option ScheduledCompletion :=
   match row.splitOn "\t" with
@@ -50,17 +50,9 @@ private def decodeCompletionRow? (row : String) : Option ScheduledCompletion :=
 
 /-- Decode completion relations and recheck one-to-one endpoint uniqueness. -/
 def decodeScheduledCompletionMemory?
-    (input : String) : Option ScheduledCompletionMemory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = scheduledCompletionMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let completions ← reversedRows.reverse.mapM decodeCompletionRow?
-            ScheduledCompletionMemory.ofCompletions? completions
-        | _ => none
-      else
-        none
-  | _ => none
+    (input : String) : Option ScheduledCompletionMemory := do
+  let rows ← decodeVersionedRows? scheduledCompletionMemoryHeader input
+  let completions ← rows.mapM decodeCompletionRow?
+  ScheduledCompletionMemory.ofCompletions? completions
 
 end Loam.Persistence
