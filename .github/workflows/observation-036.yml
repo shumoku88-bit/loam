@@ -3,33 +3,19 @@ name: Observation 036
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/BitemporalCorrectionFrontier.tla'
+      - 'tla/BitemporalCorrectionFrontier.cfg'
+      - 'tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg'
       - '.github/workflows/observation-036.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/BitemporalCorrectionFrontier.tla'
+      - 'tla/BitemporalCorrectionFrontier.cfg'
+      - 'tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg'
       - '.github/workflows/observation-036.yml'
   workflow_dispatch:
 
