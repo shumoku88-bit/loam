@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -77,22 +78,14 @@ private def decodeScheduledRoutingRow?
 def encodeScheduledRoutingHistory?
     (history : ScheduledRoutingHistory String) : Option String := do
   let rows ← history.entries.mapM encodeScheduledRoutingRow?
-  return String.intercalate "\n" (scheduledRoutingHeader :: rows) ++ "\n"
+  return encodeVersionedRows scheduledRoutingHeader rows
 
 /-- Decode and re-admit duplicate `(ScheduledId × LocusId, date)` coordinates. -/
 def decodeScheduledRoutingHistory?
-    (input : String) : Option (ScheduledRoutingHistory String) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != scheduledRoutingHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let entries ← reversedRows.reverse.mapM decodeScheduledRoutingRow?
-            RoutingHistory.ofEntries? entries
-        | _ => none
-  | _ => none
+    (input : String) : Option (ScheduledRoutingHistory String) := do
+  let rows ← decodeVersionedRows? scheduledRoutingHeader input
+  let entries ← rows.mapM decodeScheduledRoutingRow?
+  RoutingHistory.ofEntries? entries
 
 /-- Publish one complete Scheduled-routing stream by sibling staging plus rename. -/
 def saveScheduledRoutingHistory?
