@@ -1,5 +1,5 @@
-import Init.Data.List.Perm
 import Loam.Core.EventCorrection
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -44,47 +44,6 @@ def ofCorrections? (corrections : List EventCorrection) : Option EventCorrection
     ofCorrections? [correction, correction] = none := by
   simp [ofCorrections?]
 
-private def findCorrectionById? :
-    List EventCorrection → EventCorrectionId → Option EventCorrection
-  | [], _ => none
-  | correction :: rest, id =>
-      if correction.id = id then
-        some correction
-      else
-        findCorrectionById? rest id
-
-private theorem findCorrectionById?_perm
-    {left right : List EventCorrection}
-    (hPerm : left.Perm right)
-    (hNodup : (left.map EventCorrection.id).Nodup)
-    (id : EventCorrectionId) :
-    findCorrectionById? left id = findCorrectionById? right id := by
-  induction hPerm with
-  | nil =>
-      rfl
-  | cons correction hPerm ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases h : correction.id = id
-      · simp [findCorrectionById?, h]
-      · simp [findCorrectionById?, h, ih hNodup.2]
-  | swap x y rest =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      have hyx : y.id ≠ x.id := by
-        intro hEqual
-        apply hNodup.1
-        simp [hEqual]
-      by_cases hy : y.id = id
-      · have hx : x.id ≠ id := by
-          intro hx
-          exact hyx (hy.trans hx.symm)
-        simp [findCorrectionById?, hy, hx]
-      · by_cases hx : x.id = id
-        · simp [findCorrectionById?, hy, hx]
-        · simp [findCorrectionById?, hy, hx]
-  | trans hLeft hRight ihLeft ihRight =>
-      have hMiddleNodup := (hLeft.map EventCorrection.id).nodup hNodup
-      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
-
 /--
 Find one remembered correction by stable relation identity.
 
@@ -94,7 +53,7 @@ winner among relations because repeated identity is rejected at admission.
 def findById?
     (memory : EventCorrectionMemory)
     (id : EventCorrectionId) : Option EventCorrection :=
-  findCorrectionById? memory.corrections id
+  FiniteKeyed.findBy? EventCorrection.id memory.corrections id
 
 /-- Correction identity lookup is invariant under representation permutation. -/
 theorem findById?_perm
@@ -102,17 +61,16 @@ theorem findById?_perm
     (hPerm : left.corrections.Perm right.corrections)
     (id : EventCorrectionId) :
     findById? left id = findById? right id := by
-  simpa [findById?] using
-    findCorrectionById?_perm hPerm left.idNodup id
+  exact FiniteKeyed.findBy?_perm EventCorrection.id hPerm left.idNodup id
 
 @[simp] theorem findById?_empty (id : EventCorrectionId) :
     findById? { corrections := [], idNodup := by simp } id = none := by
-  simp [findById?, findCorrectionById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 @[simp] theorem findById?_singleton_self (correction : EventCorrection) :
     findById? { corrections := [correction], idNodup := by simp } correction.id =
       some correction := by
-  simp [findById?, findCorrectionById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 /--
 Add one complete raw correction relation, rejecting repeated correction identity.
