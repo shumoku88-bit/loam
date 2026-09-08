@@ -128,7 +128,7 @@ private def statusLine
     | .error _ => "Unavailable"
   " Scheduled    : " ++ scheduled ++
     "   Pending: " ++ pendingStatus ++
-    "   Attention: [i]   Capacity: [e]   Reports: [v]"
+    "   Budget: [c]   Capacity: [e]   Reports: [v]"
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
@@ -168,16 +168,16 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   [ blankLine
   , plainLine " Household Workspaces:"
   , mutedLine "   [i] Attention is current-open evidence; selected-day membership is not inferred."
-  , mutedLine "   [e] Capacity is all-retained entitlement; no household cycle is inferred."
+  , mutedLine "   [c] Budget uses the current explicit preset; [e] raw Capacity/actions."
   , ruleLine bounds '='
   ]
 
 private def helpLines (bounds : Bounds) : List Widget :=
   if bounds.width >= 120 then
-    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports  [q] quit"]
+    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [v] reports  [q] quit"]
   else
     [ mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [q] quit"
-    , mutedLine "[a] actual  [p] scheduled  [i] attention  [e] capacity  [v] reports"
+    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [v] reports"
     ]
 
 /-- Reserve the bottom rows for HRA-style stable help and truncate only body rows. -/

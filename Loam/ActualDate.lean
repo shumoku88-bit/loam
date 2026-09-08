@@ -66,6 +66,22 @@ def shiftDays? (text : String) (offset : Int) : Option String := do
       (fun date _ => step date) (year, month, day)
     pure (padded 4 year ++ "-" ++ padded 2 month ++ "-" ++ padded 2 day)
 
+/-- Signed calendar-day distance, for presentation only (not retained cycle state). -/
+def daysBetween? (start end_ : String) : Option Int := do
+  let ordinal := fun text => do
+    if !validIsoDate text then none else do
+      let [y, m, d] := text.splitOn "-" | none
+      let year ← y.toNat?
+      let month ← m.toNat?
+      let day ← d.toNat?
+      let previous := year - 1
+      let months ← (List.range (month - 1)).foldlM
+        (fun total index => do return total + (← daysInMonth? year (index + 1))) 0
+      return 365 * previous + previous / 4 - previous / 100 + previous / 400 + months + day
+  let first ← ordinal start
+  let last ← ordinal end_
+  return (last : Int) - (first : Int)
+
 /-- Read the host-local calendar day in the same ISO spelling used by the CLI. -/
 def todayIso? : IO (Option String) := do
   try

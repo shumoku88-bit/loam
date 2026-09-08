@@ -60,6 +60,12 @@ on:
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
       - 'Loam/Tests/BudgetWindowReview.lean'
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/CycleFundingConfig.lean'
+      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Tests/CycleBudgetReview.lean'
+      - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   push:
@@ -123,6 +129,12 @@ on:
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
       - 'Loam/Tests/BudgetWindowReview.lean'
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/CycleFundingConfig.lean'
+      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Tests/CycleBudgetReview.lean'
+      - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   workflow_dispatch:
@@ -259,3 +271,18 @@ jobs:
 
       - name: Verify Reports menu, Stock-Flow, conditional Liquidity and Budget Window surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
+
+      - name: Build shared CycleBudget review boundary
+        run: lake build Loam.CycleBudgetReview
+
+      - name: Verify shared CycleBudget review boundary
+        run: lake env lean --run Loam/Tests/CycleBudgetReview.lean "$(mktemp -d)/cycle-budget-review"
+
+      - name: Verify read-only Cycle Budget workspace
+        run: lake env lean --run Loam/Tests/TuiCycleBudget.lean
+
+      - name: Verify Cycle Budget TUI PTY interactions
+        run: |
+          FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
+          lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
+          python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
