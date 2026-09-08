@@ -1,0 +1,24 @@
+name: Compression Audit
+
+on:
+  pull_request:
+    paths:
+      - 'tools/audit-production-surface'
+      - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
+      - 'Loam/**'
+      - 'lakefile.lean'
+      - '.github/workflows/compression-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-surface:
+    name: Reproduce production surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Inventory production source surface
+        shell: bash
+        run: bash tools/audit-production-surface
