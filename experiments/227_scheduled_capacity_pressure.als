@@ -137,7 +137,7 @@ assert RolePolarityAndRoutingDetermineSelectedPressure {
 
 assert PositiveExpenseOrLiabilityAlwaysPressures {
   all c: Coordinate |
-    (c.polarity = Positive and c.role in Expense + Liability) implies
+    (c.polarity = Positive and some c.role and c.role in Expense + Liability) implies
       c in selectedPressure
 }
 
