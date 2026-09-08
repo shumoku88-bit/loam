@@ -1,3 +1,4 @@
+import Loam.Core.FiniteKeyed
 import Loam.Core.Scheduled
 
 namespace Loam.Core
@@ -60,35 +61,17 @@ def add?
     (replacement : ScheduledReplacement) : Option ScheduledReplacementMemory :=
   ofReplacements? (memory.replacements ++ [replacement])
 
-private def findBySourceIn :
-    List ScheduledReplacement → ScheduledId → Option ScheduledReplacement
-  | [], _ => none
-  | replacement :: rest, id =>
-      if replacement.source = id then
-        some replacement
-      else
-        findBySourceIn rest id
-
 /-- Find the retained replacement relation whose source is one Scheduled identity. -/
 def findBySource?
     (memory : ScheduledReplacementMemory)
     (id : ScheduledId) : Option ScheduledReplacement :=
-  findBySourceIn memory.replacements id
-
-private def findByReplacementIn :
-    List ScheduledReplacement → ScheduledId → Option ScheduledReplacement
-  | [], _ => none
-  | replacement :: rest, id =>
-      if replacement.replacement = id then
-        some replacement
-      else
-        findByReplacementIn rest id
+  FiniteKeyed.findBy? ScheduledReplacement.source memory.replacements id
 
 /-- Find the retained relation that names one Scheduled identity as its replacement. -/
 def findByReplacement?
     (memory : ScheduledReplacementMemory)
     (id : ScheduledId) : Option ScheduledReplacement :=
-  findByReplacementIn memory.replacements id
+  FiniteKeyed.findBy? ScheduledReplacement.replacement memory.replacements id
 
 @[simp] theorem ofReplacements?_nil :
     ofReplacements? [] =
