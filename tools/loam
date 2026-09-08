@@ -314,7 +314,7 @@ Show spending capacity:
   ./tools/loam capacity show CAPACITY_FILE
 
 Show open scheduled movements:
-  ./tools/loam open-scheduled SCHEDULED_FILE MEMORY_FILE
+  ./tools/loam open-scheduled SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT
 
 Review current records (optional YYYY-MM-DD, /text search, or u for undated):
   ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]
@@ -449,7 +449,7 @@ EOF
 
     if [[ ${LOAM_MOVEMENT_MANIFEST_ROOT+x} ]]; then
       case "$choice" in
-        correct|raw|effective|integrity|scheduled)
+        correct|raw|effective|integrity)
           echo "loam: '$choice' is not yet supported with Movement manifest authority; no sidecar action was run." >&2
           echo
           continue
@@ -516,7 +516,11 @@ EOF
         run_menu_action run_capacity show "$capacity_file"
         ;;
       scheduled)
-        run_menu_action run_open_scheduled "$scheduled_file" "$memory_file"
+        if [[ ${LOAM_MOVEMENT_MANIFEST_ROOT+x} ]]; then
+          run_menu_action run_open_scheduled "$scheduled_file" "$LOAM_MOVEMENT_MANIFEST_ROOT"
+        else
+          echo "loam: Scheduled read requires Movement manifest authority; no action was run." >&2
+        fi
         ;;
       b)
         continue
