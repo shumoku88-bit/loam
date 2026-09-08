@@ -1,42 +1,12 @@
-import Loam.Application.ScheduledInspection
 import Loam.Cli.ScheduledBalanceCli
-import Loam.Cli.ScheduledCli
 import Loam.Cli.ScheduledDayEvidenceCli
-import Loam.Cli.ScheduledLifecycleCli
-import Loam.Cli.ScheduledReplacementCli
-import Loam.Persistence
-import Loam.Persistence.ScheduledCompletionPersistence
-import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
-import Std
+import Loam.ScheduledReview
 
 namespace Loam.OpenScheduledCli
 
 open Loam.Core
 
 set_option autoImplicit false
-
-private def promptLine (prompt : String) : IO String := do
-  IO.print prompt
-  let stdout ← IO.getStdout
-  stdout.flush
-  let stdin ← IO.getStdin
-  return (← stdin.getLine).trimAsciiEnd.toString
-
-private def loadScheduledMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadScheduledMemory? path
-  else
-    return ScheduledMemory.ofOccurrences? []
-
-private def loadEventMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option EventMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventMemory? path
-  else
-    return EventMemory.ofEvents? []
 
 private def insertByScheduledDay
     (occurrence : ScheduledOccurrence String) :
@@ -53,18 +23,15 @@ private def sortByScheduledDay
   occurrences.foldr insertByScheduledDay []
 
 private def fromChanges
-    (occurrence : ScheduledOccurrence String) :
-    List (MovementChange LocusId) :=
+    (occurrence : ScheduledOccurrence String) : List (MovementChange LocusId) :=
   occurrence.movement.changes.filter fun change => change.quantity.quanta < 0
 
 private def toChanges
-    (occurrence : ScheduledOccurrence String) :
-    List (MovementChange LocusId) :=
+    (occurrence : ScheduledOccurrence String) : List (MovementChange LocusId) :=
   occurrence.movement.changes.filter fun change => change.quantity.quanta > 0
 
 private def zeroChanges
-    (occurrence : ScheduledOccurrence String) :
-    List (MovementChange LocusId) :=
+    (occurrence : ScheduledOccurrence String) : List (MovementChange LocusId) :=
   occurrence.movement.changes.filter fun change => change.quantity.quanta = 0
 
 private def printMagnitude
@@ -76,16 +43,6 @@ private def printMagnitude
     (indent ++ change.coordinate.token ++ ": " ++
       toString amount ++ " " ++ measure.token)
 
-/-!
-The practical view may translate signed quantities into FROM / TO language
-without adding Account, income, expense, debit, credit, or transaction-kind
-semantics to Core. Negative and positive are already explicit in the admitted
-BalancedMovement.
-
-A simple one-source / one-destination movement gets a compact arrow. Any split
-movement keeps every coordinate visible in separate FROM / TO groups. Zero
-changes, if retained, are shown explicitly rather than silently discarded.
--/
 private def printMovement (occurrence : ScheduledOccurrence String) : IO Unit := do
   let sources := fromChanges occurrence
   let destinations := toChanges occurrence
@@ -116,192 +73,65 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
   printMovement occurrence
 
 /--
-Show retained Scheduled occurrences whose expectation remains open.
+Show retained Scheduled occurrences whose expectation remains current-open.
 
-This is an explicit-evidence view, not a closed-world future-obligation report.
-Absence from this list does not establish that an unmaterialized obligation is
-not due. Exact-day machine consumers should use `day-evidence`.
+This command consumes the same complete Scheduled lifecycle image and selected
+Movement manifest frontier as production TUI readers. It is deliberately
+read-only; mutation is owned by the shared Scheduled publishers.
 -/
-def showOpenScheduled (scheduledPath memoryPath : String) : IO UInt32 := do
+def showOpenScheduled (scheduledPath manifestRoot : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
-  let memoryFile := System.FilePath.mk memoryPath
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
-  let replacementFile :=
-    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
-
-  match ← loadScheduledMemoryOrEmpty? scheduledFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported scheduled file"
+  let root := System.FilePath.mk manifestRoot
+  match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root with
+  | .error message =>
+      IO.eprintln message
       return 2
-  | some scheduledMemory =>
-      match ← Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile with
-      | none =>
-          IO.eprintln "loam: malformed or unsupported scheduled-completion file"
+  | .ok snapshot =>
+      match Loam.Application.currentOpenScheduledWithReplacement
+          snapshot.scheduled snapshot.completions snapshot.retirements
+          snapshot.replacements snapshot.events with
+      | .unknownCompletionScheduled =>
+          IO.eprintln "loam: Scheduled completion refers to an unknown Scheduled identity"
           return 2
-      | some completionMemory =>
-          match ← Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile with
-          | none =>
-              IO.eprintln "loam: malformed or unsupported scheduled-retirement file"
-              return 2
-          | some retirementMemory =>
-              match ← Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile with
-              | none =>
-                  IO.eprintln "loam: malformed or unsupported scheduled-replacement file"
-                  return 2
-              | some replacementMemory =>
-                  match ← loadEventMemoryOrEmpty? memoryFile with
-                  | none =>
-                      IO.eprintln "loam: malformed or unsupported event-memory file"
-                      return 2
-                  | some eventMemory =>
-                      match Loam.Application.currentOpenScheduledWithReplacement
-                          scheduledMemory completionMemory retirementMemory replacementMemory
-                          eventMemory with
-                      | .unknownCompletionScheduled =>
-                          IO.eprintln
-                            "loam: scheduled-completion file refers to an unknown Scheduled identity"
-                          return 2
-                      | .unknownRetirementScheduled =>
-                          IO.eprintln
-                            "loam: scheduled-retirement file refers to an unknown Scheduled identity"
-                          return 2
-                      | .unknownReplacementScheduled =>
-                          IO.eprintln
-                            "loam: scheduled-replacement file refers to an unknown Scheduled identity"
-                          return 2
-                      | .invalidReplacementGraph =>
-                          IO.eprintln
-                            "loam: scheduled-replacement graph is cyclic or otherwise invalid"
-                          return 2
-                      | .conflictingTerminalEvidence =>
-                          IO.eprintln
-                            "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
-                          return 2
-                      | .open openOccurrences =>
-                          match sortByScheduledDay openOccurrences with
-                          | [] =>
-                              IO.println "No explicit current-open Scheduled movements are retained."
-                              IO.println
-                                "Missing future Scheduled rows remain Unknown; this is not evidence that no obligation is due."
-                              return 0
-                          | occurrences =>
-                              IO.println
-                                "Explicit current-open Scheduled movements (ordered by scheduled date):"
-                              for occurrence in occurrences do
-                                printOccurrence occurrence
-                              IO.println
-                                "Coverage: explicit Scheduled evidence only; unmaterialized future obligations remain Unknown."
-                              return 0
-
-/-!
-Interactive Scheduled workbench for daily dogfood.
-
-The workbench asks only which retained Scheduled occurrences remain open.
-Observation 122 showed that a stronger next-occurrence answer requires independent
-continuation provenance. Observation 211 additionally requires missing future
-rows to remain Unknown rather than being read as NotDue.
--/
-partial def scheduledMenu (scheduledPath memoryPath : String) : IO UInt32 := do
-  IO.println ""
-  IO.println "Scheduled movements"
-  let status ← showOpenScheduled scheduledPath memoryPath
-  if status != 0 then
-    return status
-  else
-    IO.println ""
-    IO.println "What do you want to do?"
-    IO.println "a. Add scheduled movement"
-    IO.println "e. Edit / reschedule scheduled movement"
-    IO.println "r. Record what actually happened"
-    IO.println "x. Cancel scheduled movement"
-    IO.println "b. Back"
-    let choice ← promptLine "> "
-    match choice with
-    | "a" =>
-        let _ ← Loam.ScheduledCli.recordScheduled scheduledPath
-        scheduledMenu scheduledPath memoryPath
-    | "A" =>
-        let _ ← Loam.ScheduledCli.recordScheduled scheduledPath
-        scheduledMenu scheduledPath memoryPath
-    | "e" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledReplacementCli.replaceScheduled
-            scheduledPath memoryPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "E" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledReplacementCli.replaceScheduled
-            scheduledPath memoryPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "r" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledLifecycleCli.completeScheduled
-            scheduledPath memoryPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "R" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledLifecycleCli.completeScheduled
-            scheduledPath memoryPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "x" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "X" =>
-        let scheduledId ← promptLine "Scheduled id: "
-        if scheduledId.isEmpty then
-          scheduledMenu scheduledPath memoryPath
-        else
-          let _ ← Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledId
-          scheduledMenu scheduledPath memoryPath
-    | "b" => return 0
-    | "B" => return 0
-    | "q" => return 0
-    | "Q" => return 0
-    | _ =>
-        IO.eprintln "loam: Scheduled choice not understood"
-        scheduledMenu scheduledPath memoryPath
+      | .unknownRetirementScheduled =>
+          IO.eprintln "loam: Scheduled retirement refers to an unknown Scheduled identity"
+          return 2
+      | .unknownReplacementScheduled =>
+          IO.eprintln "loam: Scheduled replacement refers to an unknown Scheduled identity"
+          return 2
+      | .invalidReplacementGraph =>
+          IO.eprintln "loam: Scheduled replacement graph is cyclic or otherwise invalid"
+          return 2
+      | .conflictingTerminalEvidence =>
+          IO.eprintln
+            "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
+          return 2
+      | .open openOccurrences =>
+          match sortByScheduledDay openOccurrences with
+          | [] =>
+              IO.println "No explicit current-open Scheduled movements are retained."
+              IO.println
+                "Missing future Scheduled rows remain Unknown; this is not evidence that no obligation is due."
+              return 0
+          | occurrences =>
+              IO.println "Explicit current-open Scheduled movements (ordered by scheduled date):"
+              for occurrence in occurrences do
+                printOccurrence occurrence
+              IO.println
+                "Coverage: explicit Scheduled evidence only; unmaterialized future obligations remain Unknown."
+              return 0
 
 end Loam.OpenScheduledCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
-  | ["day-evidence", scheduledPath, memoryPath, day] =>
-      Loam.ScheduledDayEvidenceCli.report scheduledPath memoryPath day
+  | ["day-evidence", scheduledPath, manifestRoot, day] =>
+      Loam.ScheduledDayEvidenceCli.report scheduledPath manifestRoot day
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
-  | ["replace", scheduledPath, memoryPath, scheduledToken] =>
-      Loam.ScheduledReplacementCli.replaceScheduled scheduledPath memoryPath scheduledToken
-  | ["menu", scheduledPath, memoryPath] =>
-      Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
-  | [scheduledPath, memoryPath] => do
-      let stdin ← IO.getStdin
-      let stdout ← IO.getStdout
-      let inputInteractive ← stdin.isTty
-      let outputInteractive ← stdout.isTty
-      if inputInteractive && outputInteractive then
-        Loam.OpenScheduledCli.scheduledMenu scheduledPath memoryPath
-      else
-        Loam.OpenScheduledCli.showOpenScheduled scheduledPath memoryPath
+  | [scheduledPath, manifestRoot] =>
+      Loam.OpenScheduledCli.showOpenScheduled scheduledPath manifestRoot
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE MEMORY_FILE YYYY-MM-DD | balance-effects DATA_ROOT END | replace SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID | [menu] SCHEDULED_FILE MEMORY_FILE"
+        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT"
       return 2
