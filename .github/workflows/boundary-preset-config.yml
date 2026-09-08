@@ -1,0 +1,42 @@
+name: Boundary Preset Config
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/Tests/BoundaryPresetConfig.lean'
+      - '.github/workflows/boundary-preset-config.yml'
+  push:
+    paths:
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/Tests/BoundaryPresetConfig.lean'
+      - '.github/workflows/boundary-preset-config.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Verify replaceable report boundary presets
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build boundary preset config
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.BoundaryPresetConfig
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify strict replaceable preset behavior
+        run: lake env lean --run Loam/Tests/BoundaryPresetConfig.lean
