@@ -289,5 +289,68 @@ def main : IO Unit := do
   expect (contains "Remaining is derived exactly as Entitlement - Consumption." budgetText)
     "Budget Window lost the derived Remaining boundary"
 
+  let small : Bounds := { width := 80, height := 9 }
+  let lastMenuItem := (List.range 3).foldl
+    (fun state _ => (Loam.Tui.Reports.updateForBounds small state .down).state)
+    initial
+  let smallMenuText := widgetText (Loam.Tui.Reports.viewForBounds small lastMenuItem)
+  expect (contains "Budget Window" smallMenuText)
+    "bounded Reports menu let its selected item leave the viewport"
+  expect (contains "b / Esc home   q quit" smallMenuText)
+    "bounded Reports menu did not pin its navigation"
+
+  let topBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small stockReport)
+  expect (contains "Reports / Stock–Flow" topBoundedText)
+    "bounded Stock–Flow lost the top of its report body"
+  expect (contains "Lines 1–" topBoundedText)
+    "bounded report did not expose its scroll position"
+  expect (contains "b / Esc Reports menu   q quit" topBoundedText)
+    "bounded report did not pin navigation at the top position"
+  expect ((Loam.Tui.Reports.viewForBounds small stockReport).lines.length <= small.height)
+    "bounded report exceeded the terminal height"
+
+  let bottom := (List.range 100).foldl
+    (fun state _ => (Loam.Tui.Reports.updateForBounds small state .down).state)
+    stockReport
+  expect (bottom.scroll == Loam.Tui.Reports.scrollLimit small bottom && bottom.scroll > 0)
+    "bounded report did not stop at its final meaningful offset"
+  let bottomBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small bottom)
+  expect (contains "not income/spending" bottomBoundedText)
+    "bounded report could not scroll to the end of its body"
+  expect (contains "b / Esc Reports menu   q quit" bottomBoundedText)
+    "bounded report did not pin navigation at the bottom position"
+  expect ((Loam.Tui.Reports.updateForBounds small bottom .down).state.scroll == bottom.scroll)
+    "bounded report scrolled beyond its final meaningful offset"
+
+  let returnedTop := (List.range 100).foldl
+    (fun state _ => (Loam.Tui.Reports.updateForBounds small state .up).state)
+    bottom
+  expect (returnedTop.scroll == 0)
+    "bounded report did not return to its first offset"
+  expect ((Loam.Tui.Reports.updateForBounds small returnedTop .up).state.scroll == 0)
+    "bounded report scrolled above its first offset"
+  let returnedMenu := (Loam.Tui.Reports.updateForBounds small bottom .escape).state
+  expect (isMenu returnedMenu && returnedMenu.scroll == 0)
+    "returning to the Reports menu retained stale report scrolling"
+  let reopened := (Loam.Tui.Reports.updateForBounds small returnedMenu .enter).state
+  expect (isStockFlow reopened && reopened.scroll == 0)
+    "opening a report retained stale scrolling from the previous mode"
+
+  let tall : Bounds := { width := 120, height := 100 }
+  for report in [stockReport, liquidityReport, budgetReport] do
+    let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
+    let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds tall report)).splitOn "\n"
+    expect (originalLines.all (fun original => original ∈ boundedLines))
+      "bounds-aware presentation lost existing production report content"
+
+  for heightIndex in List.range 8 do
+    let tiny : Bounds := { width := 80, height := heightIndex + 1 }
+    for report in [initial, stockReport, accounting, liquidityReport, budgetReport] do
+      let rendered := Loam.Tui.Reports.viewForBounds tiny report
+      expect (rendered.lines.length <= tiny.height)
+        ("Reports exceeded tiny terminal height " ++ toString tiny.height)
+      expect (contains "q quit" (widgetText rendered))
+        ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
+
   IO.println
     "TUI Reports: menu, Stock–Flow, evidence-gated Accounting, conditional Liquidity, Budget Window and navigation passed."
