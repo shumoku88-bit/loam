@@ -16,8 +16,8 @@ This local interaction state edits explicit query coordinates. For convenience,
 production may seed those coordinates with the Gregorian calendar month containing
 the Home selected day. That constructor is presentation-only: it does not choose
 a household cycle, budget period, or retained report identity. Canonical evidence
-loading and budget semantics remain outside this module in `BudgetWindowReview` /
-Application.
+loading and budget / Headroom semantics remain outside this module in
+`BudgetWindowReview` / Application.
 -/
 
 structure Form where
@@ -153,22 +153,42 @@ private def field (state : State) (index : Nat) (label text : String) : Widget :
         (if state.form.focus.val = index then .selected else .normal)
     ]
 
-private def rowLine (row : Loam.BudgetWindowReview.Row) : Widget :=
-  line
-    ("- " ++ row.purpose.token ++
-      ": entitlement " ++ toString row.entitlement.quanta ++
-      " | consumption " ++ toString row.consumption.quanta ++
-      " | remaining " ++ toString row.remaining.quanta ++ " jpy")
+private def rowLines (row : Loam.BudgetWindowReview.Row) : List Widget :=
+  [ line
+      ("- " ++ row.purpose.token ++
+        ": entitlement " ++ toString row.entitlement.quanta ++
+        " | consumption " ++ toString row.consumption.quanta ++
+        " | remaining " ++ toString row.remaining.quanta ++ " jpy")
+  , muted
+      ("  commitment<end " ++ toString row.commitment.quanta ++
+        " | headroom " ++ toString row.headroom.quanta ++ " jpy")
+  ]
+
+private def frontierLines
+    (frontier : Option Loam.BudgetWindowReview.ScheduledFrontier) : List Widget :=
+  match frontier with
+  | none => [muted "Scheduled frontier: no remembered Capacity Purpose to project."]
+  | some frontier =>
+      [ muted
+          ("Scheduled frontier jpy: unmanaged " ++ toString frontier.unmanaged.quanta ++
+            " | unrouted " ++ toString frontier.unrouted.quanta ++
+            " | unresolved eligibility " ++ toString frontier.unresolvedEligibility.quanta)
+      ]
 
 private def resultLines (state : State) : List Widget :=
   match state.snapshot with
   | none => [muted "No explicit window has been run yet."]
   | some snapshot =>
       [ line ("Budget window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
+      , muted ("Scheduled routing observed at " ++ snapshot.observedAt)
       , muted (toString snapshot.rows.length ++ " remembered purpose(s)")
       ] ++
-      (snapshot.rows.take 10).map rowLine ++
-      [ muted "Remaining is derived exactly as Entitlement - Consumption." ]
+      (snapshot.rows.take 10).flatMap rowLines ++
+      frontierLines snapshot.scheduledFrontier ++
+      [ muted "Remaining = window Entitlement - window Consumption."
+      , muted "Headroom = Remaining - managed current-open Scheduled pressure due before End."
+      , muted "Start does not discard overdue current-open Scheduled pressure."
+      ]
 
 /-- Render one explicit-coordinate Budget Window report editor/result surface. -/
 def view (state : State) : Widget :=

@@ -71,19 +71,37 @@ def main : IO Unit := do
     entitlement := Quantity.ofQuanta 100
     consumption := Quantity.ofQuanta 30
     remaining := Quantity.ofQuanta 70
+    commitment := Quantity.ofQuanta 35
+    headroom := Quantity.ofQuanta 35
   }
   let report := Loam.Tui.Reports.withSnapshot explicit {
     start := "2026-08-17"
     endExclusive := "2026-10-15"
+    observedAt := "2026-09-08"
     rows := [food]
+    scheduledFrontier := some {
+      unmanaged := Quantity.ofQuanta 7
+      unrouted := Quantity.ofQuanta 8
+      unresolvedEligibility := Quantity.ofQuanta 9
+    }
   }
   let text := widgetText (Loam.Tui.Reports.view report)
   expect (contains "Budget window [2026-08-17, 2026-10-15)" text)
     "explicit window was not rendered"
+  expect (contains "Scheduled routing observed at 2026-09-08" text)
+    "Reports did not render the distinct routing observation coordinate"
   expect (contains "food: entitlement 100 | consumption 30 | remaining 70 jpy" text)
     "Budget Window components were not rendered"
-  expect (contains "Remaining is derived exactly" text)
-    "Reports surface lost the derived Remaining boundary"
+  expect (contains "commitment<end 35 | headroom 35 jpy" text)
+    "managed Scheduled Commitment / Headroom were not rendered"
+  expect (contains "Scheduled frontier jpy: unmanaged 7 | unrouted 8 | unresolved eligibility 9" text)
+    "Scheduled non-managed frontier was not rendered once at snapshot level"
+  expect (contains "Remaining = window Entitlement - window Consumption." text)
+    "Reports surface lost the Remaining equation"
+  expect (contains "Headroom = Remaining - managed current-open Scheduled pressure due before End." text)
+    "Reports surface lost the Headroom equation"
+  expect (contains "Start does not discard overdue current-open Scheduled pressure." text)
+    "Reports surface lost the overdue-current-open boundary"
 
   let editing : Loam.Tui.Reports.State := {
     report with form := { report.form with focus := ⟨0, by decide⟩ }
@@ -95,4 +113,5 @@ def main : IO Unit := do
   | { back := true, .. } => pure ()
   | _ => throw (IO.userError "Reports escape did not return Home intent")
 
-  IO.println "TUI Reports: calendar-month convenience, explicit override, derived Remaining and no-cycle boundary passed."
+  IO.println
+    "TUI Reports: explicit window, observation date, Headroom and Scheduled frontier rendering passed."

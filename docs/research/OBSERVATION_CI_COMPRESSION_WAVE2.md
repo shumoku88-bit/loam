@@ -2,7 +2,8 @@
 
 Status: **candidate consolidation after Compression Checkpoint 226**
 
-Baseline main: `c765cd37a8e1edcc4cc0eac9f12d0aeb1dce0e0b`
+Analysis baseline: `c765cd37a8e1edcc4cc0eac9f12d0aeb1dce0e0b`
+Synchronized main: `726909ecf35243f3df50e0e828b0a5a2edf0dd9e`
 
 ## Question
 
