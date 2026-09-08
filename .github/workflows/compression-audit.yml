@@ -7,6 +7,7 @@ on:
       - 'tools/audit-production-reachability'
       - 'tools/audit-semantic-candidates'
       - 'tools/audit-mechanics-patterns'
+      - 'tools/loam'
       - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE1.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE2.md'

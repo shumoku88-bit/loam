@@ -6,15 +6,12 @@ cd "$root"
 
 binary=".lake/build/bin/loam"
 binary_stamp=".lake/build/.loam-wrapper-build-stamp"
-movement_binary=".lake/build/bin/loamMovement"
-movement_stamp=".lake/build/.loam-movement-wrapper-build-stamp"
 capacity_binary=".lake/build/bin/loamCapacity"
 capacity_stamp=".lake/build/.loam-capacity-wrapper-build-stamp"
 daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
 daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
 open_scheduled_binary=".lake/build/bin/loamOpenScheduled"
 open_scheduled_stamp=".lake/build/.loam-open-scheduled-wrapper-build-stamp"
-menu_build_stamp=".lake/build/.loam-menu-build-stamp"
 shadow_binary=".lake/build/bin/loamShadowAudit"
 shadow_stamp=".lake/build/.loam-shadow-audit-wrapper-build-stamp"
 shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
@@ -88,57 +85,6 @@ open_scheduled_binary_is_current() {
   done
 
   return 0
-}
-
-menu_binaries_are_current() {
-  [[ -x "$binary" && -x "$movement_binary" && -x "$capacity_binary" && \
-     -x "$daily_quantity_binary" && -x "$open_scheduled_binary" ]] || return 1
-
-  for stamp in \
-    "$menu_build_stamp" \
-    "$binary_stamp" \
-    "$movement_stamp" \
-    "$capacity_stamp" \
-    "$daily_quantity_stamp" \
-    "$open_scheduled_stamp"; do
-    [[ -e "$stamp" ]] || return 1
-  done
-
-  if find Loam -type f -name '*.lean' -newer "$menu_build_stamp" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  for input in tools/loam tools/loam-movement lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$menu_build_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-prepare_menu_binaries() {
-  if menu_binaries_are_current; then
-    return 0
-  fi
-
-  echo "Building LOAM..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-menu-build.XXXXXX)"
-  if lake build loam loamMovement loamCapacity loamDailyQuantity loamOpenScheduled >"$build_log" 2>&1; then
-    touch \
-      "$binary_stamp" \
-      "$movement_stamp" \
-      "$capacity_stamp" \
-      "$daily_quantity_stamp" \
-      "$open_scheduled_stamp" \
-      "$menu_build_stamp"
-    rm -f "$build_log"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    return 1
-  fi
 }
 
 shadow_binary_is_current() {
@@ -301,7 +247,8 @@ print_help() {
   cat <<'EOF'
 LOAM practical dogfood
 
-Open the production TUI:
+Open the production TUI (also the default with no arguments):
+  ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
 
 Record one balanced JPY movement:
@@ -323,7 +270,7 @@ Show recorded quantities:
   ./tools/loam summary MEMORY_FILE
 
 Correct movements and occurrence dates from the production TUI:
-  ./tools/loam tui [LOAM_DATA_DIR]
+  ./tools/loam
 
 Balance projections from explicit reconstruction evidence:
   ./tools/loam balances EVENT_MEMORY EVENT_CORRECTIONS ZERO_ORIGIN_COVERAGE [BALANCE_VIEW]
@@ -335,9 +282,9 @@ For lower-level commands:
 EOF
 }
 
-run_menu_action() {
-  "$@" || true
-}
+if [[ $# -eq 0 ]]; then
+  run_tui
+fi
 
 if [[ "${1:-}" == "tui" ]]; then
   shift
@@ -378,135 +325,6 @@ fi
 
 if [[ "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
   run_daily_quantity "$@" || exit $?
-  exit 0
-fi
-
-if [[ $# -eq 0 ]]; then
-  prepare_menu_binaries || exit 1
-
-  if [[ -n "${LOAM_DATA_DIR:-}" ]]; then
-    requested_data_dir="$LOAM_DATA_DIR"
-    data_label="$LOAM_DATA_DIR"
-  else
-    requested_data_dir="$root/../loam-data"
-    data_label="../loam-data"
-  fi
-
-  if ! mkdir -p "$requested_data_dir"; then
-    echo "loam: could not prepare data directory: $requested_data_dir" >&2
-    exit 2
-  fi
-  data_dir="$(cd "$requested_data_dir" && pwd)"
-
-  # A retired sidecar is not evidence of an empty household. Select the
-  # canonical generation for every supported Movement action, including writes.
-  # Directory presence (not CURRENT presence) ensures damaged authority refuses
-  # rather than silently reverting to sidecars.
-  if [[ ! ${LOAM_MOVEMENT_MANIFEST_ROOT+x} && -e "$data_dir/movement-authority" ]]; then
-    export LOAM_MOVEMENT_MANIFEST_ROOT="$data_dir/movement-authority"
-  fi
-
-  memory_file="$data_dir/memory.loam"
-  correction_file="$data_dir/corrections.loam"
-  zero_origin_coverage_file="$data_dir/zero-origin-coverage.loam"
-  balance_view_file="$data_dir/config/balance-view.tsv"
-  capacity_file="$data_dir/capacity.loam"
-  scheduled_file="$data_dir/scheduled.loam"
-
-  while true; do
-    printf 'LOAM\nData: %s\n\n' "$data_label"
-    cat <<'EOF'
-1. Record movement
-2. Review records
-3. Show balances
-m. More actions
-q. Quit
-EOF
-    printf '> '
-    if ! IFS= read -r choice; then
-      break
-    fi
-
-    if [[ "$choice" == "m" ]]; then
-      cat <<'EOF'
-capacity   Move spending capacity
-available  Show spending capacity
-scheduled  Show open scheduled movements
-raw        Show raw recorded quantities
-effective  Show effective quantities
-integrity  Review correction integrity
-b. Back
-EOF
-      printf '> '
-      if ! IFS= read -r choice; then
-        break
-      fi
-    fi
-
-    if [[ ${LOAM_MOVEMENT_MANIFEST_ROOT+x} ]]; then
-      case "$choice" in
-        raw|effective|integrity)
-          echo "loam: '$choice' is not yet supported with Movement manifest authority; no sidecar action was run." >&2
-          echo
-          continue
-          ;;
-      esac
-    fi
-
-    case "$choice" in
-      1)
-        run_menu_action "$root/tools/loam-movement" "$memory_file"
-        ;;
-      2)
-        if [[ ! ${LOAM_MOVEMENT_MANIFEST_ROOT+x} && ! -e "$memory_file" ]]; then
-          echo "Nothing recorded yet."
-        else
-          run_menu_action run_loam review "$memory_file" "$correction_file"
-        fi
-        ;;
-      raw)
-        if [[ ! -e "$memory_file" ]]; then
-          echo "Nothing recorded yet."
-        else
-          run_menu_action run_loam summary "$memory_file"
-        fi
-        ;;
-      effective)
-        run_menu_action run_loam effective "$memory_file" "$correction_file"
-        ;;
-      integrity)
-        run_menu_action run_loam correction-integrity "$memory_file" "$correction_file"
-        ;;
-      3)
-        run_menu_action run_daily_quantity balances "$memory_file" "$correction_file" "$zero_origin_coverage_file" "$balance_view_file"
-        ;;
-      capacity)
-        run_menu_action run_capacity "$capacity_file"
-        ;;
-      available)
-        run_menu_action run_capacity show "$capacity_file"
-        ;;
-      scheduled)
-        if [[ ${LOAM_MOVEMENT_MANIFEST_ROOT+x} ]]; then
-          run_menu_action run_open_scheduled "$scheduled_file" "$LOAM_MOVEMENT_MANIFEST_ROOT"
-        else
-          echo "loam: Scheduled read requires Movement manifest authority; no action was run." >&2
-        fi
-        ;;
-      b)
-        continue
-        ;;
-      q|Q)
-        break
-        ;;
-      *)
-        echo "loam: choice not understood" >&2
-        ;;
-    esac
-
-    echo
-  done
-
   exit 0
 fi
 

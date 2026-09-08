@@ -1,7 +1,6 @@
-"""Synthetic read-only review, terminal navigation, and writer composition checks."""
+"""Synthetic read-only review and terminal navigation checks."""
 import contextlib
 import datetime as dt
-import hashlib
 import os
 from pathlib import Path
 import pty
@@ -217,146 +216,12 @@ class ReviewTests(unittest.TestCase):
         self.write_events()
         self.assertEqual(self.snapshot(), before)
 
-    def test_menu_is_quiet_and_does_not_consume_next_action(self):
-        before = self.snapshot()
-        result = run(ROOT / "tools/loam", input="2\n3\nm\nb\nq\n",
-                     env={**ENV, "LOAM_DATA_DIR": str(self.root)})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        opening = result.stdout.split("> ", 1)[0]
-        self.assertIn("3. Show balances", opening)
-        self.assertNotIn("integrity", opening)
-        self.assertIn("No balances are selected", result.stdout)
-        self.assertIn("integrity  Review correction integrity", result.stdout)
-        self.assertNotIn("starting", result.stdout.lower())
-        self.assertNotIn("choice not understood", result.stderr)
-        self.assertEqual(self.snapshot(), before)
 
-
-class ManifestMenuTests(unittest.TestCase):
-    """Selected Movement authority stays readable while new writes obey explicit Locus policy."""
-
+class DirectQuantitySelectionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.authority = self.root / "movement-authority"
-        self.env = {**ENV, "LOAM_DATA_DIR": str(self.root)}
-        self.families = {
-            "Event": "LOAM-EVENT-MEMORY\t1\n"
-                     "EVENT\topening\nEFFECT\topening-source\topening-source\tjpy\t-1000\n"
-                     "EFFECT\topening-wallet\twallet\tjpy\t1000\n"
-                     "EVENT\told\nEFFECT\tfrom\twallet\tjpy\t-100\nEFFECT\tto\tfood\tjpy\t100\n"
-                     "EVENT\tfixed\nEFFECT\tfrom\twallet\tjpy\t-75\nEFFECT\tto\tfood\tjpy\t75\n",
-            "ActualValidity": f"LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\topening\t{TODAY}\nBASE\told\t{TODAY}\nBASE\tfixed\t{TODAY}\n",
-            "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tfixed\tmanifest receipt\n",
-            "RelationUnit": "LOAM-RELATION-UNIT-MEMORY\t1\n",
-            "RelationDischarge": "LOAM-RELATION-DISCHARGE-MEMORY\t1\n",
-            "LocusAdmission": "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n",
-        }
-        self.publish()
-        (self.root / "corrections.loam").write_text(
-            "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\told\tfixed\n")
-        (self.root / "zero-origin-coverage.loam").write_text(
-            "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\n")
-        (self.root / "config").mkdir()
-        (self.root / "config" / "balance-view.tsv").write_text("wallet\tjpy\n")
-
-    def publish(self, version=2):
-        families = self.families if version == 2 else {
-            key: value for key, value in self.families.items() if key != "LocusAdmission"
-        }
-        rows = [f"LOAM-MOVEMENT-MANIFEST\t{version}"]
-        for family, text in families.items():
-            digest = hashlib.sha256(text.encode()).hexdigest()
-            relative = f"objects/{family}/{digest}.loam"
-            target = self.authority / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text)
-            rows.append(f"{family}\t{relative}\t{digest}")
-        (self.authority / "CURRENT").write_text("\n".join(rows) + "\n")
-
-    def snapshot(self):
-        return {str(p.relative_to(self.root)): p.read_bytes()
-                for p in self.root.rglob("*")
-                if p.is_file() and not p.name.endswith(".loam-writer-lock")}
-
-    def menu(self, commands):
-        return run(ROOT / "tools/loam", input=commands, env=self.env)
-
-    def test_retired_sidecars_review_and_zero_origin_balances(self):
-        before = self.snapshot()
-        result = self.menu("2\n3\nq\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("manifest receipt", result.stdout)
-        self.assertIn("wallet: 925 jpy", result.stdout)
-        self.assertNotIn("Nothing recorded yet", result.stdout)
-        self.assertEqual(self.snapshot(), before)
-
-    def test_broken_selected_authority_never_falls_back(self):
-        (self.root / "memory.loam").write_text(self.families["Event"])
-        for path in (self.authority / "objects/RelationDischarge").iterdir():
-            path.write_text("corrupt\n")
-        before = self.snapshot()
-        result = self.menu("2\n3\nq\n")
-        self.assertIn("loam:", result.stderr)
-        self.assertNotIn("Balances (", result.stdout)
-        self.assertNotIn("manifest receipt", result.stdout)
-        self.assertNotIn("Nothing recorded yet", result.stdout)
-        self.assertEqual(self.snapshot(), before)
-        (self.authority / "CURRENT").unlink()
-        result = self.menu("2\n3\nq\n")
-        self.assertIn("CURRENT is missing", result.stderr)
-        self.assertNotIn("Balances (", result.stdout)
-
-    def test_unported_menu_actions_refuse_without_writes(self):
-        before = self.snapshot()
-        result = self.menu("raw\neffective\nintegrity\nq\n")
-        self.assertEqual(result.stderr.count("no sidecar action was run"), 3)
-        self.assertEqual(self.snapshot(), before)
-
-    def test_record_uses_manifest_and_next_views_see_it(self):
-        self.env.update(LOAM_OCCURRENCE_DATE=TODAY, LOAM_DESCRIPTION="new manifest purchase")
-        result = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Recorded movement: 25 jpy", result.stdout)
-        result = self.menu("2\n3\nq\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("new manifest purchase", result.stdout)
-        self.assertIn("wallet: 900 jpy", result.stdout)
-        self.assertFalse((self.root / "memory.loam").exists())
-        self.assertFalse((self.root / "memory.loam.actual-validity").exists())
-        self.assertFalse((self.root / "memory.loam.descriptions").exists())
-
-    def test_unapproved_locus_refuses_without_authority_change(self):
-        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
-        before = self.snapshot()
-        result = self.menu("1\nwallet\n25\n\ncafe\n25\n\n")
-        self.assertIn("not approved for new publication", result.stderr)
-        self.assertEqual(self.snapshot(), before)
-
-    def test_historical_locus_can_be_read_while_disallowed_for_new_write(self):
-        self.families["LocusAdmission"] = (
-            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\n")
-        self.publish()
-        read = self.menu("2\nq\n")
-        self.assertEqual(read.returncode, 0, read.stderr)
-        self.assertIn("manifest receipt", read.stdout)
-        before = self.snapshot()
-        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
-        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
-        self.assertIn("not approved for new publication", refused.stderr)
-        self.assertEqual(self.snapshot(), before)
-
-    def test_version1_manifest_remains_readable_but_closed_for_new_write(self):
-        self.publish(version=1)
-        read = self.menu("2\nq\n")
-        self.assertEqual(read.returncode, 0, read.stderr)
-        self.assertIn("manifest receipt", read.stdout)
-        before = self.snapshot()
-        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
-        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
-        self.assertIn("not approved for new publication", refused.stderr)
-        self.assertEqual(self.snapshot(), before)
 
     def test_direct_quantity_commands_refuse_invalid_selection(self):
         binary = ROOT / ".lake/build/bin/loamDailyQuantity"
