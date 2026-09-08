@@ -12,6 +12,7 @@ import Loam.Tui.Capacity
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.Reports
+import Loam.BoundaryPresetConfig
 import Loam.MovementPublisher
 import Loam.CompletionPrompt
 import Loam.ActualDate
@@ -705,7 +706,14 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'v' || key = .input 'V') then
-    let reports := Loam.Tui.Reports.initialForDate state.selectedDate
+    let reports ←
+      match ← Loam.BoundaryPresetConfig.load? (dataDir / "boundary-presets.tsv") with
+      | some presets =>
+          pure (Loam.Tui.Reports.initialForDateWithPresets state.selectedDate presets)
+      | none =>
+          let base := Loam.Tui.Reports.initialForDate state.selectedDate
+          pure { base with
+            notice := "Boundary preset config malformed; named presets unavailable." }
     let reportsFrame := compileWidget (Loam.Tui.Reports.view reports)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame reportsFrame
     if ← reportsLoop bounds dataDir root reports reportsFrame then

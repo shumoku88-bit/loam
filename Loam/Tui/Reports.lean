@@ -1,4 +1,5 @@
 import Loam.ActualDate
+import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
@@ -30,6 +31,13 @@ inductive Mode where
   | budgetWindow
   deriving Repr, DecidableEq
 
+/-- Presentation-only source for the explicit report coordinates. -/
+inductive WindowSource where
+  | calendarMonth
+  | preset (index : Nat)
+  | custom
+  deriving Repr, DecidableEq
+
 structure Form where
   start : String := ""
   endExclusive : String := ""
@@ -53,6 +61,8 @@ structure State where
   form : Form := {}
   liquidityForm : LiquidityForm := {}
   calendarAnchor : String := ""
+  windowPresets : List Loam.BoundaryPresetConfig.Preset := []
+  windowSource : WindowSource := .calendarMonth
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
@@ -75,11 +85,14 @@ private def liquidityFormForEndExclusive (endExclusive : String) : LiquidityForm
 
 /--
 Seed the shared explicit-window editor with the Gregorian month containing the
-Home selected day. This is presentation convenience only, not a household cycle.
-The conditional outlook gets the final day of that same month as an editable
-assumption-horizon prefill; it is not executed until the user explicitly runs it.
+Home selected day. Named presets remain replaceable presentation/query
+configuration; they are resolved to explicit coordinates before any report query
+is emitted. The conditional outlook keeps its independent editable assumption
+horizon and is not executed until the user explicitly runs it.
 -/
-def initialForDate (selectedDate : String) : State :=
+def initialForDateWithPresets
+    (selectedDate : String)
+    (presets : List Loam.BoundaryPresetConfig.Preset) : State :=
   match Loam.Tui.Calendar.calendarMonthWindowForDate? selectedDate with
   | some (start, endExclusive) =>
       {
@@ -87,13 +100,21 @@ def initialForDate (selectedDate : String) : State :=
         form := { start := start, endExclusive := endExclusive, focus := ⟨2, by decide⟩ }
         liquidityForm := liquidityFormForEndExclusive endExclusive
         calendarAnchor := selectedDate
+        windowPresets := presets
+        windowSource := .calendarMonth
       }
   | none =>
       {
         mode := .menu
         calendarAnchor := selectedDate
+        windowPresets := presets
+        windowSource := .calendarMonth
         notice := "Calendar-month prefill unavailable; enter explicit report coordinates."
       }
+
+/-- Compatibility initializer when no named presets were loaded. -/
+def initialForDate (selectedDate : String) : State :=
+  initialForDateWithPresets selectedDate []
 
 
 def withStockFlowSnapshot
@@ -166,6 +187,7 @@ private def setCalendarWindow
   clearResults {
     state with
       form := { state.form with start := start, endExclusive := endExclusive }
+      windowSource := .calendarMonth
       notice := ""
   }
 
@@ -181,6 +203,67 @@ def resetCalendarMonth (state : State) : State :=
   | none =>
       withError state "Calendar-month reset unavailable; enter an explicit window."
 
+/-- Human-readable label for presentation only; it never enters a report query. -/
+def windowSourceLabel (state : State) : String :=
+  match state.windowSource with
+  | .calendarMonth => "Calendar Month"
+  | .custom => "Custom"
+  | .preset index =>
+      match state.windowPresets.get? index with
+      | some preset => preset.name
+      | none => "Unavailable preset"
+
+private def selectPreset (state : State) (index : Nat) : State :=
+  match state.windowPresets.get? index with
+  | none =>
+      clearResults {
+        state with
+          form := { start := "", endExclusive := "", focus := ⟨0, by decide⟩ }
+          windowSource := .preset index
+          notice := "Selected report preset is unavailable."
+      }
+  | some preset =>
+      match Loam.BoundaryPresetConfig.windowForDate? preset state.calendarAnchor with
+      | some (start, endExclusive) =>
+          clearResults {
+            state with
+              form := { start := start, endExclusive := endExclusive, focus := ⟨2, by decide⟩ }
+              windowSource := .preset index
+              notice := ""
+          }
+      | none =>
+          clearResults {
+            state with
+              form := { start := "", endExclusive := "", focus := ⟨0, by decide⟩ }
+              windowSource := .preset index
+              notice :=
+                "Preset " ++ preset.name ++
+                " has no explicit adjacent boundary window for " ++ state.calendarAnchor ++ "."
+          }
+
+/-- Cycle only among Calendar Month and loaded named presets; Custom is reached by editing. -/
+def cycleWindowSource (state : State) (forward : Bool) : State :=
+  let count := state.windowPresets.length + 1
+  let current :=
+    match state.windowSource with
+    | .calendarMonth => 0
+    | .preset index => index + 1
+    | .custom => 0
+  let next :=
+    if forward then
+      (current + 1) % count
+    else
+      (current + count - 1) % count
+  if next = 0 then resetCalendarMonth state else selectPreset state (next - 1)
+
+private def editWindowState (state : State) (edit : String → String) : State :=
+  let next := clearResults {
+    state with
+      form := editActive state.form edit
+      notice := ""
+  }
+  if state.form.focus.val < 2 then { next with windowSource := .custom } else next
+
 private def resetLiquidityHorizon (state : State) : State :=
   match Loam.Tui.Calendar.calendarMonthWindowForDate? state.calendarAnchor with
   | some (_, endExclusive) =>
@@ -190,14 +273,19 @@ private def resetLiquidityHorizon (state : State) : State :=
   | none =>
       withError state "Conditional horizon reset unavailable; enter an explicit date."
 
-/-- Shift only when the currently visible coordinates are exactly one calendar month. -/
+/-- Shift only while Calendar Month is the selected presentation source. -/
 def shiftCalendarMonth (state : State) (forward : Bool) : State :=
-  match Loam.Tui.Calendar.shiftCalendarMonthWindow?
-      state.form.start state.form.endExclusive forward with
-  | some (start, endExclusive) => setCalendarWindow state start endExclusive
-  | none =>
+  match state.windowSource with
+  | .calendarMonth =>
+      match Loam.Tui.Calendar.shiftCalendarMonthWindow?
+          state.form.start state.form.endExclusive forward with
+      | some (start, endExclusive) => setCalendarWindow state start endExclusive
+      | none =>
+          { state with
+              notice := "Calendar-month coordinates are unavailable; press m to restore them." }
+  | _ =>
       { state with
-          notice := "Arrow keys shift calendar-month windows only; press m to restore one." }
+          notice := "Arrow keys shift Calendar Month only; press m or [ / ] to choose a source." }
 
 private def selectMenuMode (state : State) : State :=
   let mode :=
@@ -232,17 +320,15 @@ private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : S
       { state := { state with mode := .menu, notice := "" } }
   | .left => { state := shiftCalendarMonth state false }
   | .right => { state := shiftCalendarMonth state true }
+  | .input '[' => { state := cycleWindowSource state false }
+  | .input ']' => { state := cycleWindowSource state true }
   | .tab => { state := { state with form := moveFocus state.form false, notice := "" } }
   | .shiftTab => { state := { state with form := moveFocus state.form true, notice := "" } }
   | .backspace =>
-      { state := clearResults { state with
-          form := editActive state.form (fun text => String.ofList text.toList.dropLast)
-          notice := "" } }
+      { state := editWindowState state (fun text => String.ofList text.toList.dropLast) }
   | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
   | .input char =>
-      { state := clearResults { state with
-          form := editActive state.form (fun text => text.push char)
-          notice := "" } }
+      { state := editWindowState state (fun text => text.push char) }
   | .enter =>
       if state.form.focus.val < 2 then
         { state := { state with form := moveFocus state.form false, notice := "" } }
@@ -364,6 +450,8 @@ private def stockFlowView (state : State) : Widget :=
     [ line "Reports / Stock–Flow"
     , muted "Why did the tracked balance change between two boundaries?"
     , muted "Calendar month is only a coordinate convenience, not a household cycle."
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
     , blank
     , field state 0 "Start" state.form.start
     , field state 1 "End (exclusive)" state.form.endExclusive
@@ -372,7 +460,7 @@ private def stockFlowView (state : State) : Widget :=
     ] ++
     stockFlowResultLines state ++
     [ blank
-    , muted "← / → calendar month   m selected-day month"
+    , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
     , muted "b / Esc Reports menu   q quit"
     , line state.notice
@@ -483,6 +571,8 @@ private def budgetView (state : State) : Widget :=
   .column <|
     [ line "Reports / Budget Window"
     , muted "Calendar month is only a coordinate convenience, not a household cycle."
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
     , blank
     , field state 0 "Start" state.form.start
     , field state 1 "End (exclusive)" state.form.endExclusive
@@ -492,7 +582,7 @@ private def budgetView (state : State) : Widget :=
     ] ++
     budgetResultLines state ++
     [ blank
-    , muted "← / → calendar month   m selected-day month"
+    , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
     , muted "b / Esc Reports menu   q quit"
     , line state.notice
