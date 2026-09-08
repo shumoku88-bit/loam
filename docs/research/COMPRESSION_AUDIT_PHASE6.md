@@ -34,6 +34,40 @@ This document concludes the six-phase compression audit tracked by Issue #535 an
 
 All unreachable practical candidate modules have been completely eliminated from the repository.
 
+### Post-audit synchronization note
+
+The table above is the frozen **audit-closure snapshot** produced before later production work advanced `main`. Before merging the audit PR, the branch was synchronized through main `b85907cd7c17857afb77951d9d81efea54cf047d` (`#538`, Scheduled Capacity-pressure derivation). The exact synchronized PR merge-preview was then rerun through `Compression Audit` and reported:
+
+| Metric | Audit-closure snapshot | Synchronized pre-merge tree | Post-audit growth |
+| --- | ---: | ---: | ---: |
+| Candidate practical lines | 21,567 | 21,606 | +39 |
+| Candidate practical files | 137 | 137 | 0 |
+| Executable-reachable practical lines | 21,226 | 21,226 | 0 |
+| Executable-reachable practical files | 134 | 134 | 0 |
+| Practical-library-only lines | 341 | 380 | +39 |
+| Practical-library-only files | 3 | 3 | 0 |
+| Candidate but unreachable lines | 0 | 0 | 0 |
+| Candidate but unreachable files | 0 | 0 | 0 |
+
+The +39 practical lines are **post-audit production growth**, not an audit regression: `#538` extends the already-retained library-only `ScheduledCommitmentInspection` using existing AccountingRole and ScheduledRouting evidence. It does not restore any retired QuantityBasis/BasisCut/AccountingRole-persistence surface, and the unreachable practical candidate count remains exactly zero.
+
+The synchronized layer inventory is:
+
+```text
+Core                         3,649
+Application                  2,550
+Persistence                  1,981
+Writer/top-level candidate   2,004
+Other top-level Lean         2,429
+CLI                          4,240
+TUI                          4,753
+Practical subtotal          21,606
+```
+
+Tests also advanced after the closure snapshot (`6,182 -> 6,285` lines) as part of that separate production qualification. Historical Observation Lean remained 7,769 lines.
+
+This distinction is deliberate: the audit measures what **compression removed**, while subsequent production work is measured as new growth against the audit baseline rather than retroactively rewriting the completed audit result.
+
 ### 2. Breakdown of practical source by layer
 
 | Layer | Baseline lines (files) | Post-audit lines (files) | Reduction | Rationale |
@@ -63,7 +97,7 @@ Across the entire audit (Phases 4 & 5):
 
 The audit confirmed the primary hypothesis:
 
-> LOAM retains a compact semantic information basis (18 fact/policy families across ~9 physical authorities), while the practical implementation surface (21,567 lines) reflects the explicit representation, validation, fail-closed codecs, and TUI/CLI interactions needed for real household operations.
+> LOAM retains a compact semantic information basis (18 fact/policy families across ~9 physical authorities), while the practical implementation surface (21,567 lines at audit closure) reflects the explicit representation, validation, fail-closed codecs, and TUI/CLI interactions needed for real household operations.
 
 Crucially, Phase 3 proved that compressing this implementation surface into fewer "grand abstractions" would be counter-productive:
 
