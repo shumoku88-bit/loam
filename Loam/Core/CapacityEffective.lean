@@ -1,5 +1,5 @@
 import Loam.Core.Capacity
-import Init.Data.List.Perm
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -45,52 +45,12 @@ def ofEntries?
   else
     none
 
-private def findEntryByMovementId? :
-    List (CapacityEffective Time) → CapacityMovementId → Option Time
-  | [], _ => none
-  | entry :: rest, id =>
-      if entry.movement = id then
-        some entry.effectiveOn
-      else
-        findEntryByMovementId? rest id
-
 /-- Find the retained effective coordinate for one Capacity movement identity. -/
 def findByMovementId?
     (memory : CapacityEffectiveMemory Time)
     (id : CapacityMovementId) : Option Time :=
-  findEntryByMovementId? memory.entries id
-
-private theorem findEntryByMovementId?_perm
-    {left right : List (CapacityEffective Time)}
-    (hPerm : left.Perm right)
-    (hNodup : (left.map CapacityEffective.movement).Nodup)
-    (id : CapacityMovementId) :
-    findEntryByMovementId? left id = findEntryByMovementId? right id := by
-  induction hPerm with
-  | nil => rfl
-  | cons entry hPerm ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases h : entry.movement = id
-      · simp [findEntryByMovementId?, h]
-      · simp [findEntryByMovementId?, h, ih hNodup.2]
-  | swap x y rest =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      have hyx : y.movement ≠ x.movement := by
-        intro hEqual
-        apply hNodup.1
-        simp [hEqual]
-      by_cases hy : y.movement = id
-      · have hx : x.movement ≠ id := by
-          intro hx
-          exact hyx (hy.trans hx.symm)
-        simp [findEntryByMovementId?, hy, hx]
-      · by_cases hx : x.movement = id
-        · simp [findEntryByMovementId?, hy, hx]
-        · simp [findEntryByMovementId?, hy, hx]
-  | trans hLeft hRight ihLeft ihRight =>
-      have hMiddleNodup :=
-        (hLeft.map CapacityEffective.movement).nodup hNodup
-      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
+  (FiniteKeyed.findBy? CapacityEffective.movement memory.entries id).map
+    CapacityEffective.effectiveOn
 
 /-- Effective-coordinate lookup is invariant under representation permutation. -/
 theorem findByMovementId?_perm
@@ -99,7 +59,8 @@ theorem findByMovementId?_perm
     (id : CapacityMovementId) :
     findByMovementId? left id = findByMovementId? right id := by
   simpa [findByMovementId?] using
-    findEntryByMovementId?_perm hPerm left.movementNodup id
+    congrArg (fun result => result.map CapacityEffective.effectiveOn)
+      (FiniteKeyed.findBy?_perm CapacityEffective.movement hPerm left.movementNodup id)
 
 @[simp] theorem ofEntries?_nil :
     ofEntries? ([] : List (CapacityEffective Time)) =
