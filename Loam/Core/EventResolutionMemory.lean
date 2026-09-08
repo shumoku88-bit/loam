@@ -1,5 +1,5 @@
-import Init.Data.List.Perm
 import Loam.Core.EventResolution
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -44,47 +44,6 @@ def ofResolutions? (resolutions : List EventResolution) : Option EventResolution
     ofResolutions? [resolution, resolution] = none := by
   simp [ofResolutions?]
 
-private def findResolutionById? :
-    List EventResolution → EventResolutionId → Option EventResolution
-  | [], _ => none
-  | resolution :: rest, id =>
-      if resolution.id = id then
-        some resolution
-      else
-        findResolutionById? rest id
-
-private theorem findResolutionById?_perm
-    {left right : List EventResolution}
-    (hPerm : left.Perm right)
-    (hNodup : (left.map EventResolution.id).Nodup)
-    (id : EventResolutionId) :
-    findResolutionById? left id = findResolutionById? right id := by
-  induction hPerm with
-  | nil =>
-      rfl
-  | cons resolution hPerm ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases h : resolution.id = id
-      · simp [findResolutionById?, h]
-      · simp [findResolutionById?, h, ih hNodup.2]
-  | swap x y rest =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      have hyx : y.id ≠ x.id := by
-        intro hEqual
-        apply hNodup.1
-        simp [hEqual]
-      by_cases hy : y.id = id
-      · have hx : x.id ≠ id := by
-          intro hx
-          exact hyx (hy.trans hx.symm)
-        simp [findResolutionById?, hy, hx]
-      · by_cases hx : x.id = id
-        · simp [findResolutionById?, hy, hx]
-        · simp [findResolutionById?, hy, hx]
-  | trans hLeft hRight ihLeft ihRight =>
-      have hMiddleNodup := (hLeft.map EventResolution.id).nodup hNodup
-      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
-
 /--
 Find one remembered resolution by stable relation identity.
 
@@ -94,7 +53,7 @@ winner among relations because repeated identity is rejected at admission.
 def findById?
     (memory : EventResolutionMemory)
     (id : EventResolutionId) : Option EventResolution :=
-  findResolutionById? memory.resolutions id
+  FiniteKeyed.findBy? EventResolution.id memory.resolutions id
 
 /-- Resolution identity lookup is invariant under representation permutation. -/
 theorem findById?_perm
@@ -102,17 +61,16 @@ theorem findById?_perm
     (hPerm : left.resolutions.Perm right.resolutions)
     (id : EventResolutionId) :
     findById? left id = findById? right id := by
-  simpa [findById?] using
-    findResolutionById?_perm hPerm left.idNodup id
+  exact FiniteKeyed.findBy?_perm EventResolution.id hPerm left.idNodup id
 
 @[simp] theorem findById?_empty (id : EventResolutionId) :
     findById? { resolutions := [], idNodup := by simp } id = none := by
-  simp [findById?, findResolutionById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 @[simp] theorem findById?_singleton_self (resolution : EventResolution) :
     findById? { resolutions := [resolution], idNodup := by simp } resolution.id =
       some resolution := by
-  simp [findById?, findResolutionById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 /--
 Add one complete raw resolution relation, rejecting repeated resolution identity.
