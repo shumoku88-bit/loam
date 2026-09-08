@@ -1,6 +1,6 @@
 # Compression audit Phase 3 — mechanics multiplication
 
-Status: **IN PROGRESS — M1/M2 DECIDED**
+Status: **IN PROGRESS — M1–M4 DECIDED**
 
 Phase 2 closed with this current audit basis:
 
@@ -237,6 +237,82 @@ In particular, EventDescription decoding has an independent escaping contract, w
 - do not create a serializer typeclass, persistence registry, schema DSL, or generic migration framework.
 
 The intended subtraction is repeated framing syntax, not semantic wire-format ownership.
+
+## M3 decision — `SHARE` the sibling replacement primitive, preserve stronger protocols
+
+The smoke scan found `.loam-stage` in 15 executable-reachable files and filesystem rename in the same broad persistence surface. Detailed inspection confirms a large identical core:
+
+```text
+stage := sibling(target, ".loam-stage")
+write complete candidate text to stage
+rename stage -> target
+```
+
+For ordinary single-image persistence streams this operation has the same obligation regardless of the fact family: never expose a target that was truncated while the new image was still being written.
+
+### What can be shared
+
+A small IO helper can own only the common physical primitive:
+
+```text
+replaceTextViaSiblingStage(target, text)
+```
+
+or equivalent. It may construct the reserved sibling path, write the complete text, and rename it over the target.
+
+The helper must make no claim about cross-stream transactions, concurrent writers, fsync/power-loss durability, semantic admission, or authority selection. Those remain caller responsibilities exactly as current persistence comments already state.
+
+### What must remain local
+
+Not every stage operation has the same protocol strength.
+
+- Scheduled lifecycle publication reads the staged complete image back before rename and checks byte equality.
+- Movement manifest `CURRENT` publication decodes the staged manifest and compares typed references before the authority switch.
+- content-addressed Movement object preparation verifies existing or staged object bytes and digest identity.
+- ActualValidity additionally refuses to overwrite existing storage that does not decode under the current canonical format.
+
+Those checks are not accidental variants of `write + rename`; they protect different authority and migration laws. A shared primitive must sit below them, not replace them.
+
+The audit therefore rejects callback-heavy transaction frameworks merely to force every stronger publication path through one function.
+
+### M3 result
+
+**`SHARE`**, at the physical sibling-replacement primitive only:
+
+- factor the repeated stage-path/write/rename operation used by ordinary complete-image streams;
+- keep staged verification, digest checks, migration refusal, and manifest authority switching explicit in their stronger callers;
+- do not claim the helper is a transaction, lock, recovery log, or durability abstraction.
+
+This is a high-confidence subtraction candidate because the shared behavior is physical IO, not household semantics.
+
+## M4 decision — `SEPARATE`: missing storage has domain meaning
+
+The `pathExists` / `OrEmpty?` scan initially looks like ordinary repetition, but detailed examples show materially different contracts.
+
+Current production has at least these meanings:
+
+```text
+missing -> explicit empty evidence
+missing -> evidence source unavailable
+missing -> malformed/missing authority and refuse
+```
+
+Examples:
+
+- Actual-validity history and Capacity-effective evidence have explicit `OrEmpty?` entrances where absence means no retained evidence yet.
+- Attention review distinguishes an absent configured file as `unavailable`, not an empty Attention stream.
+- Movement manifest authority treats missing `CURRENT` as an authority error and fails closed.
+- Scheduled lifecycle documentation requires configured authority to exist; absence is not a synthetic empty lifecycle.
+
+These distinctions affect household answers and writer safety. They cannot be normalized to one default without changing semantics.
+
+### M4 result
+
+**`SEPARATE`**.
+
+Do not introduce a generic `loadOrEmpty`, `loadOptional`, or `MissingPolicy` abstraction solely to shrink `pathExists` branches. Each authority/review boundary should keep a named entrance whose return type and error behavior state what absence means there.
+
+Very small filesystem helpers remain mechanically possible, but they would not remove the important branch and therefore are not a meaningful Phase 3 compression target.
 
 No production refactor is performed yet. Phase 3 first classifies M1–M9 so proposed abstractions can be compared against the whole mechanics landscape before code is changed.
 
