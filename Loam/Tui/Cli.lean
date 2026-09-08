@@ -1,6 +1,8 @@
 import Loam.Tui.Record
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
+import Loam.Tui.ActualReversal
+import Loam.Tui.ActualReversalSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledReplacement
@@ -150,6 +152,10 @@ def selectedDayEventOfKey
       match pane with
       | .actual => .other
       | .scheduled => .completeScheduled
+  | .input 'r' | .input 'R' =>
+      match pane with
+      | .actual => .reverseActual
+      | .scheduled => .other
   | .input 's' | .input 'S' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
@@ -527,6 +533,37 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← correctionLoop bounds root (dataDir / "corrections.loam")
                 world known editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
+  | .reverseActual =>
+      match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current Actual is selected for reversal." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ActualReversal.initial? record snapshot.actual.today with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let editorFrame := compileWidget (Loam.Tui.ActualReversal.view editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← Loam.Tui.ActualReversalSession.run
+                bounds (dataDir / "scheduled.loam") root
+                  (dataDir / "corrections.loam") (dataDir / "actual-reversals.loam")
+                  editor editorFrame
               let fresh ←
                 match ← loadSnapshot dataDir with
                 | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))

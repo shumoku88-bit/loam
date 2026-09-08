@@ -85,6 +85,9 @@ def main : IO Unit := do
   let correctionStep := Loam.Tui.SelectedDay.update snapshot state .correctActual
   expect (correctionStep.command == .correctActual)
     "Selected-day Actual selection stopped delegating Correction intent"
+  let reversalStep := Loam.Tui.SelectedDay.update snapshot state .reverseActual
+  expect (reversalStep.command == .reverseActual)
+    "Selected-day Actual selection stopped delegating Reversal intent"
   let dateStep := Loam.Tui.SelectedDay.update snapshot state .correctDate
   expect (dateStep.command == .correctDate)
     "Selected-day Actual selection stopped delegating date-correction intent"
@@ -96,6 +99,9 @@ def main : IO Unit := do
   let refusedCorrection := Loam.Tui.SelectedDay.update snapshot scheduledState .correctActual
   expect (refusedCorrection.command == .stay)
     "Scheduled pane emitted an Actual Correction intent"
+  let refusedReversal := Loam.Tui.SelectedDay.update snapshot scheduledState .reverseActual
+  expect (refusedReversal.command == .stay)
+    "Scheduled pane emitted an Actual Reversal intent"
   let refusedDate := Loam.Tui.SelectedDay.update snapshot scheduledState .correctDate
   expect (refusedDate.command == .stay)
     "Scheduled pane emitted an Actual date-correction intent"
@@ -119,4 +125,4 @@ def main : IO Unit := do
   expect (contains "Unknown: absence of an explicit due occurrence is not NotDue." unknownText)
     "Selected-day workspace collapsed Scheduled Unknown into NotDue"
 
-  IO.println "TUI selected day: shared composition, Record/Correction/date delegation, refresh and Unknown passed."
+  IO.println "TUI selected day: shared composition, Record/Correction/Reversal/date delegation, refresh and Unknown passed."
