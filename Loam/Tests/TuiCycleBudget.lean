@@ -61,8 +61,29 @@ def main : IO Unit := do
   expect (!(Loam.Tui.CycleBudget.isHomeEntrance (.input 'e'))) "raw Capacity alias stolen"
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'b')).2 == .home) "back is not Home"
   expect ((Loam.Tui.CycleBudget.update bounds state .escape).2 == .home) "Esc is not Home"
-  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'e')).2 == .capacity) "raw actions lost"
-  for key in ['g', 'u', 'r'] do
+  expect (contains "u route" rendered) "footer missing u route"
+  let (stayEmpty, intentEmpty) := Loam.Tui.CycleBudget.update bounds state (.input 'u')
+  expect (intentEmpty == .stay) "empty unresolved does not stay"
+  expect (stayEmpty.notice == "No unresolved Scheduled routing subjects.") "empty notice wrong"
+
+  let withUnresolved : Loam.Tui.CycleBudget.State :=
+    match fixture.coverage with
+    | .error _ => state
+    | .ok cov =>
+        let cov' := { cov with
+          unresolvedScheduled := [
+            { subject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"wifi"⟩ }
+              scheduledOn := "2026-10-08"
+              measure := ⟨"jpy"⟩
+              quantity := q 4810 } ] }
+        { snapshot := { fixture with coverage := .ok cov' } }
+  let (nextUnresolved, intentUnresolved) := Loam.Tui.CycleBudget.update bounds withUnresolved (.input 'u')
+  expect (intentUnresolved == .unresolved) "u key failed to enter unresolved"
+  expect (nextUnresolved.notice.isEmpty) "notice not cleared on enter"
+  let (_, intentUnresolvedCap) := Loam.Tui.CycleBudget.update bounds withUnresolved (.input 'U')
+  expect (intentUnresolvedCap == .unresolved) "U key failed to enter unresolved"
+
+  for key in ['g', 'r'] do
     expect ((Loam.Tui.CycleBudget.update bounds state (.input key)).2 == .stay) "C1 emitted write action"
   let small : Bounds := { width := 80, height := 12 }
   let down := (Loam.Tui.CycleBudget.update small state .down).1

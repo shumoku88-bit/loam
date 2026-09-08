@@ -57,6 +57,7 @@ structure Snapshot where
   endExclusive : String
   rows : List Row
   scheduledFrontier : Option ScheduledFrontier
+  unresolvedScheduled : List (UnresolvedScheduledPressureRow String) := []
   deriving Repr, DecidableEq
 
 private structure ProjectedRow where
@@ -207,6 +208,13 @@ def loadSnapshotAt
     | some roleMap => pure roleMap
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
+  let unresolvedScheduled ←
+    match currentUnresolvedScheduledPressureWithReplacement?
+        scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
+        movement.events roles scheduledRouting ⟨"jpy"⟩ observedAt endExclusive with
+    | some rows => pure rows
+    | none => return .error "loam: canonical evidence does not justify unresolved Scheduled pressure"
+
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?
       capacity effective movement.events corrections validities actualRouting
@@ -222,6 +230,7 @@ def loadSnapshotAt
         endExclusive := endExclusive
         rows := projected.map (fun projectedRow => projectedRow.row)
         scheduledFrontier := projected.head?.map (fun projectedRow => projectedRow.frontier)
+        unresolvedScheduled := unresolvedScheduled
       }
 
 /-- Production wrapper resolving only the current local observation date. -/
