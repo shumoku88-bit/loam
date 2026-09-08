@@ -6,7 +6,6 @@ import Loam.Cli.ActualValidityCorrectionCli
 import Loam.Cli.EffectiveCli
 import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
-import Loam.Cli.ScheduledLifecycleCli
 import Std
 
 namespace Loam.Cli
@@ -21,11 +20,8 @@ private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
   "Daily recording uses the movement entrance:\n" ++
   "  ./tools/loam movement MEMORY_FILE\n\n" ++
-  "Scheduled movements:\n" ++
-  "  ./tools/loam scheduled SCHEDULED_FILE\n" ++
-  "  ./tools/loam scheduled show SCHEDULED_FILE\n" ++
-  "  ./tools/loam scheduled complete SCHEDULED_FILE MEMORY_FILE SCHEDULED_ID\n" ++
-  "  ./tools/loam scheduled cancel SCHEDULED_FILE SCHEDULED_ID\n\n" ++
+  "Scheduled persistence is read-only here; production Scheduled mutation uses loamTui/shared publishers:\n" ++
+  "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
   "  ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]\n\n" ++
   "Show recorded quantities:\n" ++
@@ -242,7 +238,7 @@ private def withMemoryOwnership
   Loam.WriterOwnership.withOwnership (System.FilePath.mk memoryPath) action
 
 /-- Command dispatcher below the separate movement recording entrance. -/
-def run (args : List String) : IO UInt32 :=
+def run (args : List String) : IO UInt32 := do
   match args with
   | [] => do
       IO.println practicalUsage
@@ -253,14 +249,8 @@ def run (args : List String) : IO UInt32 :=
   | ["help", "low-level"] => do
       IO.println lowLevelUsage
       return 0
-  | ["scheduled", scheduledPath] =>
-      Loam.ScheduledCli.recordScheduled scheduledPath
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
-  | ["scheduled", "complete", scheduledPath, memoryPath, scheduledToken] =>
-      Loam.ScheduledLifecycleCli.completeScheduled scheduledPath memoryPath scheduledToken
-  | ["scheduled", "cancel", scheduledPath, scheduledToken] =>
-      Loam.ScheduledLifecycleCli.cancelScheduled scheduledPath scheduledToken
   | ["review", memoryPath, correctionPath] => Loam.ReviewCli.review memoryPath correctionPath
   | ["review", memoryPath, correctionPath, query] =>
       Loam.ReviewCli.review memoryPath correctionPath (some query)

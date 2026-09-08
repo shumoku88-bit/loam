@@ -3,10 +3,7 @@ import Loam.Application.ScheduledInspection
 import Loam.MovementAdmission
 import Loam.MovementManifestAuthority
 import Loam.Persistence
-import Loam.Persistence.ScheduledCompletionPersistence
-import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
 
 namespace Loam.ScheduledTerminalPublisher
@@ -18,22 +15,23 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled terminal publication
 
-Scheduled lifecycle evidence remains in the Scheduled authority family while
+Scheduled lifecycle evidence remains one complete Scheduled authority image while
 Actual Events remain in selected Movement manifest authority. This publisher
 coordinates those existing authorities without creating a combined repository.
 
 The lock order is deliberately fixed:
 
 ```text
-Scheduled authority -> Movement CURRENT
+Scheduled lifecycle authority -> Movement CURRENT
 ```
 
 Human input must already be collected before this boundary is entered.
-Completion publishes the ScheduledCompletion relation first and the complete
-Movement manifest generation second. A retained relation whose Actual endpoint
-is still absent is inert to existing Scheduled readers, so interruption remains
-fail-closed and a later retry can finish the same endpoint. Cancellation refuses
-such an interrupted completion instead of competing with it.
+Completion publishes the lifecycle image containing the ScheduledCompletion
+relation first and the complete Movement manifest generation second. A retained
+relation whose Actual endpoint is still absent is inert to existing Scheduled
+readers, so interruption remains fail-closed and a later retry can finish the
+same endpoint. Cancellation refuses such an interrupted completion instead of
+competing with it.
 -/
 
 structure CompletionDraft where
@@ -55,12 +53,6 @@ structure CancellationReceipt where
   scheduled : ScheduledId
   deriving Repr
 
-private structure LifecycleState where
-  scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
-
 private def completionEventId (scheduled : ScheduledId) : EventId :=
   ⟨"scheduled-completion:" ++ scheduled.token⟩
 
@@ -68,48 +60,32 @@ private def completionValidityFactId (scheduled : ScheduledId) : ActualValidityF
   ⟨"scheduled-completion-validity:" ++ scheduled.token⟩
 
 private def loadLifecycle?
-    (scheduledFile : System.FilePath) : IO (Except String LifecycleState) := do
-  if !(← scheduledFile.pathExists) then
-    return .error "loam: scheduled authority is unavailable"
-  let some scheduled ← Loam.Persistence.loadScheduledMemory? scheduledFile
-    | return .error "loam: malformed or unsupported scheduled file"
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
-  let replacementFile :=
-    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
-  let some completions ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | return .error "loam: malformed or unsupported scheduled-completion file"
-  let some retirements ←
-      Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile
-    | return .error "loam: malformed or unsupported scheduled-retirement file"
-  let some replacements ←
-      Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile
-    | return .error "loam: malformed or unsupported scheduled-replacement file"
-  return .ok { scheduled, completions, retirements, replacements }
+    (scheduledFile : System.FilePath) :
+    IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
+  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  return .ok lifecycle
 
 private def currentOpen?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String (List (ScheduledOccurrence String)) :=
   match Loam.Application.currentOpenScheduledWithReplacement
       lifecycle.scheduled lifecycle.completions lifecycle.retirements
       lifecycle.replacements events with
   | .unknownCompletionScheduled =>
-      .error "loam: scheduled-completion file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
-      .error "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled retirement refers to an unknown Scheduled identity"
   | .unknownReplacementScheduled =>
-      .error "loam: scheduled-replacement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled replacement refers to an unknown Scheduled identity"
   | .invalidReplacementGraph =>
-      .error "loam: scheduled-replacement graph is cyclic or otherwise invalid"
+      .error "loam: Scheduled replacement graph is cyclic or otherwise invalid"
   | .conflictingTerminalEvidence =>
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open occurrences => .ok occurrences
 
 private def findOpen?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory)
     (target : ScheduledId) : Except String (ScheduledOccurrence String) := do
   let occurrences ← currentOpen? lifecycle events
@@ -192,7 +168,7 @@ private def appendCompletionActual?
   }
 
 private def completionClosesTarget?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory)
     (target : ScheduledId) : Except String Unit := do
   let occurrences ← currentOpen? lifecycle events
@@ -248,12 +224,10 @@ private def publishCompletionUnderOwnership
   match completionClosesTarget? updatedLifecycle updatedWorld.events draft.scheduled with
   | .error message => return .error message
   | .ok () => pure ()
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
   match existing with
   | none =>
-      if !(← Loam.Persistence.saveScheduledCompletionMemory? completionFile updatedCompletions) then
-        return .error "loam: Scheduled completion relation could not be published"
+      if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
+        return .error "loam: Scheduled completion lifecycle could not be published"
   | some _ => pure ()
   match ← Loam.MovementManifestAuthority.publishWorld? root updatedWorld with
   | .error message =>
@@ -301,10 +275,8 @@ private def publishCancellationUnderOwnership
   | .ok occurrences =>
       if occurrences.any fun occurrence => decide (occurrence.id = draft.scheduled) then
         return .error "loam: proposed cancellation did not close the selected Scheduled identity"
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
-  if !(← Loam.Persistence.saveScheduledRetirementMemory? retirementFile updatedRetirements) then
-    return .error "loam: Scheduled retirement evidence could not be published"
+  if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
+    return .error "loam: Scheduled retirement lifecycle could not be published"
   return .ok { scheduled := draft.scheduled }
 
 private def withTerminalOwnership {α : Type}
@@ -319,7 +291,8 @@ Publish one Scheduled realization as a manifest-backed Actual Event.
 The Scheduled identity is re-read as current-open while both authority locks are
 held. Expected values are not authority here: the supplied Actual Movement draft
 is independently validated against current Movement/Locus policy. Publication is
-relation-first so an interruption never makes an unlinked Actual Event appear.
+relation-first across the two authority families so an interruption never makes
+an unlinked Actual Event appear.
 -/
 def publishManifestCompletion
     (scheduledPath rootPath : String)

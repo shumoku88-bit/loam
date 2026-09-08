@@ -8,22 +8,22 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Scheduled completion persistence
+# Scheduled completion codec
 
-Completion remains a separate relation between expected Scheduled identity and
-Actual Event identity. The raw stream deliberately permits an Actual endpoint
-whose Event has not been published yet so relation-first publication can fail
-closed and resume after interruption.
+Completion remains a distinct relation between expected Scheduled identity and
+Actual Event identity. Observation 226 retired an independently published
+completion sidecar: this module now supplies only the typed inner codec embedded
+in the complete Scheduled lifecycle authority image.
+
+The codec still permits an Actual endpoint whose Event has not been published
+yet. Completion publication crosses into Movement authority, so the lifecycle
+image may retain the relation first and remain inert until that Actual endpoint
+appears.
 -/
 
 /-- Version marker for the first raw Scheduled-completion relation format. -/
 def scheduledCompletionMemoryHeader : String :=
   "LOAM-SCHEDULED-COMPLETION-MEMORY\t1"
-
-/-- Keep completion evidence adjacent to the Scheduled stream. -/
-def scheduledCompletionPathForScheduledMemory
-    (scheduledPath : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (scheduledPath.toString ++ ".completions")
 
 private def encodeCompletionRow? (completion : ScheduledCompletion) : Option String :=
   if validToken completion.scheduled.token && validToken completion.actual.token then
@@ -32,7 +32,7 @@ private def encodeCompletionRow? (completion : ScheduledCompletion) : Option Str
   else
     none
 
-/-- Encode one-to-one raw completion relations without assigning row-order meaning. -/
+/-- Encode one-to-one completion relations without assigning row-order meaning. -/
 def encodeScheduledCompletionMemory?
     (memory : ScheduledCompletionMemory) : Option String := do
   let rows ← memory.completions.mapM encodeCompletionRow?
@@ -48,7 +48,7 @@ private def decodeCompletionRow? (row : String) : Option ScheduledCompletion :=
         none
   | _ => none
 
-/-- Decode raw completion relations and recheck one-to-one endpoint uniqueness. -/
+/-- Decode completion relations and recheck one-to-one endpoint uniqueness. -/
 def decodeScheduledCompletionMemory?
     (input : String) : Option ScheduledCompletionMemory :=
   match input.splitOn "\n" with
@@ -62,34 +62,5 @@ def decodeScheduledCompletionMemory?
       else
         none
   | _ => none
-
-private def scheduledCompletionStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
-/-- Publish one completion-relation stream through sibling staging plus rename. -/
-def saveScheduledCompletionMemory?
-    (path : System.FilePath)
-    (memory : ScheduledCompletionMemory) : IO Bool := do
-  match encodeScheduledCompletionMemory? memory with
-  | none => return false
-  | some text =>
-      let stagePath := scheduledCompletionStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
-      return true
-
-/-- Read and fail-closed decode one Scheduled-completion stream. -/
-def loadScheduledCompletionMemory?
-    (path : System.FilePath) : IO (Option ScheduledCompletionMemory) := do
-  let input ← IO.FS.readFile path
-  return decodeScheduledCompletionMemory? input
-
-/-- Missing completion storage means no retained completion relations yet. -/
-def loadScheduledCompletionMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option ScheduledCompletionMemory) := do
-  if ← path.pathExists then
-    loadScheduledCompletionMemory? path
-  else
-    return ScheduledCompletionMemory.ofCompletions? []
 
 end Loam.Persistence
