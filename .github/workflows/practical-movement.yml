@@ -231,27 +231,6 @@ jobs:
           test ! -e "$memory"
           test ! -e "$memory.actual-validity"
 
-      - name: Avoid repeated cached primary builds
-        shell: bash
-        run: |
-          tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
-
-          rm -f .lake/build/.loam-wrapper-build-stamp
-          ./tools/loam summary "$memory" >/tmp/loam-summary-initial.out 2>/tmp/loam-summary-initial.err
-          grep -Fq 'Building LOAM...' /tmp/loam-summary-initial.err
-
-          touch Loam/Cli/MovementCli.lean
-          ./tools/loam summary "$memory" >/tmp/loam-summary-refresh.out 2>/tmp/loam-summary-refresh.err
-          grep -Fq 'Building LOAM...' /tmp/loam-summary-refresh.err
-
-          ./tools/loam summary "$memory" >/tmp/loam-summary-repeat.out 2>/tmp/loam-summary-repeat.err
-          if grep -Fq 'Building LOAM...' /tmp/loam-summary-repeat.err; then
-            echo 'expected successful cached build to refresh wrapper stamp' >&2
-            exit 1
-          fi
-
       - name: Qualify focused record review and nearby writer recovery
         run: |
           lake build loam loamMovement loamCapacity loamDailyQuantity loamOpenScheduled

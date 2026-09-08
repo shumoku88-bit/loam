@@ -4,242 +4,19 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-binary=".lake/build/bin/loam"
-binary_stamp=".lake/build/.loam-wrapper-build-stamp"
-capacity_binary=".lake/build/bin/loamCapacity"
-capacity_stamp=".lake/build/.loam-capacity-wrapper-build-stamp"
-daily_quantity_binary=".lake/build/bin/loamDailyQuantity"
-daily_quantity_stamp=".lake/build/.loam-daily-quantity-wrapper-build-stamp"
-open_scheduled_binary=".lake/build/bin/loamOpenScheduled"
-open_scheduled_stamp=".lake/build/.loam-open-scheduled-wrapper-build-stamp"
-shadow_binary=".lake/build/bin/loamShadowAudit"
-shadow_stamp=".lake/build/.loam-shadow-audit-wrapper-build-stamp"
-shadow_quantity_binary=".lake/build/bin/loamShadowQuantity"
-shadow_quantity_stamp=".lake/build/.loam-shadow-quantity-wrapper-build-stamp"
+run_target() {
+  local target="$1"
+  shift
 
-binary_is_current() {
-  [[ -x "$binary" && -e "$binary_stamp" ]] || return 1
-
-  if find Loam -type f -name '*.lean' -newer "$binary_stamp" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$binary_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-capacity_binary_is_current() {
-  [[ -x "$capacity_binary" && -e "$capacity_stamp" ]] || return 1
-
-  for input in \
-    Loam/Cli/CapacityCli.lean \
-    Loam/Persistence/CapacityPersistence.lean \
-    Loam/Application/CapacityInspection.lean \
-    Loam/Core/BalancedMovement.lean \
-    Loam/Core/Capacity.lean \
-    Loam/Core/CapacityMemory.lean \
-    Loam/Core/Purpose.lean \
-    Loam/Persistence.lean \
-    Loam/WriterOwnership.lean \
-    lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$capacity_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-daily_quantity_binary_is_current() {
-  [[ -x "$daily_quantity_binary" && -e "$daily_quantity_stamp" ]] || return 1
-
-  if find Loam -type f -name '*.lean' -newer "$daily_quantity_stamp" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$daily_quantity_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-open_scheduled_binary_is_current() {
-  [[ -x "$open_scheduled_binary" && -e "$open_scheduled_stamp" ]] || return 1
-
-  if find Loam -type f -name '*.lean' -newer "$open_scheduled_stamp" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$open_scheduled_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-shadow_binary_is_current() {
-  [[ -x "$shadow_binary" && -e "$shadow_stamp" ]] || return 1
-
-  for input in Loam/Cli/ShadowAuditCli.lean lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$shadow_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-shadow_quantity_binary_is_current() {
-  [[ -x "$shadow_quantity_binary" && -e "$shadow_quantity_stamp" ]] || return 1
-
-  if [[ Loam/Cli/ShadowQuantityCli.lean -nt "$shadow_quantity_stamp" ]]; then
-    return 1
-  fi
-
-  if find Loam/Core -type f -name '*.lean' -newer "$shadow_quantity_stamp" -print -quit | grep -q .; then
-    return 1
-  fi
-
-  for input in lakefile.lean lake-manifest.json lean-toolchain; do
-    if [[ -e "$input" && "$input" -nt "$shadow_quantity_stamp" ]]; then
-      return 1
-    fi
-  done
-
-  return 0
-}
-
-run_loam() {
-  if binary_is_current; then
-    "$binary" "$@"
-    return $?
-  fi
-
-  echo "Building LOAM..." >&2
   local build_log
   build_log="$(mktemp -t loam-build.XXXXXX)"
-  if lake build loam >"$build_log" 2>&1; then
-    touch "$binary_stamp"
+  if lake build "$target" >"$build_log" 2>&1; then
     rm -f "$build_log"
-    "$binary" "$@"
+    exec "$root/.lake/build/bin/$target" "$@"
   else
     cat "$build_log" >&2
     rm -f "$build_log"
     return 1
-  fi
-}
-
-run_capacity() {
-  if capacity_binary_is_current; then
-    "$capacity_binary" "$@"
-    return $?
-  fi
-
-  echo "Building LOAM spending capacity..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-capacity-build.XXXXXX)"
-  if lake build loamCapacity >"$build_log" 2>&1; then
-    touch "$capacity_stamp"
-    rm -f "$build_log"
-    "$capacity_binary" "$@"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    return 1
-  fi
-}
-
-run_daily_quantity() {
-  if daily_quantity_binary_is_current; then
-    "$daily_quantity_binary" "$@"
-    return $?
-  fi
-
-  echo "Building LOAM daily quantity..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-daily-quantity-build.XXXXXX)"
-  if lake build loamDailyQuantity >"$build_log" 2>&1; then
-    touch "$daily_quantity_stamp"
-    rm -f "$build_log"
-    "$daily_quantity_binary" "$@"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    return 1
-  fi
-}
-
-run_open_scheduled() {
-  if open_scheduled_binary_is_current; then
-    "$open_scheduled_binary" "$@"
-    return $?
-  fi
-
-  echo "Building LOAM open scheduled view..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-open-scheduled-build.XXXXXX)"
-  if lake build loamOpenScheduled >"$build_log" 2>&1; then
-    touch "$open_scheduled_stamp"
-    rm -f "$build_log"
-    "$open_scheduled_binary" "$@"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    return 1
-  fi
-}
-
-run_tui() {
-  echo "Building LOAM production TUI..." >&2
-  lake build loamTui
-  exec "$root/.lake/build/bin/loamTui" "$@"
-}
-
-run_shadow_audit() {
-  if shadow_binary_is_current; then
-    exec "$shadow_binary" "$@"
-  fi
-
-  echo "Building LOAM shadow audit..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-shadow-build.XXXXXX)"
-  if lake build loamShadowAudit >"$build_log" 2>&1; then
-    touch "$shadow_stamp"
-    rm -f "$build_log"
-    exec "$shadow_binary" "$@"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    exit 1
-  fi
-}
-
-run_shadow_quantity() {
-  if shadow_quantity_binary_is_current; then
-    exec "$shadow_quantity_binary" "$@"
-  fi
-
-  echo "Building LOAM stateless shadow quantity..." >&2
-  local build_log
-  build_log="$(mktemp -t loam-shadow-quantity-build.XXXXXX)"
-  if lake build loamShadowQuantity >"$build_log" 2>&1; then
-    touch "$shadow_quantity_stamp"
-    rm -f "$build_log"
-    exec "$shadow_quantity_binary" "$@"
-  else
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    exit 1
   fi
 }
 
@@ -283,39 +60,37 @@ EOF
 }
 
 if [[ $# -eq 0 ]]; then
-  run_tui
+  run_target loamTui
 fi
 
 if [[ "${1:-}" == "tui" ]]; then
   shift
-  run_tui "$@"
+  run_target loamTui "$@"
 fi
 
 if [[ "${1:-}" == "shadow-audit" ]]; then
   shift
-  run_shadow_audit "$@"
+  run_target loamShadowAudit "$@"
 fi
 
 if [[ "${1:-}" == "shadow-quantity" ]]; then
   shift
-  run_shadow_quantity "$@"
+  run_target loamShadowQuantity "$@"
 fi
 
 if [[ "${1:-}" == "movement" ]]; then
   shift
-  exec "$root/tools/loam-movement" "$@"
+  run_target loamMovement "$@"
 fi
 
 if [[ "${1:-}" == "capacity" ]]; then
   shift
-  run_capacity "$@" || exit $?
-  exit 0
+  run_target loamCapacity "$@"
 fi
 
 if [[ "${1:-}" == "open-scheduled" ]]; then
   shift
-  run_open_scheduled "$@" || exit $?
-  exit 0
+  run_target loamOpenScheduled "$@"
 fi
 
 if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
@@ -324,8 +99,7 @@ if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
 fi
 
 if [[ "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
-  run_daily_quantity "$@" || exit $?
-  exit 0
+  run_target loamDailyQuantity "$@"
 fi
 
-run_loam "$@"
+run_target loam "$@"
