@@ -139,6 +139,26 @@ Commit `d3ef447` executed the full graduation of the QuantityBasis/BasisCut gene
 
 All 16 practical Python tests continue to pass in ~4s; `lake build` builds cleanly with zero errors; and the candidate unreachable surface in practical Lean is now **exactly 0 files / 0 lines**.
 
+## Follow-up graduation - foundational Observation CI 001-005
+
+A later executable-roster change exposed another form of live-CI residue: changing `lakefile.lean` caused historical Observation 001-005 workflows to rerun even though those lanes execute only their original Alloy, J, or TLA+ probes and do not qualify the current production Lean boundary.
+
+The five questions and conclusions are already durable in `observations/001-*.md` through `observations/005-*.md`, while the compressed `OBSERVATION_MAP.md` carries forward the surviving laws from the 001-084 arc. None of Observation 001-005 is a selected live Lean obligation in `Loam.Observations`.
+
+The historical model, J, TLA+, and prose sources remain in the repository. Only these dedicated always-live workflows graduate:
+
+```text
+.github/workflows/observation-001.yml
+.github/workflows/observation-002.yml
+.github/workflows/observation-003.yml
+.github/workflows/observation-004.yml
+.github/workflows/observation-005.yml
+```
+
+This removes no current production test and no current theorem. It stops unrelated future changes to `lakefile.lean`, other observations, and broad research directories from repeatedly recomputing already-integrated foundational experiments.
+
+If one of those old questions becomes active research again, a new dedicated lane may be reintroduced only for the renewed question. Historical existence alone does not make CI permanent.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
