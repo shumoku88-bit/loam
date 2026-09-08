@@ -33,7 +33,7 @@ Using every tool is not a goal. If two tools answer the same question in the sam
 
 Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
 
-## Local practical CLI
+## Local practical entrance
 
 LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then run the wrapper from the repository root:
 
@@ -41,7 +41,11 @@ LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`.
 ./tools/loam
 ```
 
-Household recording has one explicit CLI entrance:
+With no arguments, the wrapper opens the production `loamTui` household workspace. The TUI resolves `LOAM_DATA_DIR` itself, defaulting to `../loam-data`, and resolves `LOAM_MOVEMENT_MANIFEST_ROOT`, defaulting to `DATA_DIR/movement-authority`. Missing or corrupt selected authority fails closed rather than falling back to retired Movement sidecars.
+
+Explicit named CLI commands remain available for scriptable, diagnostic, and lower-level use. The default human entrance does not replace those commands.
+
+Household recording has one explicit line-CLI entrance:
 
 ```text
 ./tools/loam movement MEMORY_FILE
@@ -53,28 +57,15 @@ Purchases, transfers, income, split payments, and other value flows use this sam
 
 ### Household manifest authority
 
-The no-argument menu automatically selects `DATA_DIR/movement-authority` when
-that directory exists (the default data directory is `../loam-data`). Recording,
-record review, and balances then use the selected manifest generation, not the
-retired `memory.loam` sidecars. Missing or corrupt selected authority refuses
-instead of displaying an empty household. `LOAM_MOVEMENT_MANIFEST_ROOT` can
-explicitly select the manifest root; direct CLI invocations require this variable.
+The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. `LOAM_MOVEMENT_MANIFEST_ROOT` may explicitly select a Movement manifest root; otherwise the TUI uses `DATA_DIR/movement-authority`.
 
-Movement correction and occurrence-date correction use the production TUI and
-shared manifest publishers. The former sidecar-only `correct` and `correct-date`
-CLI entrances are retired rather than kept beside the current authority. In
-manifest mode the legacy menu still refuses raw/effective quantity,
-correction-integrity, and sidecar-only scheduled actions; those diagnostic or
-legacy paths must not be treated as current manifest writers. See [the cutover
-repair and qualification](docs/movement_manifest_menu_cutover.md) and its
-[remaining-work checklist](docs/movement_manifest_menu_cutover.md#remaining-work-open-checklist).
+Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume the selected manifest authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
+
+Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Commands that expose lower-level authority selection must continue to fail closed rather than silently manufacture a sidecar world. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
 
 ### Focused record review
 
-The primary menu keeps recording, record review, and balances at the entrance;
-`m` reveals scheduled, capacity, and inspection actions. Movement and date
-correction are handled by the production TUI/shared publishers instead of this
-legacy menu.
+The explicit `review` CLI remains available for scripted and focused record inspection even though the default human entrance is now the production TUI.
 
 ```text
 ./tools/loam review MEMORY_FILE CORRECTION_FILE
@@ -82,28 +73,17 @@ legacy menu.
 ./tools/loam review MEMORY_FILE CORRECTION_FILE '/スーパー'
 ```
 
-Review opens a short list for the seven occurrence dates ending today, with a
-small date/count strip. It is **not** a most-recently-entered log. Daily counts
-and lists reflect movement and date corrections. The correction path is explicit;
-a not-yet-created correction file means no correction facts, as in balances.
+Review opens a short list for the seven occurrence dates ending today, with a small date/count strip. It is **not** a most-recently-entered log. Daily counts and lists reflect movement and date corrections. The correction path is explicit; a not-yet-created correction file means no correction facts, as in balances.
 
 In an interactive terminal:
 
 - `YYYY-MM-DD` selects one date; `p` / `n` move the date window seven days;
 - `t` returns to the recent week; `u` shows records with unknown dates;
-- `/text` searches all dates and **all recorded Events**, including clearly
-  marked correction originals. Search uses literal, case-insensitive substrings over
-  descriptions, loci, measures, quantity spellings, dates, and EventIds;
-- `1`–`10` opens a displayed record's full detail; `#EventId` follows a raw
-  record / correction link;
-- `more` / `back` traverse bounded result batches, `r` reloads the read-only
-  session, and `q` returns.
+- `/text` searches all dates and **all recorded Events**, including clearly marked correction originals. Search uses literal, case-insensitive substrings over descriptions, loci, measures, quantity spellings, dates, and EventIds;
+- `1`–`10` opens a displayed record's full detail; `#EventId` follows a raw record / correction link;
+- `more` / `back` traverse bounded result batches, `r` reloads the read-only session, and `q` returns.
 
-Long recognition text and additional Effects are explicitly elided only in the
-summary. Search examines the full retained text. Date-unknown counts remain
-visible. No match is not proof that something was never recorded. Invalid
-correction evidence refuses the review instead of appearing as an empty list.
-Redirected input produces one bounded answer and consumes no menu input.
+Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid correction evidence refuses the review instead of appearing as an empty list. Redirected input produces one bounded answer and consumes no menu input.
 
 Unbounded raw inspection is deliberately lower-level:
 
@@ -111,8 +91,7 @@ Unbounded raw inspection is deliberately lower-level:
 ./tools/loam event-memory review MEMORY_FILE
 ```
 
-See [Application 015](experiments/application_015_focused_record_review.md) for
-scope and local composition checks. Review adds no persistence or writer path.
+See [Application 015](experiments/application_015_focused_record_review.md) for scope and local composition checks. Review adds no persistence or writer path.
 
 ### Quantities and shadow readers
 
