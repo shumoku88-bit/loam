@@ -65,7 +65,7 @@ Explicit line commands remain available where their separate scriptable or diagn
 
 ### Focused record review
 
-The explicit `review` CLI remains available for scripted and focused record inspection even though the default human entrance is now the production TUI.
+The explicit `review` CLI remains available for scripted and focused record inspection even though the default interactive human entrance is now the production TUI.
 
 ```text
 ./tools/loam review MEMORY_FILE CORRECTION_FILE
@@ -73,17 +73,11 @@ The explicit `review` CLI remains available for scripted and focused record insp
 ./tools/loam review MEMORY_FILE CORRECTION_FILE '/スーパー'
 ```
 
-Review opens a short list for the seven occurrence dates ending today, with a small date/count strip. It is **not** a most-recently-entered log. Daily counts and lists reflect movement and date corrections. The correction path is explicit; a not-yet-created correction file means no correction facts, as in balances.
+Review is intentionally **one-shot and bounded**. With no query, or with `t`, it prints at most ten summaries from the seven occurrence dates ending today together with a small date/count strip. It is **not** a most-recently-entered log. `YYYY-MM-DD` selects one occurrence date, `u` selects current records whose date is unknown, and `/text` searches all dates and **all recorded Events**, including clearly marked correction originals. Search uses literal, case-insensitive substrings over descriptions, loci, measures, quantity spellings, dates, and EventIds.
 
-In an interactive terminal:
+Daily counts and lists reflect movement and date corrections. The correction path is explicit; a not-yet-created correction file means no correction facts, as in balances. Standard input is ignored and the command never opens a paging or prompt loop. Use the production TUI Actual workspace for interactive browsing and selected-record detail.
 
-- `YYYY-MM-DD` selects one date; `p` / `n` move the date window seven days;
-- `t` returns to the recent week; `u` shows records with unknown dates;
-- `/text` searches all dates and **all recorded Events**, including clearly marked correction originals. Search uses literal, case-insensitive substrings over descriptions, loci, measures, quantity spellings, dates, and EventIds;
-- `1`–`10` opens a displayed record's full detail; `#EventId` follows a raw record / correction link;
-- `more` / `back` traverse bounded result batches, `r` reloads the read-only session, and `q` returns.
-
-Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid correction evidence refuses the review instead of appearing as an empty list. Redirected input produces one bounded answer and consumes no menu input.
+Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid correction evidence refuses the review instead of appearing as an empty list.
 
 Unbounded raw inspection is deliberately lower-level:
 
