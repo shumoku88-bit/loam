@@ -9,15 +9,15 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Scheduled persistence
+# Scheduled occurrence codec
 
-The first practical Scheduled stream retains stable scheduled identity, one ISO
-scheduled day, one explicit Measure, and every signed Locus change. Lifecycle
-evidence is intentionally absent from version 1 and will be earned by the first
-practical complete/cancel/supersede operation.
+Scheduled occurrences retain stable identity, one ISO scheduled day, one
+explicit Measure, and every signed Locus change. Observation 226 retired the
+standalone Scheduled stream as an authority boundary. This module now supplies
+only the typed inner codec embedded in the complete Scheduled lifecycle image.
 -/
 
-/-- Version marker for the first raw scheduled-memory format. -/
+/-- Version marker for the first raw scheduled-memory inner format. -/
 def scheduledMemoryHeader : String := "LOAM-SCHEDULED-MEMORY\t1"
 
 private def encodeScheduledChangeRow?
@@ -76,14 +76,14 @@ private def decodeScheduledChunk? (chunk : String) : Option (ScheduledOccurrence
       | _ => none
   | _ => none
 
-/-- Encode raw Scheduled memory without giving representation order temporal meaning. -/
+/-- Encode Scheduled occurrence memory without giving representation order temporal meaning. -/
 def encodeScheduledMemory? (memory : ScheduledMemory String) : Option String :=
   match memory.occurrences.mapM encodeScheduledLines? with
   | some blocks =>
       some (String.intercalate "\n" (scheduledMemoryHeader :: blocks.flatten) ++ "\n")
   | none => none
 
-/-- Decode version-1 Scheduled memory, rechecking dates, balance, and identity. -/
+/-- Decode Scheduled occurrence memory, rechecking dates, balance, and identity. -/
 def decodeScheduledMemory? (input : String) : Option (ScheduledMemory String) :=
   if input = scheduledMemoryHeader ++ "\n" then
     ScheduledMemory.ofOccurrences? []
@@ -103,26 +103,5 @@ def decodeScheduledMemory? (input : String) : Option (ScheduledMemory String) :=
               none
         | _ => none
     | _ => none
-
-private def scheduledMemoryStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
-/-- Publish one Scheduled stream by complete sibling staging plus rename. -/
-def saveScheduledMemory?
-    (path : System.FilePath)
-    (memory : ScheduledMemory String) : IO Bool := do
-  match encodeScheduledMemory? memory with
-  | some text =>
-      let stagePath := scheduledMemoryStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
-      return true
-  | none => return false
-
-/-- Read and fail-closed decode one Scheduled stream. -/
-def loadScheduledMemory?
-    (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
-  let input ← IO.FS.readFile path
-  return decodeScheduledMemory? input
 
 end Loam.Persistence
