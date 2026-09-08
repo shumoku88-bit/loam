@@ -1,4 +1,5 @@
 import Loam.Core.Attention
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -32,17 +33,11 @@ def add? {Time : Type}
     (item : Attention Time) : Option (AttentionMemory Time) :=
   ofItems? (memory.items ++ [item])
 
-private def findItemById? {Time : Type} :
-    List (Attention Time) → AttentionId → Option (Attention Time)
-  | [], _ => none
-  | item :: rest, id =>
-      if item.id = id then some item else findItemById? rest id
-
 /-- Find one retained Attention item by stable identity. -/
 def findById? {Time : Type}
     (memory : AttentionMemory Time)
     (id : AttentionId) : Option (Attention Time) :=
-  findItemById? memory.items id
+  FiniteKeyed.findBy? Attention.id memory.items id
 
 end AttentionMemory
 
@@ -73,20 +68,11 @@ def add? {Time : Type}
     (closure : AttentionClosure Time) : Option (AttentionClosureMemory Time) :=
   ofClosures? (memory.closures ++ [closure])
 
-private def findClosureByAttention? {Time : Type} :
-    List (AttentionClosure Time) → AttentionId → Option (AttentionClosure Time)
-  | [], _ => none
-  | closure :: rest, id =>
-      if closure.attention = id then
-        some closure
-      else
-        findClosureByAttention? rest id
-
 /-- Find current retained closure evidence for one Attention identity. -/
 def findByAttention? {Time : Type}
     (memory : AttentionClosureMemory Time)
     (id : AttentionId) : Option (AttentionClosure Time) :=
-  findClosureByAttention? memory.closures id
+  FiniteKeyed.findBy? AttentionClosure.attention memory.closures id
 
 end AttentionClosureMemory
 
