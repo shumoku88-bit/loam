@@ -131,9 +131,15 @@ private def addPositiveScheduledLocus
         { total with unmanaged := total.unmanaged + quantity.quanta }
     | .unrouted =>
         match roles.roleOf? locus with
-        | some .expense | some .liability =>
+        | some .expense =>
             { total with unrouted := total.unrouted + quantity.quanta }
-        | some .asset | some .income | some .equity =>
+        | some .liability =>
+            { total with unrouted := total.unrouted + quantity.quanta }
+        | some .asset =>
+            total
+        | some .income =>
+            total
+        | some .equity =>
             total
         | none =>
             { total with
