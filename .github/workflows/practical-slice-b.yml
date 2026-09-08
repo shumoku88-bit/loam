@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
       - 'Loam/Core/AccountingRole.lean'
@@ -14,6 +15,7 @@ on:
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'Loam/Tests/CurrentCoverageInspection.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -26,6 +28,7 @@ on:
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
       - 'Loam/Core/AccountingRole.lean'
@@ -35,6 +38,7 @@ on:
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'Loam/Tests/CurrentCoverageInspection.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -50,7 +54,7 @@ concurrency:
 
 jobs:
   check:
-    name: Build Scheduled Commitment / Headroom boundary
+    name: Build Scheduled Commitment / Current Coverage boundary
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -71,3 +75,7 @@ jobs:
       - name: Run Scheduled Commitment / Headroom practical story
         shell: bash
         run: lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
+
+      - name: Run Current Capacity Coverage practical story
+        shell: bash
+        run: lake env lean --run Loam/Tests/CurrentCoverageInspection.lean

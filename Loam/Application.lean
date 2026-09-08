@@ -7,6 +7,7 @@ import Loam.Application.CapacityWindowInspection
 import Loam.Application.ScheduledInspection
 import Loam.Application.ScheduledOpenWorldInspection
 import Loam.Application.ScheduledCommitmentInspection
+import Loam.Application.CurrentCoverageInspection
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.AttentionInspection
 import Loam.Application.OpenRelationFrontier
