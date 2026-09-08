@@ -1,5 +1,6 @@
 import Loam.Core.ScheduledReplacement
 import Loam.Persistence
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -33,8 +34,7 @@ private def encodeReplacementRow?
 def encodeScheduledReplacementMemory?
     (memory : ScheduledReplacementMemory) : Option String := do
   let rows ← memory.replacements.mapM encodeReplacementRow?
-  pure
-    (String.intercalate "\n" (scheduledReplacementMemoryHeader :: rows) ++ "\n")
+  pure (encodeVersionedRows scheduledReplacementMemoryHeader rows)
 
 private def decodeReplacementRow? (row : String) : Option ScheduledReplacement :=
   match row.splitOn "\t" with
@@ -47,17 +47,9 @@ private def decodeReplacementRow? (row : String) : Option ScheduledReplacement :
 
 /-- Decode replacement relations and recheck one-to-one endpoint uniqueness. -/
 def decodeScheduledReplacementMemory?
-    (input : String) : Option ScheduledReplacementMemory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = scheduledReplacementMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let replacements ← reversedRows.reverse.mapM decodeReplacementRow?
-            ScheduledReplacementMemory.ofReplacements? replacements
-        | _ => none
-      else
-        none
-  | _ => none
+    (input : String) : Option ScheduledReplacementMemory := do
+  let rows ← decodeVersionedRows? scheduledReplacementMemoryHeader input
+  let replacements ← rows.mapM decodeReplacementRow?
+  ScheduledReplacementMemory.ofReplacements? replacements
 
 end Loam.Persistence
