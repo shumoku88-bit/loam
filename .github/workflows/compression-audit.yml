@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'tools/audit-production-surface'
+      - 'tools/audit-production-reachability'
       - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE1.md'
       - 'Loam/**'
       - 'lakefile.lean'
       - '.github/workflows/compression-audit.yml'
@@ -22,3 +24,6 @@ jobs:
       - name: Inventory production source surface
         shell: bash
         run: bash tools/audit-production-surface
+      - name: Trace production import reachability
+        shell: bash
+        run: python3 tools/audit-production-reachability
