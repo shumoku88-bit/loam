@@ -30,7 +30,6 @@ structure State where
   inputDate : String
   mode : Mode := .editing
   notice : String := ""
-  deriving Repr, DecidableEq
 
 structure Step where
   state : State
@@ -38,8 +37,8 @@ structure Step where
   publish : Option Loam.ActualReversalPublisher.Draft := none
 
 /--
-Seed reversal occurrence date from today, not from the target's historical day.
-A reversal is a later real occurrence, not a correction of the target date.
+Seed the editable occurrence coordinate from today as a presentation convenience.
+Reversal itself does not imply temporal ordering relative to the target Actual.
 -/
 def initial?
     (record : Loam.Tui.Main.ReviewRecord) (today : String) : Except String State := do
