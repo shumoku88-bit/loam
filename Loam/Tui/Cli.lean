@@ -23,6 +23,7 @@ import Loam.ScheduledReview
 import Loam.AttentionReview
 import Loam.BalanceReview
 import Loam.CapacityReview
+import Loam.CurrentCoverageReview
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
@@ -85,6 +86,54 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     undatedCount := (Loam.ActualReview.select actualRecords .undated).length
   }
   return .ok { actual := actual, scheduled := scheduled }
+
+private structure CoverageHorizon where
+  source : String
+  endExclusive : String
+
+/--
+Choose a future coverage horizon only when exactly one configured boundary preset
+explicitly contains the current observation date. The TUI never guesses among
+multiple report coordinate systems.
+-/
+private def coverageHorizonFor?
+    (presets : List Loam.BoundaryPresetConfig.Preset)
+    (observedAt : String) : Except String (Option CoverageHorizon) :=
+  let matchingHorizons := presets.filterMap fun preset =>
+    match Loam.BoundaryPresetConfig.windowForDate? preset observedAt with
+    | none => none
+    | some (_, endExclusive) => some { source := preset.name, endExclusive := endExclusive }
+  match matchingHorizons with
+  | [] => .ok none
+  | [horizon] => .ok (some horizon)
+  | _ => .error "multiple configured boundary presets contain the current date"
+
+/--
+Attach shared current coverage when configuration supplies one unambiguous future
+horizon. Refusal degrades only the optional coverage layer; all-retained Capacity
+remains available.
+-/
+private def attachCurrentCoverage
+    (dataDir root : System.FilePath)
+    (observedAt : String)
+    (state : Loam.Tui.Capacity.State) : IO Loam.Tui.Capacity.State := do
+  match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
+  | none =>
+      return Loam.Tui.Capacity.withoutCoverage
+        "boundary preset config is malformed" state
+  | some presets =>
+      match coverageHorizonFor? presets observedAt with
+      | .error message => return Loam.Tui.Capacity.withoutCoverage message state
+      | .ok none =>
+          return Loam.Tui.Capacity.withoutCoverage
+            "no configured boundary preset contains the current date" state
+      | .ok (some horizon) =>
+          match ← Loam.CurrentCoverageReview.loadSnapshotAt
+              dataDir root observedAt horizon.endExclusive with
+          | .error message => return Loam.Tui.Capacity.withoutCoverage message state
+          | .ok coverage =>
+              return Loam.Tui.Capacity.withCoverage
+                coverage ("preset " ++ horizon.source) state
 
 
 def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
@@ -628,9 +677,10 @@ partial def balancesLoop (bounds : Bounds)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       balancesLoop bounds next nextFrame
 
-/-- All-retained Capacity session with a local transfer entrance. `true` means quit LOAM. -/
+/-- All-retained Capacity session with shared current coverage and a local transfer entrance. -/
 partial def capacityLoop
-    (bounds : Bounds) (dataDir : System.FilePath) (focusDate : String)
+    (bounds : Bounds) (dataDir root : System.FilePath)
+    (focusDate observedAt : String)
     (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Bool := do
   let key ← Loam.Tui.Terminal.readKey
   if key = .input 'q' || key = .input 'Q' then
@@ -658,15 +708,16 @@ partial def capacityLoop
         | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
         | .ok fresh => pure fresh
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
-      let next := { refreshed with notice := notice }
+      let covered ← attachCurrentCoverage dataDir root observedAt refreshed
+      let next := { covered with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
       IO.print "\x1b[2J"
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
-      capacityLoop bounds dataDir focusDate next nextFrame
+      capacityLoop bounds dataDir root focusDate observedAt next nextFrame
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      capacityLoop bounds dataDir focusDate next nextFrame
+      capacityLoop bounds dataDir root focusDate observedAt next nextFrame
 
 /-- Reports session. `true` means quit LOAM. -/
 partial def reportsLoop (bounds : Bounds)
@@ -758,10 +809,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
       | .error message => throw (IO.userError message)
       | .ok capacitySnapshot => pure capacitySnapshot
-    let capacity := Loam.Tui.Capacity.initial capacitySnapshot
+    let baseCapacity := Loam.Tui.Capacity.initial capacitySnapshot
+    let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
     let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-    if ← capacityLoop bounds dataDir state.selectedDate capacity capacityFrame then
+    if ← capacityLoop bounds dataDir root state.selectedDate snapshot.actual.today
+        capacity capacityFrame then
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home

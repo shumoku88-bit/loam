@@ -20,6 +20,27 @@ private def purposeRow (index : Nat) : Loam.CapacityReview.Row :=
   { purpose := ⟨"purpose-" ++ toString index⟩
     entitlement := Quantity.ofQuanta (Int.ofNat index) }
 
+private def baseRow (purpose : String) (entitlement : Int) : Loam.CapacityReview.Row :=
+  { purpose := ⟨purpose⟩, entitlement := Quantity.ofQuanta entitlement }
+
+private def coverageRow
+    (purpose : String)
+    (entitlement consumption remaining commitment headroom : Int) :
+    Loam.CurrentCoverageReview.Row :=
+  { purpose := ⟨purpose⟩
+    entitlement := Quantity.ofQuanta entitlement
+    consumption := Quantity.ofQuanta consumption
+    remaining := Quantity.ofQuanta remaining
+    commitment := Quantity.ofQuanta commitment
+    headroom := Quantity.ofQuanta headroom }
+
+private def frontier (unmanaged unrouted unresolved : Int) :
+    Loam.CurrentCoverageReview.ScheduledFrontier :=
+  { unmanaged := Quantity.ofQuanta unmanaged
+    unrouted := Quantity.ofQuanta unrouted
+    unresolvedEligibility := Quantity.ofQuanta unresolved }
+
+
 def main : IO Unit := do
   let empty := Loam.Tui.Capacity.initial { rows := [] }
   let emptyText := widgetText (Loam.Tui.Capacity.view empty)
@@ -102,4 +123,60 @@ def main : IO Unit := do
   expect (contains "No next Capacity row" beyond.notice)
     "Capacity final-row boundary did not fail safely"
 
-  IO.println "TUI Capacity: navigation, transfer intent, fresh selection, all-retained projection and no-window boundary passed."
+  -- Coverage labels are presentation-only views over the shared derived quantities.
+  let ok := coverageRow "ok" 100 30 70 35 35
+  let over := coverageRow "over" 20 30 (-10) 35 (-45)
+  let future := coverageRow "future" 60 30 30 35 (-5)
+  let coverage : Loam.CurrentCoverageReview.Snapshot := {
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows := [ok, over, future]
+    scheduledFrontier := some (frontier 0 0 0)
+  }
+  let coverageState := Loam.Tui.Capacity.withCoverage coverage "preset Pension" <|
+    Loam.Tui.Capacity.initial {
+      rows := [baseRow "ok" 100, baseRow "over" 20, baseRow "future" 60] }
+  expect (Loam.Tui.Capacity.coverageLabel coverageState ok == "OK")
+    "positive current and after-known coverage was not labelled OK"
+  expect (Loam.Tui.Capacity.coverageLabel coverageState over == "OVER NOW")
+    "negative Remaining was not labelled OVER NOW"
+  expect (Loam.Tui.Capacity.coverageLabel coverageState future == "FUTURE SHORT")
+    "positive Remaining with negative Headroom was not labelled FUTURE SHORT"
+  let coverageText := widgetText (Loam.Tui.Capacity.view coverageState)
+  expect (contains "ok: cap 100 | now 70 | after-known 35 | OK" coverageText)
+    "current coverage row quantities were not rendered"
+  expect (contains "over: cap 20 | now -10 | after-known -45 | OVER NOW" coverageText)
+    "over-now diagnosis was not rendered"
+  expect (contains "future: cap 60 | now 30 | after-known -5 | FUTURE SHORT" coverageText)
+    "future-short diagnosis was not rendered"
+  expect (contains "Coverage: observed 2026-09-08 | preset Pension -> 2026-10-15" coverageText)
+    "explicit configured coverage horizon was not rendered"
+  expect (contains "not SafeToSpend authority" coverageText)
+    "coverage surface lost its non-authority warning"
+
+  let check := coverageRow "check" 100 30 70 35 35
+  let unresolvedCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows := [check]
+    scheduledFrontier := some (frontier 0 0 9)
+  }
+  let unresolvedState := Loam.Tui.Capacity.withCoverage unresolvedCoverage "preset Pension" <|
+    Loam.Tui.Capacity.initial { rows := [baseRow "check" 100] }
+  expect (Loam.Tui.Capacity.coverageLabel unresolvedState check == "CHECK")
+    "unresolved Scheduled eligibility was silently labelled OK"
+  let unresolvedText := widgetText (Loam.Tui.Capacity.view unresolvedState)
+  expect (contains "check: cap 100 | now 70 | after-known 35 | CHECK" unresolvedText)
+    "CHECK diagnosis was not rendered"
+  expect (contains "unresolved 9 jpy" unresolvedText)
+    "unresolved Scheduled frontier was hidden"
+
+  let unavailable := Loam.Tui.Capacity.withoutCoverage
+    "no configured boundary preset contains the current date" state
+  let unavailableText := widgetText (Loam.Tui.Capacity.view unavailable)
+  expect (contains "Current coverage unavailable" unavailableText)
+    "optional coverage refusal was not visible"
+  expect (contains "food: 60 jpy" unavailableText)
+    "coverage refusal hid valid all-retained Capacity"
+
+  IO.println "TUI Capacity: navigation, transfer intent, current coverage labels, frontier visibility and safe fallback passed."
