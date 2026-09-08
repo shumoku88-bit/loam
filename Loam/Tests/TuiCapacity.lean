@@ -128,6 +128,7 @@ def main : IO Unit := do
   let over := coverageRow "over" 20 30 (-10) 35 (-45)
   let future := coverageRow "future" 60 30 30 35 (-5)
   let coverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-15"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
     rows := [ok, over, future]
@@ -156,6 +157,7 @@ def main : IO Unit := do
 
   let check := coverageRow "check" 100 30 70 35 35
   let unresolvedCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-15"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
     rows := [check]

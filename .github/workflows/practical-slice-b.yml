@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ActualRoutingInspection.lean'
@@ -37,6 +38,7 @@ on:
       - main
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ActualRoutingInspection.lean'

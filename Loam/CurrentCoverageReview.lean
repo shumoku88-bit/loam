@@ -23,14 +23,15 @@ set_option autoImplicit false
 This is the surface-independent production read boundary for the explicitly
 current coverage question introduced by `CurrentCoverageInspection`.
 
-It deliberately does not reuse Budget Window arithmetic. Capacity is all-retained,
-Actual Consumption is correction-frontier and historical-routing aware, and
-Scheduled pressure is replacement-aware current-open evidence due before the
-explicit future `endExclusive` horizon.
+It deliberately does not turn this into the historical Budget Window report.
+Capacity is all-retained, Actual Consumption is correction-frontier and
+historical-routing aware inside the explicit current elapsed window, and
+Scheduled pressure is replacement-aware current-open evidence from `observedAt`
+through the explicit future `endExclusive` horizon.
 
-`observedAt` selects the dated Scheduled-routing evidence visible to this current
-answer. There is no historical `start` coordinate and no claim that Scheduled
-lifecycle state can be replayed into the past.
+`currentWindowStart` is retained from the selected boundary preset rather than
+being discarded. Scheduled lifecycle state is current-open only; it is not
+replayed into the past.
 -/
 
 structure Row where
@@ -50,6 +51,7 @@ structure ScheduledFrontier where
   deriving Repr, DecidableEq
 
 structure Snapshot where
+  currentWindowStart : String
   observedAt : String
   endExclusive : String
   rows : List Row
@@ -85,14 +87,14 @@ private def projectPurpose?
     (scheduled : Loam.Persistence.ScheduledLifecycleImage)
     (roles : AccountingRoleMap)
     (scheduledRouting : ScheduledRoutingHistory String)
-    (observedAt endExclusive : String)
+    (currentWindowStart observedAt endExclusive : String)
     (purpose : PurposeId) : Option ProjectedRow := do
   let yen : MeasureId := ⟨"jpy"⟩
   let view ←
     currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
       capacity.movements events corrections validities actualRouting
       scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
-      roles scheduledRouting purpose yen observedAt endExclusive
+      roles scheduledRouting purpose yen currentWindowStart observedAt endExclusive
   return {
     row := {
       purpose := purpose
@@ -124,9 +126,13 @@ No fallback to frozen Movement sidecars exists.
 -/
 def loadSnapshotAt
     (dataDir manifestRoot : System.FilePath)
-    (observedAt endExclusive : String) : IO (Except String Snapshot) := do
-  if !Loam.ActualDate.validIsoDate observedAt || !Loam.ActualDate.validIsoDate endExclusive then
+    (currentWindowStart observedAt endExclusive : String) : IO (Except String Snapshot) := do
+  if !Loam.ActualDate.validIsoDate currentWindowStart ||
+      !Loam.ActualDate.validIsoDate observedAt ||
+      !Loam.ActualDate.validIsoDate endExclusive then
     return .error "loam: current coverage coordinates must be real YYYY-MM-DD calendar dates"
+  if !(currentWindowStart <= observedAt) then
+    return .error "loam: current coverage start must not be later than the observation date"
   if !(observedAt < endExclusive) then
     return .error "loam: current coverage horizon must be later than the observation date"
 
@@ -191,13 +197,14 @@ def loadSnapshotAt
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?
       capacity movement.events corrections validities actualRouting
-      scheduled roles scheduledRouting observedAt endExclusive) with
+      scheduled roles scheduledRouting currentWindowStart observedAt endExclusive) with
   | none =>
       return .error "loam: canonical evidence does not justify this current coverage projection"
   | some projected =>
       if !consistentFrontier projected then
         return .error "loam: Scheduled pressure frontier changed across Purpose projections"
       return .ok {
+        currentWindowStart := currentWindowStart
         observedAt := observedAt
         endExclusive := endExclusive
         rows := projected.map (fun projectedRow => projectedRow.row)
@@ -207,9 +214,9 @@ def loadSnapshotAt
 /-- Production wrapper resolving only the current local observation date. -/
 def loadSnapshot
     (dataDir manifestRoot : System.FilePath)
-    (endExclusive : String) : IO (Except String Snapshot) := do
+    (currentWindowStart endExclusive : String) : IO (Except String Snapshot) := do
   let some observedAt ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local observation date"
-  loadSnapshotAt dataDir manifestRoot observedAt endExclusive
+  loadSnapshotAt dataDir manifestRoot currentWindowStart observedAt endExclusive
 
 end Loam.CurrentCoverageReview

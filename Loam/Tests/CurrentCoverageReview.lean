@@ -34,13 +34,25 @@ private def effect (id locus : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨id⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
 
 private def movementWorld : IO Loam.MovementAdmission.World := do
+  let oldActual ← requireSome
+    (Event.ofEffects? ⟨"actual-old"⟩
+      [effect "old-pay" "paypay" (-70), effect "old-use" "expenses:food" 70])
+    "old Actual fixture"
   let actual ← requireSome
     (Event.ofEffects? ⟨"actual-1"⟩
       [effect "pay" "paypay" (-30), effect "use" "expenses:food" 30])
     "Actual fixture"
-  let events ← requireSome (EventMemory.ofEvents? [actual]) "Event memory"
+  let futureActual ← requireSome
+    (Event.ofEffects? ⟨"actual-future"⟩
+      [effect "future-pay" "paypay" (-80), effect "future-use" "expenses:food" 80])
+    "future Actual fixture"
+  let events ← requireSome
+    (EventMemory.ofEvents? [oldActual, actual, futureActual]) "Event memory"
   let validity : ActualValidityHistory String := {
-    facts := [{ id := ⟨"validity-1"⟩, event := ⟨"actual-1"⟩, validOn := "2026-09-07" }]
+    facts := [
+      { id := ⟨"validity-old"⟩, event := ⟨"actual-old"⟩, validOn := "2026-08-14" },
+      { id := ⟨"validity-1"⟩, event := ⟨"actual-1"⟩, validOn := "2026-09-08" },
+      { id := ⟨"validity-future"⟩, event := ⟨"actual-future"⟩, validOn := "2026-09-09" }]
     factIdNodup := by decide
     corrections := []
     correctionIdNodup := by simp
@@ -131,8 +143,9 @@ def main (args : List String) : IO Unit := do
 
   let .ok snapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAt
-        root manifestRoot "2026-09-08" "2026-10-15"
+        root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
     | throw (IO.userError "current coverage review refused valid fixture")
+  expect (snapshot.currentWindowStart == "2026-08-15") "current window start changed"
   expect (snapshot.observedAt == "2026-09-08") "observation coordinate changed"
   expect (snapshot.endExclusive == "2026-10-15") "coverage horizon changed"
 
@@ -159,12 +172,17 @@ def main (args : List String) : IO Unit := do
 
   let invalid ←
     Loam.CurrentCoverageReview.loadSnapshotAt
-      root manifestRoot "2026-10-15" "2026-10-15"
+      root manifestRoot "2026-08-15" "2026-10-15" "2026-10-15"
   expect (!invalid.isOk) "non-future current coverage horizon was admitted"
+
+  let reversedCurrentWindow ←
+    Loam.CurrentCoverageReview.loadSnapshotAt
+      root manifestRoot "2026-09-09" "2026-09-08" "2026-10-15"
+  expect (!reversedCurrentWindow.isOk) "reversed current coverage window was admitted"
 
   let missingManifest ←
     Loam.CurrentCoverageReview.loadSnapshotAt
-      root (root / "missing-authority") "2026-09-08" "2026-10-15"
+      root (root / "missing-authority") "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingManifest.isOk) "missing selected Movement authority did not fail closed"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."

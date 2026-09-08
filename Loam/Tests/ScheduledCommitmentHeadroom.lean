@@ -166,8 +166,10 @@ def main : IO Unit := do
       food yen (2 : Nat) (4 : Nat))
     "current Scheduled commitment failed closed"
 
-  expect (commitment.managed.quanta == 35)
-    s!"expected food commitment 35, got {commitment.managed.quanta}"
+  -- Current pressure starts at observedAt=2, so the still-open day-0 occurrence
+  -- is not historically replayed into this future horizon.
+  expect (commitment.managed.quanta == 30)
+    s!"expected food commitment 30, got {commitment.managed.quanta}"
   expect (commitment.unmanaged.quanta == 7)
     s!"expected unmanaged commitment 7, got {commitment.unmanaged.quanta}"
   expect (commitment.unrouted.quanta == 8)
@@ -185,10 +187,10 @@ def main : IO Unit := do
 
   expect (headroom.remaining.quanta == 70)
     s!"expected Remaining 70, got {headroom.remaining.quanta}"
-  expect (headroom.commitment.quanta == 35)
-    s!"expected Commitment 35, got {headroom.commitment.quanta}"
-  expect (headroom.headroom.quanta == 35)
-    s!"expected Headroom 35, got {headroom.headroom.quanta}"
+  expect (headroom.commitment.quanta == 30)
+    s!"expected Commitment 30, got {headroom.commitment.quanta}"
+  expect (headroom.headroom.quanta == 40)
+    s!"expected Headroom 40, got {headroom.headroom.quanta}"
   expect (headroom.unmanagedCommitment.quanta == 7)
     "Headroom view lost unmanaged Scheduled pressure"
   expect (headroom.unroutedCommitment.quanta == 8)

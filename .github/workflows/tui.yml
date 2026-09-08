@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'tools/loam'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -62,6 +67,11 @@ on:
       - 'feat/tui'
     paths:
       - 'tools/loam'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -222,6 +232,9 @@ jobs:
 
       - name: Verify shared Capacity review boundary
         run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
+
+      - name: Verify windowed Current Coverage review boundary
+        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
 
       - name: Verify Capacity workspace
         run: lake env lean --run Loam/Tests/TuiCapacity.lean

@@ -1,7 +1,6 @@
 import Init.Data.Order
 import Loam.Application.CapacityInspection
-import Loam.Application.ConsumptionInspection
-import Loam.Application.ActualRoutingInspection
+import Loam.Application.CapacityWindowInspection
 import Loam.Application.ScheduledCommitmentInspection
 
 namespace Loam.Application
@@ -26,10 +25,11 @@ for one decision-support answer without mixing coordinate systems:
 - correction-frontier Actual + historical Actual routing -> Consumption;
 - current-open replacement-aware Scheduled + routing/role evidence -> Commitment.
 
-The result is explicitly current. `observedAt` selects Scheduled-routing evidence
-visible to the current-open lifecycle answer, while `endExclusive` is only the
-future Scheduled horizon. There is deliberately no `start` coordinate and no
-claim of historical Scheduled replay.
+The result is explicitly current. `currentWindowStart` bounds elapsed Actual
+Consumption, inclusive through `observedAt`. The same `observedAt` selects
+Scheduled-routing evidence and starts future current-open pressure;
+`endExclusive` ends only that Scheduled horizon. This is not historical
+Scheduled replay and is not the historical Budget Window report.
 
 No status, recommendation, `SafeToSpend`, Budget object, or retained Coverage
 state is introduced. Presentation may derive labels such as OVER NOW or FUTURE
@@ -72,10 +72,10 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
-    (observedAt endExclusive : Time) : Option CurrentCoverageView := do
+    (currentWindowStart observedAt endExclusive : Time) : Option CurrentCoverageView := do
   let consumption ←
-    consumptionAtCorrectionFrontier?
-      events corrections validities actualRouting purpose measure
+    consumptionAtCorrectionFrontierThrough?
+      events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
     currentScheduledCommitmentWithReplacement?
       scheduled completions retirements replacements events roles scheduledRouting
@@ -115,10 +115,10 @@ def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
-    (observedAt endExclusive : Time) : Option CurrentCoverageView := do
+    (currentWindowStart observedAt endExclusive : Time) : Option CurrentCoverageView := do
   let consumption ←
-    consumptionAtCorrectionFrontierEffectiveRouting?
-      events corrections validities actualRouting purpose measure
+    consumptionAtCorrectionFrontierEffectiveRoutingThrough?
+      events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
     currentScheduledCommitmentWithReplacement?
       scheduled completions retirements replacements events roles scheduledRouting

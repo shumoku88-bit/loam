@@ -89,30 +89,32 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
   }
   return .ok { actual := actual, scheduled := scheduled }
 
-private structure CoverageHorizon where
+private structure CoverageWindow where
   source : String
+  start : String
   endExclusive : String
 
 /--
-Choose a future coverage horizon only when exactly one configured boundary preset
-explicitly contains the current observation date. The TUI never guesses among
-multiple report coordinate systems.
+Choose a current coverage window only when exactly one configured boundary
+preset explicitly contains the observation date. Both adjacent boundaries are
+retained; the TUI never guesses among multiple report coordinate systems.
 -/
-private def coverageHorizonFor?
+private def coverageWindowFor?
     (presets : List Loam.BoundaryPresetConfig.Preset)
-    (observedAt : String) : Except String (Option CoverageHorizon) :=
-  let matchingHorizons := presets.filterMap fun preset =>
+    (observedAt : String) : Except String (Option CoverageWindow) :=
+  let matchingWindows := presets.filterMap fun preset =>
     match Loam.BoundaryPresetConfig.windowForDate? preset observedAt with
     | none => none
-    | some (_, endExclusive) => some { source := preset.name, endExclusive := endExclusive }
-  match matchingHorizons with
+    | some (start, endExclusive) =>
+        some { source := preset.name, start := start, endExclusive := endExclusive }
+  match matchingWindows with
   | [] => .ok none
-  | [horizon] => .ok (some horizon)
+  | [window] => .ok (some window)
   | _ => .error "multiple configured boundary presets contain the current date"
 
 /--
-Attach shared current coverage when configuration supplies one unambiguous future
-horizon. Refusal degrades only the optional coverage layer; all-retained Capacity
+Attach shared current coverage when configuration supplies one unambiguous
+window. Refusal degrades only the optional coverage layer; all-retained Capacity
 remains available.
 -/
 private def attachCurrentCoverage
@@ -124,18 +126,18 @@ private def attachCurrentCoverage
       return Loam.Tui.Capacity.withoutCoverage
         "boundary preset config is malformed" state
   | some presets =>
-      match coverageHorizonFor? presets observedAt with
+      match coverageWindowFor? presets observedAt with
       | .error message => return Loam.Tui.Capacity.withoutCoverage message state
       | .ok none =>
           return Loam.Tui.Capacity.withoutCoverage
             "no configured boundary preset contains the current date" state
-      | .ok (some horizon) =>
+      | .ok (some window) =>
           match ← Loam.CurrentCoverageReview.loadSnapshotAt
-              dataDir root observedAt horizon.endExclusive with
+              dataDir root window.start observedAt window.endExclusive with
           | .error message => return Loam.Tui.Capacity.withoutCoverage message state
           | .ok coverage =>
               return Loam.Tui.Capacity.withCoverage
-                coverage ("preset " ++ horizon.source) state
+                coverage ("preset " ++ window.source) state
 
 
 def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
