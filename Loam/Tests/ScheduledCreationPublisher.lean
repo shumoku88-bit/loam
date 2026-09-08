@@ -1,6 +1,6 @@
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledReview
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core
 
@@ -24,6 +24,17 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
     discharges := []
     locusAdmission := vocabulary }
 
+private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
+  let some scheduled := ScheduledMemory.ofOccurrences? []
+    | throw (IO.userError "empty Scheduled memory")
+  let some completions := ScheduledCompletionMemory.ofCompletions? []
+    | throw (IO.userError "empty completion memory")
+  let some retirements := ScheduledRetirementMemory.ofRetirements? []
+    | throw (IO.userError "empty retirement memory")
+  let some replacements := ScheduledReplacementMemory.ofReplacements? []
+    | throw (IO.userError "empty replacement memory")
+  return { scheduled, completions, retirements, replacements }
+
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
   , Effect.ofQuantity ⟨"effect-2"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
@@ -46,15 +57,22 @@ def main (args : List String) : IO Unit := do
   IO.FS.createDirAll dataDir
   let root := dataDir / "movement-authority"
   let scheduledFile := dataDir / "scheduled.loam"
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
 
   let initial ← emptyWorld
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
 
   expect (!(← scheduledFile.pathExists))
-    "Scheduled fixture unexpectedly existed before first creation"
+    "Scheduled fixture unexpectedly existed before authority initialization"
+  let missingAuthority ← Loam.ScheduledCreationPublisher.publishManifestCreation
+    scheduledFile.toString root.toString
+    (draft "2026-09-10" "paypay" "rent" 1000)
+  expect (!missingAuthority.isOk)
+    "missing Scheduled lifecycle authority was interpreted as explicit empty"
+
+  let lifecycle0 ← emptyLifecycle
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
+    "initialize explicit empty Scheduled lifecycle authority"
 
   let .ok first ← Loam.ScheduledCreationPublisher.publishManifestCreation
       scheduledFile.toString root.toString
@@ -74,9 +92,9 @@ def main (args : List String) : IO Unit := do
     scheduledFile.toString root.toString
     (draft "2026-02-29" "paypay" "food" 200)
   expect (!invalid.isOk) "impossible Scheduled date was admitted"
-  let some afterInvalid ← Loam.Persistence.loadScheduledMemory? scheduledFile
-    | throw (IO.userError "reload Scheduled memory after invalid draft")
-  expect (afterInvalid.occurrences.length == 1)
+  let some afterInvalid ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload Scheduled lifecycle after invalid draft")
+  expect (afterInvalid.scheduled.occurrences.length == 1)
     "refused Scheduled creation changed retained occurrence count"
 
   let .ok second ← Loam.ScheduledCreationPublisher.publishManifestCreation
@@ -86,11 +104,14 @@ def main (args : List String) : IO Unit := do
   expect (second.scheduled.token == "scheduled-2")
     "second Scheduled creation did not advance fresh identity"
 
+  let some current ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle before orphan fixture")
   let orphan : ScheduledRetirement := { scheduled := ⟨"scheduled-3"⟩ }
   let some orphanMemory := ScheduledRetirementMemory.ofRetirements? [orphan]
     | throw (IO.userError "orphan retirement fixture")
-  expect (← Loam.Persistence.saveScheduledRetirementMemory? retirementFile orphanMemory)
-    "save orphan retirement fixture"
+  let brokenLifecycle := { current with retirements := orphanMemory }
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
+    "save orphan retirement inside complete lifecycle fixture"
 
   let brokenRead ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
   expect (!brokenRead.isOk)
@@ -101,10 +122,10 @@ def main (args : List String) : IO Unit := do
     (draft "2026-09-12" "paypay" "food" 400)
   expect (!refused.isOk)
     "Scheduled creation silently healed orphan lifecycle evidence by recycling its identity"
-  let some afterRefusal ← Loam.Persistence.loadScheduledMemory? scheduledFile
-    | throw (IO.userError "reload Scheduled memory after lifecycle refusal")
-  expect (afterRefusal.occurrences.length == 2 &&
-      (ScheduledMemory.findById? afterRefusal ⟨"scheduled-3"⟩).isNone)
+  let some afterRefusal ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload Scheduled lifecycle after lifecycle refusal")
+  expect (afterRefusal.scheduled.occurrences.length == 2 &&
+      (ScheduledMemory.findById? afterRefusal.scheduled ⟨"scheduled-3"⟩).isNone)
     "lifecycle refusal still retained the candidate Scheduled identity"
 
-  IO.println "Scheduled Creation Publisher: fresh append, explicit date validation, current-open review and orphan-evidence fail-closed admission passed."
+  IO.println "Scheduled Creation Publisher: explicit authority, fresh append, date validation, current-open review and orphan-evidence fail-closed admission passed."
