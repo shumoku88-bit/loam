@@ -191,6 +191,27 @@ Keep the two Lean probes and their research prose as historical design evidence.
 
 A renewed starting-quantity question should earn a new active probe against the current zero-origin model rather than perpetually recompiling this superseded candidate ontology.
 
+## Follow-up graduation - foundational Observation CI 009-017, except 011
+
+Observation workflows 009, 010, and 012-017 retained the same broad trigger shape as the already-graduated 001-005 generation. Changes anywhere under broad research trees, `Loam/Observations/**`, `Loam.lean`, `lakefile.lean`, the manifest, or the Lean toolchain could rerun Alloy, J, or TLA+ fixtures that only exercised their own historical observation source.
+
+Their surviving conceptual results are already part of the compressed 001-084 arc in `OBSERVATION_MAP.md`, and none of 009, 010, or 012-017 is a selected live Lean obligation in `Loam.Observations`.
+
+Keep all historical model, J, TLA+, and prose sources. Graduate these eight dedicated workflows:
+
+```text
+.github/workflows/observation-009.yml
+.github/workflows/observation-010.yml
+.github/workflows/observation-012.yml
+.github/workflows/observation-013.yml
+.github/workflows/observation-014.yml
+.github/workflows/observation-015.yml
+.github/workflows/observation-016.yml
+.github/workflows/observation-017.yml
+```
+
+Observation 011 deliberately remains. Its workflow is narrowly triggered only by `model/011_derived_availability.als` or the workflow itself, and it preserves an independent Alloy witness/check rather than taxing unrelated production or research changes. Graduation is based on current execution role and trigger scope, not observation number.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
