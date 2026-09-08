@@ -42,11 +42,5 @@ lean_exe loamShadowAudit where
 lean_exe loamShadowQuantity where
   root := `Loam.Cli.ShadowQuantityCli
 
-lean_exe loamShadowDay where
-  root := `Loam.Cli.ShadowDayCli
-
-lean_exe loamShadowScheduledDay where
-  root := `Loam.Cli.ShadowScheduledDayCli
-
 lean_exe loamTui where
   root := `Loam.Tui.Cli
