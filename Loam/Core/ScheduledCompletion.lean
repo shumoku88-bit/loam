@@ -1,4 +1,5 @@
 import Loam.Core.Event
+import Loam.Core.FiniteKeyed
 import Loam.Core.Scheduled
 
 namespace Loam.Core
@@ -59,35 +60,17 @@ def add?
     (completion : ScheduledCompletion) : Option ScheduledCompletionMemory :=
   ofCompletions? (memory.completions ++ [completion])
 
-private def findByScheduledIn :
-    List ScheduledCompletion → ScheduledId → Option ScheduledCompletion
-  | [], _ => none
-  | completion :: rest, id =>
-      if completion.scheduled = id then
-        some completion
-      else
-        findByScheduledIn rest id
-
 /-- Find the retained completion relation for one Scheduled identity. -/
 def findByScheduled?
     (memory : ScheduledCompletionMemory)
     (id : ScheduledId) : Option ScheduledCompletion :=
-  findByScheduledIn memory.completions id
-
-private def findByActualIn :
-    List ScheduledCompletion → EventId → Option ScheduledCompletion
-  | [], _ => none
-  | completion :: rest, id =>
-      if completion.actual = id then
-        some completion
-      else
-        findByActualIn rest id
+  FiniteKeyed.findBy? ScheduledCompletion.scheduled memory.completions id
 
 /-- Find the retained completion relation that uses one Actual Event identity. -/
 def findByActual?
     (memory : ScheduledCompletionMemory)
     (id : EventId) : Option ScheduledCompletion :=
-  findByActualIn memory.completions id
+  FiniteKeyed.findBy? ScheduledCompletion.actual memory.completions id
 
 @[simp] theorem ofCompletions?_nil :
     ofCompletions? [] =
