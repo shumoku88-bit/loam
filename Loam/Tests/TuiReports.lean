@@ -46,6 +46,53 @@ def main : IO Unit := do
   expect (initial.liquidityForm.focus.val == 1)
     "conditional outlook prefill did not focus explicit Run"
 
+  let pension : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension"
+    boundaries := ["2026-08-15", "2026-10-15"]
+  }
+  let presetInitial := Loam.Tui.Reports.initialForDateWithPresets "2026-09-07" [pension]
+  let presetStock := (Loam.Tui.Reports.update presetInitial .enter).state
+  let pensionState := (Loam.Tui.Reports.update presetStock (.input ']')).state
+  expect (Loam.Tui.Reports.windowSourceLabel pensionState == "Pension")
+    "named report preset was not selected"
+  expect (pensionState.form.start == "2026-08-15")
+    "Pension preset did not resolve the explicit previous boundary"
+  expect (pensionState.form.endExclusive == "2026-10-15")
+    "Pension preset did not resolve the explicit next boundary"
+  let pensionText := widgetText (Loam.Tui.Reports.view pensionState)
+  expect (contains "Window: Pension" pensionText)
+    "Reports did not render the selected replaceable preset"
+  expect (contains "explicit coordinates only" pensionText)
+    "Reports lost the preset-to-coordinate boundary"
+  match (Loam.Tui.Reports.update pensionState .enter).query with
+  | some (.stockFlow start endExclusive) =>
+      expect (start == "2026-08-15") "preset Stock-Flow query changed start"
+      expect (endExclusive == "2026-10-15") "preset Stock-Flow query changed end"
+  | _ => throw (IO.userError "preset Stock-Flow did not reduce to an explicit coordinate query")
+
+  let calendarAgain := (Loam.Tui.Reports.update pensionState (.input ']')).state
+  expect (Loam.Tui.Reports.windowSourceLabel calendarAgain == "Calendar Month")
+    "window-source cycle did not return to Calendar Month"
+  expect (calendarAgain.form.start == "2026-09-01")
+    "Calendar Month source did not restore selected-day month start"
+  expect (calendarAgain.form.endExclusive == "2026-10-01")
+    "Calendar Month source did not restore selected-day month end"
+
+  let customEditing : Loam.Tui.Reports.State := {
+    pensionState with form := { pensionState.form with focus := ⟨0, by decide⟩ }
+  }
+  let customState := (Loam.Tui.Reports.update customEditing .backspace).state
+  expect (Loam.Tui.Reports.windowSourceLabel customState == "Custom")
+    "manual coordinate edit did not become Custom presentation state"
+
+  let outBase := Loam.Tui.Reports.initialForDateWithPresets "2026-10-15" [pension]
+  let outStock := (Loam.Tui.Reports.update outBase .enter).state
+  let outPreset := (Loam.Tui.Reports.update outStock (.input ']')).state
+  expect (outPreset.form.start.isEmpty && outPreset.form.endExclusive.isEmpty)
+    "preset without a later explicit boundary left stale coordinates visible"
+  expect (contains "no explicit adjacent boundary window" outPreset.notice)
+    "preset exhaustion did not fail closed with an explanation"
+
   let stock := (Loam.Tui.Reports.update initial .enter).state
   expect (isStockFlow stock) "default Reports selection did not open Stock–Flow"
   let stockText := widgetText (Loam.Tui.Reports.view stock)
