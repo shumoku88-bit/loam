@@ -1,6 +1,7 @@
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Core.RelationAdmission
+import Loam.FreshNumberedToken
 import Loam.Persistence
 import Loam.MovementEntry
 import Std
@@ -93,23 +94,6 @@ private def getAt? {α : Type} : List α → Nat → Option α
   | item :: _, 0 => some item
   | _ :: rest, index + 1 => getAt? rest index
 
-private def freshReplacementEventIdFrom
-    (memory : Loam.Core.EventMemory)
-    (corrections : Loam.Core.EventCorrectionMemory)
-    (history : Loam.Core.ActualValidityHistory String) :
-    Nat → Nat → Option Loam.Core.EventId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.EventId := ⟨"replacement-" ++ toString index⟩
-      match Loam.Core.EventMemory.findById? memory candidate with
-      | some _ =>
-          freshReplacementEventIdFrom memory corrections history (index + 1) fuel
-      | none =>
-          if correctionMentionsEvent corrections candidate || historyMentionsEvent history candidate then
-            freshReplacementEventIdFrom memory corrections history (index + 1) fuel
-          else
-            some candidate
-
 /--
 Generate a replacement identity unused by every retained stream that can already
 refer to an Event identity. This prevents a new correction from accidentally
@@ -118,37 +102,37 @@ closing an unrelated dangling correction or attaching an orphan date fact.
 private def freshReplacementEventId?
     (memory : Loam.Core.EventMemory)
     (corrections : Loam.Core.EventCorrectionMemory)
-    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.EventId :=
-  freshReplacementEventIdFrom memory corrections history 1
+    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.EventId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "replacement-"
+    (fun token =>
+      let candidate : Loam.Core.EventId := ⟨token⟩
+      (Loam.Core.EventMemory.findById? memory candidate).isSome ||
+        correctionMentionsEvent corrections candidate || historyMentionsEvent history candidate)
+    1
     (memory.events.length + 2 * corrections.corrections.length + history.facts.length + 1)
-
-private def freshCorrectionIdFrom
-    (memory : Loam.Core.EventCorrectionMemory) : Nat → Nat → Option Loam.Core.EventCorrectionId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.EventCorrectionId := ⟨"correction-" ++ toString index⟩
-      match Loam.Core.EventCorrectionMemory.findById? memory candidate with
-      | none => some candidate
-      | some _ => freshCorrectionIdFrom memory (index + 1) fuel
+  pure ⟨token⟩
 
 private def freshCorrectionId?
-    (memory : Loam.Core.EventCorrectionMemory) : Option Loam.Core.EventCorrectionId :=
-  freshCorrectionIdFrom memory 1 (memory.corrections.length + 1)
-
-private def freshValidityFactIdFrom
-    (history : Loam.Core.ActualValidityHistory String) :
-    Nat → Nat → Option Loam.Core.ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.ActualValidityFactId :=
-        ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshValidityFactIdFrom history (index + 1) fuel
+    (memory : Loam.Core.EventCorrectionMemory) : Option Loam.Core.EventCorrectionId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "correction-"
+    (fun token =>
+      (Loam.Core.EventCorrectionMemory.findById?
+        memory (⟨token⟩ : Loam.Core.EventCorrectionId)).isSome)
+    1
+    (memory.corrections.length + 1)
+  pure ⟨token⟩
 
 private def freshValidityFactId?
-    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.ActualValidityFactId :=
-  freshValidityFactIdFrom history 1 (history.facts.length + 1)
+    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.ActualValidityFactId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-"
+    (fun token =>
+      (history.findFactById? (⟨token⟩ : Loam.Core.ActualValidityFactId)).isSome)
+    1
+    (history.facts.length + 1)
+  pure ⟨token⟩
 
 private def loadCorrectionMemoryForEntry?
     (path : System.FilePath) : IO (Option Loam.Core.EventCorrectionMemory) := do
