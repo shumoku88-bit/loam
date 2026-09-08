@@ -133,6 +133,13 @@ for exe_name, root in executables:
     lines = sum(source_lines(module_to_path[module]) for module in reached)
     print(f"  {exe_name:<28} {root:<38} {lines:6d} lines / {len(reached):3d} files")
 
+print("\nPractical-library-only files not reached by any executable root:")
+if lib_only:
+    for module in sorted(lib_only):
+        print(f"  {module_to_path[module]}")
+else:
+    print("  (none)")
+
 print("\nCandidate practical files not reachable from executable or practical-library roots:")
 if unreachable:
     for module in sorted(unreachable):
