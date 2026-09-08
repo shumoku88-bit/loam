@@ -21,6 +21,7 @@ import Loam.AttentionReview
 import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.BudgetWindowReview
+import Loam.StockFlowReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
 import Loam.Tui.HraActual
@@ -420,7 +421,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           match Loam.Tui.ScheduledReplacement.initial? record with
           | .error message =>
               let next := { step.state with notice := message }
-              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot step.state)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
@@ -602,24 +603,25 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       capacityLoop bounds dataDir focusDate next nextFrame
 
-/-- Explicit-coordinate Reports session. `true` means quit LOAM. -/
+/-- Reports session. `true` means quit LOAM. -/
 partial def reportsLoop (bounds : Bounds)
     (dataDir root : System.FilePath)
     (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bool := do
   let key ← Loam.Tui.Terminal.readKey
   if key = .input 'q' || key = .input 'Q' then
     return true
-  if key = .input 'b' || key = .input 'B' then
-    return false
   let step := Loam.Tui.Reports.update state key
   if step.back then return false
   let next ←
     match step.query with
     | none => pure step.state
-    | some query =>
-        match ← Loam.BudgetWindowReview.loadSnapshot
-            dataDir root query.start query.endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withSnapshot step.state snapshot)
+    | some (.budgetWindow start endExclusive) =>
+        match ← Loam.BudgetWindowReview.loadSnapshot dataDir root start endExclusive with
+        | .ok snapshot => pure (Loam.Tui.Reports.withBudgetSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.stockFlow start endExclusive) =>
+        match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
+        | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
   let nextFrame := compileWidget (Loam.Tui.Reports.view next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame

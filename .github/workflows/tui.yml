@@ -27,12 +27,14 @@ on:
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/StockFlowReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Core/ZeroOriginCoverage.lean'
@@ -75,12 +77,14 @@ on:
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/StockFlowReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Core/ZeroOriginCoverage.lean'
@@ -200,5 +204,11 @@ jobs:
       - name: Verify manifest-backed Budget Window review boundary
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
 
-      - name: Verify explicit-window Reports workspace
+      - name: Build shared Stock-Flow review boundary
+        run: lake build Loam.StockFlowReview
+
+      - name: Verify Stock-Flow reconstruction and refusal boundaries
+        run: lake env lean --run Loam/Tests/StockFlowReview.lean
+
+      - name: Verify Reports menu, Stock-Flow and Budget Window surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
