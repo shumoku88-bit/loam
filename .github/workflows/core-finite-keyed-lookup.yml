@@ -10,6 +10,11 @@ on:
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core/AttentionMemory.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/EventResolutionMemory.lean'
+      - 'Loam/Core/EventDescription.lean'
+      - 'Loam/Core/ScheduledRetirement.lean'
+      - 'Loam/Core/ActualValidityHistory.lean'
       - '.github/workflows/core-finite-keyed-lookup.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -44,6 +49,11 @@ jobs:
             Loam.Core.ScheduledMemory \
             Loam.Core.CapacityMemory \
             Loam.Core.AttentionMemory \
+            Loam.Core.EventCorrectionMemory \
+            Loam.Core.EventResolutionMemory \
+            Loam.Core.EventDescription \
+            Loam.Core.ScheduledRetirement \
+            Loam.Core.ActualValidityHistory \
             > /tmp/core-finite-keyed.log 2>&1
           status=$?
           cat /tmp/core-finite-keyed.log
