@@ -32,15 +32,30 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Check shared finite keyed helper
-        run: lake env lean Loam/Core/FiniteKeyed.lean
-      - name: Check affected semantic memories
+      - name: Check finite keyed extraction
         shell: bash
         run: |
-          set -euo pipefail
-          lake env lean Loam/Core/EventMemory.lean
-          lake env lean Loam/Core/ActualValidity.lean
-          lake env lean Loam/Core/CapacityEffective.lean
-          lake env lean Loam/Core/ScheduledMemory.lean
-          lake env lean Loam/Core/CapacityMemory.lean
-          lake env lean Loam/Core/AttentionMemory.lean
+          set +e
+          : > /tmp/core-finite-keyed.log
+          status=0
+          for file in \
+            Loam/Core/FiniteKeyed.lean \
+            Loam/Core/EventMemory.lean \
+            Loam/Core/ActualValidity.lean \
+            Loam/Core/CapacityEffective.lean \
+            Loam/Core/ScheduledMemory.lean \
+            Loam/Core/CapacityMemory.lean \
+            Loam/Core/AttentionMemory.lean
+          do
+            echo "===== $file =====" | tee -a /tmp/core-finite-keyed.log
+            lake env lean "$file" 2>&1 | tee -a /tmp/core-finite-keyed.log
+            current=${PIPESTATUS[0]}
+            if [ "$current" -ne 0 ]; then status="$current"; fi
+          done
+          exit "$status"
+      - name: Upload finite keyed Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-finite-keyed-log
+          path: /tmp/core-finite-keyed.log
