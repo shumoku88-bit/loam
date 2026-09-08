@@ -1,4 +1,5 @@
 import Loam.Core.Capacity
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -35,20 +36,11 @@ def ofMovements? (movements : List CapacityMovement) : Option CapacityMemory :=
 def add? (memory : CapacityMemory) (movement : CapacityMovement) : Option CapacityMemory :=
   ofMovements? (memory.movements ++ [movement])
 
-private def findMovementById? :
-    List CapacityMovement → CapacityMovementId → Option CapacityMovement
-  | [], _ => none
-  | movement :: rest, id =>
-      if movement.id = id then
-        some movement
-      else
-        findMovementById? rest id
-
 /-- Find one retained capacity movement by stable identity. -/
 def findById?
     (memory : CapacityMemory)
     (id : CapacityMovementId) : Option CapacityMovement :=
-  findMovementById? memory.movements id
+  FiniteKeyed.findBy? CapacityMovement.id memory.movements id
 
 @[simp] theorem ofMovements?_nil :
     ofMovements? [] = some { movements := [], idNodup := by simp } := by
