@@ -36,8 +36,9 @@ private def pendingDates : PendingEvidence → List String
   | .ok records => records.map (fun record => record.scheduledOn)
   | .error _ => []
 
-private def hraCalendarSpans
-    (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
+/-- Pure calendar presentation; marker dates are supplied evidence, not classified here. -/
+def hraCalendarSpans
+    (today : String) (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
   (List.range 7).map fun col =>
     match calendarSlot state row col with
     | none => span "     "
@@ -48,12 +49,14 @@ private def hraCalendarSpans
           | _ => "  "
         let marker := if pastOpenDates.any (fun pending => pending == date) then "!" else " "
         if date == state.selectedDate then
-          span ("[" ++ day ++ marker ++ "]") .selected
+          span ("[" ++ day ++ marker ++ "]")
+            (if date == today then .selectedUnderlined else .selected)
         else
           span (" " ++ day ++ marker ++ " ")
+            (if date == today then .underlined else .normal)
 
-private def calendarRows (pastOpenDates : List String) (state : State) : List Widget :=
-  (List.range 6).map fun row => .row (hraCalendarSpans pastOpenDates state row)
+private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
+  (List.range 6).map fun row => .row (hraCalendarSpans today pastOpenDates state row)
 
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
@@ -142,7 +145,8 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   , plainLine (centeredMonthTitle state)
   , calendarHeader
   ] ++
-  calendarRows pastOpenDates state ++
+  calendarRows snapshot.actual.today pastOpenDates state ++
+  [mutedLine " underline = today"] ++
   (if pastOpenDates.isEmpty then [] else
     [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
   [ ruleLine bounds '-'

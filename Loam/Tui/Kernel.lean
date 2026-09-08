@@ -8,6 +8,8 @@ inductive Style where
   | normal
   | selected
   | muted
+  | underlined
+  | selectedUnderlined
   deriving Repr, DecidableEq, BEq
 
 structure Cell where
