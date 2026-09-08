@@ -29,8 +29,6 @@ def local_imports(path: Path) -> list[str]:
         line = raw_line.strip()
         if not line.startswith("import "):
             continue
-        # Lean permits more than one module after `import`; keep only modules
-        # that resolve to files in this repository.
         for token in line[len("import ") :].split():
             token = token.strip()
             if token in module_to_path:
@@ -56,7 +54,6 @@ def closure(roots: list[str]) -> set[str]:
     return seen
 
 
-# Extract executable names and roots from the simple Lake DSL shape used here.
 executables: list[tuple[str, str]] = []
 current_exe: str | None = None
 for raw_line in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
@@ -73,9 +70,8 @@ for raw_line in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
 exe_roots = [root for _, root in executables]
 exe_reachable = closure(exe_roots)
 
-# Explicit practical library entrances. `Loam.lean` is deliberately excluded:
-# it imports historical observations so the all-library build does not define
-# production reachability.
+# `Loam.lean` is deliberately excluded because it imports historical
+# observations for the all-library qualification build.
 practical_library_roots = [
     module
     for module in ["Loam.Core", "Loam.Application", "Loam.Persistence", "Loam.Tui"]
@@ -110,7 +106,6 @@ unreachable = candidate_modules - (exec_practical | library_practical)
 
 
 def source_lines(path: Path) -> int:
-    # Match `wc -l` used by audit-production-surface.
     return path.read_bytes().count(b"\n")
 
 
@@ -118,6 +113,14 @@ def summarize(label: str, modules: set[str]) -> None:
     paths = sorted(module_to_path[module] for module in modules)
     lines = sum(source_lines(path) for path in paths)
     print(f"{label:<34} {lines:8d} {len(paths):8d}")
+
+
+def reachability_label(module: str) -> str:
+    if module in exe_reachable:
+        return "EXEC"
+    if module in library_reachable:
+        return "LIB"
+    return "NONE"
 
 
 print(f"{'reachability class':<34} {'lines':>8} {'files':>8}")
@@ -146,6 +149,12 @@ if unreachable:
         print(f"  {module_to_path[module]}")
 else:
     print("  (none)")
+
+print("\nTop-level practical file reachability (EXEC / LIB / NONE):")
+top_level_candidates = sorted(path for path in candidate_paths if len(path.parts) == 2)
+for path in top_level_candidates:
+    module = path_to_module[path]
+    print(f"  {reachability_label(module):<4} {path}")
 
 historical_or_test = {
     module
