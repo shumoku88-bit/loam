@@ -127,3 +127,9 @@ The graduation rule established in Phase 5 provides an enduring governance polic
 ## Audit closure
 
 All six phases are **COMPLETE**. The compression audit in PR #534 / Issue #535 has met all exit conditions without compromising semantic precision, fail-closed safety, provenance, or writer ownership.
+
+### Post-audit subtraction: unregistered root wrappers
+
+A later production-entrance pass found two root-level executable shells, `LoamEffective.lean` and `LoamCorrectionIntegrity.lean`, that were not declared as Lake executables and had no repository callers. Their diagnostics remain available through the retained `loam effective` and `loam correction-integrity` subcommands backed by `Loam/Cli/EffectiveCli.lean` and `Loam/Cli/CorrectionIntegrityCli.lean`.
+
+The wrappers were therefore deleted as dead duplicate entrances without removing diagnostic semantics or changing canonical authority.
