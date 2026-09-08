@@ -21,6 +21,13 @@ private def household : PurposeId := ⟨"household"⟩
 private def paypay : LocusId := ⟨"paypay"⟩
 private def groceries : LocusId := ⟨"groceries"⟩
 private def coffee : LocusId := ⟨"coffee"⟩
+private def assetReceipt : LocusId := ⟨"asset-receipt"⟩
+private def incomeSource : LocusId := ⟨"income-source"⟩
+private def debt : LocusId := ⟨"debt"⟩
+private def fixedExpense : LocusId := ⟨"fixed-expense"⟩
+private def savings : LocusId := ⟨"savings"⟩
+private def mystery : LocusId := ⟨"mystery"⟩
+private def routedMystery : LocusId := ⟨"routed-mystery"⟩
 
 private def change (locus : LocusId) (quanta : Int) : MovementChange LocusId :=
   { coordinate := locus, quantity := Quantity.ofQuanta quanta }
@@ -39,6 +46,18 @@ private def subject (scheduled : String) (locus : LocusId) : ScheduledRoutingSub
   { scheduled := ⟨scheduled⟩, locus := locus }
 
 def main : IO Unit := do
+  let roles ← requireSome
+    (AccountingRoleMap.ofAssignments?
+      [{ locus := paypay, role := .asset },
+       { locus := groceries, role := .expense },
+       { locus := coffee, role := .expense },
+       { locus := assetReceipt, role := .asset },
+       { locus := incomeSource, role := .income },
+       { locus := debt, role := .liability },
+       { locus := fixedExpense, role := .expense },
+       { locus := savings, role := .asset }])
+    "accounting-role fixture was not admitted"
+
   let capacityMovement ← requireSome
     (do
       let movement ← BalancedMovement.ofChanges? yen
@@ -143,7 +162,7 @@ def main : IO Unit := do
 
   let commitment ← requireSome
     (currentScheduledCommitment?
-      scheduledMemory completionMemory retirementMemory events scheduledRouting
+      scheduledMemory completionMemory retirementMemory events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat))
     "current Scheduled commitment failed closed"
 
@@ -153,12 +172,14 @@ def main : IO Unit := do
     s!"expected unmanaged commitment 7, got {commitment.unmanaged.quanta}"
   expect (commitment.unrouted.quanta == 8)
     s!"expected unrouted commitment 8, got {commitment.unrouted.quanta}"
+  expect (commitment.unresolvedEligibility.quanta == 0)
+    "fully classified fixture unexpectedly retained unresolved eligibility"
 
   let headroom ← requireSome
     (headroomAtCorrectionFrontier?
       [capacityMovement]
       events corrections validities actualRouting
-      scheduledMemory completionMemory retirementMemory scheduledRouting
+      scheduledMemory completionMemory retirementMemory roles scheduledRouting
       food yen (2 : Nat) (4 : Nat))
     "headroom projection failed closed"
 
@@ -172,6 +193,71 @@ def main : IO Unit := do
     "Headroom view lost unmanaged Scheduled pressure"
   expect (headroom.unroutedCommitment.quanta == 8)
     "Headroom view lost unrouted Scheduled pressure"
+  expect (headroom.unresolvedEligibility.quanta == 0)
+    "Headroom view invented unresolved Scheduled pressure"
+
+  -- Observation 227 representative pressure selection.
+  let incomeOccurrence ← requireSome
+    (scheduled? "eligibility-income" 2
+      [change incomeSource (-30), change assetReceipt 30])
+    "Asset-receipt Scheduled fixture was not admitted"
+  let debtOccurrence ← requireSome
+    (scheduled? "eligibility-debt" 2
+      [change paypay (-20), change debt 20])
+    "Liability Scheduled fixture was not admitted"
+  let expenseOccurrence ← requireSome
+    (scheduled? "eligibility-expense" 2
+      [change paypay (-10), change fixedExpense 10])
+    "Expense Scheduled fixture was not admitted"
+  let savingsOccurrence ← requireSome
+    (scheduled? "eligibility-savings" 2
+      [change paypay (-40), change savings 40])
+    "routed Asset Scheduled fixture was not admitted"
+  let mysteryOccurrence ← requireSome
+    (scheduled? "eligibility-mystery" 2
+      [change paypay (-50), change mystery 50])
+    "missing-role Scheduled fixture was not admitted"
+  let routedMysteryOccurrence ← requireSome
+    (scheduled? "eligibility-routed-mystery" 2
+      [change paypay (-60), change routedMystery 60])
+    "routed missing-role Scheduled fixture was not admitted"
+
+  let eligibilityMemory ← requireSome
+    (ScheduledMemory.ofOccurrences?
+      [incomeOccurrence, debtOccurrence, expenseOccurrence, savingsOccurrence,
+       mysteryOccurrence, routedMysteryOccurrence])
+    "eligibility Scheduled memory was not admitted"
+  let emptyCompletions ← requireSome
+    (ScheduledCompletionMemory.ofCompletions? [])
+    "empty completion memory was not admitted"
+  let emptyRetirements ← requireSome
+    (ScheduledRetirementMemory.ofRetirements? [])
+    "empty retirement memory was not admitted"
+  let eligibilityRouting ← requireSome
+    (RoutingHistory.ofEntries?
+      [{ subject := subject "eligibility-savings" savings,
+         effectiveOn := (1 : Nat), purpose := some food },
+       { subject := subject "eligibility-routed-mystery" routedMystery,
+         effectiveOn := (1 : Nat), purpose := some food }])
+    "eligibility routing fixture was not admitted"
+
+  let eligibility ← requireSome
+    (currentScheduledCommitment?
+      eligibilityMemory emptyCompletions emptyRetirements events roles
+      eligibilityRouting food yen (2 : Nat) (4 : Nat))
+    "eligibility pressure projection failed closed"
+
+  -- Asset receipt with no route is resolved non-pressure. Expense and Liability
+  -- remain unrouted pressure. Explicit routing selects Asset and even missing-role
+  -- coordinates into pressure. Missing role without a route stays visible.
+  expect (eligibility.managed.quanta == 100)
+    s!"expected routed pressure 100, got {eligibility.managed.quanta}"
+  expect (eligibility.unmanaged.quanta == 0)
+    "eligibility fixture invented unmanaged pressure"
+  expect (eligibility.unrouted.quanta == 30)
+    s!"expected Expense + Liability unrouted pressure 30, got {eligibility.unrouted.quanta}"
+  expect (eligibility.unresolvedEligibility.quanta == 50)
+    s!"expected unresolved eligibility 50, got {eligibility.unresolvedEligibility.quanta}"
 
   -- An unknown Scheduled endpoint makes the whole current-open answer invalid.
   let unknownCompletion ← requireSome
@@ -180,7 +266,7 @@ def main : IO Unit := do
     "unknown-reference completion fixture shape was not admitted"
   expect
     ((currentScheduledCommitment?
-      scheduledMemory unknownCompletion retirementMemory events scheduledRouting
+      scheduledMemory unknownCompletion retirementMemory events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "unknown Scheduled completion reference did not fail closed"
 
@@ -191,7 +277,7 @@ def main : IO Unit := do
     "conflicting retirement fixture shape was not admitted"
   expect
     ((currentScheduledCommitment?
-      scheduledMemory completionMemory conflictRetirement events scheduledRouting
+      scheduledMemory completionMemory conflictRetirement events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "conflicting Scheduled terminal evidence did not fail closed"
 

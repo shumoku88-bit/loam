@@ -66,13 +66,19 @@ def main : IO Unit := do
        { subject := subject "scheduled-new", effectiveOn := (1 : Nat), purpose := some food }])
     "Scheduled routing fixture was not admitted"
 
+  -- Explicit ScheduledRouting is sufficient pressure intent even when this
+  -- synthetic fixture deliberately carries no AccountingRole assignments.
+  let roles := AccountingRoleMap.empty
+
   let commitment ← requireSome
     (currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events routing
+      scheduled completions retirements replacements events roles routing
       food yen (3 : Nat) (4 : Nat))
     "replacement-aware Commitment failed closed"
   expect (commitment.managed.quanta == 12)
     s!"superseded Scheduled quantity leaked into Commitment: {commitment.managed.quanta}"
+  expect (commitment.unresolvedEligibility.quanta == 0)
+    "explicit ScheduledRouting did not resolve missing-role pressure eligibility"
 
   let balance ← requireSome
     (currentScheduledBalanceEffectsBeforeWithReplacement?
@@ -106,7 +112,7 @@ def main : IO Unit := do
   let headroom ← requireSome
     (headroomAtCorrectionFrontierWithReplacement?
       [capacityMovement] events corrections validities actualRouting
-      scheduled completions retirements replacements routing
+      scheduled completions retirements replacements roles routing
       food yen (3 : Nat) (4 : Nat))
     "replacement-aware Headroom failed closed"
   expect (headroom.remaining.quanta == 100)
@@ -115,5 +121,7 @@ def main : IO Unit := do
     s!"expected replacement-aware Commitment 12, got {headroom.commitment.quanta}"
   expect (headroom.headroom.quanta == 88)
     s!"expected replacement-aware Headroom 88, got {headroom.headroom.quanta}"
+  expect (headroom.unresolvedEligibility.quanta == 0)
+    "replacement-aware Headroom invented unresolved eligibility"
 
   IO.println "Scheduled replacement reader cutover story succeeded."
