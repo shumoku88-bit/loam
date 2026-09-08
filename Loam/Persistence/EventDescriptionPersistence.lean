@@ -1,5 +1,6 @@
 import Loam.Core.EventDescription
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -138,20 +139,15 @@ def decodeEventDescriptionMemory? (input : String) : Option EventDescriptionMemo
         none
   | _ => none
 
-private def eventDescriptionStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /--
-Publish one Event-description memory using sibling staging and atomic filesystem replace.
+Publish one Event-description memory using sibling staging and filesystem replace.
 -/
 def saveEventDescriptionMemory?
     (path : System.FilePath)
     (memory : EventDescriptionMemory) : IO Bool := do
   match encodeEventDescriptionMemory? memory with
   | some text =>
-      let stagePath := eventDescriptionStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       pure true
   | none => pure false
 

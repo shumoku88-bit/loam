@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Core.HistoricalRouting
 import Loam.Core.RoutingEffective
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -102,9 +103,6 @@ def decodeActualRoutingHistory? (input : String) : Option ActualRoutingHistory :
         | _ => none
   | _ => none
 
-private def actualRoutingStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish one complete Actual-routing stream by sibling staging plus rename. -/
 def saveActualRoutingHistory?
     (path : System.FilePath)
@@ -112,9 +110,7 @@ def saveActualRoutingHistory?
   match encodeActualRoutingHistory? history with
   | none => return false
   | some text =>
-      let stagePath := actualRoutingStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read and fail-closed decode one concrete Actual-routing stream. -/

@@ -1,5 +1,6 @@
 import Loam.Core.LocusAdmission
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -76,10 +77,6 @@ def locusAdmissionVocabularyPathForEventMemory
     (memoryPath : System.FilePath) : System.FilePath :=
   System.FilePath.mk (memoryPath.toString ++ ".locus-admission")
 
-private def locusAdmissionVocabularyStagePath
-    (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Atomically replace one independently persisted Locus admission vocabulary. -/
 def saveLocusAdmissionVocabulary?
     (path : System.FilePath)
@@ -87,9 +84,7 @@ def saveLocusAdmissionVocabulary?
   match encodeLocusAdmissionVocabulary? vocabulary with
   | none => return false
   | some text =>
-      let stage := locusAdmissionVocabularyStagePath path
-      IO.FS.writeFile stage text
-      IO.FS.rename stage path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read one explicit vocabulary; malformed or unsupported content returns `none`. -/

@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.AttentionMemory
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -130,9 +131,6 @@ def decodeAttentionMemory?
         | _ => none
   | _ => none
 
-private def attentionStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish one complete Attention image by sibling staging plus rename. -/
 def saveAttentionMemory?
     (path : System.FilePath)
@@ -141,9 +139,7 @@ def saveAttentionMemory?
   match encodeAttentionMemory? items closures with
   | none => return false
   | some text =>
-      let stagePath := attentionStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read and fail-closed decode one configured Attention stream. -/

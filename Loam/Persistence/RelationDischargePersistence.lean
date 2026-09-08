@@ -1,5 +1,6 @@
 import Loam.Core.OpenRelation
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -103,10 +104,6 @@ def decodeRelationDischarges?
         none
   | _ => none
 
-private def relationDischargeStagePath
-    (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish the complete raw RelationDischarge image through sibling staging + rename. -/
 def saveRelationDischarges?
     (path : System.FilePath)
@@ -114,9 +111,7 @@ def saveRelationDischarges?
   match encodeRelationDischarges? discharges with
   | none => pure false
   | some text =>
-      let stagePath := relationDischargeStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       pure true
 
 /-- Load and syntactically decode one raw RelationDischarge stream. -/

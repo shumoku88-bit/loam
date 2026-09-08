@@ -1,5 +1,6 @@
 import Loam.Core.CapacityMemory
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -114,18 +115,13 @@ def decodeCapacityMemory? (input : String) : Option CapacityMemory :=
         | _ => none
     | _ => none
 
-private def capacityMemoryStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish one raw Capacity stream by complete sibling staging plus rename. -/
 def saveCapacityMemory?
     (path : System.FilePath)
     (memory : CapacityMemory) : IO Bool := do
   match encodeCapacityMemory? memory with
   | some text =>
-      let stagePath := capacityMemoryStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
   | none =>
       return false
