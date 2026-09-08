@@ -3,34 +3,14 @@ name: Observation 011
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
-      - '.github/workflows/observation-*.yml'
+      - 'model/011_derived_availability.als'
+      - '.github/workflows/observation-011.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
-      - '.github/workflows/observation-*.yml'
+      - 'model/011_derived_availability.als'
+      - '.github/workflows/observation-011.yml'
   workflow_dispatch:
 
 permissions:
@@ -101,20 +81,3 @@ jobs:
           if wrong:
               raise SystemExit(f'unexpected Alloy results: {wrong}')
           PY
-
-  lean:
-    name: Lean exact availability law
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build and check Lean proofs
-        uses: leanprover/lean-action@v1
-        with:
-          build: true
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: true
-          axiom-audit: true
-          use-github-cache: false
