@@ -12,21 +12,11 @@ open Loam.Core
 
 set_option autoImplicit false
 
-/--
-Surface-independent replacement draft for one current practical Movement.
-
-`description` is explicit replacement evidence supplied by the caller. The
-publisher never infers that EventCorrection preserves description text. Occurrence
-date is intentionally absent from the draft: the existing practical correction
-policy may carry the target's current explicit date forward, while date editing
-remains the separate ActualValidity correction operation.
--/
 structure Draft where
   target : EventId
   effects : List Effect
   description : Option String := none
 
-/-- Small frontend receipt after one manifest-backed correction publication. -/
 structure Receipt where
   target : EventId
   replacement : EventId
@@ -54,11 +44,7 @@ private def loadCorrectionsOrEmpty?
   else
     return .ok emptyCorrections
 
-/--
-Reversal evidence is an explicit complete authority once the Reversal writer is
-available. Missing authority is not interpreted as an empty set because doing so
-would let Correction silently invalidate an existing target/inverse relation.
--/
+/-- Missing Reversal authority is not absence-as-empty. -/
 private def loadReversals?
     (path : System.FilePath) : IO (Except String ActualReversalMemory) := do
   if !(← path.pathExists) then
@@ -157,7 +143,6 @@ private def targetingCorrections
     (corrections : EventCorrectionMemory) (target : EventId) : List EventCorrection :=
   corrections.corrections.filter fun correction => decide (correction.target = target)
 
-/-- A single relation-first interrupted publication is resumable; ambiguity is not. -/
 private def pendingCorrectionForTarget?
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
@@ -238,8 +223,8 @@ private def appendDescription?
   | some text =>
       match EventDescriptionMemory.ofEntries?
           (descriptions.entries ++ [{ event := replacement, text := text }]) with
-      | some updated => pure (updated, true)
-      | none => throw "loam: replacement description could not be admitted"
+      | some descriptions => pure (descriptions, true)
+      | none => throw "loam: could not append replacement description"
 
 private def admit?
     (world : Loam.MovementAdmission.World)
@@ -354,7 +339,7 @@ private def publishUnderOwnership
     match ← loadCorrectionsOrEmpty? correctionFile with
     | .ok memory => pure memory
     | .error message => return .error message
-  let reversalFile := correctionFile.parent / "actual-reversals.loam"
+  let reversalFile := correctionFile.withFileName "actual-reversals.loam"
   let reversals ←
     match ← loadReversals? reversalFile with
     | .ok memory => pure memory
@@ -364,10 +349,6 @@ private def publishUnderOwnership
     | .ok admitted => pure admitted
     | .error message => return .error message
 
-  -- Prepare immutable family objects before making the separate Correction
-  -- relation authoritative. If the final CURRENT switch then fails, the raw
-  -- relation remains a single resumable dangling fact rather than exposing an
-  -- uncorrected replacement Event.
   let prepared ←
     match ← Loam.MovementManifestAuthority.prepareWorld? root admitted.world with
     | .ok prepared => pure prepared
@@ -382,21 +363,11 @@ private def publishUnderOwnership
 /--
 Publish one practical Movement correction against current manifest authority.
 
-All Movement-related writers share the manifest `CURRENT` ownership anchor. The
-publisher re-reads selected Movement, correction, and explicit Actual Reversal
-evidence inside that ownership window, so a stale TUI selection cannot authorize
-a write and Correction cannot invalidate a retained exact-inverse relation.
-Reversal authority is the explicit complete `actual-reversals.loam` sibling of
-the configured Correction authority; missing or malformed evidence fails closed.
-For a fresh correction it prepares the replacement generation off authority,
-publishes the append-only Correction relation first, then atomically switches
-`CURRENT`. A single interrupted relation-first publication is resumable with the
-same replacement identity.
-
-The current entrance deliberately fails closed for Events referenced by
-RelationUnit/RelationDischarge evidence or participating in ActualReversal
-evidence because inheritance for those relations has not been qualified. It also
-applies current Locus new-write policy to the replacement Effects.
+The publisher re-reads selected Movement, Correction, and the explicit complete
+`actual-reversals.loam` sibling of the configured Correction authority while
+holding Movement `CURRENT`. Missing/malformed Reversal authority fails closed.
+An Actual named as either Reversal target or inverse cannot be corrected until
+inheritance semantics are separately qualified.
 -/
 def publishManifestCorrection
     (rootPath correctionPath : String) (draft : Draft) : IO (Except String Receipt) := do
