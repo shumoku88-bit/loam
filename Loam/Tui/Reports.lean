@@ -665,10 +665,19 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   let parts := viewParts state
   let page := bodyPageSize bounds parts.2
   let offset := min (requestedOffset state page) (parts.1.length - page)
-  .column <|
-    (parts.1.drop offset).take page ++
-    [scrollPositionLine state.mode offset page parts.1.length] ++
-    parts.2
+  let position := scrollPositionLine state.mode offset page parts.1.length
+  if bounds.height < parts.2.length + 1 then
+    -- In a tiny terminal, retain as much navigation as possible. Existing views
+    -- put their notice last and their most essential back/quit row immediately
+    -- before it, so reverse the navigation rows and omit body before overflowing.
+    let navigation := parts.2.dropLast.reverse
+    let notice := parts.2.getLast?.toList
+    .column <| (navigation ++ [position] ++ notice).take bounds.height
+  else
+    .column <|
+      (parts.1.drop offset).take page ++
+      [position] ++
+      parts.2
 
 /-- Apply the existing interaction grammar, then clamp presentation-only scrolling. -/
 def updateForBounds

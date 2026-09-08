@@ -343,5 +343,14 @@ def main : IO Unit := do
     expect (originalLines.all (fun original => original ∈ boundedLines))
       "bounds-aware presentation lost existing production report content"
 
+  for heightIndex in List.range 8 do
+    let tiny : Bounds := { width := 80, height := heightIndex + 1 }
+    for report in [initial, stockReport, accounting, liquidityReport, budgetReport] do
+      let rendered := Loam.Tui.Reports.viewForBounds tiny report
+      expect (rendered.lines.length <= tiny.height)
+        ("Reports exceeded tiny terminal height " ++ toString tiny.height)
+      expect (contains "q quit" (widgetText rendered))
+        ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
+
   IO.println
     "TUI Reports: menu, Stock–Flow, evidence-gated Accounting, conditional Liquidity, Budget Window and navigation passed."
