@@ -1,0 +1,48 @@
+name: Observation 232
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/232_finite_keyed_memory.lean'
+      - 'experiments/232_finite_keyed_memory.md'
+      - 'docs/research/SEMANTIC_CENSUS_2026-09-08.md'
+      - '.github/workflows/observation-232-finite-keyed-memory.yml'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  finite-keyed-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 232 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/232_finite_keyed_memory.lean > /tmp/observation-232-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-232-lean.log
+          exit "$status"
+      - name: Upload Observation 232 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-232-lean-log
+          path: /tmp/observation-232-lean.log
