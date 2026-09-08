@@ -1,5 +1,9 @@
 name: Selected Lean Observations
 
+# This lane owns CI coverage for the selected live Lean observation umbrella.
+# Do not add a per-observation workflow when its only independent action would
+# be to rebuild a module already imported by Loam.Observations.
+
 on:
   pull_request:
     paths:
