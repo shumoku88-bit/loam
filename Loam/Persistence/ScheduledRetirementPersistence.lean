@@ -1,5 +1,6 @@
 import Loam.Core.ScheduledRetirement
 import Loam.Persistence
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -30,8 +31,7 @@ private def encodeRetirementRow? (retirement : ScheduledRetirement) : Option Str
 def encodeScheduledRetirementMemory?
     (memory : ScheduledRetirementMemory) : Option String := do
   let rows ← memory.retirements.mapM encodeRetirementRow?
-  pure
-    (String.intercalate "\n" (scheduledRetirementMemoryHeader :: rows) ++ "\n")
+  pure (encodeVersionedRows scheduledRetirementMemoryHeader rows)
 
 private def decodeRetirementRow? (row : String) : Option ScheduledRetirement :=
   match row.splitOn "\t" with
@@ -44,17 +44,9 @@ private def decodeRetirementRow? (row : String) : Option ScheduledRetirement :=
 
 /-- Decode retirement evidence and recheck Scheduled-identity uniqueness. -/
 def decodeScheduledRetirementMemory?
-    (input : String) : Option ScheduledRetirementMemory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = scheduledRetirementMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let retirements ← reversedRows.reverse.mapM decodeRetirementRow?
-            ScheduledRetirementMemory.ofRetirements? retirements
-        | _ => none
-      else
-        none
-  | _ => none
+    (input : String) : Option ScheduledRetirementMemory := do
+  let rows ← decodeVersionedRows? scheduledRetirementMemoryHeader input
+  let retirements ← rows.mapM decodeRetirementRow?
+  ScheduledRetirementMemory.ofRetirements? retirements
 
 end Loam.Persistence
