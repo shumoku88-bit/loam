@@ -1,6 +1,6 @@
 # Observation 227 — Can Scheduled Capacity pressure be derived without a new eligibility fact?
 
-Status: **CANDIDATE; awaiting exact-head Alloy qualification**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at exact head `c12493a26c78a231361b3f4be64878a6afed5cdf`; selected bounded rule uses AccountingRole + polarity + ScheduledRouting**
 
 ## Pressure
 
@@ -55,7 +55,7 @@ positive Asset         pension/support receipt into smbc
 
 The old all-positive projection therefore visibly over-approximates Capacity pressure in this real household slice.
 
-## Candidate selected rule
+## Selected bounded rule
 
 The smallest rule tested here is:
 
@@ -104,39 +104,88 @@ planned savings Asset   + managed route
 
 The former need not consume Capacity; the latter can explicitly do so.
 
-The model therefore expects a counterexample to:
+The bounded result therefore rejects:
 
 ```text
 AccountingRole + polarity alone determine pressure
 ```
 
-while expecting no counterexample to:
+while supporting the selected projection from:
 
 ```text
-AccountingRole + polarity + routing status determine the selected pressure view
+AccountingRole + polarity + routing status
 ```
 
-## Alloy commands
+## Executed Alloy result
 
-The bounded model asks for these witnesses:
+Exact head:
 
 ```text
-representativeHousehold
-sameRoleDifferentPressure
-liabilityWithoutRouteStillPressures
+c12493a26c78a231361b3f4be64878a6afed5cdf
 ```
 
-and checks:
+Workflow: `Observation 227`, run 2, Alloy 6.2.0 / SAT4J.
+
+The expected-result checker completed successfully, so the executed matrix was exactly:
 
 ```text
-AllPositiveCoordinatesArePressure                         expected counterexample
-RoleAndPolarityAloneDetermineSelectedPressure              expected counterexample
-RolePolarityAndRoutingDetermineSelectedPressure            expected no counterexample
-PositiveExpenseOrLiabilityAlwaysPressures                  expected no counterexample
-UnroutedPositiveAssetDoesNotPressure                       expected no counterexample
-ExplicitlyRoutedPositiveAssetPressures                     expected no counterexample
-NegativeCoordinatesNeverPressure                           expected no counterexample
-PressurePartitionsSelectedCoordinates                      expected no counterexample
+representativeHousehold                               SAT
+sameRoleDifferentPressure                             SAT
+liabilityWithoutRouteStillPressures                   SAT
+
+AllPositiveCoordinatesArePressure                     SAT counterexample
+RoleAndPolarityAloneDetermineSelectedPressure          SAT counterexample
+RolePolarityAndRoutingDetermineSelectedPressure        UNSAT counterexample
+PositiveExpenseOrLiabilityAlwaysPressures              UNSAT counterexample
+UnroutedPositiveAssetDoesNotPressure                   UNSAT counterexample
+ExplicitlyRoutedPositiveAssetPressures                 UNSAT counterexample
+NegativeCoordinatesNeverPressure                       UNSAT counterexample
+PressurePartitionsSelectedCoordinates                  UNSAT counterexample
+```
+
+For Alloy `check`, `UNSAT counterexample` means no counterexample was found in the bounded scope.
+
+The important discriminations are:
+
+1. the old all-positive rule is too broad because a positive Asset can be Scheduled without exerting Capacity pressure;
+2. AccountingRole and sign alone are too small because explicit routing can make an otherwise non-default Asset coordinate pressure-bearing;
+3. positive Expense and Liability coordinates remain visible as pressure even without a route, so currently unrouted rent, utilities, and debt repayment do not disappear;
+4. adding the existing ScheduledRouting status to AccountingRole and polarity is sufficient for the selected bounded pressure projection;
+5. no separately retained eligibility bit is required by this selected view.
+
+## Qualified decision
+
+Within this household scope, the selected production direction is:
+
+```text
+KEEP
+  Scheduled lifecycle
+  AccountingRole
+  ScheduledRouting
+  managed / unmanaged / unrouted pressure visibility
+
+DERIVE
+  Capacity-pressure eligibility from
+    polarity + AccountingRole + ScheduledRouting
+
+DEFAULT PRESSURE
+  positive Expense
+  positive Liability
+
+DEFAULT NON-PRESSURE
+  positive Asset
+  positive Income
+  positive Equity
+  negative coordinates
+
+ALLOW EXPLICIT OVERRIDE INTO PRESSURE
+  any positive coordinate carrying explicit ScheduledRouting
+
+DO NOT ADD
+  FixedCost Core type
+  CommitmentEligibility authority
+  retained Commitment state
+  HRA Envelope / Fulfillment ontology
 ```
 
 ## Important boundary
@@ -151,11 +200,11 @@ This experiment does **not** establish:
 - Purpose assignment for currently unrouted rent, utilities, or debt;
 - that HRA's Commitment implementation is LOAM's specification.
 
-It tests only whether the current household Capacity-pressure distinction can be represented by evidence LOAM already owns.
+It establishes only that the current household Capacity-pressure distinction can be represented by evidence LOAM already owns in the selected bounded vocabulary.
 
-## Production gate if qualified
+## Production gate
 
-If the selected rule survives the bounded checks, production work should still be separate from this Observation:
+Production work remains separate from this Observation:
 
 1. change `ScheduledCommitmentInspection` to admit only selected pressure coordinates;
 2. thread the already-existing AccountingRole evidence into the application read boundary;
