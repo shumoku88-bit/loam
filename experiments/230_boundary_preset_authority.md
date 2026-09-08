@@ -1,6 +1,6 @@
 # Observation 230 — Does a saved household boundary source need canonical authority?
 
-Status: **OPEN bounded Alloy observation after Observation 228**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at model head `915bc47f6b7fb3394c8bcd759465e3bb3ce0f2a5`; replaceable BoundaryPreset configuration is sufficient for the bounded coordinate-only report question, while explicit fact membership remains the authority stop condition**
 
 ## Pressure
 
@@ -61,7 +61,19 @@ This becomes justified only if later household facts or policies actually refer 
 
 That is intentionally modeled as a stop-condition witness, not selected by default.
 
-## Probes
+## Qualified matrix
+
+Alloy 6.2.0 / SAT4J produced the expected bounded matrix:
+
+```text
+presetEditChangesLiveWindowButReceiptStaysOld                 SAT
+replaceablePresetCanChangeCurrentQuestionWithoutChangingFacts SAT
+explicitFactMembershipMakesPresetIdentityObservable           SAT
+
+CapturedReceiptReplaysOriginalCoordinateAnswer                UNSAT counterexample
+SameResolvedWindowGivesSameCoordinateAnswer                    UNSAT counterexample
+PresetIdentityAloneCannotChangeCoordinateAnswer                UNSAT counterexample
+```
 
 ### 1. Editing a preset can change the live question while an old receipt remains stable
 
@@ -69,7 +81,7 @@ Two states of the same preset retain different boundary dates around the same se
 
 A receipt captured from the earlier state still selects the earlier coordinate answer after the preset has changed.
 
-Expected: **SAT**.
+Result: **SAT**.
 
 This pressures saved source configuration but does not by itself require canonical history.
 
@@ -77,7 +89,7 @@ This pressures saved source configuration but does not by itself require canonic
 
 The same facts exist in both worlds. Only the preset boundaries change, causing a different live window answer.
 
-Expected: **SAT**.
+Result: **SAT**.
 
 This is ordinary query-parameter behavior. A different answer does not automatically make the parameter a canonical household fact.
 
@@ -85,31 +97,31 @@ This is ordinary query-parameter behavior. A different answer does not automatic
 
 Two different source identities have exactly the same boundary dates, but canonical facts explicitly belong to different sources.
 
-Expected: **SAT**.
+Result: **SAT**.
 
 This is the stop condition. If LOAM later needs such membership, source identity becomes more than a query shortcut and stronger authority may be earned.
 
 ### 4. A captured coordinate receipt exactly replays the original coordinate answer
 
-Expected check: **UNSAT counterexample**.
+Result: **UNSAT counterexample**.
 
-This tests whether historical preset revisions are unnecessary merely for replay of coordinate-only reports.
+For this coordinate-only model, resolved endpoints are sufficient to replay the original query answer. Historical preset revision identity is not additionally observable merely for report replay.
 
 ### 5. Equal resolved windows imply equal coordinate-derived answers
 
-Expected check: **UNSAT counterexample**.
+Result: **UNSAT counterexample**.
 
-Downstream report semantics should depend on the resolved coordinates and canonical evidence, not the preset label used to obtain them.
+Downstream report semantics depend on the resolved coordinates and canonical evidence, not the preset label used to obtain them.
 
 ### 6. Preset identity alone adds no coordinate answer
 
+Result: **UNSAT counterexample**.
+
 If two preset states retain the same boundary dates, changing only their identity cannot change a coordinate-derived answer.
 
-Expected check: **UNSAT counterexample**.
+## Finding
 
-## Candidate finding if the matrix holds
-
-For the currently qualified reports, the smaller production shape is likely:
+For the currently qualified reports, the smaller production shape is:
 
 ```text
 replaceable BoundaryPreset configuration
@@ -134,7 +146,21 @@ canonical BoundarySource revision history
 + report membership authority
 ```
 
-This would mirror the existing LOAM distinction between a saved **question** and retained household **meaning**.
+The important distinction is:
+
+```text
+saved reusable question != canonical household meaning
+```
+
+This mirrors the existing `BalanceViewConfig` boundary. Persistence for convenience does not itself earn append-only history, learned-time semantics, correction relations, or winner rules.
+
+## Household consequence
+
+A practical pension-cycle shortcut may therefore begin as replaceable application configuration containing explicit known pension boundaries. A salary shortcut may be another replaceable preset. Selecting either simply resolves an explicit `[start, end)` and delegates to the existing report.
+
+Editing the pension preset changes future query selection. It does not rewrite canonical household history.
+
+If a report run later needs a durable reproducibility receipt, capture the resolved endpoints used by that run instead of forcing every preset edit into canonical household history.
 
 ## Important limits
 
