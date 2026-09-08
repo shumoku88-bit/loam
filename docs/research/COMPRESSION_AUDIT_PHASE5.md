@@ -159,6 +159,23 @@ This removes no current production test and no current theorem. It stops unrelat
 
 If one of those old questions becomes active research again, a new dedicated lane may be reintroduced only for the renewed question. Historical existence alone does not make CI permanent.
 
+## Follow-up graduation - Comparator field-trial CI 165-168
+
+The verification checkpoint explicitly closes the focused 161-168 sequence and says Comparator, Nanoda, and a generic statement-contract framework are not mandatory product infrastructure. Further verification work is pressure-driven: hostile-solution sandboxing, upstream `propext` cleanup, or a genuinely production-relevant semantic claim must first make the question active again.
+
+Despite that conclusion, the four field-trial workflows for Observations 165-168 still ran on every pull request and every push to `main`. Each rebuilt pinned Comparator tooling; Observation 168 additionally cloned and built Nanoda. These runs revalidated frozen verifier fixtures rather than any current LOAM production contract.
+
+The trusted Challenge/Solution/config fixtures and the verification checkpoint remain in the repository. Only the four always-live workflows graduate:
+
+```text
+.github/workflows/observation-165-comparator-field-trial.yml
+.github/workflows/observation-166-comparator-negative-statement-drift.yml
+.github/workflows/observation-167-comparator-negative-axiom-policy.yml
+.github/workflows/observation-168-comparator-nanoda-positive.yml
+```
+
+The immediately preceding exact-head CI for the foundational-lane graduation reran all four fixtures successfully before this retirement. Future Comparator or Nanoda CI must be earned by a concrete renewed verification pressure rather than historical existence alone.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
