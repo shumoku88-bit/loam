@@ -11,10 +11,9 @@ on:
       - 'Loam/Cli/ScheduledBalanceCli.lean'
       - 'Loam/Cli/ScheduledSuppressionCli.lean'
       - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Tests/ScheduledBalanceProjection.lean'
-      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
-      - 'Loam/Persistence/ScheduledPersistence.lean'
-      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -29,10 +28,9 @@ on:
       - 'Loam/Cli/ScheduledBalanceCli.lean'
       - 'Loam/Cli/ScheduledSuppressionCli.lean'
       - 'Loam/Core/Scheduled.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Tests/ScheduledBalanceProjection.lean'
-      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
-      - 'Loam/Persistence/ScheduledPersistence.lean'
-      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -77,6 +75,8 @@ jobs:
           tmp_dir="$(mktemp -d)"
 
           cat >"$tmp_dir/scheduled.loam" <<'EOF'
+          LOAM-SCHEDULED-LIFECYCLE	1
+          BEGIN	Scheduled
           LOAM-SCHEDULED-MEMORY	1
           SCHEDULED	scheduled-payment	2026-09-08	jpy
           CHANGE	smbc	-100
@@ -87,7 +87,20 @@ jobs:
           SCHEDULED	scheduled-boundary	2026-10-15	jpy
           CHANGE	smbc	-999
           CHANGE	rent	999
+          END	Scheduled
+          BEGIN	Completion
+          LOAM-SCHEDULED-COMPLETION-MEMORY	1
+          END	Completion
+          BEGIN	Retirement
+          LOAM-SCHEDULED-RETIREMENT-MEMORY	1
+          END	Retirement
+          BEGIN	Replacement
+          LOAM-SCHEDULED-REPLACEMENT-MEMORY	1
+          END	Replacement
           EOF
+
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$tmp_dir/movement-authority"
 
           cat >"$tmp_dir/balance-view.tsv" <<'EOF'
           smbc	jpy
