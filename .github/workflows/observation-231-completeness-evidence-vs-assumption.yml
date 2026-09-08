@@ -1,0 +1,43 @@
+name: Observation 231
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/231_completeness_evidence_vs_assumption.lean'
+      - 'experiments/231_completeness_evidence_vs_assumption.md'
+      - '.github/workflows/observation-231-completeness-evidence-vs-assumption.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  completeness-evidence-vs-assumption:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 231 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/231_completeness_evidence_vs_assumption.lean > /tmp/observation-231-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-231-lean.log
+          exit "$status"
+      - name: Upload Observation 231 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-231-lean-log
+          path: /tmp/observation-231-lean.log
