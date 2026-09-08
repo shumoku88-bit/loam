@@ -1,4 +1,5 @@
 import Loam.Core.Scheduled
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -46,20 +47,11 @@ def add?
     (retirement : ScheduledRetirement) : Option ScheduledRetirementMemory :=
   ofRetirements? (memory.retirements ++ [retirement])
 
-private def findByScheduledIn :
-    List ScheduledRetirement → ScheduledId → Option ScheduledRetirement
-  | [], _ => none
-  | retirement :: rest, id =>
-      if retirement.scheduled = id then
-        some retirement
-      else
-        findByScheduledIn rest id
-
 /-- Find retained retirement evidence for one Scheduled identity. -/
 def findByScheduled?
     (memory : ScheduledRetirementMemory)
     (id : ScheduledId) : Option ScheduledRetirement :=
-  findByScheduledIn memory.retirements id
+  FiniteKeyed.findBy? ScheduledRetirement.scheduled memory.retirements id
 
 @[simp] theorem ofRetirements?_nil :
     ofRetirements? [] =
