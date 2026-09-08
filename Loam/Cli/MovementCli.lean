@@ -79,11 +79,10 @@ Read exactly one Movement authority backend before interactive input.
 
 Without a manifest root this retains the sidecar behavior used by isolated
 regression fixtures. With `LOAM_MOVEMENT_MANIFEST_ROOT`, the selected manifest
-generation supplies the hints and verifies its selected families before human
-input. The same selected authority, including current Locus publication policy,
-is re-read under writer ownership after human think time, so preflight remains
-observational rather than publication authority. There is no fallback to
-sidecars in manifest mode.
+generation verifies its selected families before human input. The same selected
+authority, including current Locus publication policy, is re-read under writer
+ownership after human think time, so preflight remains observational rather than
+publication authority. There is no fallback to sidecars in manifest mode.
 -/
 private def preflightForDraft
     (memoryFile : System.FilePath) : IO (Except String Loam.Core.EventMemory) := do
@@ -151,7 +150,7 @@ private def collectMovementDraft
   match ← preflightForDraft memoryFile with
   | Except.error message =>
       return Except.error message
-  | Except.ok hintMemory =>
+  | Except.ok _ =>
       IO.println "Record one movement. Add FROM entries, then TO entries."
       let initial : Loam.MovementUi.Progress := {}
       showDraftProgress initial
@@ -162,8 +161,7 @@ private def collectMovementDraft
           let afterDate : Loam.MovementUi.Progress := { validOn := some validOn }
           showDraftProgress afterDate
           let description ← practicalDescription
-          let knownLoci := Loam.CompletionPrompt.knownLoci hintMemory
-          match ← Loam.MovementEntry.collectMovementEffects knownLoci with
+          match ← Loam.MovementEntry.collectMovementEffects with
           | Except.error message =>
               return Except.error message
           | Except.ok (effects, total) =>
@@ -383,7 +381,7 @@ Household production supplies `LOAM_MOVEMENT_MANIFEST_ROOT` and uses selected
 manifest authority for preflight and publication. When that variable is absent,
 the sidecar backend remains available only as the existing isolated regression
 fixture surface. In manifest mode `MEMORY_FILE` is not consulted for
-Movement-family preflight or completion hints.
+Movement-family preflight.
 -/
 def recordMovement (memoryPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
