@@ -1,6 +1,7 @@
 import Loam.Core.OpenRelation
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -127,7 +128,7 @@ questions.
 def encodeOpenRelationUnits?
     (relations : List RelationUnit) : Option String := do
   let rows ← relations.mapM encodeOpenRelationUnitRow?
-  some (String.intercalate "\n" (openRelationUnitMemoryHeader :: rows) ++ "\n")
+  some (encodeVersionedRows openRelationUnitMemoryHeader rows)
 
 /--
 Decode one raw RelationUnit stream.
@@ -137,16 +138,9 @@ encoding, or non-integer quantity text return `none`. Missing source Events,
 negative/zero quantity, duplicate RelationUnit identity, and relation semantics
 are deliberately not rejected here.
 -/
-def decodeOpenRelationUnits? (input : String) : Option (List RelationUnit) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = openRelationUnitMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => reversedRows.reverse.mapM decodeOpenRelationUnitRow?
-        | _ => none
-      else
-        none
-  | _ => none
+def decodeOpenRelationUnits? (input : String) : Option (List RelationUnit) := do
+  let rows ← decodeVersionedRows? openRelationUnitMemoryHeader input
+  rows.mapM decodeOpenRelationUnitRow?
 
 /--
 Publish the complete raw RelationUnit stream through sibling staging + rename.

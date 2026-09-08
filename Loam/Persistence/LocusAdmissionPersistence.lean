@@ -1,6 +1,7 @@
 import Loam.Core.LocusAdmission
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -36,7 +37,7 @@ private def encodeLocusRows? : List LocusId → Option (List String)
 def encodeLocusAdmissionVocabulary?
     (vocabulary : LocusAdmissionVocabulary) : Option String := do
   let rows ← encodeLocusRows? vocabulary.approved
-  some (String.intercalate "\n" (locusAdmissionVocabularyHeader :: rows) ++ "\n")
+  some (encodeVersionedRows locusAdmissionVocabularyHeader rows)
 
 private def decodeLocusRow? (row : String) : Option LocusId :=
   match row.splitOn "\t" with
@@ -59,18 +60,10 @@ Decode exactly one version-1 vocabulary. Duplicate identities fail closed rather
 than allowing representation duplication to acquire accidental meaning.
 -/
 def decodeLocusAdmissionVocabulary?
-    (input : String) : Option LocusAdmissionVocabulary :=
-  match input.splitOn "\n" with
-  | [] => none
-  | header :: rowsWithTrailing =>
-      if header != locusAdmissionVocabularyHeader then
-        none
-      else
-        match rowsWithTrailing.reverse with
-        | "" :: reversedRows => do
-            let loci ← decodeLocusRows? reversedRows.reverse
-            LocusAdmissionVocabulary.ofLoci? loci
-        | _ => none
+    (input : String) : Option LocusAdmissionVocabulary := do
+  let rows ← decodeVersionedRows? locusAdmissionVocabularyHeader input
+  let loci ← decodeLocusRows? rows
+  LocusAdmissionVocabulary.ofLoci? loci
 
 /-- Sibling path used by the legacy sidecar writer surface. -/
 def locusAdmissionVocabularyPathForEventMemory

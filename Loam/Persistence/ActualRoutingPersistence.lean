@@ -3,6 +3,7 @@ import Loam.Core.HistoricalRouting
 import Loam.Core.RoutingEffective
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -84,24 +85,16 @@ Encode Actual historical routing without assigning authority to row order.
 -/
 def encodeActualRoutingHistory? (history : ActualRoutingHistory) : Option String := do
   let rows ← history.entries.mapM encodeActualRoutingRow?
-  return String.intercalate "\n" (actualRoutingHeader :: rows) ++ "\n"
+  return encodeVersionedRows actualRoutingHeader rows
 
 /--
 Decode one version-1 Actual-routing stream and re-admit duplicate-coordinate
 uniqueness through `RoutingHistory.ofEntries?`.
 -/
-def decodeActualRoutingHistory? (input : String) : Option ActualRoutingHistory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != actualRoutingHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let entries ← reversedRows.reverse.mapM decodeActualRoutingRow?
-            RoutingHistory.ofEntries? entries
-        | _ => none
-  | _ => none
+def decodeActualRoutingHistory? (input : String) : Option ActualRoutingHistory := do
+  let rows ← decodeVersionedRows? actualRoutingHeader input
+  let entries ← rows.mapM decodeActualRoutingRow?
+  RoutingHistory.ofEntries? entries
 
 /-- Publish one complete Actual-routing stream by sibling staging plus rename. -/
 def saveActualRoutingHistory?

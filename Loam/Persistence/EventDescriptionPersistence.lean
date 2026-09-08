@@ -1,6 +1,7 @@
 import Loam.Core.EventDescription
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -103,7 +104,7 @@ Row order preserves representation order only.
 -/
 def encodeEventDescriptionMemory? (memory : EventDescriptionMemory) : Option String := do
   let rows ← memory.entries.mapM encodeDescriptionRow?
-  pure (String.intercalate "\n" (eventDescriptionMemoryHeader :: rows) ++ "\n")
+  pure (encodeVersionedRows eventDescriptionMemoryHeader rows)
 
 private def decodeDescriptionRows : List String → Option (List EventDescription)
   | [] => some []
@@ -126,18 +127,10 @@ or duplicate EventIds. U+FFFD is deliberately still decodable so already-retaine
 damaged evidence can be loaded and migrated without teaching the decoder a
 fallback representation.
 -/
-def decodeEventDescriptionMemory? (input : String) : Option EventDescriptionMemory :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = eventDescriptionMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let entries ← decodeDescriptionRows reversedRows.reverse
-            EventDescriptionMemory.ofEntries? entries
-        | _ => none
-      else
-        none
-  | _ => none
+def decodeEventDescriptionMemory? (input : String) : Option EventDescriptionMemory := do
+  let rows ← decodeVersionedRows? eventDescriptionMemoryHeader input
+  let entries ← decodeDescriptionRows rows
+  EventDescriptionMemory.ofEntries? entries
 
 /--
 Publish one Event-description memory using sibling staging and filesystem replace.

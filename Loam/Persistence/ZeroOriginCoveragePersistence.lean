@@ -1,6 +1,7 @@
 import Loam.Core.ZeroOriginCoverage
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -38,7 +39,7 @@ private def encodeCoordinateRows? : List EffectCoordinate → Option (List Strin
 /-- Encode one explicit finite zero-origin evidence set. -/
 def encodeZeroOriginCoverage? (coverage : ZeroOriginCoverage) : Option String := do
   let rows ← encodeCoordinateRows? coverage.coordinates
-  some (String.intercalate "\n" (zeroOriginCoverageHeader :: rows) ++ "\n")
+  some (encodeVersionedRows zeroOriginCoverageHeader rows)
 
 private def decodeCoordinateRow? (row : String) : Option EffectCoordinate :=
   match row.splitOn "\t" with
@@ -60,18 +61,10 @@ private def decodeCoordinateRows? : List String → Option (List EffectCoordinat
 Decode exactly one version-1 zero-origin coverage file. Duplicate coordinates
 fail closed rather than being normalized silently.
 -/
-def decodeZeroOriginCoverage? (input : String) : Option ZeroOriginCoverage :=
-  match input.splitOn "\n" with
-  | [] => none
-  | header :: rowsWithTrailing =>
-      if header != zeroOriginCoverageHeader then
-        none
-      else
-        match rowsWithTrailing.reverse with
-        | "" :: reversedRows => do
-            let coordinates ← decodeCoordinateRows? reversedRows.reverse
-            ZeroOriginCoverage.ofCoordinates? coordinates
-        | _ => none
+def decodeZeroOriginCoverage? (input : String) : Option ZeroOriginCoverage := do
+  let rows ← decodeVersionedRows? zeroOriginCoverageHeader input
+  let coordinates ← decodeCoordinateRows? rows
+  ZeroOriginCoverage.ofCoordinates? coordinates
 
 /-- Atomically replace one explicitly reconstructed zero-origin evidence set. -/
 def saveZeroOriginCoverage?

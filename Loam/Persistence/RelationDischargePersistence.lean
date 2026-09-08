@@ -1,6 +1,7 @@
 import Loam.Core.OpenRelation
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -82,7 +83,7 @@ Encode retained raw discharge rows without assigning authority to list order.
 def encodeRelationDischarges?
     (discharges : List RelationDischarge) : Option String := do
   let rows ← discharges.mapM encodeRelationDischargeRow?
-  some (String.intercalate "\n" (relationDischargeMemoryHeader :: rows) ++ "\n")
+  some (encodeVersionedRows relationDischargeMemoryHeader rows)
 
 /--
 Decode one raw RelationDischarge stream.
@@ -93,16 +94,9 @@ quantity, duplicate `(EventId, RelationUnitId)` pairs, and aggregate discharge
 bounds are intentionally not decided here.
 -/
 def decodeRelationDischarges?
-    (input : String) : Option (List RelationDischarge) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header = relationDischargeMemoryHeader then
-        match rows.reverse with
-        | "" :: reversedRows => reversedRows.reverse.mapM decodeRelationDischargeRow?
-        | _ => none
-      else
-        none
-  | _ => none
+    (input : String) : Option (List RelationDischarge) := do
+  let rows ← decodeVersionedRows? relationDischargeMemoryHeader input
+  rows.mapM decodeRelationDischargeRow?
 
 /-- Publish the complete raw RelationDischarge image through sibling staging + rename. -/
 def saveRelationDischarges?

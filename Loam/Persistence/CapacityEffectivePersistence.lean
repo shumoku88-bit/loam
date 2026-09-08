@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Core.CapacityEffective
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -52,22 +53,14 @@ private def decodeCapacityEffectiveRow?
 def encodeCapacityEffectiveMemory?
     (memory : CapacityEffectiveMemory String) : Option String := do
   let rows ← memory.entries.mapM encodeCapacityEffectiveRow?
-  return String.intercalate "\n" (capacityEffectiveHeader :: rows) ++ "\n"
+  return encodeVersionedRows capacityEffectiveHeader rows
 
 /-- Decode one version-1 stream and recheck movement-identity uniqueness. -/
 def decodeCapacityEffectiveMemory?
-    (input : String) : Option (CapacityEffectiveMemory String) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != capacityEffectiveHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let entries ← reversedRows.reverse.mapM decodeCapacityEffectiveRow?
-            CapacityEffectiveMemory.ofEntries? entries
-        | _ => none
-  | _ => none
+    (input : String) : Option (CapacityEffectiveMemory String) := do
+  let rows ← decodeVersionedRows? capacityEffectiveHeader input
+  let entries ← rows.mapM decodeCapacityEffectiveRow?
+  CapacityEffectiveMemory.ofEntries? entries
 
 /-- Publish one complete effective-evidence image through sibling staging + rename. -/
 def saveCapacityEffectiveMemory?

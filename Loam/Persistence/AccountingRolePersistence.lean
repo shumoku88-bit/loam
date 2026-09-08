@@ -1,5 +1,6 @@
 import Loam.Core.AccountingRole
 import Loam.Persistence
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -42,18 +43,10 @@ Decode one explicit version-1 partial AccountingRole relation. Missing Loci stay
 unresolved; malformed rows, unknown role tokens, and duplicate Locus assignments
 fail closed.
 -/
-def decodeAccountingRoleMap? (input : String) : Option AccountingRoleMap :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != accountingRoleMapHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let assignments ← reversedRows.reverse.mapM decodeAccountingRoleRow?
-            AccountingRoleMap.ofAssignments? assignments
-        | _ => none
-  | _ => none
+def decodeAccountingRoleMap? (input : String) : Option AccountingRoleMap := do
+  let rows ← decodeVersionedRows? accountingRoleMapHeader input
+  let assignments ← rows.mapM decodeAccountingRoleRow?
+  AccountingRoleMap.ofAssignments? assignments
 
 /-- Read and fail-closed decode one configured AccountingRole authority. -/
 def loadAccountingRoleMap?

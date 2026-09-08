@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Core.AttentionMemory
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -64,7 +65,7 @@ def encodeAttentionMemory?
     (closures : AttentionClosureMemory String) : Option String := do
   let itemRows ← items.items.mapM encodeAttentionRow?
   let closureRows ← closures.closures.mapM encodeClosureRow?
-  pure (String.intercalate "\n" (attentionMemoryHeader :: itemRows ++ closureRows) ++ "\n")
+  pure (encodeVersionedRows attentionMemoryHeader (itemRows ++ closureRows))
 
 private def decodeAttentionRow? (row : String) : Option (Attention String) :=
   match row.splitOn "\t" with
@@ -116,20 +117,12 @@ private def decodeRows :
 
 /-- Decode version 1 and re-admit identity/one-closure uniqueness fail-closed. -/
 def decodeAttentionMemory?
-    (input : String) : Option (AttentionMemory String × AttentionClosureMemory String) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != attentionMemoryHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => do
-            let (rawItems, rawClosures) ← decodeRows reversedRows.reverse
-            let items ← AttentionMemory.ofItems? rawItems
-            let closures ← AttentionClosureMemory.ofClosures? rawClosures
-            pure (items, closures)
-        | _ => none
-  | _ => none
+    (input : String) : Option (AttentionMemory String × AttentionClosureMemory String) := do
+  let rows ← decodeVersionedRows? attentionMemoryHeader input
+  let (rawItems, rawClosures) ← decodeRows rows
+  let items ← AttentionMemory.ofItems? rawItems
+  let closures ← AttentionClosureMemory.ofClosures? rawClosures
+  pure (items, closures)
 
 /-- Publish one complete Attention image by sibling staging plus rename. -/
 def saveAttentionMemory?
