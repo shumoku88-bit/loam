@@ -1,5 +1,5 @@
 import Loam.Core.Event
-import Init.Data.List.Perm
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -60,52 +60,13 @@ def ofEntries?
     ofEntries? [entry] = some { entries := [entry], eventNodup := by simp } := by
   simp [ofEntries?]
 
-private def findEntryByEventId? : List (ActualValidity Time) → EventId → Option Time
-  | [], _ => none
-  | entry :: rest, id =>
-      if entry.event = id then
-        some entry.validOn
-      else
-        findEntryByEventId? rest id
-
-private theorem findEntryByEventId?_perm
-    {left right : List (ActualValidity Time)}
-    (hPerm : left.Perm right)
-    (hNodup : (left.map ActualValidity.event).Nodup)
-    (id : EventId) :
-    findEntryByEventId? left id = findEntryByEventId? right id := by
-  induction hPerm with
-  | nil => rfl
-  | cons entry hPerm ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases h : entry.event = id
-      · simp [findEntryByEventId?, h]
-      · simp [findEntryByEventId?, h, ih hNodup.2]
-  | swap x y rest =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      have hyx : y.event ≠ x.event := by
-        intro hEqual
-        apply hNodup.1
-        simp [hEqual]
-      by_cases hy : y.event = id
-      · have hx : x.event ≠ id := by
-          intro hx
-          exact hyx (hy.trans hx.symm)
-        simp [findEntryByEventId?, hy, hx]
-      · by_cases hx : x.event = id
-        · simp [findEntryByEventId?, hy, hx]
-        · simp [findEntryByEventId?, hy, hx]
-  | trans hLeft hRight ihLeft ihRight =>
-      have hMiddleNodup := (hLeft.map ActualValidity.event).nodup hNodup
-      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
-
 /--
 Find the valid coordinate for an EventId.
 Because `eventNodup` ensures at most one entry per EventId, lookup is
 independent of list order.
 -/
 def findByEventId? (memory : ActualValidityMemory Time) (id : EventId) : Option Time :=
-  findEntryByEventId? memory.entries id
+  (FiniteKeyed.findBy? ActualValidity.event memory.entries id).map ActualValidity.validOn
 
 /--
 Event validity lookup is invariant under permutation of ActualValidityMemory's entries.
@@ -116,7 +77,8 @@ theorem findByEventId?_perm
     (id : EventId) :
     findByEventId? left id = findByEventId? right id := by
   simpa [findByEventId?] using
-    findEntryByEventId?_perm hPerm left.eventNodup id
+    congrArg (fun result => result.map ActualValidity.validOn)
+      (FiniteKeyed.findBy?_perm ActualValidity.event hPerm left.eventNodup id)
 
 end ActualValidityMemory
 
