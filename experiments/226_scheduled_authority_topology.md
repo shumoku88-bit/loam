@@ -1,6 +1,6 @@
 # Observation 226 — Can Scheduled retire optional sidecars without merging meanings?
 
-Status: **QUALIFICATION CANDIDATE — MACHINE RECEIPT REQUIRED BEFORE PRODUCTION CUTOVER**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at exact head `5eb02bfcfdcf01f17d50018ce99b0c16bb68596e`; candidate D selected for production cutover**
 
 ## Pressure
 
@@ -187,11 +187,11 @@ They mean:
 The model also contains an explicit storage witness:
 
 ```text
-before
+with completion
     Completion file present
     Completion evidence present
 
-after deletion
+without completion storage
     Completion file absent
     no visible Completion evidence
 
@@ -200,13 +200,21 @@ explicit empty world
     no Completion evidence
 ```
 
-Under the current sidecar policy, both `after deletion` and `explicit empty world` are readable and decode to the same visible evidence set.
+Under the current sidecar policy, both `without completion storage` and `explicit empty world` are readable and decode to the same visible evidence set.
 
 That witness does not claim accidental deletion is the only corruption mode. It demonstrates the narrower information-loss property needed here: missing storage and explicit empty are not distinguished by the current admission law.
 
-## Expected Alloy receipt
+## Observed Alloy receipt
 
-The machine workflow must produce the following result matrix:
+Exact head:
+
+```text
+5eb02bfcfdcf01f17d50018ce99b0c16bb68596e
+```
+
+Workflow: `Observation 226`, run 4, Alloy 6.2.0 / SAT4J.
+
+The machine receipt produced exactly:
 
 ```text
 completionDeletionBecomesEmptyWorld             SAT
@@ -226,6 +234,13 @@ OnlyLifecycleSplitMeetsSelectedProperties         UNSAT counterexample
 
 For Alloy `check`, `UNSAT counterexample` means no counterexample was found in the bounded scope.
 
+The important discrimination is not merely that candidate D has a witness. The bounded comparison rejects the stronger alternatives for different reasons:
+
+- current sidecars cannot distinguish missing retained storage from explicit empty and do not provide one lifecycle commit boundary;
+- the monolith couples Routing to both lifecycle commit and rewrite scope;
+- the manifest-all shape preserves Routing rewrite locality but still couples Routing to the whole Scheduled authority transition;
+- lifecycle split is the only modeled candidate satisfying all four selected properties simultaneously.
+
 ## Existing temporal evidence reused
 
 Observation 226 does not duplicate Observation 155's TLA+ work.
@@ -238,7 +253,7 @@ complete sibling image
 => readers observe old complete or new complete, not partial content
 ```
 
-If candidate D survives this structural observation, that already-qualified publication pattern can be reused for the lifecycle image rather than introducing a second TLA+ model merely to prove the same filesystem transition again.
+Candidate D can reuse that already-qualified publication pattern for the lifecycle image rather than introducing a second TLA+ model merely to prove the same filesystem transition again.
 
 ## Completion remains cross-authority
 
@@ -275,7 +290,7 @@ old complete lifecycle
 -> new complete lifecycle
 ```
 
-If this candidate reaches production, replacement recovery should therefore be simplified rather than faithfully preserving a multi-file intermediate state that no longer exists.
+Production replacement should therefore be simplified rather than faithfully preserving a multi-file intermediate state that the selected authority topology removes.
 
 ## Routing boundary
 
@@ -291,9 +306,9 @@ It is not Commitment, Remaining, Headroom, Envelope identity, or lifecycle state
 
 No current observation requires Routing changes to become authoritative atomically with lifecycle changes. Therefore joining Routing to the lifecycle commit boundary would be stronger coupling than current evidence earns.
 
-## Candidate decision if qualification succeeds
+## Qualified decision
 
-If the expected machine receipt is obtained, the smallest supported production direction is:
+The smallest supported production direction is:
 
 ```text
 RETIRE
@@ -324,15 +339,21 @@ DO NOT ADD
   compatibility fallback after destructive cutover
 ```
 
+## Canonical cutover pressure
+
+At qualification time, the current household canonical tree contains `scheduled.loam` but no completion, retirement, or replacement suffix sidecars and no Scheduled-routing authority. Therefore the household cut does not need to preserve retained lifecycle relation rows from legacy sidecars.
+
+The destructive migration can convert the existing occurrence stream into the new complete lifecycle image with explicit empty Completion / Retirement / Replacement facets and create an explicit empty `scheduled-routing.loam` authority.
+
 ## Production gate
 
-No production persistence changes should be merged from this observation until:
+The structural gate is now satisfied. Production cutover still requires:
 
-1. the exact-head Alloy workflow returns the expected matrix;
-2. the current household canonical Scheduled data is checked for lifecycle sidecars or routing evidence that require migration;
-3. a concrete lifecycle codec round-trips every existing lifecycle fact type;
-4. replacement and completion interruption tests are rewritten against the new authority boundary;
-5. production TUI Scheduled create / complete / cancel / replace paths pass against the same shared publisher boundary;
-6. the old optional-sidecar reader and writer paths are deleted rather than kept as fallback compatibility code.
+1. a concrete lifecycle codec that round-trips every existing lifecycle fact type;
+2. replacement and completion interruption tests rewritten against the new authority boundary;
+3. production TUI Scheduled create / complete / cancel / replace paths passing against the same shared publisher boundary;
+4. the old optional-sidecar reader and writer paths deleted rather than retained as fallback compatibility code;
+5. the canonical household `scheduled.loam` migrated to the complete lifecycle image and an explicit `scheduled-routing.loam` published;
+6. a fresh post-cutover canonical read proving the household Scheduled surface remains readable.
 
-Because the household is not yet relying on LOAM Scheduled persistence for daily operation, a successful cutover may be intentionally destructive and single-version.
+Because the household is not yet relying on LOAM Scheduled persistence for daily operation, this cut is intentionally single-version and may be destructive. No dual reader or long-lived migration shim is required.
