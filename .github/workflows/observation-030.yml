@@ -3,33 +3,13 @@ name: Observation 030
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/030_generic_event_core.als'
       - '.github/workflows/observation-030.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/030_generic_event_core.als'
       - '.github/workflows/observation-030.yml'
   workflow_dispatch:
 

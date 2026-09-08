@@ -232,6 +232,21 @@ Keep all historical model, TLA+, and research prose sources. Graduate only these
 
 A renewed correction or resolution question should earn a new probe against the current replacement/frontier boundary. Historical success alone does not require these early cross-tool fixtures to rerun on unrelated repository changes.
 
+## Follow-up graduation and trigger narrowing - Observation CI 025-031
+
+Observations 025-028 continued the historical resolution/provenance refinement arc. Their broad workflows reran frozen Alloy or J fixtures for resolution recoverability, offered-meaning acceptance, provenance compression, and future vocabulary refinement when unrelated research or production files changed. These four dedicated lanes graduate while their model/J/prose sources remain.
+
+Observation 029 is a different case: it remains a selected live Lean proof obligation in `Loam.Observations`, and no dedicated `observation-029.yml` workflow exists on the current main. Its live responsibility is already carried by the selected Lean path rather than a historical one-observation CI lane.
+
+Observations 030 and 031 also remain useful independent checks because their generic Event core and Locus-before-Account results still correspond directly to current Practical Core vocabulary. They therefore do not graduate. Instead, their trigger surface is narrowed from the broad shared research and production trees to only their own Alloy model or workflow file:
+
+```text
+KEEP + NARROW  observation-030 -> model/030_generic_event_core.als
+KEEP + NARROW  observation-031 -> model/031_locus_before_account.als
+```
+
+This is the preferred distinction: a current independent check may stay live, but it should not claim responsibility for unrelated repository changes.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
