@@ -1,14 +1,10 @@
-"""Synthetic read-only review and terminal navigation checks."""
-import contextlib
+"""Synthetic one-shot review checks."""
 import datetime as dt
 import os
 from pathlib import Path
-import pty
 import re
-import select
 import subprocess
 import tempfile
-import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,35 +20,6 @@ def run(*args, input="", env=None):
 
 def escaped(text):
     return text.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
-
-
-@contextlib.contextmanager
-def terminal(*args):
-    master, slave = pty.openpty()
-    proc = subprocess.Popen(args, stdin=slave, stdout=slave, stderr=slave, env=ENV, cwd=ROOT)
-    os.close(slave)
-
-    def exchange(command=None):
-        if command is not None:
-            os.write(master, (command + "\n").encode())
-        output = b""
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            if select.select([master], [], [], 0.2)[0]:
-                output += os.read(master, 65536)
-                if output.endswith(b"\n> "):
-                    return output.decode()
-        raise AssertionError(f"terminal prompt timeout: {output!r}")
-
-    try:
-        yield exchange
-        os.write(master, b"q\n")
-        assert proc.wait(timeout=10) == 0
-    finally:
-        if proc.poll() is None:
-            proc.kill()
-            proc.wait()
-        os.close(master)
 
 
 class ReviewTests(unittest.TestCase):
@@ -89,8 +56,8 @@ class ReviewTests(unittest.TestCase):
         self.corrections.write_text("LOAM-EVENT-CORRECTION-MEMORY\t1\n" +
                                    "".join("CORRECTION\t" + "\t".join(link) + "\n" for link in links))
 
-    def review(self, *query):
-        result = run(LOAM, "review", self.memory, self.corrections, *query)
+    def review(self, *query, input=""):
+        result = run(LOAM, "review", self.memory, self.corrections, *query, input=input)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
@@ -107,6 +74,7 @@ class ReviewTests(unittest.TestCase):
         self.assertNotIn("receipt-original", output)
         self.assertEqual(len(re.findall(r"^  \d+\. ", output, re.M)), 10)
         self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.review(input="more\n1\nq\n"), output)
         self.events.reverse()
         self.write_events()
         self.assertEqual(self.review(), output)
@@ -136,18 +104,16 @@ class ReviewTests(unittest.TestCase):
         self.assertIn("Date unknown (current): 1", historical)
         self.assertIn("\ndate unknown\n", historical)
 
-    def test_elided_effects_stay_searchable_and_have_full_detail(self):
+    def test_elided_effects_stay_searchable_and_raw_detail_remains_explicit(self):
         text = self.memory.read_text()
         self.memory.write_text(text.replace("EFFECT\tto\tfood\tjpy\t100\n",
                                             "EFFECT\tto\tfood\tjpy\t100\nEFFECT\textra\tpoints\tusd\t3\n"))
         output = self.review("/points")
-        self.assertIn("(+1 effects; detail)", output)
-        with terminal(LOAM, "review", self.memory, self.corrections, "/points") as exchange:
-            exchange()
-            detail = exchange("1")
-            self.assertIn("points: 3 usd", detail)
-            self.assertIn("wallet: -100 jpy", detail)
-            exchange("")
+        self.assertIn("(+1 effects)", output)
+        raw = run(LOAM, "event-memory", "review", self.memory)
+        self.assertEqual(raw.returncode, 0, raw.stderr)
+        self.assertIn("points: 3 usd", raw.stdout)
+        self.assertIn("wallet: -100 jpy", raw.stdout)
 
     def test_absent_adjacent_streams_and_empty_memory(self):
         for suffix in [".actual-validity", ".descriptions"]:
@@ -190,31 +156,6 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertEqual(result.stdout, "")
         self.assertIn("event-description", result.stderr)
-
-    def test_terminal_navigation_and_snapshot_selection(self):
-        before = self.snapshot()
-        with terminal(LOAM, "review", self.memory, self.corrections) as exchange:
-            self.assertIn("Coffee 00", exchange())
-            self.assertIn("Showing 11-20", exchange("more"))
-            self.assertIn("[r10]", exchange("1"))
-            exchange("")
-            self.assertIn("Showing 1-10", exchange("back"))
-            self.assertIn("No matches", exchange("n"))
-            self.assertIn("Coffee 00", exchange("p"))
-            self.assertIn("Day " + TODAY, exchange(TODAY))
-            self.assertIn("unknown-date receipt", exchange("u"))
-            self.assertIn("[corrected -> #zz-fixed]", exchange("/スーパー"))
-            self.assertIn("corrects #zz-original", exchange("#zz-fixed"))
-            exchange("")
-            exchange("t")
-            self.events.insert(0, ("aaa-new", TODAY, "new arrival", 2))
-            self.write_events()
-            self.assertIn("[r00]", exchange("1"))
-            exchange("")
-            self.assertIn("new arrival", exchange("r"))
-        self.events.pop(0)
-        self.write_events()
-        self.assertEqual(self.snapshot(), before)
 
 
 class DirectQuantitySelectionTests(unittest.TestCase):

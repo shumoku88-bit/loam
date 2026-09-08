@@ -34,18 +34,12 @@ def parseQuery (today text : String) : Option Query :=
     some (.search (String.ofList (text.toList.drop 1)))
   else none
 
-private def moveWindow (query : Query) (offset : Int) : Option Query :=
-  match query with
-  | .week ending => (Loam.ActualDate.shiftDays? ending offset).map Query.week
-  | .day date => (Loam.ActualDate.shiftDays? date offset).map Query.day
-  | _ => none
-
 private def pageSize : Nat := 10
 
-private def showPage (records : List Record) (query : Query) (offset : Nat) : IO (List Record) := do
+private def showResult (records : List Record) (query : Query) : IO Unit := do
   IO.println ("\n" ++ queryLabel query)
   let undated := (select records .undated).length
-  IO.println ("Date unknown (current): " ++ toString undated ++ " (u). Snapshot; r reload.")
+  IO.println ("Date unknown (current): " ++ toString undated ++ ".")
   let days := match query with
     | .week ending | .day ending => weekDays ending
     | _ => []
@@ -53,11 +47,11 @@ private def showPage (records : List Record) (query : Query) (offset : Nat) : IO
     IO.println (String.intercalate "  " (days.map fun date =>
       String.ofList (date.toList.drop 5) ++ ":" ++ toString (select records (.day date)).length))
   let selected := select records query
-  let page := (selected.drop offset).take pageSize
+  let page := selected.take pageSize
   if selected.isEmpty then
     IO.println "No matches in this scope; this does not prove something was never recorded."
   else
-    IO.println ("Showing " ++ toString (offset + 1) ++ "-" ++ toString (offset + page.length) ++
+    IO.println ("Showing 1-" ++ toString page.length ++
       " of " ++ toString selected.length ++ " matches.")
   let mut previousDate : Option String := none
   for (record, index) in page.zipIdx do
@@ -65,56 +59,8 @@ private def showPage (records : List Record) (query : Query) (offset : Nat) : IO
     if previousDate != some date then IO.println date
     previousDate := some date
     IO.println ("  " ++ toString (index + 1) ++ ". " ++ summary record)
-  return page
 
-private def help : String :=
-  "YYYY-MM-DD day | p/n +/-week | t recent | /text search all | u undated\n" ++
-  "1-10 detail | #EventId raw detail | more/back | r reload | q return"
-
-private def promptLine : IO String := do
-  IO.print "> "
-  (← IO.getStdout).flush
-  return (← (← IO.getStdin).getLine).trimAscii.toString
-
-private partial def browse (memoryPath correctionPath today : String)
-    (records : List Record) (query : Query) (offset : Nat := 0) : IO UInt32 := do
-  let page ← showPage records query offset
-  IO.println help
-  let input ← promptLine
-  if input.isEmpty || input == "q" then return 0
-  if input == "r" then
-    match ← Loam.ActualReview.loadRecords memoryPath (some correctionPath) with
-    | .error message => IO.eprintln message; return 2
-    | .ok fresh => return ← browse memoryPath correctionPath today fresh query
-  let mut next := query
-  let mut start := offset
-  if let some selected := parseQuery today input then
-    next := selected
-    start := 0
-  else if input == "p" || input == "n" then
-    match moveWindow query (if input == "p" then -7 else 7) with
-    | some moved => next := moved; start := 0
-    | none => IO.eprintln "loam: choose a date first, or calendar boundary reached"
-  else if input == "more" then
-    if offset + pageSize < (select records query).length then start := offset + pageSize
-  else if input == "back" then
-    start := offset - pageSize
-  else
-    let selected := if input.startsWith "#" then
-        records.find? fun record => record.event.id.token == String.ofList (input.toList.drop 1)
-      else do
-        let number ← input.toNat?
-        if number == 0 then none else page[number - 1]?
-    match selected with
-    | none => IO.eprintln "loam: choose a displayed number, date, or /search"
-    | some record =>
-        IO.println ""
-        detail records record
-        IO.println "Enter for the list; q return."
-        if (← promptLine) == "q" then return 0
-  browse memoryPath correctionPath today records next start
-
-/-- Read-only, bounded review. Redirected input is never consumed by browsing. -/
+/-- Read-only, bounded one-shot review. Standard input is never consumed. -/
 def review (memoryPath correctionPath : String) (queryText : Option String := none) : IO UInt32 := do
   let some today ← Loam.ActualDate.todayIso?
     | IO.eprintln "loam: could not determine the local date"; return 2
@@ -123,10 +69,7 @@ def review (memoryPath correctionPath : String) (queryText : Option String := no
   match ← Loam.ActualReview.loadRecords memoryPath (some correctionPath) with
   | .error message => IO.eprintln message; return 2
   | .ok records =>
-      if (← (← IO.getStdin).isTty) && (← (← IO.getStdout).isTty) then
-        browse memoryPath correctionPath today records query
-      else
-        let _ ← showPage records query 0
-        return 0
+      showResult records query
+      return 0
 
 end Loam.ReviewCli
