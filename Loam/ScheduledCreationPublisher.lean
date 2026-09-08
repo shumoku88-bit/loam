@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.Application.ScheduledInspection
+import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -64,18 +65,14 @@ private def lifecycleReadable?
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open _ => .ok ()
 
-private def freshScheduledIdFrom
-    (memory : ScheduledMemory String) : Nat → Nat → Option ScheduledId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : ScheduledId := ⟨"scheduled-" ++ toString index⟩
-      match ScheduledMemory.findById? memory candidate with
-      | none => some candidate
-      | some _ => freshScheduledIdFrom memory (index + 1) fuel
-
 private def freshScheduledId?
-    (memory : ScheduledMemory String) : Option ScheduledId :=
-  freshScheduledIdFrom memory 1 (memory.occurrences.length + 1)
+    (memory : ScheduledMemory String) : Option ScheduledId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "scheduled-"
+    (fun token => (ScheduledMemory.findById? memory (⟨token⟩ : ScheduledId)).isSome)
+    1
+    (memory.occurrences.length + 1)
+  pure ⟨token⟩
 
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
