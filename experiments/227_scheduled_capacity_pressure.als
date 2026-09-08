@@ -34,7 +34,7 @@ fun defaultNonPressureRole : set Role {
 fun selectedPressure : set Coordinate {
   { c: Coordinate |
       c.polarity = Positive and
-      (c.role in defaultPressureRole or c.route != NoRoute) }
+      ((some c.role and c.role in defaultPressureRole) or c.route != NoRoute) }
 }
 
 fun managedPressure : set Coordinate {
@@ -61,6 +61,7 @@ fun resolvedNonPressure : set Coordinate {
       c.polarity = Negative or
       (c.polarity = Positive and
        c.route = NoRoute and
+       some c.role and
        c.role in defaultNonPressureRole) }
 }
 
