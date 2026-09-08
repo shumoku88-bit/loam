@@ -88,6 +88,42 @@ Many early per-observation workflows still include broad paths such as:
 
 That causes one observation-workflow edit to start unrelated historical checks. This wave does not rewrite those solver-bearing workflows while also deleting the Lean-only duplicates. Removing cross-workflow trigger fan-out is the next independent CI-compression step.
 
+## Follow-up — Observation 032-042 ownership
+
+The later fan-out audit applies both retention and graduation rather than assuming every external solver must remain forever-live.
+
+Current-law checks stay live but are narrowed to the exact fixture files they execute:
+
+```text
+032  Measure-before-commodity Alloy
+033  relation-before-valuation Alloy
+034  time-indexed relation TLA+
+035  valid-time vs learned-time TLA+
+036  bitemporal correction frontier TLA+
+040  correctable explanation edge TLA+
+```
+
+These checks still cover distinctions visible in the current compressed design law, but no longer claim responsibility for unrelated observations, `Loam.lean`, `lakefile.lean`, the manifest, or toolchain changes.
+
+Historical representation/refinement apparatus graduates while its source and prose remain:
+
+```text
+037  bitemporal memory quotient
+038  change-point frontier representation
+039  time/explanation factorization
+041  explanation-specific conflict recursion
+```
+
+Observation 042 also graduates for a stronger reason. `Observation043.lean` explicitly lifts its bounded Alloy generic-revision law to the unbounded theorem `soleFrontier_iff_consumesWholeFrontier`, and Observation 043 remains selected by `Loam.Observations`. The live proof owner has therefore moved from the bounded experiment to the selected Lean theorem.
+
+The rule is now:
+
+```text
+independent current witness  -> KEEP, with exact trigger ownership
+integrated historical probe  -> RETIRE dedicated CI
+stronger selected theorem    -> LET the theorem take over
+```
+
 ## Safety criterion
 
-This wave is successful only if the exact-head `Selected Lean Observations` workflow builds `Loam.Observations` successfully. No Core, Application, Persistence, writer, authority, TUI, or canonical-data semantics are changed here.
+This wave is successful only if exact-head CI keeps all retained narrowed solver checks green and the selected Lean owner remains available for the lifted Observation 043 theorem. No Core, Application, Persistence, writer, authority, TUI, or canonical-data semantics are changed here.
