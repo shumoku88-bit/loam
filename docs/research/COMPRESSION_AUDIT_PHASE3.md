@@ -1,6 +1,6 @@
 # Compression audit Phase 3 — mechanics multiplication
 
-Status: **IN PROGRESS — M1 DECIDED**
+Status: **IN PROGRESS — M1/M2 DECIDED**
 
 Phase 2 closed with this current audit basis:
 
@@ -172,6 +172,71 @@ Likewise, the local `of...?` and `add?` functions are currently short and make t
 - do not introduce a generic `Memory`, repository, registry, entity store, or finite-map semantic layer.
 
 This is the first Phase 3 example of subtractive design: remove duplicated proof/mechanical text without adding a new household concept.
+
+## M2 decision — `SHARE` the exact line-image frame, keep codecs semantic
+
+The codec audit found a repeated outer grammar across many current production streams:
+
+```text
+<header>\n
+<row>\n
+<row>\n
+...
+```
+
+with the same mechanical obligations:
+
+1. require exactly the expected version header;
+2. require a trailing newline rather than accepting a partial final row;
+3. expose the body as ordered row strings;
+4. fail closed on malformed outer framing;
+5. let the domain decoder parse each row and re-admit the resulting typed collection.
+
+This shape appears in current routing, Capacity-effective, Event-description, Relation-discharge, open-relation, Attention, zero-origin, and other row-oriented persistence families. Several modules independently spell `input.splitOn "\n"`, `rows.reverse`, the trailing empty-row check, `mapM` decoding, and final semantic admission.
+
+### What can be shared
+
+A future compression may introduce a *small persistence-level helper* equivalent to:
+
+```text
+encodeVersionedRows(header, rows)
+decodeVersionedRows?(expectedHeader, input) -> Option (List String)
+```
+
+The helper would know only the exact line-image framing law. It must not know Event, Scheduled, routing, Attention, Capacity, identity, or collection semantics.
+
+`validToken` is already an example of this appropriately small persistence-level sharing: opaque-token syntax is mechanical and reused without turning all persisted meanings into one family.
+
+### What must remain local
+
+The audit rejects a generic serializer/codec ontology.
+
+Domain code must continue to own:
+
+- row tags and field counts;
+- typed token interpretation;
+- date validation;
+- endpoint encoding;
+- EventDescription escaping and U+FFFD publication policy;
+- ActualValidity V2 root/revision normalization;
+- final `of...?` semantic admission;
+- block/chunk structure for EventMemory, CapacityMemory, and other non-row images;
+- the Scheduled lifecycle outer multi-section format.
+
+Those are observable compatibility and fail-closed rules, not boilerplate to erase.
+
+In particular, EventDescription decoding has an independent escaping contract, while ActualValidity persistence performs canonical identity normalization before encoding. Treating those as one generic row codec would hide rather than remove complexity.
+
+### M2 result
+
+**`SHARE`**, again with a deliberately narrow boundary:
+
+- share exact versioned line-image framing and trailing-newline admission;
+- keep every domain row encoder/decoder and typed re-admission local;
+- do not generalize block-oriented formats merely to use the helper;
+- do not create a serializer typeclass, persistence registry, schema DSL, or generic migration framework.
+
+The intended subtraction is repeated framing syntax, not semantic wire-format ownership.
 
 No production refactor is performed yet. Phase 3 first classifies M1–M9 so proposed abstractions can be compared against the whole mechanics landscape before code is changed.
 
