@@ -1,6 +1,6 @@
 # Observation 228 — Can household cycle selection collapse to explicit boundary sources?
 
-Status: **OPEN bounded Alloy observation after Observations 158 and 196**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at exact model head `553e817b5f3413abd236ef248655d50d55ab9580`; explicit boundary-source selection is sufficient in the bounded model while cadence labels and per-window Cycle identity are not**
 
 ## Pressure
 
@@ -52,13 +52,31 @@ Explicit boundary dates can represent regular and irregular spacing with the sam
 
 This also preserves open-world behavior: if the selected date has no known next boundary, the window is unresolved rather than silently extended.
 
+## Alloy result matrix
+
+Exact model head: `553e817b5f3413abd236ef248655d50d55ab9580`.
+
+```text
+representativeHousehold                           SAT
+customWithoutCadenceStillSelects                 SAT
+sameCadenceCanYieldDifferentWindows              SAT
+overlappingBoundarySourcesNeedSourceChoice       SAT
+incompleteFutureLeavesWindowUndefined            SAT
+AdjacentBoundaryWindowIsUnique                   UNSAT counterexample
+DefinedWindowContainsSelectedDate                UNSAT counterexample
+SameBoundarySetYieldsSameWindowRegardlessOfSourceName
+                                                  UNSAT counterexample
+```
+
+The dedicated Observation 228 workflow required exactly this matrix and completed successfully on the exact model head.
+
 ## Probes
 
 ### 1. Representative household sources coexist
 
 A pension boundary source and salary boundary source both cover the same selected date but produce different adjacent windows.
 
-Expected: **SAT**.
+Result: **SAT**.
 
 This represents the practical fact that a date can simultaneously belong to a pension cycle and a salary cycle. The user must select which question is being asked.
 
@@ -66,31 +84,31 @@ This represents the practical fact that a date can simultaneously belong to a pe
 
 A source with no cadence label and unevenly spaced explicit boundaries still selects one adjacent window.
 
-Expected: **SAT**.
+Result: **SAT**.
 
-This tests whether recurring-rule machinery is necessary merely to use arbitrary household windows.
+Recurring-rule machinery is therefore not needed merely to use arbitrary household windows.
 
 ### 3. Same cadence can yield different concrete windows
 
 Two boundary sources share the same `BiMonthly` cadence label but retain different concrete boundaries around the same selected date.
 
-Expected: **SAT**.
+Result: **SAT**.
 
-Therefore cadence alone cannot be the production window-selection evidence.
+Cadence alone cannot be the production window-selection evidence.
 
 ### 4. Overlapping sources require source choice
 
 Pension and Salary both define valid windows around one selected date, but the windows differ.
 
-Expected: **SAT**.
+Result: **SAT**.
 
-This is the pressure that earns selection of a boundary source. It does **not** yet earn an identity for each individual cycle occurrence.
+This is the pressure that earns selection of a boundary source. It does **not** earn an identity for each individual cycle occurrence.
 
 ### 5. Missing next boundary stays unresolved
 
 The selected date is after the final known boundary and there is no next retained boundary.
 
-Expected: **SAT** witness with no defined window.
+Result: **SAT** witness with no defined window.
 
 This is the open-world stop condition. Do not infer a future boundary from the previous spacing merely because the source has historically looked regular.
 
@@ -98,23 +116,23 @@ This is the open-world stop condition. Do not infer a future boundary from the p
 
 For a fixed ordered boundary set and selected date, there is at most one nearest at-or-before boundary and one nearest after boundary.
 
-Expected check: **UNSAT counterexample**.
+Result: **UNSAT counterexample**.
 
 ### 7. A defined adjacent window contains the selected date
 
-Expected check: **UNSAT counterexample**.
+Result: **UNSAT counterexample**.
 
 ### 8. Source name alone adds no answer when boundary sets are equal
 
 Two differently named sources with identical explicit boundaries must derive the same adjacent window for the same selected date.
 
-Expected check: **UNSAT counterexample**.
+Result: **UNSAT counterexample**.
 
-This is the corresponding pruning result: identity matters only insofar as it selects different evidence, not because a `PensionCycle` atom has mystical extra semantics.
+Identity matters only insofar as it selects different boundary evidence, not because a `PensionCycle` atom has extra semantics of its own.
 
-## Candidate finding if the matrix holds
+## Qualified finding
 
-The smallest production-facing shape would be:
+The smallest bounded production-facing shape is:
 
 ```text
 selected date
@@ -124,15 +142,31 @@ selected date
 -> existing Budget Window / Stock-Flow projection
 ```
 
-This would allow pension, payday, statement, and custom windows to coexist without adding separate Cycle types or changing the downstream report semantics.
+This is enough for pension, payday, statement, and custom windows to coexist without adding separate Cycle types or changing downstream report semantics.
+
+What is earned is **boundary-source choice**, not retained per-window Cycle identity.
+
+Cadence may remain descriptive or presentation-level evidence. It is not qualified as a boundary generator.
 
 ## Household implications
 
-For a pension-oriented view, LOAM would not need to know what a pension *cycle object* is. It would only need a justified pension boundary source containing the actual boundary dates that the household wants to use.
+For a pension-oriented view, LOAM does not need to know what a pension *cycle object* is. It only needs a justified pension boundary source containing the actual boundary dates that the household wants to use.
 
-Likewise a salary-oriented view could select another boundary source over the same canonical events. Both can overlap naturally.
+Likewise a salary-oriented view can select another boundary source over the same canonical events. Both may overlap naturally.
 
 Calendar month remains a presentation convenience that can directly produce a `[start, end)` without pretending to be the household cycle.
+
+A later practical UI could therefore expose something like:
+
+```text
+Window source
+  Pension
+  Salary
+  Card
+  Custom
+```
+
+and hand only the selected `[start, end)` to existing reports. The report engines do not need to learn pension, salary, or card ontology.
 
 ## Important limits
 
