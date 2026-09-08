@@ -56,7 +56,7 @@ private def currentPurposeQuanta
       if row.purpose = purpose then row.entitlement.quanta
       else currentPurposeQuanta rest purpose
 
-/-- Seed a transfer from the home-selected day and, when available, selected Purpose. -/
+/-- Seed a transfer from the current observation day and, when available, selected Purpose. -/
 def initial
     (snapshot : Loam.CapacityReview.Snapshot)
     (effectiveOn : String)

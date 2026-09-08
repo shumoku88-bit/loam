@@ -137,10 +137,19 @@ def main : IO Unit := do
   let capacity60 ← requireSome (capacityMovement? "capacity-60" 60)
     "60-unit Capacity fixture was not admitted"
 
+  let memory100 ← requireSome (CapacityMemory.ofMovements? [capacity100]) "capacity memory"
+  let memory20 ← requireSome (CapacityMemory.ofMovements? [capacity20]) "capacity memory"
+  let memory60 ← requireSome (CapacityMemory.ofMovements? [capacity60]) "capacity memory"
+  let effectiveFor := fun (movement : CapacityMovement) =>
+    CapacityEffectiveMemory.ofEntries? [{ movement := movement.id, effectiveOn := (2 : Nat) }]
+  let effective100 ← requireSome (effectiveFor capacity100) "effective evidence"
+  let effective20 ← requireSome (effectiveFor capacity20) "effective evidence"
+  let effective60 ← requireSome (effectiveFor capacity60) "effective evidence"
+
   -- Covered now and after known managed Scheduled pressure.
   let covered ← requireSome
     (currentCoverageAtCorrectionFrontierWithReplacement?
-      [capacity100] events corrections validities actualRouting
+      memory100 effective100 events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "covered current projection failed closed"
@@ -149,7 +158,7 @@ def main : IO Unit := do
   -- Already-consumed pressure is visible before any presentation label exists.
   let overNow ← requireSome
     (currentCoverageAtCorrectionFrontierWithReplacement?
-      [capacity20] events corrections validities actualRouting
+      memory20 effective20 events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "over-now current projection failed closed"
@@ -158,7 +167,7 @@ def main : IO Unit := do
   -- Remaining can still be positive while known future Commitment makes Headroom negative.
   let futureShort ← requireSome
     (currentCoverageAtCorrectionFrontierWithReplacement?
-      [capacity60] events corrections validities actualRouting
+      memory60 effective60 events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "future-short current projection failed closed"
@@ -168,10 +177,29 @@ def main : IO Unit := do
   -- visible instead of being silently counted or discarded.
   let unresolvedView ← requireSome
     (currentCoverageAtCorrectionFrontierWithReplacement?
-      [capacity100] events corrections validities actualRouting
+      memory100 effective100 events corrections validities actualRouting
       mixedMemory completions retirements replacements roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "unresolved current projection failed closed"
   assertCoverage "unresolved" unresolvedView 100 30 70 35 35 9
 
+  let temporalMemory ← requireSome
+    (CapacityMemory.ofMovements? [capacity100, capacity20, capacity60]) "temporal capacity"
+  let temporalEffective ← requireSome (CapacityEffectiveMemory.ofEntries?
+    [{ movement := capacity100.id, effectiveOn := (2 : Nat) },
+     { movement := capacity20.id, effectiveOn := (0 : Nat) },
+     { movement := capacity60.id, effectiveOn := (3 : Nat) }]) "temporal evidence"
+  let temporalView ← requireSome
+    (currentCoverageAtCorrectionFrontierWithReplacement?
+      temporalMemory temporalEffective events corrections validities actualRouting
+      managedMemory completions retirements replacements roles scheduledRouting
+      food yen (1 : Nat) (2 : Nat) (4 : Nat)) "temporal coverage"
+  assertCoverage "future and pre-start excluded; observed endpoint included"
+    temporalView 100 30 70 35 35 0
+  expect ((entitlementAtEffectiveThrough? temporalMemory effective100 1 2 food yen).isNone)
+    "missing effective evidence must fail closed"
+  expect ((entitlementAtEffectiveThrough? memory100 temporalEffective 1 2 food yen).isNone)
+    "orphan effective evidence must fail closed"
+  expect ((entitlementAtEffectiveThrough? memory100 effective100 2 2 food yen).map
+    Quantity.quanta == some 100) "single-day closed window must include observation"
   IO.println "Current Capacity coverage inspection succeeded."
