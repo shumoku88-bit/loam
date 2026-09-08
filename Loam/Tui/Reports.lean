@@ -67,6 +67,7 @@ structure State where
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
   notice : String := ""
+  scroll : Nat := 0
   deriving Repr, DecidableEq
 
 structure Step where
@@ -119,17 +120,17 @@ def initialForDate (selectedDate : String) : State :=
 
 def withStockFlowSnapshot
     (state : State) (snapshot : Loam.StockFlowReview.Snapshot) : State :=
-  { state with stockFlowSnapshot := some snapshot, notice := "" }
+  { state with stockFlowSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
 def withLiquiditySnapshot
     (state : State) (snapshot : Loam.ConditionalBalancePathReview.Snapshot) : State :=
-  { state with liquiditySnapshot := some snapshot, notice := "" }
+  { state with liquiditySnapshot := some snapshot, notice := "", scroll := 0 }
 
 
 def withBudgetSnapshot
     (state : State) (snapshot : Loam.BudgetWindowReview.Snapshot) : State :=
-  { state with budgetSnapshot := some snapshot, notice := "" }
+  { state with budgetSnapshot := some snapshot, notice := "", scroll := 0 }
 
 /-- Compatibility name for the pre-menu Budget Window surface. -/
 def withSnapshot
@@ -142,13 +143,15 @@ def withError (state : State) (message : String) : State :=
       stockFlowSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
-      notice := message }
+      notice := message
+      scroll := 0 }
 
 private def clearResults (state : State) : State :=
   { state with
       stockFlowSnapshot := none
       liquiditySnapshot := none
-      budgetSnapshot := none }
+      budgetSnapshot := none
+      scroll := 0 }
 
 
 def moveFocus (form : Form) (back : Bool) : Form :=
@@ -299,7 +302,7 @@ private def selectMenuMode (state : State) : State :=
     | 1 => Mode.accounting
     | 2 => Mode.liquidity
     | _ => Mode.budgetWindow
-  { state with mode := mode, notice := "" }
+  { state with mode := mode, notice := "", scroll := 0 }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
@@ -307,10 +310,14 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .up | .input 'k' | .input 'K' => { state := moveMenu state true }
   | .down | .input 'j' | .input 'J' => { state := moveMenu state false }
   | .enter => { state := selectMenuMode state }
-  | .input 's' | .input 'S' => { state := { state with mode := .stockFlow, notice := "" } }
-  | .input 'a' | .input 'A' => { state := { state with mode := .accounting, notice := "" } }
-  | .input 'l' | .input 'L' => { state := { state with mode := .liquidity, notice := "" } }
-  | .input 'w' | .input 'W' => { state := { state with mode := .budgetWindow, notice := "" } }
+  | .input 's' | .input 'S' =>
+      { state := { state with mode := .stockFlow, notice := "", scroll := 0 } }
+  | .input 'a' | .input 'A' =>
+      { state := { state with mode := .accounting, notice := "", scroll := 0 } }
+  | .input 'l' | .input 'L' =>
+      { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
+  | .input 'w' | .input 'W' =>
+      { state := { state with mode := .budgetWindow, notice := "", scroll := 0 } }
   | _ => { state }
 
 private def queryForMode (state : State) : Option Query :=
@@ -322,7 +329,11 @@ private def queryForMode (state : State) : Option Query :=
 private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'b' | .input 'B' =>
-      { state := { state with mode := .menu, notice := "" } }
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
   | .left => { state := shiftCalendarMonth state false }
   | .right => { state := shiftCalendarMonth state true }
   | .input '[' => { state := cycleWindowSource state false }
@@ -344,7 +355,11 @@ private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : S
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'b' | .input 'B' =>
-      { state := { state with mode := .menu, notice := "" } }
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
   | .tab | .shiftTab =>
       { state := { state with
           liquidityForm := moveLiquidityFocus state.liquidityForm
@@ -372,7 +387,11 @@ private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step
 private def updateEvidenceLimit (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'b' | .input 'B' =>
-      { state := { state with mode := .menu, notice := "" } }
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
   | _ => { state }
 
 
@@ -594,12 +613,70 @@ private def budgetView (state : State) : Widget :=
     ]
 
 
-def view (state : State) : Widget :=
+private def fullView (state : State) : Widget :=
   match state.mode with
   | .menu => menuView state
   | .stockFlow => stockFlowView state
   | .accounting => accountingView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
+
+/-- Number of existing trailing notice/help rows kept outside the scrolling body. -/
+private def fixedFooterSize : Mode → Nat
+  | .menu => 3
+  | .stockFlow => 4
+  | .accounting => 2
+  | .liquidity => 3
+  | .budgetWindow => 4
+
+private def viewParts (state : State) : List Widget × List Widget :=
+  match fullView state with
+  | .column children =>
+      let footerSize := min (fixedFooterSize state.mode) children.length
+      let bodySize := children.length - footerSize
+      (children.take bodySize, children.drop bodySize)
+  | other => ([other], [])
+
+private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
+  bounds.height - (footer.length + 1)
+
+/-- Largest meaningful vertical offset for the current report and terminal height. -/
+def scrollLimit (bounds : Bounds) (state : State) : Nat :=
+  let parts := viewParts state
+  parts.1.length - bodyPageSize bounds parts.2
+
+private def scrollPositionLine
+    (mode : Mode) (offset page total : Nat) : Widget :=
+  let first := if total = 0 then 0 else offset + 1
+  let last := min total (offset + page)
+  let action := match mode with | .menu => "select" | _ => "scroll"
+  muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
+    "   ↑/↓ or j/k " ++ action)
+
+private def requestedOffset (state : State) (page : Nat) : Nat :=
+  match state.mode with
+  | .menu =>
+      -- The four menu rows follow four heading/context rows in `menuView`.
+      (4 + state.menuIndex.val + 1) - page
+  | _ => state.scroll
+
+/-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  let parts := viewParts state
+  let page := bodyPageSize bounds parts.2
+  let offset := min (requestedOffset state page) (parts.1.length - page)
+  .column <|
+    (parts.1.drop offset).take page ++
+    [scrollPositionLine state.mode offset page parts.1.length] ++
+    parts.2
+
+/-- Apply the existing interaction grammar, then clamp presentation-only scrolling. -/
+def updateForBounds
+    (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  let step := update state key
+  { step with state := { step.state with scroll := min step.state.scroll (scrollLimit bounds step.state) } }
+
+/-- Unbounded compatibility view used by existing pure presentation tests. -/
+def view (state : State) : Widget := fullView state
 
 end Loam.Tui.Reports

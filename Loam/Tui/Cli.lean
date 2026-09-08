@@ -675,7 +675,7 @@ partial def reportsLoop (bounds : Bounds)
   let key ← Loam.Tui.Terminal.readKey
   if key = .input 'q' || key = .input 'Q' then
     return true
-  let step := Loam.Tui.Reports.update state key
+  let step := Loam.Tui.Reports.updateForBounds bounds state key
   if step.back then return false
   let next ←
     match step.query with
@@ -693,7 +693,7 @@ partial def reportsLoop (bounds : Bounds)
             dataDir root assumedCompleteThrough with
         | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
-  let nextFrame := compileWidget (Loam.Tui.Reports.view next)
+  let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
   reportsLoop bounds dataDir root next nextFrame
 
@@ -777,7 +777,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
           let base := Loam.Tui.Reports.initialForDate state.selectedDate
           pure { base with
             notice := "Boundary preset config malformed; named presets unavailable." }
-    let reportsFrame := compileWidget (Loam.Tui.Reports.view reports)
+    let reportsFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds reports)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame reportsFrame
     if ← reportsLoop bounds dataDir root reports reportsFrame then
       return
