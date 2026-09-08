@@ -1,4 +1,5 @@
 import Loam.Core.Scheduled
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -33,20 +34,11 @@ def add? {Time : Type}
     (occurrence : ScheduledOccurrence Time) : Option (ScheduledMemory Time) :=
   ofOccurrences? (memory.occurrences ++ [occurrence])
 
-private def findOccurrenceById? {Time : Type} :
-    List (ScheduledOccurrence Time) → ScheduledId → Option (ScheduledOccurrence Time)
-  | [], _ => none
-  | occurrence :: rest, id =>
-      if occurrence.id = id then
-        some occurrence
-      else
-        findOccurrenceById? rest id
-
 /-- Find one retained Scheduled occurrence by stable identity. -/
 def findById? {Time : Type}
     (memory : ScheduledMemory Time)
     (id : ScheduledId) : Option (ScheduledOccurrence Time) :=
-  findOccurrenceById? memory.occurrences id
+  FiniteKeyed.findBy? ScheduledOccurrence.id memory.occurrences id
 
 @[simp] theorem ofOccurrences?_nil {Time : Type} :
     ofOccurrences? ([] : List (ScheduledOccurrence Time)) =

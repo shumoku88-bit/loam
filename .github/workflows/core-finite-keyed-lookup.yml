@@ -1,0 +1,56 @@
+name: Core finite keyed lookup
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/FiniteKeyed.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - '.github/workflows/core-finite-keyed-lookup.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  finite-keyed-lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Build finite keyed extraction
+        shell: bash
+        run: |
+          set +e
+          lake build \
+            Loam.Core.FiniteKeyed \
+            Loam.Core.EventMemory \
+            Loam.Core.ActualValidity \
+            Loam.Core.CapacityEffective \
+            Loam.Core.ScheduledMemory \
+            Loam.Core.CapacityMemory \
+            Loam.Core.AttentionMemory \
+            > /tmp/core-finite-keyed.log 2>&1
+          status=$?
+          cat /tmp/core-finite-keyed.log
+          exit "$status"
+      - name: Upload finite keyed build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-finite-keyed-log
+          path: /tmp/core-finite-keyed.log
