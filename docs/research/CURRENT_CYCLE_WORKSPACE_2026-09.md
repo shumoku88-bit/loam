@@ -144,3 +144,41 @@ backing, explicit empty/known-zero selection, absent frontier, duplicate Purpose
 refusal and the correction seam. Dedicated exact-head CI runs it alongside
 BalanceReview and CurrentCoverageReview tests. No Core primitive, persistence,
 TUI, routing write, or household recovery is part of Stage B.
+
+## Stage C: read-only cycle budget workspace
+
+Stage C introduces the read-only cycle Budget workspace (`Loam/Tui/CycleBudget.lean`,
+`Loam/CycleBudgetReview.lean`, `Loam/CycleFundingConfig.lean`) accessed via `c` from
+LOAM Home.
+
+### Semantic boundaries and evidence flow
+
+- Preserves explicit boundary coordinate: `BoundaryPresetConfig.CurrentWindow` requires
+  exactly one configured preset containing `observedAt`. Both preset boundaries are
+  retained; the TUI never guesses among multiple report coordinate systems.
+- Preserves raw Capacity: `e` from Home remains the direct entrance into all-retained
+  Capacity. From Budget, `e` enters Capacity with current coverage, and `b` returns to
+  Budget, reloading fresh evidence so that transfer/rebalance actions never leave stale
+  Budget views.
+- Separate config authority: `config/cycle-funding.tsv` selects budgetable backing
+  coordinates. Absence is an explicit refusal, not an empty list. Balance display
+  (`config/balance-view.tsv`) remains an independent question and cannot grant or revoke
+  backing authority.
+- No budget arithmetic or automatic actions: the workspace maps loaded Review answers
+  directly. Future pressures (unresolved, unrouted, unmanaged) are shown separately and
+  not summed or deducted into an invented safe-to-spend figure.
+- Date independence: navigation focus on Home does not alter the Budget observation
+  date; Budget always queries `snapshot.actual.today`.
+
+### Verification and qualification
+
+- `Loam/Tests/CycleBudgetReview.lean`: independent layer failures, configuration parsing,
+  duplicate coordinate rejection, non-JPY refusal, filesystem degradation.
+- `Loam/Tests/TuiCycleBudget.lean`: rendering, scrolling, layout under degraded layers,
+  view paging.
+- `tests/test_cycle_budget_tui.py`: real PTY interaction with `loamTui` on isolated
+  synthetic evidence, verifying `c` entrance, focus independence, Capacity transition,
+  `b` back-navigation, clean exit, and zero disk mutation.
+- `Loam/Tests/CycleBudgetDogfood.lean`: read-only verification against the 2026-09-08
+  checkpoint in `loam-data`.
+

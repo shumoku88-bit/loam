@@ -92,17 +92,15 @@ private def loadCoverage
   else
     return .ok ZeroOriginCoverage.empty
 
-/--
-Load the production household balance answer from the current authority topology.
+/-- Shared physical evidence, independent of display or funding selection. -/
+structure Evidence where
+  events : EventMemory
+  corrections : EventCorrectionMemory
+  coverage : ZeroOriginCoverage
 
-Movement Effects come only from the selected manifest. Event corrections,
-zero-origin coverage, and replaceable view selection remain independent inputs.
-An absent coverage file means no coordinates are evidenced complete from zero;
-it does not make any coordinate zero. `config/balance-view.tsv` selects a question
-only and never creates coverage.
--/
-def loadSnapshot
-    (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
+/-- Load selected manifest Events, corrections and independent zero-origin evidence. -/
+def loadEvidence
+    (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
   let world ←
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
     | .error message => return .error message
@@ -115,10 +113,22 @@ def loadSnapshot
     match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
     | .ok evidence => pure evidence
+  return .ok { events := world.events, corrections := eventCorrections, coverage := coverage }
+
+/--
+Load the production balance-view question. Missing zero-origin evidence does not
+invent a zero balance; balance-view.tsv selects display coordinates only.
+-/
+def loadSnapshot
+    (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
+  let evidence ←
+    match ← loadEvidence dataDir manifestRoot with
+    | .error message => return .error message
+    | .ok evidence => pure evidence
   let coordinates ←
     match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
-  return project world.events eventCorrections coverage coordinates
+  return project evidence.events evidence.corrections evidence.coverage coordinates
 
 end Loam.BalanceReview

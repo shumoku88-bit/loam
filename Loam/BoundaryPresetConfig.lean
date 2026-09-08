@@ -94,4 +94,30 @@ def windowForDate? (preset : Preset) (selected : String) : Option (String × Str
   else
     none
 
+/-- Presentation/query coordinates shared by current Capacity and Budget. -/
+structure CurrentWindow where
+  source : String
+  start : String
+  endExclusive : String
+  deriving Repr, DecidableEq
+
+/-- No inference or priority among presets: exactly one must contain observedAt. -/
+def currentWindowFor?
+    (presets : List Preset) (observedAt : String) : Except String CurrentWindow :=
+  let windows := presets.filterMap fun preset =>
+    (windowForDate? preset observedAt).map fun (start, endExclusive) =>
+      ({ source := preset.name, start := start, endExclusive := endExclusive } : CurrentWindow)
+  match windows with
+  | [window] => .ok window
+  | [] => .error "no configured boundary preset contains the current date"
+  | _ => .error "multiple configured boundary presets contain the current date"
+
+def loadCurrentWindow (dataDir : System.FilePath) (observedAt : String) :
+    IO (Except String CurrentWindow) := do
+  try
+    match ← load? (dataDir / "config" / "boundary-presets.tsv") with
+    | none => return .error "boundary preset config is malformed"
+    | some presets => return currentWindowFor? presets observedAt
+  catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
+
 end Loam.BoundaryPresetConfig

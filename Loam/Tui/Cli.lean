@@ -11,6 +11,7 @@ import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
+import Loam.Tui.CycleBudget
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.CapacityRebalance
@@ -89,55 +90,19 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
   }
   return .ok { actual := actual, scheduled := scheduled }
 
-private structure CoverageWindow where
-  source : String
-  start : String
-  endExclusive : String
-
-/--
-Choose a current coverage window only when exactly one configured boundary
-preset explicitly contains the observation date. Both adjacent boundaries are
-retained; the TUI never guesses among multiple report coordinate systems.
--/
-private def coverageWindowFor?
-    (presets : List Loam.BoundaryPresetConfig.Preset)
-    (observedAt : String) : Except String (Option CoverageWindow) :=
-  let matchingWindows := presets.filterMap fun preset =>
-    match Loam.BoundaryPresetConfig.windowForDate? preset observedAt with
-    | none => none
-    | some (start, endExclusive) =>
-        some { source := preset.name, start := start, endExclusive := endExclusive }
-  match matchingWindows with
-  | [] => .ok none
-  | [window] => .ok (some window)
-  | _ => .error "multiple configured boundary presets contain the current date"
-
-/--
-Attach shared current coverage when configuration supplies one unambiguous
-window. Refusal degrades only the optional coverage layer; all-retained Capacity
-remains available.
--/
+/-- Current Capacity and Budget share one explicit preset selection boundary. -/
 private def attachCurrentCoverage
     (dataDir root : System.FilePath)
     (observedAt : String)
     (state : Loam.Tui.Capacity.State) : IO Loam.Tui.Capacity.State := do
-  match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
-  | none =>
-      return Loam.Tui.Capacity.withoutCoverage
-        "boundary preset config is malformed" state
-  | some presets =>
-      match coverageWindowFor? presets observedAt with
-      | .error message => return Loam.Tui.Capacity.withoutCoverage message state
-      | .ok none =>
-          return Loam.Tui.Capacity.withoutCoverage
-            "no configured boundary preset contains the current date" state
-      | .ok (some window) =>
-          match ← Loam.CurrentCoverageReview.loadSnapshotAt
-              dataDir root window.start observedAt window.endExclusive with
-          | .error message => return Loam.Tui.Capacity.withoutCoverage message state
-          | .ok coverage =>
-              return Loam.Tui.Capacity.withCoverage
-                coverage ("preset " ++ window.source) state
+  match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
+  | .error message => return Loam.Tui.Capacity.withoutCoverage message state
+  | .ok window =>
+    match ← Loam.CurrentCoverageReview.loadSnapshotAt
+        dataDir root window.start observedAt window.endExclusive with
+    | .error message => return Loam.Tui.Capacity.withoutCoverage message state
+    | .ok coverage =>
+      return Loam.Tui.Capacity.withCoverage coverage ("preset " ++ window.source) state
 
 
 def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
@@ -742,6 +707,38 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       capacityLoop bounds dataDir root observedAt next nextFrame
 
+/-- Read-only Budget, with an exit into the unchanged raw Capacity workspace. -/
+partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
+    (state : Loam.Tui.CycleBudget.State) (frame : CompiledWidget) : IO Bool := do
+  let key ← Loam.Tui.Terminal.readKey
+  let (next, intent) := Loam.Tui.CycleBudget.update bounds state key
+  match intent with
+  | .quit => return true
+  | .home => return false
+  | .stay =>
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    cycleBudgetLoop bounds dataDir root next nextFrame
+  | .capacity =>
+    let notice ←
+      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      | .error message => pure message
+      | .ok snapshot =>
+        let capacity ← attachCurrentCoverage dataDir root state.snapshot.observedAt
+          (Loam.Tui.Capacity.initial snapshot)
+        let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
+        if ← capacityLoop bounds dataDir root state.snapshot.observedAt capacity capacityFrame then
+          return true
+        pure ""
+    -- Existing actions may have changed evidence. Never return to stale Budget answers.
+    let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
+    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    cycleBudgetLoop bounds dataDir root next nextFrame
+
 /-- Reports session. `true` means quit LOAM. -/
 partial def reportsLoop (bounds : Bounds)
     (dataDir root : System.FilePath)
@@ -826,8 +823,18 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if isHome &&
-      (key = .input 'e' || key = .input 'E' || key = .input 'c' || key = .input 'C') then
+  else if isHome && Loam.Tui.CycleBudget.isHomeEntrance key then
+    let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
+    let budget : Loam.Tui.CycleBudget.State := { snapshot := answer }
+    let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
+    if ← cycleBudgetLoop bounds dataDir root budget budgetFrame then return
+    let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if isHome && (key = .input 'e' || key = .input 'E') then
     let capacitySnapshot ←
       match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
       | .error message => throw (IO.userError message)
