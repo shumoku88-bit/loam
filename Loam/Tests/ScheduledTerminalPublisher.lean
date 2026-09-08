@@ -1,6 +1,7 @@
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.ScheduledTerminalPublisher
+import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core
 
@@ -36,6 +37,16 @@ private def occurrence (id day fromLocus toLocus : String) (amount : Int) :
   let some movement := movement? fromLocus toLocus amount
     | throw (IO.userError "scheduled movement")
   return { id := ⟨id⟩, scheduledOn := day, movement := movement }
+
+private def lifecycleFromScheduled
+    (scheduled : ScheduledMemory String) : IO Loam.Persistence.ScheduledLifecycleImage := do
+  let some completions := ScheduledCompletionMemory.ofCompletions? []
+    | throw (IO.userError "empty completion memory")
+  let some retirements := ScheduledRetirementMemory.ofRetirements? []
+    | throw (IO.userError "empty retirement memory")
+  let some replacements := ScheduledReplacementMemory.ofReplacements? []
+    | throw (IO.userError "empty replacement memory")
+  return { scheduled, completions, retirements, replacements }
 
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
@@ -77,8 +88,9 @@ def main (args : List String) : IO Unit := do
   let s5 ← occurrence "scheduled-5" "2026-09-13" "paypay" "rent" 500
   let some scheduledMemory := ScheduledMemory.ofOccurrences? [s1, s2, s3, s4, s5]
     | throw (IO.userError "scheduled memory")
-  expect (← Loam.Persistence.saveScheduledMemory? scheduledFile scheduledMemory)
-    "save scheduled fixture"
+  let lifecycle0 ← lifecycleFromScheduled scheduledMemory
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
+    "save complete Scheduled lifecycle fixture"
 
   let .ok completion ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
       scheduledFile.toString root.toString
@@ -88,12 +100,10 @@ def main (args : List String) : IO Unit := do
     "completion endpoint identity changed"
   expect (!completion.resumed) "fresh completion reported recovery"
 
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
-  let some retainedCompletions ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | throw (IO.userError "reload completion memory")
-  expect (retainedCompletions.completions.length == 1)
+  let some retainedLifecycle ←
+      Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after completion")
+  expect (retainedLifecycle.completions.completions.length == 1)
     "completion relation was not retained exactly once"
 
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
@@ -126,16 +136,16 @@ def main (args : List String) : IO Unit := do
     (completionDraft "scheduled-2" "2026-09-08" "paypay" "food" 200)
   expect (!staleCompletion.isOk) "cancelled Scheduled accepted a stale completion"
 
-  let some currentCompletionMemory ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | throw (IO.userError "reload completion memory for recovery fixture")
+  let some currentLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle for recovery fixture")
   let interrupted : ScheduledCompletion := {
     scheduled := ⟨"scheduled-3"⟩
     actual := ⟨"scheduled-completion:scheduled-3"⟩ }
-  let some withInterrupted := currentCompletionMemory.add? interrupted
+  let some withInterrupted := currentLifecycle.completions.add? interrupted
     | throw (IO.userError "append interrupted completion relation")
-  expect (← Loam.Persistence.saveScheduledCompletionMemory? completionFile withInterrupted)
-    "save interrupted completion relation"
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
+      { currentLifecycle with completions := withInterrupted })
+    "save lifecycle with interrupted completion relation"
   let .ok resumed ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-3" "2026-09-09" "smbc" "rent" 3100)
@@ -143,16 +153,16 @@ def main (args : List String) : IO Unit := do
   expect resumed.resumed "retained inert completion relation was not recovered"
   expect (resumed.actual == interrupted.actual) "recovery changed retained Actual endpoint"
 
-  let some recoveryMemory ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | throw (IO.userError "reload completion memory for cancellation guard")
+  let some recoveryLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle for cancellation guard")
   let interruptedCancel : ScheduledCompletion := {
     scheduled := ⟨"scheduled-4"⟩
     actual := ⟨"scheduled-completion:scheduled-4"⟩ }
-  let some withInterruptedCancel := recoveryMemory.add? interruptedCancel
+  let some withInterruptedCancel := recoveryLifecycle.completions.add? interruptedCancel
     | throw (IO.userError "append cancellation guard relation")
-  expect (← Loam.Persistence.saveScheduledCompletionMemory? completionFile withInterruptedCancel)
-    "save cancellation guard relation"
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
+      { recoveryLifecycle with completions := withInterruptedCancel })
+    "save lifecycle with cancellation guard relation"
   let refusedCancel ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
     scheduledFile.toString root.toString { scheduled := ⟨"scheduled-4"⟩ }
   expect (!refusedCancel.isOk) "cancellation competed with an interrupted completion"
@@ -169,11 +179,10 @@ def main (args : List String) : IO Unit := do
   expect (!refusedPolicy.isOk) "Scheduled completion bypassed current Locus policy"
   expect ((← IO.FS.readFile (root / "CURRENT")) == beforePolicyRefusal)
     "Locus-policy refusal changed selected Movement authority"
-  let some afterPolicyCompletions ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | throw (IO.userError "reload completion memory after policy refusal")
+  let some afterPolicyLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after policy refusal")
   expect ((ScheduledCompletionMemory.findByScheduled?
-      afterPolicyCompletions ⟨"scheduled-5"⟩).isNone)
+      afterPolicyLifecycle.completions ⟨"scheduled-5"⟩).isNone)
     "Locus-policy refusal retained a completion relation"
 
-  IO.println "Scheduled Terminal Publisher: manifest completion, cancellation, relation-first recovery, stale refusal and current Locus policy passed."
+  IO.println "Scheduled Terminal Publisher: lifecycle completion, cancellation, relation-first cross-authority recovery, stale refusal and current Locus policy passed."
