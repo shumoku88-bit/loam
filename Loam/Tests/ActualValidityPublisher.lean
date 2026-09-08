@@ -2,6 +2,7 @@ import Loam.ActualValidityPublisher
 import Loam.ActualReview
 import Loam.CorrectionPublisher
 import Loam.MovementPublisher
+import Loam.Persistence.ActualReversalPersistence
 
 open Loam.Core
 
@@ -58,9 +59,12 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   let root := dataDir / "movement-authority"
   let correctionFile := dataDir / "corrections.loam"
+  let reversalFile := dataDir / "actual-reversals.loam"
   let initial ← emptyWorld
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
+  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
+    "initialize explicit empty reversal authority"
   let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
