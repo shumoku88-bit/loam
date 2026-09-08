@@ -112,8 +112,8 @@ try:
     assert "[Cancel]" in preview
     # Cancel via Esc
     os.write(master, b"\x1b")
-    wait_for("Budget / Pension Cycle")
-    wait_for("Cycle grant cancelled.")
+    budget = wait_for("Cycle grant cancelled.")
+    assert "Budget / Pension Cycle" in budget
     os.write(master, b"u")
     wait_for("No unresolved Scheduled routing subjects.")
     os.write(master, b"e")
