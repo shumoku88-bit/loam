@@ -22,6 +22,11 @@ private def isStockFlow (state : Loam.Tui.Reports.State) : Bool :=
   | .stockFlow => true
   | _ => false
 
+private def isLiquidity (state : Loam.Tui.Reports.State) : Bool :=
+  match state.mode with
+  | .liquidity => true
+  | _ => false
+
 
 def main : IO Unit := do
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
@@ -36,6 +41,10 @@ def main : IO Unit := do
   expect (initial.form.endExclusive == "2026-10-01")
     "Reports did not seed the selected-day calendar month end"
   expect (initial.form.focus.val == 2) "calendar-month prefill did not focus Run"
+  expect (initial.liquidityForm.assumedCompleteThrough == "2026-09-30")
+    "conditional outlook did not prefill the selected-day calendar month end"
+  expect (initial.liquidityForm.focus.val == 1)
+    "conditional outlook prefill did not focus explicit Run"
 
   let stock := (Loam.Tui.Reports.update initial .enter).state
   expect (isStockFlow stock) "default Reports selection did not open Stock–Flow"
@@ -140,13 +149,64 @@ def main : IO Unit := do
     "Accounting page lost its no-inference boundary"
 
   let liquidity := { initial with mode := Loam.Tui.Reports.Mode.liquidity }
+  expect (isLiquidity liquidity) "Liquidity fixture did not enter the Liquidity surface"
   let liquidityText := widgetText (Loam.Tui.Reports.view liquidity)
   expect (contains "Forecast path: UNKNOWN" liquidityText)
     "Liquidity page converted incomplete future evidence into a forecast"
   expect (contains "Known low-water mark: UNKNOWN" liquidityText)
-    "Liquidity page invented a low-water mark"
-  expect (contains "No numeric path is extended" liquidityText)
-    "Liquidity page lost its horizon refusal explanation"
+    "Liquidity page invented an unconditional low-water mark"
+  expect (contains "Read-only conditional query" liquidityText)
+    "Liquidity page lost the explicit conditional overlay"
+  expect (contains "Assume Scheduled complete through: 2026-09-30" liquidityText)
+    "Liquidity page lost the explicit assumption horizon"
+  expect (contains "does not write or upgrade the assumption into evidence" liquidityText)
+    "Liquidity page lost the no-write provenance boundary"
+
+  match (Loam.Tui.Reports.update liquidity .enter).query with
+  | some (.conditionalLiquidity through) =>
+      expect (through == "2026-09-30")
+        "conditional Liquidity Run changed the explicit assumption horizon"
+  | _ => throw (IO.userError "Liquidity Run did not emit a conditional query")
+
+  let liquidityReport := Loam.Tui.Reports.withLiquiditySnapshot liquidity {
+    asOf := "2026-09-08"
+    assumedCompleteThrough := "2026-09-30"
+    measure := ⟨"jpy"⟩
+    currentSelected := Quantity.ofQuanta 1000
+    points :=
+      [ { date := "2026-09-10"
+        , scheduledChange := Quantity.ofQuanta (-300)
+        , balance := Quantity.ofQuanta 700 } ]
+    finalAtHorizon := Quantity.ofQuanta 700
+    lowWater := Quantity.ofQuanta 700
+  }
+  let liquidityReportText := widgetText (Loam.Tui.Reports.view liquidityReport)
+  expect (contains "Forecast path: UNKNOWN" liquidityReportText)
+    "conditional overlay replaced the unconditional UNKNOWN baseline"
+  expect (contains "CONDITIONAL selected-balance outlook" liquidityReportText)
+    "conditional result lost its epistemic label"
+  expect (contains "Scheduled -300  -> 700 jpy" liquidityReportText)
+    "conditional change point was not rendered"
+  expect (contains "Conditional day-boundary low-water: 700 jpy" liquidityReportText)
+    "conditional day-boundary low-water was not rendered"
+  expect (contains "not canonical liquidity" liquidityReportText)
+    "conditional result promoted balance-view into canonical liquidity"
+  expect (contains "no intraday low-water is claimed" liquidityReportText)
+    "conditional result lost the intraday-order non-claim"
+
+  let liquidityEditing : Loam.Tui.Reports.State := {
+    liquidityReport with
+      liquidityForm := { liquidityReport.liquidityForm with focus := ⟨0, by decide⟩ }
+  }
+  let liquidityEdited := (Loam.Tui.Reports.update liquidityEditing .backspace).state
+  expect liquidityEdited.liquiditySnapshot.isNone
+    "editing the conditional horizon left a stale liquidity snapshot visible"
+
+  let resetLiquidity := (Loam.Tui.Reports.update liquidityEditing (.input 'm')).state
+  expect (resetLiquidity.liquidityForm.assumedCompleteThrough == "2026-09-30")
+    "m did not restore selected-day calendar month-end assumption"
+  expect (resetLiquidity.liquidityForm.focus.val == 1)
+    "m did not restore conditional Run focus"
 
   let budget : Loam.Tui.Reports.State := {
     initial with
@@ -183,4 +243,4 @@ def main : IO Unit := do
     "Budget Window lost the derived Remaining boundary"
 
   IO.println
-    "TUI Reports: menu, Stock–Flow, evidence-gated Accounting/Liquidity, Budget Window and navigation passed."
+    "TUI Reports: menu, Stock–Flow, evidence-gated Accounting, conditional Liquidity, Budget Window and navigation passed."
