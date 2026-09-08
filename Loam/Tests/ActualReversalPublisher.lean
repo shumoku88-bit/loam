@@ -108,17 +108,17 @@ def main (args : List String) : IO Unit := do
   let correctTarget ← Loam.CorrectionPublisher.publishManifestCorrection
     root.toString correctionFile.toString {
       target := receipt.target, effects := correctionEffects, description := none }
-  expect correctTarget.isError
+  expect (!correctTarget.isOk)
     "Correction changed a Reversal target and invalidated exact inverse provenance"
   let correctInverse ← Loam.CorrectionPublisher.publishManifestCorrection
     root.toString correctionFile.toString {
       target := receipt.reversal, effects := correctionEffects, description := none }
-  expect correctInverse.isError
+  expect (!correctInverse.isOk)
     "Correction changed a Reversal inverse and invalidated exact inverse provenance"
 
   let second ← Loam.ActualReversalPublisher.publishManifestReversal
     scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
-  expect second.isError
+  expect (!second.isOk)
     "a second reversal of the same Actual was not rejected"
 
   let reverseAgain : Loam.ActualReversalPublisher.Draft := {
@@ -126,7 +126,7 @@ def main (args : List String) : IO Unit := do
     validOn := "2026-09-08" }
   let reverseAgainResult ← Loam.ActualReversalPublisher.publishManifestReversal
     scheduledFile.toString root.toString correctionFile.toString reversalFile.toString reverseAgain
-  expect reverseAgainResult.isError
+  expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
   IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + cross-writer Correction refusal + fail-closed repeat passed."
