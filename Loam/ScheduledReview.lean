@@ -106,12 +106,12 @@ def currentOpenBeforeDate
   let records ← currentOpenRecords snapshot
   if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
     throw "loam: current-open Scheduled evidence contains an invalid retained date"
-  return
-    (records.filter fun record => decide (record.scheduledOn < date)).mergeSort fun left right =>
-      if left.scheduledOn = right.scheduledOn then
-        left.id.token ≤ right.id.token
-      else
-        left.scheduledOn ≤ right.scheduledOn
+  let pending := records.filter fun record => decide (record.scheduledOn < date)
+  return pending.mergeSort fun left right =>
+    if left.scheduledOn = right.scheduledOn then
+      left.id.token ≤ right.id.token
+    else
+      left.scheduledOn ≤ right.scheduledOn
 
 private def fromChanges (record : Record) : List (MovementChange LocusId) :=
   record.movement.changes.filter fun change => change.quantity.quanta < 0
