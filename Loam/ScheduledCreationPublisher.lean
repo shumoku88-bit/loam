@@ -2,10 +2,7 @@ import Loam.ActualDate
 import Loam.Application.ScheduledInspection
 import Loam.MovementManifestAuthority
 import Loam.Persistence
-import Loam.Persistence.ScheduledCompletionPersistence
-import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
 
 namespace Loam.ScheduledCreationPublisher
@@ -17,19 +14,18 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled creation publication
 
-The legacy Scheduled CLI owns both prompting and persistence. This module exposes
-only the surface-independent write boundary needed by production TUI and later
-callers.
+This module exposes only the surface-independent write boundary needed by
+production TUI and later callers.
 
 Creation re-reads the same replacement-aware lifecycle world used by production
-Scheduled readers before choosing a fresh Scheduled identity. This prevents a new
-occurrence from accidentally making orphan terminal evidence appear valid merely
-by recycling the referenced identity.
+Scheduled readers before choosing a fresh Scheduled identity. Observation 226
+makes that world one complete lifecycle image; missing authority no longer means
+an empty lifecycle.
 
 The fixed ownership order matches other Scheduled publishers:
 
 ```text
-Scheduled authority -> Movement CURRENT
+Scheduled lifecycle authority -> Movement CURRENT
 ```
 -/
 
@@ -44,54 +40,26 @@ structure Receipt where
   total : Int
   deriving Repr
 
-private structure LifecycleState where
-  scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
-
-private def loadScheduledMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option (ScheduledMemory String)) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadScheduledMemory? path
-  else
-    return ScheduledMemory.ofOccurrences? []
-
 private def loadLifecycle?
-    (scheduledFile : System.FilePath) : IO (Except String LifecycleState) := do
-  let some scheduled ← loadScheduledMemoryOrEmpty? scheduledFile
-    | return .error "loam: malformed or unsupported scheduled file"
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
-  let replacementFile :=
-    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
-  let some completions ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | return .error "loam: malformed or unsupported scheduled-completion file"
-  let some retirements ←
-      Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile
-    | return .error "loam: malformed or unsupported scheduled-retirement file"
-  let some replacements ←
-      Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile
-    | return .error "loam: malformed or unsupported scheduled-replacement file"
-  return .ok { scheduled, completions, retirements, replacements }
+    (scheduledFile : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
+  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  return .ok lifecycle
 
 private def lifecycleReadable?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String Unit :=
   match Loam.Application.currentOpenScheduledWithReplacement
       lifecycle.scheduled lifecycle.completions lifecycle.retirements
       lifecycle.replacements events with
   | .unknownCompletionScheduled =>
-      .error "loam: scheduled-completion file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
-      .error "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled retirement refers to an unknown Scheduled identity"
   | .unknownReplacementScheduled =>
-      .error "loam: scheduled-replacement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled replacement refers to an unknown Scheduled identity"
   | .invalidReplacementGraph =>
-      .error "loam: scheduled-replacement graph is cyclic or otherwise invalid"
+      .error "loam: Scheduled replacement graph is cyclic or otherwise invalid"
   | .conflictingTerminalEvidence =>
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open _ => .ok ()
@@ -160,14 +128,15 @@ private def publishUnderOwnership
     match occurrenceFromDraft? scheduledId draft with
     | some occurrence => pure occurrence
     | none => return .error "loam: Scheduled movement could not be admitted"
-  let updated ←
+  let updatedScheduled ←
     match lifecycle.scheduled.add? occurrence with
     | some scheduled => pure scheduled
     | none => return .error "loam: generated Scheduled identity already retained"
-  if (Loam.Persistence.encodeScheduledMemory? updated).isNone then
-    return .error "loam: Scheduled movement could not be encoded"
-  if !(← Loam.Persistence.saveScheduledMemory? scheduledFile updated) then
-    return .error "loam: Scheduled movement could not be published"
+  let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
+  if (Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle).isNone then
+    return .error "loam: Scheduled lifecycle could not be encoded"
+  if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
+    return .error "loam: Scheduled lifecycle could not be published"
   return .ok {
     scheduled := scheduledId
     scheduledOn := draft.scheduledOn
@@ -181,7 +150,7 @@ private def withCreationOwnership {α : Type}
     Loam.WriterOwnership.withOwnership (root / "CURRENT") action
 
 /--
-Publish one independent Scheduled occurrence.
+Publish one independent Scheduled occurrence into the complete lifecycle image.
 
 The draft carries only date and expected balanced signed JPY effects. Creation does
 not imply recurrence, continuation, replacement, routing inheritance, or Actual
