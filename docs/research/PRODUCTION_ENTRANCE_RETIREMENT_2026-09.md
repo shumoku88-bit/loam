@@ -1,6 +1,6 @@
 # Production entrance retirement audit — 2026-09
 
-Status: **QUALIFIED FIRST SLICE + FOLLOW-UP PRESENTATION SUBTRACTION**
+Status: **QUALIFIED FIRST SLICE + FOLLOW-UP PRESENTATION SUBTRACTION + EXECUTABLE RE-AUDIT**
 
 Base: `f55e97a712375200c42672e1155027b2cf3fe0a4`
 
@@ -98,6 +98,44 @@ Decision: **RETIRE raw-terminal completion UI; KEEP pure observed-Locus hint pro
 
 This leaves future TUI/CLI/GUI surfaces free to choose their own presentation mechanics while sharing current admission/publication boundaries. Historical recognition and new-write permission remain deliberately distinct.
 
+## Re-audit of all 15 Lake executables
+
+A fresh re-audit at main `9d7d76105f0816dfa8367ef5c7cdc37f45e8473a`, after production TUI Scheduled routing was wired through `ScheduledRoutingPublisher`, classified every Lake executable by its current independent role rather than by whether `tools/loam` directly dispatches it.
+
+| Lake target | Decision | Current independent role |
+| --- | --- | --- |
+| `loam` | KEEP | explicit low-level and diagnostic command dispatcher |
+| `loamMovement` | KEEP | scriptable manifest-aware Movement publication |
+| `loamCapacity` | KEEP | explicit Capacity query/publication entrance |
+| `loamActualRouting` | KEEP | scriptable Actual routing writer and practical qualification surface |
+| `loamScheduledRouting` | KEEP | thin scriptable surface over shared `ScheduledRoutingPublisher`; TUI uses the same publisher |
+| `loamBudgetWindow` | KEEP | scriptable read-only Budget Window projection useful outside TUI presentation |
+| `loamDailyQuantity` | KEEP | explicit `balances` / `current` projection entrance |
+| `loamOpenScheduled` | KEEP | explicit open-Scheduled read projection |
+| `loamScheduledSuppression` | KEEP | targeted suppression/replacement diagnostic retained by current practical Scheduled reader qualification |
+| `loamJournalExport` | KEEP | explicit readable-journal regeneration/export boundary with its own practical qualification |
+| `loamShadowAudit` | KEEP | independent read-only external snapshot shape audit |
+| `loamShadowQuantity` | KEEP | independent identity-renaming-invariant quantity research entrance |
+| `loamShadowDay` | RETIRE | historical external-journal selected-day adapter from Application 012 |
+| `loamShadowScheduledDay` | RETIRE | historical external plan/actual-journal selected-day adapter from Application 013 |
+| `loamTui` | KEEP | default production human workspace |
+
+The two retired day adapters are not current household authority and are not shared semantic boundaries. Each parses an external journal-shaped source directly and owns presentation-local reconstruction used only by the historical Application 012-014 experiments and their dedicated compositor/workflows.
+
+Application 012-014 therefore graduate under the same research lifecycle already established by the compression audit:
+
+- preserve `experiments/application_012_shadow_day_reader.md`, `application_013_shadow_scheduled_day_reader.md`, and `application_014_shadow_home_day_composition.md` as research evidence;
+- preserve Git history for the exact executable implementations and synthetic qualification;
+- retire `Loam/Cli/ShadowDayCli.lean` and `Loam/Cli/ShadowScheduledDayCli.lean`;
+- retire `tools/shadow-home-day`;
+- retire the three dedicated Application 012-014 workflows;
+- remove only the two corresponding Lake targets;
+- do not retire `loamShadowAudit` or `loamShadowQuantity`, whose external-snapshot questions remain distinct.
+
+Decision: **RETIRE historical journal day-view execution apparatus; KEEP the research result in prose and history.**
+
+This reduces executable count from 15 to 13 without collapsing CLI/TUI/possible future GUI boundaries or deleting a shared publisher/query semantic boundary.
+
 ## First subtraction order
 
 1. retire `correct` and `correct-date` public dispatch/help;
@@ -106,6 +144,7 @@ This leaves future TUI/CLI/GUI surfaces free to choose their own presentation me
 4. replace the no-argument shell menu by TUI-default dispatch;
 5. retire wrapper-private build-cache mechanics in favor of Lake freshness;
 6. shrink Review from a second interactive browser to a one-shot bounded query harness;
-7. retire line-CLI raw Locus completion while retaining the pure observed-Locus hint projection used by TUI.
+7. retire line-CLI raw Locus completion while retaining the pure observed-Locus hint projection used by TUI;
+8. re-audit all 15 Lake executables and graduate the historical Application 012-014 journal day-view apparatus.
 
 This ordering intentionally prefers **whole-path deletion** over replacing code with an external dependency.
