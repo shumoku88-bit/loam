@@ -1,3 +1,5 @@
 .lake/
 dist-newstyle/
 scratch/
+__pycache__/
+*.py[cod]
