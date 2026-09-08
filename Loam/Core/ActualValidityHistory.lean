@@ -1,4 +1,5 @@
 import Loam.Core.ActualValidity
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -79,29 +80,17 @@ def ofParts?
   else
     none
 
-private def findFactByIdIn? :
-    List (ActualValidityFact Time) → ActualValidityFactId → Option (ActualValidityFact Time)
-  | [], _ => none
-  | fact :: rest, id =>
-      if fact.id = id then some fact else findFactByIdIn? rest id
-
 /-- Find one retained validity fact by stable identity. -/
 def findFactById?
     (history : ActualValidityHistory Time)
     (id : ActualValidityFactId) : Option (ActualValidityFact Time) :=
-  findFactByIdIn? history.facts id
-
-private def findCorrectionByIdIn? :
-    List ActualValidityCorrection → ActualValidityCorrectionId → Option ActualValidityCorrection
-  | [], _ => none
-  | correction :: rest, id =>
-      if correction.id = id then some correction else findCorrectionByIdIn? rest id
+  FiniteKeyed.findBy? ActualValidityFact.id history.facts id
 
 /-- Find one retained validity correction by stable identity. -/
 def findCorrectionById?
     (history : ActualValidityHistory Time)
     (id : ActualValidityCorrectionId) : Option ActualValidityCorrection :=
-  findCorrectionByIdIn? history.corrections id
+  FiniteKeyed.findBy? ActualValidityCorrection.id history.corrections id
 
 /-- Append one raw validity fact without deriving currentness from list position. -/
 def addFact?
