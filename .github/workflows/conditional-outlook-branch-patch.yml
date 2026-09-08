@@ -1,0 +1,73 @@
+name: Conditional Outlook Branch Patch
+
+on:
+  push:
+    branches:
+      - 'feat/tui-conditional-outlook'
+    paths:
+      - '.github/workflows/conditional-outlook-branch-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/tui-conditional-outlook
+          fetch-depth: 0
+
+      - name: Apply exact runtime patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('Loam/Tui/Cli.lean')
+          text = path.read_text()
+
+          old_import = '''import Loam.BudgetWindowReview
+          import Loam.StockFlowReview
+          '''
+          new_import = '''import Loam.BudgetWindowReview
+          import Loam.ConditionalBalancePathReview
+          import Loam.StockFlowReview
+          '''
+          if text.count(old_import) != 1:
+              raise SystemExit('expected exactly one review import insertion point')
+          text = text.replace(old_import, new_import, 1)
+
+          old_query = '''    | some (.stockFlow start endExclusive) =>
+                  match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
+                  | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
+                  | .error message => pure (Loam.Tui.Reports.withError step.state message)
+          '''
+          new_query = '''    | some (.stockFlow start endExclusive) =>
+                  match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
+                  | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
+                  | .error message => pure (Loam.Tui.Reports.withError step.state message)
+              | some (.conditionalLiquidity assumedCompleteThrough) =>
+                  match ← Loam.ConditionalBalancePathReview.loadSnapshot
+                      dataDir root assumedCompleteThrough with
+                  | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
+                  | .error message => pure (Loam.Tui.Reports.withError step.state message)
+          '''
+          if text.count(old_query) != 1:
+              raise SystemExit('expected exactly one Reports query insertion point')
+          text = text.replace(old_query, new_query, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit exact branch patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/Cli.lean
+          git diff --cached --check
+          git commit -m 'feat(tui): run conditional selected balance outlook'
+          git push origin HEAD:feat/tui-conditional-outlook
