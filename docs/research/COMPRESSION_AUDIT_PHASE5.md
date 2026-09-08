@@ -159,6 +159,38 @@ This removes no current production test and no current theorem. It stops unrelat
 
 If one of those old questions becomes active research again, a new dedicated lane may be reintroduced only for the renewed question. Historical existence alone does not make CI permanent.
 
+## Follow-up graduation - Comparator field-trial CI 165-168
+
+The verification checkpoint explicitly closes the focused 161-168 sequence and says Comparator, Nanoda, and a generic statement-contract framework are not mandatory product infrastructure. Further verification work is pressure-driven: hostile-solution sandboxing, upstream `propext` cleanup, or a genuinely production-relevant semantic claim must first make the question active again.
+
+Despite that conclusion, the four field-trial workflows for Observations 165-168 still ran on every pull request and every push to `main`. Each rebuilt pinned Comparator tooling; Observation 168 additionally cloned and built Nanoda. These runs revalidated frozen verifier fixtures rather than any current LOAM production contract.
+
+The trusted Challenge/Solution/config fixtures and the verification checkpoint remain in the repository. Only the four always-live workflows graduate:
+
+```text
+.github/workflows/observation-165-comparator-field-trial.yml
+.github/workflows/observation-166-comparator-negative-statement-drift.yml
+.github/workflows/observation-167-comparator-negative-axiom-policy.yml
+.github/workflows/observation-168-comparator-nanoda-positive.yml
+```
+
+The immediately preceding exact-head CI for the foundational-lane graduation reran all four fixtures successfully before this retirement. Future Comparator or Nanoda CI must be earned by a concrete renewed verification pressure rather than historical existence alone.
+
+## Follow-up graduation - QuantityBasis Application CI 008-009
+
+Applications 008 and 009 were bounded candidate probes from the old starting-quantity design arc. Both Lean files are self-contained under `import Std` and define their own experiment-local basis vocabulary rather than exercising the current production boundary. Their prose explicitly presents the names and production placement as not yet established.
+
+The later QuantityBasis/BasisCut generation was subsequently implemented, audited against real household data, and retired in favor of explicit zero-origin coverage. Keeping these earlier candidate probes alive on `lakefile.lean`, toolchain, or manifest changes therefore no longer protects a current implementation or theorem.
+
+Keep the two Lean probes and their research prose as historical design evidence. Graduate only their dedicated CI lanes:
+
+```text
+.github/workflows/application-008-starting-quantity-basis.yml
+.github/workflows/application-009-append-only-basis-revision.yml
+```
+
+A renewed starting-quantity question should earn a new active probe against the current zero-origin model rather than perpetually recompiling this superseded candidate ontology.
+
 ## Post-graduation surface comparison
 
 | Metric | Checkpoint 226 baseline | Post-Phase 5 | Net change |
