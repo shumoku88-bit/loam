@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
@@ -64,7 +66,26 @@ jobs:
           scheduled="$tmp/scheduled.loam"
           routing="$tmp/scheduled-routing.loam"
 
-          printf 'LOAM-SCHEDULED-MEMORY\t1\nSCHEDULED\tscheduled-1\t2026-09-15\tjpy\nCHANGE\tpaypay\t-500\nCHANGE\tgroceries\t500\n' >"$scheduled"
+          cat >"$scheduled" <<'EOF'
+          LOAM-SCHEDULED-LIFECYCLE	1
+          BEGIN	Scheduled
+          LOAM-SCHEDULED-MEMORY	1
+          SCHEDULED	scheduled-1	2026-09-15	jpy
+          CHANGE	paypay	-500
+          CHANGE	groceries	500
+          END	Scheduled
+          BEGIN	Completion
+          LOAM-SCHEDULED-COMPLETION-MEMORY	1
+          END	Completion
+          BEGIN	Retirement
+          LOAM-SCHEDULED-RETIREMENT-MEMORY	1
+          END	Retirement
+          BEGIN	Replacement
+          LOAM-SCHEDULED-REPLACEMENT-MEMORY	1
+          END	Replacement
+          EOF
+
+          printf 'LOAM-SCHEDULED-ROUTING\t1\n' >"$routing"
 
           .lake/build/bin/loamScheduledRouting \
             "$routing" "$scheduled" 2026-09-06 scheduled-1 groceries managed food \
