@@ -31,21 +31,22 @@ partial def run
   let step := Loam.Tui.CapacityTransfer.update state
     (← Loam.Tui.Terminal.readKey)
   if step.cancel then
-    return "Capacity transfer cancelled."
-  match step.publish with
-  | some draft =>
-      match ← Loam.CapacityPublisher.publish capacityFile.toString draft with
-      | .ok receipt =>
-          return
-            ("Moved " ++ toString receipt.quanta ++ " jpy Capacity: " ++
-              Loam.CapacityPublisher.coordinateToken receipt.source ++ " -> " ++
-              Loam.CapacityPublisher.coordinateToken receipt.destination ++
-              ". Effective: " ++ receipt.effectiveOn ++ ".")
-      | .error message =>
-          return "Capacity transfer refused: " ++ message
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.CapacityTransfer.view step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds capacityFile step.state nextFrame
+    pure "Capacity transfer cancelled."
+  else
+    match step.publish with
+    | some draft =>
+        match ← Loam.CapacityPublisher.publish capacityFile.toString draft with
+        | .ok receipt =>
+            pure
+              ("Moved " ++ toString receipt.quanta ++ " jpy Capacity: " ++
+                Loam.CapacityPublisher.coordinateToken receipt.source ++ " -> " ++
+                Loam.CapacityPublisher.coordinateToken receipt.destination ++
+                ". Effective: " ++ receipt.effectiveOn ++ ".")
+        | .error message =>
+            pure ("Capacity transfer refused: " ++ message)
+    | none =>
+        let nextFrame := compileWidget (Loam.Tui.CapacityTransfer.view step.state)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        run bounds capacityFile step.state nextFrame
 
 end Loam.Tui.CapacityTransferSession
