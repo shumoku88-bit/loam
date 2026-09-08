@@ -9,7 +9,9 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'lakefile.lean'
       - '.github/workflows/practical-scheduled-routing.yml'
@@ -18,6 +20,7 @@ on:
       - main
       - 'feat/practical-scheduled-routing'
       - 'feat/scheduled-capacity-pressure'
+      - 'feat/scheduled-routing-publisher'
     paths:
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/ScheduledRouting.lean'
@@ -25,7 +28,9 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'lakefile.lean'
       - '.github/workflows/practical-scheduled-routing.yml'
@@ -46,7 +51,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection
+          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.ScheduledRoutingPublisher
           test: false
           lint: false
           use-mathlib-cache: false
@@ -60,6 +65,7 @@ jobs:
           set -euo pipefail
           lake env lean --run Loam/Tests/ScheduledRoutingPersistence.lean
           lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
+          lake env lean --run Loam/Tests/ScheduledRoutingPublisher.lean "$(mktemp -d)/scheduled-routing-publisher"
 
       - name: Exercise practical Scheduled routing entrance
         shell: bash
