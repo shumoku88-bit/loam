@@ -3,33 +3,19 @@ name: Observation 035
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/ValidTimeVsLearnedTime.tla'
+      - 'tla/ValidTimeVsLearnedTime.cfg'
+      - 'tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg'
       - '.github/workflows/observation-035.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/ValidTimeVsLearnedTime.tla'
+      - 'tla/ValidTimeVsLearnedTime.cfg'
+      - 'tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg'
       - '.github/workflows/observation-035.yml'
   workflow_dispatch:
 
