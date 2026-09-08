@@ -24,6 +24,7 @@ Account, transaction-kind, or semantic-plane tags to the neutral Event core.
 structure MovementChange (Coordinate : Type) where
   coordinate : Coordinate
   quantity : Quantity
+  deriving Repr, DecidableEq
 
 /-- Exact signed total of one represented movement change list. -/
 def movementTotalQuanta {Coordinate : Type}
