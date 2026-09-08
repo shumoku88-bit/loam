@@ -7,6 +7,7 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
+      - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
@@ -20,12 +21,14 @@ on:
   push:
     branches:
       - 'feat/scheduled-commitment-headroom'
+      - 'feat/scheduled-capacity-pressure'
       - main
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
+      - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
