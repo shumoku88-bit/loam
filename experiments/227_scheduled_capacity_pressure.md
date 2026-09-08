@@ -1,6 +1,6 @@
 # Observation 227 — Can Scheduled Capacity pressure be derived without a new eligibility fact?
 
-Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at exact head `c12493a26c78a231361b3f4be64878a6afed5cdf`; selected bounded rule uses AccountingRole + polarity + ScheduledRouting**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J at exact model head `18af43cef29bd642fdee37221fd738338277b86c`; selected bounded rule uses AccountingRole + polarity + ScheduledRouting while preserving unresolved role evidence**
 
 ## Pressure
 
@@ -37,6 +37,7 @@ This observation extends rather than replaces earlier results.
 - Observation 108 established that lifecycle and routing are both required for the selected bounded Commitment view, but explicitly did not claim a universal Commitment law.
 - Observation 110 established the selected accounting presentation convention `positive Effect -> Debit`, so positive Liability can represent liability reduction while positive Asset can represent an asset increase.
 - Observation 153 selected `ScheduledId × LocusId` as the practical routing subject.
+- Observations 216–217 established that AccountingRole is intentionally partial and that unresolved role evidence must remain visible rather than being treated as zero or irrelevant.
 - Production now retains explicit `AccountingRole` and explicit `ScheduledRouting` authorities.
 
 No HRA type or Envelope ontology is imported by this experiment.
@@ -57,20 +58,23 @@ The old all-positive projection therefore visibly over-approximates Capacity pre
 
 ## Selected bounded rule
 
-The smallest rule tested here is:
+The smallest surviving rule is:
 
 ```text
 negative coordinate
-    -> not Capacity pressure
+    -> resolved non-pressure
 
-positive Expense or Liability
-    -> Capacity pressure by default
+positive coordinate with explicit ScheduledRouting
+    -> Capacity pressure, even when AccountingRole is unresolved
 
-positive Asset / Income / Equity
-    -> not Capacity pressure by default
-
-any positive coordinate with explicit ScheduledRouting
+positive + no route + Expense or Liability role
     -> Capacity pressure
+
+positive + no route + Asset / Income / Equity role
+    -> resolved non-pressure
+
+positive + no route + unresolved AccountingRole
+    -> unresolved eligibility frontier
 ```
 
 Once a coordinate is selected as pressure, existing routing outcomes still partition it:
@@ -81,14 +85,23 @@ unmanaged route    -> explicitly unmanaged pressure
 no route           -> unrouted pressure
 ```
 
+The complete query-local partition is therefore:
+
+```text
+selected pressure
+resolved non-pressure
+unresolved eligibility
+```
+
 This gives the current household the intended distinctions without a new retained eligibility bit:
 
 ```text
 wifi               Expense + managed route -> managed pressure
-pension receipt    Asset + no route         -> not pressure
+pension receipt    Asset + no route         -> resolved non-pressure
 debt repayment     Liability + no route     -> unrouted pressure
 planned savings    Asset + managed route    -> managed pressure
-funding source     negative                 -> not pressure
+unknown new Locus  no role + no route       -> unresolved eligibility
+funding source     negative                 -> resolved non-pressure
 ```
 
 ## Why AccountingRole alone is not enough
@@ -104,34 +117,38 @@ planned savings Asset   + managed route
 
 The former need not consume Capacity; the latter can explicitly do so.
 
+Likewise, absence of AccountingRole is not a third role. Because `AccountingRoleMap` is partial, a positive unrouted coordinate with no role must not silently become either pressure or non-pressure.
+
 The bounded result therefore rejects:
 
 ```text
 AccountingRole + polarity alone determine pressure
+missing AccountingRole means resolved non-pressure
 ```
 
-while supporting the selected projection from:
+while supporting the selected query projection from:
 
 ```text
-AccountingRole + polarity + routing status
+polarity + partial AccountingRole + ScheduledRouting
 ```
 
 ## Executed Alloy result
 
-Exact head:
+Exact model/workflow head:
 
 ```text
-c12493a26c78a231361b3f4be64878a6afed5cdf
+18af43cef29bd642fdee37221fd738338277b86c
 ```
 
-Workflow: `Observation 227`, run 2, Alloy 6.2.0 / SAT4J.
+Workflow: `Observation 227`, run 12, Alloy 6.2.0 / SAT4J.
 
-The expected-result checker completed successfully, so the executed matrix was exactly:
+The expected-result checker completed successfully. The executed matrix was:
 
 ```text
 representativeHousehold                               SAT
 sameRoleDifferentPressure                             SAT
 liabilityWithoutRouteStillPressures                   SAT
+unresolvedPositiveStaysVisible                        SAT
 
 AllPositiveCoordinatesArePressure                     SAT counterexample
 RoleAndPolarityAloneDetermineSelectedPressure          SAT counterexample
@@ -139,19 +156,17 @@ RolePolarityAndRoutingDetermineSelectedPressure        UNSAT counterexample
 PositiveExpenseOrLiabilityAlwaysPressures              UNSAT counterexample
 UnroutedPositiveAssetDoesNotPressure                   UNSAT counterexample
 ExplicitlyRoutedPositiveAssetPressures                 UNSAT counterexample
+ExplicitRouteResolvesMissingRoleIntoPressure           UNSAT counterexample
+MissingRoleWithoutRouteRemainsUnresolved               UNSAT counterexample
+MissingRoleIsResolvedNonPressure                       SAT counterexample
 NegativeCoordinatesNeverPressure                       UNSAT counterexample
 PressurePartitionsSelectedCoordinates                  UNSAT counterexample
+PressureNonPressureUnresolvedPartition                 UNSAT counterexample
 ```
 
 For Alloy `check`, `UNSAT counterexample` means no counterexample was found in the bounded scope.
 
-The important discriminations are:
-
-1. the old all-positive rule is too broad because a positive Asset can be Scheduled without exerting Capacity pressure;
-2. AccountingRole and sign alone are too small because explicit routing can make an otherwise non-default Asset coordinate pressure-bearing;
-3. positive Expense and Liability coordinates remain visible as pressure even without a route, so currently unrouted rent, utilities, and debt repayment do not disappear;
-4. adding the existing ScheduledRouting status to AccountingRole and polarity is sufficient for the selected bounded pressure projection;
-5. no separately retained eligibility bit is required by this selected view.
+Two failed intermediate receipts were useful rather than hidden. When `role` was changed from `one Role` to `lone Role`, Alloy's subset semantics made `none in Expense + Liability` true until the model explicitly required `some role`. The final model therefore records the same absence distinction that production `AccountingRoleMap` already owns.
 
 ## Qualified decision
 
@@ -160,26 +175,28 @@ Within this household scope, the selected production direction is:
 ```text
 KEEP
   Scheduled lifecycle
-  AccountingRole
+  partial AccountingRole
   ScheduledRouting
   managed / unmanaged / unrouted pressure visibility
+  unresolved role/eligibility visibility
 
 DERIVE
   Capacity-pressure eligibility from
-    polarity + AccountingRole + ScheduledRouting
+    polarity + partial AccountingRole + ScheduledRouting
 
 DEFAULT PRESSURE
   positive Expense
   positive Liability
 
-DEFAULT NON-PRESSURE
-  positive Asset
-  positive Income
-  positive Equity
+RESOLVED NON-PRESSURE
+  positive Asset / Income / Equity with no route
   negative coordinates
 
-ALLOW EXPLICIT OVERRIDE INTO PRESSURE
+EXPLICIT PRESSURE
   any positive coordinate carrying explicit ScheduledRouting
+
+UNRESOLVED
+  positive + no route + no AccountingRole
 
 DO NOT ADD
   FixedCost Core type
@@ -200,16 +217,16 @@ This experiment does **not** establish:
 - Purpose assignment for currently unrouted rent, utilities, or debt;
 - that HRA's Commitment implementation is LOAM's specification.
 
-It establishes only that the current household Capacity-pressure distinction can be represented by evidence LOAM already owns in the selected bounded vocabulary.
+It establishes only that the current household Capacity-pressure distinction can be represented by evidence LOAM already owns in the selected bounded vocabulary, with missing AccountingRole retained as an unresolved frontier.
 
 ## Production gate
 
 Production work remains separate from this Observation:
 
-1. change `ScheduledCommitmentInspection` to admit only selected pressure coordinates;
-2. thread the already-existing AccountingRole evidence into the application read boundary;
-3. preserve managed / unmanaged / unrouted visibility for selected pressure;
-4. add representative tests for Asset receipt, Liability repayment, Expense, routed Asset, and negative funding coordinates;
+1. change `ScheduledCommitmentInspection` to select pressure using ScheduledRouting first and AccountingRole as the default classifier;
+2. thread the already-existing partial AccountingRole evidence into the application read boundary;
+3. preserve managed / unmanaged / unrouted pressure plus unresolved-role visibility;
+4. add representative tests for Asset receipt, Liability repayment, Expense, routed Asset, missing-role/unrouted, and negative funding coordinates;
 5. only then consider admitting household ScheduledRouting rows supported by explicit provenance.
 
 No canonical routing rows should be guessed merely from labels such as `wifi`, `rent`, or `utilities`.
