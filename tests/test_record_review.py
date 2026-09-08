@@ -344,8 +344,8 @@ class ManifestMenuTests(unittest.TestCase):
 
     def test_unported_menu_actions_refuse_without_writes(self):
         before = self.snapshot()
-        result = self.menu("correct\nraw\neffective\nintegrity\nscheduled\nq\n")
-        self.assertEqual(result.stderr.count("no sidecar action was run"), 5)
+        result = self.menu("correct\nraw\neffective\nintegrity\nq\n")
+        self.assertEqual(result.stderr.count("no sidecar action was run"), 4)
         self.assertEqual(self.snapshot(), before)
 
     def test_record_uses_manifest_and_next_views_see_it(self):

@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from collections import deque
+from pathlib import Path
+import re
+import sys
+
+if not Path("Loam").is_dir() or not Path("lakefile.lean").is_file():
+    print("audit-semantic-candidates: run from the LOAM repository root", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def module_name(path: Path) -> str:
+    return ".".join(path.with_suffix("").parts)
+
+
+lean_files = sorted([Path("Loam.lean")] + list(Path("Loam").rglob("*.lean")))
+module_to_path = {module_name(path): path for path in lean_files}
+
+
+def local_imports(path: Path) -> list[str]:
+    out: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("import "):
+            out.extend(tok for tok in line[7:].split() if tok in module_to_path)
+    return out
+
+
+imports = {m: local_imports(p) for m, p in module_to_path.items()}
+
+
+def closure(roots: list[str]) -> set[str]:
+    seen: set[str] = set()
+    q: deque[str] = deque(r for r in roots if r in module_to_path)
+    while q:
+        m = q.popleft()
+        if m in seen:
+            continue
+        seen.add(m)
+        q.extend(imports.get(m, []))
+    return seen
+
+
+exe_roots: list[str] = []
+current = None
+for raw in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
+    m = re.match(r"^lean_exe\s+([A-Za-z0-9_]+)\s+where\s*$", raw)
+    if m:
+        current = m.group(1)
+        continue
+    if current:
+        r = re.match(r"^\s*root\s*:=\s*`([A-Za-z0-9_.]+)\s*$", raw)
+        if r:
+            exe_roots.append(r.group(1))
+            current = None
+
+reachable = closure(exe_roots)
+
+# A deliberately shallow declaration scan. It exposes vocabulary for human
+# classification; it does not infer semantics from declaration kind or name.
+decl_re = re.compile(
+    r"^(?:public\s+)?(?:protected\s+)?(?:private\s+)?"
+    r"(structure|inductive|class|abbrev|def)\s+([A-Za-z0-9_'.]+)"
+)
+
+
+def declarations(path: Path) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        m = decl_re.match(raw.strip())
+        if not m:
+            continue
+        kind, name = m.groups()
+        if kind == "def" and name.startswith(("main", "run")):
+            continue
+        out.append((kind, name))
+    return out
+
+
+core_modules = sorted(
+    m for m in reachable
+    if m.startswith("Loam.Core.") and m in module_to_path
+)
+app_modules = sorted(
+    m for m in reachable
+    if m.startswith("Loam.Application.") and m in module_to_path
+)
+persistence_modules = sorted(
+    m for m in reachable
+    if m.startswith("Loam.Persistence.") and m in module_to_path
+)
+writer_modules = sorted(
+    m for m in reachable
+    if m.startswith("Loam.")
+    and m.count(".") == 1
+    and (m.endswith("Publisher") or m.endswith("Authority") or m.endswith("WriterOwnership"))
+)
+
+print("Executable-reachable Core modules and top-level vocabulary:")
+for m in core_modules:
+    path = module_to_path[m]
+    ds = declarations(path)
+    rendered = ", ".join(f"{kind} {name}" for kind, name in ds) or "(no shallow declarations)"
+    print(f"  {path}: {rendered}")
+
+print("\nExecutable-reachable Application modules:")
+for m in app_modules:
+    print(f"  {module_to_path[m]}")
+
+print("\nExecutable-reachable Persistence modules:")
+for m in persistence_modules:
+    print(f"  {module_to_path[m]}")
+
+print("\nExecutable-reachable top-level writer/authority modules:")
+for m in writer_modules:
+    print(f"  {module_to_path[m]}")

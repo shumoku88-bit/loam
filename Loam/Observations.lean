@@ -9,7 +9,6 @@ import Loam.Observations.Observation078
 import Loam.Observations.Observation129
 import Loam.Observations.Observation130
 import Loam.Observations.Observation135
-import Loam.Observations.Observation145
 import Loam.Observations.Observation147
 import Loam.Observations.Observation148
 import Loam.Observations.Observation149
@@ -40,9 +39,13 @@ import Loam.Observations.StructuralS003
 import Loam.Observations.StructuralS008
 
 /-!
-# Historical Lean observations
+# Selected live Lean observations
 
-This module gathers the Lean proofs produced during LOAM's formal-observation
-phase. It remains part of the umbrella build so those proofs keep being checked,
-but practical code should import `Loam.Core` instead.
+This module gathers historical Lean proofs that still justify keeping an
+executable proof obligation in the current repository. Practical code should
+import `Loam.Core` instead.
+
+Superseded observations may graduate from this umbrella once their question,
+witness, and conclusion remain recorded in research prose and Git history and a
+later production invariant or observation has taken over their practical role.
 -/

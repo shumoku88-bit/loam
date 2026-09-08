@@ -24,9 +24,6 @@ import Loam.Core.EventResolution
 import Loam.Core.EventResolutionMemory
 import Loam.Core.RelationAdmission
 import Loam.Core.CorrectionQuantity
-import Loam.Core.Rate
-import Loam.Core.Allocation
-import Loam.Core.RecipientAssignment
 import Loam.Core.EventDescription
 
 namespace Loam

@@ -1,0 +1,42 @@
+name: Compression Audit
+
+on:
+  pull_request:
+    paths:
+      - 'tools/audit-production-surface'
+      - 'tools/audit-production-reachability'
+      - 'tools/audit-semantic-candidates'
+      - 'tools/audit-mechanics-patterns'
+      - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE1.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE2.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE3.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE4.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE5.md'
+      - 'docs/research/COMPRESSION_AUDIT_PHASE6.md'
+      - 'Loam/**'
+      - 'lakefile.lean'
+      - '.github/workflows/compression-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-surface:
+    name: Reproduce production surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Inventory production source surface
+        shell: bash
+        run: bash tools/audit-production-surface
+      - name: Trace production import reachability
+        shell: bash
+        run: python3 tools/audit-production-reachability
+      - name: Expose semantic candidate vocabulary
+        shell: bash
+        run: python3 tools/audit-semantic-candidates
+      - name: Scan mechanics multiplication pressure
+        shell: bash
+        run: python3 tools/audit-mechanics-patterns
