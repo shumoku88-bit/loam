@@ -125,6 +125,17 @@ def main (args : List String) : IO Unit := do
   expect (fresh.actual.allRecords.isEmpty)
     "Scheduled creation also created Actual evidence"
 
+  let createdRecord ← requireSome due.head?
+    "fresh Scheduled read did not expose a seed candidate"
+  let .ok nextEditor := Loam.Tui.ScheduledCreation.initialFromScheduled? createdRecord
+    | throw (IO.userError "seed next Scheduled from completed expectation")
+  expect nextEditor.form.date.isEmpty
+    "next Scheduled seed inferred a due date without recurrence evidence"
+  expect (nextEditor.form.rows == rows)
+    "next Scheduled seed did not preserve the original expected signed postings"
+  expect (!nextEditor.notice.isEmpty)
+    "next Scheduled seed did not explain that completion is already durable"
+
   let refreshed := Loam.Tui.SelectedDay.refreshed fresh scheduledState
   expect (refreshed.focusDate == "2026-09-12" && refreshed.pane == .scheduled)
     "new Scheduled publication moved the selected-day coordinate or active pane"
@@ -141,4 +152,4 @@ def main (args : List String) : IO Unit := do
   expect (cancelled.cancel && cancelled.publish.isNone)
     "Esc from new Scheduled editor emitted publication"
 
-  IO.println "TUI Scheduled create: pane-local intent, focused-date editor, shared publication, fresh Due read and Actual independence passed."
+  IO.println "TUI Scheduled create: pane-local intent, explicit next seed, shared publication, fresh Due read and Actual independence passed."
