@@ -27,7 +27,17 @@ private def centeredMonthTitle (state : State) : String :=
 private def calendarHeader : Widget :=
   plainLine " Mon  Tue  Wed  Thu  Fri  Sat  Sun"
 
-private def hraCalendarSpans (state : State) (row : Nat) : List Span :=
+private abbrev PendingEvidence := Except String (List Loam.ScheduledReview.Record)
+
+private def pendingEvidence (snapshot : Snapshot) : PendingEvidence :=
+  Loam.ScheduledReview.currentOpenBeforeDate snapshot.scheduled snapshot.actual.today
+
+private def pendingDates : PendingEvidence → List String
+  | .ok records => records.map (fun record => record.scheduledOn)
+  | .error _ => []
+
+private def hraCalendarSpans
+    (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
   (List.range 7).map fun col =>
     match calendarSlot state row col with
     | none => span "     "
@@ -36,13 +46,14 @@ private def hraCalendarSpans (state : State) (row : Nat) : List Span :=
           match date.splitOn "-" with
           | [_, _, text] => text
           | _ => "  "
+        let marker := if pastOpenDates.any (fun pending => pending == date) then "!" else " "
         if date == state.selectedDate then
-          span ("[" ++ day ++ " ]") .selected
+          span ("[" ++ day ++ marker ++ "]") .selected
         else
-          span (" " ++ day ++ "  ")
+          span (" " ++ day ++ marker ++ " ")
 
-private def calendarRows (state : State) : List Widget :=
-  (List.range 6).map fun row => .row (hraCalendarSpans state row)
+private def calendarRows (pastOpenDates : List String) (state : State) : List Widget :=
+  (List.range 6).map fun row => .row (hraCalendarSpans pastOpenDates state row)
 
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
@@ -86,7 +97,19 @@ private def scheduledLines (snapshot : Snapshot) (state : State) : List Widget :
   | .conflictingTerminalEvidence =>
       [plainLine "   [Unavailable] Scheduled terminal evidence conflicts"]
 
-private def statusLine (snapshot : Snapshot) (state : State) : String :=
+private def pendingLines : PendingEvidence → List Widget
+  | .error message =>
+      [plainLine ("   [Unavailable] " ++ message)]
+  | .ok [] =>
+      [mutedLine "   (none; no past-date current-open Scheduled occurrence)"]
+  | .ok records =>
+      records.map fun record =>
+        plainLine
+          ("   - " ++ record.scheduledOn ++ "  [Still open]  " ++
+            Loam.ScheduledReview.summary record)
+
+private def statusLine
+    (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : String :=
   let scheduled :=
     match homeScheduledEvidence snapshot state with
     | .due _ rest => "Due (" ++ toString (rest.length + 1) ++ ")"
@@ -96,10 +119,17 @@ private def statusLine (snapshot : Snapshot) (state : State) : String :=
     | .unknownReplacementScheduled => "Unavailable"
     | .invalidReplacementGraph => "Unavailable"
     | .conflictingTerminalEvidence => "Unavailable"
+  let pendingStatus :=
+    match pending with
+    | .ok records => toString records.length
+    | .error _ => "Unavailable"
   " Scheduled    : " ++ scheduled ++
+    "   Pending: " ++ pendingStatus ++
     "   Attention: [i]   Capacity: [e]   Reports: [v]"
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
+  let pending := pendingEvidence snapshot
+  let pastOpenDates := pendingDates pending
   [ ruleLine bounds '='
   , .row
       [ span " LOAM Home: known through " .muted
@@ -112,12 +142,18 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   , plainLine (centeredMonthTitle state)
   , calendarHeader
   ] ++
-  calendarRows state ++
+  calendarRows pastOpenDates state ++
+  (if pastOpenDates.isEmpty then [] else
+    [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
   [ ruleLine bounds '-'
   , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
   , plainLine (" Known Through: " ++ snapshot.actual.today)
-  , plainLine (statusLine snapshot state)
+  , plainLine (statusLine snapshot state pending)
   , ruleLine bounds '-'
+  , plainLine " Pending Scheduled:"
+  ] ++
+  pendingLines pending ++
+  [ blankLine
   , plainLine " Actual Transactions:"
   ] ++
   actualLines snapshot state ++
@@ -150,8 +186,8 @@ private def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List W
 
 /--
 HRA-shaped Home presentation over LOAM's already-admitted read answers.
-This is presentation only: it adds no household authority, cycle policy, or
-Scheduled completeness claim.
+This is presentation only: it adds no household authority, cycle policy,
+Scheduled completeness claim, or retained pending status.
 -/
 def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
   let body := homeBody bounds snapshot state
