@@ -3,6 +3,7 @@ name: Practical Scheduled Routing
 on:
   pull_request:
     paths:
+      - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -16,7 +17,9 @@ on:
     branches:
       - main
       - 'feat/practical-scheduled-routing'
+      - 'feat/scheduled-capacity-pressure'
     paths:
+      - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
