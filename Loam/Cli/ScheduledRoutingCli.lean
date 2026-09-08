@@ -1,14 +1,9 @@
-import Loam.ActualDate
 import Loam.Core.ScheduledRouting
-import Loam.Persistence
-import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.ScheduledRoutingPersistence
-import Loam.WriterOwnership
+import Loam.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledRoutingCli
 
 open Loam.Core
-open Loam.Persistence
 
 set_option autoImplicit false
 
@@ -19,101 +14,53 @@ private def usage : String :=
   "Mark one Scheduled locus explicitly unmanaged from an effective date:\n" ++
   "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS unmanaged"
 
-private def occurrenceHasLocus
-    (occurrence : ScheduledOccurrence String)
-    (locus : LocusId) : Bool :=
-  occurrence.movement.changes.any fun change => decide (change.coordinate = locus)
-
-private def parsePurpose? (mode : String) (purpose? : Option String) : Option (Option PurposeId) :=
-  match mode, purpose? with
-  | "managed", some token =>
-      if validToken token then some (some ⟨token⟩) else none
-  | "unmanaged", none => some none
+private def draftFromArgs?
+    (effectiveOn scheduledToken locusToken mode : String)
+    (purposeToken? : Option String) : Option Loam.ScheduledRoutingPublisher.Draft :=
+  match mode, purposeToken? with
+  | "managed", some purpose =>
+      some {
+        subject := { scheduled := ⟨scheduledToken⟩, locus := ⟨locusToken⟩ }
+        effectiveOn := effectiveOn
+        target := .managed ⟨purpose⟩
+      }
+  | "unmanaged", none =>
+      some {
+        subject := { scheduled := ⟨scheduledToken⟩, locus := ⟨locusToken⟩ }
+        effectiveOn := effectiveOn
+        target := .unmanaged
+      }
   | _, _ => none
-
-private def recordUnlocked
-    (routingPath scheduledPath effectiveOn scheduledToken locusToken mode : String)
-    (purposeToken? : Option String) : IO UInt32 := do
-  if !Loam.ActualDate.validIsoDate effectiveOn then
-    IO.eprintln "loam: Scheduled routing effective date must be a real calendar date in YYYY-MM-DD form"
-    return 2
-  else if !validToken scheduledToken || !validToken locusToken then
-    IO.eprintln "loam: Scheduled identity and Locus must be nonempty single-line tokens"
-    return 2
-  else
-    match parsePurpose? mode purposeToken? with
-    | none =>
-        IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
-        return 2
-    | some purpose =>
-        let scheduledFile := System.FilePath.mk scheduledPath
-        match ← loadScheduledLifecycleImage? scheduledFile with
-        | none =>
-            IO.eprintln "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-            return 2
-        | some lifecycle =>
-            let scheduledId : ScheduledId := ⟨scheduledToken⟩
-            let locus : LocusId := ⟨locusToken⟩
-            match ScheduledMemory.findById? lifecycle.scheduled scheduledId with
-            | none =>
-                IO.eprintln "loam: scheduled identity not found"
-                return 1
-            | some occurrence =>
-                if !occurrenceHasLocus occurrence locus then
-                  IO.eprintln "loam: Scheduled occurrence does not contain that Locus"
-                  return 1
-                else
-                  let routingFile := System.FilePath.mk routingPath
-                  if !(← routingFile.pathExists) then
-                    IO.eprintln "loam: Scheduled routing authority is missing"
-                    return 2
-                  else
-                    match ← loadScheduledRoutingHistory? routingFile with
-                    | none =>
-                        IO.eprintln "loam: malformed or unsupported Scheduled routing authority"
-                        return 2
-                    | some history =>
-                        let subject : ScheduledRoutingSubject := {
-                          scheduled := scheduledId
-                          locus := locus
-                        }
-                        let entry : RoutingEntry ScheduledRoutingSubject String := {
-                          subject := subject
-                          effectiveOn := effectiveOn
-                          purpose := purpose
-                        }
-                        match RoutingHistory.ofEntries? (history.entries ++ [entry]) with
-                        | none =>
-                            IO.eprintln
-                              "loam: Scheduled routing already has evidence at this subject/effective coordinate"
-                            return 2
-                        | some updated =>
-                            if ← saveScheduledRoutingHistory? routingFile updated then
-                              let routeText :=
-                                match purpose with
-                                | some p => "managed -> " ++ p.token
-                                | none => "unmanaged"
-                              IO.println
-                                ("Recorded Scheduled route: " ++ scheduledToken ++ " / " ++
-                                  locusToken ++ " @ " ++ effectiveOn ++ " = " ++ routeText ++ ".")
-                              return 0
-                            else
-                              IO.eprintln "loam: Scheduled routing evidence could not be published"
-                              return 2
 
 /--
 Record one dated Scheduled routing assertion under routing-file ownership.
-Both the complete Scheduled lifecycle authority and independent routing authority
-must already exist. The route is admitted only when its exact
-`ScheduledId × LocusId` subject exists.
+Delegates validation, lifecycle/routing re-reading, duplicate-coordinate refusal,
+and publication to `Loam.ScheduledRoutingPublisher`.
 -/
 def record
     (routingPath scheduledPath effectiveOn scheduledToken locusToken mode : String)
-    (purposeToken? : Option String) : IO UInt32 :=
-  Loam.WriterOwnership.withOwnership
-    (System.FilePath.mk routingPath)
-    (recordUnlocked
-      routingPath scheduledPath effectiveOn scheduledToken locusToken mode purposeToken?)
+    (purposeToken? : Option String) : IO UInt32 := do
+  let some draft := draftFromArgs? effectiveOn scheduledToken locusToken mode purposeToken?
+    | do
+        IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
+        return 2
+  match ← Loam.ScheduledRoutingPublisher.publish routingPath scheduledPath draft with
+  | .ok receipt =>
+      let routeText :=
+        match receipt.target with
+        | .managed p => "managed -> " ++ p.token
+        | .unmanaged => "unmanaged"
+      IO.println
+        ("Recorded Scheduled route: " ++ receipt.subject.scheduled.token ++ " / " ++
+          receipt.subject.locus.token ++ " @ " ++ receipt.effectiveOn ++ " = " ++ routeText ++ ".")
+      return 0
+  | .error message =>
+      IO.eprintln message
+      if message == "loam: scheduled identity not found" ||
+         message == "loam: Scheduled occurrence does not contain that Locus" then
+        return 1
+      else
+        return 2
 
 /-- Command dispatcher for practical Scheduled routing evidence. -/
 def run (args : List String) : IO UInt32 :=
