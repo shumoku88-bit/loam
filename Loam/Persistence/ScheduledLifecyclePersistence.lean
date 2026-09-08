@@ -92,7 +92,7 @@ def decodeScheduledLifecycleImage?
   if !input.startsWith headerPrefix then
     none
   else
-    let rest0 := input.drop headerPrefix.length
+    let rest0 := (input.drop headerPrefix.length).toString
     let (scheduledText, rest1) ← takeSection? "Scheduled" rest0
     let (completionText, rest2) ← takeSection? "Completion" rest1
     let (retirementText, rest3) ← takeSection? "Retirement" rest2
