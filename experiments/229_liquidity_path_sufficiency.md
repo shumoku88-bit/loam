@@ -1,8 +1,10 @@
 # Observation 229 — What evidence is sufficient for a day-boundary liquidity path?
 
-Status: **IN PROGRESS — selected bounded sufficiency / ambiguity probes**
+Status: **QUALIFIED by Alloy 6.2.0 / SAT4J — day-boundary prefix arithmetic survives, but selection, intraday order, and overdue future timing remain independent evidence**
 
 Research baseline: LOAM `012150a70ad2940038e9db2f049c8578566a2119`
+
+Qualified model head: `3ac6c08d12901da36368b03ac6d66e8dbf2fd376`
 
 ## Pressure
 
@@ -76,7 +78,7 @@ current selected quantity
 -> qualified day-boundary Scheduled path
 ```
 
-The hypothesis is that no new arithmetic ontology is required. Once the input is qualified, the path itself is only a prefix sum:
+The arithmetic hypothesis is deliberately tiny. Once the input is qualified, the path itself is only a prefix sum:
 
 ```text
 B0 = current selected quantity
@@ -102,7 +104,7 @@ This observation does **not** choose between them.
 
 ### 2. Does same-day order matter?
 
-For end-of-day boundaries, all effects on one date may be summed before applying the prefix recurrence. The order among those same-day movements should not change the day-end answer.
+For end-of-day boundaries, all effects on one date may be summed before applying the prefix recurrence. The order among those same-day movements does not change the day-end answer in the selected model.
 
 But intraday low-water is stronger.
 
@@ -124,13 +126,13 @@ Therefore:
 
 ```text
 day-boundary low-water
-    may be derivable without intraday order
+    can be derived without intraday order once other inputs are qualified
 
 intraday low-water
     requires stronger ordering evidence
 ```
 
-The Report Lab should not accidentally promise the second when it only owns the first.
+The Report Lab must not accidentally promise the second when it only owns the first.
 
 ### 3. What happens to already-overdue open Scheduled evidence?
 
@@ -148,7 +150,7 @@ Scheduled completeness
 future timing of overdue unresolved evidence
 ```
 
-A production liquidity path must either:
+A production path must either:
 
 - refuse a fully dated path while selected overdue open effects remain unresolved;
 - expose those effects separately as undated/overdue pressure; or
@@ -187,10 +189,10 @@ The worlds vary only report/query facts not supplied by that retained evidence:
 ```text
 selection
 same-day first movement
-over-due future settlement day
+overdue future settlement day
 ```
 
-The intended representative selected path uses `Bank + Wallet`:
+The representative selected path uses `Bank + Wallet`:
 
 ```text
 current  7
@@ -201,45 +203,80 @@ D3       6
 
 The D2 transfer is neutral when both Bank and Wallet are selected. The D3 investment movement reduces the selected path because Investment is outside that selection.
 
-## Selected probes
+## Executed result
 
-The Alloy model asks for four witnesses and four checks.
+Workflow run `34186644379`, job `101936221522`, completed **SUCCESS** after the initial parser-only correction from Lean-style comments to Alloy comments. No expected semantic result changed.
 
-### Witnesses
+Alloy 6.2.0 + Sat4j produced exactly the selected matrix:
 
-1. `representativeSelectedPath`
-   - the fixed Bank + Wallet day-boundary path exists with the expected values;
+```text
+representativeSelectedPath                         SAT
+sameEvidenceDifferentSelectionChangesPath          SAT
+sameDayNetDifferentIntradayOrder                   SAT
+sameCompleteEvidenceDifferentOverdueTiming         SAT
+FixedSelectionDeterminesDayBoundaryScheduledPath   UNSAT counterexample
+CompletenessChoosesLiquiditySelection              SAT counterexample
+DayBoundaryPathDeterminesIntradayFirstBalance      SAT counterexample
+CompletenessDeterminesOverdueFutureTiming          SAT counterexample
+```
 
-2. `sameEvidenceDifferentSelectionChangesPath`
-   - identical retained evidence and completeness can yield a different day-boundary path when the report selection differs;
+For the `check` commands, SAT means Alloy found a counterexample to the asserted sufficiency claim.
 
-3. `sameDayNetDifferentIntradayOrder`
-   - the D1 day-end balance is equal while the first intraday balance differs;
+## Finding
 
-4. `sameCompleteEvidenceDifferentOverdueTiming`
-   - identical complete Scheduled evidence and selection can still yield different near-term pressure paths when one overdue open item receives different future settlement timing.
+The selected bounded result separates one small arithmetic law from three evidence questions.
 
-### Checks
+### Qualified arithmetic
 
-1. `FixedSelectionDeterminesDayBoundaryScheduledPath`
-   - expected **UNSAT counterexample**;
-   - with this fixed explicit Scheduled evidence, a fixed selection determines the day-boundary *Scheduled projection* regardless of same-day ordering or overdue hidden timing;
+Once the selected coordinates and dated Scheduled effects are fixed, same-day ordering does not change the selected **day-boundary** path in the model:
 
-2. `CompletenessChoosesLiquiditySelection`
-   - expected **SAT counterexample**;
-   - completeness does not select the coordinates that count as liquid;
+```text
+current selected quantity
++ dated selected daily net effects
+-> day-boundary prefix path
+```
 
-3. `DayBoundaryPathDeterminesIntradayFirstBalance`
-   - expected **SAT counterexample**;
-   - equal day-boundary path does not determine intraday first-step quantity;
+The path calculation itself therefore needs no new financial ontology. It is additive accumulation.
 
-4. `CompletenessDeterminesOverdueFutureTiming`
-   - expected **SAT counterexample**;
-   - Scheduled completeness does not date an already-overdue unresolved obligation into the future.
+### Selection remains independent
 
-## Expected architectural result
+The same complete Scheduled evidence yields a different path when the selected coordinate set changes. Therefore:
 
-If the selected matrix is confirmed, the narrow production direction becomes:
+```text
+Scheduled completeness
+    -/->
+liquidity selection
+```
+
+This blocks treating `balance-view` as canonical liquidity merely because it is already available to a report.
+
+### Intraday minimum remains stronger
+
+Two worlds can agree on the day-end path but disagree on the first same-day intermediate balance. Therefore:
+
+```text
+day-boundary path
+    -/->
+intraday low-water
+```
+
+A report may safely expose a minimum over qualified day boundaries without claiming an intraday minimum.
+
+### Overdue future placement remains independent
+
+The same complete Scheduled set and the same selected coordinates can disagree about which future day settles an already-overdue open item. Therefore:
+
+```text
+complete-through
+    -/->
+future re-date of overdue open Scheduled
+```
+
+Completeness answers whether absence inside a scope is meaningful. It does not invent future chronology for already-retained overdue evidence.
+
+## Architectural consequence
+
+The narrow candidate production topology is now:
 
 ```text
 shared current BalanceReview
@@ -258,9 +295,11 @@ prefix-sum balance path
 minimum over day boundaries
 ```
 
-This would justify a small analytical `LiquidityReview` or more conservatively named `SelectedBalancePathReview` without a second semantic engine.
+This could justify a small analytical `SelectedBalancePathReview` without a second semantic engine.
 
-The name `Liquidity` should remain provisional until the coordinate-selection semantics are earned. A replaceable explicit query selection may be enough for a useful report without creating a canonical `LiquidityRole`.
+The name `Liquidity` should remain provisional until the coordinate-selection semantics are earned. A replaceable explicit query selection may be sufficient for a useful path report without creating a canonical `LiquidityRole`.
+
+The next practical pressure is **not more math**. It is whether a household can maintain a truthful bounded Scheduled complete-through claim and how a selected overdue open item should block or weaken the path answer.
 
 ## What this observation does not earn
 
@@ -288,12 +327,12 @@ Liquidity remains a research question, but its blocker is now more precise than 
 ```text
 completeness law             already qualified by Observation 211
 information-order boundary   already qualified by Observation 221
+prefix arithmetic            qualified here for day boundaries
 
 remaining pressure
   selection semantics
   overdue future timing
-  day-boundary vs intraday ordering
   practical maintainability of complete-through evidence
 ```
 
-That is the terrain Observation 229 is intended to narrow.
+This narrows the next Report Lab step without adding a production concept merely to make the screen numeric.
