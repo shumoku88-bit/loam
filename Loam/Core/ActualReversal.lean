@@ -5,13 +5,13 @@ namespace Loam.Core
 set_option autoImplicit false
 
 /--
-One explicit claim that a retained Actual Event was later cancelled by another
-retained Event whose physical Effects are its exact inverse.
+One explicit claim that a retained Actual Event is reversed by another retained
+Event whose physical Effects are its exact inverse.
 
 This relation is not a correction. Both endpoints remain historical facts and
-both remain part of physical quantity accumulation. The relation preserves the
-causal answer "which Actual did this inverse movement cancel?" without deriving
-that answer from signs, descriptions, dates, or endpoint shape.
+both remain part of physical quantity accumulation. It preserves the answer
+"which Actual does this inverse movement reverse?" without deriving that answer
+from signs, descriptions, dates, endpoint shape, or temporal ordering.
 -/
 structure ActualReversal where
   target : EventId
