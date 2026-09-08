@@ -7,7 +7,6 @@ on:
       - 'Loam/Cli.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/MovementEntry.lean'
-      - 'Loam/Cli/CorrectionCli.lean'
       - 'Loam/Persistence.lean'
       - 'tools/loam-movement'
       - 'experiments/practical_writer_ownership_holder.lean'
@@ -31,7 +30,7 @@ jobs:
         uses: leanprover/lean-action@v1
       - name: Build production CLIs
         run: lake build loam loamMovement
-      - name: Observe production writer entrances waiting for ownership
+      - name: Observe retained writer entrances waiting for ownership
         shell: bash
         run: |
           set -euo pipefail
@@ -40,7 +39,6 @@ jobs:
           movement_bin='.lake/build/bin/loamMovement'
           memory='practical-writer-ownership-memory.loam'
           event='practical-writer-ownership-event.loam'
-          correction='practical-writer-ownership-corrections.loam'
           ready='practical-writer-ownership-ready'
           holder_pid=''
           writer_pid=''
@@ -54,7 +52,7 @@ jobs:
               kill -KILL "$holder_pid" 2>/dev/null || true
               wait "$holder_pid" 2>/dev/null || true
             fi
-            rm -f "$memory" "$event" "$correction" "$ready" \
+            rm -f "$memory" "$event" "$ready" \
               "$memory.locus-admission" "$memory.loam-writer-lock" \
               /tmp/practical-writer-ownership-*.out
           }
@@ -109,8 +107,6 @@ jobs:
           "$bin" event-memory get "$memory" seed-event >/dev/null
           echo 'event_memory_add_owned=true'
 
-          # Start the daily-recording specimen from an empty admitted memory so
-          # the following correction has exactly one selectable movement.
           printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
           printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tfood\n' \
             > "$memory.locus-admission"
@@ -123,13 +119,3 @@ jobs:
           release_and_wait_writer
           "$bin" event-memory get "$memory" record-1 >/dev/null
           echo 'movement_owned=true'
-
-          start_holder
-          printf '1\ncash\n60\n\nfood\n60\n\n' | "$bin" correct "$memory" "$correction" \
-            > /tmp/practical-writer-ownership-writer.out 2>&1 &
-          writer_pid=$!
-          require_writer_waiting
-          release_and_wait_writer
-          "$bin" event-memory get "$memory" replacement-1 >/dev/null
-          test -s "$correction"
-          echo 'correction_pair_owned=true'

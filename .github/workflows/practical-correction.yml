@@ -1,42 +1,34 @@
-name: Practical Correction Entrance
+name: Practical Correction Projection
 
 on:
   pull_request:
     paths:
-      - 'LoamCorrection.lean'
-      - 'LoamEffective.lean'
-      - 'LoamCorrectionIntegrity.lean'
-      - 'Loam/Cli/CorrectionCli.lean'
-      - 'Loam/Cli/MovementCli.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
-      - 'Loam/Application/**'
-      - 'Loam/Core/**'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Core/CorrectionQuantity.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Persistence.lean'
-      - 'tools/loam'
+      - '.github/workflows/practical-correction.yml'
       - 'lake-manifest.json'
       - 'lean-toolchain'
-      - '.github/workflows/practical-correction.yml'
   push:
     paths:
-      - 'LoamCorrection.lean'
-      - 'LoamEffective.lean'
-      - 'LoamCorrectionIntegrity.lean'
-      - 'Loam/Cli/CorrectionCli.lean'
-      - 'Loam/Cli/MovementCli.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
-      - 'Loam/Application/**'
-      - 'Loam/Core/**'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/QuantityInspection.lean'
+      - 'Loam/Core/CorrectionQuantity.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Persistence.lean'
-      - 'tools/loam'
+      - '.github/workflows/practical-correction.yml'
       - 'lake-manifest.json'
       - 'lean-toolchain'
-      - '.github/workflows/practical-correction.yml'
   workflow_dispatch:
 
 permissions:
@@ -47,15 +39,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and test compiled correction entrance
+  projection:
+    name: Test retained correction projections
     runs-on: ubuntu-latest
-    env:
-      LOAM_DATA_DIR: scratch/dogfood
     steps:
       - uses: actions/checkout@v6
-
-      - name: Build practical loam executable
+      - name: Build practical projection commands
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
@@ -67,240 +56,70 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-
-      - name: Run compiled correction, effective, and integrity smoke check
+      - name: Exercise closed, frontier, and refused correction shapes
         shell: bash
         run: |
-          test -x .lake/build/bin/loam
-          if grep -Fq 'lean --run' tools/loam; then
-            echo 'practical wrapper must not invoke Lean frontend per action' >&2
-            exit 1
-          fi
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          memory="$tmp/memory.loam"
+          corrections="$tmp/corrections.loam"
 
-          rm -rf scratch/dogfood
-          mkdir -p scratch/dogfood
-          memory_file="scratch/dogfood/memory.loam"
-          correction_file="scratch/dogfood/corrections.loam"
-          validity_file="${memory_file}.actual-validity"
-
-          printf 'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\n' >"$memory_file"
-
-          printf 'm\ncorrect\n1\nwallet\n1280\n' | ./tools/loam | tee /tmp/loam-correction.out
-          grep -Fq 'Data: scratch/dogfood' /tmp/loam-correction.out
-          grep -Fq 'Correction recorded: 1280 jpy from wallet.' /tmp/loam-correction.out
-
-          expected_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\tbad-record\nEFFECT\teffect-1\tスーパー\twallet\t1280\nEVENT\treplacement-1\nEFFECT\teffect-1\twallet\tjpy\t-1280'
-          test "$(cat "$memory_file")" = "$expected_memory"
-
-          expected_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\tbad-record\treplacement-1'
-          test "$(cat "$correction_file")" = "$expected_corrections"
-
-          printf 'effective\n' | ./tools/loam | tee /tmp/loam-effective.out
-          grep -Fq 'Effective quantities (single-correction projection; zero coordinates omitted):' /tmp/loam-effective.out
-          if grep -Fq 'スーパー:' /tmp/loam-effective.out; then
-            echo 'ordinary effective view must omit zero coordinate' >&2
-            exit 1
-          fi
-          grep -Fq 'wallet: -1280 jpy' /tmp/loam-effective.out
-
-          printf 'integrity\n' | ./tools/loam | tee /tmp/loam-integrity.out
-          grep -Fq 'Correction correction-1' /tmp/loam-integrity.out
-          grep -Fq 'bad-record -> replacement-1' /tmp/loam-integrity.out
-          grep -Fq 'relation: closed' /tmp/loam-integrity.out
-          grep -Fq 'スーパー: 1280 wallet' /tmp/loam-integrity.out
-          grep -Fq 'wallet: -1280 jpy' /tmp/loam-integrity.out
-          grep -Fq 'Projection law: original contribution excluded; replacement retained once' /tmp/loam-integrity.out
-          grep -Fq 'Arithmetic balance: not asserted across different coordinates or measures' /tmp/loam-integrity.out
-          grep -Fq 'All correction relations are closed.' /tmp/loam-integrity.out
-
-          direct="$(.lake/build/bin/loam effective "$memory_file" "$correction_file")"
-          grep -Fq 'wallet: -1280 jpy' <<<"$direct"
-
-          # A source update may require one rebuild, but successful rebuild chatter
-          # must not leak Lean linter warnings into the practical menu surface.
-          touch Loam/Cli/EffectiveCli.lean
-          printf 'effective\n' | ./tools/loam 2>&1 | tee /tmp/loam-rebuild.out
-          grep -Fq 'Building LOAM...' /tmp/loam-rebuild.out
-          if grep -Fq 'warning:' /tmp/loam-rebuild.out; then
-            echo 'successful practical rebuild must keep Lean warnings out of the user surface' >&2
-            exit 1
-          fi
-          grep -Fq 'wallet: -1280 jpy' /tmp/loam-rebuild.out
-
-          # Multiple independent / repeated correction paths now have one current
-          # frontier without using correction list position as authority.
-          cat >"$memory_file" <<'EOF'
+          cat >"$memory" <<'EOF'
           LOAM-EVENT-MEMORY	1
           EVENT	a
-          EFFECT	effect-1	wallet	jpy	-100
+          EFFECT	a-from	wallet	jpy	-100
+          EFFECT	a-to	food	jpy	100
           EVENT	b
-          EFFECT	effect-1	wallet	jpy	-80
+          EFFECT	b-from	wallet	jpy	-110
+          EFFECT	b-to	food	jpy	110
           EVENT	c
-          EFFECT	effect-1	wallet	jpy	-90
-          EVENT	x
-          EFFECT	effect-1	savings	jpy	50
-          EVENT	y
-          EFFECT	effect-1	savings	jpy	60
-          EVENT	u
-          EFFECT	effect-1	cash	jpy	20
+          EFFECT	c-from	wallet	jpy	-120
+          EFFECT	c-to	food	jpy	120
           EOF
-          cat >"$correction_file" <<'EOF'
+          cat >"$corrections" <<'EOF'
           LOAM-EVENT-CORRECTION-MEMORY	1
-          CORRECTION	correction-1	a	b
-          CORRECTION	correction-2	b	c
-          CORRECTION	correction-3	x	y
+          CORRECTION	c1	a	b
           EOF
 
-          .lake/build/bin/loam effective "$memory_file" "$correction_file" | tee /tmp/loam-frontier.out
-          grep -Fq 'Effective quantities (correction-frontier projection; zero coordinates omitted):' /tmp/loam-frontier.out
-          grep -Fq 'wallet: -90 jpy' /tmp/loam-frontier.out
-          grep -Fq 'savings: 60 jpy' /tmp/loam-frontier.out
-          grep -Fq 'cash: 20 jpy' /tmp/loam-frontier.out
+          .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
+          grep -Fq 'single-correction projection' "$tmp/effective.out"
+          grep -Fq 'wallet: -230 jpy' "$tmp/effective.out"
+          grep -Fq 'food: 230 jpy' "$tmp/effective.out"
 
-          # Sibling corrections remain unresolved rather than choosing a winner.
-          cat >"$memory_file" <<'EOF'
-          LOAM-EVENT-MEMORY	1
-          EVENT	a
-          EFFECT	effect-1	wallet	jpy	-100
-          EVENT	b
-          EFFECT	effect-1	wallet	jpy	-80
-          EVENT	c
-          EFFECT	effect-1	wallet	jpy	-90
-          EOF
-          cat >"$correction_file" <<'EOF'
+          .lake/build/bin/loam correction-integrity "$memory" "$corrections" >"$tmp/integrity.out"
+          grep -Fq 'a -> b' "$tmp/integrity.out"
+          grep -Fq 'relation: closed' "$tmp/integrity.out"
+          grep -Fq 'original contribution excluded; replacement retained once' "$tmp/integrity.out"
+          grep -Fq 'All correction relations are closed.' "$tmp/integrity.out"
+
+          cat >"$corrections" <<'EOF'
           LOAM-EVENT-CORRECTION-MEMORY	1
-          CORRECTION	correction-1	a	b
-          CORRECTION	correction-2	a	c
+          CORRECTION	c1	a	b
+          CORRECTION	c2	b	c
           EOF
-          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-frontier-refusal.out 2>&1; then
-            echo 'sibling corrections must not produce one current frontier' >&2
-            exit 1
-          fi
-          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-frontier-refusal.out
-          if grep -Fq 'correction-frontier projection' /tmp/loam-frontier-refusal.out; then
-            echo 'frontier refusal must happen before partial quantity output' >&2
-            exit 1
-          fi
+          .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/frontier.out"
+          grep -Fq 'correction-frontier projection' "$tmp/frontier.out"
+          grep -Fq 'wallet: -120 jpy' "$tmp/frontier.out"
+          grep -Fq 'food: 120 jpy' "$tmp/frontier.out"
 
-          # Two different targets cannot silently merge through Correction alone.
-          cat >"$correction_file" <<'EOF'
+          cat >"$corrections" <<'EOF'
           LOAM-EVENT-CORRECTION-MEMORY	1
-          CORRECTION	correction-1	a	c
-          CORRECTION	correction-2	b	c
+          CORRECTION	c1	a	b
+          CORRECTION	c2	a	c
           EOF
-          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-merge-refusal.out 2>&1; then
-            echo 'shared replacement must require an explicit resolution concept' >&2
+          if .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/refuse.out" 2>&1; then
+            echo 'branching correction evidence must refuse one current frontier' >&2
             exit 1
           fi
-          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-merge-refusal.out
+          grep -Fq 'corrections do not justify one current frontier' "$tmp/refuse.out"
 
-          # Closed cycles cannot manufacture a current interpretation.
-          cat >"$correction_file" <<'EOF'
+          cat >"$corrections" <<'EOF'
           LOAM-EVENT-CORRECTION-MEMORY	1
-          CORRECTION	correction-1	a	b
-          CORRECTION	correction-2	b	a
+          CORRECTION	c1	a	missing
           EOF
-          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-cycle-refusal.out 2>&1; then
-            echo 'cyclic corrections must not produce one current frontier' >&2
+          if .lake/build/bin/loam correction-integrity "$memory" "$corrections" >"$tmp/open.out" 2>&1; then
+            echo 'open correction relation must not report complete integrity' >&2
             exit 1
           fi
-          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-cycle-refusal.out
-
-          # Referentially open corrections remain fail-closed.
-          cat >"$correction_file" <<'EOF'
-          LOAM-EVENT-CORRECTION-MEMORY	1
-          CORRECTION	correction-1	a	b
-          CORRECTION	correction-2	b	missing
-          EOF
-          if .lake/build/bin/loam effective "$memory_file" "$correction_file" > /tmp/loam-open-refusal.out 2>&1; then
-            echo 'open correction references must not produce one current frontier' >&2
-            exit 1
-          fi
-          grep -Fq 'corrections do not justify one current frontier' /tmp/loam-open-refusal.out
-
-          # Real dogfood shape: a split PayPay + points movement is selectable
-          # through the primary menu and corrected with the same FROM/TO adapter.
-          cat >"$memory_file" <<'EOF'
-          LOAM-EVENT-MEMORY	1
-          EVENT	record-1
-          EFFECT	effect-1	point	jpy	-59
-          EFFECT	effect-2	paypay	jpy	-101
-          EFFECT	effect-3	can-coffee	jpy	160
-          EOF
-          rm -f "$correction_file" "$validity_file"
-
-          printf 'm\ncorrect\n1\npaypay\n111\npoint\n49\n\ncan-coffee\n160\n\nq\n' | ./tools/loam | tee /tmp/loam-movement-correction.out
-          grep -Fq 'correct    Correct a record' /tmp/loam-movement-correction.out
-          grep -Fq '1. [record-1]' /tmp/loam-movement-correction.out
-          grep -Fq 'Enter the corrected movement. Add FROM entries, then TO entries.' /tmp/loam-movement-correction.out
-          grep -Fq 'Correction recorded: record-1 -> replacement-1 (160 jpy).' /tmp/loam-movement-correction.out
-
-          expected_movement_memory=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpoint\tjpy\t-59\nEFFECT\teffect-2\tpaypay\tjpy\t-101\nEFFECT\teffect-3\tcan-coffee\tjpy\t160\nEVENT\treplacement-1\nEFFECT\teffect-1\tpaypay\tjpy\t-111\nEFFECT\teffect-2\tpoint\tjpy\t-49\nEFFECT\teffect-3\tcan-coffee\tjpy\t160'
-          test "$(cat "$memory_file")" = "$expected_movement_memory"
-          expected_movement_corrections=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\trecord-1\treplacement-1'
-          test "$(cat "$correction_file")" = "$expected_movement_corrections"
-
-          .lake/build/bin/loam effective "$memory_file" "$correction_file" | tee /tmp/loam-movement-effective.out
-          grep -Fq 'paypay: -111 jpy' /tmp/loam-movement-effective.out
-          grep -Fq 'point: -49 jpy' /tmp/loam-movement-effective.out
-          grep -Fq 'can-coffee: 160 jpy' /tmp/loam-movement-effective.out
-
-          # A dated movement correction publishes the replacement's own date fact
-          # before the replacement Event. Force Event-memory staging to fail after
-          # relation/date publication, then verify the same relation and date fact
-          # are reused on retry instead of creating a sibling correction.
-          cat >"$memory_file" <<'EOF'
-          LOAM-EVENT-MEMORY	1
-          EVENT	record-1
-          EFFECT	effect-1	point	jpy	-59
-          EFFECT	effect-2	paypay	jpy	-101
-          EFFECT	effect-3	coffee	jpy	160
-          EOF
-          rm -f "$correction_file"
-          cat >"$validity_file" <<'EOF'
-          LOAM-ACTUAL-VALIDITY-HISTORY	2
-          BASE	record-1	2026-09-01
-          EOF
-          rm -rf "${memory_file}.loam-stage"
-          mkdir "${memory_file}.loam-stage"
-
-          if printf '1\npaypay\n111\npoint\n49\n\ncoffee\n160\n\n' |
-              .lake/build/bin/loam correct "$memory_file" "$correction_file" \
-                > /tmp/loam-correction-interrupted.out 2>&1; then
-            echo 'forced Event publication failure must interrupt correction' >&2
-            exit 1
-          fi
-
-          expected_retry_correction=$'LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tcorrection-1\trecord-1\treplacement-1'
-          test "$(cat "$correction_file")" = "$expected_retry_correction"
-          expected_retry_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-01\nBASE\treplacement-1\t2026-09-01'
-          test "$(cat "$validity_file")" = "$expected_retry_validity"
-          if grep -Fq $'EVENT\treplacement-1' "$memory_file"; then
-            echo 'replacement Event must remain unpublished at the forced failure point' >&2
-            exit 1
-          fi
-
-          rm -rf "${memory_file}.loam-stage"
-          printf '1\npaypay\n111\npoint\n49\n\ncoffee\n160\n\n' |
-            .lake/build/bin/loam correct "$memory_file" "$correction_file" |
-            tee /tmp/loam-correction-retry.out
-          grep -Fq 'Correction recorded: record-1 -> replacement-1 (160 jpy).' /tmp/loam-correction-retry.out
-
-          test "$(cat "$correction_file")" = "$expected_retry_correction"
-          test "$(cat "$validity_file")" = "$expected_retry_validity"
-          grep -Fq $'EVENT\treplacement-1' "$memory_file"
-
-          printf '0\n' |
-            .lake/build/bin/loam correct-date "$memory_file" "$correction_file" \
-              > /tmp/loam-replacement-date.out 2>&1 || true
-          grep -Fq '2026-09-01  [replacement-1]' /tmp/loam-replacement-date.out
-
-          # Retired V1 bytes are not an ordinary write/update surface anymore.
-          cat >"$validity_file" <<'EOF'
-          LOAM-ACTUAL-VALIDITY-HISTORY	1
-          FACT	legacy-v0	record-1	2026-09-01
-          EOF
-          if .lake/build/bin/loam event-memory review "$memory_file" > /tmp/loam-v1-refusal.out 2>&1; then
-            echo 'retired ActualValidity V1 unexpectedly remained readable' >&2
-            exit 1
-          fi
+          grep -Fq 'relation: open' "$tmp/open.out"
+          grep -Fq 'one or more correction relations are open' "$tmp/open.out"

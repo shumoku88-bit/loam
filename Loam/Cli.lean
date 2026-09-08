@@ -1,8 +1,6 @@
 import Loam.Persistence
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
-import Loam.Cli.CorrectionCli
-import Loam.Cli.ActualValidityCorrectionCli
 import Loam.Cli.EffectiveCli
 import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
@@ -26,10 +24,7 @@ private def practicalUsage : String :=
   "  ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]\n\n" ++
   "Show recorded quantities:\n" ++
   "  ./tools/loam summary MEMORY_FILE\n\n" ++
-  "Correct a recorded movement append-only:\n" ++
-  "  ./tools/loam correct MEMORY_FILE CORRECTION_FILE\n\n" ++
-  "Correct a recorded occurrence date append-only:\n" ++
-  "  ./tools/loam correct-date MEMORY_FILE CORRECTION_FILE\n\n" ++
+  "Movement and date correction use the production TUI/shared manifest publishers.\n\n" ++
   "For lower-level commands:\n" ++
   "  ./tools/loam help low-level"
 
@@ -255,11 +250,6 @@ def run (args : List String) : IO UInt32 := do
   | ["review", memoryPath, correctionPath, query] =>
       Loam.ReviewCli.review memoryPath correctionPath (some query)
   | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
-  | ["correct", memoryPath, correctionPath] =>
-      withMemoryOwnership memoryPath
-        (Loam.CorrectionCli.correctSpend memoryPath correctionPath)
-  | ["correct-date", memoryPath, correctionPath] =>
-      Loam.ActualValidityCorrectionCli.correctDate memoryPath correctionPath
   | ["effective", memoryPath, correctionPath] =>
       Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
   | ["correction-integrity", memoryPath, correctionPath] =>
