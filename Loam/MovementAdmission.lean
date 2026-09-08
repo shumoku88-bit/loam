@@ -5,6 +5,7 @@ import Loam.Application.RelationDischargeFrontier
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.LocusAdmission
+import Loam.FreshNumberedToken
 import Loam.MovementRelationEntry
 import Loam.MovementDischargeEntry
 import Loam.Persistence
@@ -80,48 +81,41 @@ private def dischargesMentionEvent
     (id : Loam.Core.EventId) : Bool :=
   discharges.any fun discharge => decide (discharge.event = id)
 
-private def freshRecordEventIdFrom
-    (world : World) : Nat → Nat → Option Loam.Core.EventId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.EventId := ⟨"record-" ++ toString index⟩
-      match Loam.Core.EventMemory.findById? world.events candidate with
-      | none =>
-          if historyMentionsEvent world.validity candidate ||
-              (Loam.Core.EventDescriptionMemory.findText? world.descriptions candidate).isSome ||
-              relationsMentionEvent world.relations candidate ||
-              dischargesMentionEvent world.discharges candidate then
-            freshRecordEventIdFrom world (index + 1) fuel
-          else
-            some candidate
-      | some _ => freshRecordEventIdFrom world (index + 1) fuel
-
-private def freshRecordEventId? (world : World) : Option Loam.Core.EventId :=
-  freshRecordEventIdFrom world 1
+private def freshRecordEventId? (world : World) : Option Loam.Core.EventId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "record-"
+    (fun token =>
+      let candidate : Loam.Core.EventId := ⟨token⟩
+      (Loam.Core.EventMemory.findById? world.events candidate).isSome ||
+        historyMentionsEvent world.validity candidate ||
+        (Loam.Core.EventDescriptionMemory.findText? world.descriptions candidate).isSome ||
+        relationsMentionEvent world.relations candidate ||
+        dischargesMentionEvent world.discharges candidate)
+    1
     (world.events.events.length + world.validity.facts.length +
       world.descriptions.entries.length + world.relations.length +
       world.discharges.length + 1)
+  pure ⟨token⟩
 
 private def relationIdUsed
     (used : List Loam.Core.RelationUnitId)
     (id : Loam.Core.RelationUnitId) : Bool :=
   used.any fun candidate => decide (candidate = id)
 
-private def freshRelationUnitIdFrom
-    (used : List Loam.Core.RelationUnitId) : Nat → Nat → Option Loam.Core.RelationUnitId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.RelationUnitId := ⟨"relation-" ++ toString index⟩
-      if relationIdUsed used candidate then
-        freshRelationUnitIdFrom used (index + 1) fuel
-      else
-        some candidate
+private def freshRelationUnitId?
+    (used : List Loam.Core.RelationUnitId)
+    (index fuel : Nat) : Option Loam.Core.RelationUnitId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "relation-"
+    (fun token => relationIdUsed used (⟨token⟩ : Loam.Core.RelationUnitId))
+    index fuel
+  pure ⟨token⟩
 
 private def freshRelationUnitIdsFrom
     (used : List Loam.Core.RelationUnitId) : Nat → Nat → Option (List Loam.Core.RelationUnitId)
   | 0, _ => some []
   | remaining + 1, index => do
-      let id ← freshRelationUnitIdFrom used index (used.length + 1)
+      let id ← freshRelationUnitId? used index (used.length + 1)
       let rest ← freshRelationUnitIdsFrom (id :: used) remaining (index + 1)
       some (id :: rest)
 
@@ -166,21 +160,16 @@ private def materializeRelationDischarges
     quantity := draft.quantity
   }
 
-private def freshValidityFactIdFrom
-    (history : Loam.Core.ActualValidityHistory String) :
-    Nat → Nat → Option Loam.Core.ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.ActualValidityFactId :=
-        ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshValidityFactIdFrom history (index + 1) fuel
-
 private def freshValidityFactId?
     (history : Loam.Core.ActualValidityHistory String) :
-    Option Loam.Core.ActualValidityFactId :=
-  freshValidityFactIdFrom history 1 (history.facts.length + 1)
+    Option Loam.Core.ActualValidityFactId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-"
+    (fun token =>
+      (history.findFactById? (⟨token⟩ : Loam.Core.ActualValidityFactId)).isSome)
+    1
+    (history.facts.length + 1)
+  pure ⟨token⟩
 
 private def uncoveredRelationSource
     (_ : Loam.Core.EventId) (_ : Loam.Core.EffectKey) : Bool := false

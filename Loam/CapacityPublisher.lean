@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.Application.CapacityInspection
+import Loam.FreshNumberedToken
 import Loam.Persistence.CapacityEffectivePersistence
 import Loam.Persistence.CapacityPersistence
 import Loam.WriterOwnership
@@ -128,25 +129,17 @@ private def effectiveMentionsMovement
     (id : CapacityMovementId) : Bool :=
   effective.entries.any fun entry => decide (entry.movement = id)
 
-private def freshCapacityIdFrom
-    (memory : CapacityMemory)
-    (effective : CapacityEffectiveMemory String) : Nat → Nat → Option CapacityMovementId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : CapacityMovementId := ⟨"capacity-" ++ toString index⟩
-      match memory.findById? candidate with
-      | none =>
-          if effectiveMentionsMovement effective candidate then
-            freshCapacityIdFrom memory effective (index + 1) fuel
-          else
-            some candidate
-      | some _ => freshCapacityIdFrom memory effective (index + 1) fuel
-
 private def freshCapacityId?
     (memory : CapacityMemory)
-    (effective : CapacityEffectiveMemory String) : Option CapacityMovementId :=
-  freshCapacityIdFrom memory effective 1
+    (effective : CapacityEffectiveMemory String) : Option CapacityMovementId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "capacity-"
+    (fun token =>
+      let candidate : CapacityMovementId := ⟨token⟩
+      (memory.findById? candidate).isSome || effectiveMentionsMovement effective candidate)
+    1
     (memory.movements.length + effective.entries.length + 1)
+  pure ⟨token⟩
 
 private def movementForDraft?
     (id : CapacityMovementId) (draft : Draft) : Option CapacityMovement := do
