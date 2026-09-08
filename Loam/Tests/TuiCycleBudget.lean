@@ -62,6 +62,7 @@ def main : IO Unit := do
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'b')).2 == .home) "back is not Home"
   expect ((Loam.Tui.CycleBudget.update bounds state .escape).2 == .home) "Esc is not Home"
   expect (contains "u route" rendered) "footer missing u route"
+  expect (contains "g grant" rendered) "footer missing g grant"
   let (stayEmpty, intentEmpty) := Loam.Tui.CycleBudget.update bounds state (.input 'u')
   expect (intentEmpty == .stay) "empty unresolved does not stay"
   expect (stayEmpty.notice == "No unresolved Scheduled routing subjects.") "empty notice wrong"
@@ -83,8 +84,108 @@ def main : IO Unit := do
   let (_, intentUnresolvedCap) := Loam.Tui.CycleBudget.update bounds withUnresolved (.input 'U')
   expect (intentUnresolvedCap == .unresolved) "U key failed to enter unresolved"
 
-  for key in ['g', 'r'] do
-    expect ((Loam.Tui.CycleBudget.update bounds state (.input key)).2 == .stay) "C1 emitted write action"
+  -- C2 synthetic tests:
+  -- 1. Single shortage emits .grant intent
+  let (stateSingleG, intentSingleG) := Loam.Tui.CycleBudget.update bounds state (.input 'g')
+  expect (stateSingleG.notice.isEmpty) "notice not cleared on single grant"
+  match intentSingleG with
+  | .grant row =>
+      expect (row.purpose.token == "食費:ストック") "purpose mismatch"
+      expect (row.headroom.quanta == -444) "headroom mismatch"
+  | _ => throw (IO.userError "expected grant intent for single shortage")
+
+  -- 2. No shortages -> notice and no action
+  let noShortagesCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-14"
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 200, remaining := q 800, commitment := q 300, headroom := q 500 }]
+    scheduledFrontier := none
+  }
+  let stateNoShortages : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok noShortagesCoverage } }
+  let (stateNoShortagesAfterG, intentNoShortages) := Loam.Tui.CycleBudget.update bounds stateNoShortages (.input 'g')
+  expect (intentNoShortages == .stay) "0 shortages must stay"
+  expect (stateNoShortagesAfterG.notice == "No Purpose has negative After-known headroom.") "0 shortages notice mismatch"
+
+  -- 3. Now negative but After-known positive -> NOT shortage
+  let nowNegHeadroomPosCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-14"
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 1500, remaining := q (-500), commitment := q (-700), headroom := q 200 }]
+    scheduledFrontier := none
+  }
+  let stateNowNeg : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok nowNegHeadroomPosCoverage } }
+  let (stateNowNegAfterG, intentNowNeg) := Loam.Tui.CycleBudget.update bounds stateNowNeg (.input 'g')
+  expect (intentNowNeg == .stay) "Now negative but After-known positive must not be shortage"
+  expect (stateNowNegAfterG.notice == "No Purpose has negative After-known headroom.") "notice mismatch"
+
+  -- 3b. Now positive but After-known negative -> IS shortage
+  let nowPosHeadroomNegCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-14"
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows := [{ purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, remaining := q 8730, commitment := q 12558, headroom := q (-3828) }]
+    scheduledFrontier := none
+  }
+  let stateNowPos : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok nowPosHeadroomNegCoverage } }
+  let (_, intentNowPos) := Loam.Tui.CycleBudget.update bounds stateNowPos (.input 'g')
+  match intentNowPos with
+  | .grant row =>
+      expect (row.purpose.token == "固定費予定") "purpose token mismatch"
+      expect (row.headroom.quanta == -3828) "headroom mismatch"
+  | _ => throw (IO.userError "expected grant intent for After-known negative")
+
+  -- 4. Multiple shortages -> human selection required in picker
+  let multiShortagesCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-14"
+    observedAt := "2026-09-08"
+    endExclusive := "2026-10-15"
+    rows :=
+      [ { purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, remaining := q 8730, commitment := q 12558, headroom := q (-3828) }
+      , { purpose := ⟨"タバコ"⟩, entitlement := q 10000, consumption := q 8000, remaining := q 2000, commitment := q 5000, headroom := q (-3000) }
+      , { purpose := ⟨"食費"⟩, entitlement := q 30000, consumption := q 10000, remaining := q 20000, commitment := q 0, headroom := q 20000 }
+      ]
+    scheduledFrontier := none
+  }
+  let stateMulti : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok multiShortagesCoverage } }
+  let (statePicker, intentPicker) := Loam.Tui.CycleBudget.update bounds stateMulti (.input 'g')
+  expect (intentPicker == .stay) "multiple shortages must not auto-publish"
+  match statePicker.submode with
+  | .grantPicker shortages selected =>
+      expect (shortages.length == 2) "only 2 shortages filtered (not 3)"
+      expect (selected == 0) "initial selected 0"
+  | _ => throw (IO.userError "expected grantPicker submode")
+  let pickerView := text (Loam.Tui.CycleBudget.view bounds statePicker)
+  expect (contains "Cycle Grant / Select Purpose" pickerView) "picker title"
+  expect (contains "固定費予定" pickerView && contains "-3828" pickerView) "first candidate"
+  expect (contains "タバコ" pickerView && contains "-3000" pickerView) "second candidate"
+  expect (!(contains "食費" pickerView)) "non-shortage must not appear in picker"
+
+  -- Picker navigation: j / k
+  let (stateDown, _) := Loam.Tui.CycleBudget.update bounds statePicker (.input 'j')
+  match stateDown.submode with
+  | .grantPicker _ sel => expect (sel == 1) "j moved selection down"
+  | _ => throw (IO.userError "lost picker submode")
+
+  -- Picker selection with Enter
+  let (stateSelected, intentSelected) := Loam.Tui.CycleBudget.update bounds stateDown .enter
+  expect (stateSelected.submode == .normal) "submode reset to normal after enter"
+  match intentSelected with
+  | .grant row => expect (row.purpose.token == "タバコ") "selected row 1 purpose"
+  | _ => throw (IO.userError "expected grant intent on enter")
+
+  -- Picker cancel with Esc
+  let (stateCancelEsc, intentCancelEsc) := Loam.Tui.CycleBudget.update bounds statePicker .escape
+  expect (stateCancelEsc.submode == .normal) "submode reset on Esc"
+  expect (intentCancelEsc == .stay) "Esc must stay"
+
+  -- Picker cancel with b
+  let (stateCancelB, intentCancelB) := Loam.Tui.CycleBudget.update bounds statePicker (.input 'b')
+  expect (stateCancelB.submode == .normal) "submode reset on b"
+  expect (intentCancelB == .stay) "b must stay"
+
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'r')).2 == .stay) "r emitted write action"
   let small : Bounds := { width := 80, height := 12 }
   let down := (Loam.Tui.CycleBudget.update small state .down).1
   expect (down.scroll == 1) "small terminal cannot scroll"

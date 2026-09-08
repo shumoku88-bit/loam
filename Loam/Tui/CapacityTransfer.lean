@@ -1,5 +1,6 @@
 import Loam.CapacityPublisher
 import Loam.CapacityReview
+import Loam.CurrentCoverageReview
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -34,11 +35,18 @@ inductive Mode where
   | editing
   | preview (draft : Loam.CapacityPublisher.Draft) (choice : Fin 3)
 
+structure GrantContext where
+  row : Loam.CurrentCoverageReview.Row
+  residual : Option Loam.Core.Quantity
+  suggested : Int
+  deriving Repr, DecidableEq
+
 structure State where
   snapshot : Loam.CapacityReview.Snapshot
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  grantContext : Option GrantContext := none
 
 structure Step where
   state : State
@@ -60,13 +68,47 @@ private def currentPurposeQuanta
 def initial
     (snapshot : Loam.CapacityReview.Snapshot)
     (effectiveOn : String)
-    (selected : Option PurposeId := none) : State :=
+    (selected : Option PurposeId := none)
+    (amount : Option Int := none) : State :=
   { snapshot := snapshot
     form := {
       source := "unallocated"
       destination := selected.map (fun purpose => purpose.token) |>.getD ""
       effectiveOn := effectiveOn
+      amount := amount.map toString |>.getD ""
     }
+  }
+
+/-- Seed a Cycle Budget shortage grant from the current observation day and shortage row. -/
+def initialGrant
+    (snapshot : Loam.CapacityReview.Snapshot)
+    (effectiveOn : String)
+    (row : Loam.CurrentCoverageReview.Row)
+    (residual : Option Loam.Core.Quantity) : State :=
+  let suggested := max 1 (-row.headroom.quanta)
+  let draft : Loam.CapacityPublisher.Draft := {
+    source := .unallocated
+    destination := .purpose row.purpose
+    effectiveOn := effectiveOn
+    quanta := suggested
+  }
+  let form : Form := {
+    source := "unallocated"
+    destination := row.purpose.token
+    effectiveOn := effectiveOn
+    amount := toString suggested
+    focus := 3
+  }
+  let grantCtx : GrantContext := {
+    row := row
+    residual := residual
+    suggested := suggested
+  }
+  { snapshot := snapshot
+    form := form
+    mode := .preview draft ⟨0, by omega⟩
+    notice := ""
+    grantContext := some grantCtx
   }
 
 private def focusCount : Nat := 6
@@ -141,6 +183,8 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match state.mode with
       | .preview draft choice =>
           match key with
+          | .input 'e' | .input 'E' =>
+              { state := { state with mode := .editing, form := { state.form with focus := 3 } } }
           | .tab | .right =>
               { state := { state with mode := (.preview draft
                   ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩) } }
@@ -149,7 +193,8 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
                   ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩) } }
           | .enter =>
               if choice.val = 0 then { state, publish := some draft }
-              else if choice.val = 1 then { state := { state with mode := .editing } }
+              else if choice.val = 1 then
+                { state := { state with mode := .editing, form := { state.form with focus := 3 } } }
               else { state, cancel := true }
           | _ => { state }
       | .editing =>
@@ -201,8 +246,16 @@ def view (state : State) : Widget :=
   match state.mode with
   | .editing =>
       let form := state.form
-      .column
-        [ line "Capacity / Transfer / Edit"
+      let header :=
+        match state.grantContext with
+        | some _ => "Capacity / Cycle Grant / Edit"
+        | none => "Capacity / Transfer / Edit"
+      let grantWidgets :=
+        match state.grantContext with
+        | some ctx => [line s!"Suggested to reach After-known 0: {ctx.suggested} jpy"]
+        | none => []
+      .column <|
+        [ line header
         , field form 0 "From" form.source
         , field form 1 "To" form.destination
         , field form 2 "Effective" form.effectiveOn
@@ -211,7 +264,8 @@ def view (state : State) : Widget :=
             [ span "[Preview] " (if form.focus = 4 then .selected else .normal)
             , span "[Cancel]" (if form.focus = 5 then .selected else .normal)
             ]
-        , line ("Candidate: " ++ (candidate? state).getD "")
+        ] ++ grantWidgets ++
+        [ line ("Candidate: " ++ (candidate? state).getD "")
         , line "Endpoints are unallocated or Purpose tokens; new Purpose tokens need no registry."
         , line "unallocated is an allocation boundary, not money available to allocate."
         , line "Tab / Shift-Tab focus   Enter next/preview/action   Right accept candidate"
@@ -219,21 +273,51 @@ def view (state : State) : Widget :=
         , line state.notice
         ]
   | .preview draft choice =>
-      .column
-        [ line "Capacity / Transfer / Preview"
-        , line ("From: " ++ Loam.CapacityPublisher.coordinateToken draft.source)
-        , line ("To: " ++ Loam.CapacityPublisher.coordinateToken draft.destination)
-        , line ("Effective: " ++ draft.effectiveOn)
-        , line ("Amount: " ++ toString draft.quanta ++ " jpy")
-        , line "Current all-retained Entitlement -> after this movement:"
-        , line ("  " ++ impactLine state.snapshot draft.source draft.quanta true)
-        , line ("  " ++ impactLine state.snapshot draft.destination draft.quanta false)
-        , line "Publication re-reads current Capacity and effective evidence under ownership."
-        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if choice.val = index then .selected else .normal))
-        , line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
-        , line state.notice
-        ]
+      match state.grantContext with
+      | some ctx =>
+          let residualText :=
+            match ctx.residual with
+            | some r => toString r.quanta ++ " jpy"
+            | none => "unavailable"
+          .column
+            [ line "Capacity / Cycle Grant / Preview"
+            , line ""
+            , line ("Purpose:       " ++ ctx.row.purpose.token)
+            , line ("Current Now:   " ++ toString ctx.row.remaining.quanta ++ " jpy")
+            , line ("Known future:  " ++ toString ctx.row.commitment.quanta ++ " jpy")
+            , line ("After-known:   " ++ toString ctx.row.headroom.quanta ++ " jpy")
+            , line ""
+            , line ("From:          " ++ Loam.CapacityPublisher.coordinateToken draft.source)
+            , line ("Effective:     " ++ draft.effectiveOn)
+            , line ("Amount:        " ++ toString draft.quanta ++ " jpy")
+            , line ""
+            , line "Funding residual before unresolved:"
+            , line residualText
+            , line ""
+            , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+                span ("[" ++ label ++ "] ")
+                  (if choice.val = index then .selected else .normal))
+            , line ""
+            , line "Publication re-reads current Capacity and effective evidence under ownership."
+            , line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
+            , if state.notice.isEmpty then line "" else line state.notice
+            ]
+      | none =>
+          .column
+            [ line "Capacity / Transfer / Preview"
+            , line ("From: " ++ Loam.CapacityPublisher.coordinateToken draft.source)
+            , line ("To: " ++ Loam.CapacityPublisher.coordinateToken draft.destination)
+            , line ("Effective: " ++ draft.effectiveOn)
+            , line ("Amount: " ++ toString draft.quanta ++ " jpy")
+            , line "Current all-retained Entitlement -> after this movement:"
+            , line ("  " ++ impactLine state.snapshot draft.source draft.quanta true)
+            , line ("  " ++ impactLine state.snapshot draft.destination draft.quanta false)
+            , line "Publication re-reads current Capacity and effective evidence under ownership."
+            , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+                span ("[" ++ label ++ "] ")
+                  (if choice.val = index then .selected else .normal))
+            , line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
+            , line state.notice
+            ]
 
 end Loam.Tui.CapacityTransfer
