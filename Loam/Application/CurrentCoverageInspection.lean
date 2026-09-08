@@ -1,6 +1,7 @@
 import Init.Data.Order
 import Loam.Application.CapacityInspection
 import Loam.Application.ConsumptionInspection
+import Loam.Application.ActualRoutingInspection
 import Loam.Application.ScheduledCommitmentInspection
 
 namespace Loam.Application
@@ -74,6 +75,49 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
     (observedAt endExclusive : Time) : Option CurrentCoverageView := do
   let consumption ←
     consumptionAtCorrectionFrontier?
+      events corrections validities actualRouting purpose measure
+  let commitment ←
+    currentScheduledCommitmentWithReplacement?
+      scheduled completions retirements replacements events roles scheduledRouting
+      purpose measure observedAt endExclusive
+  let entitlement := entitlementAt capacityMovements purpose measure
+  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
+  return {
+    entitlement := entitlement
+    consumption := consumption
+    remaining := remaining
+    commitment := commitment.managed
+    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
+    unmanagedCommitment := commitment.unmanaged
+    unroutedCommitment := commitment.unrouted
+    unresolvedEligibility := commitment.unresolvedEligibility
+  }
+
+/--
+Production-compatible current coverage using the explicit `initial | dated`
+Actual-routing coordinate retained by `ActualRoutingPersistence`.
+
+This is the same current coverage arithmetic as
+`currentCoverageAtCorrectionFrontierWithReplacement?`; only the Actual routing
+composition boundary differs. No initial calendar date is fabricated.
+-/
+def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
+    (capacityMovements : List CapacityMovement)
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (actualRouting : RoutingHistory LocusId (RoutingEffective Time))
+    (scheduled : ScheduledMemory Time)
+    (completions : ScheduledCompletionMemory)
+    (retirements : ScheduledRetirementMemory)
+    (replacements : ScheduledReplacementMemory)
+    (roles : AccountingRoleMap)
+    (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
+    (purpose : PurposeId)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) : Option CurrentCoverageView := do
+  let consumption ←
+    consumptionAtCorrectionFrontierEffectiveRouting?
       events corrections validities actualRouting purpose measure
   let commitment ←
     currentScheduledCommitmentWithReplacement?
