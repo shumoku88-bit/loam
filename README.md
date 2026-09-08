@@ -41,7 +41,7 @@ LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`.
 ./tools/loam
 ```
 
-Household recording now has one human-facing entrance:
+Household recording has one explicit CLI entrance:
 
 ```text
 ./tools/loam movement MEMORY_FILE
@@ -60,17 +60,21 @@ retired `memory.loam` sidecars. Missing or corrupt selected authority refuses
 instead of displaying an empty household. `LOAM_MOVEMENT_MANIFEST_ROOT` can
 explicitly select the manifest root; direct CLI invocations require this variable.
 
-In manifest mode the menu currently refuses correction, raw/effective quantity,
-correction-integrity, and scheduled actions whose implementations remain
-sidecar-only. They must be ported before being used against this authority.
-See [the cutover repair and qualification](docs/movement_manifest_menu_cutover.md)
-and its [remaining-work checklist](docs/movement_manifest_menu_cutover.md#remaining-work-open-checklist).
+Movement correction and occurrence-date correction use the production TUI and
+shared manifest publishers. The former sidecar-only `correct` and `correct-date`
+CLI entrances are retired rather than kept beside the current authority. In
+manifest mode the legacy menu still refuses raw/effective quantity,
+correction-integrity, and sidecar-only scheduled actions; those diagnostic or
+legacy paths must not be treated as current manifest writers. See [the cutover
+repair and qualification](docs/movement_manifest_menu_cutover.md) and its
+[remaining-work checklist](docs/movement_manifest_menu_cutover.md#remaining-work-open-checklist).
 
 ### Focused record review
 
 The primary menu keeps recording, record review, and balances at the entrance;
-`m` reveals correction, scheduled, capacity, and inspection actions. Those
-named actions can also be entered directly at the menu prompt.
+`m` reveals scheduled, capacity, and inspection actions. Movement and date
+correction are handled by the production TUI/shared publishers instead of this
+legacy menu.
 
 ```text
 ./tools/loam review MEMORY_FILE CORRECTION_FILE
