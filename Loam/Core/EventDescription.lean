@@ -1,4 +1,5 @@
 import Loam.Core.Event
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -63,19 +64,9 @@ def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory
 def empty : EventDescriptionMemory :=
   { entries := [], eventNodup := by simp }
 
-private def findTextByEvent? : List EventDescription → EventId → Option String
-  | [], _ => none
-  | desc :: rest, target =>
-      if desc.event = target then
-        some desc.text
-      else
-        findTextByEvent? rest target
-
-/--
-Lookup the description text associated with one EventId, if present.
--/
+/-- Lookup the description text associated with one EventId, if present. -/
 def findText? (memory : EventDescriptionMemory) (target : EventId) : Option String :=
-  findTextByEvent? memory.entries target
+  (FiniteKeyed.findBy? EventDescription.event memory.entries target).map EventDescription.text
 
 end EventDescriptionMemory
 
