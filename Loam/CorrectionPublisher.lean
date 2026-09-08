@@ -1,6 +1,7 @@
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Core.BalancedMovement
+import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.Persistence.ActualReversalPersistence
@@ -87,52 +88,36 @@ private def eventIdentityReserved
     correctionMentionsEvent corrections id ||
     reversalMentionsEvent reversals id
 
-private def freshReplacementIdFrom
-    (world : Loam.MovementAdmission.World)
-    (corrections : EventCorrectionMemory)
-    (reversals : ActualReversalMemory) : Nat → Nat → Option EventId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : EventId := ⟨"replacement-" ++ toString index⟩
-      if eventIdentityReserved world corrections reversals candidate then
-        freshReplacementIdFrom world corrections reversals (index + 1) fuel
-      else
-        some candidate
-
 private def freshReplacementId?
     (world : Loam.MovementAdmission.World)
     (corrections : EventCorrectionMemory)
-    (reversals : ActualReversalMemory) : Option EventId :=
-  freshReplacementIdFrom world corrections reversals 1
+    (reversals : ActualReversalMemory) : Option EventId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "replacement-"
+    (fun token => eventIdentityReserved world corrections reversals (⟨token⟩ : EventId))
+    1
     (world.events.events.length + world.validity.facts.length +
       world.descriptions.entries.length + world.relations.length +
       world.discharges.length + 2 * corrections.corrections.length +
       2 * reversals.reversals.length + 1)
+  pure ⟨token⟩
 
-private def freshCorrectionIdFrom
-    (memory : EventCorrectionMemory) : Nat → Nat → Option EventCorrectionId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : EventCorrectionId := ⟨"correction-" ++ toString index⟩
-      match memory.findById? candidate with
-      | none => some candidate
-      | some _ => freshCorrectionIdFrom memory (index + 1) fuel
-
-private def freshCorrectionId? (memory : EventCorrectionMemory) : Option EventCorrectionId :=
-  freshCorrectionIdFrom memory 1 (memory.corrections.length + 1)
-
-private def freshValidityFactIdFrom
-    (history : ActualValidityHistory String) : Nat → Nat → Option ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : ActualValidityFactId := ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshValidityFactIdFrom history (index + 1) fuel
+private def freshCorrectionId? (memory : EventCorrectionMemory) : Option EventCorrectionId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "correction-"
+    (fun token => (memory.findById? (⟨token⟩ : EventCorrectionId)).isSome)
+    1
+    (memory.corrections.length + 1)
+  pure ⟨token⟩
 
 private def freshValidityFactId?
-    (history : ActualValidityHistory String) : Option ActualValidityFactId :=
-  freshValidityFactIdFrom history 1 (history.facts.length + 1)
+    (history : ActualValidityHistory String) : Option ActualValidityFactId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-"
+    (fun token => (history.findFactById? (⟨token⟩ : ActualValidityFactId)).isSome)
+    1
+    (history.facts.length + 1)
+  pure ⟨token⟩
 
 private def currentFactForEvent?
     (facts : List (ActualValidityFact String)) (event : EventId) :

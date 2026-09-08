@@ -1,4 +1,5 @@
 import Loam.ActualDate
+import Loam.FreshNumberedToken
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
@@ -56,35 +57,25 @@ private def printCandidates
             toString effect.quantity.quanta ++ " " ++ effect.measure.token)
       printCandidates facts (index + 1) rest
 
-private def freshFactIdFrom
-    (history : Loam.Core.ActualValidityHistory String) :
-    Nat → Nat → Option Loam.Core.ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.ActualValidityFactId := ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshFactIdFrom history (index + 1) fuel
-
 private def freshFactId?
-    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.ActualValidityFactId :=
-  freshFactIdFrom history 1 (history.facts.length + 1)
-
-private def freshCorrectionIdFrom
-    (history : Loam.Core.ActualValidityHistory String) :
-    Nat → Nat → Option Loam.Core.ActualValidityCorrectionId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : Loam.Core.ActualValidityCorrectionId :=
-        ⟨"validity-correction-" ++ toString index⟩
-      match history.findCorrectionById? candidate with
-      | none => some candidate
-      | some _ => freshCorrectionIdFrom history (index + 1) fuel
+    (history : Loam.Core.ActualValidityHistory String) : Option Loam.Core.ActualValidityFactId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-"
+    (fun token => (history.findFactById? (⟨token⟩ : Loam.Core.ActualValidityFactId)).isSome)
+    1
+    (history.facts.length + 1)
+  pure ⟨token⟩
 
 private def freshCorrectionId?
     (history : Loam.Core.ActualValidityHistory String) :
-    Option Loam.Core.ActualValidityCorrectionId :=
-  freshCorrectionIdFrom history 1 (history.corrections.length + 1)
+    Option Loam.Core.ActualValidityCorrectionId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-correction-"
+    (fun token =>
+      (history.findCorrectionById? (⟨token⟩ : Loam.Core.ActualValidityCorrectionId)).isSome)
+    1
+    (history.corrections.length + 1)
+  pure ⟨token⟩
 
 private def appendDateChange?
     (history : Loam.Core.ActualValidityHistory String)

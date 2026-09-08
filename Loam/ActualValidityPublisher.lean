@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
+import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
 import Loam.Persistence
 import Loam.WriterOwnership
@@ -37,32 +38,23 @@ private def loadCorrectionsOrEmpty?
   else
     return .ok emptyCorrections
 
-private def freshFactIdFrom
-    (history : ActualValidityHistory String) : Nat → Nat → Option ActualValidityFactId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : ActualValidityFactId := ⟨"validity-" ++ toString index⟩
-      match history.findFactById? candidate with
-      | none => some candidate
-      | some _ => freshFactIdFrom history (index + 1) fuel
-
 private def freshFactId?
-    (history : ActualValidityHistory String) : Option ActualValidityFactId :=
-  freshFactIdFrom history 1 (history.facts.length + 1)
-
-private def freshCorrectionIdFrom
-    (history : ActualValidityHistory String) : Nat → Nat → Option ActualValidityCorrectionId
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate : ActualValidityCorrectionId :=
-        ⟨"validity-correction-" ++ toString index⟩
-      match history.findCorrectionById? candidate with
-      | none => some candidate
-      | some _ => freshCorrectionIdFrom history (index + 1) fuel
+    (history : ActualValidityHistory String) : Option ActualValidityFactId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-"
+    (fun token => (history.findFactById? (⟨token⟩ : ActualValidityFactId)).isSome)
+    1
+    (history.facts.length + 1)
+  pure ⟨token⟩
 
 private def freshCorrectionId?
-    (history : ActualValidityHistory String) : Option ActualValidityCorrectionId :=
-  freshCorrectionIdFrom history 1 (history.corrections.length + 1)
+    (history : ActualValidityHistory String) : Option ActualValidityCorrectionId := do
+  let token ← Loam.firstUnusedNumberedToken?
+    "validity-correction-"
+    (fun token => (history.findCorrectionById? (⟨token⟩ : ActualValidityCorrectionId)).isSome)
+    1
+    (history.corrections.length + 1)
+  pure ⟨token⟩
 
 private def currentFactForEvent?
     (facts : List (ActualValidityFact String)) (event : EventId) :
