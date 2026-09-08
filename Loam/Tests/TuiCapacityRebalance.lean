@@ -71,6 +71,7 @@ def main (args : List String) : IO Unit := do
   expect (seedSnapshot.rows.length == 3) "seed rows count"
 
   let coverageSnapshot : Loam.CurrentCoverageReview.Snapshot := {
+    currentWindowStart := "2026-08-15"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-01"
     rows := [

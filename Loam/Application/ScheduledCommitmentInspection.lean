@@ -79,9 +79,10 @@ private structure CommitmentQuanta where
   unrouted : Int := 0
   unresolvedEligibility : Int := 0
 
-private def inEndExclusiveHorizon
-    (scheduledOn endExclusive : Time) : Bool :=
-  decide (scheduledOn ≤ endExclusive ∧ scheduledOn ≠ endExclusive)
+private def inCurrentEndExclusiveHorizon
+    (observedAt scheduledOn endExclusive : Time) : Bool :=
+  decide (observedAt ≤ scheduledOn) &&
+    decide (scheduledOn ≤ endExclusive ∧ scheduledOn ≠ endExclusive)
 
 private def addLocusIfAbsent
     (loci : List LocusId)
@@ -155,7 +156,7 @@ private def addOpenOccurrence
     (occurrence : ScheduledOccurrence Time) : CommitmentQuanta :=
   if occurrence.measure ≠ measure then
     total
-  else if !inEndExclusiveHorizon occurrence.scheduledOn endExclusive then
+  else if !inCurrentEndExclusiveHorizon observedAt occurrence.scheduledOn endExclusive then
     total
   else
     (scheduledLoci occurrence).foldl

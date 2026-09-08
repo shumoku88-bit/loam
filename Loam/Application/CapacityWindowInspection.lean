@@ -34,9 +34,16 @@ private def strictBefore (left right : Time) : Bool :=
 private def inHalfOpen (start end_ value : Time) : Bool :=
   decide (start ≤ value) && !(decide (end_ ≤ value))
 
+private def inClosed (start end_ value : Time) : Bool :=
+  decide (start ≤ value) && decide (value ≤ end_)
+
 /-- A query window must have a strictly earlier start coordinate. -/
 def validCapacityWindow (start end_ : Time) : Bool :=
   strictBefore start end_
+
+/-- A current elapsed window may contain only its observation coordinate. -/
+def validCurrentWindow (start observedAt : Time) : Bool :=
+  decide (start ≤ observedAt)
 
 private def effectiveEvidenceComplete
     (capacity : CapacityMemory)
@@ -82,6 +89,21 @@ def entitlementAtEffectiveWindow?
     (measure : MeasureId) : Option Quantity :=
   capacityAtEffectiveWindow? capacity effective start end_ (.purpose purpose) measure
 
+private def consumptionAtRecordedWhere?
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (selected : Time → Bool)
+    (project : Event → Time → Quantity) : Option Quantity := do
+  let quanta ← events.events.foldlM
+    (fun total event => do
+      let validOn ← validities.findByEventId? event.id
+      if selected validOn then
+        return total + (project event validOn).quanta
+      else
+        return total)
+    0
+  return Quantity.ofQuanta quanta
+
 /--
 Project recorded Actual Consumption whose valid coordinates fall in `[start, end)`.
 Every retained Event still requires validity evidence, even if it might turn out
@@ -97,17 +119,10 @@ def consumptionAtRecordedEffectiveRoutingWindow?
   if !validCapacityWindow start end_ then
     none
   else
-    let quanta ← events.events.foldlM
-      (fun total event => do
-        let validOn ← validities.findByEventId? event.id
-        if inHalfOpen start end_ validOn then
-          let eventQuantity :=
-            eventConsumptionAtEffectiveRouting event validOn routing purpose measure
-          return total + eventQuantity.quanta
-        else
-          return total)
-      0
-    return Quantity.ofQuanta quanta
+    consumptionAtRecordedWhere? events validities
+      (inHalfOpen start end_)
+      (fun event validOn =>
+        eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
 
 /-- Apply Event correction authority before windowed Actual Consumption. -/
 def consumptionAtCorrectionFrontierEffectiveRoutingWindow?
@@ -121,6 +136,41 @@ def consumptionAtCorrectionFrontierEffectiveRoutingWindow?
   let frontier ← correctionFrontierMemory? events corrections
   consumptionAtRecordedEffectiveRoutingWindow?
     frontier validities routing start end_ purpose measure
+
+/--
+Project correction-aware Actual Consumption from `start` through the current
+observation coordinate, inclusive. This is an elapsed current-window question,
+not a historical Budget Window or a future Scheduled horizon.
+-/
+def consumptionAtCorrectionFrontierThrough?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId Time)
+    (start observedAt : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCurrentWindow start observedAt then none else
+  let frontier ← correctionFrontierMemory? events corrections
+  consumptionAtRecordedWhere? frontier validities
+    (inClosed start observedAt)
+    (fun event validOn => eventConsumptionAt event validOn routing purpose measure)
+
+/-- Initial-aware production variant of current elapsed-window Consumption. -/
+def consumptionAtCorrectionFrontierEffectiveRoutingThrough?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId (RoutingEffective Time))
+    (start observedAt : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCurrentWindow start observedAt then none else
+  let frontier ← correctionFrontierMemory? events corrections
+  consumptionAtRecordedWhere? frontier validities
+    (inClosed start observedAt)
+    (fun event validOn =>
+      eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
 
 /--
 Remaining is a projection, not retained state:

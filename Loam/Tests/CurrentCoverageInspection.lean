@@ -79,26 +79,42 @@ def main : IO Unit := do
       [Effect.ofQuantity ⟨"pay"⟩ paypay yen (Quantity.ofQuanta (-30)),
        Effect.ofQuantity ⟨"use"⟩ groceries yen (Quantity.ofQuanta 30)])
     "Actual fixture was not admitted"
-  let events ← requireSome (EventMemory.ofEvents? [actual])
+  let oldActual ← requireSome
+    (Event.ofEffects? ⟨"actual-old"⟩
+      [Effect.ofQuantity ⟨"old-pay"⟩ paypay yen (Quantity.ofQuanta (-70)),
+       Effect.ofQuantity ⟨"old-use"⟩ groceries yen (Quantity.ofQuanta 70)])
+    "old Actual fixture was not admitted"
+  let futureActual ← requireSome
+    (Event.ofEffects? ⟨"actual-future"⟩
+      [Effect.ofQuantity ⟨"future-pay"⟩ paypay yen (Quantity.ofQuanta (-80)),
+       Effect.ofQuantity ⟨"future-use"⟩ groceries yen (Quantity.ofQuanta 80)])
+    "future Actual fixture was not admitted"
+  let events ← requireSome (EventMemory.ofEvents? [oldActual, actual, futureActual])
     "Event memory was not admitted"
   let corrections ← requireSome (EventCorrectionMemory.ofCorrections? [])
     "empty correction memory was not admitted"
   let validities ← requireSome
     (ActualValidityMemory.ofEntries?
-      [{ event := ⟨"actual-1"⟩, validOn := (1 : Nat) }])
+      [{ event := ⟨"actual-old"⟩, validOn := (0 : Nat) },
+       { event := ⟨"actual-1"⟩, validOn := (2 : Nat) },
+       { event := ⟨"actual-future"⟩, validOn := (3 : Nat) }])
     "Actual validity fixture was not admitted"
   let actualRouting ← requireSome
     (RoutingHistory.ofEntries?
-      [{ subject := groceries, effectiveOn := (1 : Nat), purpose := some food }])
+      [{ subject := groceries, effectiveOn := (0 : Nat), purpose := some food }])
     "Actual routing fixture was not admitted"
 
   let managed ← requireSome (scheduled? "scheduled-managed" 3 fixedExpense 35)
     "managed Scheduled fixture was not admitted"
+  let historicalOpen ← requireSome (scheduled? "scheduled-historical-open" 1 fixedExpense 65)
+    "historical open Scheduled fixture was not admitted"
   let unresolved ← requireSome (scheduled? "scheduled-unresolved" 3 mystery 9)
     "unresolved Scheduled fixture was not admitted"
-  let managedMemory ← requireSome (ScheduledMemory.ofOccurrences? [managed])
+  let managedMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [historicalOpen, managed])
     "managed Scheduled memory was not admitted"
-  let mixedMemory ← requireSome (ScheduledMemory.ofOccurrences? [managed, unresolved])
+  let mixedMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [historicalOpen, managed, unresolved])
     "mixed Scheduled memory was not admitted"
   let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? [])
     "empty completion memory was not admitted"
@@ -108,7 +124,9 @@ def main : IO Unit := do
     "empty replacement memory was not admitted"
   let scheduledRouting ← requireSome
     (RoutingHistory.ofEntries?
-      [{ subject := subject "scheduled-managed" fixedExpense,
+      [{ subject := subject "scheduled-historical-open" fixedExpense,
+         effectiveOn := (0 : Nat), purpose := some food },
+       { subject := subject "scheduled-managed" fixedExpense,
          effectiveOn := (2 : Nat), purpose := some food }])
     "Scheduled routing fixture was not admitted"
 
@@ -124,7 +142,7 @@ def main : IO Unit := do
     (currentCoverageAtCorrectionFrontierWithReplacement?
       [capacity100] events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
-      food yen (2 : Nat) (4 : Nat))
+      food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "covered current projection failed closed"
   assertCoverage "covered" covered 100 30 70 35 35 0
 
@@ -133,7 +151,7 @@ def main : IO Unit := do
     (currentCoverageAtCorrectionFrontierWithReplacement?
       [capacity20] events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
-      food yen (2 : Nat) (4 : Nat))
+      food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "over-now current projection failed closed"
   assertCoverage "over-now" overNow 20 30 (-10) 35 (-45) 0
 
@@ -142,7 +160,7 @@ def main : IO Unit := do
     (currentCoverageAtCorrectionFrontierWithReplacement?
       [capacity60] events corrections validities actualRouting
       managedMemory completions retirements replacements roles scheduledRouting
-      food yen (2 : Nat) (4 : Nat))
+      food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "future-short current projection failed closed"
   assertCoverage "future-short" futureShort 60 30 30 35 (-5) 0
 
@@ -152,7 +170,7 @@ def main : IO Unit := do
     (currentCoverageAtCorrectionFrontierWithReplacement?
       [capacity100] events corrections validities actualRouting
       mixedMemory completions retirements replacements roles scheduledRouting
-      food yen (2 : Nat) (4 : Nat))
+      food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "unresolved current projection failed closed"
   assertCoverage "unresolved" unresolvedView 100 30 70 35 35 9
 
