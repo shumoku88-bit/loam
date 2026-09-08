@@ -1,5 +1,5 @@
-import Init.Data.List.Perm
 import Loam.Core.Event
+import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -41,46 +41,6 @@ def ofEvents? (events : List Event) : Option EventMemory :=
     ofEvents? [event] = some { events := [event], idNodup := by simp } := by
   simp [ofEvents?]
 
-private def findEventById? : List Event → EventId → Option Event
-  | [], _ => none
-  | event :: rest, id =>
-      if event.id = id then
-        some event
-      else
-        findEventById? rest id
-
-private theorem findEventById?_perm
-    {left right : List Event}
-    (hPerm : left.Perm right)
-    (hNodup : (left.map Event.id).Nodup)
-    (id : EventId) :
-    findEventById? left id = findEventById? right id := by
-  induction hPerm with
-  | nil =>
-      rfl
-  | cons event hPerm ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases h : event.id = id
-      · simp [findEventById?, h]
-      · simp [findEventById?, h, ih hNodup.2]
-  | swap x y rest =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      have hyx : y.id ≠ x.id := by
-        intro hEqual
-        apply hNodup.1
-        simp [hEqual]
-      by_cases hy : y.id = id
-      · have hx : x.id ≠ id := by
-          intro hx
-          exact hyx (hy.trans hx.symm)
-        simp [findEventById?, hy, hx]
-      · by_cases hx : x.id = id
-        · simp [findEventById?, hy, hx]
-        · simp [findEventById?, hy, hx]
-  | trans hLeft hRight ihLeft ihRight =>
-      have hMiddleNodup := (hLeft.map Event.id).nodup hNodup
-      exact (ihLeft hNodup).trans (ihRight hMiddleNodup)
-
 /--
 Find one remembered Event by its stable identity.
 
@@ -89,7 +49,7 @@ Event's list position and therefore introduces no `first`, `latest`, temporal,
 causal, priority, authority, or posting-order semantics.
 -/
 def findById? (memory : EventMemory) (id : EventId) : Option Event :=
-  findEventById? memory.events id
+  FiniteKeyed.findBy? Event.id memory.events id
 
 /--
 Identity lookup is invariant under permutation of the represented Events.
@@ -101,21 +61,20 @@ theorem findById?_perm
     (hPerm : left.events.Perm right.events)
     (id : EventId) :
     findById? left id = findById? right id := by
-  simpa [findById?] using
-    findEventById?_perm hPerm left.idNodup id
+  exact FiniteKeyed.findBy?_perm Event.id hPerm left.idNodup id
 
 @[simp] theorem findById?_empty (id : EventId) :
     findById? { events := [], idNodup := by simp } id = none := by
-  simp [findById?, findEventById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 @[simp] theorem findById?_singleton_self (event : Event) :
     findById? { events := [event], idNodup := by simp } event.id = some event := by
-  simp [findById?, findEventById?]
+  simp [findById?, FiniteKeyed.findBy?]
 
 theorem findById?_singleton_other
     (event : Event) (id : EventId) (h : event.id ≠ id) :
     findById? { events := [event], idNodup := by simp } id = none := by
-  simp [findById?, findEventById?, h]
+  simp [findById?, FiniteKeyed.findBy?, h]
 
 /--
 Project every remembered Event onto one locus/measure coordinate and sum the
