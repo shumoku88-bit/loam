@@ -99,15 +99,13 @@ fun day3Balance[w: World]: one Int {
   add[day2Balance[w], scheduledDayFlow[w, D3]]
 }
 
-/-- One deliberately order-sensitive intraday observation. -/
+// One deliberately order-sensitive intraday observation.
 fun afterFirstD1[w: World]: one Int {
   add[selectedCurrent[w], selectedMoveDelta[w, w.d1First]]
 }
 
-/--
-A hidden future placement for an already-overdue open Scheduled movement.
-This is observation-local ground truth, not proposed production state.
--/
+// A hidden future placement for an already-overdue open Scheduled movement.
+// This is observation-local ground truth, not proposed production state.
 fun overdueDeltaOn[w: World, d: Day]: one Int {
   (w.overdueFutureDay = d) => selectedMoveDelta[w, Overdue] else 0
 }
