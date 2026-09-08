@@ -1,6 +1,6 @@
 # Compression audit Phase 3 — mechanics multiplication
 
-Status: **IN PROGRESS — MECHANICAL SMOKE SCAN**
+Status: **IN PROGRESS — M1 DECIDED**
 
 Phase 2 closed with this current audit basis:
 
@@ -116,6 +116,64 @@ Movement manifest, Scheduled lifecycle, and Attention show different ways to pac
 - executable-reachable `*Publisher.lean` modules.
 
 These counts are smoke alarms only. A textual match is not a duplication finding, and absence of a match is not proof of factoring.
+
+## M1 decision — `SHARE` narrowly, not as a generic Memory ontology
+
+Detailed inspection found two different things that should not be conflated.
+
+### Mechanically identical pressure
+
+Several current runtime families use the same representation-level recipe:
+
+```text
+List item
++ a projection item -> stable key
++ Nodup over projected keys
++ runtime admission from a raw List
++ lookup by key
++ sometimes append-by-re-admission
+```
+
+`EventMemory` and `EventCorrectionMemory` go further and independently carry almost the same recursive lookup plus a substantial proof that lookup is invariant under a permutation when projected keys are unique. `ActualValidityMemory` and capability-only `EventResolutionMemory` repeat the same proof shape as further evidence that the mechanic is representation-level rather than Event-specific.
+
+The narrow reusable boundary already earned by at least two current production domains is therefore:
+
+```text
+find an item in a List by an explicit key projection
+prove that result invariant under List permutation when projected keys are Nodup
+```
+
+A future compression change may factor that helper/theorem while each semantic module retains its own named lookup wrapper.
+
+### Semantic constraints that must stay local
+
+The audit rejects a universal `Memory α` or generic finite-map ontology at this point.
+
+Examples that are *not* the same invariant:
+
+- `ScheduledCompletionMemory` requires uniqueness of both Scheduled and Actual endpoints;
+- `ScheduledReplacementMemory` requires uniqueness of both source and replacement endpoints;
+- `ScheduledRetirementMemory` is unique by its Scheduled source despite having no independent retirement identity;
+- `ActualValidityHistory` owns two independent identity spaces, facts and corrections;
+- `RoutingHistory` is unique by a composite `(subject, effective coordinate)` coordinate;
+- `LocusAdmissionVocabulary` and `ZeroOriginCoverage` are set-like evidence, not identity-bearing memories.
+
+Those laws answer domain questions. Hiding them inside one generic collection type would make the abstraction larger than the duplicated mechanism it replaces.
+
+Likewise, the local `of...?` and `add?` functions are currently short and make the exact domain uniqueness law visible. M1 does not yet justify replacing them with a framework merely to reduce repeated syntax.
+
+### M1 result
+
+**`SHARE`**, with a deliberately small scope:
+
+- share only unique-key list lookup and its permutation-independence mechanics;
+- preserve every domain-specific memory structure and its explicit uniqueness fields;
+- preserve domain-specific admission and append names unless later measurements show a second clearly identical substantial mechanic;
+- do not introduce a generic `Memory`, repository, registry, entity store, or finite-map semantic layer.
+
+This is the first Phase 3 example of subtractive design: remove duplicated proof/mechanical text without adding a new household concept.
+
+No production refactor is performed yet. Phase 3 first classifies M1–M9 so proposed abstractions can be compared against the whole mechanics landscape before code is changed.
 
 ## Decision labels
 
