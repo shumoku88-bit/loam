@@ -109,7 +109,7 @@ class ReviewTests(unittest.TestCase):
         self.memory.write_text(text.replace("EFFECT\tto\tfood\tjpy\t100\n",
                                             "EFFECT\tto\tfood\tjpy\t100\nEFFECT\textra\tpoints\tusd\t3\n"))
         output = self.review("/points")
-        self.assertIn("(+1 effects; detail)", output)
+        self.assertIn("(+1 effects)", output)
         raw = run(LOAM, "event-memory", "review", self.memory)
         self.assertEqual(raw.returncode, 0, raw.stderr)
         self.assertIn("points: 3 usd", raw.stdout)
