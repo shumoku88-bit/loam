@@ -31,6 +31,7 @@ on:
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
+      - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
@@ -88,6 +89,7 @@ on:
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
+      - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
@@ -214,6 +216,9 @@ jobs:
 
       - name: Verify Capacity transfer and fresh shared review
         run: lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
+
+      - name: Verify Capacity rebalance and fresh shared review
+        run: lake env lean --run Loam/Tests/TuiCapacityRebalance.lean "$(mktemp -d)/tui-capacity-rebalance"
 
       - name: Verify shared Capacity review boundary
         run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
