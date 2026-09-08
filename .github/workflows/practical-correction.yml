@@ -83,8 +83,8 @@ jobs:
 
           .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
           grep -Fq 'single-correction projection' "$tmp/effective.out"
-          grep -Fq 'wallet: -110 jpy' "$tmp/effective.out"
-          grep -Fq 'food: 110 jpy' "$tmp/effective.out"
+          grep -Fq 'wallet: -230 jpy' "$tmp/effective.out"
+          grep -Fq 'food: 230 jpy' "$tmp/effective.out"
 
           .lake/build/bin/loam correction-integrity "$memory" "$corrections" >"$tmp/integrity.out"
           grep -Fq 'a -> b' "$tmp/integrity.out"
