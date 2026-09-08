@@ -1,0 +1,117 @@
+import Loam.ActualReversalPublisher
+import Loam.Persistence.ActualReversalPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
+
+open Loam.Core
+
+private def expect (condition : Bool) (message : String) : IO Unit := do
+  unless condition do throw (IO.userError message)
+
+private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
+  let some scheduled := ScheduledMemory.ofOccurrences? []
+    | throw (IO.userError "empty Scheduled memory")
+  let some completions := ScheduledCompletionMemory.ofCompletions? []
+    | throw (IO.userError "empty Scheduled completion memory")
+  let some retirements := ScheduledRetirementMemory.ofRetirements? []
+    | throw (IO.userError "empty Scheduled retirement memory")
+  let some replacements := ScheduledReplacementMemory.ofReplacements? []
+    | throw (IO.userError "empty Scheduled replacement memory")
+  return { scheduled, completions, retirements, replacements }
+
+private def initialWorld : IO Loam.MovementAdmission.World := do
+  let effects :=
+    [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
+    , Effect.ofQuantity ⟨"actual-1-effect-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 700)
+    ]
+  let some event := Event.ofEffects? ⟨"actual-1"⟩ effects
+    | throw (IO.userError "initial Event")
+  let some events := EventMemory.ofEvents? [event]
+    | throw (IO.userError "initial Event memory")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
+    | throw (IO.userError "initial Locus vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := [{ id := ⟨"validity-1"⟩, event := event.id, validOn := "2026-09-07" }]
+      factIdNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
+
+private def quantityFor (event : Event) (locus : String) : Int :=
+  event.effects.foldl
+    (fun total effect => if effect.locus.token = locus then total + effect.quantity.quanta else total)
+    0
+
+def main (args : List String) : IO Unit := do
+  let [dataPath] := args | throw (IO.userError "supply isolated data directory")
+  let dataDir := System.FilePath.mk dataPath
+  IO.FS.createDirAll dataDir
+  let root := dataDir / "movement-authority"
+  let scheduledFile := dataDir / "scheduled.loam"
+  let correctionFile := dataDir / "corrections.loam"
+  let reversalFile := dataDir / "actual-reversals.loam"
+
+  let world ← initialWorld
+  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root world
+    | throw (IO.userError "publish initial Movement world")
+  let lifecycle ← emptyLifecycle
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
+    "publish explicit empty Scheduled lifecycle"
+  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
+    "publish explicit empty reversal authority"
+
+  let draft : Loam.ActualReversalPublisher.Draft := {
+    target := ⟨"actual-1"⟩
+    validOn := "2026-09-08" }
+  let .ok receipt ← Loam.ActualReversalPublisher.publishManifestReversal
+      scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
+    | throw (IO.userError "publish Actual reversal")
+  expect (receipt.target = ⟨"actual-1"⟩ && receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
+    "reversal receipt changed deterministic endpoint identities"
+  expect (!receipt.resumed)
+    "fresh reversal was reported as interrupted-publication resume"
+
+  let .ok fresh ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+    | throw (IO.userError "reload selected Movement world")
+  let target ←
+    match EventMemory.findById? fresh.events receipt.target with
+    | some event => pure event
+    | none => throw (IO.userError "target Actual disappeared after reversal")
+  let inverse ←
+    match EventMemory.findById? fresh.events receipt.reversal with
+    | some event => pure event
+    | none => throw (IO.userError "reversal Actual not selected after publication")
+  expect (quantityFor target "paypay" + quantityFor inverse "paypay" == 0)
+    "reversal did not exactly cancel target PayPay quantity"
+  expect (quantityFor target "food" + quantityFor inverse "food" == 0)
+    "reversal did not exactly cancel target food quantity"
+  expect (fresh.events.events.length == 2)
+    "reversal rewrote the target instead of retaining both Actual Events"
+
+  let some reversalMemory ← Loam.Persistence.loadActualReversalMemory? reversalFile
+    | throw (IO.userError "reload reversal authority")
+  let relation ←
+    match reversalMemory.findByTarget? receipt.target with
+    | some relation => pure relation
+    | none => throw (IO.userError "reversal provenance relation missing")
+  expect (relation.reversal = receipt.reversal)
+    "reversal provenance does not name the inverse Actual"
+
+  let second ← Loam.ActualReversalPublisher.publishManifestReversal
+    scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
+  expect second.isError
+    "a second reversal of the same Actual was not rejected"
+
+  let reverseAgain : Loam.ActualReversalPublisher.Draft := {
+    target := receipt.reversal
+    validOn := "2026-09-08" }
+  let reverseAgainResult ← Loam.ActualReversalPublisher.publishManifestReversal
+    scheduledFile.toString root.toString correctionFile.toString reversalFile.toString reverseAgain
+  expect reverseAgainResult.isError
+    "reversal-of-reversal chain was admitted before its semantics were qualified"
+
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + fail-closed repeat passed."
