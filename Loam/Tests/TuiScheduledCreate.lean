@@ -1,4 +1,5 @@
 import Loam.ActualReview
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledReview
 import Loam.Tui.ScheduledCreation
@@ -32,6 +33,17 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
     discharges := []
     locusAdmission := vocabulary }
 
+private def emptyScheduledLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
+  let some scheduled := ScheduledMemory.ofOccurrences? []
+    | throw (IO.userError "empty Scheduled memory")
+  let some completions := ScheduledCompletionMemory.ofCompletions? []
+    | throw (IO.userError "empty Scheduled completion memory")
+  let some retirements := ScheduledRetirementMemory.ofRetirements? []
+    | throw (IO.userError "empty Scheduled retirement memory")
+  let some replacements := ScheduledReplacementMemory.ofReplacements? []
+    | throw (IO.userError "empty Scheduled replacement memory")
+  return { scheduled, completions, retirements, replacements }
+
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
@@ -58,6 +70,9 @@ def main (args : List String) : IO Unit := do
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initialWorld
     | throw (IO.userError "initialize manifest fixture")
+  let lifecycle ← emptyScheduledLifecycle
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
+    "initialize explicit Scheduled lifecycle fixture"
 
   let snapshot ← loadSnapshot scheduledFile root
   let actualState := Loam.Tui.SelectedDay.initial "2026-09-12"
