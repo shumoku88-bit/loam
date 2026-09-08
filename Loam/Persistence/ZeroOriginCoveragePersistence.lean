@@ -1,5 +1,6 @@
 import Loam.Core.ZeroOriginCoverage
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -72,9 +73,6 @@ def decodeZeroOriginCoverage? (input : String) : Option ZeroOriginCoverage :=
             ZeroOriginCoverage.ofCoordinates? coordinates
         | _ => none
 
-private def zeroOriginCoverageStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Atomically replace one explicitly reconstructed zero-origin evidence set. -/
 def saveZeroOriginCoverage?
     (path : System.FilePath)
@@ -82,9 +80,7 @@ def saveZeroOriginCoverage?
   match encodeZeroOriginCoverage? coverage with
   | none => return false
   | some text =>
-      let stage := zeroOriginCoverageStagePath path
-      IO.FS.writeFile stage text
-      IO.FS.rename stage path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read one explicit zero-origin evidence set; malformed content returns `none`. -/
