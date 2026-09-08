@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from collections import deque
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(".")
+
+if not (ROOT / "Loam").is_dir() or not (ROOT / "lakefile.lean").is_file():
+    print("audit-production-reachability: run from the LOAM repository root", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def module_name(path: Path) -> str:
+    no_suffix = path.with_suffix("")
+    return ".".join(no_suffix.parts)
+
+
+lean_files = sorted([Path("Loam.lean")] + list(Path("Loam").rglob("*.lean")))
+module_to_path = {module_name(path): path for path in lean_files}
+path_to_module = {path: module for module, path in module_to_path.items()}
+
+
+def local_imports(path: Path) -> list[str]:
+    imports: list[str] = []
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("import "):
+            continue
+        # Lean permits more than one module after `import`; keep only modules
+        # that resolve to files in this repository.
+        for token in line[len("import ") :].split():
+            token = token.strip()
+            if token in module_to_path:
+                imports.append(token)
+    return imports
+
+
+imports_by_module = {
+    module: local_imports(path)
+    for module, path in module_to_path.items()
+}
+
+
+def closure(roots: list[str]) -> set[str]:
+    seen: set[str] = set()
+    queue: deque[str] = deque(root for root in roots if root in module_to_path)
+    while queue:
+        module = queue.popleft()
+        if module in seen:
+            continue
+        seen.add(module)
+        queue.extend(imports_by_module.get(module, []))
+    return seen
+
+
+# Extract executable names and roots from the simple Lake DSL shape used here.
+executables: list[tuple[str, str]] = []
+current_exe: str | None = None
+for raw_line in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
+    exe_match = re.match(r"^lean_exe\s+([A-Za-z0-9_]+)\s+where\s*$", raw_line)
+    if exe_match:
+        current_exe = exe_match.group(1)
+        continue
+    if current_exe is not None:
+        root_match = re.match(r"^\s*root\s*:=\s*`([A-Za-z0-9_.]+)\s*$", raw_line)
+        if root_match:
+            executables.append((current_exe, root_match.group(1)))
+            current_exe = None
+
+exe_roots = [root for _, root in executables]
+exe_reachable = closure(exe_roots)
+
+# Explicit practical library entrances. `Loam.lean` is deliberately excluded:
+# it imports historical observations so the all-library build does not define
+# production reachability.
+practical_library_roots = [
+    module
+    for module in ["Loam.Core", "Loam.Application", "Loam.Persistence", "Loam.Tui"]
+    if module in module_to_path
+]
+library_reachable = closure(practical_library_roots)
+
+
+def is_candidate_practical(path: Path) -> bool:
+    parts = path.parts
+    if len(parts) >= 2 and parts[0] == "Loam" and parts[1] in {"Tests", "Observations"}:
+        return False
+    if path in {
+        Path("Loam.lean"),
+        Path("Loam/Core.lean"),
+        Path("Loam/Application.lean"),
+        Path("Loam/Persistence.lean"),
+        Path("Loam/Observations.lean"),
+        Path("Loam/Tests.lean"),
+    }:
+        return False
+    return path.parts[0] == "Loam"
+
+
+candidate_paths = sorted(path for path in lean_files if is_candidate_practical(path))
+candidate_modules = {path_to_module[path] for path in candidate_paths}
+
+exec_practical = candidate_modules & exe_reachable
+library_practical = candidate_modules & library_reachable
+lib_only = library_practical - exec_practical
+unreachable = candidate_modules - (exec_practical | library_practical)
+
+
+def source_lines(path: Path) -> int:
+    # Match `wc -l` used by audit-production-surface.
+    return path.read_bytes().count(b"\n")
+
+
+def summarize(label: str, modules: set[str]) -> None:
+    paths = sorted(module_to_path[module] for module in modules)
+    lines = sum(source_lines(path) for path in paths)
+    print(f"{label:<34} {lines:8d} {len(paths):8d}")
+
+
+print(f"{'reachability class':<34} {'lines':>8} {'files':>8}")
+print(f"{'-' * 34} {'-' * 8} {'-' * 8}")
+summarize("Executable-reachable practical", exec_practical)
+summarize("Practical-library-only", lib_only)
+summarize("Candidate but unreachable", unreachable)
+summarize("Candidate practical total", candidate_modules)
+
+print("\nExecutable closures:")
+for exe_name, root in executables:
+    reached = closure([root]) & candidate_modules
+    lines = sum(source_lines(module_to_path[module]) for module in reached)
+    print(f"  {exe_name:<28} {root:<38} {lines:6d} lines / {len(reached):3d} files")
+
+print("\nCandidate practical files not reachable from executable or practical-library roots:")
+if unreachable:
+    for module in sorted(unreachable):
+        print(f"  {module_to_path[module]}")
+else:
+    print("  (none)")
+
+historical_or_test = {
+    module
+    for module in exe_reachable
+    if module.startswith("Loam.Tests") or module.startswith("Loam.Observations")
+}
+print("\nTest/observation modules reached by executable roots:")
+if historical_or_test:
+    for module in sorted(historical_or_test):
+        print(f"  {module_to_path[module]}")
+else:
+    print("  (none)")
+
+unresolved_roots = [root for root in exe_roots if root not in module_to_path]
+if unresolved_roots:
+    print("\nUnresolved executable roots:")
+    for root in unresolved_roots:
+        print(f"  {root}")
+    raise SystemExit(1)
