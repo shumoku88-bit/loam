@@ -14,8 +14,7 @@ if not (ROOT / "Loam").is_dir() or not (ROOT / "lakefile.lean").is_file():
 
 
 def module_name(path: Path) -> str:
-    no_suffix = path.with_suffix("")
-    return ".".join(no_suffix.parts)
+    return ".".join(path.with_suffix("").parts)
 
 
 lean_files = sorted([Path("Loam.lean")] + list(Path("Loam").rglob("*.lean")))
@@ -30,16 +29,12 @@ def local_imports(path: Path) -> list[str]:
         if not line.startswith("import "):
             continue
         for token in line[len("import ") :].split():
-            token = token.strip()
             if token in module_to_path:
                 imports.append(token)
     return imports
 
 
-imports_by_module = {
-    module: local_imports(path)
-    for module, path in module_to_path.items()
-}
+imports_by_module = {module: local_imports(path) for module, path in module_to_path.items()}
 
 
 def closure(roots: list[str]) -> set[str]:
@@ -136,6 +131,14 @@ for exe_name, root in executables:
     lines = sum(source_lines(module_to_path[module]) for module in reached)
     print(f"  {exe_name:<28} {root:<38} {lines:6d} lines / {len(reached):3d} files")
 
+wrapper_path = Path("tools/loam")
+wrapper_text = wrapper_path.read_text(encoding="utf-8") if wrapper_path.is_file() else ""
+print("\nExecutable exposure through tools/loam:")
+for exe_name, root in executables:
+    referenced = re.search(rf"\b{re.escape(exe_name)}\b", wrapper_text) is not None
+    role = "WRAPPER" if referenced else "STANDALONE"
+    print(f"  {role:<10} {exe_name:<28} {root}")
+
 print("\nPractical-library-only files not reached by any executable root:")
 if lib_only:
     for module in sorted(lib_only):
@@ -151,8 +154,7 @@ else:
     print("  (none)")
 
 print("\nTop-level practical file reachability (EXEC / LIB / NONE):")
-top_level_candidates = sorted(path for path in candidate_paths if len(path.parts) == 2)
-for path in top_level_candidates:
+for path in sorted(path for path in candidate_paths if len(path.parts) == 2):
     module = path_to_module[path]
     print(f"  {reachability_label(module):<4} {path}")
 
