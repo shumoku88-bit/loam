@@ -1,5 +1,6 @@
 import Loam.Core.ActualReversal
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -60,18 +61,13 @@ def decodeActualReversalMemory? (input : String) : Option ActualReversalMemory :
         | _ => none
   | _ => none
 
-private def stagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish a complete reversal image by sibling staging plus rename. -/
 def saveActualReversalMemory?
     (path : System.FilePath) (memory : ActualReversalMemory) : IO Bool := do
   match encodeActualReversalMemory? memory with
   | none => return false
   | some text =>
-      let stage := stagePath path
-      IO.FS.writeFile stage text
-      IO.FS.rename stage path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read one configured complete reversal authority image. -/
