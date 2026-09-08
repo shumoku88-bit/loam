@@ -1,10 +1,10 @@
 # Compression audit Phase 4 — dead production surface
 
-Status: **IN PROGRESS — FIRST RETIREMENT APPLIED**
+Status: **COMPLETE — LIVE / LIBRARY / ARCHIVE RESIDUE SEPARATED**
 
 Phase 3 closed without earning a large architectural rewrite. It found only narrow reusable mechanics and explicitly rejected generic Memory, serializer, transaction, identity-service, revision-framework, and authority-framework designs.
 
-Phase 4 now asks a simpler question:
+Phase 4 asks:
 
 > Which practical-source files are no longer needed by any current executable, current authority, or intentionally retained practical library boundary?
 
@@ -35,7 +35,7 @@ Loam/Persistence/QuantityBasisPersistence.lean
 Loam/ScheduledCompletionUi.lean
 ```
 
-## D4.1 — retire `ScheduledCompletionUi` immediately
+## D4.1 — `ScheduledCompletionUi`: RETIRED NOW
 
 Repository-wide search found no importer or consumer of `Loam/ScheduledCompletionUi.lean`; the only search result was the file itself.
 
@@ -51,15 +51,13 @@ obligations / obligationLabel
 
 It was not canonical state, Application semantics, persistence, a practical-library entry point, or current TUI code.
 
-**Decision: `RETIRE NOW`.**
+**Decision: `RETIRE`.**
 
 The audit branch deletes `Loam/ScheduledCompletionUi.lean`.
 
-This is the first concrete production subtraction from the audit.
+## D4.2 — QuantityBasis / BasisCut: RETIRE FROM PRODUCTION, ARCHIVE-LINKED
 
-## D4.2 — QuantityBasis / BasisCut implementation is production-retired, archive-linked
-
-Nine of the eleven unreachable files form the old QuantityBasis/BasisCut path:
+Nine of the unreachable files form the old QuantityBasis/BasisCut path:
 
 ```text
 Core/QuantityBasisMemory
@@ -79,71 +77,137 @@ Observation 219 independently established on real household data that:
 
 - all five retained household QuantityBasis values were exact zero;
 - no basis corrections or cuts existed in canonical data;
-- the stable QuantityBasis identities were not observed outside `basis.loam`;
-- all practical household balance answers had exact parity under explicit finite zero-origin coverage;
+- stable QuantityBasis identities were not observed outside `basis.loam`;
+- practical household balance answers had exact parity under explicit finite zero-origin coverage;
 - negative controls preserved `missing != exact zero`;
 - reconstructed Event history already retained the opening quantity evidence that mattered.
 
 Production now contains `ZeroOriginCoverage` and current balance readers no longer reach the QuantityBasis/BasisCut path.
 
-So the semantic decision is no longer open:
-
 **Decision: `RETIRE FROM PRODUCTION`.**
 
-However physical deletion is coupled to historical research cleanup. At least:
+Physical deletion is deferred only because historical research still imports the old modules. At least:
 
-- `experiments/091_scoped_origin_projection.lean` imports the old QuantityBasis Core module;
-- the Observation 218 workflow explicitly builds `Loam.Application.QuantityBasisFrontier`;
+- `experiments/091_scoped_origin_projection.lean` imports old QuantityBasis Core;
+- Observation 218 CI explicitly builds `Loam.Application.QuantityBasisFrontier`;
 - additional historical experiments/documents discuss the retired mechanism as evidence.
 
-Those references belong to research history, not current production authority. Phase 5 should decide the smallest way to preserve the historical claim while removing the obsolete production modules and dedicated CI obligation.
+These references are archive obligations, not current authority. Phase 5 must preserve the historical claim more cheaply and then delete the nine production-residue modules.
 
-Until that Phase 5 cut, the nine files remain physically present but are classified as **archive-linked production residue**, not live production capability.
-
-## D4.3 — AccountingRole persistence is unwired production residue
+## D4.3 — AccountingRole persistence: RETIRE FROM PRODUCTION, ARCHIVE/TEST-LINKED
 
 `Loam/Persistence/AccountingRolePersistence.lean` is unreachable from every executable and from the practical-library root closure.
 
-Its remaining repository references are a dedicated persistence test and a dedicated workflow. The Core `AccountingRole` relation itself is a different question: it is practical-library-only and remains relevant to the provisional report research boundary.
+Its remaining code references are a dedicated persistence test and dedicated workflow. Core `AccountingRole` is a separate question and must not be deleted merely because its persistence adapter is unwired.
 
-Therefore persistence and Core must not be conflated.
+**Decision for `AccountingRolePersistence`: `RETIRE FROM PRODUCTION`.**
 
-**Decision for `AccountingRolePersistence`: `RETIRE FROM PRODUCTION`, physical removal deferred to Phase 5 together with its dedicated test/workflow.**
+Physical deletion is deferred to Phase 5 together with the dedicated test/workflow.
 
-**Decision for `Core/AccountingRole`: not decided by this finding; keep as library/research vocabulary until the library-only pass below.**
+## Library-only classification
 
-## Why Phase 4 does not delete archive-linked residue yet
+### `Loam/Application/ScheduledCommitmentInspection.lean` — KEEP LIBRARY
 
-The ordered audit deliberately separates production retirement from research/CI compression.
+This module is intentionally exported by `Loam.Application` and carries qualified replacement-aware Scheduled Commitment and Headroom projections. Dedicated current tests/workflows exercise it even though no executable currently calls it.
 
-Deleting old production modules while leaving historical Lean experiments and workflows broken would not be compression; it would be damage. Conversely, keeping dead production code forever because a historical observation imports it would make the research archive an accidental production dependency.
+It is therefore a **qualified library capability**, not dead production residue.
 
-The intended cut is:
+**Decision: `KEEP LIBRARY`.**
+
+Do not rewire an executable merely to make reachability statistics prettier.
+
+### `Loam/Core/AccountingRole.lean` — DEFER RESEARCH
+
+Repository search finds no current production consumer of `AccountingRoleMap`. The persistence adapter is unwired. However the open provisional Report Lab is actively investigating an Accounting View, and earlier household/report observations earned the five-role vocabulary as a qualified candidate boundary.
+
+Deleting the semantic vocabulary while that current research question is open would prejudge Phase 5/report work.
+
+**Decision: `DEFER RESEARCH`.**
+
+Keep it in the audit branch for now. Phase 5 should decide whether report research owns it, current production earns it again, or it moves out of Practical Core.
+
+### `Loam/Core/Rate.lean` — RETIRED
+
+Repository-wide code search found no consumer beyond `Loam/Core.lean` itself. `Rate.ofRat` had no repository use.
+
+**Decision: `RETIRE`.**
+
+The audit branch removes its `Core.lean` import and deletes the module.
+
+### `Loam/Core/Allocation.lean` — RETIRED
+
+The only code consumer was `RecipientAssignment`; no current executable, application, publisher, or report uses the numeric allocation kernel.
+
+**Decision: `RETIRE`.**
+
+The audit branch removes its `Core.lean` import and deletes the module.
+
+### `Loam/Core/RecipientAssignment.lean` — RETIRED
+
+Repository-wide code references were its own module and the Practical Core umbrella; other references were historical research prose.
+
+**Decision: `RETIRE`.**
+
+The audit branch removes its `Core.lean` import and deletes the module.
+
+Research documents remain as historical evidence that this candidate numeric infrastructure was explored.
+
+### `Loam/Tui.lean` — KEEP LIBRARY
+
+This is a five-line package umbrella importing TUI Calendar, Kernel, Runtime, Terminal, and Main. The production executable imports its concrete TUI modules directly, so the umbrella itself is library-only.
+
+Its size is negligible and its package-entry role is clear.
+
+**Decision: `KEEP LIBRARY`.**
+
+Deleting an intentional five-line package umbrella would optimize the metric rather than the design.
+
+## Phase 4 concrete subtraction so far
+
+Deleted from the audit branch:
 
 ```text
-Phase 4: decide what is no longer production
-Phase 5: preserve the historical evidence in a cheaper form and remove its dedicated live-CI burden
-then: physically delete the archive-linked production residue
-```
-
-## Remaining Phase 4 work
-
-Audit the six practical-library-only files individually:
-
-```text
-Loam/Application/ScheduledCommitmentInspection.lean
-Loam/Core/AccountingRole.lean
-Loam/Core/Allocation.lean
+Loam/ScheduledCompletionUi.lean
 Loam/Core/Rate.lean
+Loam/Core/Allocation.lean
 Loam/Core/RecipientAssignment.lean
-Loam/Tui.lean
 ```
 
-For each, decide one of:
+Adjusted:
 
-- `KEEP LIBRARY`: intentionally reusable current vocabulary/mechanic;
-- `REWIRE`: should be part of a current executable/library entrance but is accidentally disconnected;
-- `RETIRE`: no current production/library role remains;
-- `DEFER RESEARCH`: current value is research-only and should move out of the practical production closure when Phase 5 reshapes the archive.
+```text
+Loam/Core.lean
+  - no longer imports Rate
+  - no longer imports Allocation
+  - no longer imports RecipientAssignment
+```
 
-Also re-run the production reachability inventory after each physical deletion so Phase 6 can compare exact before/after surface rather than estimating savings.
+Archive-linked production residue classified for Phase 5 deletion:
+
+```text
+9 QuantityBasis / BasisCut files
+1 AccountingRole persistence file
++ their dedicated historical/test CI dependencies
+```
+
+## Phase 4 conclusion
+
+The first dead-surface audit does not support deleting every non-executable module.
+
+It reveals four distinct states:
+
+```text
+LIVE EXECUTABLE
+KEEP LIBRARY
+DEFER RESEARCH
+RETIRE / ARCHIVE-LINKED RESIDUE
+```
+
+That distinction prevents both failure modes:
+
+- keeping unused code forever because it once proved something;
+- deleting qualified reusable semantics merely because the current CLI/TUI has not wired them yet.
+
+The next phase is now well-scoped:
+
+> compress historical research and dedicated CI enough that archive-linked production residue can actually be deleted rather than merely declared dead.
