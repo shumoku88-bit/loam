@@ -7,6 +7,7 @@ import Loam.Persistence
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.CapacityPersistence
+import Loam.Persistence.CapacityEffectivePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 
@@ -24,7 +25,7 @@ This is the surface-independent production read boundary for the explicitly
 current coverage question introduced by `CurrentCoverageInspection`.
 
 It deliberately does not turn this into the historical Budget Window report.
-Capacity is all-retained, Actual Consumption is correction-frontier and
+Capacity is effective within the closed current elapsed window; Actual Consumption is correction-frontier and
 historical-routing aware inside the explicit current elapsed window, and
 Scheduled pressure is replacement-aware current-open evidence from `observedAt`
 through the explicit future `endExclusive` horizon.
@@ -80,6 +81,7 @@ private def requireFile (path : System.FilePath) (label : String) : IO (Except S
 
 private def projectPurpose?
     (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory String)
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (validities : ActualValidityMemory String)
@@ -92,7 +94,7 @@ private def projectPurpose?
   let yen : MeasureId := ⟨"jpy"⟩
   let view ←
     currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
-      capacity.movements events corrections validities actualRouting
+      capacity effective events corrections validities actualRouting
       scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
       roles scheduledRouting purpose yen currentWindowStart observedAt endExclusive
   return {
@@ -137,6 +139,7 @@ def loadSnapshotAt
     return .error "loam: current coverage horizon must be later than the observation date"
 
   let capacityPath := dataDir / "capacity.loam"
+  let effectivePath := Loam.Persistence.capacityEffectivePathForMemory capacityPath
   let actualRoutingPath := dataDir / "actual-routing.loam"
   let correctionPath := dataDir / "corrections.loam"
   let scheduledPath := dataDir / "scheduled.loam"
@@ -144,6 +147,9 @@ def loadSnapshotAt
   let accountingRolePath := dataDir / "accounting-role.loam"
 
   match ← requireFile capacityPath "Capacity authority" with
+  | .error message => return .error message
+  | .ok _ => pure ()
+  match ← requireFile effectivePath "Capacity effective evidence" with
   | .error message => return .error message
   | .ok _ => pure ()
   match ← requireFile actualRoutingPath "Actual routing evidence" with
@@ -163,6 +169,13 @@ def loadSnapshotAt
     match ← Loam.Persistence.loadCapacityMemory? capacityPath with
     | some memory => pure memory
     | none => return .error "loam: malformed or unsupported Capacity authority"
+  let effective ←
+    match ← Loam.Persistence.loadCapacityEffectiveMemory? effectivePath with
+    | some memory => pure memory
+    | none => return .error "loam: missing, malformed or unsupported Capacity effective evidence"
+  -- Validate even when no Purpose rows exist (including orphan evidence).
+  if !capacityEffectiveEvidenceComplete capacity effective then
+    return .error "loam: incomplete Capacity effective evidence"
   let movement ←
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
     | .ok world => pure world
@@ -196,7 +209,7 @@ def loadSnapshotAt
 
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?
-      capacity movement.events corrections validities actualRouting
+      capacity effective movement.events corrections validities actualRouting
       scheduled roles scheduledRouting currentWindowStart observedAt endExclusive) with
   | none =>
       return .error "loam: canonical evidence does not justify this current coverage projection"

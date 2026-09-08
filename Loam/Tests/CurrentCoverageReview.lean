@@ -87,10 +87,19 @@ def main (args : List String) : IO Unit := do
 
   let food ← allocation "capacity-food" "food" 100
   let general ← allocation "capacity-general" "general" 50
+  let future ← allocation "capacity-future" "food" 600
+  let previous ← allocation "capacity-previous" "food" 200
   let capacity ← requireSome
-    (CapacityMemory.ofMovements? [food, general]) "Capacity memory"
+    (CapacityMemory.ofMovements? [food, general, future, previous]) "Capacity memory"
   expect (← Loam.Persistence.saveCapacityMemory? (root / "capacity.loam") capacity)
     "save Capacity"
+  let effective ← requireSome (CapacityEffectiveMemory.ofEntries?
+    [{ movement := food.id, effectiveOn := "2026-09-08" },
+     { movement := general.id, effectiveOn := "2026-09-08" },
+     { movement := future.id, effectiveOn := "2026-10-08" },
+     { movement := previous.id, effectiveOn := "2026-08-14" }]) "Capacity effective"
+  expect (← Loam.Persistence.saveCapacityEffectiveMemory?
+    (root / "capacity.loam.effective") effective) "save Capacity effective"
 
   let actualRouting ← requireSome
     (RoutingHistory.ofEntries?
@@ -184,5 +193,24 @@ def main (args : List String) : IO Unit := do
     Loam.CurrentCoverageReview.loadSnapshotAt
       root (root / "missing-authority") "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingManifest.isOk) "missing selected Movement authority did not fail closed"
+
+  let missingEntry ← requireSome (CapacityEffectiveMemory.ofEntries?
+    [{ movement := food.id, effectiveOn := "2026-09-08" }]) "incomplete evidence"
+  expect (← Loam.Persistence.saveCapacityEffectiveMemory?
+    (root / "capacity.loam.effective") missingEntry) "save incomplete evidence"
+  let incomplete ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!incomplete.isOk) "missing effective entry did not fail closed"
+
+  let emptyCapacity ← requireSome (CapacityMemory.ofMovements? []) "empty capacity"
+  expect (← Loam.Persistence.saveCapacityMemory? (root / "capacity.loam") emptyCapacity)
+    "save empty capacity"
+  let orphan ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!orphan.isOk) "orphan evidence with no Purpose rows did not fail closed"
+  IO.FS.removeFile (root / "capacity.loam.effective")
+  let missingFile ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!missingFile.isOk) "missing effective file did not return a visible error"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."

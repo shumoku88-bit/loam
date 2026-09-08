@@ -1,5 +1,4 @@
 import Init.Data.Order
-import Loam.Application.CapacityInspection
 import Loam.Application.CapacityWindowInspection
 import Loam.Application.ScheduledCommitmentInspection
 
@@ -21,12 +20,12 @@ variable {Time : Type}
 This module composes the already-qualified current household observations needed
 for one decision-support answer without mixing coordinate systems:
 
-- all-retained Capacity -> Entitlement;
+- current elapsed effective Capacity -> Entitlement;
 - correction-frontier Actual + historical Actual routing -> Consumption;
 - current-open replacement-aware Scheduled + routing/role evidence -> Commitment.
 
-The result is explicitly current. `currentWindowStart` bounds elapsed Actual
-Consumption, inclusive through `observedAt`. The same `observedAt` selects
+The result is explicitly current. `currentWindowStart` bounds effective Capacity
+and elapsed Actual Consumption, inclusive through `observedAt`. The same `observedAt` selects
 Scheduled-routing evidence and starts future current-open pressure;
 `endExclusive` ends only that Scheduled horizon. This is not historical
 Scheduled replay and is not the historical Budget Window report.
@@ -52,14 +51,15 @@ structure CurrentCoverageView where
   deriving Repr, DecidableEq
 
 /--
-Compose current all-retained Capacity/Actual evidence with replacement-aware
+Compose current elapsed Capacity/Actual evidence with replacement-aware
 current-open Scheduled pressure for one Purpose and Measure.
 
-Fails closed when either correction-aware Actual consumption or current-open
-Scheduled pressure cannot be justified from retained evidence.
+Fails closed when effective Capacity, correction-aware Actual consumption, or
+current-open Scheduled pressure cannot be justified from retained evidence.
 -/
 def currentCoverageAtCorrectionFrontierWithReplacement?
-    (capacityMovements : List CapacityMovement)
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (validities : ActualValidityMemory Time)
@@ -80,7 +80,8 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
     currentScheduledCommitmentWithReplacement?
       scheduled completions retirements replacements events roles scheduledRouting
       purpose measure observedAt endExclusive
-  let entitlement := entitlementAt capacityMovements purpose measure
+  let entitlement ← entitlementAtEffectiveThrough?
+    capacity effective currentWindowStart observedAt purpose measure
   let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
   return {
     entitlement := entitlement
@@ -102,7 +103,8 @@ This is the same current coverage arithmetic as
 composition boundary differs. No initial calendar date is fabricated.
 -/
 def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
-    (capacityMovements : List CapacityMovement)
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (validities : ActualValidityMemory Time)
@@ -123,7 +125,8 @@ def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
     currentScheduledCommitmentWithReplacement?
       scheduled completions retirements replacements events roles scheduledRouting
       purpose measure observedAt endExclusive
-  let entitlement := entitlementAt capacityMovements purpose measure
+  let entitlement ← entitlementAtEffectiveThrough?
+    capacity effective currentWindowStart observedAt purpose measure
   let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
   return {
     entitlement := entitlement

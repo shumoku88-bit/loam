@@ -45,7 +45,8 @@ def validCapacityWindow (start end_ : Time) : Bool :=
 def validCurrentWindow (start observedAt : Time) : Bool :=
   decide (start ≤ observedAt)
 
-private def effectiveEvidenceComplete
+/-- Every movement has an effective coordinate and no effective entry is orphaned. -/
+def capacityEffectiveEvidenceComplete
     (capacity : CapacityMemory)
     (effective : CapacityEffectiveMemory Time) : Bool :=
   capacity.movements.all
@@ -67,7 +68,7 @@ def capacityAtEffectiveWindow?
     (measure : MeasureId) : Option Quantity := do
   if !validCapacityWindow start end_ then
     none
-  else if !effectiveEvidenceComplete capacity effective then
+  else if !capacityEffectiveEvidenceComplete capacity effective then
     none
   else
     let quanta ← capacity.movements.foldlM
@@ -75,6 +76,26 @@ def capacityAtEffectiveWindow?
         let effectiveOn ← effective.findByMovementId? movement.id
         if inHalfOpen start end_ effectiveOn && movement.measure = measure then
           return total + (movement.quantityAt coordinate).quanta
+        else
+          return total)
+      0
+    return Quantity.ofQuanta quanta
+
+/-- Current elapsed Entitlement includes both endpoints; incomplete evidence fails closed. -/
+def entitlementAtEffectiveThrough?
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
+    (start observedAt : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCurrentWindow start observedAt || !capacityEffectiveEvidenceComplete capacity effective then
+    none
+  else
+    let quanta ← capacity.movements.foldlM
+      (fun total movement => do
+        let effectiveOn ← effective.findByMovementId? movement.id
+        if inClosed start observedAt effectiveOn && movement.measure = measure then
+          return total + (movement.quantityAt (.purpose purpose)).quanta
         else
           return total)
       0
