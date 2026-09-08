@@ -65,7 +65,7 @@ A. CapacityWindowInspection closed elapsed projection, CurrentCoverageInspection
 and CurrentCoverageReview, Transfer/Rebalance date isolation, regressions.
 
 B. Surface-independent CycleFundingInspection: explicit caller-supplied finite
-Locus selection, BalanceReview physical context, CurrentCoverage rows and one
+EffectCoordinate selection and JPY measure, BalanceReview physical context, CurrentCoverage rows and one
 shared Scheduled frontier. `remainingAssigned = sum(max(row.remaining, 0))`.
 Do not compare cumulative allocations with today's assets. Test retroactive
 negative-to-zero grants separately from positive future-spending grants.
@@ -91,3 +91,56 @@ smallest instruments for this concrete temporal/composition seam. No new formal
 tool is needed. Required checks include observation endpoint, pre-start and
 future exclusion, missing/orphan evidence, and unchanged pre-recovery dogfood
 values. TUI builds and relevant production tests accompany the date change.
+
+## Stage B: pure funding composition
+
+`Loam/CycleFundingInspection.lean` composes existing pure
+`BalanceReview.project` with a complete `CurrentCoverageReview.Snapshot`.
+It lives alongside these shared Reviews rather than introducing an Application
+module that depends upwards on Review/IO adapters. The new function performs
+no IO. `BalanceReview.loadSnapshot` and `config/balance-view.tsv` are **not**
+used: display selection asks a balance question, not which assets are budgetable.
+
+The caller explicitly supplies `List EffectCoordinate` and `MeasureId`. JPY is
+required because the existing CurrentCoverageReview is JPY-only; mixed/wrong
+measures are refused rather than coerced. Duplicate coordinates are refused
+before BalanceReview can normalize presentation duplicates. Selected balances
+require zero-origin evidence and correction-aware projection. A covered
+coordinate without activity is a known zero, not missing evidence. Unselected
+assets do not contribute, regardless of their names or accounting roles.
+An explicit empty list selects no backing; it is not a substitute for absent
+configuration. No config adapter or account-name inference is introduced.
+
+The derived summary contains:
+
+- `budgetableBacking`: signed sum of explicitly selected current balances;
+- `remainingAssigned`: sum of each row's `max(remaining, 0)`, not headroom;
+- `residualBeforeUnresolved`: backing minus remainingAssigned;
+- `unmanagedFuturePressure`, `unroutedFuturePressure`,
+  `unresolvedFuturePressure`: the global frontier copied once.
+
+Managed Scheduled commitment is already inside remainingAssigned and must not
+reduce assignment a second time. A -20 -> 0 retroactive fill leaves assigned
+funds unchanged; 0 -> +20 increases them by 20. Likewise -5546 -> 0 reserves no
+new money, while -5546 -> +1000 reserves 1000. Neither negative physical backing
+nor a negative residual is clamped. The three global pressure quantities stay
+separate; they are not automatically deducted or labeled available/safe to spend.
+
+### Nearby composition qualifications and caller obligations
+
+- Missing Scheduled frontier (`none`) fails visibly. CurrentCoverageReview may
+  currently produce this when there are no Purpose rows; absence must not be
+  invented into a zero frontier. No new Scheduled engine is added to work around it.
+- Duplicate Purpose rows are rejected, preventing accidental repeated assignment.
+- Caller supplies the complete current snapshot, not a filtered display subset,
+  and physical evidence from the same current observation. This pure function
+  is not historical balance replay and cannot certify independent read epochs.
+- Funding reuses BalanceReview's zero-origin/correction refusal; tests include
+  corrected physical backing and a missing correction endpoint. No writer or
+  recovery behavior changes.
+
+`Loam/Tests/CycleFundingInspection.lean` qualifies requested A-J examples, signed
+backing, explicit empty/known-zero selection, absent frontier, duplicate Purpose
+refusal and the correction seam. Dedicated exact-head CI runs it alongside
+BalanceReview and CurrentCoverageReview tests. No Core primitive, persistence,
+TUI, routing write, or household recovery is part of Stage B.

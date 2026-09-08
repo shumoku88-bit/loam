@@ -1,0 +1,63 @@
+name: Cycle Funding Inspection
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/CycleFundingInspection.lean'
+      - 'Loam/Tests/CycleFundingInspection.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Application/**'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/cycle-funding-inspection.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Loam/CycleFundingInspection.lean'
+      - 'Loam/Tests/CycleFundingInspection.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Application/**'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/cycle-funding-inspection.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cycle-funding-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: Qualify pure cycle funding composition
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build shared funding boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.CycleFundingInspection
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Qualify funding arithmetic and explicit evidence selection
+        run: lake env lean --run Loam/Tests/CycleFundingInspection.lean
+      - name: Check neighboring physical balance review
+        run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balances"
+      - name: Check neighboring current coverage review
+        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/coverage"
