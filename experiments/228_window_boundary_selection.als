@@ -22,7 +22,7 @@ fun atOrBefore[s: BoundarySource, d: Day] : set Day {
   { b: s.boundaries | ord/lte[b, d] }
 }
 
-fun after[s: BoundarySource, d: Day] : set Day {
+fun strictlyAfter[s: BoundarySource, d: Day] : set Day {
   { b: s.boundaries | ord/lt[d, b] }
 }
 
@@ -32,8 +32,8 @@ fun startFor[s: BoundarySource, d: Day] : set Day {
 }
 
 fun endFor[s: BoundarySource, d: Day] : set Day {
-  { b: after[s, d] |
-      no earlier: after[s, d] | ord/lt[earlier, b] }
+  { b: strictlyAfter[s, d] |
+      no earlier: strictlyAfter[s, d] | ord/lt[earlier, b] }
 }
 
 pred windowDefined[s: BoundarySource, d: Day] {
