@@ -6,16 +6,25 @@ on:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/CapacityReview.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'Loam/Tests/CurrentCoverageInspection.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -24,21 +33,31 @@ on:
     branches:
       - 'feat/scheduled-commitment-headroom'
       - 'feat/scheduled-capacity-pressure'
+      - 'feat/current-capacity-coverage-tui'
       - main
     paths:
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
       - 'Loam/Application/ConsumptionInspection.lean'
       - 'Loam/Application.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/CapacityReview.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
       - 'Loam/Core/ScheduledMemory.lean'
       - 'Loam/Core/ScheduledCompletion.lean'
       - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'Loam/Tests/CurrentCoverageInspection.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -64,7 +83,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core Loam.Application
+          build-args: Loam.Core Loam.Application Loam.CurrentCoverageReview
           test: false
           lint: false
           use-mathlib-cache: false
@@ -79,3 +98,7 @@ jobs:
       - name: Run Current Capacity Coverage practical story
         shell: bash
         run: lake env lean --run Loam/Tests/CurrentCoverageInspection.lean
+
+      - name: Run production Current Capacity Coverage reader story
+        shell: bash
+        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
