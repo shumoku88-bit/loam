@@ -80,21 +80,23 @@ Decision at baseline: **RETIREMENT CANDIDATE.**
 
 This was subsequently completed: `./tools/loam` with no arguments now opens `loamTui`, while explicit named script/diagnostic commands remain.
 
-## Unix-tool subtraction candidate
+## Qualified follow-up: line-CLI Locus completion
 
-`Loam/CompletionPrompt.lean` owns POSIX terminal state capture, raw character mode, byte-at-a-time input, backspace/Ctrl-C handling, redraw, prefix filtering, and candidate display.
+At the audit baseline `Loam/CompletionPrompt.lean` owned POSIX terminal state capture, raw character mode, byte-at-a-time input, backspace/Ctrl-C handling, ANSI redraw, prefix filtering, and candidate display.
 
-This is presentation-only machinery. A bounded `fzf` adapter was initially considered a legitimate experiment if:
+A bounded `fzf` adapter was considered but never earned. After TUI-default entrance and interactive Review retirement, the remaining Movement CLI is more valuable as an explicit scriptable/diagnostic entrance than as a second terminal UI.
 
-- LOAM still owns the candidate set and typed admission;
-- `fzf` returns only selected/entered text;
-- redirected/non-TTY input retains plain-line behavior;
-- absence of `fzf` fails back to plain input rather than blocking production;
-- no household semantics, authority selection, or publication policy move into shell/fzf.
+The follow-up therefore retires the custom line-CLI completion engine:
 
-Do not replace the persistent production TUI workspace with an fzf state machine.
+- `MovementEntry` returns to ordinary line input;
+- Movement preflight keeps its fail-closed authority verification but no longer derives historical Locus hints for the line editor;
+- `CompletionPrompt.knownLoci` remains as a pure recognition projection because the production TUI still consumes previously observed Loci as presentation hints;
+- current `LocusAdmissionVocabulary` remains the separate new-write permission authority;
+- no `fzf`, readline framework, generic completion abstraction, or replacement terminal state machine is introduced.
 
-The stronger current preference remains deletion if this helper loses all production callers. Do not introduce `fzf` merely to preserve an obsolete interaction shape.
+Decision: **RETIRE raw-terminal completion UI; KEEP pure observed-Locus hint projection.**
+
+This leaves future TUI/CLI/GUI surfaces free to choose their own presentation mechanics while sharing current admission/publication boundaries. Historical recognition and new-write permission remain deliberately distinct.
 
 ## First subtraction order
 
@@ -104,6 +106,6 @@ The stronger current preference remains deletion if this helper loses all produc
 4. replace the no-argument shell menu by TUI-default dispatch;
 5. retire wrapper-private build-cache mechanics in favor of Lake freshness;
 6. shrink Review from a second interactive browser to a one-shot bounded query harness;
-7. determine whether `CompletionPrompt` still has a production caller. If it becomes unreachable, delete it instead of introducing `fzf`.
+7. retire line-CLI raw Locus completion while retaining the pure observed-Locus hint projection used by TUI.
 
 This ordering intentionally prefers **whole-path deletion** over replacing code with an external dependency.
