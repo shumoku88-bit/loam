@@ -35,6 +35,7 @@ inductive Event where
   | up
   | down
   | transfer
+  | rebalance
   | back
   | other
   deriving Repr, DecidableEq, BEq
@@ -42,6 +43,7 @@ inductive Event where
 inductive Step where
   | stay (state : State)
   | transfer (state : State)
+  | rebalance (state : State)
   | back
 
 
@@ -117,6 +119,7 @@ def update (state : State) (event : Event) : Step :=
   match event with
   | .back => .back
   | .transfer => .transfer state
+  | .rebalance => .rebalance state
   | .up => .stay (movePrevious state)
   | .down => .stay (moveNext state)
   | .other => .stay state
@@ -228,7 +231,7 @@ def view (state : State) : Widget :=
       ] ++ coverageFooter state ++
       [ muted "t transfer can grant Capacity from unallocated to a new Purpose token."
       , muted "unallocated is an allocation boundary, not money available to allocate."
-      , muted "t transfer   b home   q quit"
+      , muted "t transfer   r rebalance   b home   q quit"
       , muted state.notice
       ]
   else
@@ -243,9 +246,9 @@ def view (state : State) : Widget :=
       , muted "Entitlement is derived from all retained JPY Capacity movements."
       , muted "Order shown is first retained appearance, not priority."
       ] ++ coverageFooter state ++
-      [ muted "t opens a local transfer editor; shared CapacityPublisher owns publication."
+      [ muted "t transfer, r rebalance; shared CapacityPublisher owns publication."
       , muted "unallocated is an allocation boundary, not money available to allocate."
-      , muted "↑/↓ select/scroll   t transfer   b home   q quit"
+      , muted "↑/↓ select/scroll   t transfer   r rebalance   b home   q quit"
       , muted state.notice
       ]
 
