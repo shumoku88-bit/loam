@@ -63,6 +63,7 @@ def main : IO Unit := do
   expect ((Loam.Tui.CycleBudget.update bounds state .escape).2 == .home) "Esc is not Home"
   expect (contains "u route" rendered) "footer missing u route"
   expect (contains "g grant" rendered) "footer missing g grant"
+  expect (contains "r rebalance" rendered) "footer missing r rebalance"
   let (stayEmpty, intentEmpty) := Loam.Tui.CycleBudget.update bounds state (.input 'u')
   expect (intentEmpty == .stay) "empty unresolved does not stay"
   expect (stayEmpty.notice == "No unresolved Scheduled routing subjects.") "empty notice wrong"
@@ -185,7 +186,10 @@ def main : IO Unit := do
   expect (stateCancelB.submode == .normal) "submode reset on b"
   expect (intentCancelB == .stay) "b must stay"
 
-  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'r')).2 == .stay) "r emitted write action"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'r')).2 == .rebalance)
+    "r did not enter existing Capacity Rebalance"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'R')).2 == .rebalance)
+    "R did not enter existing Capacity Rebalance"
   let small : Bounds := { width := 80, height := 12 }
   let down := (Loam.Tui.CycleBudget.update small state .down).1
   expect (down.scroll == 1) "small terminal cannot scroll"
@@ -210,4 +214,4 @@ def main : IO Unit := do
       "current preset was redefined by Home focus"
   expect (!(Loam.BoundaryPresetConfig.currentWindowFor? (presets ++ presets) "2026-09-08").isOk)
     "ambiguous preset accepted"
-  IO.println "Read-only Cycle Budget: supplied mappings, degraded layers, navigation, scrolling and dates passed."
+  IO.println "Cycle Budget: supplied mappings, degraded layers, direct action intents, scrolling and dates passed."
