@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from collections import deque
+from pathlib import Path
+import re
+import sys
+
+if not Path("Loam").is_dir() or not Path("lakefile.lean").is_file():
+    print("audit-mechanics-patterns: run from the LOAM repository root", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def module_name(path: Path) -> str:
+    return ".".join(path.with_suffix("").parts)
+
+
+lean_files = sorted([Path("Loam.lean")] + list(Path("Loam").rglob("*.lean")))
+module_to_path = {module_name(path): path for path in lean_files}
+
+
+def local_imports(path: Path) -> list[str]:
+    out: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("import "):
+            out.extend(tok for tok in line[7:].split() if tok in module_to_path)
+    return out
+
+
+imports = {m: local_imports(p) for m, p in module_to_path.items()}
+
+
+def closure(roots: list[str]) -> set[str]:
+    seen: set[str] = set()
+    q: deque[str] = deque(r for r in roots if r in module_to_path)
+    while q:
+        m = q.popleft()
+        if m in seen:
+            continue
+        seen.add(m)
+        q.extend(imports.get(m, []))
+    return seen
+
+
+exe_roots: list[str] = []
+current = None
+for raw in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
+    m = re.match(r"^lean_exe\s+([A-Za-z0-9_]+)\s+where\s*$", raw)
+    if m:
+        current = m.group(1)
+        continue
+    if current:
+        r = re.match(r"^\s*root\s*:=\s*`([A-Za-z0-9_.]+)\s*$", raw)
+        if r:
+            exe_roots.append(r.group(1))
+            current = None
+
+reachable = closure(exe_roots)
+reachable_paths = sorted(
+    module_to_path[m]
+    for m in reachable
+    if m in module_to_path
+    and m.startswith("Loam.")
+    and not m.startswith("Loam.Tests")
+    and not m.startswith("Loam.Observations")
+)
+
+patterns: list[tuple[str, re.Pattern[str]]] = [
+    ("stage path / .loam-stage", re.compile(r"\.loam-stage")),
+    ("filesystem rename", re.compile(r"IO\.FS\.rename")),
+    ("path existence branch", re.compile(r"\.pathExists")),
+    ("writer ownership", re.compile(r"WriterOwnership")),
+    ("manifest current-world load", re.compile(r"loadSelectedWorld\?")),
+    ("prepare/commit authority", re.compile(r"prepareWorld\?|commitPrepared\?")),
+    ("or-empty loader", re.compile(r"OrEmpty\?")),
+    ("fresh identity helper", re.compile(r"\bfresh[A-Za-z0-9_']*")),
+    ("ReplacementFrontier use", re.compile(r"ReplacementFrontier")),
+    ("RoutingHistory use", re.compile(r"RoutingHistory")),
+    ("Nodup collection law", re.compile(r"\.Nodup|\bNodup\b")),
+]
+
+print("Mechanics-pattern smoke scan over executable-reachable practical Lean")
+print("Patterns are textual pressure indicators, not duplication verdicts.\n")
+
+for label, pattern in patterns:
+    hits: list[tuple[Path, int]] = []
+    total = 0
+    for path in reachable_paths:
+        text = path.read_text(encoding="utf-8")
+        count = len(pattern.findall(text))
+        if count:
+            hits.append((path, count))
+            total += count
+    print(f"{label}: {total} occurrence(s) across {len(hits)} file(s)")
+    for path, count in hits:
+        print(f"  {count:3d}  {path}")
+    print()
+
+publisher_paths = [path for path in reachable_paths if path.name.endswith("Publisher.lean")]
+print(f"Executable-reachable *Publisher.lean modules: {len(publisher_paths)}")
+for path in publisher_paths:
+    print(f"  {path}")
