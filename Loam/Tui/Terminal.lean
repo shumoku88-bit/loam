@@ -25,8 +25,10 @@ inductive Key where
 
 def ansiStyle : Style → String
   | .normal => "\x1b[0m"
-  | .selected => "\x1b[30;46m"
-  | .muted => "\x1b[2m"
+  | .selected => "\x1b[0;30;46m"
+  | .muted => "\x1b[0;2m"
+  | .underlined => "\x1b[0;4;36m"
+  | .selectedUnderlined => "\x1b[0;4;30;46m"
 
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"

@@ -1,4 +1,5 @@
 import Loam.Tui.HraHome
+import Loam.Tui.Terminal
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -16,6 +17,14 @@ private def widgetText (widget : Widget) : String :=
 
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
+
+/-- Inspect structured glyph/style cells rather than terminal escape output. -/
+private def hasStyledText (widget : Widget) (text : String) (style : Style) : Bool :=
+  widget.lines.any fun cells =>
+    (List.range (cells.length + 1)).any fun start =>
+      let segment := (cells.drop start).take text.length
+      String.ofList (segment.map Cell.glyph) == text &&
+        segment.all (fun cell => cell.style == style)
 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def paypay : LocusId := ⟨"paypay"⟩
@@ -165,4 +174,44 @@ def main : IO Unit := do
   expect (contains "expected date passed; Scheduled is still current-open" pendingText)
     "Home calendar marker lost its non-rescheduling explanation"
 
-  IO.println "TUI Scheduled: browse/detail, open-world Unknown, and derived pending Home markers passed."
+  let sameDayView := Loam.Tui.HraHome.view bounds pendingSnapshot pendingHome
+  expect (hasStyledText sameDayView "[08 ]" .selectedUnderlined)
+    "Today + focus lost its combined presentation"
+  expect (hasStyledText sameDayView " 07! " .normal)
+    "Pending-only calendar cell changed"
+  let moved := (Loam.Tui.Main.update pendingSnapshot pendingHome .right).state
+  expect (moved.selectedDate == "2026-09-09") "Home focus did not advance"
+  let movedView := Loam.Tui.HraHome.view bounds pendingSnapshot moved
+  expect (hasStyledText movedView " 08  " .underlined)
+    "Today indication followed focus instead of the snapshot date"
+  expect (hasStyledText movedView "[09 ]" .selected)
+    "Focus-only cell lost the existing selected style"
+  let movedAgain := (Loam.Tui.Main.update pendingSnapshot moved .right).state
+  let movedAgainView := Loam.Tui.HraHome.view bounds pendingSnapshot movedAgain
+  expect (hasStyledText movedAgainView " 08  " .underlined &&
+    hasStyledText movedAgainView "[10 ]" .selected &&
+    hasStyledText movedAgainView " 09  " .normal)
+    "Moving focus left stale emphasis or moved Today"
+  let dueTodayView := Loam.Tui.HraHome.view bounds snapshot home
+  expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
+    "Scheduled on Today was incorrectly marked Pending"
+
+  -- A real Pending date is strictly before Today. Synthetic marker input checks
+  -- presentation composition without weakening that evidence boundary.
+  let overlap : Widget := .column <| (List.range 6).map fun row =>
+    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] moved row)
+  expect (hasStyledText overlap " 08! " .underlined)
+    "Synthetic Today + Pending lost its marker or underline"
+  let focusedOverlap : Widget := .column <| (List.range 6).map fun row =>
+    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
+  expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
+    "Synthetic Today + Focus + Pending lost a presentation cue"
+
+  -- SGR attributes accumulate: each style must clear the previous underline,
+  -- background and dim attributes before setting its own (including dirty redraw).
+  for style in [Style.normal, .selected, .muted, .underlined, .selectedUnderlined] do
+    let sgr := Loam.Tui.Terminal.ansiStyle style
+    expect (sgr.startsWith "\x1b[0;" || sgr == "\x1b[0m")
+      "Terminal style can leak attributes into the next calendar cell"
+
+  IO.println "TUI Scheduled: browse/detail, Unknown, Pending and independent Today/focus presentation passed."
