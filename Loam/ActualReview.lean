@@ -77,7 +77,7 @@ def summary (record : Record) : String :=
   let lines := effects.take 2 |>.map fun effect =>
     shortText 24 effect.locus.token ++ ": " ++ toString effect.quantity.quanta ++
       " " ++ shortText 12 effect.measure.token
-  let more := if effects.length > 2 then "  (+" ++ toString (effects.length - 2) ++ " effects; detail)" else ""
+  let more := if effects.length > 2 then "  (+" ++ toString (effects.length - 2) ++ " effects)" else ""
   let description := if record.description.isEmpty then "(no description)" else shortText 36 record.description
   description ++ "  | " ++
     (if effects.isEmpty then "(no quantity effects)" else String.intercalate "; " lines) ++
