@@ -38,7 +38,6 @@ structure ScheduledLifecycleImage where
   completions : ScheduledCompletionMemory
   retirements : ScheduledRetirementMemory
   replacements : ScheduledReplacementMemory
-  deriving Repr
 
 /-- Version marker for the first complete Scheduled lifecycle image. -/
 def scheduledLifecycleHeader : String := "LOAM-SCHEDULED-LIFECYCLE\t1"
@@ -74,8 +73,8 @@ private def takeSection?
   let beginMarker := sectionBegin name
   let endMarker := sectionEnd name
   match input.splitOn beginMarker with
-  | [prefix, afterBegin] =>
-      if prefix != "" then
+  | [leading, afterBegin] =>
+      if leading != "" then
         none
       else
         match afterBegin.splitOn endMarker with
@@ -89,11 +88,11 @@ empty relation sections; missing or duplicate sections fail closed.
 -/
 def decodeScheduledLifecycleImage?
     (input : String) : Option ScheduledLifecycleImage := do
-  let prefix := scheduledLifecycleHeader ++ "\n"
-  if !input.startsWith prefix then
+  let headerPrefix := scheduledLifecycleHeader ++ "\n"
+  if !input.startsWith headerPrefix then
     none
   else
-    let rest0 := input.drop prefix.length
+    let rest0 := input.drop headerPrefix.length
     let (scheduledText, rest1) ← takeSection? "Scheduled" rest0
     let (completionText, rest2) ← takeSection? "Completion" rest1
     let (retirementText, rest3) ← takeSection? "Retirement" rest2
