@@ -225,20 +225,25 @@ partial def actualDateCorrectionLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualDateCorrectionLoop bounds root correctionFile step.state nextFrame
 
-/-- Scheduled completion edits an Actual draft; shared publication re-reads both authorities. -/
+/--
+Scheduled completion edits an Actual draft; shared publication re-reads both
+authorities. A successful result returns the durable receipt so the caller may
+optionally open a separate next-Scheduled creation editor without conflating the
+facts or deriving continuation from presentation text.
+-/
 partial def scheduledCompletionLoop
     (bounds : Bounds) (scheduledFile root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) : IO String := do
+    (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) :
+    IO (Option Loam.ScheduledTerminalPublisher.CompletionReceipt) := do
   let step := Loam.Tui.ScheduledCompletion.update world known state
     (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Scheduled completion cancelled."
+  if step.cancel then return none
   match step.publish with
   | some draft =>
       match ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
           scheduledFile.toString root.toString draft with
-      | .ok receipt =>
-          return "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+      | .ok receipt => return some receipt
       | .error message =>
           let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
@@ -377,8 +382,29 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 Loam.CompletionPrompt.knownLoci world.events).eraseDups
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let notice ← scheduledCompletionLoop
+              let completion ← scheduledCompletionLoop
                 bounds (dataDir / "scheduled.loam") root world known editor editorFrame
+              let notice ←
+                match completion with
+                | none => pure "Scheduled completion cancelled."
+                | some receipt =>
+                    let completedNotice :=
+                      "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+                    match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
+                    | .error message =>
+                        pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
+                    | .ok nextEditor =>
+                        let nextEditorFrame :=
+                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
+                        IO.print "\x1b[2J"
+                        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0
+                          (compileWidget (.row [])) nextEditorFrame
+                        let nextNotice ← Loam.Tui.ScheduledCreationSession.run
+                          bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
+                        if nextNotice == "Scheduled creation cancelled." then
+                          pure (completedNotice ++ " No next Scheduled created.")
+                        else
+                          pure (completedNotice ++ " " ++ nextNotice)
               let fresh ←
                 match ← loadSnapshot dataDir with
                 | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))

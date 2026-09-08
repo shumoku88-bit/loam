@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Persistence
 import Loam.ScheduledCreationPublisher
 import Loam.Tui.Kernel
+import Loam.Tui.Main
 import Loam.Tui.Record
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -43,6 +44,36 @@ structure Step where
 /-- Seed a new Scheduled occurrence on the currently focused household date. -/
 def initial (date : String) : State :=
   { form := { date := date } }
+
+private def rowsFromScheduled
+    (record : Loam.Tui.Main.ScheduledRecord) : Array Loam.Tui.Record.Row :=
+  (record.movement.changes.map fun change =>
+    ({ locus := change.coordinate.token, amount := toString change.quantity.quanta } :
+      Loam.Tui.Record.Row)).toArray
+
+/--
+Seed an independent next Scheduled editor from the expectation that was just
+completed.
+
+The original expected movement is only a presentation seed. The completed
+Actual is deliberately not consulted, so a one-off Actual amount/date change
+cannot silently rewrite the next expectation. The next due date starts blank:
+continuation is explicit user intent and no recurrence or date inference is
+introduced. Durable publication still goes through `ScheduledCreationPublisher`.
+-/
+def initialFromScheduled?
+    (record : Loam.Tui.Main.ScheduledRecord) : Except String State := do
+  if record.measure != ⟨"jpy"⟩ then
+    throw "This Scheduled occurrence uses a non-JPY measure and cannot seed the JPY next-Scheduled editor."
+  let rows := rowsFromScheduled record
+  if rows.size < 2 then
+    throw "This Scheduled occurrence is outside the practical balanced-Movement next-Scheduled editor."
+  if rows.size > 6 then
+    throw "This Scheduled occurrence has more than six postings; the next-Scheduled editor will not truncate it."
+  pure {
+    form := { date := "", rows := rows, focus := 0 }
+    notice := "Completion is already published. Enter the next due date, or Esc for completion only."
+  }
 
 private def focusCount (form : Form) : Nat :=
   1 + form.rows.size * 2 + 4
