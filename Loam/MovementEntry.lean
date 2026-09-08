@@ -1,4 +1,3 @@
-import Loam.CompletionPrompt
 import Loam.Persistence
 import Std
 
@@ -32,7 +31,6 @@ by this entrance. No source/destination role is retained in Core beyond the
 ordinary signed quantity Effects themselves.
 -/
 private partial def collectSide
-    (knownLoci : List String)
     (label : String)
     (negative : Bool)
     (nextIndex : Nat)
@@ -40,9 +38,7 @@ private partial def collectSide
     (total : Int)
     (count : Nat) :
     IO (Except String (Nat × List Loam.Core.Effect × Int)) := do
-  let locusToken ←
-    Loam.CompletionPrompt.promptLocus
-      (label ++ " locus (blank when done)? ") knownLoci
+  let locusToken ← promptLine (label ++ " locus (blank when done)? ")
   if locusToken.isEmpty then
     if count = 0 then
       return Except.error ("loam: at least one " ++ label.toLower ++ " locus is required")
@@ -60,7 +56,7 @@ private partial def collectSide
           return Except.error "loam: movement amount must be a positive integer"
         else
           let effect := movementEffect nextIndex locusToken negative amount
-          collectSide knownLoci label negative (nextIndex + 1)
+          collectSide label negative (nextIndex + 1)
             (effects ++ [effect]) (total + amount) (count + 1)
 
 /--
@@ -72,13 +68,12 @@ The returned Core Effects retain signed quantities, not source/destination roles
 This module deliberately has no executable `main`; callers keep their own
 application entrances separate.
 -/
-def collectMovementEffects (knownLoci : List String := []) :
-    IO (Except String (List Loam.Core.Effect × Int)) := do
-  match ← collectSide knownLoci "From" true 1 [] 0 0 with
+def collectMovementEffects : IO (Except String (List Loam.Core.Effect × Int)) := do
+  match ← collectSide "From" true 1 [] 0 0 with
   | Except.error message =>
       return Except.error message
   | Except.ok (nextIndex, fromEffects, fromTotal) =>
-      match ← collectSide knownLoci "To" false nextIndex fromEffects 0 0 with
+      match ← collectSide "To" false nextIndex fromEffects 0 0 with
       | Except.error message =>
           return Except.error message
       | Except.ok (_, effects, toTotal) =>
