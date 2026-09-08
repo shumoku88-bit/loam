@@ -206,24 +206,32 @@ and wrapper representation while preserving the fail-closed admission answer.
 theorem event_admission_equivalent (events : List Event) :
     (EventMemory.ofEvents? events).isSome =
       (KeyedMemory.ofEntries? Event.id events).isSome := by
-  simp [EventMemory.ofEvents?, KeyedMemory.ofEntries?]
+  by_cases h : (events.map Event.id).Nodup
+  · simp [EventMemory.ofEvents?, KeyedMemory.ofEntries?, h]
+  · simp [EventMemory.ofEvents?, KeyedMemory.ofEntries?, h]
 
 theorem scheduled_admission_equivalent {Time : Type}
     (occurrences : List (ScheduledOccurrence Time)) :
     (ScheduledMemory.ofOccurrences? occurrences).isSome =
       (KeyedMemory.ofEntries? ScheduledOccurrence.id occurrences).isSome := by
-  simp [ScheduledMemory.ofOccurrences?, KeyedMemory.ofEntries?]
+  by_cases h : (occurrences.map ScheduledOccurrence.id).Nodup
+  · simp [ScheduledMemory.ofOccurrences?, KeyedMemory.ofEntries?, h]
+  · simp [ScheduledMemory.ofOccurrences?, KeyedMemory.ofEntries?, h]
 
 theorem capacity_admission_equivalent (movements : List CapacityMovement) :
     (CapacityMemory.ofMovements? movements).isSome =
       (KeyedMemory.ofEntries? CapacityMovement.id movements).isSome := by
-  simp [CapacityMemory.ofMovements?, KeyedMemory.ofEntries?]
+  by_cases h : (movements.map CapacityMovement.id).Nodup
+  · simp [CapacityMemory.ofMovements?, KeyedMemory.ofEntries?, h]
+  · simp [CapacityMemory.ofMovements?, KeyedMemory.ofEntries?, h]
 
 theorem attention_admission_equivalent {Time : Type}
     (items : List (Attention Time)) :
     (AttentionMemory.ofItems? items).isSome =
       (KeyedMemory.ofEntries? Attention.id items).isSome := by
-  simp [AttentionMemory.ofItems?, KeyedMemory.ofEntries?]
+  by_cases h : (items.map Attention.id).Nodup
+  · simp [AttentionMemory.ofItems?, KeyedMemory.ofEntries?, h]
+  · simp [AttentionMemory.ofItems?, KeyedMemory.ofEntries?, h]
 
 /-!
 ## Generic permutation law instantiated at semantic boundaries
