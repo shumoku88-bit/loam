@@ -68,14 +68,19 @@ jobs:
               'representativeHousehold': True,
               'sameRoleDifferentPressure': True,
               'liabilityWithoutRouteStillPressures': True,
+              'unresolvedPositiveStaysVisible': True,
               'AllPositiveCoordinatesArePressure': True,
               'RoleAndPolarityAloneDetermineSelectedPressure': True,
               'RolePolarityAndRoutingDetermineSelectedPressure': False,
               'PositiveExpenseOrLiabilityAlwaysPressures': False,
               'UnroutedPositiveAssetDoesNotPressure': False,
               'ExplicitlyRoutedPositiveAssetPressures': False,
+              'ExplicitRouteResolvesMissingRoleIntoPressure': False,
+              'MissingRoleWithoutRouteRemainsUnresolved': False,
+              'MissingRoleIsResolvedNonPressure': True,
               'NegativeCoordinatesNeverPressure': False,
               'PressurePartitionsSelectedCoordinates': False,
+              'PressureNonPressureUnresolvedPartition': False,
           }
 
           wrong = []
