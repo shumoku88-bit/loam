@@ -106,7 +106,7 @@ The production read topology keeps independent evidence independent:
 selected Movement manifest   -> Event effects
 corrections.loam              -> EventCorrection, absent means empty
 zero-origin-coverage.loam     -> finite explicit Locus × Measure zero-origin evidence
-balance-view.tsv              -> replaceable selected Locus × Measure coordinates, absent means empty selection
+config/balance-view.tsv       -> replaceable selected Locus × Measure coordinates, absent means empty selection
 ```
 
 An absent zero-origin coverage file means no coordinate has zero-origin evidence.
@@ -115,7 +115,7 @@ coverage representation refuses. Movement never falls back to the retired
 `memory.loam` sidecar, and the balance reader does not infer coverage from Event
 activity or presentation selection.
 
-`balance-view.tsv` is a question-selection seam, not an Account registry. It can
+`config/balance-view.tsv` is a question-selection seam, not an Account registry. It can
 choose which neutral coordinates should appear without changing quantity evidence.
 Row order is presentation order only, duplicate coordinates are normalized, and
 no Asset/Liability/Income/Expense role, ranking, valuation, or total is inferred.

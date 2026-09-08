@@ -115,7 +115,8 @@ jobs:
           grep -Fq 'unmaterialized future obligations remain Unknown' \
             /tmp/loam-open-scheduled-open-world.out
 
-          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          mkdir -p "$tmp_dir/config"
+          cat >"$tmp_dir/config/balance-view.tsv" <<'EOF'
           bank	jpy
           rent	jpy
           EOF

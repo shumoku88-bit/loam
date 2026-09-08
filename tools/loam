@@ -412,7 +412,7 @@ if [[ $# -eq 0 ]]; then
   memory_file="$data_dir/memory.loam"
   correction_file="$data_dir/corrections.loam"
   zero_origin_coverage_file="$data_dir/zero-origin-coverage.loam"
-  balance_view_file="$data_dir/balance-view.tsv"
+  balance_view_file="$data_dir/config/balance-view.tsv"
   capacity_file="$data_dir/capacity.loam"
   scheduled_file="$data_dir/scheduled.loam"
 

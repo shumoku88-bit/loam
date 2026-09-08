@@ -31,7 +31,7 @@ CurrentQuantity
 human balance view
 ```
 
-Application 010 separates current balance selection from canonical quantity evidence. `balance-view.tsv` is replaceable application configuration, not an Account registry or canonical history.
+Application 010 separates current balance selection from canonical quantity evidence. `config/balance-view.tsv` is replaceable application configuration, not an Account registry or canonical history.
 
 Observation 104 and Application 011 then close a dogfood double-counting seam. A basis may explicitly state that it already reflects an Event correction-root occurrence. The relation is between correction roots on both sides, so later correction of either retained family does not require rewriting the relation.
 

@@ -56,7 +56,7 @@ jobs:
           grep -Fq 'Data: ../loam-data' "$RUNNER_TEMP/default-data.out"
           test ! -e ../loam-data/memory.loam
           test ! -e ../loam-data/zero-origin-coverage.loam
-          test ! -e ../loam-data/balance-view.tsv
+          test ! -e ../loam-data/config/balance-view.tsv
           rm -rf ../loam-data
 
       - name: Exercise persistent movement and explicit zero-origin evidence
@@ -127,12 +127,14 @@ jobs:
           read_until(proc, "> ", transcript)
 
           root.mkdir(parents=True, exist_ok=True)
+          (root / "config").mkdir()
           (root / "zero-origin-coverage.loam").write_text(
               "LOAM-ZERO-ORIGIN-COVERAGE\t1\n"
               "COORDINATE\tbank\tjpy\n",
               encoding="utf-8",
           )
-          (root / "balance-view.tsv").write_text("bank\tjpy\n", encoding="utf-8")
+          (root / "config" / "balance-view.tsv").write_text(
+              "bank\tjpy\n", encoding="utf-8")
           (root / "memory.loam.locus-admission").write_text(
               "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\n"
               "LOCUS\tincome-source\n"
@@ -164,7 +166,8 @@ jobs:
           assert "  bank: 100 jpy" in current, "".join(transcript)
 
           # Event activity outside coverage remains unknown even if presentation asks for it.
-          (root / "balance-view.tsv").write_text("income-source\tjpy\n", encoding="utf-8")
+          (root / "config" / "balance-view.tsv").write_text(
+              "income-source\tjpy\n", encoding="utf-8")
           send(proc, "3")
           refused = read_until(proc, "> ", transcript)
           assert "zero-origin coverage missing for income-source / jpy" in refused, "".join(transcript)

@@ -770,7 +770,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'v' || key = .input 'V') then
     let reports ←
-      match ← Loam.BoundaryPresetConfig.load? (dataDir / "boundary-presets.tsv") with
+      match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
       | some presets =>
           pure (Loam.Tui.Reports.initialForDateWithPresets state.selectedDate presets)
       | none =>
