@@ -344,7 +344,7 @@ private def admit?
   }
 
 private def publishUnderOwnership
-    (root correctionFile reversalFile : System.FilePath)
+    (root correctionFile : System.FilePath)
     (draft : Draft) : IO (Except String Receipt) := do
   let world ←
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
@@ -354,6 +354,7 @@ private def publishUnderOwnership
     match ← loadCorrectionsOrEmpty? correctionFile with
     | .ok memory => pure memory
     | .error message => return .error message
+  let reversalFile := correctionFile.parent / "actual-reversals.loam"
   let reversals ←
     match ← loadReversals? reversalFile with
     | .ok memory => pure memory
@@ -385,6 +386,8 @@ All Movement-related writers share the manifest `CURRENT` ownership anchor. The
 publisher re-reads selected Movement, correction, and explicit Actual Reversal
 evidence inside that ownership window, so a stale TUI selection cannot authorize
 a write and Correction cannot invalidate a retained exact-inverse relation.
+Reversal authority is the explicit complete `actual-reversals.loam` sibling of
+the configured Correction authority; missing or malformed evidence fails closed.
 For a fresh correction it prepares the replacement generation off authority,
 publishes the append-only Correction relation first, then atomically switches
 `CURRENT`. A single interrupted relation-first publication is resumable with the
@@ -396,19 +399,15 @@ evidence because inheritance for those relations has not been qualified. It also
 applies current Locus new-write policy to the replacement Effects.
 -/
 def publishManifestCorrection
-    (rootPath correctionPath reversalPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (rootPath correctionPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
     return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
   if correctionPath.isEmpty then
     return .error "loam: correction path must not be empty"
-  if reversalPath.isEmpty then
-    return .error "loam: Actual reversal authority path must not be empty"
   let root := System.FilePath.mk rootPath
   let correctionFile := System.FilePath.mk correctionPath
-  let reversalFile := System.FilePath.mk reversalPath
   Loam.WriterOwnership.withOwnership
     (root / "CURRENT")
-    (publishUnderOwnership root correctionFile reversalFile draft)
+    (publishUnderOwnership root correctionFile draft)
 
 end Loam.CorrectionPublisher
