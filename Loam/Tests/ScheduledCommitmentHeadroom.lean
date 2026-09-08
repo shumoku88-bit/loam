@@ -261,6 +261,39 @@ def main : IO Unit := do
   expect (eligibility.unresolvedEligibility.quanta == 50)
     s!"expected unresolved eligibility 50, got {eligibility.unresolvedEligibility.quanta}"
 
+  let emptyReplacements ← requireSome
+    (ScheduledReplacementMemory.ofReplacements? [])
+    "empty replacement memory was not admitted"
+
+  let unresolvedRows ← requireSome
+    (currentUnresolvedScheduledPressureWithReplacement?
+      eligibilityMemory emptyCompletions emptyRetirements emptyReplacements events roles
+      eligibilityRouting yen (2 : Nat) (4 : Nat))
+    "unresolved Scheduled pressure rows failed closed"
+  expect (unresolvedRows.length == 1)
+    s!"expected exactly 1 unresolved row, got {unresolvedRows.length}"
+  expect (((unresolvedRows.map (fun r => r.quantity.quanta)).sum) == eligibility.unresolvedEligibility.quanta)
+    "unresolved row quantities did not sum to aggregate unresolved eligibility"
+  match unresolvedRows with
+  | [row] =>
+      expect (row.subject == subject "eligibility-mystery" mystery)
+        "unresolved row retained unexpected subject"
+      expect (row.scheduledOn == 2)
+        s!"expected scheduledOn 2, got {row.scheduledOn}"
+      expect (row.measure == yen)
+        "unresolved row had unexpected Measure"
+      expect (row.quantity.quanta == 50)
+        s!"expected quantity 50, got {row.quantity.quanta}"
+  | _ => throw <| IO.userError "unresolved rows returned unexpected structure"
+
+  let fullyResolvedRows ← requireSome
+    (currentUnresolvedScheduledPressureWithReplacement?
+      scheduledMemory completionMemory retirementMemory emptyReplacements events roles scheduledRouting
+      yen (2 : Nat) (4 : Nat))
+    "fully resolved fixture unresolved rows projection failed closed"
+  expect (fullyResolvedRows.isEmpty)
+    s!"expected empty unresolved rows for fully classified fixture, got {fullyResolvedRows.length}"
+
   -- An unknown Scheduled endpoint makes the whole current-open answer invalid.
   let unknownCompletion ← requireSome
     (ScheduledCompletionMemory.ofCompletions?
@@ -271,6 +304,11 @@ def main : IO Unit := do
       scheduledMemory unknownCompletion retirementMemory events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "unknown Scheduled completion reference did not fail closed"
+  expect
+    ((currentUnresolvedScheduledPressureWithReplacement?
+      scheduledMemory unknownCompletion retirementMemory emptyReplacements events roles scheduledRouting
+      yen (2 : Nat) (4 : Nat)).isNone)
+    "unknown Scheduled completion reference did not fail closed for unresolved rows"
 
   -- Conflicting completion and retirement evidence also refuses the whole view.
   let conflictRetirement ← requireSome
@@ -282,5 +320,10 @@ def main : IO Unit := do
       scheduledMemory completionMemory conflictRetirement events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "conflicting Scheduled terminal evidence did not fail closed"
+  expect
+    ((currentUnresolvedScheduledPressureWithReplacement?
+      scheduledMemory completionMemory conflictRetirement emptyReplacements events roles scheduledRouting
+      yen (2 : Nat) (4 : Nat)).isNone)
+    "conflicting Scheduled terminal evidence did not fail closed for unresolved rows"
 
   IO.println "Scheduled Commitment / Headroom practical story succeeded."
