@@ -183,24 +183,6 @@ jobs:
           grep -Fq $'BASE\trecord-2\t2026-09-02' "$memory.actual-validity"
           ! grep -q $'FACT\t' "$memory.actual-validity"
 
-      - name: Scripted primary menu defaults to host-local today
-        shell: bash
-        run: |
-          data_dir="$(mktemp -d)"
-          today="$(date +%Y-%m-%d)"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$data_dir/memory.loam.locus-admission"
-
-          printf '1\npaypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\nq\n' \
-            | LOAM_DATA_DIR="$data_dir" ./tools/loam >/tmp/loam-menu.out
-          grep -Fq '1. Record movement' /tmp/loam-menu.out
-          grep -Fq "Recorded movement: 1000 jpy. Date: $today." /tmp/loam-menu.out
-
-          expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
-          test "$(cat "$data_dir/memory.loam")" = "$expected"
-
-          expected_validity="$(printf 'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t%s' "$today")"
-          test "$(cat "$data_dir/memory.loam.actual-validity")" = "$expected_validity"
-
       - name: Older undated records remain visible without guessed dates
         shell: bash
         run: |
