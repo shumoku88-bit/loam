@@ -78,7 +78,7 @@ def main : IO Unit := do
     "Scheduled movement fixture was not admitted"
   let occurrence : ScheduledOccurrence String := {
     id := ⟨"scheduled-1"⟩
-    scheduledOn := "2026-09-15"
+    scheduledOn := "2026-09-25"
     movement := movement
   }
   let scheduled ← requireSome
