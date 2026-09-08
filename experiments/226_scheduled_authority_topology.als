@@ -99,17 +99,18 @@ fun decodedEvidence[t: Topology, s: StorageState]: set Family {
 }
 
 pred completionDeletionBecomesEmptyWorld {
-  some disj before, after, explicitEmpty: StorageState |
-    before.present = Family and
-    before.evidence = Completion and
-    after.present = Family - Completion and
-    no after.evidence and
+  some disj withCompletion, withoutCompletion, explicitEmpty: StorageState |
+    withCompletion.present = Family and
+    withCompletion.evidence = Completion and
+    withoutCompletion.present = Family - Completion and
+    no withoutCompletion.evidence and
     explicitEmpty.present = Family and
     no explicitEmpty.evidence and
-    readable[Sidecars, before] and
-    readable[Sidecars, after] and
+    readable[Sidecars, withCompletion] and
+    readable[Sidecars, withoutCompletion] and
     readable[Sidecars, explicitEmpty] and
-    decodedEvidence[Sidecars, after] = decodedEvidence[Sidecars, explicitEmpty]
+    decodedEvidence[Sidecars, withoutCompletion] =
+      decodedEvidence[Sidecars, explicitEmpty]
 }
 
 pred lifecycleSplitWitness {
