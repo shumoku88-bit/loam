@@ -65,12 +65,10 @@ Collect the shared human-facing shape for one balanced JPY movement.
 Ordinary recording and movement correction use this adapter so they cannot drift
 into different FROM/TO conventions. Equality is still only an entrance rule.
 The returned Core Effects retain signed quantities, not source/destination roles.
-Previously observed Loci are no longer interpreted by this line-input adapter;
-callers may still supply the historical hint list while higher-level entrances
-migrate independently.
+This module deliberately has no executable `main`; callers keep their own
+application entrances separate.
 -/
-def collectMovementEffects (_knownLoci : List String := []) :
-    IO (Except String (List Loam.Core.Effect × Int)) := do
+def collectMovementEffects : IO (Except String (List Loam.Core.Effect × Int)) := do
   match ← collectSide "From" true 1 [] 0 0 with
   | Except.error message =>
       return Except.error message
