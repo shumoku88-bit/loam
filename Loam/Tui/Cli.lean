@@ -16,6 +16,8 @@ import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
+import Loam.Tui.ScheduledRouting
+import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.Reports
 import Loam.BoundaryPresetConfig
 import Loam.MovementPublisher
@@ -732,6 +734,24 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
           return true
         pure ""
     -- Existing actions may have changed evidence. Never return to stale Budget answers.
+    let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
+    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    cycleBudgetLoop bounds dataDir root next nextFrame
+  | .unresolved =>
+    let notice ←
+      match state.snapshot.coverage with
+      | .error message => pure ("CurrentCoverage unavailable: " ++ message)
+      | .ok coverage =>
+        let routingPath := dataDir / "scheduled-routing.loam"
+        let scheduledPath := dataDir / "scheduled.loam"
+        let routingState := Loam.Tui.ScheduledRouting.initial coverage state.snapshot.observedAt
+        let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)
+        IO.print "\x1b[2J"
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) routingFrame
+        Loam.Tui.ScheduledRoutingSession.run bounds routingPath scheduledPath routingState routingFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)

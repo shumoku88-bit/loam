@@ -65,6 +65,9 @@ on:
       - 'Loam/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
@@ -134,6 +137,9 @@ on:
       - 'Loam/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
@@ -280,6 +286,9 @@ jobs:
 
       - name: Verify read-only Cycle Budget workspace
         run: lake env lean --run Loam/Tests/TuiCycleBudget.lean
+
+      - name: Verify Scheduled Routing TUI interaction
+        run: lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

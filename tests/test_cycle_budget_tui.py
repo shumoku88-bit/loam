@@ -70,6 +70,9 @@ try:
     assert f"{start} -> {end}" in screen
     assert f"Observed {today}" in screen
     assert "37 days to next boundary" in screen
+    assert "u route" in screen
+    os.write(master, b"u")
+    wait_for("No unresolved Scheduled routing subjects.")
     os.write(master, b"e")
     wait_for("t transfer")
     os.write(master, b"b")

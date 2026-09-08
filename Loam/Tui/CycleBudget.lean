@@ -14,7 +14,7 @@ structure State where
   deriving Repr
 
 inductive Intent where
-  | stay | home | capacity | quit
+  | stay | home | capacity | quit | unresolved
   deriving Repr, DecidableEq
 
 /-- Home's c is the read-only current-cycle entrance; e retains raw Capacity. -/
@@ -107,6 +107,15 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
   | .input 'q' | .input 'Q' => (state, .quit)
   | .escape | .input 'b' | .input 'B' => (state, .home)
   | .input 'e' | .input 'E' => (state, .capacity)
+  | .input 'u' | .input 'U' =>
+    match state.snapshot.coverage with
+    | .ok coverage =>
+      if coverage.unresolvedScheduled.isEmpty then
+        ({ state with notice := "No unresolved Scheduled routing subjects." }, .stay)
+      else
+        ({ state with notice := "" }, .unresolved)
+    | .error _ =>
+      ({ state with notice := "CurrentCoverage unavailable." }, .stay)
   | .up | .input 'k' => ({ state with scroll := state.scroll - 1 }, .stay)
   | .down | .input 'j' => ({ state with scroll := min limit (state.scroll + 1) }, .stay)
   | _ => (state, .stay)
@@ -118,6 +127,6 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let visible := (lines.drop offset).take page
   .column (visible ++ List.replicate (page - visible.length) (line "") ++
     [muted ("j/k scroll " ++ toString (offset + 1) ++ "/" ++ toString lines.length ++
-      " | e Capacity/actions | b Home | q quit | read only")])
+      " | u route | e Capacity/actions | b Home | q quit | read only")])
 
 end Loam.Tui.CycleBudget
