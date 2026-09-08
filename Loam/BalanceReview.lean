@@ -98,8 +98,8 @@ Load the production household balance answer from the current authority topology
 Movement Effects come only from the selected manifest. Event corrections,
 zero-origin coverage, and replaceable view selection remain independent inputs.
 An absent coverage file means no coordinates are evidenced complete from zero;
-it does not make any coordinate zero. `balance-view.tsv` selects a question only
-and never creates coverage.
+it does not make any coordinate zero. `config/balance-view.tsv` selects a question
+only and never creates coverage.
 -/
 def loadSnapshot
     (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
@@ -116,7 +116,7 @@ def loadSnapshot
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←
-    match ← Loam.BalanceViewConfig.load? (dataDir / "balance-view.tsv") with
+    match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
   return project world.events eventCorrections coverage coordinates

@@ -56,13 +56,14 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let manifestRoot := root / "movement-authority"
-  IO.FS.createDirAll root
+  IO.FS.createDirAll (root / "config")
 
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
       (root / "zero-origin-coverage.loam") validCoverage)
     "save zero-origin coverage"
-  IO.FS.writeFile (root / "balance-view.tsv") "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
+  IO.FS.writeFile (root / "config" / "balance-view.tsv")
+    "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
   let world ← movementWorld
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? manifestRoot world
@@ -81,7 +82,7 @@ def main (args : List String) : IO Unit := do
   expect (cashRow.quantity.quanta == 0) "explicit covered zero disappeared"
 
   -- Event activity and presentation selection do not create origin completeness.
-  IO.FS.writeFile (root / "balance-view.tsv") "food\tjpy\n"
+  IO.FS.writeFile (root / "config" / "balance-view.tsv") "food\tjpy\n"
   let missingCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
   expect (!missingCoverage.isOk) "Event activity outside zero-origin coverage became known"
 
@@ -99,7 +100,7 @@ def main (args : List String) : IO Unit := do
     (← Loam.Persistence.saveZeroOriginCoverage?
       (root / "zero-origin-coverage.loam") validCoverage)
     "restore zero-origin coverage"
-  IO.FS.writeFile (root / "balance-view.tsv") "wallet\tjpy\n"
+  IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
   IO.FS.writeFile (root / "corrections.loam")
     "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\tactual-1\tmissing\n"
   let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root manifestRoot

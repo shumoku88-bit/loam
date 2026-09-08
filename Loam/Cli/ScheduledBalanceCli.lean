@@ -24,7 +24,7 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
   let root := System.FilePath.mk rootPath
   let scheduledPath := root / "scheduled.loam"
   let manifestRoot := root / "movement-authority"
-  let balanceViewPath := root / "balance-view.tsv"
+  let balanceViewPath := root / "config" / "balance-view.tsv"
 
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"

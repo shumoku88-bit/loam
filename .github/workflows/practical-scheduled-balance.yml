@@ -102,7 +102,8 @@ jobs:
           lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
             "$tmp_dir/movement-authority"
 
-          cat >"$tmp_dir/balance-view.tsv" <<'EOF'
+          mkdir -p "$tmp_dir/config"
+          cat >"$tmp_dir/config/balance-view.tsv" <<'EOF'
           smbc	jpy
           paypay	jpy
           cash	jpy

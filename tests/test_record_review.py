@@ -293,7 +293,8 @@ class ManifestMenuTests(unittest.TestCase):
             "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\told\tfixed\n")
         (self.root / "zero-origin-coverage.loam").write_text(
             "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\n")
-        (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
+        (self.root / "config").mkdir()
+        (self.root / "config" / "balance-view.tsv").write_text("wallet\tjpy\n")
 
     def publish(self, version=2):
         families = self.families if version == 2 else {
