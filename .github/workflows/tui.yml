@@ -9,14 +9,19 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Core/ActualReversal.lean'
+      - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiCorrection.lean'
       - 'Loam/Tests/TuiActualDateCorrection.lean'
+      - 'Loam/Tests/ActualReversalPublisher.lean'
+      - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
@@ -61,14 +66,19 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Core/ActualReversal.lean'
+      - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiCorrection.lean'
       - 'Loam/Tests/TuiActualDateCorrection.lean'
+      - 'Loam/Tests/ActualReversalPublisher.lean'
+      - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
@@ -150,6 +160,15 @@ jobs:
 
       - name: Verify selected-day date editor and shared publication
         run: lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
+
+      - name: Build shared Actual Reversal publisher boundary
+        run: lake build Loam.ActualReversalPublisher
+
+      - name: Verify relation-first exact Actual reversal publication
+        run: lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal"
+
+      - name: Verify selected-day Actual reversal and fresh canonical review
+        run: lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-actual-reversal"
 
       - name: Verify full-day Actual local window navigation
         run: lake env lean --run Loam/Tests/TuiActual.lean
