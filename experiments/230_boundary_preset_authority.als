@@ -69,25 +69,25 @@ fun regimeFacts[p: Preset] : set Fact {
 }
 
 pred presetEditChangesLiveWindowButReceiptStaysOld {
-  some before, after: PresetState, p: Preset, d: Day, r: Receipt |
-    before != after and
-    before.preset = p and after.preset = p and
-    before.boundaries != after.boundaries and
-    windowDefined[before, d] and windowDefined[after, d] and
-    captures[r, before, d] and
-    (startFor[before, d] != startFor[after, d] or
-     endFor[before, d] != endFor[after, d]) and
-    receiptFacts[r] = windowFacts[before, d] and
-    receiptFacts[r] != windowFacts[after, d]
+  some oldState, newState: PresetState, p: Preset, d: Day, r: Receipt |
+    oldState != newState and
+    oldState.preset = p and newState.preset = p and
+    oldState.boundaries != newState.boundaries and
+    windowDefined[oldState, d] and windowDefined[newState, d] and
+    captures[r, oldState, d] and
+    (startFor[oldState, d] != startFor[newState, d] or
+     endFor[oldState, d] != endFor[newState, d]) and
+    receiptFacts[r] = windowFacts[oldState, d] and
+    receiptFacts[r] != windowFacts[newState, d]
 }
 
 pred replaceablePresetCanChangeCurrentQuestionWithoutChangingFacts {
-  some before, after: PresetState, p: Preset, d: Day |
-    before != after and
-    before.preset = p and after.preset = p and
-    before.boundaries != after.boundaries and
-    windowDefined[before, d] and windowDefined[after, d] and
-    windowFacts[before, d] != windowFacts[after, d]
+  some oldState, newState: PresetState, p: Preset, d: Day |
+    oldState != newState and
+    oldState.preset = p and newState.preset = p and
+    oldState.boundaries != newState.boundaries and
+    windowDefined[oldState, d] and windowDefined[newState, d] and
+    windowFacts[oldState, d] != windowFacts[newState, d]
 }
 
 pred explicitFactMembershipMakesPresetIdentityObservable {
