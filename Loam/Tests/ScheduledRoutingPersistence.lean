@@ -94,20 +94,29 @@ def main : IO Unit := do
     (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
 
+  -- This fixture deliberately carries no AccountingRole evidence: explicit
+  -- ScheduledRouting itself is sufficient to select the positive coordinate as
+  -- Capacity pressure before and after the dated Purpose override.
+  let roles := AccountingRoleMap.empty
+
   let beforeOverride ← requireSome
     (currentScheduledCommitment?
-      scheduled completions retirements events decoded food yen
+      scheduled completions retirements events roles decoded food yen
       "2026-09-10" "2026-10-01")
     "Scheduled Commitment failed closed before routing override"
   expect (beforeOverride.managed.quanta == 500)
     s!"expected food Commitment 500 before override, got {beforeOverride.managed.quanta}"
+  expect (beforeOverride.unresolvedEligibility.quanta == 0)
+    "explicit route became unresolved because AccountingRole was absent"
 
   let afterOverride ← requireSome
     (currentScheduledCommitment?
-      scheduled completions retirements events decoded household yen
+      scheduled completions retirements events roles decoded household yen
       "2026-09-20" "2026-10-01")
     "Scheduled Commitment failed closed after routing override"
   expect (afterOverride.managed.quanta == 500)
     s!"expected household Commitment 500 after override, got {afterOverride.managed.quanta}"
+  expect (afterOverride.unresolvedEligibility.quanta == 0)
+    "dated explicit route became unresolved because AccountingRole was absent"
 
   IO.println "Scheduled routing persistence practical story succeeded."
