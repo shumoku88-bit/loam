@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.CapacityEffective
 import Loam.Persistence
+import Loam.Persistence.SiblingStage
 
 namespace Loam.Persistence
 
@@ -68,9 +69,6 @@ def decodeCapacityEffectiveMemory?
         | _ => none
   | _ => none
 
-private def capacityEffectiveStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /-- Publish one complete effective-evidence image through sibling staging + rename. -/
 def saveCapacityEffectiveMemory?
     (path : System.FilePath)
@@ -78,9 +76,7 @@ def saveCapacityEffectiveMemory?
   match encodeCapacityEffectiveMemory? memory with
   | none => return false
   | some text =>
-      let stagePath := capacityEffectiveStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Read and fail-closed decode one Capacity effective-coordinate stream. -/
