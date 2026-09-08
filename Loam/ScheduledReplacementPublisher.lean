@@ -2,10 +2,7 @@ import Loam.ActualDate
 import Loam.Application.ScheduledInspection
 import Loam.MovementManifestAuthority
 import Loam.Persistence
-import Loam.Persistence.ScheduledCompletionPersistence
-import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
 
 namespace Loam.ScheduledReplacementPublisher
@@ -17,20 +14,20 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled replacement publication
 
-Replacement remains explicit `Scheduled -> Scheduled` provenance. This publisher
-moves the qualified relation-first writer boundary out of the legacy CLI and
-makes currentness depend on the same manifest-selected Event frontier used by
-production Scheduled readers.
+Replacement remains explicit `Scheduled -> Scheduled` provenance. Observation 226
+moves the occurrence and replacement relation into one complete Scheduled
+lifecycle authority image, so replacement no longer needs a relation-first
+intermediate publication or resume protocol.
 
 The fixed ownership order matches Scheduled terminal publication:
 
 ```text
-Scheduled authority -> Movement CURRENT
+Scheduled lifecycle authority -> Movement CURRENT
 ```
 
 The Movement authority is read-only here. Holding its ownership boundary prevents
 a concurrent completion from changing the Event frontier between current-open
-admission and Scheduled publication.
+admission and lifecycle publication.
 -/
 
 /-- Surface-independent replacement content. Effect identities are presentation-only. -/
@@ -45,52 +42,29 @@ structure Receipt where
   replacement : ScheduledId
   scheduledOn : String
   total : Int
-  resumed : Bool
   deriving Repr
 
-private structure LifecycleState where
-  scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
-
 private def loadLifecycle?
-    (scheduledFile : System.FilePath) : IO (Except String LifecycleState) := do
-  if !(← scheduledFile.pathExists) then
-    return .error "loam: scheduled authority is unavailable"
-  let some scheduled ← Loam.Persistence.loadScheduledMemory? scheduledFile
-    | return .error "loam: malformed or unsupported scheduled file"
-  let completionFile :=
-    Loam.Persistence.scheduledCompletionPathForScheduledMemory scheduledFile
-  let retirementFile :=
-    Loam.Persistence.scheduledRetirementPathForScheduledMemory scheduledFile
-  let replacementFile :=
-    Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
-  let some completions ←
-      Loam.Persistence.loadScheduledCompletionMemoryOrEmpty? completionFile
-    | return .error "loam: malformed or unsupported scheduled-completion file"
-  let some retirements ←
-      Loam.Persistence.loadScheduledRetirementMemoryOrEmpty? retirementFile
-    | return .error "loam: malformed or unsupported scheduled-retirement file"
-  let some replacements ←
-      Loam.Persistence.loadScheduledReplacementMemoryOrEmpty? replacementFile
-    | return .error "loam: malformed or unsupported scheduled-replacement file"
-  return .ok { scheduled, completions, retirements, replacements }
+    (scheduledFile : System.FilePath) :
+    IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
+  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  return .ok lifecycle
 
 private def currentOpen?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String (List (ScheduledOccurrence String)) :=
   match Loam.Application.currentOpenScheduledWithReplacement
       lifecycle.scheduled lifecycle.completions lifecycle.retirements
       lifecycle.replacements events with
   | .unknownCompletionScheduled =>
-      .error "loam: scheduled-completion file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
-      .error "loam: scheduled-retirement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled retirement refers to an unknown Scheduled identity"
   | .unknownReplacementScheduled =>
-      .error "loam: scheduled-replacement file refers to an unknown Scheduled identity"
+      .error "loam: Scheduled replacement refers to an unknown Scheduled identity"
   | .invalidReplacementGraph =>
-      .error "loam: scheduled-replacement graph is cyclic or otherwise invalid"
+      .error "loam: Scheduled replacement graph is cyclic or otherwise invalid"
   | .conflictingTerminalEvidence =>
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open occurrences => .ok occurrences
@@ -140,7 +114,7 @@ private def occurrenceFromDraft?
   pure { id := id, scheduledOn := draft.scheduledOn, movement := movement }
 
 private def transitionAdmissible?
-    (lifecycle : LifecycleState)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory)
     (source replacement : ScheduledId) : Except String Unit := do
   let occurrences ← currentOpen? lifecycle events
@@ -148,39 +122,6 @@ private def transitionAdmissible?
     throw "loam: proposed Scheduled replacement did not close its source"
   if !containsScheduled occurrences replacement then
     throw "loam: proposed Scheduled replacement did not expose its replacement as current-open"
-
-private def resumeInterrupted?
-    (scheduledFile : System.FilePath)
-    (lifecycle : LifecycleState)
-    (events : EventMemory)
-    (retained : ScheduledReplacement)
-    (draft : Draft) : IO (Except String Receipt) := do
-  if (ScheduledMemory.findById? lifecycle.scheduled retained.replacement).isSome then
-    return .error "loam: selected Scheduled identity is already replaced"
-  let occurrence ←
-    match occurrenceFromDraft? retained.replacement draft with
-    | some occurrence => pure occurrence
-    | none => return .error "loam: replacement Scheduled movement could not be admitted"
-  let updatedScheduled ←
-    match lifecycle.scheduled.add? occurrence with
-    | some scheduled => pure scheduled
-    | none => return .error "loam: replacement Scheduled identity collides with retained evidence"
-  let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
-  match transitionAdmissible?
-      updatedLifecycle events draft.source retained.replacement with
-  | .error message => return .error message
-  | .ok () => pure ()
-  if (Loam.Persistence.encodeScheduledMemory? updatedScheduled).isNone then
-    return .error "loam: replacement Scheduled movement could not be encoded"
-  if !(← Loam.Persistence.saveScheduledMemory? scheduledFile updatedScheduled) then
-    return .error "loam: replacement Scheduled movement could not be published"
-  return .ok {
-    source := draft.source
-    replacement := retained.replacement
-    scheduledOn := draft.scheduledOn
-    total := draft.total
-    resumed := true
-  }
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
@@ -198,66 +139,54 @@ private def publishUnderOwnership
     | .error message => return .error message
   if (ScheduledMemory.findById? lifecycle.scheduled draft.source).isNone then
     return .error "loam: selected Scheduled identity is not retained"
-  match ScheduledReplacementMemory.findBySource?
-      lifecycle.replacements draft.source with
-  | some retained =>
-      resumeInterrupted? scheduledFile lifecycle world.events retained draft
-  | none =>
-      let openOccurrences ←
-        match currentOpen? lifecycle world.events with
-        | .ok occurrences => pure occurrences
-        | .error message => return .error message
-      if !containsScheduled openOccurrences draft.source then
-        return .error "loam: only a currently open Scheduled identity can be replaced"
-      let replacementId ←
-        match freshScheduledId? lifecycle.scheduled with
-        | some id => pure id
-        | none => return .error "loam: could not generate a fresh replacement Scheduled identity"
-      let occurrence ←
-        match occurrenceFromDraft? replacementId draft with
-        | some occurrence => pure occurrence
-        | none => return .error "loam: replacement Scheduled movement could not be admitted"
-      let updatedScheduled ←
-        match lifecycle.scheduled.add? occurrence with
-        | some scheduled => pure scheduled
-        | none => return .error "loam: replacement Scheduled identity collides with retained evidence"
-      let relation : ScheduledReplacement := {
-        source := draft.source
-        replacement := replacementId
-      }
-      let updatedReplacements ←
-        match lifecycle.replacements.add? relation with
-        | some replacements => pure replacements
-        | none => return .error "loam: replacement relation violates one-to-one endpoint ownership"
-      let updatedLifecycle := {
-        lifecycle with
-        scheduled := updatedScheduled
-        replacements := updatedReplacements
-      }
-      match transitionAdmissible?
-          updatedLifecycle world.events draft.source replacementId with
-      | .error message => return .error message
-      | .ok () => pure ()
-      if (Loam.Persistence.encodeScheduledMemory? updatedScheduled).isNone ||
-          (Loam.Persistence.encodeScheduledReplacementMemory? updatedReplacements).isNone then
-        return .error "loam: Scheduled replacement publication could not be encoded"
-      let replacementFile :=
-        Loam.Persistence.scheduledReplacementPathForScheduledMemory scheduledFile
-      if !(← Loam.Persistence.saveScheduledReplacementMemory?
-          replacementFile updatedReplacements) then
-        return .error "loam: replacement relation could not be published"
-      if !(← Loam.Persistence.saveScheduledMemory? scheduledFile updatedScheduled) then
-        return .error
-          ("loam: replacement relation retained as " ++ draft.source.token ++ " -> " ++
-            replacementId.token ++
-            ", but the replacement Scheduled movement was not published; retry replacement to resume fail-closed recovery")
-      return .ok {
-        source := draft.source
-        replacement := replacementId
-        scheduledOn := draft.scheduledOn
-        total := draft.total
-        resumed := false
-      }
+  if (ScheduledReplacementMemory.findBySource?
+      lifecycle.replacements draft.source).isSome then
+    return .error "loam: selected Scheduled identity is already replaced"
+  let openOccurrences ←
+    match currentOpen? lifecycle world.events with
+    | .ok occurrences => pure occurrences
+    | .error message => return .error message
+  if !containsScheduled openOccurrences draft.source then
+    return .error "loam: only a currently open Scheduled identity can be replaced"
+  let replacementId ←
+    match freshScheduledId? lifecycle.scheduled with
+    | some id => pure id
+    | none => return .error "loam: could not generate a fresh replacement Scheduled identity"
+  let occurrence ←
+    match occurrenceFromDraft? replacementId draft with
+    | some occurrence => pure occurrence
+    | none => return .error "loam: replacement Scheduled movement could not be admitted"
+  let updatedScheduled ←
+    match lifecycle.scheduled.add? occurrence with
+    | some scheduled => pure scheduled
+    | none => return .error "loam: replacement Scheduled identity collides with retained evidence"
+  let relation : ScheduledReplacement := {
+    source := draft.source
+    replacement := replacementId
+  }
+  let updatedReplacements ←
+    match lifecycle.replacements.add? relation with
+    | some replacements => pure replacements
+    | none => return .error "loam: replacement relation violates one-to-one endpoint ownership"
+  let updatedLifecycle := {
+    lifecycle with
+    scheduled := updatedScheduled
+    replacements := updatedReplacements
+  }
+  match transitionAdmissible?
+      updatedLifecycle world.events draft.source replacementId with
+  | .error message => return .error message
+  | .ok () => pure ()
+  if (Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle).isNone then
+    return .error "loam: Scheduled replacement lifecycle could not be encoded"
+  if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
+    return .error "loam: Scheduled replacement lifecycle could not be published"
+  return .ok {
+    source := draft.source
+    replacement := replacementId
+    scheduledOn := draft.scheduledOn
+    total := draft.total
+  }
 
 private def withReplacementOwnership {α : Type}
     (scheduledFile root : System.FilePath)
@@ -268,10 +197,11 @@ private def withReplacementOwnership {α : Type}
 /--
 Replace one current-open Scheduled occurrence with one new Scheduled occurrence.
 
-Publication is relation-first. If the Scheduled occurrence write is interrupted,
-replacement-aware readers fail closed on the missing endpoint and a retry reuses
-the retained replacement identity. No recurrence, continuation, edit-kind,
-routing inheritance, or Movement Event is created here.
+The source-closing relation and replacement occurrence are constructed in memory
+and published together as one complete lifecycle image. There is no reader-visible
+missing replacement endpoint and therefore no replacement resume state. No
+recurrence, continuation, edit-kind, routing inheritance, or Movement Event is
+created here.
 -/
 def publishManifestReplacement
     (scheduledPath rootPath : String)
