@@ -65,6 +65,7 @@ on:
       - 'Loam/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'Loam/Tests/TuiCycleGrant.lean'
       - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
@@ -289,6 +290,9 @@ jobs:
 
       - name: Verify Scheduled Routing TUI interaction
         run: lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
+
+      - name: Verify Cycle Grant TUI interaction
+        run: lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant"
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

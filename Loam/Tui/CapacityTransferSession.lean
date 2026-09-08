@@ -31,7 +31,7 @@ partial def run
   let step := Loam.Tui.CapacityTransfer.update state
     (← Loam.Tui.Terminal.readKey)
   if step.cancel then
-    pure "Capacity transfer cancelled."
+    pure (if state.grantContext.isSome then "Cycle grant cancelled." else "Capacity transfer cancelled.")
   else
     match step.publish with
     | some draft =>

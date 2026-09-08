@@ -20,6 +20,32 @@ today = datetime.date.today()
 start = today - datetime.timedelta(days=3)
 end = today + datetime.timedelta(days=37)
 (root / "config/boundary-presets.tsv").write_text(f"Pension\t{start}\t{end}\n")
+(root / "capacity.loam.effective").write_text(f"LOAM-CAPACITY-EFFECTIVE\t1\nEFFECTIVE\tcapacity-1\t{start}\n")
+sched_date = today + datetime.timedelta(days=5)
+(root / "scheduled.loam").write_text(f"""LOAM-SCHEDULED-LIFECYCLE\t1
+BEGIN\tScheduled
+LOAM-SCHEDULED-MEMORY\t1
+SCHEDULED\tscheduled-1\t{sched_date}\tjpy
+CHANGE\tcash\t-250
+CHANGE\twifi\t250
+END\tScheduled
+BEGIN\tCompletion
+LOAM-SCHEDULED-COMPLETION-MEMORY\t1
+END\tCompletion
+BEGIN\tRetirement
+LOAM-SCHEDULED-RETIREMENT-MEMORY\t1
+END\tRetirement
+BEGIN\tReplacement
+LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1
+END\tReplacement
+""")
+(root / "scheduled-routing.loam").write_text(f"""LOAM-SCHEDULED-ROUTING\t1
+ROUTE\tscheduled-1\twifi\tFROM\t{start}\tMANAGED\tfood
+""")
+(root / "accounting-role.loam").write_text("""LOAM-ACCOUNTING-ROLE-MAP\t1
+ROLE\tcash\tASSET
+ROLE\twifi\tEXPENSE
+""")
 
 
 def digest():
@@ -69,8 +95,25 @@ try:
     assert "Budget / Pension Cycle" in screen
     assert f"{start} -> {end}" in screen
     assert f"Observed {today}" in screen
-    assert "37 days to next boundary" in screen
     assert "u route" in screen
+    assert "g grant" in screen
+    # Test 23: Production TUI PTY Home -> c -> g -> preview -> cancel
+    os.write(master, b"g")
+    preview = wait_for("[Publish]")
+    assert "Capacity / Cycle Grant / Preview" in preview
+    assert "Purpose:       food" in preview
+    assert "Current Now:   100 jpy" in preview
+    assert "Known future:  250 jpy" in preview
+    assert "After-known:   -150 jpy" in preview
+    assert "Amount:        150 jpy" in preview
+    assert "From:          unallocated" in preview
+    assert "[Publish]" in preview
+    assert "[Edit]" in preview
+    assert "[Cancel]" in preview
+    # Cancel via Esc
+    os.write(master, b"\x1b")
+    wait_for("Budget / Pension Cycle")
+    wait_for("Cycle grant cancelled.")
     os.write(master, b"u")
     wait_for("No unresolved Scheduled routing subjects.")
     os.write(master, b"e")

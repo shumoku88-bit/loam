@@ -758,6 +758,28 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
+  | .grant row =>
+    let notice ←
+      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      | .error message => pure ("Capacity unavailable: " ++ message)
+      | .ok capacitySnapshot =>
+        let residual :=
+          match state.snapshot.funding with
+          | .ok summary => some summary.residualBeforeUnresolved
+          | .error _ => none
+        let editor := Loam.Tui.CapacityTransfer.initialGrant
+          capacitySnapshot state.snapshot.observedAt row residual
+        let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
+        IO.print "\x1b[2J"
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) editorFrame
+        Loam.Tui.CapacityTransferSession.run
+          bounds (dataDir / "capacity.loam") editor editorFrame
+    let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
+    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    cycleBudgetLoop bounds dataDir root next nextFrame
 
 /-- Reports session. `true` means quit LOAM. -/
 partial def reportsLoop (bounds : Bounds)
