@@ -1,0 +1,46 @@
+name: Core finite keyed lookup
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/FiniteKeyed.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/ScheduledMemory.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - '.github/workflows/core-finite-keyed-lookup.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  finite-keyed-lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check shared finite keyed helper
+        run: lake env lean Loam/Core/FiniteKeyed.lean
+      - name: Check affected semantic memories
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean Loam/Core/EventMemory.lean
+          lake env lean Loam/Core/ActualValidity.lean
+          lake env lean Loam/Core/CapacityEffective.lean
+          lake env lean Loam/Core/ScheduledMemory.lean
+          lake env lean Loam/Core/CapacityMemory.lean
+          lake env lean Loam/Core/AttentionMemory.lean
