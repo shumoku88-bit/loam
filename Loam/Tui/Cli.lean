@@ -21,6 +21,7 @@ import Loam.AttentionReview
 import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.BudgetWindowReview
+import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
@@ -622,6 +623,11 @@ partial def reportsLoop (bounds : Bounds)
     | some (.stockFlow start endExclusive) =>
         match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.conditionalLiquidity assumedCompleteThrough) =>
+        match ← Loam.ConditionalBalancePathReview.loadSnapshot
+            dataDir root assumedCompleteThrough with
+        | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
   let nextFrame := compileWidget (Loam.Tui.Reports.view next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
