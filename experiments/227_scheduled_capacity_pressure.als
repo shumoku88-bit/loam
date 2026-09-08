@@ -10,7 +10,7 @@ abstract sig RouteKind {}
 one sig Managed, Unmanaged, NoRoute extends RouteKind {}
 
 sig Coordinate {
-  role: one Role,
+  role: lone Role,
   polarity: one Polarity,
   route: one RouteKind
 }
@@ -25,6 +25,10 @@ fun explicitRouted : set Coordinate {
 
 fun defaultPressureRole : set Role {
   Expense + Liability
+}
+
+fun defaultNonPressureRole : set Role {
+  Asset + Income + Equity
 }
 
 fun selectedPressure : set Coordinate {
@@ -43,6 +47,21 @@ fun unmanagedPressure : set Coordinate {
 
 fun unroutedPressure : set Coordinate {
   { c: selectedPressure | c.route = NoRoute }
+}
+
+fun unresolvedEligibility : set Coordinate {
+  { c: Coordinate |
+      c.polarity = Positive and
+      c.route = NoRoute and
+      no c.role }
+}
+
+fun resolvedNonPressure : set Coordinate {
+  { c: Coordinate |
+      c.polarity = Negative or
+      (c.polarity = Positive and
+       c.route = NoRoute and
+       c.role in defaultNonPressureRole) }
 }
 
 pred representativeHousehold {
@@ -68,10 +87,10 @@ pred representativeHousehold {
     fundingSource.route = NoRoute and
 
     wifi in managedPressure and
-    pensionReceipt not in selectedPressure and
+    pensionReceipt in resolvedNonPressure and
     debtRepayment in unroutedPressure and
     savingsTransfer in managedPressure and
-    fundingSource not in selectedPressure
+    fundingSource in resolvedNonPressure
 }
 
 pred sameRoleDifferentPressure {
@@ -80,7 +99,7 @@ pred sameRoleDifferentPressure {
     a.polarity = b.polarity and
     a.route != b.route and
     a in selectedPressure and
-    b not in selectedPressure
+    b in resolvedNonPressure
 }
 
 pred liabilityWithoutRouteStillPressures {
@@ -89,6 +108,14 @@ pred liabilityWithoutRouteStillPressures {
     c.polarity = Positive and
     c.route = NoRoute and
     c in unroutedPressure
+}
+
+pred unresolvedPositiveStaysVisible {
+  some c: Coordinate |
+    no c.role and
+    c.polarity = Positive and
+    c.route = NoRoute and
+    c in unresolvedEligibility
 }
 
 assert AllPositiveCoordinatesArePressure {
@@ -116,7 +143,7 @@ assert PositiveExpenseOrLiabilityAlwaysPressures {
 assert UnroutedPositiveAssetDoesNotPressure {
   all c: Coordinate |
     (c.polarity = Positive and c.role = Asset and c.route = NoRoute) implies
-      c not in selectedPressure
+      c in resolvedNonPressure
 }
 
 assert ExplicitlyRoutedPositiveAssetPressures {
@@ -125,9 +152,27 @@ assert ExplicitlyRoutedPositiveAssetPressures {
       c in selectedPressure
 }
 
+assert ExplicitRouteResolvesMissingRoleIntoPressure {
+  all c: Coordinate |
+    (no c.role and c.polarity = Positive and c.route != NoRoute) implies
+      c in selectedPressure
+}
+
+assert MissingRoleWithoutRouteRemainsUnresolved {
+  all c: Coordinate |
+    (no c.role and c.polarity = Positive and c.route = NoRoute) implies
+      c in unresolvedEligibility
+}
+
+assert MissingRoleIsResolvedNonPressure {
+  all c: Coordinate |
+    (no c.role and c.polarity = Positive and c.route = NoRoute) implies
+      c in resolvedNonPressure
+}
+
 assert NegativeCoordinatesNeverPressure {
   all c: Coordinate |
-    c.polarity = Negative implies c not in selectedPressure
+    c.polarity = Negative implies c in resolvedNonPressure
 }
 
 assert PressurePartitionsSelectedCoordinates {
@@ -137,14 +182,26 @@ assert PressurePartitionsSelectedCoordinates {
   no unmanagedPressure & unroutedPressure
 }
 
+assert PressureNonPressureUnresolvedPartition {
+  Coordinate = selectedPressure + resolvedNonPressure + unresolvedEligibility
+  no selectedPressure & resolvedNonPressure
+  no selectedPressure & unresolvedEligibility
+  no resolvedNonPressure & unresolvedEligibility
+}
+
 run representativeHousehold for exactly 5 Coordinate
 run sameRoleDifferentPressure for exactly 2 Coordinate
 run liabilityWithoutRouteStillPressures for exactly 1 Coordinate
+run unresolvedPositiveStaysVisible for exactly 1 Coordinate
 check AllPositiveCoordinatesArePressure for exactly 2 Coordinate
 check RoleAndPolarityAloneDetermineSelectedPressure for exactly 2 Coordinate
 check RolePolarityAndRoutingDetermineSelectedPressure for exactly 2 Coordinate
 check PositiveExpenseOrLiabilityAlwaysPressures for exactly 2 Coordinate
 check UnroutedPositiveAssetDoesNotPressure for exactly 2 Coordinate
 check ExplicitlyRoutedPositiveAssetPressures for exactly 2 Coordinate
+check ExplicitRouteResolvesMissingRoleIntoPressure for exactly 2 Coordinate
+check MissingRoleWithoutRouteRemainsUnresolved for exactly 2 Coordinate
+check MissingRoleIsResolvedNonPressure for exactly 1 Coordinate
 check NegativeCoordinatesNeverPressure for exactly 2 Coordinate
 check PressurePartitionsSelectedCoordinates for exactly 3 Coordinate
+check PressureNonPressureUnresolvedPartition for exactly 3 Coordinate
