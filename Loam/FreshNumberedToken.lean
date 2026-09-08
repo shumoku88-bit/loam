@@ -5,18 +5,18 @@ namespace Loam
 set_option autoImplicit false
 
 /-!
-Shares only deterministic `prefix ++ Nat` candidate enumeration. Identity
+Shares only deterministic `stem ++ Nat` candidate enumeration. Identity
 namespace, collision policy, starting index, fuel, and typed wrapper stay local.
 -/
 
 def firstUnusedNumberedToken?
-    (prefix : String)
+    (stem : String)
     (used? : String → Bool) : Nat → Nat → Option String
   | _, 0 => none
   | index, fuel + 1 =>
-      let candidate := prefix ++ toString index
+      let candidate := stem ++ toString index
       if used? candidate then
-        firstUnusedNumberedToken? prefix used? (index + 1) fuel
+        firstUnusedNumberedToken? stem used? (index + 1) fuel
       else
         some candidate
 
