@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Reproduce the production-surface inventory used by the Observation 226
+# compression audit. Run from the repository root.
+#
+# This intentionally reports source shape before making any claim about
+# semantic complexity. Tests, historical Lean observations, experiments, and
+# formal-model archives are reported separately rather than silently folded
+# into production counts.
+
+if [[ ! -d Loam ]]; then
+  echo "audit-production-surface: run from the LOAM repository root" >&2
+  exit 2
+fi
+
+count_group() {
+  local label="$1"
+  shift
+  local -a files=("$@")
+
+  local file_count=${#files[@]}
+  local line_count=0
+  if (( file_count > 0 )); then
+    line_count=$(cat "${files[@]}" | wc -l | tr -d ' ')
+  fi
+
+  printf '%-28s %8d %8d\n' "$label" "$line_count" "$file_count"
+}
+
+mapfile -t core < <(find Loam/Core -type f -name '*.lean' -print | sort)
+mapfile -t application < <(find Loam/Application -type f -name '*.lean' -print | sort)
+mapfile -t persistence < <(find Loam/Persistence -type f -name '*.lean' -print | sort)
+mapfile -t cli < <(find Loam/Cli -type f -name '*.lean' -print | sort)
+mapfile -t tui < <(find Loam/Tui -type f -name '*.lean' -print | sort)
+mapfile -t tests < <(find Loam/Tests -type f -name '*.lean' -print 2>/dev/null | sort)
+mapfile -t observations < <(find Loam/Observations -type f -name '*.lean' -print 2>/dev/null | sort)
+
+# Top-level Lean implementation files are intentionally classified by role.
+# Umbrella modules only re-export/import layers and are not writer machinery.
+mapfile -t top_level_all < <(find Loam -maxdepth 1 -type f -name '*.lean' -print | sort)
+writer_top=()
+other_top=()
+for file in "${top_level_all[@]}"; do
+  base=${file##*/}
+  case "$base" in
+    Core.lean|Application.lean|Persistence.lean|Observations.lean|Tests.lean)
+      ;;
+    *Publisher.lean|WriterOwnership.lean|*Manifest*.lean|*Authority*.lean)
+      writer_top+=("$file")
+      ;;
+    *)
+      other_top+=("$file")
+      ;;
+  esac
+done
+
+printf '%-28s %8s %8s\n' 'surface' 'lines' 'files'
+printf '%-28s %8s %8s\n' '----------------------------' '--------' '--------'
+count_group 'Core' "${core[@]}"
+count_group 'Application' "${application[@]}"
+count_group 'Persistence' "${persistence[@]}"
+count_group 'Writer/top-level candidate' "${writer_top[@]}"
+count_group 'Other top-level Lean' "${other_top[@]}"
+count_group 'CLI' "${cli[@]}"
+count_group 'TUI' "${tui[@]}"
+count_group 'Tests' "${tests[@]}"
+count_group 'Historical observations' "${observations[@]}"
+
+production_files=(
+  "${core[@]}"
+  "${application[@]}"
+  "${persistence[@]}"
+  "${writer_top[@]}"
+  "${other_top[@]}"
+  "${cli[@]}"
+  "${tui[@]}"
+)
+count_group 'Practical subtotal' "${production_files[@]}"
+
+printf '\nExecutable roots from lakefile.lean:\n'
+grep -E '^lean_exe[[:space:]]+' lakefile.lean || true
+
+printf '\nTop-level writer candidates:\n'
+printf '%s\n' "${writer_top[@]}"
+
+printf '\nOther top-level Lean files requiring audit classification:\n'
+printf '%s\n' "${other_top[@]}"
+
+printf '\nNotes:\n'
+printf '%s\n' '- Counts are physical source lines, not semantic-complexity measurements.'
+printf '%s\n' '- A file being present does not prove it is reachable from a current production entrance.'
+printf '%s\n' '- Phase 1 must add reachability classification before this inventory is considered complete.'
