@@ -203,18 +203,23 @@ def resetCalendarMonth (state : State) : State :=
   | none =>
       withError state "Calendar-month reset unavailable; enter an explicit window."
 
+private def presetAt? : List Loam.BoundaryPresetConfig.Preset → Nat → Option Loam.BoundaryPresetConfig.Preset
+  | [], _ => none
+  | preset :: _, 0 => some preset
+  | _ :: rest, index + 1 => presetAt? rest index
+
 /-- Human-readable label for presentation only; it never enters a report query. -/
 def windowSourceLabel (state : State) : String :=
   match state.windowSource with
   | .calendarMonth => "Calendar Month"
   | .custom => "Custom"
   | .preset index =>
-      match state.windowPresets.get? index with
+      match presetAt? state.windowPresets index with
       | some preset => preset.name
       | none => "Unavailable preset"
 
 private def selectPreset (state : State) (index : Nat) : State :=
-  match state.windowPresets.get? index with
+  match presetAt? state.windowPresets index with
   | none =>
       clearResults {
         state with
