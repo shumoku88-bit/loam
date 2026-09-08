@@ -27,13 +27,20 @@ def main : IO Unit := do
   expect (contains "0 remembered purposes" emptyText) "empty Capacity count was not rendered"
   expect (contains "no cycle or time window is inferred" emptyText)
     "empty Capacity surface lost its no-window boundary"
+  expect (contains "t transfer" emptyText)
+    "empty Capacity surface did not expose the first transfer entrance"
+  expect (contains "not money available to allocate" emptyText)
+    "empty Capacity surface lost its unallocated-boundary warning"
 
   match Loam.Tui.Capacity.update empty .back with
   | .back => pure ()
   | _ => throw (IO.userError "Capacity back action did not return Home intent")
   match Loam.Tui.Capacity.update empty .other with
   | .stay _ => pure ()
-  | _ => throw (IO.userError "ordinary Capacity input escaped the read-only surface")
+  | _ => throw (IO.userError "ordinary Capacity input escaped the workspace")
+  match Loam.Tui.Capacity.update empty .transfer with
+  | .transfer _ => pure ()
+  | _ => throw (IO.userError "empty Capacity workspace did not emit transfer intent")
 
   let food : Loam.CapacityReview.Row :=
     { purpose := ⟨"food"⟩, entitlement := Quantity.ofQuanta 60 }
@@ -49,7 +56,17 @@ def main : IO Unit := do
   expect (contains "not priority" text) "Capacity surface omitted its ordering non-claim"
   expect (contains "No cycle, period, or selected-day meaning" text)
     "Capacity surface accidentally implied temporal policy"
-  expect (contains "Read-only" text) "Capacity surface lost its read-only boundary"
+  expect (contains "shared CapacityPublisher owns publication" text)
+    "Capacity surface did not identify the shared publication boundary"
+  expect (Loam.Tui.Capacity.selectedPurpose? state == some ⟨"food"⟩)
+    "Capacity did not expose the selected purpose as local transfer seed"
+
+  let refreshed := Loam.Tui.Capacity.refreshed
+    { rows := [food, groceries,
+        { purpose := ⟨"buffer"⟩, entitlement := Quantity.ofQuanta 0 }] }
+    (Loam.Tui.Capacity.moveNext state)
+  expect (Loam.Tui.Capacity.selectedPurpose? refreshed == some ⟨"groceries"⟩)
+    "fresh Capacity review did not preserve the local selected row coordinate"
 
   let many := Loam.Tui.Capacity.initial { rows := (List.range 14).map purposeRow }
   match many.selected with
@@ -85,4 +102,4 @@ def main : IO Unit := do
   expect (contains "No next Capacity row" beyond.notice)
     "Capacity final-row boundary did not fail safely"
 
-  IO.println "TUI Capacity: full-list local navigation, all-retained projection, no-window boundary and read-only behavior passed."
+  IO.println "TUI Capacity: navigation, transfer intent, fresh selection, all-retained projection and no-window boundary passed."

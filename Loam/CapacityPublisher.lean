@@ -45,6 +45,15 @@ def coordinateToken : CapacityCoordinate → String
   | .unallocated => "unallocated"
   | .purpose purpose => purpose.token
 
+/-- Parse the minimal shared endpoint vocabulary without introducing a Purpose registry. -/
+def parseCoordinate? (token : String) : Option CapacityCoordinate :=
+  if token = "unallocated" then
+    some .unallocated
+  else if Loam.Persistence.validToken token then
+    some (.purpose ⟨token⟩)
+  else
+    none
+
 /-- Pure shape checks shared by frontends; current entitlement is checked under ownership. -/
 def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.effectiveOn then
