@@ -13,6 +13,8 @@ import Loam.Tui.Balances
 import Loam.Tui.Capacity
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
+import Loam.Tui.CapacityRebalance
+import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.Reports
 import Loam.BoundaryPresetConfig
 import Loam.MovementPublisher
@@ -693,6 +695,7 @@ partial def capacityLoop
       | .up | .input 'k' | .input 'K' => .up
       | .down | .input 'j' | .input 'J' => .down
       | .input 't' | .input 'T' => .transfer
+      | .input 'r' | .input 'R' => .rebalance
       | _ => .other
   match Loam.Tui.Capacity.update state event with
   | .back => return false
@@ -702,6 +705,24 @@ partial def capacityLoop
       let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
+        bounds (dataDir / "capacity.loam") editor editorFrame
+      let fresh ←
+        match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+        | .ok fresh => pure fresh
+      let refreshed := Loam.Tui.Capacity.refreshed fresh current
+      let covered ← attachCurrentCoverage dataDir root observedAt refreshed
+      let next := { covered with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
+      IO.print "\x1b[2J"
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      capacityLoop bounds dataDir root focusDate observedAt next nextFrame
+  | .rebalance current =>
+      let editor := Loam.Tui.CapacityRebalance.initial
+        current.snapshot current.coverage focusDate (Loam.Tui.Capacity.selectedPurpose? current)
+      let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      let notice ← Loam.Tui.CapacityRebalanceSession.run
         bounds (dataDir / "capacity.loam") editor editorFrame
       let fresh ←
         match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
