@@ -14,7 +14,7 @@ on:
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
-      - '.github/workflows/observation-*.yml'
+      - '.github/workflows/observation-021.yml'
   push:
     branches:
       - main
@@ -30,7 +30,7 @@ on:
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
-      - '.github/workflows/observation-*.yml'
+      - '.github/workflows/observation-021.yml'
   workflow_dispatch:
 
 permissions:
