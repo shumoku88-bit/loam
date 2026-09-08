@@ -33,11 +33,14 @@ sidecars:
 - AccountingRole is read as the existing explicit partial classification;
 - EventCorrection preserves the existing absent-as-empty read policy.
 
-The caller supplies `[start, end)` and `observedAt` separately. `start` and `end`
-bound Capacity/Actual window evidence. Scheduled pressure remains the qualified
-current-open projection due before `end`; `observedAt` only selects the historical
-ScheduledRouting evidence visible to that current answer. The module does not
-pretend to rewind Scheduled lifecycle knowledge to `start`.
+`loadSnapshotAt` receives `[start, end)` and `observedAt` separately. `start` and
+`end` bound Capacity/Actual window evidence. Scheduled pressure remains the
+qualified current-open projection due before `end`; `observedAt` only selects the
+historical ScheduledRouting evidence visible to that current answer. The module
+does not pretend to rewind Scheduled lifecycle knowledge to `start`.
+
+The production `loadSnapshot` wrapper resolves the local current date and records
+that resolved observation coordinate in the returned Snapshot.
 -/
 
 structure Row where
@@ -128,16 +131,16 @@ private def consistentFrontier (rows : List ProjectedRow) : Bool :=
   | first :: rest => rest.all (fun row => row.frontier == first.frontier)
 
 /--
-Load one immutable production evidence snapshot and answer an explicit JPY
-`[start, end)` query for every Purpose represented by retained Capacity evidence.
+Load one immutable production evidence snapshot at an explicit observation date
+and answer an explicit JPY `[start, end)` query for every Purpose represented by
+retained Capacity evidence.
 
-`observedAt` is a separate current observation coordinate for ScheduledRouting.
 Managed current-open Scheduled pressure due before `end` is subtracted from each
 Purpose's window Remaining to derive Headroom. Measure-wide unmanaged, unrouted,
 and unresolved eligibility pressure is published once at snapshot level instead
 of being repeated as though each Purpose owned it.
 -/
-def loadSnapshot
+def loadSnapshotAt
     (dataDir manifestRoot : System.FilePath)
     (start end_ observedAt : String) : IO (Except String Snapshot) := do
   if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate end_ ||
@@ -229,5 +232,13 @@ def loadSnapshot
         rows := projected.map (fun row => row.row)
         scheduledFrontier := frontier
       }
+
+/-- Production current-open Budget Window using the resolved local calendar date. -/
+def loadSnapshot
+    (dataDir manifestRoot : System.FilePath)
+    (start end_ : String) : IO (Except String Snapshot) := do
+  let some observedAt ← Loam.ActualDate.todayIso?
+    | return .error "loam: could not determine the local observation date"
+  loadSnapshotAt dataDir manifestRoot start end_ observedAt
 
 end Loam.BudgetWindowReview
