@@ -1,202 +1,321 @@
+"""Synthetic read-only review, terminal navigation, and writer composition checks."""
+import contextlib
+import datetime as dt
+import hashlib
 import os
-import pathlib
-import shutil
+from pathlib import Path
+import pty
+import re
+import select
 import subprocess
 import tempfile
+import time
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-TODAY = "2026-09-08"
+ROOT = Path(__file__).resolve().parents[1]
+LOAM = ROOT / ".lake/build/bin/loam"
+MOVEMENT = ROOT / ".lake/build/bin/loamMovement"
+ENV = {k: v for k, v in os.environ.items() if not k.startswith("LOAM_")}
+TODAY = dt.date.today().isoformat()
 
 
-def run(*args, input_text=None, env=None):
-    return subprocess.run(
-        args,
-        cwd=ROOT,
-        input=input_text,
-        text=True,
-        capture_output=True,
-        env=env,
-    )
+def run(*args, input="", env=None):
+    return subprocess.run(args, input=input, text=True, capture_output=True,
+                          env=env or ENV, cwd=ROOT, timeout=30)
 
 
-def sha256_text(text):
-    import hashlib
-    return hashlib.sha256(text.encode()).hexdigest()
+def escaped(text):
+    return text.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
+
+
+@contextlib.contextmanager
+def terminal(*args):
+    master, slave = pty.openpty()
+    proc = subprocess.Popen(args, stdin=slave, stdout=slave, stderr=slave, env=ENV, cwd=ROOT)
+    os.close(slave)
+
+    def exchange(command=None):
+        if command is not None:
+            os.write(master, (command + "\n").encode())
+        output = b""
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if select.select([master], [], [], 0.2)[0]:
+                output += os.read(master, 65536)
+                if output.endswith(b"\n> "):
+                    return output.decode()
+        raise AssertionError(f"terminal prompt timeout: {output!r}")
+
+    try:
+        yield exchange
+        os.write(master, b"q\n")
+        assert proc.wait(timeout=10) == 0
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+        os.close(master)
 
 
 class ReviewTests(unittest.TestCase):
-    def test_absent_adjacent_streams_and_empty_memory(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            memory = pathlib.Path(tmp) / "memory.loam"
-            memory.write_text("LOAM-EVENT-MEMORY\t1\n")
-            result = run("./tools/loam", "event-memory", "review", str(memory))
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("No records", result.stdout)
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.memory = self.root / "memory.loam"
+        self.corrections = self.root / "corrections.loam"
+        self.events = [(f"r{i:02}", TODAY, f"Coffee {i:02}", 100 + i) for i in range(23)] + [
+            ("zz-original", TODAY, "スーパー receipt-original", 999),
+            ("zz-fixed", TODAY, "", 75),
+            ("undated", None, "unknown-date receipt", 5),
+            ("ancient", "2001-01-01", "ancient receipt", 7),
+        ]
+        self.write_events()
+        self.write_corrections([("c1", "zz-original", "zz-fixed")])
+
+    def write_events(self):
+        memory = ["LOAM-EVENT-MEMORY\t1"]
+        dates = ["LOAM-ACTUAL-VALIDITY-HISTORY\t2"]
+        descriptions = ["LOAM-EVENT-DESCRIPTION-MEMORY\t1"]
+        for event, date, text, amount in self.events:
+            memory += [f"EVENT\t{event}", f"EFFECT\tfrom\twallet\tjpy\t{-amount}",
+                       f"EFFECT\tto\tfood\tjpy\t{amount}"]
+            if date:
+                dates.append(f"BASE\t{event}\t{date}")
+            if text:
+                descriptions.append(f"DESC\t{event}\t{escaped(text)}")
+        for suffix, rows in [("", memory), (".actual-validity", dates), (".descriptions", descriptions)]:
+            Path(str(self.memory) + suffix).write_text("\n".join(rows) + "\n")
+
+    def write_corrections(self, links):
+        self.corrections.write_text("LOAM-EVENT-CORRECTION-MEMORY\t1\n" +
+                                   "".join("CORRECTION\t" + "\t".join(link) + "\n" for link in links))
+
+    def review(self, *query):
+        result = run(LOAM, "review", self.memory, self.corrections, *query)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def snapshot(self):
+        return {p.name: p.read_bytes() for p in self.root.iterdir() if p.is_file()}
 
     def test_bounded_current_window_and_order_independence(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = pathlib.Path(tmp)
-            memory = tmp / "memory.loam"
-            validity = pathlib.Path(str(memory) + ".actual-validity")
-            descriptions = pathlib.Path(str(memory) + ".descriptions")
-            memory.write_text(
-                "LOAM-EVENT-MEMORY\t1\n"
-                "EVENT\te3\nEFFECT\te3-1\twallet\tjpy\t-300\n"
-                "EVENT\te1\nEFFECT\te1-1\twallet\tjpy\t-100\n"
-                "EVENT\te2\nEFFECT\te2-1\twallet\tjpy\t-200\n"
-            )
-            validity.write_text(
-                "LOAM-ACTUAL-VALIDITY-HISTORY\t2\n"
-                "BASE\te2\t2026-09-02\n"
-                "BASE\te3\t2026-09-03\n"
-                "BASE\te1\t2026-09-01\n"
-            )
-            descriptions.write_text(
-                "LOAM-EVENT-DESCRIPTION-MEMORY\t1\n"
-                "DESC\te3\tthird\n"
-                "DESC\te1\tfirst\n"
-                "DESC\te2\tsecond\n"
-            )
-            result = run("./tools/loam", "event-memory", "review", str(memory))
-            self.assertEqual(result.returncode, 0, result.stderr)
-            i3 = result.stdout.index("2026-09-03  [e3]")
-            i2 = result.stdout.index("2026-09-02  [e2]")
-            i1 = result.stdout.index("2026-09-01  [e1]")
-            self.assertLess(i3, i2)
-            self.assertLess(i2, i1)
-
-    def test_elided_effects_stay_searchable_and_have_full_detail(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = pathlib.Path(tmp)
-            memory = tmp / "memory.loam"
-            descriptions = pathlib.Path(str(memory) + ".descriptions")
-            memory.write_text(
-                "LOAM-EVENT-MEMORY\t1\n"
-                "EVENT\te1\n"
-                "EFFECT\te1-1\ta\tjpy\t-1\n"
-                "EFFECT\te1-2\tb\tjpy\t-2\n"
-                "EFFECT\te1-3\tc\tjpy\t-3\n"
-                "EFFECT\te1-4\td\tjpy\t6\n"
-            )
-            descriptions.write_text(
-                "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\te1\tfour effects\n"
-            )
-            result = run("./tools/loam", "event-memory", "review", str(memory))
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("+1 more", result.stdout)
-            result = run("./tools/loam", "event-memory", "review", str(memory), "/d")
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("[e1]", result.stdout)
+        before = self.snapshot()
+        output = self.review()
+        self.assertIn("Showing 1-10 of 24 matches", output)
+        self.assertIn(TODAY[5:] + ":24", output)
+        self.assertIn("Date unknown (current): 1", output)
+        self.assertIn("not entry time", output)
+        self.assertNotIn("receipt-original", output)
+        self.assertEqual(len(re.findall(r"^  \d+\. ", output, re.M)), 10)
+        self.assertEqual(self.snapshot(), before)
+        self.events.reverse()
+        self.write_events()
+        self.assertEqual(self.review(), output)
+        self.events += [(f"large-{i}", TODAY, "long " * 100, 1) for i in range(300)]
+        self.write_events()
+        grown = self.review()
+        self.assertIn("of 324 matches", grown)
+        self.assertLess(len(grown.splitlines()), 25)
+        self.assertLess(len(grown), 2400)
 
     def test_search_scope_history_and_missing_evidence(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = pathlib.Path(tmp)
-            memory = tmp / "memory.loam"
-            validity = pathlib.Path(str(memory) + ".actual-validity")
-            descriptions = pathlib.Path(str(memory) + ".descriptions")
-            memory.write_text(
-                "LOAM-EVENT-MEMORY\t1\n"
-                "EVENT\te1\nEFFECT\te1-1\twallet\tjpy\t-1\n"
-                "EVENT\te2\nEFFECT\te2-1\tbank\tjpy\t1\n"
-            )
-            validity.write_text(
-                "LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\te1\t2026-09-01\n"
-            )
-            descriptions.write_text(
-                "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\te1\tcoffee\n"
-            )
-            result = run("./tools/loam", "event-memory", "review", str(memory), "/coffee")
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("[e1]", result.stdout)
-            self.assertNotIn("[e2]", result.stdout)
-            result = run("./tools/loam", "event-memory", "review", str(memory), "u")
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("date unknown  [e2]", result.stdout)
+        output = self.review("/スーパー")
+        self.assertIn("all dates + correction history", output)
+        self.assertIn("receipt-original", output)
+        self.assertIn("[corrected -> #zz-fixed]", output)
+        self.assertIn("ancient receipt", self.review("/ancient"))
+        self.assertIn("unknown-date receipt", self.review("/unknown-date"))
+        self.assertIn("unknown-date receipt", self.review("u"))
+        self.assertIn("Coffee 00", self.review("/cOfFeE 00"))
+        self.assertIn("wallet: -100 jpy", self.review("/-100"))
+        self.assertIn("does not prove", self.review("/not-present"))
+        self.assertNotIn("receipt-original", self.review(TODAY))
+        self.events = [(event, None if event == "zz-original" else date, text, amount)
+                       for event, date, text, amount in self.events]
+        self.write_events()
+        historical = self.review("/receipt-original")
+        self.assertIn("Date unknown (current): 1", historical)
+        self.assertIn("\ndate unknown\n", historical)
 
-    def test_terminal_navigation_and_snapshot_selection(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp = pathlib.Path(tmp)
-            memory = tmp / "memory.loam"
-            validity = pathlib.Path(str(memory) + ".actual-validity")
-            memory.write_text(
-                "LOAM-EVENT-MEMORY\t1\n"
-                "EVENT\te1\nEFFECT\te1-1\twallet\tjpy\t-1\n"
-                "EVENT\te2\nEFFECT\te2-1\twallet\tjpy\t-2\n"
-            )
-            validity.write_text(
-                "LOAM-ACTUAL-VALIDITY-HISTORY\t2\n"
-                "BASE\te1\t2026-09-01\nBASE\te2\t2026-09-02\n"
-            )
-            result = run("./tools/loam", "event-memory", "review", str(memory), input_text="j\nk\nq\n")
-            self.assertEqual(result.returncode, 0, result.stderr)
+    def test_elided_effects_stay_searchable_and_have_full_detail(self):
+        text = self.memory.read_text()
+        self.memory.write_text(text.replace("EFFECT\tto\tfood\tjpy\t100\n",
+                                            "EFFECT\tto\tfood\tjpy\t100\nEFFECT\textra\tpoints\tusd\t3\n"))
+        output = self.review("/points")
+        self.assertIn("(+1 effects; detail)", output)
+        with terminal(LOAM, "review", self.memory, self.corrections, "/points") as exchange:
+            exchange()
+            detail = exchange("1")
+            self.assertIn("points: 3 usd", detail)
+            self.assertIn("wallet: -100 jpy", detail)
+            exchange("")
 
-    def test_menu_is_quiet_and_does_not_consume_next_action(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            data = pathlib.Path(tmp)
-            env = os.environ.copy()
-            env["LOAM_DATA_DIR"] = str(data)
-            result = run("./tools/loam", input_text="q\n", env=env)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn("Build completed successfully", result.stdout)
-
-    def test_writer_correction_recovery_then_date_correction(self):
-        self.skipTest("covered by dedicated correction workflows")
+    def test_absent_adjacent_streams_and_empty_memory(self):
+        for suffix in [".actual-validity", ".descriptions"]:
+            Path(str(self.memory) + suffix).unlink()
+        self.corrections.unlink()
+        self.assertIn("Date unknown (current): 27", self.review())
+        self.assertIn("Showing 1-10 of 27", self.review("u"))
+        self.memory.write_text("LOAM-EVENT-MEMORY\t1\n")
+        self.assertIn("No matches", self.review())
+        result = run(LOAM, "review", self.memory, self.corrections, "2026-02-29")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
 
     def test_all_admission_failures_precede_filtering(self):
-        self.skipTest("covered by dedicated review workflow fixtures")
+        cases = [
+            [("c1", "r00", "missing")],
+            [("c1", "r00", "r01"), ("c2", "r00", "r02")],
+            [("c1", "r00", "r02"), ("c2", "r01", "r02")],
+            [("c1", "r00", "r01"), ("c2", "r01", "r00")],
+        ]
+        for links in cases:
+            self.write_corrections(links)
+            result = run(LOAM, "review", self.memory, self.corrections, "/not-present")
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("movement corrections", result.stderr)
+        self.write_corrections([])
+        validity = Path(str(self.memory) + ".actual-validity")
+        with validity.open("a") as stream:
+            stream.write(f"REVISION\tbranch-a\tr00\t{TODAY}\nREVISION\tbranch-b\tr00\t{TODAY}\n"
+                         "CORRECTION\tca\tROOT\tr00\tbranch-a\n"
+                         "CORRECTION\tcb\tROOT\tr00\tbranch-b\n")
+        result = run(LOAM, "review", self.memory, self.corrections, "u")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("actual-validity corrections", result.stderr)
+        self.write_events()
+        Path(str(self.memory) + ".descriptions").write_text("BROKEN\n")
+        result = run(LOAM, "review", self.memory, self.corrections)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("event-description", result.stderr)
+
+    def test_terminal_navigation_and_snapshot_selection(self):
+        before = self.snapshot()
+        with terminal(LOAM, "review", self.memory, self.corrections) as exchange:
+            self.assertIn("Coffee 00", exchange())
+            self.assertIn("Showing 11-20", exchange("more"))
+            self.assertIn("[r10]", exchange("1"))
+            exchange("")
+            self.assertIn("Showing 1-10", exchange("back"))
+            self.assertIn("No matches", exchange("n"))
+            self.assertIn("Coffee 00", exchange("p"))
+            self.assertIn("Day " + TODAY, exchange(TODAY))
+            self.assertIn("unknown-date receipt", exchange("u"))
+            self.assertIn("[corrected -> #zz-fixed]", exchange("/スーパー"))
+            self.assertIn("corrects #zz-original", exchange("#zz-fixed"))
+            exchange("")
+            exchange("t")
+            self.events.insert(0, ("aaa-new", TODAY, "new arrival", 2))
+            self.write_events()
+            self.assertIn("[r00]", exchange("1"))
+            exchange("")
+            self.assertIn("new arrival", exchange("r"))
+        self.events.pop(0)
+        self.write_events()
+        self.assertEqual(self.snapshot(), before)
+
+    def test_menu_is_quiet_and_does_not_consume_next_action(self):
+        before = self.snapshot()
+        result = run(ROOT / "tools/loam", input="2\n3\nm\nb\nq\n",
+                     env={**ENV, "LOAM_DATA_DIR": str(self.root)})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        opening = result.stdout.split("> ", 1)[0]
+        self.assertIn("3. Show balances", opening)
+        self.assertNotIn("integrity", opening)
+        self.assertIn("No balances are selected", result.stdout)
+        self.assertIn("integrity  Review correction integrity", result.stdout)
+        self.assertNotIn("starting", result.stdout.lower())
+        self.assertNotIn("choice not understood", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_writer_correction_recovery_then_date_correction(self):
+        memory = self.root / "writer.loam"
+        corrections = self.root / "writer-corrections.loam"
+        Path(str(memory) + ".locus-admission").write_text(
+            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n")
+        result = run(MOVEMENT, memory, input="wallet\n100\n\nfood\n100\n\n",
+                     env={**ENV, "LOAM_OCCURRENCE_DATE": TODAY, "LOAM_DESCRIPTION": "recognition text"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stage = Path(str(memory) + ".loam-stage")
+        stage.mkdir()
+        replacement = "1\nwallet\n110\n\nfood\n110\n\n"
+        interrupted = run(LOAM, "correct", memory, corrections, input=replacement)
+        self.assertNotEqual(interrupted.returncode, 0)
+        unavailable = run(LOAM, "review", memory, corrections)
+        self.assertEqual(unavailable.returncode, 2)
+        self.assertEqual(unavailable.stdout, "")
+        stage.rmdir()
+        retried = run(LOAM, "correct", memory, corrections, input=replacement)
+        self.assertEqual(retried.returncode, 0, retried.stderr)
+        output = run(LOAM, "review", memory, corrections).stdout
+        self.assertIn("of 1 matches", output)
+        self.assertIn("wallet: -110 jpy", output)
+        self.assertNotIn("wallet: -100 jpy", output)
+        found = run(LOAM, "review", memory, corrections, "/recognition").stdout
+        self.assertIn("[corrected -> #replacement-1]", found)
+        dated = run(LOAM, "correct-date", memory, corrections, input="1\n2001-01-01\n")
+        self.assertEqual(dated.returncode, 0, dated.stderr)
+        self.assertIn("No matches", run(LOAM, "review", memory, corrections).stdout)
+        self.assertIn("wallet: -110 jpy", run(LOAM, "review", memory, corrections, "2001-01-01").stdout)
+        raw = run(LOAM, "event-memory", "review", memory)
+        self.assertEqual(raw.returncode, 0, raw.stderr)
+        self.assertIn("[record-1]", raw.stdout)
+        self.assertIn("2001-01-01  [replacement-1]", raw.stdout)
 
 
 class ManifestMenuTests(unittest.TestCase):
+    """Selected Movement authority stays readable while new writes obey explicit Locus policy."""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = pathlib.Path(self.temp.name)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
         self.authority = self.root / "movement-authority"
-        self.authority.mkdir()
-        self.env = os.environ.copy()
-        self.env["LOAM_DATA_DIR"] = str(self.root)
-        self.env["LOAM_MOVEMENT_MANIFEST_ROOT"] = str(self.authority)
+        self.env = {**ENV, "LOAM_DATA_DIR": str(self.root)}
         self.families = {
-            "Event": "LOAM-EVENT-MEMORY\t1\nEVENT\tseed\nEFFECT\tseed-a\twallet\tjpy\t1000\nEFFECT\tseed-b\tequity:opening-balances\tjpy\t-1000\n",
-            "ActualValidity": "LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\tseed\t2026-09-01\n",
-            "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tseed\tmanifest receipt\n",
+            "Event": "LOAM-EVENT-MEMORY\t1\n"
+                     "EVENT\topening\nEFFECT\topening-source\topening-source\tjpy\t-1000\n"
+                     "EFFECT\topening-wallet\twallet\tjpy\t1000\n"
+                     "EVENT\told\nEFFECT\tfrom\twallet\tjpy\t-100\nEFFECT\tto\tfood\tjpy\t100\n"
+                     "EVENT\tfixed\nEFFECT\tfrom\twallet\tjpy\t-75\nEFFECT\tto\tfood\tjpy\t75\n",
+            "ActualValidity": f"LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\topening\t{TODAY}\nBASE\told\t{TODAY}\nBASE\tfixed\t{TODAY}\n",
+            "EventDescription": "LOAM-EVENT-DESCRIPTION-MEMORY\t1\nDESC\tfixed\tmanifest receipt\n",
             "RelationUnit": "LOAM-RELATION-UNIT-MEMORY\t1\n",
             "RelationDischarge": "LOAM-RELATION-DISCHARGE-MEMORY\t1\n",
             "LocusAdmission": "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n",
         }
-        rows = ["LOAM-MOVEMENT-MANIFEST\t2"]
-        for family, text in self.families.items():
-            digest = sha256_text(text)
+        self.publish()
+        (self.root / "corrections.loam").write_text(
+            "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\told\tfixed\n")
+        (self.root / "zero-origin-coverage.loam").write_text(
+            "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\n")
+        (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
+
+    def publish(self, version=2):
+        families = self.families if version == 2 else {
+            key: value for key, value in self.families.items() if key != "LocusAdmission"
+        }
+        rows = [f"LOAM-MOVEMENT-MANIFEST\t{version}"]
+        for family, text in families.items():
+            digest = hashlib.sha256(text.encode()).hexdigest()
             relative = f"objects/{family}/{digest}.loam"
             target = self.authority / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(text)
             rows.append(f"{family}\t{relative}\t{digest}")
         (self.authority / "CURRENT").write_text("\n".join(rows) + "\n")
-        (self.root / "zero-origin-coverage.loam").write_text(
-            "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\n"
-        )
-        (self.root / "balance-view.tsv").write_text("wallet\tjpy\n")
-        (self.root / "scheduled.loam").write_text(
-            "LOAM-SCHEDULED-LIFECYCLE\t1\n"
-            "BEGIN\tScheduled\nLOAM-SCHEDULED-MEMORY\t1\nEND\tScheduled\n"
-            "BEGIN\tCompletion\nLOAM-SCHEDULED-COMPLETION-MEMORY\t1\nEND\tCompletion\n"
-            "BEGIN\tRetirement\nLOAM-SCHEDULED-RETIREMENT-MEMORY\t1\nEND\tRetirement\n"
-            "BEGIN\tReplacement\nLOAM-SCHEDULED-REPLACEMENT-MEMORY\t1\nEND\tReplacement\n"
-        )
-
-    def tearDown(self):
-        self.temp.cleanup()
-
-    def menu(self, input_text):
-        return run("./tools/loam", input_text=input_text, env=self.env)
 
     def snapshot(self):
-        return {
-            str(path.relative_to(self.root)): path.read_bytes()
-            for path in self.root.rglob("*")
-            if path.is_file()
-        }
+        return {str(p.relative_to(self.root)): p.read_bytes()
+                for p in self.root.rglob("*")
+                if p.is_file() and not p.name.endswith(".loam-writer-lock")}
+
+    def menu(self, commands):
+        return run(ROOT / "tools/loam", input=commands, env=self.env)
 
     def test_retired_sidecars_review_and_zero_origin_balances(self):
         before = self.snapshot()
@@ -245,49 +364,44 @@ class ManifestMenuTests(unittest.TestCase):
     def test_unapproved_locus_refuses_without_authority_change(self):
         self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
         before = self.snapshot()
-        result = self.menu("1\nunapproved\n25\n\nfood\n25\n\n")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("not approved", result.stderr)
-        self.assertEqual(self.snapshot(), before)
-
-    def test_direct_quantity_commands_refuse_invalid_selection(self):
-        before = self.snapshot()
-        (self.authority / "CURRENT").write_text("broken\n")
-        result = run(
-            "./tools/loam",
-            "balances",
-            str(self.root / "memory.loam"),
-            str(self.root / "corrections.loam"),
-            str(self.root / "zero-origin-coverage.loam"),
-            str(self.root / "balance-view.tsv"),
-            env=self.env,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.snapshot()["movement-authority/CURRENT"], b"broken\n")
-        self.assertEqual(before["zero-origin-coverage.loam"], self.snapshot()["zero-origin-coverage.loam"])
-
-    def test_version1_manifest_remains_readable_but_closed_for_new_write(self):
-        rows = ["LOAM-MOVEMENT-MANIFEST\t1"]
-        for family in ("Event", "ActualValidity", "EventDescription", "RelationUnit", "RelationDischarge"):
-            text = self.families[family]
-            digest = sha256_text(text)
-            relative = f"objects/{family}/{digest}.loam"
-            rows.append(f"{family}\t{relative}\t{digest}")
-        (self.authority / "CURRENT").write_text("\n".join(rows) + "\n")
-        result = self.menu("2\nq\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("manifest receipt", result.stdout)
-        before = self.snapshot()
-        result = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
-        self.assertIn("not approved", result.stderr)
+        result = self.menu("1\nwallet\n25\n\ncafe\n25\n\n")
+        self.assertIn("not approved for new publication", result.stderr)
         self.assertEqual(self.snapshot(), before)
 
     def test_historical_locus_can_be_read_while_disallowed_for_new_write(self):
-        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
-        result = self.menu("2\nq\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("wallet", result.stdout)
+        self.families["LocusAdmission"] = (
+            "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\n")
+        self.publish()
+        read = self.menu("2\nq\n")
+        self.assertEqual(read.returncode, 0, read.stderr)
+        self.assertIn("manifest receipt", read.stdout)
         before = self.snapshot()
-        result = self.menu("1\nequity:opening-balances\n1\n\nwallet\n1\n\n")
-        self.assertIn("not approved", result.stderr)
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
+        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
+        self.assertIn("not approved for new publication", refused.stderr)
         self.assertEqual(self.snapshot(), before)
+
+    def test_version1_manifest_remains_readable_but_closed_for_new_write(self):
+        self.publish(version=1)
+        read = self.menu("2\nq\n")
+        self.assertEqual(read.returncode, 0, read.stderr)
+        self.assertIn("manifest receipt", read.stdout)
+        before = self.snapshot()
+        self.env.update(LOAM_OCCURRENCE_DATE=TODAY)
+        refused = self.menu("1\nwallet\n25\n\nfood\n25\n\n")
+        self.assertIn("not approved for new publication", refused.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_direct_quantity_commands_refuse_invalid_selection(self):
+        binary = ROOT / ".lake/build/bin/loamDailyQuantity"
+        for command in ("balances", "current"):
+            for selection in ("", str(self.root / "missing")):
+                result = run(binary, command, self.root / "memory.loam",
+                             self.root / "corrections.loam", self.root / "zero-origin-coverage.loam",
+                             env={**ENV, "LOAM_MOVEMENT_MANIFEST_ROOT": selection})
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+
+
+if __name__ == "__main__":
+    unittest.main()
