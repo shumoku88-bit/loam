@@ -1,0 +1,56 @@
+name: Operational Continuity
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/OperationalContinuity.lean'
+      - 'Loam/Cli/DoctorCli.lean'
+      - 'Loam/Tests/OperationalContinuity.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/operational-continuity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Qualify read-only household diagnosis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build household doctor
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamDoctor
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify fail-closed diagnosis and human explanation
+        run: lake env lean --run Loam/Tests/OperationalContinuity.lean "$(mktemp -d)/operational-continuity"
+
+      - name: Verify practical doctor entrance stays read-only and explanatory
+        shell: bash
+        run: |
+          data_dir="$(mktemp -d)/household"
+          mkdir -p "$data_dir"
+          set +e
+          output="$(./tools/loam doctor "$data_dir" 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          grep -Fq 'LOAM operational diagnosis' <<<"$output"
+          grep -Fq 'Status: blocked' <<<"$output"
+          grep -Fq 'What did not happen:' <<<"$output"
+          grep -Fq 'This diagnosis is read-only.' <<<"$output"
+          grep -Fq 'Technical detail:' <<<"$output"
