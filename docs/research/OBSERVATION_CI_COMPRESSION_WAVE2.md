@@ -124,6 +124,14 @@ integrated historical probe  -> RETIRE dedicated CI
 stronger selected theorem    -> LET the theorem take over
 ```
 
+## Follow-up — Observation 043-051 ownership
+
+Observations 043-046 remain selected Lean obligations. They still protect negative structural boundaries that prevent accidental ontology growth: acyclicity alone is insufficient, well-founded traversal is stronger than frontier coverage, and coverage does not imply a canonical stored witness. Observation 080 additionally uses 043-044 as the Lean side of its cross-tool regime comparison.
+
+Observations 047-051 also retain independent Alloy or TLA+ witnesses and continue to feed later research: selection policy, allocation eligibility, accounting role, asynchronous settlement, and reconciliation evidence remain live distinctions. Their workflows therefore stay, but their broad research/toolchain triggers are removed.
+
+Each retained 047-051 workflow now triggers only from the exact model/config files it executes or its own workflow file. No solver step or expected receipt changes.
+
 ## Safety criterion
 
 This wave is successful only if exact-head CI keeps all retained narrowed solver checks green and the selected Lean owner remains available for the lifted Observation 043 theorem. No Core, Application, Persistence, writer, authority, TUI, or canonical-data semantics are changed here.
