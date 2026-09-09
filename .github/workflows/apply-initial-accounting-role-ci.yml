@@ -9,7 +9,7 @@ on:
       - '.github/workflows/apply-initial-accounting-role-ci.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apply:
@@ -28,11 +28,6 @@ jobs:
             echo 'expected the exact patch to change Production TUI workflow' >&2
             exit 1
           fi
-
-      - name: Commit Production TUI workflow integration
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/workflows/tui.yml
-          git commit -m 'ci(tui): qualify initial AccountingRole administration'
-          git push origin HEAD:feat/initial-accounting-role-assignment
+          printf 'PATCHED_TUI_B64='
+          base64 -w0 .github/workflows/tui.yml
+          printf '\n'
