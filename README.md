@@ -1,8 +1,8 @@
 # loam
 
-A small laboratory for asking what structures appear before we decide what a household system is supposed to be.
+LOAM is a household system for day-to-day recording and review, with formal-modeling experiments used to test parts of its design.
 
-The project begins with a deliberately narrow question:
+The research began with a deliberately narrow question:
 
 > If finite resources are distributed through time and purpose without assuming accounts, transactions, budgets, or envelopes, what structures appear on their own?
 
@@ -107,28 +107,19 @@ Historically, a private whole-file dogfood run crossed this boundary successfull
 
 Generic read-only shadow tools remain only where they answer an independent research question. They are not operational bridges, migration authority, or compatibility layers for HRA / h-kernel.
 
-## Current household dogfood checkpoint
+## Current household use
 
-LOAM has now crossed a second practical boundary beyond the first stateless quantity shadow.
+LOAM is the current day-to-day household system. Ordinary real-life recording is now done in LOAM rather than in a parallel HRA workflow.
 
-The household and research slice documented by this checkpoint includes:
+Selected `loam-data` objects, manifests, and configuration carry current operational household meaning. The implementation can continue to change, but a representation change that affects operational data needs an explicit migration, reconstruction, or other qualified transition that preserves the household facts being carried forward.
 
-- correction-aware practical balances from selected Movement Event effects plus explicit `ZeroOriginCoverage`;
-- replaceable balance selection that remains presentation-only and cannot create zero-origin coverage;
-- the former QuantityBasis / BasisCut production path retained as historical research provenance rather than current household balance authority;
-- historically qualified read-only recorded-day views over external journal snapshots, retained as research evidence rather than current authority;
-- a separate scheduled-day view using explicit completion / retirement evidence and a known-through horizon;
-- a terminal composition that shows recorded and scheduled answers for the same selected day without introducing a canonical Home or Day model.
+HRA remains useful as historical implementation, migration provenance, and comparison material. It is not a second operational authority and does not need to be kept structurally synchronized with LOAM.
 
-External household systems remain comparison and research pressure. Their Account, Plan, recurrence, Series, and report vocabulary are not automatically imported into LOAM Core.
+Historical research documents and experiments may still describe an earlier HRA-authority or parallel-dogfood phase. Those statements are part of the project history. The current policy is [`HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md).
 
-HRA is currently the day-to-day operational household authority. Ordinary real-life recording continues there while LOAM is developed in parallel. LOAM may also receive the same or other real household events through explicit user or AI-assisted entrances so that practical use continues to pressure the design.
+The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain migration provenance for that historical cutover in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than current operational bridges or authority.
 
-Within LOAM, selected `loam-data` objects and manifests remain canonical for the current LOAM experiment, but they are not the final operational authority for household reality during this phase. LOAM may destructively redesign and regenerate its own Core, Application, persistence, authority layout, and canonical data without preserving backward compatibility. Exact HRA ↔ LOAM parity is required only when a named experiment or reconciliation explicitly claims it. See [`HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md) for the standing current policy.
-
-The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain immutable migration provenance for that historical cutover in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than current operational bridges or authority.
-
-See [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md) for the compact historical checkpoint after Observation 104 and Applications 010–014. Statements there describe the phase that produced that checkpoint; the current cross-system operating authority is defined by `docs/HOUSEHOLD_OPERATING_MODE.md`.
+There is no requirement to keep adding features when ordinary use does not expose a need. New work should come from concrete household use, a demonstrated simplification, or a clearly scoped research question.
 
 ## Current map
 

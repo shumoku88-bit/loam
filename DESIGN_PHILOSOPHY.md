@@ -1,14 +1,12 @@
 # LOAM design philosophy
 
-## Build a keeper, not a compatibility museum
+## Keep the system small and understandable
 
-LOAM is allowed to be unusually ambitious because it does not currently carry the normal burden of protecting a large installed base. HRA is currently the day-to-day household authority while LOAM is rebuilt in parallel with real household dogfood. HRA therefore supplies operational continuity and research pressure without becoming a compatibility target or an ontology that LOAM must preserve. The same household reality can keep serving as a demanding test track while LOAM pursues a cleaner design, including destructive changes to its own canonical data and authority layout.
+LOAM is the current day-to-day household system and is still under active development. It has no external compatibility obligation, but its operational household data now deserves explicit continuity and migration care.
 
-The current HRA / LOAM relationship is fixed in [`docs/HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md). A future return of LOAM to operational authority requires an explicit cutover rather than an implicit change of assumptions.
+HRA is no longer the parallel operational authority. It remains historical implementation, migration provenance, and comparison material where useful. The current relationship is defined in [`docs/HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md).
 
-The aspiration is closer to a focused, enduring machine than to a feature catalogue: the compactness and purpose of a Roadster, the concentrated engineering of a GR Yaris, or the uncompromising specialization of a Stratos. The analogy is about focus, not imitation. A memorable product is not memorable because it contains everything. It is memorable because its decisions reinforce one another.
-
-For LOAM, that means optimizing for:
+LOAM aims for a small set of concepts and mechanisms that are easy to explain, test, and operate. In practice that means preferring:
 
 ```text
 coherence
@@ -20,88 +18,80 @@ strong checking laws
 human-operable simplicity
 ```
 
-rather than for preserving every earlier LOAM decision.
+A larger implementation is acceptable when those properties are clearer than they would be after premature compression.
 
 ## Earlier LOAM is evidence, not authority
 
-An existing type, command, persistence format, identifier, or document may encode valuable observations. It does not become correct merely by existing.
+An existing type, command, persistence format, identifier, or document may encode useful observations. It does not become permanent merely by existing.
 
-When later work exposes a smaller or more coherent model, LOAM may:
+When later work supports a simpler model, LOAM may:
 
-- replace public-looking APIs;
-- change persistence formats;
+- replace internal or public-looking APIs;
 - rename or remove concepts;
-- rewrite migration fixtures;
-- restructure canonical dogfood data;
-- delete entire implementation paths;
-- discard an earlier Practical Core abstraction.
+- change persistence formats through an explicit migration;
+- remove obsolete implementation paths;
+- discard an abstraction that no longer earns its cost.
 
-Historical work should survive when the information or law it discovered still matters. Its concrete implementation does not receive the same protection.
+Historical research should remain available when the result or evidence still matters. The current implementation does not need to preserve every earlier shape.
 
-## LOAM canonical dogfood data is part of the experiment
+## Operational data is not disposable
 
-Real household data is not a museum specimen for an old LOAM schema. It is a pressure source for the current model.
+Current `loam-data` objects, manifests, and configuration carry day-to-day household meaning.
 
-During the current operating mode, `canonical` inside LOAM means selected authority for the current LOAM experiment, not final operational authority for household reality. HRA currently carries the day-to-day operational record. LOAM canonical data, identifiers, manifests, provenance structures, and publication boundaries may therefore be redesigned or regenerated when that produces a better model.
+A representation may still change, but operational data changes need an explicit migration, reconstruction, or other qualified transition. The goal is to preserve the household facts while allowing the representation to improve.
 
-If a better representation is earned, LOAM dogfood data may be migrated or rewritten to that representation. The important distinction is semantic:
+Keep these cases distinct:
 
 ```text
+change of implementation
+    may replace code without changing household facts
+
 change of representation
-    may rewrite data shape
+    may migrate stored data while preserving household meaning
 
 identity / alias normalization
     may rewrite naming when identity is intentionally unified
 
 correction of what actually happened
-    remains a different claim and needs evidence appropriate to that claim
+    is a separate claim and needs appropriate evidence
 ```
 
-Do not retain obsolete spellings, identifiers, fields, authority layouts, or compatibility records solely to avoid a migration.
+Do not keep obsolete fields or compatibility structures solely to avoid a migration. Also do not delete or regenerate current household data merely because a new representation is cleaner.
 
-When conversion is needed, prefer a disposable, explicit migration or reconstruction step over a permanent compatibility subsystem. When an experiment claims parity with HRA or a particular historical fact, preserve or reconstruct only the evidence needed to support that claim rather than treating every earlier LOAM byte as sacred provenance.
+When conversion is needed, prefer an explicit migration or reconstruction step over a permanent compatibility subsystem.
 
-## The central compression rule
+## Compression is a means, not a target
 
-LOAM should repeatedly ask:
+A useful recurring question is:
 
-> What is the smallest independently observable information from which the household answers can still be reconstructed?
+> What information must be retained independently, and what can be reconstructed when needed?
 
-The current research has repeatedly found a useful boundary:
+A practical boundary used throughout LOAM is:
 
 ```text
 share algebra and mechanics
 preserve semantic authority
 ```
 
-Equal data shape is evidence for implementation reuse, not proof that two meanings are the same.
+Equal data shape can justify implementation reuse, but it does not by itself show that two meanings are the same.
 
-Likewise, a familiar household noun does not automatically deserve canonical storage. `Commitment`, `Remaining`, `Headroom`, report sections, status labels, and similar answers should remain projections when their upstream evidence is sufficient.
+Likewise, a familiar household noun does not automatically require canonical storage. `Commitment`, `Remaining`, `Headroom`, report sections, status labels, and similar answers should remain projections when existing evidence is sufficient.
 
-## Breakage budget
+Code size, file count, and declaration count are useful audit signals, not design goals on their own.
 
-During the present phase, breakage is cheap and accidental complexity is expensive.
+## Compatibility during active development
 
-Therefore:
+Internal compatibility is secondary to a clearer design when LOAM itself is the only consumer.
 
-```text
-compatibility layer
-    requires justification
+Operational household data is different: if a change affects its stored representation, provide an explicit migration or reconstruction path and qualify the result before treating the new representation as authoritative.
 
-destructive simplification
-    is permitted by default when it preserves the desired household meaning
-
-migration avoidance
-    is not an architectural objective
-```
-
-This does not license churn. A destructive change should buy something substantial: a clearer information boundary, fewer primitives, stronger laws, a simpler operation, or removal of an abstraction that no longer earns its cost.
+A compatibility layer therefore requires a concrete reason. So does a destructive change. Neither is preferred by default.
 
 ## Formal methods serve the design
 
-LOAM does not exist to demonstrate Alloy, TLA+, Lean, category theory, or any other formal technique. Those tools are used when they reveal distinctions that ordinary implementation makes easy to blur.
+LOAM does not exist to demonstrate Alloy, TLA+, Lean, category theory, or any other formal technique. Use those tools when they make an information boundary, counterexample, state transition, or law clearer.
 
-A healthy order is:
+A useful order is:
 
 ```text
 household question
@@ -109,28 +99,26 @@ household question
     -> observation / counterexample
     -> minimum surviving information
     -> practical Lean type or function
-    -> proof only where the law deserves permanence
+    -> proof where the law is worth retaining
 ```
 
-If a mathematical structure repeatedly appears after this process, name it then. Do not force the household model into an attractive theory in advance.
+If a mathematical structure repeatedly appears after this process, name it then. Do not choose the household model to fit an attractive theory in advance.
 
 ## What quality means here
 
 Before keeping a new primitive or abstraction, ask:
 
-1. Which household answer becomes impossible without it?
+1. Which household answer becomes unavailable without it?
 2. Can that answer be derived from evidence already retained?
 3. Does the abstraction share mechanics while accidentally merging semantic authority?
-4. Is this state, or only a projection that is convenient to display?
-5. Would deleting this make the system easier to explain without losing meaning?
-6. Are we preserving it for design reasons, or only because earlier LOAM already used it?
+4. Is this durable state, or only a convenient projection?
+5. Would removing it make the system easier to explain without losing meaning?
+6. Are we preserving it for a current reason, or only because an earlier LOAM version used it?
 
-A good LOAM design should increasingly feel inevitable: fewer pieces, stronger relationships between them, and less code whose only purpose is to defend yesterday's shape.
+A good change should leave the system easier to explain, operate, or verify. Fewer pieces are useful when they actually produce that result.
 
-## Compatibility can be earned later
+## External compatibility
 
-If LOAM eventually becomes a product with external users, long-lived files, integrations, or a public data contract, backward compatibility may become a first-class requirement.
+LOAM currently has no external user or public data-contract obligation.
 
-That would be a new phase with a new constraint. At that point compatibility should be designed deliberately around a mature core.
-
-Until then, do not make the experimental chassis heavier in anticipation of passengers who are not yet aboard.
+If that changes, backward compatibility should become an explicit product requirement. Until then, avoid compatibility machinery for hypothetical consumers, while continuing to protect current household data through explicit migrations and evidence-backed transitions.
