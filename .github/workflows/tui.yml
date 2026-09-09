@@ -38,6 +38,7 @@ on:
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/Tests/TransactionsFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
@@ -113,6 +114,7 @@ on:
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
       - 'Loam/Tests/TransactionsFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
@@ -286,7 +288,10 @@ jobs:
       - name: Verify conditional selected-balance path and refusal boundaries
         run: lake env lean --run Loam/Tests/ConditionalBalancePathReview.lean
 
-      - name: Verify Reports menu, Stock-Flow, conditional Liquidity and Budget Window surfaces
+      - name: Verify sparse Transactions-Flow Reports interaction
+        run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
+
+      - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
 
       - name: Build shared CycleBudget review boundary

@@ -290,7 +290,7 @@ def main : IO Unit := do
     "Budget Window lost the derived Remaining boundary"
 
   let small : Bounds := { width := 80, height := 9 }
-  let lastMenuItem := (List.range 3).foldl
+  let lastMenuItem := (List.range 4).foldl
     (fun state _ => (Loam.Tui.Reports.updateForBounds small state .down).state)
     initial
   let smallMenuText := widgetText (Loam.Tui.Reports.viewForBounds small lastMenuItem)
