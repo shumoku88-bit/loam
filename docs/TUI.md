@@ -33,7 +33,7 @@ g          return focus to the known-through day
 Enter      selected-day workspace
 r          Record
 a          Actual workspace
-p          Scheduled navigation
+p          Scheduled workspace
 i          Attention
 b          Balances
 c          current-cycle Budget
@@ -55,6 +55,7 @@ Loam/Tui/Terminal            terminal input/output mechanics
 Loam/Tui/Calendar            presentation-only Gregorian calendar projection
 Loam/Tui/HraHome             production Home presentation
 Loam/Tui/HraActual           Actual workspace presentation state
+Loam/Tui/HraScheduled        Scheduled workspace presentation state
 Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
 Loam/Tui/Record              local Movement draft editor
 Loam/Tui/Attention           current-open read-only Attention view
@@ -82,6 +83,18 @@ admission, writer ownership, and publication.
 
 After a successful write, the executable reloads canonical evidence before returning
 to the surrounding workspace. A cached TUI answer is never promoted into authority.
+
+## Scheduled workspace
+
+Home `p` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
+the current-open Scheduled frontier over neutral Loci coordinates, supporting
+Focus Day and All Current-Open scopes (`f`).
+
+Like the selected-day Scheduled pane, object-local actions include Scheduled
+creation (`n`), completion (`c` / `Enter`), supersede/replacement (`s`), and
+cancellation (`x`). The surface collects intent and delegates execution to shared
+publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
+`ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
 
 ## Attention
 

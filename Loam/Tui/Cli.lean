@@ -36,6 +36,7 @@ import Loam.TransactionsFlowReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
 import Loam.Tui.HraActual
+import Loam.Tui.HraScheduled
 import Loam.Tui.SelectedDay
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -139,8 +140,27 @@ def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'l' | .input 'L' => .right
   | .input 'k' | .input 'K' => .up
   | .input 'j' | .input 'J' => .down
-  | .input 'p' | .input 'P' => .tab
   | key => eventOfKey key
+
+/-- HRA Scheduled interaction grammar over presentation-only pane and cursor state. -/
+def hraScheduledEventOfKey
+    (pane : Loam.Tui.HraScheduled.Pane) :
+    Loam.Tui.Terminal.Key → Loam.Tui.HraScheduled.Event
+  | .up | .input 'k' | .input 'K' => .previous
+  | .down | .input 'j' | .input 'J' => .next
+  | .left | .input 'h' | .input 'H' => .focusLeft
+  | .right | .input 'l' | .input 'L' => .focusRight
+  | .input 'f' | .input 'F' => .cycleFilter
+  | .input 'n' | .input 'N' => .createScheduled
+  | .input 'c' | .input 'C' => .completeScheduled
+  | .enter =>
+      match pane with
+      | .loci => .other
+      | .occurrences => .completeScheduled
+  | .input 's' | .input 'S' => .replaceScheduled
+  | .input 'x' | .input 'X' => .cancelScheduled
+  | .escape | .input 'q' | .input 'Q' => .back
+  | _ => .other
 
 /-- HRA Actual interaction grammar over presentation-only pane and cursor state. -/
 def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
@@ -355,6 +375,155 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       hraActualLoop bounds dataDir root snapshot step.state nextFrame
+
+/-- HRA-shaped Scheduled session. `q` returns to Home; creation/completion/replacement/cancellation are delegated. -/
+partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
+    (snapshot : Snapshot) (state : Loam.Tui.HraScheduled.State)
+    (frame : CompiledWidget) : IO Snapshot := do
+  let step := Loam.Tui.HraScheduled.update snapshot state
+    (hraScheduledEventOfKey state.pane (← Loam.Tui.Terminal.readKey))
+  match step.command with
+  | .back => return snapshot
+  | .createScheduled =>
+      let world ←
+        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        | .error message => throw (IO.userError message)
+        | .ok world => pure world
+      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+        Loam.CompletionPrompt.knownLoci world.events).eraseDups
+      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate
+      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      let notice ← Loam.Tui.ScheduledCreationSession.run
+        bounds (dataDir / "scheduled.loam") root known editor editorFrame
+      let fresh ←
+        match ← loadSnapshot dataDir with
+        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+        | .ok fresh => pure fresh
+      let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
+      let next := { refreshed with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
+      IO.print "\x1b[2J"
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .completeScheduled =>
+      match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for completion." }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ScheduledCompletion.initial? record snapshot.actual.today with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              hraScheduledLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let world ←
+                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                | .error message => throw (IO.userError message)
+                | .ok world => pure world
+              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let completion ← scheduledCompletionLoop
+                bounds (dataDir / "scheduled.loam") root world known editor editorFrame
+              let notice ←
+                match completion with
+                | none => pure "Scheduled completion cancelled."
+                | some receipt =>
+                    let completedNotice :=
+                      "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+                    match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
+                    | .error message =>
+                        pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
+                    | .ok nextEditor =>
+                        let nextEditorFrame :=
+                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
+                        IO.print "\x1b[2J"
+                        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0
+                          (compileWidget (.row [])) nextEditorFrame
+                        let nextNotice ← Loam.Tui.ScheduledCreationSession.run
+                          bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
+                        if nextNotice == "Scheduled creation cancelled." then
+                          pure (completedNotice ++ " No next Scheduled created.")
+                        else
+                          pure (completedNotice ++ " " ++ nextNotice)
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .cancelScheduled =>
+      match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for cancellation." }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          let confirmation := Loam.Tui.ScheduledCancellation.initial record
+          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
+          let notice ← scheduledCancellationLoop
+            bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
+          let fresh ←
+            match ← loadSnapshot dataDir with
+            | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+            | .ok fresh => pure fresh
+          let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
+          let next := { refreshed with notice := notice }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
+          IO.print "\x1b[2J"
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+          hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .replaceScheduled =>
+      match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current-open Scheduled occurrence is selected for supersede." }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.ScheduledReplacement.initial? record with
+          | .error message =>
+              let next := { step.state with notice := message }
+              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot step.state)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              hraScheduledLoop bounds dataDir root snapshot next nextFrame
+          | .ok editor =>
+              let world ←
+                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                | .error message => throw (IO.userError message)
+                | .ok world => pure world
+              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
+                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← scheduledReplacementLoop
+                bounds (dataDir / "scheduled.loam") root known editor editorFrame
+              let fresh ←
+                match ← loadSnapshot dataDir with
+                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+                | .ok fresh => pure fresh
+              let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
+              IO.print "\x1b[2J"
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .stay =>
+      let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      hraScheduledLoop bounds dataDir root snapshot step.state nextFrame
 
 /-- Selected-day session. Shared reads remain the workspace source; writes are delegated. -/
 partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
@@ -838,6 +1007,16 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
     let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
+    let home := { state with surface := .home none, notice := "" }
+    let nextFrame := compiledFrameFor bounds fresh home
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    loop bounds dataDir root fresh home nextFrame
+  else if isHome && (key = .input 'p' || key = .input 'P') then
+    let scheduled := Loam.Tui.HraScheduled.initial state.selectedDate
+    let scheduledFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot scheduled)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
+    let fresh ← hraScheduledLoop bounds dataDir root snapshot scheduled scheduledFrame
     let home := { state with surface := .home none, notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     IO.print "\x1b[2J"
