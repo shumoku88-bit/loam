@@ -1,8 +1,12 @@
 # Observation 234 — Can the incidence matrix reuse the correction-aware Actual review boundary?
 
-Status: **PROBE IN PROGRESS — RESEARCH_ONLY**
+Status: **QUALIFIED REUSE BOUNDARY — ActualReview is sufficient / RESEARCH_ONLY**
 
 Research baseline: LOAM `aea7368e183c8c0189b4a0cba6acfd11b6bbdde9`
+
+Qualified Lean head: `b2472401c516351cd3695d1822a81739a640b467`
+
+Dedicated workflow: Observation 234 run `34320982254`, job `102367324748`, **SUCCESS**.
 
 ## Trigger
 
@@ -114,9 +118,13 @@ Column order is derived from explicit occurrence date and Event identity, not fr
 
 Row order is a deterministic presentation order over `(locus token, measure token)` only. It carries no accounting, causal, source/destination, or priority meaning.
 
-## Mechanical checks
+## Executed result
 
-The Lean probe checks:
+The first workflow execution reached every definition but kernel `decide` could not fully reduce the concrete `mergeSort` witness. No semantic assertion had failed.
+
+The witness checks were therefore switched to the repository's established `native_decide` execution style. The exact-head rerun completed **SUCCESS**.
+
+Mechanically qualified:
 
 ```text
 non-chronological input
@@ -150,23 +158,23 @@ empty undated current Event
   -> does not block quantity matrix
 ```
 
-## Why this matters
+## Result
 
-If this probe survives, Transactions-Flow does not need a second correction frontier, date resolver, or Event loader.
+For the selected boundary, Transactions-Flow does **not** need a second correction frontier, date resolver, or Event loader.
 
-The potential production shape becomes very small:
+The qualified shape is:
 
 ```text
 ActualReview.loadRecordsFromManifest
               |
               v
-explicit window selection
+explicit half-open window selection
               |
               v
 EffectCoordinate × current Event incidence projection
 ```
 
-That would make the matrix another read lens over shared evidence rather than another household engine.
+The matrix can therefore remain another read lens over shared evidence rather than another household engine.
 
 ## Still not authorized
 
@@ -180,4 +188,4 @@ Observation 234 does not yet authorize:
 - aggregation across Measures;
 - any new canonical authority or persistence.
 
-If the probe compiles, the remaining gate is human value: run the same shape against real household Actual evidence and ask whether it reveals something not already obvious from Recent Journal or Stock–Flow.
+The remaining gate is human value: run the same shape against real household Actual evidence and ask whether it reveals something not already obvious from Recent Journal or Stock–Flow.
