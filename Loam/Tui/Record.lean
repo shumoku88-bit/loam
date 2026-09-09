@@ -30,8 +30,6 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
-  /-- Backwards-compatible token-only presentation copy of current admission. -/
-  candidateVocabulary : List String := []
   /-- Human-facing overlay scoped to exactly the current admitted vocabulary. -/
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   /-- Presentation-only cursor within the currently filtered Locus candidates. -/
@@ -96,18 +94,6 @@ def candidates (known : List String) (form : Form) : List String :=
 def candidate? (known : List String) (form : Form) : Option String :=
   (candidates known form).head?
 
-/-- Backwards-compatible token-only cursor helper. -/
-def selectedCandidate? (known : List String) (state : State) : Option String :=
-  let options := candidates known state.form
-  if options.isEmpty then none
-  else options[state.candidateIndex % options.length]?
-
-/-- Backwards-compatible token-only completion helper. -/
-def acceptCandidate (known : List String) (form : Form) : Form :=
-  match candidate? known form with
-  | none => form
-  | some token => editActive form (fun _ => token)
-
 /-- Current human-facing candidates for the focused Locus. Empty text lists all admitted entries. -/
 def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
   match activeLocus? state.form with
@@ -122,7 +108,7 @@ def selectedCatalogCandidate? (state : State) : Option Loam.LocusCatalog.Entry :
       Loam.Tui.LocusPicker.selected? state.candidateCatalog entered state.candidateIndex
 
 /-- Move only the local candidate cursor; canonical vocabulary and form text are untouched. -/
-def moveCandidate (_known : List String) (state : State) (back : Bool) : State :=
+def moveCandidate (state : State) (back : Bool) : State :=
   match activeLocus? state.form with
   | none => { state with candidateIndex := 0 }
   | some entered =>
@@ -130,7 +116,7 @@ def moveCandidate (_known : List String) (state : State) (back : Bool) : State :
           Loam.Tui.LocusPicker.move state.candidateCatalog entered state.candidateIndex back }
 
 /-- Accept exactly the currently selected catalog candidate. -/
-def acceptSelectedCandidate (_known : List String) (state : State) : State :=
+def acceptSelectedCandidate (state : State) : State :=
   match selectedCatalogCandidate? state with
   | none => state
   | some entry =>
@@ -174,11 +160,10 @@ def dropRow (form : Form) : Form :=
 
 def update (world : Loam.MovementAdmission.World) (_known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  let approved := world.locusAdmission.approved.map (fun locus => locus.token)
   let catalog :=
     if state.candidateCatalog.isEmpty then Loam.LocusCatalog.fallback world.locusAdmission
     else Loam.LocusCatalog.restrict world.locusAdmission state.candidateCatalog
-  let state := { state with candidateVocabulary := approved, candidateCatalog := catalog }
+  let state := { state with candidateCatalog := catalog }
   match key with
   | .escape => { state, cancel := true }
   | _ =>
@@ -206,9 +191,9 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
             { state := { state with
                 form := editActive state.form (fun text => text.push char),
                 notice := "", candidateIndex := 0 } }
-        | .up => { state := moveCandidate approved state true }
-        | .down => { state := moveCandidate approved state false }
-        | .right => { state := acceptSelectedCandidate approved state }
+        | .up => { state := moveCandidate state true }
+        | .down => { state := moveCandidate state false }
+        | .right => { state := acceptSelectedCandidate state }
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
             let focus := state.form.focus.val
