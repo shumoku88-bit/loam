@@ -90,9 +90,9 @@ def candidate? (known : List String) (form : Form) : Option String :=
 
 /-- The Record editor may move among all prefix matches before accepting one. -/
 def selectedCandidate? (known : List String) (state : State) : Option String :=
-  let matches := candidates known state.form
-  if matches.isEmpty then none
-  else matches[state.candidateIndex % matches.length]?
+  let options := candidates known state.form
+  if options.isEmpty then none
+  else options[state.candidateIndex % options.length]?
 
 /-- Candidates change only the focused text field and carry no write authority. -/
 def acceptCandidate (known : List String) (form : Form) : Form :=
@@ -102,10 +102,10 @@ def acceptCandidate (known : List String) (form : Form) : Form :=
 
 /-- Move only the local candidate cursor; canonical vocabulary and form text are untouched. -/
 def moveCandidate (known : List String) (state : State) (back : Bool) : State :=
-  let matches := candidates known state.form
-  if matches.isEmpty then { state with candidateIndex := 0 }
+  let options := candidates known state.form
+  if options.isEmpty then { state with candidateIndex := 0 }
   else
-    let count := matches.length
+    let count := options.length
     let next := if back then (state.candidateIndex + count - 1) % count
                 else (state.candidateIndex + 1) % count
     { state with candidateIndex := next }
@@ -231,10 +231,10 @@ def view (_known : List String) (state : State) : Widget :=
         [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
          field form (3 + index * 2) "  JPY" row.amount]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      let matches := candidates state.candidateVocabulary form
-      let selectedIndex := if matches.isEmpty then 0 else state.candidateIndex % matches.length
+      let options := candidates state.candidateVocabulary form
+      let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
-      let visible := (matches.drop candidateStart).take 5
+      let visible := (options.drop candidateStart).take 5
       let candidateText := if visible.isEmpty then "(none)" else
         String.intercalate "  " <| (visible.zipIdx).map fun (token, index) =>
           if candidateStart + index = selectedIndex then "[" ++ token ++ "]" else token
