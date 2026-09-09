@@ -1,7 +1,7 @@
 import Loam.ActualDate
-import Loam.Application.CapacityInspection
 import Loam.Application.CapacityWindowInspection
 import Loam.CapacityPublisher
+import Loam.CapacityReview
 import Loam.Persistence.CapacityEffectivePersistence
 import Loam.Persistence.CapacityPersistence
 import Std
@@ -124,44 +124,27 @@ def recordCapacity (capacityPath : String) : IO UInt32 := do
                           " = " ++ toString receipt.quanta ++ " jpy. Effective: " ++ receipt.effectiveOn ++ ".")
                       return 0
 
-private def addPurposeIfAbsent (purposes : List PurposeId) (purpose : PurposeId) : List PurposeId :=
-  if purpose ∈ purposes then purposes else purposes ++ [purpose]
-
-private def rememberedPurposes (memory : CapacityMemory) : List PurposeId :=
-  memory.movements.foldl
-    (fun purposes movement =>
-      movement.movement.changes.foldl
-        (fun current change =>
-          match change.coordinate with
-          | .unallocated => current
-          | .purpose purpose => addPurposeIfAbsent current purpose)
-        purposes)
-    []
-
 /--
-Show JPY entitlement across all retained Capacity movements.
+Show the shared all-retained JPY Capacity review.
 
 This remains the original untimed projection for inspection and compatibility.
 Household cycle questions should use `show-window` instead.
 -/
 def showCapacity (capacityPath : String) : IO UInt32 := do
-  let capacityFile := System.FilePath.mk capacityPath
-  match ← loadCapacityMemoryForView? capacityFile with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported capacity file"
+  match ← Loam.CapacityReview.loadSnapshot (System.FilePath.mk capacityPath) with
+  | .error message =>
+      IO.eprintln message
       return 2
-  | some memory =>
-      let yen : MeasureId := ⟨"jpy"⟩
-      match rememberedPurposes memory with
-      | [] =>
-          IO.println "No spending-purpose capacity."
-          return 0
-      | purposes =>
-          IO.println "Spending capacity (derived from all retained movements):"
-          for purpose in purposes do
-            let quantity := entitlementAt memory.movements purpose yen
-            IO.println ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
-          return 0
+  | .ok snapshot =>
+      if snapshot.rows.isEmpty then
+        IO.println "No spending-purpose capacity."
+      else
+        IO.println "Spending capacity (derived from all retained movements):"
+        for row in snapshot.rows do
+          IO.println
+            ("  " ++ row.purpose.token ++ ": " ++
+              toString row.entitlement.quanta ++ " jpy")
+      return 0
 
 /-- Show JPY Entitlement selected only by Purpose and a half-open ISO date window. -/
 def showCapacityWindow
@@ -182,7 +165,7 @@ def showCapacityWindow
             IO.eprintln "loam: malformed or unsupported Capacity effective evidence"
             return 2
         | some effective =>
-            let purposes := rememberedPurposes memory
+            let purposes := Loam.CapacityReview.rememberedPurposes memory
             let yen : MeasureId := ⟨"jpy"⟩
             match purposes.mapM
                 (fun purpose =>
