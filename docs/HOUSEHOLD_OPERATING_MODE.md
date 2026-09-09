@@ -1,78 +1,65 @@
 # Household operating mode
 
-Status: current from 2026-09-07 until an explicit replacement or cutover.
+Status: current from 2026-09-09 until explicitly replaced.
 
-This document fixes the present relationship between HRA, LOAM, and real household data. It is an operating constraint for current development, not a claim that the arrangement is permanent.
+This document describes the present relationship between LOAM, HRA, and real household data.
 
 ## Operational authority
 
-HRA is the current day-to-day household system and the operational authority for ordinary recording.
+LOAM is the current day-to-day household system and the operational authority for ordinary recording.
 
-New real household events continue to be recorded in HRA during normal use. If a practical household answer is needed and HRA and LOAM disagree, the disagreement is not resolved merely by treating LOAM as newer or more experimental.
+New household events are recorded in LOAM during normal use. The selected LOAM data and manifest authorities therefore carry operational household meaning, not only research or dogfood meaning.
 
-## LOAM is parallel real-data dogfood
+HRA is no longer the parallel day-to-day authority. It remains useful as historical implementation, migration provenance, and comparison material where a concrete question requires it.
 
-LOAM remains a real household system under active construction, not a synthetic-only prototype.
+## Current LOAM data
 
-Real household events may also be recorded in LOAM during ordinary development, including through the user, ChatGPT, terminal AI, or other explicit LOAM entrances. This parallel recording exists to pressure the design with real events while the whole stack is still changeable.
+Selected `loam-data` objects, manifests, and configuration are current household data.
 
-Exact mirroring of every HRA record is not a standing requirement. A particular experiment may require parity, complete replay, or reconciliation, but that requirement must be stated for that experiment.
+The implementation may continue to change substantially, but changes to operational data need an explicit migration, reconstruction, or other qualified transition that preserves the household meaning being carried forward. Do not delete or regenerate current household data merely because a different representation would be cleaner.
 
-Divergence between HRA and LOAM can itself be useful evidence about missing concepts, awkward recording paths, information loss, or accidental coupling.
+This distinction is important:
 
-## What `canonical` means inside LOAM now
+```text
+implementation shape
+    may change freely when the result is qualified
 
-A selected LOAM object, manifest generation, or `loam-data` artifact may be canonical **for the current LOAM experiment**. It is not, during this operating mode, the final operational authority for household reality.
+operational data representation
+    may change through an explicit migration or reconstruction
 
-Therefore all of the following remain redesignable:
+household facts
+    must not be silently invented, discarded, or altered
+```
 
-- Core and Application concepts;
-- persistence and wire formats;
-- identifiers and naming;
-- writer and admission protocols;
-- manifest and authority layouts;
-- routing and classification evidence;
-- TUI / CLI interaction contracts;
-- LOAM canonical household data itself;
-- LOAM-local migration and provenance machinery.
+If evidence required for a migration or historical claim is unavailable, fail closed rather than guessing.
 
-A clearer model may rewrite, regenerate, replace, or delete these instead of carrying compatibility forward.
+## HRA is historical reference, not LOAM ontology
 
-## Destructive redesign does not mean invented history
+HRA may still supply historical evidence, comparison answers, or useful interaction ideas. It is not a schema that LOAM must reproduce.
 
-The freedom to destroy LOAM representations is architectural freedom, not permission to silently manufacture household facts.
+Do not automatically import HRA concepts, file shapes, package boundaries, report sections, or vocabulary into LOAM Core. Do not build a synchronization layer merely to keep the two systems structurally identical.
 
-When a change claims something about real household history, identity, quantity, occurrence, provenance, or parity with HRA, keep or reconstruct enough evidence to justify that claim. Fail closed when the required evidence is unavailable.
-
-Conversely, do not preserve an obsolete LOAM artifact merely because deleting it would lose continuity that no current research question observes. HRA can remain the operational source from which a later LOAM representation is reconstructed when that is the smaller and clearer path.
-
-## HRA is pressure, not LOAM ontology
-
-HRA is allowed to supply real events, comparison answers, and reconstruction evidence without becoming LOAM's schema.
-
-Do not automatically import HRA concepts, file shapes, package boundaries, report sections, or vocabulary into LOAM Core. Do not build a permanent synchronization layer merely to keep the two systems structurally identical.
-
-A temporary importer, replay, comparison, or parity tool is justified when it answers a concrete research or reconstruction question. Retire it when the question no longer requires it.
+A temporary importer, replay, comparison, or parity tool is justified when it answers a concrete migration or research question. Retire it when that question no longer requires it.
 
 ## Comparison claims are explicit
 
 No general HRA ↔ LOAM parity is assumed.
 
-When work claims parity, state the observable boundary being compared, such as exact quantity, retained identity, occurrence time, correction behavior, scheduled state, report classification, or another named projection. Passing one boundary does not imply full-system equivalence.
+When work claims parity, state the observable boundary being compared, such as exact quantity, retained identity, occurrence time, correction behavior, scheduled state, or report classification. Passing one boundary does not imply full-system equivalence.
 
-## Returning LOAM to operational authority
+Historical research documents may describe an earlier HRA-authority phase. Those statements remain historical records and do not override this current operating policy.
 
-LOAM does not become the day-to-day authority again merely because it becomes convenient to use.
+## Development rhythm
 
-A future return requires an explicit cutover decision. That cutover should name the authoritative HRA snapshot or reconciliation boundary, establish whatever current LOAM evidence is required, qualify the intended operational paths, and then update this document and the standing policy together.
-
-Until that happens, the intended rhythm is:
+The intended rhythm is now:
 
 ```text
 real life
-    -> record operationally in HRA
-    -> also exercise LOAM with real events when useful
-    -> redesign any LOAM layer, including canonical data
-    -> use evidence only as strongly as the current claim requires
-    -> keep searching for the smaller coherent system
+    -> record operationally in LOAM
+    -> use the system normally
+    -> change code when a concrete need or simplification appears
+    -> migrate operational data explicitly when representation changes require it
+    -> keep historical research claims scoped to their evidence
 ```
+
+There is no requirement to keep adding features when ordinary use does not expose a need.
