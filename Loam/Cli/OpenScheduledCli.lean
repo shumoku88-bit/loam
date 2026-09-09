@@ -87,26 +87,11 @@ def showOpenScheduled (scheduledPath manifestRoot : String) : IO UInt32 := do
       IO.eprintln message
       return 2
   | .ok snapshot =>
-      match Loam.Application.currentOpenScheduledWithReplacement
-          snapshot.scheduled snapshot.completions snapshot.retirements
-          snapshot.replacements snapshot.events with
-      | .unknownCompletionScheduled =>
-          IO.eprintln "loam: Scheduled completion refers to an unknown Scheduled identity"
+      match Loam.ScheduledReview.currentOpenRecords snapshot with
+      | .error message =>
+          IO.eprintln message
           return 2
-      | .unknownRetirementScheduled =>
-          IO.eprintln "loam: Scheduled retirement refers to an unknown Scheduled identity"
-          return 2
-      | .unknownReplacementScheduled =>
-          IO.eprintln "loam: Scheduled replacement refers to an unknown Scheduled identity"
-          return 2
-      | .invalidReplacementGraph =>
-          IO.eprintln "loam: Scheduled replacement graph is cyclic or otherwise invalid"
-          return 2
-      | .conflictingTerminalEvidence =>
-          IO.eprintln
-            "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
-          return 2
-      | .open openOccurrences =>
+      | .ok openOccurrences =>
           match sortByScheduledDay openOccurrences with
           | [] =>
               IO.println "No explicit current-open Scheduled movements are retained."
