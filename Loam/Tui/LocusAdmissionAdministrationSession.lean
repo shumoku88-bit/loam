@@ -31,10 +31,9 @@ separate publication boundaries even though their administration is colocated.
 
 private def runInitialRoleAdministration
     (bounds : Bounds)
-    (root : System.FilePath)
-    (state : Loam.Tui.LocusAdmissionAdministration.State) : IO String := do
-  let scheduledFile := root / ".." / "scheduled.loam"
-  let roleFile := root / ".." / "accounting-role.loam"
+    (dataDir root : System.FilePath) : IO String := do
+  let scheduledFile := dataDir / "scheduled.loam"
+  let roleFile := dataDir / "accounting-role.loam"
   let world ←
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
     | .ok world => pure world
@@ -56,24 +55,24 @@ private def runInitialRoleAdministration
 
 partial def run
     (bounds : Bounds)
-    (root : System.FilePath)
+    (dataDir root : System.FilePath)
     (state : Loam.Tui.LocusAdmissionAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
   if key = .tab then
     match state.phase with
     | .editing =>
-        let notice ← runInitialRoleAdministration bounds root state
+        let notice ← runInitialRoleAdministration bounds dataDir root
         let resumed := { state with notice := notice }
         let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
         IO.print "\x1b[2J"
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) resumedFrame
-        run bounds root resumed resumedFrame
+        run bounds dataDir root resumed resumedFrame
     | .preview =>
         let step := Loam.Tui.LocusAdmissionAdministration.update state key
         let nextFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds step.state)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds root step.state nextFrame
+        run bounds dataDir root step.state nextFrame
   else
     let step := Loam.Tui.LocusAdmissionAdministration.update state key
     if step.cancel then
@@ -88,6 +87,6 @@ partial def run
     | none =>
         let nextFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds step.state)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds root step.state nextFrame
+        run bounds dataDir root step.state nextFrame
 
 end Loam.Tui.LocusAdmissionAdministrationSession
