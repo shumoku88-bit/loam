@@ -6,6 +6,7 @@ on:
       - feat/shared-locus-catalog-picker
     paths:
       - '.github/workflows/stage-shared-locus-catalog.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
