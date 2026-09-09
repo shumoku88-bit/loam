@@ -70,10 +70,10 @@ def update (state : State) (key : Key) : Step :=
   | .editing =>
       match key with
       | .escape => { state := state, cancel := true }
-      | .up | .input 'k' | .input 'K' =>
+      | .up =>
           let next := if state.scroll == 0 then 0 else state.scroll - 1
           { state := { state with scroll := next, notice := "" } }
-      | .down | .input 'j' | .input 'J' =>
+      | .down =>
           let next := if state.scroll + 1 < state.catalog.length then state.scroll + 1 else state.scroll
           { state := { state with scroll := next, notice := "" } }
       | .backspace =>
@@ -139,7 +139,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ blank
         , line ("New stable token: " ++ state.entered ++ "_")
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter preview   Backspace edit   ↑/↓ (j/k) inspect existing   Esc cancel"
+        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing   Esc cancel"
         , muted "Admission does not create a label, AccountingRole, Purpose route, rename, or alias."
         ]
   | .preview =>
