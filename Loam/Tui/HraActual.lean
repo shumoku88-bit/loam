@@ -13,6 +13,11 @@ inductive Scope where
   | allCurrent
   deriving Repr, DecidableEq, BEq
 
+inductive SortOrder where
+  | asc
+  | desc
+  deriving Repr, DecidableEq, BEq
+
 inductive Pane where
   | loci
   | transactions
@@ -21,6 +26,7 @@ inductive Pane where
 structure State where
   focusDate : String
   scope : Scope := .focusDay
+  order : SortOrder := .asc
   pane : Pane := .loci
   locusRow : Nat := 0
   transactionRow : Nat := 0
@@ -33,6 +39,7 @@ inductive Event where
   | focusLeft
   | focusRight
   | cycleFilter
+  | cycleOrder
   | recordNew
   | back
   | other
@@ -73,11 +80,15 @@ def selectedLocus? (snapshot : Snapshot) (state : State) : Option String :=
 
 
 def visibleRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
-  match selectedLocus? snapshot state with
-  | none => recordsForScope snapshot state
-  | some locus =>
-      (recordsForScope snapshot state).filter fun record =>
-        record.event.effects.any fun effect => effect.locus.token == locus
+  let base :=
+    match selectedLocus? snapshot state with
+    | none => recordsForScope snapshot state
+    | some locus =>
+        (recordsForScope snapshot state).filter fun record =>
+          record.event.effects.any fun effect => effect.locus.token == locus
+  match state.order with
+  | .asc => base
+  | .desc => base.reverse
 
 
 def selectedRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
@@ -126,6 +137,12 @@ private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
     | .allCurrent => Scope.focusDay
   clampState snapshot { state with scope := scope, locusRow := 0, transactionRow := 0, notice := "" }
 
+private def cycleOrder (snapshot : Snapshot) (state : State) : State :=
+  let order := match state.order with
+    | .asc => SortOrder.desc
+    | .desc => SortOrder.asc
+  clampState snapshot { state with order := order, transactionRow := 0, notice := "" }
+
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
@@ -134,6 +151,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .focusLeft => { state := { state with pane := .loci, notice := "" } }
   | .focusRight => { state := { state with pane := .transactions, notice := "" } }
   | .cycleFilter => { state := cycleFilter snapshot state }
+  | .cycleOrder => { state := cycleOrder snapshot state }
   | .recordNew => { state, command := .recordNew }
   | .back => { state, command := .back }
   | .other => { state }
@@ -220,11 +238,11 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
 
 private def footer (bounds : Bounds) : List Widget :=
   if bounds.width >= 66 then
-    [ mutedLine "[j/k] select  [h/l] pane  [f] filter"
+    [ mutedLine "[j/k] select  [h/l] pane  [f] filter  [o] order"
     , mutedLine "[n] new  [q] back"
     ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] filter"
+    [ mutedLine "[j/k] sel [h/l] pane [f] filter [o] ord"
     , mutedLine "[n] new [q] back"
     ]
 
@@ -234,6 +252,11 @@ private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : Li
   let visibleBody := body.take bodyCapacity
   let padding := bodyCapacity - visibleBody.length
   visibleBody ++ List.replicate padding blankLine ++ footerRows
+
+private def orderText (state : State) : String :=
+  match state.order with
+  | .asc => "oldest first"
+  | .desc => "newest first"
 
 /--
 HRA-shaped Actual workspace over the shared ActualReview answer. Locus filtering,
@@ -251,14 +274,25 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     fit leftWidth
       (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
        else " Loci (" ++ toString lociCount ++ ")")
+  let orderTag := match state.order with
+    | .asc => "asc"
+    | .desc => "desc"
+  let rightHeaderBase :=
+    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ")"
+    else " Actuals (" ++ toString txCount ++ ")"
+  let rightHeaderWithOrder :=
+    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
+    else " Actuals (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
   let rightHeader :=
     fit rightWidth
-      (if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ")"
-       else " Actuals (" ++ toString txCount ++ ")")
+      (if rightWidth ≥ Loam.Tui.Layout.displayWidth rightHeaderWithOrder then
+         rightHeaderWithOrder
+       else
+         rightHeaderBase)
   let body :=
     [ rule bounds '='
     , plainLine " Household Actuals Workspace"
-    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  Time: " ++ scopeText snapshot state ++ "  |  Locus: " ++ currentLocusName snapshot state)
+    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  Time: " ++ scopeText snapshot state ++ "  |  Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
     , rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++

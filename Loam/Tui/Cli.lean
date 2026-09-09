@@ -169,6 +169,8 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'f' | .input 'F' => .cycleFilter
+  | .input 'o' | .input 'O'
+  | .input 's' | .input 'S' => .cycleOrder
   | .input 'n' | .input 'N' => .recordNew
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other

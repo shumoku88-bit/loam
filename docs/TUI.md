@@ -84,6 +84,17 @@ admission, writer ownership, and publication.
 After a successful write, the executable reloads canonical evidence before returning
 to the surrounding workspace. A cached TUI answer is never promoted into authority.
 
+## Actual workspace
+
+Home `a` opens the Actual workspace (`Loam.Tui.HraActual`). It projects current
+Actual records over neutral Loci coordinates, supporting Focus Day and All Current
+scopes (`f`), as well as ascending and descending chronology toggling (`o` / `s`) so
+records can be inspected starting from the newest transaction.
+
+Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
+Movement editor and delegates execution to `MovementPublisher`, reloading canonical
+evidence after durable writes.
+
 ## Scheduled workspace
 
 Home `p` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
