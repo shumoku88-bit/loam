@@ -1,6 +1,7 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventMemory
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 import Std
 
 namespace Loam.Persistence
@@ -231,8 +232,7 @@ Event identity remains explicit and is already unique by `EventMemory` law.
 -/
 def encodeEventMemory? (memory : EventMemory) : Option String :=
   match memory.events.mapM encodeMemoryEventLines? with
-  | some blocks =>
-      some (String.intercalate "\n" (eventMemoryHeader :: blocks.flatten) ++ "\n")
+  | some blocks => some (encodeVersionedRows eventMemoryHeader blocks.flatten)
   | none => none
 
 /--
