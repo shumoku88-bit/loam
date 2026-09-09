@@ -4,6 +4,7 @@ import Loam.Core.ScheduledRouting
 import Loam.CurrentCoverageReview
 import Loam.ScheduledRoutingPublisher
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.ScheduledRouting
@@ -173,15 +174,6 @@ private def padded (width : Nat) (text : String) : String :=
 private def paddedLeft (width : Nat) (text : String) : String :=
   Loam.Tui.Layout.padLeft width text
 
-private def listWindow {α : Type} (items : List α) (selected : Nat) (maxVisible : Nat) : List (Nat × α) :=
-  let total := items.length
-  if total <= maxVisible then
-    items.zipIdx.map fun (x, i) => (i, x)
-  else
-    let half := maxVisible / 2
-    let start := if selected > half then min (selected - half) (total - maxVisible) else 0
-    (items.drop start |>.take maxVisible).zipIdx.map fun (x, i) => (start + i, x)
-
 private def subjectHeaderLine : Widget :=
   muted ("   " ++ padded 18 "ScheduledId" ++ padded 14 "Date" ++ padded 18 "Locus" ++ "Quantity")
 
@@ -200,7 +192,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
   match state.phase with
   | .selectSubject =>
       let rows := unresolvedRows state
-      let visible := listWindow rows state.subjectIndex maxVisible
+      let visible := Loam.Tui.Layout.centeredListWindow rows state.subjectIndex maxVisible
       let listWidgets :=
         if rows.isEmpty then
           [line "   No unresolved Scheduled routing subjects."]
@@ -253,7 +245,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
             s!"Subject: {row.subject.scheduled.token} / {row.subject.locus.token} ({row.scheduledOn}, {row.quantity.quanta} {row.measure.token})"
         | none => "Subject: none"
       let purposes := availablePurposes state
-      let visible := listWindow purposes state.purposeIndex maxVisible
+      let visible := Loam.Tui.Layout.centeredListWindow purposes state.purposeIndex maxVisible
       let purposeWidgets :=
         if purposes.isEmpty then
           [line "   No Purpose available in coverage."]
