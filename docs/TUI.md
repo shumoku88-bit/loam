@@ -1,286 +1,181 @@
 # LOAM TUI
 
-`loamTui` is the production terminal frontend for LOAM.
+`loamTui` is LOAM's production terminal frontend.
 
-The TUI is presentation and interaction state, not a second household authority.
-It consumes the same admitted read and write boundaries used by other LOAM
-frontends.
+The TUI owns presentation and interaction state only. Household meaning, admission,
+review, and publication stay in shared LOAM boundaries so that TUI, CLI, and future
+frontends do not grow separate semantic engines.
 
-Current production direction:
+## Current production entrance
 
-```text
-Loam/Tui/Kernel     small Widget / Screen meaning and reconstruction laws
-Loam/Tui/Runtime    compiled sparse-row redraw representation
-Loam/Tui/Terminal   raw terminal mechanics only
-Loam/Tui/Calendar   presentation-only Gregorian month projection
-Loam/Tui/Main       Home / Actual / Scheduled interaction state
-Loam/Tui/Record     local Record editor / preview state
-Loam/Tui/Attention  local read-only Attention workspace
-Loam/Tui/Balances   local read-only replaceable balance-view workspace
-Loam/Tui/Capacity   local read-only Capacity workspace
-Loam/Tui/Reports    local explicit-query Reports workspace
-Loam/Tui/Cli        canonical loading and executable loop
-```
-
-One selected day drives Home evidence, Actual review, Scheduled review, and the
-Record date seed. Actual and Scheduled remain separate semantic families.
-Missing explicit Scheduled evidence remains `Unknown`; the UI must not strengthen
-it into `NotDue` without completeness evidence.
-
-Attention is currently a global current-open workspace rather than selected-day
-evidence. The TUI does not infer day membership from a due date, sort open items
-by due date, or add a priority taxonomy. Those would require separately earned
-query/policy semantics.
-
-Balances is a replaceable current-question projection over explicitly selected
-neutral `Locus × Measure` coordinates. It does **not** classify those loci as
-Accounts, Assets, Liabilities, cash, or any other accounting role.
-
-Capacity is currently an all-retained JPY Entitlement projection. `Current` in
-that workspace means the current answer over all retained Capacity movements; it
-does **not** mean current cycle, current month, selected day, or any inferred
-budget period. Windowed Capacity remains an explicit Application query with
-caller-supplied `[start, end)` coordinates.
-
-Reports begins with one Budget Window report. The visible coordinates are explicit,
-but the editor is initially seeded with the Gregorian calendar month containing
-Home's selected day as a presentation convenience. This does not claim that the
-month is a household cycle, budget period, cadence, or canonical current window.
-
-## Production rule
-
-Historical `Loam/Prototype/*` code and numbered prototype executables are research
-provenance. Production TUI code must not import them. Useful mechanics are promoted
-into `Loam/Tui/*` only when they have earned a stable production role.
-
-The production executable is:
+Build and run:
 
 ```sh
 lake build loamTui
 ./.lake/build/bin/loamTui
 ```
 
-`LOAM_DATA_DIR` may select the household data directory; otherwise the executable
-uses `../loam-data`. Movement reads use selected manifest authority and fail closed.
+`./tools/loam` opens the production TUI by default.
 
-## Attention review
+`LOAM_DATA_DIR` may select the household data directory; otherwise `loamTui` uses
+`../loam-data`. `LOAM_MOVEMENT_MANIFEST_ROOT` may explicitly select the Movement
+manifest root; otherwise the selected authority is resolved below the data directory.
+Movement reads and writes do not fall back to retired steady-state sidecars.
 
-Home `a` opens the read-only Attention workspace. It consumes
-`Loam.AttentionReview`, which in turn delegates current-open lifecycle selection
-to the shared Application `openAttentions?` projection. The TUI does not repeat
-closure interpretation.
+## Home grammar
 
-The configured stream is `attention.loam` under `LOAM_DATA_DIR`. A missing stream
-is rendered as `Attention / Unavailable`; this is deliberately not the same claim
-as an explicitly configured stream with `0 open` items. Malformed evidence or a
-closure that references an unknown Attention identity fails closed at the shared
-review boundary.
-
-The three qualified due meanings remain distinct on screen:
+The production Home surface currently exposes these entrances:
 
 ```text
-due YYYY-MM-DD
-no due date
-due unknown
+h/l        previous / next day
+k/j        previous / next week
+g          return focus to the known-through day
+Enter      selected-day workspace
+r          Record
+a          Actual workspace
+p          Scheduled navigation
+i          Attention
+b          Balances
+c          current-cycle Budget
+e          raw/general Capacity
+v          Reports
+q          quit
 ```
 
-Rows remain in representation order. That order is not priority, chronology, or
-due ordering. This first workspace has no add, resolve, drop, or relation writer;
-`b`/Escape returns Home and `q` quits LOAM.
+Home's selected date is presentation/navigation state. It seeds selected-day,
+Actual, Scheduled, and Record interactions. It does not redefine the current-cycle
+Budget observation date or silently manufacture a household cycle.
 
-Qualification is split deliberately: `Loam/Tests/AttentionPersistence.lean`
-checks persistence round-trip, source unavailable versus explicit empty, escaped
-human context, due distinctions, and dangling-closure refusal.
-`Loam/Tests/TuiAttention.lean` checks that the surface preserves those distinctions
-and remains read-only.
-
-## Balances review
-
-Home `b` opens the read-only Balances workspace. It consumes
-`Loam.BalanceReview`, the same surface-independent household reader used by the
-line balance surface. The TUI does not reconstruct quantities locally.
-
-The production read topology keeps independent evidence independent:
+## Surface map
 
 ```text
-selected Movement manifest   -> Event effects
-corrections.loam              -> EventCorrection, absent means empty
-zero-origin-coverage.loam     -> finite explicit Locus × Measure zero-origin evidence
-config/balance-view.tsv       -> replaceable selected Locus × Measure coordinates, absent means empty selection
+Loam/Tui/Kernel              Widget / Screen meaning and reconstruction laws
+Loam/Tui/Runtime             compiled sparse-row redraw representation
+Loam/Tui/Terminal            terminal input/output mechanics
+Loam/Tui/Calendar            presentation-only Gregorian calendar projection
+Loam/Tui/HraHome             production Home presentation
+Loam/Tui/HraActual           Actual workspace presentation state
+Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
+Loam/Tui/Record              local Movement draft editor
+Loam/Tui/Attention           current-open read-only Attention view
+Loam/Tui/Balances            replaceable read-only balance view
+Loam/Tui/CycleBudget         current-cycle Budget decision surface
+Loam/Tui/Capacity            Capacity observation and action surface
+Loam/Tui/Reports             explicit-query Reports workspace
+Loam/Tui/Cli                 canonical loading, shared action delegation, executable loop
 ```
 
-An absent zero-origin coverage file means no coordinate has zero-origin evidence.
-It does **not** mean every unseen coordinate is zero. A malformed or duplicate
-coverage representation refuses. Movement never falls back to the retired
-`memory.loam` sidecar, and the balance reader does not infer coverage from Event
-activity or presentation selection.
+Historical `Loam/Prototype/*` code and numbered prototype executables are research
+provenance. Production TUI code must not import them.
 
-`config/balance-view.tsv` is a question-selection seam, not an Account registry. It can
-choose which neutral coordinates should appear without changing quantity evidence.
-Row order is presentation order only, duplicate coordinates are normalized, and
-no Asset/Liability/Income/Expense role, ranking, valuation, or total is inferred.
+## Actual and selected day
 
-For each selected coordinate the shared review first requires explicit
-`ZeroOriginCoverage` membership and then delegates quantity calculation to the
-existing correction-aware Event inspection. Therefore a selected coordinate
-outside coverage remains unknown even when retained Events mention it. Event
-correction endpoints must remain closed and multi-correction evidence must still
-justify one frontier. Any refusal rejects the whole requested balance view rather
-than publishing a partial set of plausible balances. An explicitly covered zero
-remains visible.
+Actual and Scheduled remain separate semantic families even when one selected day
+shows both. Missing explicit Scheduled evidence remains `Unknown`; presentation
+must not strengthen it into `NotDue` without completeness evidence.
 
-`Loam/Tests/BalanceReview.lean` publishes a selected Movement manifest with an
-opening reconstruction Event and a later `-30` wallet Event. Explicit coverage for
-`wallet` and `cash` requires `wallet = 70` and preserves `cash = 0`. It also
-normalizes a duplicate view coordinate, refuses Event activity outside coverage,
-refuses duplicate or malformed coverage, and preserves fail-closed Event correction
-behavior. `Loam/Tests/TuiBalances.lean` checks neutral-coordinate wording, nonzero
-and zero rows, balance-view presentation order, explicit-empty selection, and
-read-only Home navigation.
+The selected-day workspace delegates object-local actions rather than retaining a
+second lifecycle engine. Current actions include Movement recording and Actual
+correction/date-correction/reversal, plus Scheduled create/complete/cancel/replace.
+The TUI editors collect intent; shared publishers perform authoritative re-read,
+admission, writer ownership, and publication.
 
-## Capacity review
+After a successful write, the executable reloads canonical evidence before returning
+to the surrounding workspace. A cached TUI answer is never promoted into authority.
 
-Home `c` opens the read-only Capacity workspace. It consumes
-`Loam.CapacityReview`, whose quantities delegate to the existing Application
-`entitlementAt` projection. The TUI does not maintain balances or derive Capacity
-by replaying a second local accounting model.
+## Attention
 
-The configured stream is `capacity.loam` under `LOAM_DATA_DIR`. Capacity keeps its
-existing practical bootstrap policy: an absent stream means no retained Capacity
-movements yet, so the all-retained review is empty. A configured malformed stream
-still refuses. This differs intentionally from Attention, whose absent source is
-`Unavailable`.
+Home `i` opens the current-open Attention workspace. It consumes
+`Loam.AttentionReview`; lifecycle selection remains in shared Application/Review
+semantics. The surface is read-only and preserves the qualified due distinctions
+rather than inventing priority or selected-day membership.
 
-Rows show remembered Purpose coordinates and their all-retained JPY Entitlement.
-Purpose order is first retained representation appearance only; it is not priority
-or a budget ranking. Zero or negative derived values are not hidden by the TUI.
+## Balances
 
-This workspace deliberately does not use `CapacityEffective` to manufacture a
-cycle. `CapacityWindowInspection` already supports explicit half-open windows, but
-choosing which window represents a household cycle requires separately earned
-query policy. The first production Capacity workspace therefore claims only the
-untimed current all-retained answer already available from the line Capacity
-surface.
+Home `b` opens the read-only Balances workspace over `Loam.BalanceReview`.
+Coordinates remain neutral `Locus × Measure` selections. Presentation does not
+classify them as Account, Asset, Liability, cash, or any other accounting role.
+Explicit zero-origin evidence and correction-aware review remain shared boundaries.
 
-`Loam/Tests/CapacityReview.lean` checks missing/explicit-empty behavior, projection
-agreement for reallocation, and malformed-stream refusal.
-`Loam/Tests/TuiCapacity.lean` checks the all-retained presentation, explicit
-no-window statement, ordering non-claim, and read-only navigation.
+## Current-cycle Budget
 
-## Reports / Budget Window
+Home `c` opens the current-cycle Budget surface. The observation date is the
+known-through Actual date, not Home's navigated focus date. The cycle coordinates
+come from the explicit current boundary preset; the TUI does not infer a cycle from
+a month, first Capacity movement, or selected day.
 
-Home `p` opens `Reports / Budget Window`. The initial coordinates are the explicit
-Gregorian calendar month containing Home's selected day. For example, selected
-`2026-09-07` seeds:
+`Loam.CycleBudgetReview` composes shared funding, physical-balance, current-coverage,
+and Scheduled-frontier answers. The surface displays those answers directly and does
+not retain Remaining, Headroom, SafeToSpend, or a second budget arithmetic engine.
+
+Budget is an action surface, not a read-only workspace:
 
 ```text
-[2026-09-01, 2026-10-01)
+g          grant a selected negative After-known shortage through Capacity transfer
+u          route unresolved Scheduled pressure through shared Scheduled routing
+r          rebalance through the existing Capacity rebalance path
+b / Esc    Home
+q          quit
 ```
 
-Run is initially focused, so Enter can query that visible month immediately.
-Left and Right shift an exact calendar-month window by one month. `m` restores the
-calendar month containing the original Home selected day. Start and End remain
-ordinary editable fields, so an operator can replace the convenience month with
-any explicit valid half-open window.
+The former Budget `e -> Capacity` detour is retired. `e` inside Budget is not an
+alternate Capacity entrance. General/raw Capacity remains available from Home `e`.
+After Budget actions, the executable reloads the current Budget evidence before
+rendering the workspace again.
 
-Arrow movement refuses to rewrite a manually edited non-calendar window; `m`
-provides the explicit way back to the selected-day calendar month. Editing or
-changing the coordinates clears any previously displayed result so a stale
-Remaining value is never shown beside a new unrun window.
+## Capacity
 
-This calendar constructor is presentation policy only. It says nothing about the
-household's current cycle, budget period, cadence, first Capacity date, or other
-canonical temporal regime. The coordinates stay visible and are the exact values
-sent to the shared Review boundary.
+Home `e` opens Capacity. The base snapshot is the shared all-retained
+`Loam.CapacityReview` answer. When the explicit current boundary preset is available,
+the caller also attaches the shared `CurrentCoverageReview` answer for current
+decision support.
 
-`Loam.BudgetWindowReview` is the surface-independent production read boundary.
-It follows the current authority topology rather than the frozen pre-cutover
-Movement sidecars:
+The surface does not locally recompute Consumption, Scheduled commitment, Remaining,
+or Headroom. Coverage labels are presentation only and are not SafeToSpend authority.
+If current coverage cannot be justified, the all-retained Capacity answer remains
+visible with an explicit coverage refusal.
+
+Capacity currently exposes:
 
 ```text
-selected Movement manifest -> Event + ActualValidity
-capacity.loam              -> Capacity
-capacity.loam.effective    -> CapacityEffective
-actual-routing.loam        -> ActualRouting
-corrections.loam           -> EventCorrection when present; absent means empty
+t          transfer
+r          rebalance
+up/down    select remembered Purpose
+b / Esc    Home
+q          quit
 ```
 
-A malformed or missing required authority refuses. There is no fallback to
-`memory.loam` or its frozen ActualValidity sidecar. This matters because Movement
-cutover deliberately left those files as rollback/history material rather than
-steady-state authority.
+Editors remain local interaction state. `CapacityPublisher` and the existing shared
+publication sessions own authoritative writes and fresh review.
 
-For every Purpose represented by retained Capacity evidence, the shared Review
-calls the existing `CapacityWindowInspection` component projections over the
-operator-visible `[start, end)` window. It displays:
+## Reports
 
-```text
-Entitlement
-Consumption
-Remaining = Entitlement - Consumption
-```
+Home `v` opens Reports. Reports are explicit read queries rather than hidden household
+period authority. Current report queries include Budget Window, Stock-Flow, and
+conditional Liquidity.
 
-Remaining is useful presentation but not retained state. Observation 181 already
-qualified it as derived from the two resolved component answers. Observation 196
-qualified the separate household window-selection boundary: the same selected Home
-day can belong to two valid windows that produce different answers, while differently
-named Cycle identities with equal coordinates do not change coordinate-derived
-answers. Therefore the calendar-month convenience is not promoted into a household
-`current window` claim, and automatic Home Remaining still waits for separately
-earned shared window-selection policy.
-
-`Loam/Tests/BudgetWindowReview.lean` builds a selected Movement manifest, writes
-independent Capacity/effective/routing evidence, poisons a legacy `memory.loam`,
-and requires the manifest-backed `100 entitlement / 30 consumption / 70 remaining`
-answer. It also checks reversed-window and missing-manifest refusal.
-`Loam/Tests/TuiReports.lean` checks selected-day calendar-month seeding, previous
-and next month navigation including year rollover, manual-window preservation,
-`m` reset, stale-result clearing, exact query-intent preservation, derived Remaining
-presentation, explicit no-cycle wording, and Home navigation.
+Visible query coordinates are the coordinates sent to the shared Review boundary.
+Calendar-month defaults are presentation conveniences only; they do not establish a
+retained Month, BudgetCycle, cadence, or canonical current window.
 
 ## Write boundary
 
-Record editing is not considered complete until an already-collected typed
-`MovementAdmission.Draft` can be published through the same writer-ownership,
-current-world re-read, admission, and manifest publication path used by the line
-Movement entrance. The TUI must not duplicate that publisher or create its own
-canonical write path.
+No TUI surface may publish by mutating canonical files directly or by copying a
+CLI-private writer. Editors produce typed intents/drafts and delegate to shared
+publishers. Writer ownership, current-world re-read, admission, stale rejection,
+publication, and post-write verification stay outside presentation state.
 
-## Record publication
+This rule applies equally to Movement, correction/reversal, Scheduled lifecycle,
+Capacity, and Scheduled-routing actions.
 
-Home `r` opens the production Record editor on the selected day. Tab and
-Shift-Tab move through date, description, FROM/TO locus and integer JPY amount
-fields, and Add FROM / Add TO / Drop last row / Preview / Cancel actions.
-Right accepts a prefix candidate into the active locus field. Backspace edits;
-Escape cancels. The current 80×24 editor supports six effect rows; dropping the
-last row retains at least one row on each side. Preview shows every effect and
-allows Publish, Edit, or Cancel. No transaction kind is retained.
+## Qualification
 
-`Loam.MovementPublisher` is the surface-independent production publication
-entrance for collected `MovementAdmission.Draft` values. Both line CLI and TUI
-use it for selected-manifest publication. It acquires the existing
-WriterOwnership lock, rereads the current selected manifest world, runs
-production `MovementAdmission.admit?`, then publishes that world. It does not
-read human input or print terminal output. The isolated sidecar regression
-fixture remains local to the line Movement CLI and is not a second production
-publisher.
+`.github/workflows/tui.yml` is the production TUI qualification path. It builds the
+production executables and exercises the shared review/publisher boundaries plus
+Actual, selected-day, Attention, Balances, Capacity, Reports, Cycle Budget, Scheduled
+Routing, Cycle Grant, and PTY interaction paths.
 
-Draft balance, positive totals, JPY measure, valid effect tokens and occurrence
-date are validated at the shared admission entrance. These are practical
-Movement conditions, not new restrictions on neutral Core Events. Locus
-suggestions remain read evidence; the current production vocabulary decides
-publication, including when it changes after preview.
-
-Successful publication discards the editor and cached Actual cursor, reloads
-canonical review evidence and returns Home on the same selected date. A failure
-after a successful publication, including reload failure, exits rather than
-presenting the same Publish intent again. Exceptions also unwind the terminal
-boundary. A normal admission refusal retains the editable form.
-
-Qualification: `Loam/Tests/TuiRecord.lean` exercises invalid drafts, cancellation,
-candidate isolation, Edit preservation, stale Locus policy refusal without
-CURRENT mutation, canonical publication and fresh shared Actual review. The
-retained Screen and sparse-row reconstruction laws apply to Record widgets too.
-Terminal glyph width, ANSI, OS locking and IO remain outside those Lean proofs.
-Real household migration to an explicit Locus vocabulary is a separate step;
-these regression fixtures do not authorize or mutate household data.
+`docs/research/*` and `experiments/*` may describe earlier stages such as the original
+read-only Cycle Budget. Those files are historical/research evidence unless they
+explicitly claim to be current production guidance. This document and the production
+source/tests are the current TUI contract.

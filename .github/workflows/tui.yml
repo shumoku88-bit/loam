@@ -285,7 +285,7 @@ jobs:
       - name: Verify shared CycleBudget review boundary
         run: lake env lean --run Loam/Tests/CycleBudgetReview.lean "$(mktemp -d)/cycle-budget-review"
 
-      - name: Verify read-only Cycle Budget workspace
+      - name: Verify Cycle Budget workspace
         run: lake env lean --run Loam/Tests/TuiCycleBudget.lean
 
       - name: Verify Scheduled Routing TUI interaction
