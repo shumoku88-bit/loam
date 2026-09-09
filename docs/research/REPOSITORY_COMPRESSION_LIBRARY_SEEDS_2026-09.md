@@ -2,7 +2,9 @@
 
 Status: ACTIVE
 
-Baseline main: `6a3e74df53db7828ca62ddfcfe2d265cf01965e9`
+Original baseline main: `6a3e74df53db7828ca62ddfcfe2d265cf01965e9`
+
+Current recensus main: `6435486f08157fae16388b7cf041dbc0067c3361`
 
 This audit follows the completed six-phase Compression Audit. It does not reopen settled semantic distinctions or optimize for LOC alone.
 
@@ -26,6 +28,8 @@ Do not introduce:
 - a generic revision/history framework;
 - a generic authority/image framework.
 
+A successful audit outcome may be **KEEP**. Repeated syntax is pressure to inspect, not proof that two semantic boundaries should be merged.
+
 ## Library-seed gate
 
 A module is a future extraction candidate only when most of the following are true:
@@ -38,7 +42,7 @@ A module is a future extraction candidate only when most of the following are tr
 
 Do not split a new repository merely because a helper is generic. First make the candidate a stable dependency island inside LOAM.
 
-## Initial seed census
+## Seed census
 
 ### A — strong seed: `Loam/Core/FiniteKeyed.lean`
 
@@ -51,7 +55,7 @@ Owns:
 
 It explicitly owns no household Memory, authority, chronology, or winner semantics. Multiple semantic memories already consume this mechanic.
 
-Initial classification: **SEED / KEEP INTERNAL FOR NOW**.
+Classification: **SEED / KEEP INTERNAL FOR NOW**.
 
 ### B — strong seed: `Loam/Application/ReplacementFrontier.lean`
 
@@ -67,7 +71,7 @@ Owns:
 
 ActualValidity, Event correction, and Scheduled replacement supply their own domain adapters and laws.
 
-Initial classification: **SEED / KEEP INTERNAL FOR NOW**.
+Classification: **SEED / KEEP INTERNAL FOR NOW**.
 
 ### C — utility seed: `Loam/Persistence/VersionedRows.lean`
 
@@ -75,7 +79,9 @@ Current dependency: `Std` only.
 
 Owns only exact header + encoded rows + required trailing newline framing and fail-closed outer decoding.
 
-Initial classification: **UTILITY SEED**, lower extraction priority than mathematical kernels.
+Since the original census, the narrow framing mechanic was reused by Scheduled, EventMemory, ActualValidity, and EventCorrection without moving their typed decoding, block semantics, legacy refusal, or domain admission into a generic serializer.
+
+Classification: **UTILITY SEED / KEEP INTERNAL FOR NOW**. Main PRs #609, #610, #612, and #613 strengthen the evidence that the boundary is correctly narrow.
 
 ### D — utility seed: `Loam/Persistence/SiblingStage.lean`
 
@@ -83,37 +89,39 @@ Current dependency: `Std` only.
 
 Owns only sibling text write + rename. It deliberately makes no transaction, lock, recovery, or durability claim.
 
-Initial classification: **UTILITY SEED**, probably best kept local unless another project earns the same filesystem contract.
+Classification: **UTILITY SEED / KEEP INTERNAL FOR NOW**.
+
+The current mechanics scan still finds `.loam-stage` / rename operations in `MovementManifestAuthority`, `ActualValidityPersistence`, and `ScheduledLifecyclePersistence`. These are not automatically missing SiblingStage callers: each retained boundary carries stronger authority, legacy-refusal, staged-byte verification, or commit-image semantics. Do not broaden SiblingStage into a generic transaction layer merely to reduce the textual count.
 
 ### E — not extraction-ready: `Loam/Core/HistoricalRouting.lean`
 
 The historical selection algebra is interesting and shared, but the module currently imports `Loam.Core.Purpose` and bakes `PurposeId` plus managed/unmanaged/unrouted policy into the public model.
 
-Initial classification: **KEEP LOAM-LOCAL**. Do not split a generic temporal-selection kernel until another concrete use earns it.
+Classification: **KEEP LOAM-LOCAL**. Do not split a generic temporal-selection kernel until another concrete use earns it.
 
 ### F — not extraction-ready: `Loam/Core/BalancedMovement.lean`
 
 The coordinate type is generic and the zero-sum law is reusable, but the public value still imports LOAM `MeasureId` / `Quantity` meaning.
 
-Initial classification: **KEEP LOAM-LOCAL**. A generic additive kernel may eventually emerge, but do not manufacture it for extraction.
+Classification: **KEEP LOAM-LOCAL**. A generic additive kernel may eventually emerge, but do not manufacture it for extraction.
 
 ### G — utility seed: `Loam/FreshNumberedToken.lean`
 
 Current dependency: `Std` only.
 
-The module owns only deterministic `stem ++ Nat` enumeration under a caller-supplied collision predicate and explicit start/fuel. Identity namespaces, collision domains, typed wrappers, and fuel policy remain caller-local. It already serves Movement, ActualValidity, Correction, Capacity, and Scheduled writers.
+The module owns only deterministic `stem ++ Nat` enumeration under a caller-supplied collision predicate and explicit start/fuel. Identity namespaces, collision domains, typed wrappers, and fuel policy remain caller-local. It serves Movement, ActualValidity, Correction, Capacity, and Scheduled writers.
 
-Initial classification: **UTILITY SEED / KEEP INTERNAL FOR NOW**. Its cross-domain use is strong evidence, but standalone extraction is not useful until another Lean project needs the same bounded enumeration contract.
+Classification: **UTILITY SEED / KEEP INTERNAL FOR NOW**. Cross-domain use is strong evidence, but standalone extraction is not useful until another Lean project needs the same bounded enumeration contract.
 
-## Pass 1 result — current production recensus
+## Pass 1 result — original production recensus
 
-Exact measurement head: `dae955004b52833739e62980acbbf16fb1636c69` on this audit branch. The production source itself is identical to baseline main `6a3e74df53db7828ca62ddfcfe2d265cf01965e9`; the head only adds this audit and temporary measurement instrumentation.
+Original exact measurement head: `dae955004b52833739e62980acbbf16fb1636c69` on this audit branch. The production source at that point was identical to original baseline main `6a3e74df53db7828ca62ddfcfe2d265cf01965e9`.
 
 The same `tools/audit-production-surface`, `tools/audit-production-reachability`, `tools/audit-semantic-candidates`, and `tools/audit-mechanics-patterns` instruments used by Compression Audit were rerun in exact-head CI.
 
 ### Practical source growth since the synchronized Phase 6 snapshot
 
-| Layer | Phase 6 synchronized | Current | Delta |
+| Layer | Phase 6 synchronized | Original recensus | Delta |
 | --- | ---: | ---: | ---: |
 | Core | 3,649 / 33 files | 3,485 / 35 | **-164 / +2** |
 | Application | 2,550 / 17 | 2,982 / 18 | **+432 / +1** |
@@ -124,59 +132,78 @@ The same `tools/audit-production-surface`, `tools/audit-production-reachability`
 | TUI | 4,753 / 23 | 6,954 / 31 | **+2,201 / +8** |
 | **Practical subtotal** | **21,606 / 137** | **23,973 / 158** | **+2,367 / +21** |
 
-Reachability changed as follows:
+Original reachability:
 
-| Class | Phase 6 synchronized | Current | Delta |
+| Class | Phase 6 synchronized | Original recensus | Delta |
 | --- | ---: | ---: | ---: |
 | Executable-reachable practical | 21,226 / 134 | 23,968 / 157 | **+2,742 / +23** |
 | Practical-library-only | 380 / 3 | 5 / 1 | **-375 / -2** |
 | Candidate but unreachable | 0 / 0 | 0 / 0 | **unchanged zero** |
 
-The only practical-library-only file is the five-line `Loam/Tui.lean` umbrella. It is an intentional practical library root in the reachability instrument, not evidence of a hidden second TUI implementation.
+The only practical-library-only file was and remains the five-line `Loam/Tui.lean` umbrella. It is an intentional practical library root in the reachability instrument, not evidence of a hidden second TUI implementation.
 
-Tests grew from 6,285 lines at the synchronized Phase 6 note to 9,357 lines / 63 files. Historical selected Observation Lean remains exactly **7,769 lines / 41 files**. The research-proof body therefore did not resume uncontrolled growth while production TUI/report work advanced.
+At the original recensus, Tests were 9,357 lines / 63 files and historical selected Observation Lean was 7,769 lines / 41 files.
 
-### Interpretation
+### Original interpretation
 
-The current growth is not primarily dead code:
+The growth was not primarily dead code:
 
-- unreachable practical source remains exactly zero;
-- Core is smaller than the Phase 6 synchronized snapshot;
-- CLI shrank by 1,463 lines after retiring duplicate human interaction and sidecar write entrances;
-- current growth is concentrated in TUI, top-level review/orchestration, publishers, and Application projections.
+- unreachable practical source was exactly zero;
+- Core was smaller than the Phase 6 synchronized snapshot;
+- CLI had already shrunk substantially after retiring duplicate human interaction and sidecar write entrances;
+- current growth was concentrated in TUI, top-level review/orchestration, publishers, and Application projections.
 
-Therefore this audit should now prioritize **presentation/orchestration/read-projection multiplication**, not another indiscriminate Core deletion pass.
+The audit therefore prioritized presentation/orchestration/read-projection multiplication rather than another indiscriminate Core deletion pass.
 
-## Finding 001 — Capacity CLI duplicates the shared Capacity writer
+## Pass 1 refresh — after main subtraction stack
 
-Classification: **SHARE INSIDE LOAM — high confidence**.
+The audit branch was refreshed from current main `6435486f08157fae16388b7cf041dbc0067c3361`. Exact-head Compression Audit run 160 completed successfully after the refresh.
 
-`Loam/CapacityPublisher.lean` already declares and implements the surface-independent Capacity write boundary. Under `WriterOwnership` it:
+Between the original recensus and current main, production changes #608 through #615 implemented several candidates while keeping the audit open.
 
-- re-reads Capacity authority and effective evidence;
-- rejects incomplete cross-stream evidence;
-- checks source entitlement;
-- allocates a fresh `CapacityMovementId`;
-- constructs/admites the balanced JPY movement;
-- publishes effective evidence before Capacity authority;
-- returns a typed receipt.
+### Current exact surface
 
-The production TUI transfer/rebalance paths and tests already publish through this boundary.
+| Layer | Original recensus | Current main | Delta |
+| --- | ---: | ---: | ---: |
+| Core | 3,485 / 35 | 3,485 / 35 | **0 / 0** |
+| Application | 2,982 / 18 | 2,982 / 18 | **0 / 0** |
+| Persistence | 2,040 / 20 | 2,038 / 20 | **-2 / 0** |
+| Writer / top-level candidate | 2,608 / 11 | 2,608 / 11 | **0 / 0** |
+| Other top-level Lean | 3,127 / 26 | 3,128 / 26 | **+1 / 0** |
+| CLI | 2,777 / 17 | 2,476 / 17 | **-301 / 0** |
+| TUI | 6,954 / 31 | 6,954 / 31 | **0 / 0** |
+| **Practical subtotal** | **23,973 / 158** | **23,671 / 158** | **-302 / 0** |
 
-`Loam/Cli/CapacityCli.lean`, however, still independently owns the same write orchestration. It duplicates:
+Current reachability:
 
-- `effectiveEvidenceComplete`;
-- effective-id collision checking;
-- `freshCapacityId?`;
-- two-endpoint balanced movement construction;
-- source-entitlement admission;
-- effective-evidence append;
-- effective-first / Capacity-second publication;
-- its own `WriterOwnership` wrapper around that path.
+| Class | Original recensus | Current main | Delta |
+| --- | ---: | ---: | ---: |
+| Executable-reachable practical | 23,968 / 157 | 23,666 / 157 | **-302 / 0** |
+| Practical-library-only | 5 / 1 | 5 / 1 | **0 / 0** |
+| Candidate but unreachable | 0 / 0 | 0 / 0 | **unchanged zero** |
 
-This is not merely textual duplication. It is a second implementation of the same retained write protocol.
+Non-production support also contracted:
 
-Preferred subtraction:
+- Tests: `9,357 / 63 -> 9,176 / 62`, **-181 lines / -1 file**;
+- historical selected Observation Lean: `7,769 / 41 -> 6,094 / 35`, **-1,675 lines / -6 files**.
+
+### Refresh interpretation
+
+This is evidence for **subtraction by authority and implementation principle**, not merely LOC shaving:
+
+- practical source fell by 302 lines while every practical candidate remains reachable;
+- almost the entire practical reduction is in CLI, exactly where duplicate frontend orchestration had been identified;
+- Core and Application did not need to shrink to obtain the reduction;
+- narrow row-framing reuse changed Persistence by only two net lines, which is consistent with keeping domain decoding/admission local rather than building a serializer framework;
+- historical proof apparatus was graduated after its obligations were inherited, rather than kept indefinitely as a second verification surface.
+
+## Finding 001 — Capacity CLI duplicated the shared Capacity writer
+
+Classification: **SHARE INSIDE LOAM — IMPLEMENTED / CLOSED**.
+
+The original audit found that `Loam/CapacityPublisher.lean` already owned the surface-independent Capacity write boundary while `Loam/Cli/CapacityCli.lean` independently repeated effective-evidence checks, fresh ids, balanced movement construction, entitlement admission, publication order, and WriterOwnership.
+
+PR #608, `refactor(capacity): route CLI writes through shared publisher`, implemented the preferred subtraction:
 
 ```text
 Capacity CLI prompts / date / text parsing
@@ -185,47 +212,138 @@ Capacity CLI prompts / date / text parsing
         -> CLI rendering of Receipt / Error
 ```
 
-Keep CLI-only presentation and `show` / `show-window` reads local. Do not introduce a generic publisher framework. Do not change Capacity authority topology or publication order.
+The Capacity CLI change itself was `+44 / -142`, net **-98 lines**, without changing Capacity authority topology or introducing a generic publisher framework.
 
-This should be implemented and qualified in a separate narrow production PR, not inside the audit PR.
+Audit conclusion: the original classification was correct and the narrow production PR retired a genuine second writer implementation.
+
+## Finding 002 — repeated fixed row framing
+
+Classification: **SHARE INSIDE LOAM — IMPLEMENTED / CLOSED**.
+
+The original pass identified versioned line framing as repeated mechanics but explicitly rejected a serializer/schema ontology.
+
+Current main now routes the repeated outer frame through `VersionedRows` in the remaining qualified fixed-row cases:
+
+- #609 `refactor(scheduled): share versioned row framing`;
+- #610 `refactor(event): share EventMemory row framing`;
+- #612 `refactor(persistence): close repeated row framing` for ActualValidity and EventCorrection;
+- #613 `refactor(persistence): finish fixed row framing`.
+
+Typed row parsing, block/chunk semantics, identity admission, legacy refusal, and authority meaning remain in their domain modules.
+
+Audit conclusion: **M2 is closed**. Do not broaden `VersionedRows` further merely because other persistence modules contain newlines.
+
+## Finding 003 — historical Actual identity / wire-shape apparatus
+
+Classification: **RETIRE AFTER GRADUATION — IMPLEMENTED / CLOSED**.
+
+Current main graduated historical proof/test apparatus after production obligations had inherited its verification role:
+
+- #611 graduated Observation 149–152 and the Observation 154 production fixture/workflow;
+- #614 graduated Observation 147–148 identity migration Lean apparatus.
+
+The exact recensus records the result as **-1,675 historical Observation lines / -6 files** plus **-181 test lines / -1 file** relative to the original audit census.
+
+Audit conclusion: research code remains valuable while it carries obligations, but it should not become permanent parallel production machinery after those obligations are published elsewhere.
+
+## Finding 004 — Movement sidecar authority fallback
+
+Classification: **RETIRE DUPLICATE AUTHORITY TOPOLOGY — IMPLEMENTED / CLOSED**.
+
+PR #615 retired the second Movement sidecar publication backend from the explicit line CLI. The line CLI now publishes through `MovementPublisher` against selected manifest authority, and the retained read-only Budget Window projection obtains Event + ActualValidity from the same selected Movement manifest world rather than requiring retired Movement sidecars.
+
+Open Relation / Relation Discharge practical stories and WriterOwnership qualification were moved to the manifest topology. A sidecar-only partial-publication crash fixture was retired while the underlying relation identity-reservation semantic law remained retained.
+
+Audit conclusion: this was larger than helper sharing. It removed a second authority topology while preserving low-level diagnostic codecs and independent Capacity / routing / correction boundaries.
+
+## Finding 005 — current unreachable practical source remains zero
+
+Classification: **KEEP / STOP BROAD DEAD-CODE DELETION**.
+
+The refreshed reachability census still reports:
+
+```text
+Candidate but unreachable    0 lines / 0 files
+```
+
+The only practical-library-only file is the intentional five-line `Loam/Tui.lean` umbrella.
+
+Audit conclusion: another repository-wide "delete everything not obviously central" pass is not justified. Future retirement should be evidence-driven: obsolete entrance, superseded authority, graduated research obligation, or proven duplicate implementation.
+
+## Finding 006 — residual mechanics pressure is mostly semantic boundary pressure
+
+Classification: **KEEP DOMAIN-LOCAL UNLESS A NARROW DUPLICATION IS PROVEN**.
+
+The refreshed mechanics smoke scan reports, among other indicators:
+
+- `.loam-stage` / stage-path pressure: 6 occurrences across 4 files;
+- filesystem rename: 6 occurrences across 5 files;
+- WriterOwnership: 33 occurrences across 13 files;
+- manifest current-world load: 25 occurrences across 18 files;
+- or-empty loaders: 24 occurrences across 11 files;
+- fresh-identity textual pressure: 130 occurrences across 11 files;
+- `ReplacementFrontier` use: 13 occurrences across 4 files;
+- `RoutingHistory` use: 91 occurrences across 14 files.
+
+These counts are not a mandate to build generic frameworks.
+
+Current stop rules:
+
+- `SiblingStage` stays narrow; manifest commit, ActualValidity legacy refusal, and Scheduled lifecycle staged verification remain local;
+- WriterOwnership stays an explicit protocol seam rather than becoming a generic transaction framework;
+- manifest current-world loads may be shared through existing authority/read boundaries, but caller-specific projection and failure semantics stay local;
+- or-empty loaders must not be unified unless the missing-storage meaning is actually identical;
+- `FreshNumberedToken` already owns candidate enumeration; collision domains and typed identity policy stay with each caller;
+- `HistoricalRouting` remains LOAM-local despite broad use because its public contract still carries household routing meaning.
+
+The remaining high-value search area is therefore **duplicated read projection / review orchestration and frontend plumbing**, not raw textual pattern elimination.
 
 ## Audit passes
 
 ### Pass 1 — current production recensus
 
-**COMPLETE.** Current growth is quantified above and candidate-unreachable practical source remains zero.
+**COMPLETE AND REFRESHED.** Current practical subtotal is 23,671 lines / 158 files; candidate-unreachable practical source remains zero.
 
 ### Pass 2 — residue graduation
 
-Recheck:
+**PARTIALLY COMPLETE.**
 
-- historical Observation code and dedicated workflows;
-- stale docs and old production-surface guides;
-- prototype or retired entrance tests;
+Completed during this audit window:
+
+- stale TUI production surface guidance was retired before the original baseline;
+- Observation 149–152 and Observation 154 fixture/workflow graduated in #611;
+- Observation 147–148 graduated in #614;
+- sidecar-only Movement relation crash/identity fixture topology graduated in #615.
+
+Still inspect narrowly:
+
 - root wrappers and standalone executables;
-- library-only practical files.
-
-Delete only when current production invariants/tests have inherited the verification role.
+- any historical workflow whose obligation is now inherited by current production CI;
+- old documents that still describe superseded authorities or entrances.
 
 ### Pass 3 — mechanic multiplication
 
-Re-scan current main for narrow repeated mechanics, especially:
+**MAJOR ITEMS COMPLETE; READ/ORCHESTRATION REVIEW REMAINS.**
 
-- versioned line framing;
-- deterministic opaque-id candidate enumeration;
-- keyed collection lookup;
-- local TUI layout helpers;
-- complete-text replacement;
-- duplicated read projection or candidate enumeration;
-- duplicated frontend write orchestration around an existing publisher.
+Completed or already shared:
 
-Finding 001 qualifies the Capacity CLI / CapacityPublisher duplication as the first high-confidence SHARE candidate.
+- versioned fixed-row framing -> `VersionedRows`, M2 closed;
+- deterministic opaque-id candidate enumeration -> `FreshNumberedToken`;
+- keyed collection lookup -> `FiniteKeyed`;
+- local terminal column geometry/padding -> shared TUI geometry work before this baseline;
+- complete-text sibling replacement -> `SiblingStage`, with semantic stop points retained;
+- duplicated Capacity frontend writer -> #608 closed;
+- duplicated Movement sidecar writer/authority path -> #615 closed.
 
-Share only representation mechanics or already-earned surface-independent boundaries. Keep domain collision sets, wire semantics, publication order, and missing-storage meaning local.
+Continue with:
+
+- duplicated read projection;
+- repeated review/orchestration that can share an already-earned read boundary;
+- frontend plumbing that reconstructs semantics already published by Application or authority modules.
 
 ### Pass 4 — dependency-island audit
 
-For every seed candidate, record:
+**ACTIVE.** For every seed candidate, record:
 
 - imports;
 - callers;
@@ -233,7 +351,7 @@ For every seed candidate, record:
 - domain vocabulary leaked into the API;
 - whether moving the module would require adapter churn.
 
-The goal is to know what can later become a small Lean package with a nearly mechanical extraction.
+The current evidence strengthens `FiniteKeyed` and `ReplacementFrontier` as mathematical/internal seeds and `VersionedRows`, `SiblingStage`, and `FreshNumberedToken` as utility/internal seeds. None currently earns a standalone repository.
 
 ### Pass 5 — closure
 
