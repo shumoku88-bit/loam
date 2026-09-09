@@ -9,6 +9,8 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/LocusCatalog.lean'
+      - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -86,6 +88,8 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/LocusCatalog.lean'
+      - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -178,6 +182,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Verify display/history and admission-scoped Locus catalog
+        run: lake env lean --run Loam/Tests/LocusCatalog.lean
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean

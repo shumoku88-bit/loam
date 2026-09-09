@@ -1,3 +1,4 @@
+import Loam.LocusCatalog
 import Loam.Tui.Record
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
@@ -69,6 +70,19 @@ private def resolveManifestRoot
       if path.isEmpty then return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
       return .ok (System.FilePath.mk path)
   | none => return .ok (dataDir / "movement-authority")
+
+private def currentLocusMetadata
+    (dataDir : System.FilePath) : IO (List Loam.LocusCatalog.Metadata) := do
+  match ← Loam.LocusCatalog.loadMetadata dataDir with
+  | .ok metadata => return metadata
+  | .error _ => return []
+
+private def currentLocusCatalog
+    (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :
+    IO Loam.LocusCatalog.Catalog := do
+  match ← Loam.LocusCatalog.loadForVocabulary dataDir world.locusAdmission with
+  | .ok catalog => return catalog
+  | .error _ => return Loam.LocusCatalog.fallback world.locusAdmission
 
 private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
   let some today ← Loam.ActualDate.todayIso?
@@ -357,9 +371,10 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
         match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
-      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-        Loam.CompletionPrompt.knownLoci world.events).eraseDups
-      let editor := Loam.Tui.Record.initial state.focusDate
+      let known := world.locusAdmission.approved.map (fun locus => locus.token)
+      let catalog ← currentLocusCatalog dataDir world
+      let editor := Loam.Tui.Record.withCatalog
+        (Loam.Tui.Record.initial state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← recordLoop bounds root world known editor editorFrame
@@ -391,9 +406,10 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
         match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
-      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-        Loam.CompletionPrompt.knownLoci world.events).eraseDups
-      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate
+      let known := world.locusAdmission.approved.map (fun locus => locus.token)
+      let catalog ← currentLocusCatalog dataDir world
+      let editor := Loam.Tui.ScheduledCreation.withCatalog
+        (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
@@ -427,8 +443,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
-              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let completion ← scheduledCompletionLoop
@@ -443,6 +458,8 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
                     | .ok nextEditor =>
+                        let catalog ← currentLocusCatalog dataDir world
+                        let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         IO.print "\x1b[2J"
@@ -506,8 +523,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
-              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
@@ -540,9 +556,10 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
         match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
-      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-        Loam.CompletionPrompt.knownLoci world.events).eraseDups
-      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate
+      let known := world.locusAdmission.approved.map (fun locus => locus.token)
+      let catalog ← currentLocusCatalog dataDir world
+      let editor := Loam.Tui.ScheduledCreation.withCatalog
+        (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
@@ -576,8 +593,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
-              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let completion ← scheduledCompletionLoop
@@ -592,6 +608,8 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
                     | .ok nextEditor =>
+                        let catalog ← currentLocusCatalog dataDir world
+                        let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         IO.print "\x1b[2J"
@@ -655,8 +673,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
-              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
@@ -719,8 +736,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
-              let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-                Loam.CompletionPrompt.knownLoci world.events).eraseDups
+              let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.Correction.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← correctionLoop bounds root (dataDir / "corrections.loam")
@@ -771,9 +787,10 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
         match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
-      let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-        Loam.CompletionPrompt.knownLoci world.events).eraseDups
-      let editor := Loam.Tui.Record.initial state.focusDate
+      let known := world.locusAdmission.approved.map (fun locus => locus.token)
+      let catalog ← currentLocusCatalog dataDir world
+      let editor := Loam.Tui.Record.withCatalog
+        (Loam.Tui.Record.initial state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← recordLoop bounds root world known editor editorFrame
@@ -1005,7 +1022,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'a' || key = .input 'A') then
-    let actual := Loam.Tui.HraActual.initial state.selectedDate
+    let metadata ← currentLocusMetadata dataDir
+    let actual := Loam.Tui.HraActual.withMetadata
+      (Loam.Tui.HraActual.initial state.selectedDate) metadata
     let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
     let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
@@ -1111,9 +1130,10 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
       | .ok world => pure world
-    let known := (world.locusAdmission.approved.map (fun locus => locus.token) ++
-      Loam.CompletionPrompt.knownLoci world.events).eraseDups
-    let editor := Loam.Tui.Record.initial state.selectedDate
+    let known := world.locusAdmission.approved.map (fun locus => locus.token)
+    let catalog ← currentLocusCatalog dataDir world
+    let editor := Loam.Tui.Record.withCatalog
+      (Loam.Tui.Record.initial state.selectedDate) catalog
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← recordLoop bounds root world known editor editorFrame

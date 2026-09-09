@@ -1,3 +1,4 @@
+import Loam.LocusCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Main
 
@@ -31,6 +32,8 @@ structure State where
   locusRow : Nat := 0
   transactionRow : Nat := 0
   notice : String := ""
+  /-- Presentation-only dictionary may include read-only historical identities. -/
+  locusMetadata : List Loam.LocusCatalog.Metadata := []
   deriving Repr, DecidableEq
 
 inductive Event where
@@ -59,6 +62,10 @@ structure Step where
 def initial (focusDate : String) : State :=
   { focusDate := focusDate }
 
+/-- Attach human-facing history metadata without changing filtering identity or write admission. -/
+def withMetadata (state : State) (metadata : List Loam.LocusCatalog.Metadata) : State :=
+  { state with locusMetadata := metadata }
+
 private def currentRecords (snapshot : Snapshot) : List ReviewRecord :=
   snapshot.actual.allRecords.filter (fun record => record.isCurrent)
 
@@ -68,7 +75,7 @@ def recordsForScope (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   | .focusDay => recordsForDay snapshot state.focusDate
   | .allCurrent => currentRecords snapshot
 
-/-- Neutral Locus names visible in the current Actual scope, in first representation appearance. -/
+/-- Stable Locus tokens visible in the current Actual scope, in first representation appearance. -/
 def lociForScope (snapshot : Snapshot) (state : State) : List String :=
   (recordsForScope snapshot state).flatMap (fun record =>
     record.event.effects.map (fun effect => effect.locus.token)) |>.eraseDups
@@ -165,13 +172,19 @@ private def fit (width : Nat) (text : String) : String :=
 private def rule (bounds : Bounds) (char : Char) : Widget :=
   plainLine (repeatChar (Loam.Tui.Layout.contentWidth bounds) char)
 
+private def displayLocus (state : State) (token : String) : String :=
+  let label := Loam.LocusCatalog.labelForToken state.locusMetadata token
+  if label == token then token else label ++ " [" ++ token ++ "]"
+
 private def scopeText (snapshot : Snapshot) (state : State) : String :=
   match state.scope with
   | .focusDay => "Focus Day (" ++ state.focusDate ++ ")"
   | .allCurrent => "All Current (known through " ++ snapshot.actual.today ++ ")"
 
 private def currentLocusName (snapshot : Snapshot) (state : State) : String :=
-  (selectedLocus? snapshot state).getD "All loci"
+  match selectedLocus? snapshot state with
+  | none => "All loci"
+  | some token => displayLocus state token
 
 private def positiveSummary (record : ReviewRecord) : String :=
   match record.event.effects.find? (fun effect => 0 < effect.quantity.quanta) with
@@ -195,7 +208,7 @@ private def txWindowStart (state : State) : Nat :=
 
 private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
-  else (lociForScope snapshot state)[row - 1]?
+  else (lociForScope snapshot state)[row - 1]?.map (displayLocus state)
 
 private def paneRow (snapshot : Snapshot) (state : State)
     (leftWidth rightWidth row : Nat) : Widget :=
@@ -234,7 +247,8 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
       , plainLine "   Effects:"
       ] ++
       (record.event.effects.map fun effect =>
-        plainLine ("     " ++ fit 28 effect.locus.token ++ " " ++ toString effect.quantity.quanta ++ " " ++ effect.measure.token))
+        plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
+          toString effect.quantity.quanta ++ " " ++ effect.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
   if bounds.width >= 66 then
@@ -259,14 +273,14 @@ private def orderText (state : State) : String :=
   | .desc => "newest first"
 
 /--
-HRA-shaped Actual workspace over the shared ActualReview answer. Locus filtering,
-pane focus, windowing and cursor coordinates are process-local presentation state.
+HRA-shaped Actual workspace over the shared ActualReview answer. Stable tokens
+still own filtering/selection identity; catalog labels alter presentation only.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
   let writable := Loam.Tui.Layout.contentWidth bounds
   let leftWidth :=
-    if writable >= 70 then min 28 (writable / 3) else min 22 (writable / 2)
+    if writable >= 70 then min 32 (writable / 3) else min 24 (writable / 2)
   let rightWidth := if writable > leftWidth + 3 then writable - leftWidth - 3 else 0
   let lociCount := (lociForScope snapshot state).length
   let txCount := (visibleRecords snapshot state).length
