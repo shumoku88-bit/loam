@@ -1,12 +1,14 @@
 import Loam.AccountingRolePublisher
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.Terminal
 
 namespace Loam.Tui.AccountingRoleAdministration
 
 open Loam.Core
 open Loam.Tui.Kernel
 open Loam.Tui.Layout
+open Loam.Tui.Terminal
 
 set_option autoImplicit false
 
@@ -49,7 +51,7 @@ private def roleLabel : AccountingRole → String
   | .expense => "Expense"
 
 private def selectedLocus? (state : State) : Option LocusId :=
-  state.candidates.get? state.cursor
+  state.candidates[state.cursor]?
 
 private def validation? (state : State) : Except String Loam.AccountingRolePublisher.Draft := do
   let some locus := selectedLocus? state
