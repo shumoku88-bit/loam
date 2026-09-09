@@ -44,12 +44,16 @@ def main (args : List String) : IO Unit := do
   | .error message => throw (IO.userError message)
   | .ok _ => pure ()
 
-  let .ok published ← Loam.LocusAdmissionPublisher.publishManifestAdmission
-      rootPath { token := "stationery" }
+  let published ←
+    match ← Loam.LocusAdmissionPublisher.publishManifestAdmission
+        rootPath { token := "stationery" } with
+    | .ok receipt => pure receipt
     | .error message => throw (IO.userError message)
   expect (published.currentCount == 3) "publisher receipt count mismatch"
 
-  let .ok loaded ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let loaded ←
+    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+    | .ok world => pure world
     | .error message => throw (IO.userError message)
   expect (loaded.locusAdmission.approved.map (fun locus => locus.token) ==
       ["book", "misc", "stationery"])
