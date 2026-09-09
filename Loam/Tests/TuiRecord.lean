@@ -101,17 +101,20 @@ def main (args : List String) : IO Unit := do
     focus := ⟨2, by decide⟩ }
   let pickerKnown := ["paypay", "books", "point"]
   expect (candidates pickerKnown blankCandidateForm == pickerKnown)
-    "blank Locus did not expose the supplied canonical candidates"
+    "blank Locus did not expose the supplied candidates"
   let pCandidateForm : Form := {
     blankCandidateForm with rows := blankCandidateForm.rows.set 0 { locus := "p", amount := "-2470" } }
   expect (candidates pickerKnown pCandidateForm == ["paypay", "point"])
     "prefix filter did not narrow Locus candidates"
   let pickerStart : State := { form := blankCandidateForm }
-  expect (selectedCandidate? pickerKnown pickerStart == some "paypay")
-    "candidate cursor did not start on the first visible candidate"
   let pickerDown := (update w pickerKnown pickerStart .down).state
-  expect (selectedCandidate? pickerKnown pickerDown == some "books")
+  expect (pickerDown.candidateVocabulary == ["paypay", "books"])
+    "Record candidate source was not reduced to current LocusAdmission"
+  expect (selectedCandidate? pickerDown.candidateVocabulary pickerDown == some "books")
     "Down did not move the candidate cursor"
+  let pickerWrapped := (update w pickerKnown pickerDown .down).state
+  expect (selectedCandidate? pickerWrapped.candidateVocabulary pickerWrapped == some "paypay")
+    "candidate cursor escaped current LocusAdmission into recognition-only history"
   let pickerAccepted := (update w pickerKnown pickerDown .right).state
   expect (pickerAccepted.form.rows[0]!.locus == "books")
     "Right did not accept the selected candidate"
@@ -138,4 +141,4 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
-  IO.println "TUI Record: signed postings, filtered candidate selection, admission, stale policy rejection, publication and fresh review passed."
+  IO.println "TUI Record: signed postings, canonical candidate selection, admission, stale policy rejection, publication and fresh review passed."
