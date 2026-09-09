@@ -1,3 +1,4 @@
+import Loam.Tui.Layout
 import Loam.Tui.Reports
 
 open Loam.Core Loam.Tui.Kernel
@@ -82,16 +83,34 @@ def main : IO Unit := do
   let summaryText := widgetText (Loam.Tui.Reports.view report)
   expect (contains "Reports / Transactions Flow" summaryText)
     "Transactions Flow heading was not rendered"
+  expect (contains "Coordinate" summaryText && contains "Net" summaryText && contains "Gross" summaryText)
+    "Transactions Flow table header was not rendered"
+  expect (contains "+In" summaryText && contains "-Out" summaryText && contains "Events" summaryText)
+    "Transactions Flow table columns were not rendered"
   expect (contains "cash/jpy" summaryText)
     "Transactions Flow summary lost the cash coordinate"
-  expect (contains "net 0" summaryText)
-    "Transactions Flow summary erased zero-net circulation"
-  expect (contains "gross 60000" summaryText)
+  expect (contains "60000" summaryText)
     "Transactions Flow summary lost gross activity"
-  expect (contains "2 events" summaryText)
-    "Transactions Flow summary lost active Event count"
+  expect (contains "+30000" summaryText)
+    "Transactions Flow summary lost positive cash witness"
+  expect (contains "-30000" summaryText)
+    "Transactions Flow summary lost negative cash witness"
   expect (!contains "0-cell matrix" summaryText)
     "Transactions Flow rendered the rejected dense matrix language"
+
+  let narrowBounds : Bounds := ⟨54, 24⟩
+  let narrowSummaryWidget := Loam.Tui.Reports.viewForBounds narrowBounds report
+  let narrowSummaryLines := narrowSummaryWidget.lines.map fun cells =>
+    String.ofList (cells.map Cell.glyph)
+  for l in narrowSummaryLines do
+    let width := Loam.Tui.Layout.displayWidth l
+    expect (width ≤ 53)
+      s!"Transactions Flow narrow summary row exceeded 53 columns: {l} ({width} cols)"
+  let narrowSummaryText := String.intercalate "\n" narrowSummaryLines
+  expect (contains "cash/jpy" narrowSummaryText)
+    "Transactions Flow narrow view lost cash coordinate"
+  expect (contains "60000" narrowSummaryText)
+    "Transactions Flow narrow view lost gross activity"
 
   let second := (Loam.Tui.Reports.update report .down).state
   let secondText := widgetText (Loam.Tui.Reports.view second)
@@ -114,6 +133,14 @@ def main : IO Unit := do
     "Transactions Flow detail lost the second contributing Event"
   expect (!contains "book purchase" detailText)
     "Transactions Flow detail leaked an unrelated zero-cell Event"
+
+  let narrowDetailWidget := Loam.Tui.Reports.viewForBounds narrowBounds detailState
+  let narrowDetailLines := narrowDetailWidget.lines.map fun cells =>
+    String.ofList (cells.map Cell.glyph)
+  for l in narrowDetailLines do
+    let width := Loam.Tui.Layout.displayWidth l
+    expect (width ≤ 53)
+      s!"Transactions Flow narrow detail row exceeded 53 columns: {l} ({width} cols)"
 
   let summaryAgain := (Loam.Tui.Reports.update detailState .escape).state
   expect (!summaryAgain.transactionsDetail && isTransactionsFlow summaryAgain)
