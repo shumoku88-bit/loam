@@ -54,7 +54,7 @@ RELATION_ID<TAB>POSITIVE_QUANTITY
 The target is checked again under writer ownership against the current admitted
 relation frontier and the complete candidate discharge set.
 -/
-def parseScripted? (text : String) : Except String (List Draft) :=
+def parseScripted? (text : String) : Except String (List Draft) := do
   if text.isEmpty then
     pure []
   else
