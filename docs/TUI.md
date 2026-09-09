@@ -33,7 +33,7 @@ g          return focus to the known-through day
 Enter      selected-day workspace
 r          Record
 a          Actual workspace
-p          Scheduled navigation
+p          Scheduled workspace
 i          Attention
 b          Balances
 c          current-cycle Budget
@@ -55,6 +55,7 @@ Loam/Tui/Terminal            terminal input/output mechanics
 Loam/Tui/Calendar            presentation-only Gregorian calendar projection
 Loam/Tui/HraHome             production Home presentation
 Loam/Tui/HraActual           Actual workspace presentation state
+Loam/Tui/HraScheduled        Scheduled workspace presentation state
 Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
 Loam/Tui/Record              local Movement draft editor
 Loam/Tui/Attention           current-open read-only Attention view
@@ -82,6 +83,29 @@ admission, writer ownership, and publication.
 
 After a successful write, the executable reloads canonical evidence before returning
 to the surrounding workspace. A cached TUI answer is never promoted into authority.
+
+## Actual workspace
+
+Home `a` opens the Actual workspace (`Loam.Tui.HraActual`). It projects current
+Actual records over neutral Loci coordinates, supporting Focus Day and All Current
+scopes (`f`), as well as ascending and descending chronology toggling (`o` / `s`) so
+records can be inspected starting from the newest transaction.
+
+Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
+Movement editor and delegates execution to `MovementPublisher`, reloading canonical
+evidence after durable writes.
+
+## Scheduled workspace
+
+Home `p` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
+the current-open Scheduled frontier over neutral Loci coordinates, supporting
+Focus Day and All Current-Open scopes (`f`).
+
+Like the selected-day Scheduled pane, object-local actions include Scheduled
+creation (`n`), completion (`c` / `Enter`), supersede/replacement (`s`), and
+cancellation (`x`). The surface collects intent and delegates execution to shared
+publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
+`ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
 
 ## Attention
 
@@ -151,8 +175,8 @@ publication sessions own authoritative writes and fresh review.
 ## Reports
 
 Home `v` opens Reports. Reports are explicit read queries rather than hidden household
-period authority. Current report queries include Budget Window, Stock-Flow, and
-conditional Liquidity.
+period authority. Current report queries include Budget Window, Stock-Flow,
+Transactions Flow, and conditional Liquidity.
 
 Visible query coordinates are the coordinates sent to the shared Review boundary.
 Calendar-month defaults are presentation conveniences only; they do not establish a

@@ -1,3 +1,4 @@
+import Loam.LocusCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Main
 
@@ -13,6 +14,11 @@ inductive Scope where
   | allCurrent
   deriving Repr, DecidableEq, BEq
 
+inductive SortOrder where
+  | asc
+  | desc
+  deriving Repr, DecidableEq, BEq
+
 inductive Pane where
   | loci
   | transactions
@@ -21,10 +27,13 @@ inductive Pane where
 structure State where
   focusDate : String
   scope : Scope := .focusDay
+  order : SortOrder := .asc
   pane : Pane := .loci
   locusRow : Nat := 0
   transactionRow : Nat := 0
   notice : String := ""
+  /-- Presentation-only dictionary may include read-only historical identities. -/
+  locusMetadata : List Loam.LocusCatalog.Metadata := []
   deriving Repr, DecidableEq
 
 inductive Event where
@@ -33,6 +42,7 @@ inductive Event where
   | focusLeft
   | focusRight
   | cycleFilter
+  | cycleOrder
   | recordNew
   | back
   | other
@@ -52,6 +62,10 @@ structure Step where
 def initial (focusDate : String) : State :=
   { focusDate := focusDate }
 
+/-- Attach human-facing history metadata without changing filtering identity or write admission. -/
+def withMetadata (state : State) (metadata : List Loam.LocusCatalog.Metadata) : State :=
+  { state with locusMetadata := metadata }
+
 private def currentRecords (snapshot : Snapshot) : List ReviewRecord :=
   snapshot.actual.allRecords.filter (fun record => record.isCurrent)
 
@@ -61,7 +75,7 @@ def recordsForScope (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   | .focusDay => recordsForDay snapshot state.focusDate
   | .allCurrent => currentRecords snapshot
 
-/-- Neutral Locus names visible in the current Actual scope, in first representation appearance. -/
+/-- Stable Locus tokens visible in the current Actual scope, in first representation appearance. -/
 def lociForScope (snapshot : Snapshot) (state : State) : List String :=
   (recordsForScope snapshot state).flatMap (fun record =>
     record.event.effects.map (fun effect => effect.locus.token)) |>.eraseDups
@@ -73,11 +87,15 @@ def selectedLocus? (snapshot : Snapshot) (state : State) : Option String :=
 
 
 def visibleRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
-  match selectedLocus? snapshot state with
-  | none => recordsForScope snapshot state
-  | some locus =>
-      (recordsForScope snapshot state).filter fun record =>
-        record.event.effects.any fun effect => effect.locus.token == locus
+  let base :=
+    match selectedLocus? snapshot state with
+    | none => recordsForScope snapshot state
+    | some locus =>
+        (recordsForScope snapshot state).filter fun record =>
+          record.event.effects.any fun effect => effect.locus.token == locus
+  match state.order with
+  | .asc => base
+  | .desc => base.reverse
 
 
 def selectedRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
@@ -126,6 +144,12 @@ private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
     | .allCurrent => Scope.focusDay
   clampState snapshot { state with scope := scope, locusRow := 0, transactionRow := 0, notice := "" }
 
+private def cycleOrder (snapshot : Snapshot) (state : State) : State :=
+  let order := match state.order with
+    | .asc => SortOrder.desc
+    | .desc => SortOrder.asc
+  clampState snapshot { state with order := order, transactionRow := 0, notice := "" }
+
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
@@ -134,6 +158,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .focusLeft => { state := { state with pane := .loci, notice := "" } }
   | .focusRight => { state := { state with pane := .transactions, notice := "" } }
   | .cycleFilter => { state := cycleFilter snapshot state }
+  | .cycleOrder => { state := cycleOrder snapshot state }
   | .recordNew => { state, command := .recordNew }
   | .back => { state, command := .back }
   | .other => { state }
@@ -147,13 +172,19 @@ private def fit (width : Nat) (text : String) : String :=
 private def rule (bounds : Bounds) (char : Char) : Widget :=
   plainLine (repeatChar (Loam.Tui.Layout.contentWidth bounds) char)
 
+private def displayLocus (state : State) (token : String) : String :=
+  let label := Loam.LocusCatalog.labelForToken state.locusMetadata token
+  if label == token then token else label ++ " [" ++ token ++ "]"
+
 private def scopeText (snapshot : Snapshot) (state : State) : String :=
   match state.scope with
   | .focusDay => "Focus Day (" ++ state.focusDate ++ ")"
   | .allCurrent => "All Current (known through " ++ snapshot.actual.today ++ ")"
 
 private def currentLocusName (snapshot : Snapshot) (state : State) : String :=
-  (selectedLocus? snapshot state).getD "All loci"
+  match selectedLocus? snapshot state with
+  | none => "All loci"
+  | some token => displayLocus state token
 
 private def positiveSummary (record : ReviewRecord) : String :=
   match record.event.effects.find? (fun effect => 0 < effect.quantity.quanta) with
@@ -177,7 +208,7 @@ private def txWindowStart (state : State) : Nat :=
 
 private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
-  else (lociForScope snapshot state)[row - 1]?
+  else (lociForScope snapshot state)[row - 1]?.map (displayLocus state)
 
 private def paneRow (snapshot : Snapshot) (state : State)
     (leftWidth rightWidth row : Nat) : Widget :=
@@ -216,15 +247,16 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
       , plainLine "   Effects:"
       ] ++
       (record.event.effects.map fun effect =>
-        plainLine ("     " ++ fit 28 effect.locus.token ++ " " ++ toString effect.quantity.quanta ++ " " ++ effect.measure.token))
+        plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
+          toString effect.quantity.quanta ++ " " ++ effect.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
   if bounds.width >= 66 then
-    [ mutedLine "[j/k] select  [h/l] pane  [f] filter"
+    [ mutedLine "[j/k] select  [h/l] pane  [f] filter  [o] order"
     , mutedLine "[n] new  [q] back"
     ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] filter"
+    [ mutedLine "[j/k] sel [h/l] pane [f] filter [o] ord"
     , mutedLine "[n] new [q] back"
     ]
 
@@ -235,15 +267,20 @@ private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : Li
   let padding := bodyCapacity - visibleBody.length
   visibleBody ++ List.replicate padding blankLine ++ footerRows
 
+private def orderText (state : State) : String :=
+  match state.order with
+  | .asc => "oldest first"
+  | .desc => "newest first"
+
 /--
-HRA-shaped Actual workspace over the shared ActualReview answer. Locus filtering,
-pane focus, windowing and cursor coordinates are process-local presentation state.
+HRA-shaped Actual workspace over the shared ActualReview answer. Stable tokens
+still own filtering/selection identity; catalog labels alter presentation only.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
   let writable := Loam.Tui.Layout.contentWidth bounds
   let leftWidth :=
-    if writable >= 70 then min 28 (writable / 3) else min 22 (writable / 2)
+    if writable >= 70 then min 32 (writable / 3) else min 24 (writable / 2)
   let rightWidth := if writable > leftWidth + 3 then writable - leftWidth - 3 else 0
   let lociCount := (lociForScope snapshot state).length
   let txCount := (visibleRecords snapshot state).length
@@ -251,14 +288,25 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     fit leftWidth
       (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
        else " Loci (" ++ toString lociCount ++ ")")
+  let orderTag := match state.order with
+    | .asc => "asc"
+    | .desc => "desc"
+  let rightHeaderBase :=
+    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ")"
+    else " Actuals (" ++ toString txCount ++ ")"
+  let rightHeaderWithOrder :=
+    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
+    else " Actuals (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
   let rightHeader :=
     fit rightWidth
-      (if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ")"
-       else " Actuals (" ++ toString txCount ++ ")")
+      (if rightWidth ≥ Loam.Tui.Layout.displayWidth rightHeaderWithOrder then
+         rightHeaderWithOrder
+       else
+         rightHeaderBase)
   let body :=
     [ rule bounds '='
     , plainLine " Household Actuals Workspace"
-    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  Time: " ++ scopeText snapshot state ++ "  |  Locus: " ++ currentLocusName snapshot state)
+    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  Time: " ++ scopeText snapshot state ++ "  |  Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
     , rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++

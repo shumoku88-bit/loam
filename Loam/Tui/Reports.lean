@@ -6,6 +6,7 @@ import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.Reports
@@ -616,10 +617,10 @@ private def stockFlowView (state : State) : Widget :=
 
 private def transactionWindowLines (state : State) : List Widget :=
   [ line "Reports / Transactions Flow"
-  , muted "Which exact household coordinates moved inside this explicit window?"
-  , muted "Zero-net circulation remains visible through gross activity."
+  , muted "Which exact coordinates moved in this window?"
+  , muted "Zero-net circulation visible via gross activity."
   , line ("Window: " ++ windowSourceLabel state)
-  , muted "Calendar month and named presets only resolve explicit [start, end) coordinates."
+  , muted "Presets only resolve explicit [start, end) dates."
   , blank
   , field state 0 "Start" state.form.start
   , field state 1 "End (exclusive)" state.form.endExclusive
@@ -632,32 +633,109 @@ private def transactionSummaryPrefix
     (rows : List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity)) :
     List Widget :=
   [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-  , muted (toString rows.length ++ " active coordinate(s); zero cells are omitted.")
-  , muted "Rows are ordered by gross quantity for presentation salience only."
+  , muted (toString rows.length ++ " active coordinate(s); zero cells omitted.")
+  , muted "Rows ordered by gross quantity (presentation only)."
   , blank
   ]
 
+structure TableLayout where
+  coordWidth : Nat
+  netWidth : Nat
+  grossWidth : Nat
+  posWidth : Nat
+  negWidth : Nat
+  evWidth? : Option Nat
+  deriving Repr
+
+private def defaultReportWidth : Nat := 72
+
+private def tableLayoutForWidth (width : Nat) : TableLayout :=
+  if width ≥ 70 then
+    { coordWidth := min 26 (width - 46)
+    , netWidth := 9
+    , grossWidth := 9
+    , posWidth := 9
+    , negWidth := 9
+    , evWidth? := some 8
+    }
+  else if width ≥ 51 then
+    { coordWidth := width - 36
+    , netWidth := 7
+    , grossWidth := 7
+    , posWidth := 7
+    , negWidth := 7
+    , evWidth? := some (min 6 (width - (2 + (width - 36) + 28)))
+    }
+  else if width ≥ 44 then
+    { coordWidth := width - 30
+    , netWidth := 7
+    , grossWidth := 7
+    , posWidth := 7
+    , negWidth := 7
+    , evWidth? := none
+    }
+  else
+    { coordWidth := max 10 (width - 23)
+    , netWidth := 7
+    , grossWidth := 7
+    , posWidth := 7
+    , negWidth := 0
+    , evWidth? := none
+    }
+
+private def TableLayout.totalWidth (layout : TableLayout) : Nat :=
+  2 + layout.coordWidth + layout.netWidth + layout.grossWidth + layout.posWidth +
+    (if layout.negWidth > 0 then layout.negWidth else 0) +
+    (match layout.evWidth? with | some w => w | none => 0)
+
+private def padNum (columns : Nat) (text : String) : String :=
+  let width := Loam.Tui.Layout.displayWidth text
+  if width ≥ columns then text
+  else Loam.Tui.Layout.padLeft columns text
+
+private def transactionTableHeader (layout : TableLayout) : Widget :=
+  let marker := "  "
+  let coord := Loam.Tui.Layout.padRight layout.coordWidth "Coordinate"
+  let net := padNum layout.netWidth "Net"
+  let gross := padNum layout.grossWidth "Gross"
+  let pos := padNum layout.posWidth "+In"
+  let neg := if layout.negWidth > 0 then padNum layout.negWidth "-Out" else ""
+  let ev := match layout.evWidth? with
+    | some w => if w ≥ 6 then padNum w "Events" else padNum w "Ev"
+    | none => ""
+  muted (marker ++ coord ++ net ++ gross ++ pos ++ neg ++ ev)
+
+private def repeatChar (count : Nat) (char : Char) : String :=
+  String.ofList (List.replicate count char)
+
+private def transactionTableRule (layout : TableLayout) : Widget :=
+  muted (repeatChar layout.totalWidth '-')
+
 private def transactionRowLine
-    (state : State) (index : Nat)
+    (state : State) (layout : TableLayout) (index : Nat)
     (row : Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) : Widget :=
   let coordinate := row.1
   let activity := row.2
-  line
-    ((if state.transactionsIndex = index then "> " else "  ") ++
-      coordinate.locus.token ++ "/" ++ coordinate.measure.token ++
-      "  net " ++ toString activity.net.quanta ++
-      "  gross " ++ toString activity.gross.quanta ++
-      "  positive " ++ signedQuanta activity.positive ++
-      "  negative " ++ signedQuanta activity.negative ++
-      "  " ++ toString activity.activeEvents ++ " events")
+  let marker := if state.transactionsIndex = index then "> " else "  "
+  let coordToken := coordinate.locus.token ++ "/" ++ coordinate.measure.token
+  let coord := Loam.Tui.Layout.padRight layout.coordWidth coordToken
+  let net := padNum layout.netWidth (toString activity.net.quanta)
+  let gross := padNum layout.grossWidth (toString activity.gross.quanta)
+  let pos := padNum layout.posWidth (signedQuanta activity.positive)
+  let neg := if layout.negWidth > 0 then padNum layout.negWidth (signedQuanta activity.negative) else ""
+  let ev := match layout.evWidth? with
+    | some w => padNum w (toString activity.activeEvents)
+    | none => ""
+  line (marker ++ coord ++ net ++ gross ++ pos ++ neg ++ ev)
 
 private def transactionRowLines
-    (state : State) : Nat →
+    (state : State) (layout : TableLayout) : Nat →
     List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) →
     List Widget
   | _, [] => []
   | index, row :: rest =>
-      transactionRowLine state index row :: transactionRowLines state (index + 1) rest
+      transactionRowLine state layout index row ::
+        transactionRowLines state layout (index + 1) rest
 
 private def selectedTransactionRow?
     (state : State) :
@@ -691,49 +769,55 @@ private def transactionDetailLines (state : State) : List Widget :=
       [ line ("Focused coordinate: " ++ coordinate.locus.token ++ "/" ++ coordinate.measure.token)
       , line
           ("Net " ++ toString activity.net.quanta ++
-            " | gross " ++ toString activity.gross.quanta ++
-            " | positive " ++ signedQuanta activity.positive ++
-            " | negative " ++ signedQuanta activity.negative)
-      , muted (toString contributions.length ++ " contributing Event(s); unrelated zero cells are omitted.")
+            " | Gross " ++ toString activity.gross.quanta ++
+            " | +In " ++ signedQuanta activity.positive ++
+            " | -Out " ++ signedQuanta activity.negative)
+      , muted (toString contributions.length ++ " contributing Event(s); zero cells omitted.")
       , blank
       ] ++
       contributions.map (transactionContributionLine coordinate) ++
       [ blank
-      , muted "Signs are exact quantity changes, not income/expense or source/destination labels."
+      , muted "Signs are exact quantity changes, not income/expense."
       ]
 
-private def transactionSummaryLines (state : State) : List Widget :=
+private def transactionSummaryLines (state : State) (bounds : Option Bounds) : List Widget :=
   match state.transactionsSnapshot with
   | none => [muted "No explicit Transactions Flow window has been run yet."]
   | some snapshot =>
       let rows := transactionRows snapshot
       transactionSummaryPrefix snapshot rows ++
       if rows.isEmpty then
-        [muted "No quantity activity appears in this explicit window."]
+        [muted "No quantity activity appears in this window."]
       else
-        transactionRowLines state 0 rows
+        let width := match bounds with
+          | some b => Loam.Tui.Layout.contentWidth b
+          | none => defaultReportWidth
+        let layout := tableLayoutForWidth width
+        transactionTableHeader layout ::
+        transactionTableRule layout ::
+        transactionRowLines state layout 0 rows
 
-private def transactionsFlowView (state : State) : Widget :=
+private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widget :=
   if state.transactionsDetail then
     .column <|
       [ line "Reports / Transactions Flow"
-      , muted "Focused nonzero Event witnesses for one exact coordinate."
+      , muted "Focused nonzero Event witnesses for coordinate."
       , blank
       ] ++
       transactionDetailLines state ++
       [ blank
       , muted "↑/↓ or j/k scroll contributors"
       , muted "b / Esc summary   q quit"
-      , muted "No pairwise flow edge is inferred from these signed Effects."
+      , muted "No pairwise flow edge inferred from signed Effects."
       , line state.notice
       ]
   else
     .column <|
       transactionWindowLines state ++
-      transactionSummaryLines state ++
+      transactionSummaryLines state bounds ++
       [ blank
-      , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
-      , muted "↑/↓ or j/k select coordinate   Enter detail   Tab / Shift-Tab window focus"
+      , muted "[ / ] source   ← / → Month   m sel-day month"
+      , muted "↑/↓ select coord   Enter detail   Tab window focus"
       , muted "b / Esc Reports menu   q quit"
       , line state.notice
       ]
@@ -861,11 +945,11 @@ private def budgetView (state : State) : Widget :=
     ]
 
 
-private def fullView (state : State) : Widget :=
+private def fullView (state : State) (bounds : Option Bounds := none) : Widget :=
   match state.mode with
   | .menu => menuView state
   | .stockFlow => stockFlowView state
-  | .transactionsFlow => transactionsFlowView state
+  | .transactionsFlow => transactionsFlowView state bounds
   | .accounting => accountingView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
@@ -879,8 +963,8 @@ private def fixedFooterSize : Mode → Nat
   | .liquidity => 3
   | .budgetWindow => 4
 
-private def viewParts (state : State) : List Widget × List Widget :=
-  match fullView state with
+private def viewParts (state : State) (bounds : Option Bounds := none) : List Widget × List Widget :=
+  match fullView state bounds with
   | .column children =>
       let footerSize := min (fixedFooterSize state.mode) children.length
       let bodySize := children.length - footerSize
@@ -892,7 +976,7 @@ private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
 
 /-- Largest meaningful vertical offset for the current report and terminal height. -/
 def scrollLimit (bounds : Bounds) (state : State) : Nat :=
-  let parts := viewParts state
+  let parts := viewParts state (some bounds)
   parts.1.length - bodyPageSize bounds parts.2
 
 private def scrollPositionLine
@@ -921,13 +1005,13 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
               let index := min state.transactionsIndex (rows.length - 1)
               let selectedLine :=
                 (transactionWindowLines state).length +
-                (transactionSummaryPrefix snapshot rows).length + index
+                (transactionSummaryPrefix snapshot rows).length + 2 + index
               (selectedLine + 1) - page
   | _ => state.scroll
 
 /-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
-  let parts := viewParts state
+  let parts := viewParts state (some bounds)
   let page := bodyPageSize bounds parts.2
   let offset := min (requestedOffset state page) (parts.1.length - page)
   let position := scrollPositionLine state.mode offset page parts.1.length
@@ -951,6 +1035,6 @@ def updateForBounds
   { step with state := { step.state with scroll := min step.state.scroll (scrollLimit bounds step.state) } }
 
 /-- Unbounded compatibility view used by existing pure presentation tests. -/
-def view (state : State) : Widget := fullView state
+def view (state : State) : Widget := fullView state none
 
 end Loam.Tui.Reports

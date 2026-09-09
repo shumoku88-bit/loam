@@ -94,6 +94,61 @@ def main : IO Unit := do
   let allCurrent := (Loam.Tui.HraActual.update snapshot second .cycleFilter).state
   expect ((Loam.Tui.HraActual.visibleRecords snapshot allCurrent).length == 3)
     "HRA Actual filter did not expand from Focus Day to all current Actual evidence"
+  expect (allCurrent.order == .asc)
+    "HRA Actual initial order was not ascending"
+
+  -- Focus left pane (loci) and select locus 1 (paypay)
+  let allCurrentLoci := (Loam.Tui.HraActual.update snapshot allCurrent .focusLeft).state
+  let paypayLocus := (Loam.Tui.HraActual.update snapshot allCurrentLoci .next).state
+  expect (Loam.Tui.HraActual.selectedLocus? snapshot paypayLocus == some "paypay")
+    "HRA Actual next did not select the paypay locus"
+  let paypayAsc := Loam.Tui.HraActual.visibleRecords snapshot paypayLocus
+  expect (paypayAsc.map (·.description) == ["gamma", "beta", "alpha"])
+    "HRA Actual paypay records in ascending order did not list oldest first"
+  match Loam.Tui.HraActual.selectedRecord? snapshot paypayLocus with
+  | none => throw (IO.userError "HRA Actual paypay record selection disappeared")
+  | some record =>
+      expect (record.description == "gamma")
+        "HRA Actual ascending paypay record was not oldest first (gamma)"
+
+  -- Toggle order to descending (newest first)
+  let paypayDesc := (Loam.Tui.HraActual.update snapshot paypayLocus .cycleOrder).state
+  expect (paypayDesc.order == .desc)
+    "HRA Actual cycleOrder did not change order to descending"
+  let paypayDescRecords := Loam.Tui.HraActual.visibleRecords snapshot paypayDesc
+  expect (paypayDescRecords.map (·.description) == ["alpha", "beta", "gamma"])
+    "HRA Actual paypay records in descending order did not list newest first"
+  match Loam.Tui.HraActual.selectedRecord? snapshot paypayDesc with
+  | none => throw (IO.userError "HRA Actual descending paypay record selection disappeared")
+  | some record =>
+      expect (record.description == "alpha")
+        "HRA Actual descending paypay record at row 0 was not newest (alpha)"
+
+  -- Move down in descending order
+  let paypayDescRight := (Loam.Tui.HraActual.update snapshot paypayDesc .focusRight).state
+  let paypayDescSecond := (Loam.Tui.HraActual.update snapshot paypayDescRight .next).state
+  match Loam.Tui.HraActual.selectedRecord? snapshot paypayDescSecond with
+  | none => throw (IO.userError "HRA Actual descending second record disappeared")
+  | some record =>
+      expect (record.description == "beta")
+        "HRA Actual descending second record was not beta"
+
+  -- Toggle back to ascending
+  let paypayAscAgain := (Loam.Tui.HraActual.update snapshot paypayDescSecond .cycleOrder).state
+  expect (paypayAscAgain.order == .asc)
+    "HRA Actual cycleOrder did not toggle back to ascending"
+  match Loam.Tui.HraActual.selectedRecord? snapshot paypayAscAgain with
+  | none => throw (IO.userError "HRA Actual toggled-back record disappeared")
+  | some record =>
+      expect (record.description == "gamma")
+        "HRA Actual toggled-back record at row 0 was not oldest (gamma)"
+
+  -- View check
+  let descViewText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot paypayDesc)
+  expect (contains "desc" descViewText && contains "newest first" descViewText)
+    "HRA Actual view did not display descending order indication"
+  expect (contains "[o] order" descViewText)
+    "HRA Actual view footer did not expose [o] order"
 
   let recent := Loam.Tui.Main.recentActualPreview ((List.range 5).map testRecord)
   expect (recent.map (·.description) == ["row-4", "row-3", "row-2"])

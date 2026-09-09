@@ -9,6 +9,8 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/LocusCatalog.lean'
+      - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -28,6 +30,7 @@ on:
       - 'Loam/Tests/ActualReversalPublisher.lean'
       - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiHraScheduled.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
@@ -85,6 +88,8 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/LocusCatalog.lean'
+      - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -104,6 +109,7 @@ on:
       - 'Loam/Tests/ActualReversalPublisher.lean'
       - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiHraScheduled.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
@@ -177,6 +183,9 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Verify display/history and admission-scoped Locus catalog
+        run: lake env lean --run Loam/Tests/LocusCatalog.lean
+
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
 
@@ -212,6 +221,9 @@ jobs:
 
       - name: Verify Scheduled browse, detail, and open-world Unknown
         run: lake env lean --run Loam/Tests/TuiScheduled.lean
+
+      - name: Verify HRA Scheduled workspace mechanics
+        run: lake env lean --run Loam/Tests/TuiHraScheduled.lean
 
       - name: Build shared Scheduled creation publisher boundary
         run: lake build Loam.ScheduledCreationPublisher
