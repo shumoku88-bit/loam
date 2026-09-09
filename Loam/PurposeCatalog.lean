@@ -90,7 +90,11 @@ theorem forPurposes_preserves_identities (metadata : List Metadata) (purposes : 
   induction purposes with
   | nil => rfl
   | cons purpose rest ih =>
-      simp [forPurposes, entryFor, ih]
+      change
+        (entryFor metadata purpose).purpose ::
+            (forPurposes metadata rest).map (·.purpose) =
+          purpose :: rest
+      rw [entryFor_preserves_identity, ih]
 
 /-- Load replaceable display metadata. Missing configuration is an empty catalog, not missing semantics. -/
 def loadMetadata (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
