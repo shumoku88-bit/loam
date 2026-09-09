@@ -8,7 +8,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/MovementManifestAuthority.lean'
       - 'Loam/MovementPublisher.lean'
-      - 'Loam/MovementEntry.lean'
+      - 'Loam/Cli/Movement/Entry.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'tools/loam-movement'
