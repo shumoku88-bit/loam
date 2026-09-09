@@ -262,20 +262,20 @@ The superseded 9999-food Event is absent. The August record and the half-open
 October end-boundary record are absent. Input list position is irrelevant.
 -/
 
-example : selectedIds september = ["replacement", "later"] := by decide
+example : selectedIds september = ["replacement", "later"] := by native_decide
 
 example :
     rowTokens september =
       [("book", "jpy"), ("food", "jpy"), ("paypay", "jpy"), ("smbc", "jpy")] := by
-  decide
+  native_decide
 
-example : cellQuanta september foodJpy ⟨"replacement"⟩ = some 600 := by decide
-example : cellQuanta september foodJpy ⟨"original"⟩ = none := by decide
-example : cellQuanta september bookJpy ⟨"replacement"⟩ = some 400 := by decide
-example : cellQuanta september bookJpy ⟨"later"⟩ = some 2470 := by decide
-example : rowTotalQuanta september bookJpy = some 2870 := by decide
-example : rowTotalQuanta september paypayJpy = some (-1000) := by decide
-example : rowTotalQuanta september smbcJpy = some (-2470) := by decide
+example : cellQuanta september foodJpy ⟨"replacement"⟩ = some 600 := by native_decide
+example : cellQuanta september foodJpy ⟨"original"⟩ = none := by native_decide
+example : cellQuanta september bookJpy ⟨"replacement"⟩ = some 400 := by native_decide
+example : cellQuanta september bookJpy ⟨"later"⟩ = some 2470 := by native_decide
+example : rowTotalQuanta september bookJpy = some 2870 := by native_decide
+example : rowTotalQuanta september paypayJpy = some (-1000) := by native_decide
+example : rowTotalQuanta september smbcJpy = some (-2470) := by native_decide
 
 /-- A current quantity Event with no date cannot be placed relative to the window. -/
 private def undatedCurrent : Loam.ActualReview.Record := {
@@ -284,7 +284,7 @@ private def undatedCurrent : Loam.ActualReview.Record := {
 
 example :
     (project (undatedCurrent :: householdRecords) "2026-09-01" "2026-10-01").isOk = false := by
-  decide
+  native_decide
 
 /-- Superseded undated evidence does not block the correction-aware current matrix. -/
 private def undatedSuperseded : Loam.ActualReview.Record := {
@@ -295,7 +295,7 @@ example :
     selectedIds
       (project (undatedSuperseded :: householdRecords) "2026-09-01" "2026-10-01") =
       ["replacement", "later"] := by
-  decide
+  native_decide
 
 /-- Invalid current occurrence evidence also refuses the matrix. -/
 private def invalidDateCurrent : Loam.ActualReview.Record := {
@@ -304,7 +304,7 @@ private def invalidDateCurrent : Loam.ActualReview.Record := {
 
 example :
     (project (invalidDateCurrent :: householdRecords) "2026-09-01" "2026-10-01").isOk = false := by
-  decide
+  native_decide
 
 /-- Empty current Events need no date to decide quantity-matrix membership. -/
 private def emptyUndatedEvent : Event := {
@@ -325,6 +325,6 @@ example :
     selectedIds
       (project (emptyUndatedRecord :: householdRecords) "2026-09-01" "2026-10-01") =
       ["replacement", "later"] := by
-  decide
+  native_decide
 
 end Observation234
