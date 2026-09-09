@@ -1,6 +1,7 @@
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
 import Loam.ActualReview
+import Loam.PurposeCatalog
 import Loam.Tui.Kernel
 import Lean.Elab.Tactic.Omega
 
@@ -26,6 +27,7 @@ not publish Capacity movements; publication remains in the shared
 structure State where
   snapshot : Loam.CapacityReview.Snapshot
   selected : Option (Fin snapshot.rows.length)
+  purposeMetadata : List Loam.PurposeCatalog.Metadata := []
   coverage : Option Loam.CurrentCoverageReview.Snapshot := none
   coverageSource : String := ""
   coverageNotice : String := ""
@@ -51,6 +53,11 @@ def initial (snapshot : Loam.CapacityReview.Snapshot) : State :=
   let selected : Option (Fin snapshot.rows.length) :=
     if h : 0 < snapshot.rows.length then some ⟨0, h⟩ else none
   { snapshot := snapshot, selected := selected }
+
+/-- Attach replaceable presentation metadata without changing any Capacity identity. -/
+def withPurposeMetadata
+    (metadata : List Loam.PurposeCatalog.Metadata) (state : State) : State :=
+  { state with purposeMetadata := metadata }
 
 /-- Attach one already-derived shared current coverage answer. -/
 def withCoverage
@@ -87,6 +94,7 @@ def refreshed (snapshot : Loam.CapacityReview.Snapshot) (state : State) : State 
         if h : 0 < snapshot.rows.length then some ⟨0, h⟩ else none
   { snapshot := snapshot
     selected := selected
+    purposeMetadata := state.purposeMetadata
     coverage := state.coverage
     coverageSource := state.coverageSource
     coverageNotice := state.coverageNotice
@@ -177,7 +185,8 @@ private def rowLine
     | none => false
     | some current => current.val == index
   let marker := if selected then "▶ " else "  "
-  let purpose := Loam.ActualReview.shortText 28 row.purpose.token
+  let purpose := Loam.ActualReview.shortText 28
+    (Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose)
   let text :=
     match coverageRow? state row.purpose with
     | none => marker ++ purpose ++ ": " ++ toString row.entitlement.quanta ++ " jpy"

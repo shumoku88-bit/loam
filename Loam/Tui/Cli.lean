@@ -1,4 +1,5 @@
 import Loam.LocusCatalog
+import Loam.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record
@@ -79,6 +80,12 @@ private def resolveManifestRoot
 private def currentLocusMetadata
     (dataDir : System.FilePath) : IO (List Loam.LocusCatalog.Metadata) := do
   match ← Loam.LocusCatalog.loadMetadata dataDir with
+  | .ok metadata => return metadata
+  | .error _ => return []
+
+private def currentPurposeMetadata
+    (dataDir : System.FilePath) : IO (List Loam.PurposeCatalog.Metadata) := do
+  match ← Loam.PurposeCatalog.loadMetadata dataDir with
   | .ok metadata => return metadata
   | .error _ => return []
 
@@ -932,7 +939,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.CapacityRebalanceSession.run
           bounds (dataDir / "capacity.loam") editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
-    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
@@ -950,7 +957,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) routingFrame
         Loam.Tui.ScheduledRoutingSession.run bounds routingPath scheduledPath routingState routingFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
-    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
@@ -972,7 +979,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.CapacityTransferSession.run
           bounds (dataDir / "capacity.loam") editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
-    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
+    let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
@@ -1096,7 +1103,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && Loam.Tui.CycleBudget.isHomeEntrance key then
     let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
-    let budget : Loam.Tui.CycleBudget.State := { snapshot := answer }
+    let purposeMetadata ← currentPurposeMetadata dataDir
+    let budget := Loam.Tui.CycleBudget.withPurposeMetadata purposeMetadata
+      ({ snapshot := answer } : Loam.Tui.CycleBudget.State)
     let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
     if ← cycleBudgetLoop bounds dataDir root budget budgetFrame then return
@@ -1126,7 +1135,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
       | .error message => throw (IO.userError message)
       | .ok capacitySnapshot => pure capacitySnapshot
-    let baseCapacity := Loam.Tui.Capacity.initial capacitySnapshot
+    let purposeMetadata ← currentPurposeMetadata dataDir
+    let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
+      (Loam.Tui.Capacity.initial capacitySnapshot)
     let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
     let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
