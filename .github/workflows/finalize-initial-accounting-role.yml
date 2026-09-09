@@ -1,0 +1,63 @@
+name: Finalize Initial AccountingRole Integration
+
+on:
+  push:
+    branches:
+      - 'feat/initial-accounting-role-assignment'
+    paths:
+      - 'tools/finalize-initial-accounting-role.py'
+      - '.github/workflows/finalize-initial-accounting-role.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    name: Verify, integrate and retire branch scaffolding
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/initial-accounting-role-assignment
+
+      - name: Apply exact final integration
+        run: |
+          python3 tools/finalize-initial-accounting-role.py
+          git diff --check
+
+      - name: Build production TUI with final wiring
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify AccountingRole semantic boundary
+        run: lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role"
+
+      - name: Verify AccountingRole presentation boundary
+        run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
+
+      - name: Retire branch-only scaffolding and commit final integration
+        run: |
+          rm -f \
+            .github/workflows/apply-initial-accounting-role-ci.yml \
+            .github/workflows/apply-initial-accounting-role-tui.yml \
+            .github/workflows/initial-accounting-role-assignment.yml \
+            .github/workflows/finalize-initial-accounting-role.yml \
+            tools/apply-initial-accounting-role-ci.py \
+            tools/apply-initial-accounting-role-tui.py \
+            tools/tui.yml.patched \
+            tools/finalize-initial-accounting-role.py
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(tui): integrate initial AccountingRole administration'
+          git push origin HEAD:feat/initial-accounting-role-assignment
