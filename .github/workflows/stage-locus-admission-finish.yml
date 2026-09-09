@@ -1,0 +1,32 @@
+name: Stage Locus admission finish
+
+on:
+  push:
+    branches:
+      - feat/locus-admission-administration
+    paths:
+      - '.github/workflows/stage-locus-admission-finish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/locus-admission-administration
+          fetch-depth: 0
+      - name: Generate final patches
+        run: python3 tools/stage-locus-admission-finish.py
+      - name: Check Home diff
+        run: git diff --check -- Loam/Tui/HraHome.lean
+      - name: Commit Home and generated workflow text
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/HraHome.lean tmp/tui-locus-admission.generated.yml
+          git commit -m 'feat(tui): expose Locus administration from Home'
+          git push origin HEAD:feat/locus-admission-administration
