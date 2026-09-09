@@ -98,8 +98,7 @@ def validMeasureToken (token : String) : Bool :=
 def encode? (amount : SomeAmount) : Option String :=
   let token := amount.measure.token
   if validMeasureToken token then
-    some (amountHeader ++ "\n" ++ token ++ "\t" ++
-      toString amount.quantity.quanta ++ "\n")
+    some (encodeVersionedRows amountHeader [token ++ "\t" ++ toString amount.quantity.quanta])
   else
     none
 
@@ -165,8 +164,7 @@ locus/measure projection coordinate.
 def encodeEvent? (event : Event) : Option String :=
   if validToken event.id.token then
     match event.effects.mapM encodeEffectRow? with
-    | some rows =>
-        some (String.intercalate "\n" ([eventHeader, event.id.token] ++ rows) ++ "\n")
+    | some rows => some (encodeVersionedRows eventHeader (event.id.token :: rows))
     | none => none
   else
     none
