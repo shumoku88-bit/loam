@@ -1,7 +1,9 @@
 import Loam.ActualDate
+import Loam.LocusCatalog
 import Loam.Persistence
 import Loam.ScheduledCreationPublisher
 import Loam.Tui.Kernel
+import Loam.Tui.LocusPicker
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Loam.Tui.Terminal
@@ -35,6 +37,8 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  candidateCatalog : Loam.LocusCatalog.Catalog := []
+  candidateIndex : Nat := 0
 
 structure Step where
   state : State
@@ -44,6 +48,10 @@ structure Step where
 /-- Seed a new Scheduled occurrence on the currently focused household date. -/
 def initial (date : String) : State :=
   { form := { date := date } }
+
+/-- Attach display-only metadata to one Scheduled creation editor. -/
+def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
+  { state with candidateCatalog := catalog, candidateIndex := 0 }
 
 private def rowsFromScheduled
     (record : Loam.Tui.Main.ScheduledRecord) : Array Loam.Tui.Record.Row :=
@@ -118,14 +126,40 @@ private def activeLocus? (form : Form) : Option String := do
       let row ← form.rows[offset / 2]?
       some row.locus
 
+/-- Legacy token-only first match retained for compatibility. -/
 private def candidate? (known : List String) (form : Form) : Option String := do
   let entered ← activeLocus? form
   known.find? fun token => entered.isPrefixOf token && token != entered
 
-private def acceptCandidate (known : List String) (form : Form) : Form :=
-  match candidate? known form with
-  | none => form
-  | some token => editActive form (fun _ => token)
+private def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
+  match activeLocus? state.form with
+  | none => []
+  | some entered => Loam.Tui.LocusPicker.candidates state.candidateCatalog entered
+
+private def selectedCatalogCandidate? (state : State) : Option Loam.LocusCatalog.Entry :=
+  match activeLocus? state.form with
+  | none => none
+  | some entered =>
+      Loam.Tui.LocusPicker.selected? state.candidateCatalog entered state.candidateIndex
+
+private def moveCandidate (state : State) (back : Bool) : State :=
+  match activeLocus? state.form with
+  | none => { state with candidateIndex := 0 }
+  | some entered =>
+      { state with candidateIndex :=
+          Loam.Tui.LocusPicker.move state.candidateCatalog entered state.candidateIndex back }
+
+private def acceptSelectedCandidate (state : State) : State :=
+  match selectedCatalogCandidate? state with
+  | none => state
+  | some entry =>
+      { state with
+          form := editActive state.form (fun _ => entry.locus.token)
+          candidateIndex := 0 }
+
+private def tokenCatalog (known : List String) : Loam.LocusCatalog.Catalog :=
+  known.map fun token =>
+    { locus := ⟨token⟩, label := token, help := "" }
 
 /-- Pure advisory parsing before preview; the shared publisher re-validates under ownership. -/
 def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft := do
@@ -166,6 +200,9 @@ private def preview (state : State) : State :=
 /-- Local editor transition. Durable intent is emitted only from preview Publish. -/
 def update
     (known : List String) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  let state := if state.candidateCatalog.isEmpty then
+      { state with candidateCatalog := tokenCatalog known }
+    else state
   match key with
   | .escape => { state, cancel := true }
   | _ =>
@@ -183,30 +220,32 @@ def update
         | _ => { state }
     | .editing =>
         match key with
-        | .tab => { state := { state with form := moveFocus state.form false } }
-        | .shiftTab => { state := { state with form := moveFocus state.form true } }
+        | .tab => { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
+        | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
             { state := { state with
                 form := editActive state.form (fun text => String.ofList text.toList.dropLast)
-                notice := "" } }
+                notice := "", candidateIndex := 0 } }
         | .input char =>
             { state := { state with
                 form := editActive state.form (fun text => text.push char)
-                notice := "" } }
-        | .right => { state := { state with form := acceptCandidate known state.form } }
+                notice := "", candidateIndex := 0 } }
+        | .up => { state := moveCandidate state true }
+        | .down => { state := moveCandidate state false }
+        | .right => { state := acceptSelectedCandidate state }
         | .enter =>
             let action := firstAction state.form
             let focus := state.form.focus
             if focus + 1 = action then
               { state := preview state }
             else if focus < action then
-              { state := { state with form := moveFocus state.form false } }
+              { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
             else if focus = action && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = action then
-              { state := { state with form := appendRow state.form } }
+              { state := { state with form := appendRow state.form, candidateIndex := 0 } }
             else if focus = action + 1 then
-              { state := { state with form := dropRow state.form } }
+              { state := { state with form := dropRow state.form, candidateIndex := 0 } }
             else if focus = action + 2 then
               { state := preview state }
             else
@@ -227,6 +266,9 @@ private def field (form : Form) (index : Nat) (label text : String) : Widget :=
 def view (known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing =>
+      let state := if state.candidateCatalog.isEmpty then
+          { state with candidateCatalog := tokenCatalog known }
+        else state
       let form := state.form
       let activeRow := (form.focus - 1) / 2
       let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
@@ -236,6 +278,18 @@ def view (known : List String) (state : State) : Widget :=
         , field form (2 + index * 2) "  JPY" row.amount
         ]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let options := catalogCandidates state
+      let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length
+      let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
+      let visible := (options.drop candidateStart).take 5
+      let candidateLines := if visible.isEmpty then [line "Loci: (none)"] else
+        (visible.zipIdx).map fun (entry, index) =>
+          let marker := if candidateStart + index = selectedIndex then "> " else "  "
+          line (marker ++ Loam.Tui.LocusPicker.display entry)
+      let helpLine :=
+        match selectedCatalogCandidate? state with
+        | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
+        | none => []
       .column <|
         [ line "Scheduled / New / Edit"
         , field form 0 "Due" form.date
@@ -243,10 +297,12 @@ def view (known : List String) (state : State) : Widget :=
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus = firstAction form + index then .selected else .normal))
-        , line ("Candidate: " ++ (candidate? known form).getD "")
-        , line "Signed JPY postings describe one independent expected movement."
+        , line "Locus catalog:"
+        ] ++ candidateLines ++ helpLine ++
+        [ line "Signed JPY postings describe one independent expected movement."
         , line "No recurrence, continuation, replacement relation, or Actual is created."
-        , line "Tab / Shift-Tab focus   Enter next/preview/action   Right accept candidate"
+        , line "Tab / Shift-Tab focus   Enter next/preview/action"
+        , line "Up / Down choose Locus   Right accept Locus"
         , line "Esc cancel   Backspace delete   Drop keeps at least two postings"
         , line state.notice
         ]

@@ -1,12 +1,9 @@
-import Loam.ActualDate
+import Loam.ActualRoutingPublisher
 import Loam.Core.RoutingEffective
-import Loam.Persistence.ActualRoutingPersistence
-import Loam.WriterOwnership
 
 namespace Loam.ActualRoutingCli
 
 open Loam.Core
-open Loam.Persistence
 
 set_option autoImplicit false
 
@@ -21,100 +18,62 @@ private def usage : String :=
   "Add dated explicitly-unmanaged routing:\n" ++
   "  loamActualRouting from ROUTING_FILE YYYY-MM-DD LOCUS unmanaged"
 
-private def loadHistoryOrEmpty?
-    (path : System.FilePath) : IO (Option ActualRoutingHistory) := do
-  if ← path.pathExists then
-    loadActualRoutingHistory? path
-  else
-    return RoutingHistory.ofEntries? []
-
-private def validLocus (token : String) : Bool :=
-  validToken token
-
-private def parsePurpose? (mode : String) (purpose? : Option String) : Option (Option PurposeId) :=
+private def parseTarget?
+    (mode : String)
+    (purpose? : Option String) : Option Loam.ActualRoutingPublisher.Target :=
   match mode, purpose? with
-  | "managed", some token =>
-      if validToken token then some (some ⟨token⟩) else none
-  | "unmanaged", none => some none
+  | "managed", some token => some (.managed ⟨token⟩)
+  | "unmanaged", none => some .unmanaged
   | _, _ => none
 
-private def publishEntryUnlocked
-    (routingPath : String)
-    (entry : RoutingEntry LocusId (RoutingEffective String)) : IO UInt32 := do
-  let file := System.FilePath.mk routingPath
-  match ← loadHistoryOrEmpty? file with
-  | none =>
-      IO.eprintln "loam: malformed or unsupported Actual routing file"
-      return 2
-  | some history =>
-      match RoutingHistory.ofEntries? (history.entries ++ [entry]) with
-      | none =>
-          IO.eprintln
-            "loam: Actual routing already has evidence at this locus/effective coordinate"
-          return 2
-      | some updated =>
-          if ← saveActualRoutingHistory? file updated then
-            let routeText :=
-              match entry.purpose with
-              | some purpose => "managed -> " ++ purpose.token
-              | none => "unmanaged"
-            let effectiveText :=
-              match entry.effectiveOn with
-              | .initial => "initial"
-              | .dated date => date
-            IO.println
-              ("Recorded Actual route: " ++ entry.subject.token ++ " @ " ++
-                effectiveText ++ " = " ++ routeText ++ ".")
-            return 0
-          else
-            IO.eprintln "loam: Actual routing evidence contains an unrepresentable token"
-            return 2
+private def effectiveText : RoutingEffective String → String
+  | .initial => "initial"
+  | .dated date => date
 
-private def publishEntry
+private def targetText : Loam.ActualRoutingPublisher.Target → String
+  | .managed purpose => "managed -> " ++ purpose.token
+  | .unmanaged => "unmanaged"
+
+private def publishDraft
     (routingPath : String)
-    (entry : RoutingEntry LocusId (RoutingEffective String)) : IO UInt32 :=
-  Loam.WriterOwnership.withOwnership
-    (System.FilePath.mk routingPath)
-    (publishEntryUnlocked routingPath entry)
+    (draft : Loam.ActualRoutingPublisher.Draft) : IO UInt32 := do
+  match ← Loam.ActualRoutingPublisher.publish routingPath draft with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok receipt =>
+      IO.println
+        ("Recorded Actual route: " ++ receipt.locus.token ++ " @ " ++
+          effectiveText receipt.effectiveOn ++ " = " ++ targetText receipt.target ++ ".")
+      return 0
 
 private def recordInitial
     (routingPath locus mode : String)
     (purpose? : Option String) : IO UInt32 := do
-  if !validLocus locus then
-    IO.eprintln "loam: routing locus must be a nonempty single-line token"
-    return 2
-  else
-    match parsePurpose? mode purpose? with
-    | none =>
-        IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
-        return 2
-    | some purpose =>
-        publishEntry routingPath {
-          subject := ⟨locus⟩
-          effectiveOn := (RoutingEffective.initial : RoutingEffective String)
-          purpose := purpose
-        }
+  match parseTarget? mode purpose? with
+  | none =>
+      IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
+      return 2
+  | some target =>
+      publishDraft routingPath {
+        locus := ⟨locus⟩
+        effectiveOn := (RoutingEffective.initial : RoutingEffective String)
+        target := target
+      }
 
 private def recordDated
     (routingPath date locus mode : String)
     (purpose? : Option String) : IO UInt32 := do
-  if !Loam.ActualDate.validIsoDate date then
-    IO.eprintln "loam: routing effective date must be a real calendar date in YYYY-MM-DD form"
-    return 2
-  else if !validLocus locus then
-    IO.eprintln "loam: routing locus must be a nonempty single-line token"
-    return 2
-  else
-    match parsePurpose? mode purpose? with
-    | none =>
-        IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
-        return 2
-    | some purpose =>
-        publishEntry routingPath {
-          subject := ⟨locus⟩
-          effectiveOn := RoutingEffective.dated date
-          purpose := purpose
-        }
+  match parseTarget? mode purpose? with
+  | none =>
+      IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
+      return 2
+  | some target =>
+      publishDraft routingPath {
+        locus := ⟨locus⟩
+        effectiveOn := RoutingEffective.dated date
+        target := target
+      }
 
 /-- Command dispatcher for retaining concrete Actual routing evidence. -/
 def run (args : List String) : IO UInt32 :=

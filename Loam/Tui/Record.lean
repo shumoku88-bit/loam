@@ -1,5 +1,7 @@
+import Loam.LocusCatalog
 import Loam.MovementAdmission
 import Loam.Tui.Kernel
+import Loam.Tui.LocusPicker
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 
@@ -28,8 +30,10 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
-  /-- Presentation copy of the current authoritative LocusAdmission vocabulary. -/
+  /-- Backwards-compatible token-only presentation copy of current admission. -/
   candidateVocabulary : List String := []
+  /-- Human-facing overlay scoped to exactly the current admitted vocabulary. -/
+  candidateCatalog : Loam.LocusCatalog.Catalog := []
   /-- Presentation-only cursor within the currently filtered Locus candidates. -/
   candidateIndex : Nat := 0
 
@@ -39,6 +43,10 @@ structure Step where
   publish : Option Loam.MovementAdmission.Draft := none
 
 def initial (date : String) : State := { form := { date := date } }
+
+/-- Attach replaceable display metadata without granting any write permission. -/
+def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
+  { state with candidateCatalog := catalog, candidateIndex := 0 }
 
 def moveFocus (form : Form) (back : Bool) : Form :=
   let count := 2 + form.rows.size * 2 + 4
@@ -78,44 +86,57 @@ def activeLocus? (form : Form) : Option String := do
     let row ← form.rows[(form.focus.val - 2) / 2]?
     some row.locus
 
-/-- All current prefix matches for the focused Locus field, retaining supplied display order. -/
+/-- Legacy token-only prefix helper retained for the smaller editors during cutover. -/
 def candidates (known : List String) (form : Form) : List String :=
   match activeLocus? form with
   | none => []
   | some entered => known.filter fun token => entered.isPrefixOf token && token != entered
 
-/-- Backwards-compatible first match used by the other small posting editors. -/
+/-- Backwards-compatible first token-only match. -/
 def candidate? (known : List String) (form : Form) : Option String :=
   (candidates known form).head?
 
-/-- The Record editor may move among all prefix matches before accepting one. -/
+/-- Backwards-compatible token-only cursor helper. -/
 def selectedCandidate? (known : List String) (state : State) : Option String :=
   let options := candidates known state.form
   if options.isEmpty then none
   else options[state.candidateIndex % options.length]?
 
-/-- Candidates change only the focused text field and carry no write authority. -/
+/-- Backwards-compatible token-only completion helper. -/
 def acceptCandidate (known : List String) (form : Form) : Form :=
   match candidate? known form with
   | none => form
   | some token => editActive form (fun _ => token)
 
-/-- Move only the local candidate cursor; canonical vocabulary and form text are untouched. -/
-def moveCandidate (known : List String) (state : State) (back : Bool) : State :=
-  let options := candidates known state.form
-  if options.isEmpty then { state with candidateIndex := 0 }
-  else
-    let count := options.length
-    let next := if back then (state.candidateIndex + count - 1) % count
-                else (state.candidateIndex + 1) % count
-    { state with candidateIndex := next }
+/-- Current human-facing candidates for the focused Locus. Empty text lists all admitted entries. -/
+def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
+  match activeLocus? state.form with
+  | none => []
+  | some entered => Loam.Tui.LocusPicker.candidates state.candidateCatalog entered
 
-/-- Accept exactly the currently selected filtered candidate. -/
-def acceptSelectedCandidate (known : List String) (state : State) : State :=
-  match selectedCandidate? known state with
+/-- Selected human-facing candidate under the local cursor. -/
+def selectedCatalogCandidate? (state : State) : Option Loam.LocusCatalog.Entry :=
+  match activeLocus? state.form with
+  | none => none
+  | some entered =>
+      Loam.Tui.LocusPicker.selected? state.candidateCatalog entered state.candidateIndex
+
+/-- Move only the local candidate cursor; canonical vocabulary and form text are untouched. -/
+def moveCandidate (_known : List String) (state : State) (back : Bool) : State :=
+  match activeLocus? state.form with
+  | none => { state with candidateIndex := 0 }
+  | some entered =>
+      { state with candidateIndex :=
+          Loam.Tui.LocusPicker.move state.candidateCatalog entered state.candidateIndex back }
+
+/-- Accept exactly the currently selected catalog candidate. -/
+def acceptSelectedCandidate (_known : List String) (state : State) : State :=
+  match selectedCatalogCandidate? state with
   | none => state
-  | some token =>
-      { state with form := editActive state.form (fun _ => token), candidateIndex := 0 }
+  | some entry =>
+      { state with
+          form := editActive state.form (fun _ => entry.locus.token)
+          candidateIndex := 0 }
 
 /-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
@@ -154,7 +175,10 @@ def dropRow (form : Form) : Form :=
 def update (world : Loam.MovementAdmission.World) (_known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   let approved := world.locusAdmission.approved.map (fun locus => locus.token)
-  let state := { state with candidateVocabulary := approved }
+  let catalog :=
+    if state.candidateCatalog.isEmpty then Loam.LocusCatalog.fallback world.locusAdmission
+    else Loam.LocusCatalog.restrict world.locusAdmission state.candidateCatalog
+  let state := { state with candidateVocabulary := approved, candidateCatalog := catalog }
   match key with
   | .escape => { state, cancel := true }
   | _ =>
@@ -231,22 +255,27 @@ def view (_known : List String) (state : State) : Widget :=
         [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
          field form (3 + index * 2) "  JPY" row.amount]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      let options := candidates state.candidateVocabulary form
+      let options := catalogCandidates state
       let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
       let visible := (options.drop candidateStart).take 5
-      let candidateText := if visible.isEmpty then "(none)" else
-        String.intercalate "  " <| (visible.zipIdx).map fun (token, index) =>
-          if candidateStart + index = selectedIndex then "[" ++ token ++ "]" else token
+      let candidateLines := if visible.isEmpty then [line "Loci: (none)"] else
+        (visible.zipIdx).map fun (entry, index) =>
+          let marker := if candidateStart + index = selectedIndex then "> " else "  "
+          line (marker ++ Loam.Tui.LocusPicker.display entry)
+      let helpLine :=
+        match selectedCatalogCandidate? state with
+        | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
+        | none => []
       .column <| [line "Record / Edit", field form 0 "Date" form.date,
         field form 1 "Description" form.description] ++ rowLines ++
         [.row ((actions.zipIdx).map fun (label, index) =>
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
-         line ("Candidates: " ++ candidateText),
-         line "Posting JPY is signed; negative and positive rows may appear in any order.",
+         line "Locus catalog:"] ++ candidateLines ++ helpLine ++
+        [line "Posting JPY is signed; negative and positive rows may appear in any order.",
          line "Tab / Shift-Tab focus   Enter next/final amount preview/action",
-         line "Up / Down choose candidate   Right accept candidate",
+         line "Up / Down choose Locus   Right accept Locus",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>
