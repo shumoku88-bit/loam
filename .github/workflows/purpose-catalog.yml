@@ -54,8 +54,11 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Build selected live observations and TUI integration
+      - name: Build selected live observations
         run: lake build
+
+      - name: Build production TUI integration
+        run: lake build loamTui
 
       - name: Exercise Purpose catalog decoding and fallback
         run: lake env lean --run Loam/Tests/PurposeCatalog.lean
