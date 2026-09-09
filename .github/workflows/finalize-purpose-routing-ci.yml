@@ -1,0 +1,38 @@
+name: Finalize Purpose Routing CI
+
+on:
+  push:
+    branches:
+      - 'feat/purpose-routing-administration'
+    paths:
+      - 'tools/finalize-purpose-routing-ci.py'
+      - '.github/workflows/finalize-purpose-routing-ci.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/purpose-routing-administration
+          fetch-depth: 0
+
+      - name: Fold qualification into Production TUI
+        run: python3 tools/finalize-purpose-routing-ci.py
+
+      - name: Remove branch-only finalizer
+        run: |
+          rm tools/finalize-purpose-routing-ci.py
+          rm .github/workflows/finalize-purpose-routing-ci.yml
+
+      - name: Commit CI consolidation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/tui.yml .github/workflows/purpose-routing-administration.yml tools/finalize-purpose-routing-ci.py .github/workflows/finalize-purpose-routing-ci.yml
+          git diff --cached --exit-code && { echo "CI consolidation produced no changes"; exit 1; } || true
+          git commit -m "ci(tui): qualify Purpose routing administration"
+          git push origin HEAD:feat/purpose-routing-administration
