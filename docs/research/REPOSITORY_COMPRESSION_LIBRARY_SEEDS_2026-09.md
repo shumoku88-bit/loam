@@ -4,7 +4,7 @@ Status: ACTIVE
 
 Original baseline main: `6a3e74df53db7828ca62ddfcfe2d265cf01965e9`
 
-Current recensus main: `a84f9442fbbdcbfdc73edbe78a5ac870fc301dfa`
+Current recensus main: `f30236126c22843231a697fa367b4bfdaba94a8f`
 
 This audit follows the completed six-phase Compression Audit. It does not reopen settled semantic distinctions or optimize for LOC alone.
 
@@ -155,11 +155,11 @@ The growth was not primarily dead code:
 
 The audit therefore prioritized presentation/orchestration/read-projection multiplication rather than another indiscriminate Core deletion pass.
 
-## Pass 1 refresh - after subtraction stack through #616
+## Pass 1 refresh - after subtraction stack through #617
 
-The audit branch was refreshed from current main `a84f9442fbbdcbfdc73edbe78a5ac870fc301dfa`. Exact-head Compression Audit run 163 completed successfully after the refresh.
+The audit branch was refreshed from current main `f30236126c22843231a697fa367b4bfdaba94a8f`. The #617 exact-head Compression Audit reproduced the current production surface before merge; this audit branch keeps the same production tree plus only the two audit files.
 
-Between the original recensus and current main, production changes #608 through #616 implemented several candidates while keeping the audit open.
+Between the original recensus and current main, production changes #608 through #617 implemented several candidates while keeping the audit open.
 
 ### Current exact surface
 
@@ -170,15 +170,15 @@ Between the original recensus and current main, production changes #608 through 
 | Persistence | 2,040 / 20 | 2,038 / 20 | **-2 / 0** |
 | Writer / top-level candidate | 2,608 / 11 | 2,608 / 11 | **0 / 0** |
 | Other top-level Lean | 3,127 / 26 | 3,176 / 26 | **+49 / 0** |
-| CLI | 2,777 / 17 | 2,332 / 17 | **-445 / 0** |
+| CLI | 2,777 / 17 | 2,317 / 17 | **-460 / 0** |
 | TUI | 6,954 / 31 | 6,954 / 31 | **0 / 0** |
-| **Practical subtotal** | **23,973 / 158** | **23,575 / 158** | **-398 / 0** |
+| **Practical subtotal** | **23,973 / 158** | **23,560 / 158** | **-413 / 0** |
 
 Current reachability:
 
 | Class | Original recensus | Current main | Delta |
 | --- | ---: | ---: | ---: |
-| Executable-reachable practical | 23,968 / 157 | 23,570 / 157 | **-398 / 0** |
+| Executable-reachable practical | 23,968 / 157 | 23,555 / 157 | **-413 / 0** |
 | Practical-library-only | 5 / 1 | 5 / 1 | **0 / 0** |
 | Candidate but unreachable | 0 / 0 | 0 / 0 | **unchanged zero** |
 
@@ -191,8 +191,8 @@ Non-production support also contracted:
 
 This is evidence for **subtraction by authority and implementation principle**, not merely LOC shaving:
 
-- practical source fell by 398 lines while every practical candidate remains reachable;
-- CLI fell by 445 lines while top-level Review/other Lean grew by only 49 lines, consistent with moving one semantic boundary into shared production ownership rather than cloning it per frontend;
+- practical source fell by 413 lines while every practical candidate remains reachable;
+- CLI fell by 460 lines while top-level Review/other Lean grew by only 49 lines, consistent with moving semantic ownership into shared production boundaries instead of cloning it per frontend;
 - Core and Application did not need to shrink to obtain the reduction;
 - narrow row-framing reuse changed Persistence by only two net lines, consistent with keeping domain decoding/admission local rather than building a serializer framework;
 - historical proof apparatus was graduated after its obligations were inherited, rather than kept indefinitely as a second verification surface.
@@ -333,11 +333,52 @@ The mechanics recensus also moved in the expected direction:
 
 Audit conclusion: this was not code motion from CLI to Review. One canonical evidence reader replaced two frontend-specific implementations while preserving both TUI all-Purpose semantics and explicit CLI zero-Purpose semantics.
 
+## Finding 008 - Open Scheduled CLI repeated the shared current-open frontier
+
+Classification: **SHARE INSIDE LOAM - IMPLEMENTED / CLOSED**.
+
+`ScheduledReview.loadEvidenceFromManifest` admits one complete Scheduled lifecycle snapshot against selected Movement Event evidence, and its lifecycle admission already passes through `ScheduledReview.currentOpenRecords`. Before #617, `OpenScheduledCli` immediately ran `currentOpenScheduledWithReplacement` again and manually reproduced the same five semantic failure branches:
+
+- unknown completion Scheduled identity;
+- unknown retirement Scheduled identity;
+- unknown replacement Scheduled identity;
+- invalid replacement graph;
+- conflicting terminal evidence.
+
+PR #617, `refactor(scheduled): reuse shared open frontier`, replaced the second match with `ScheduledReview.currentOpenRecords snapshot`. CLI date sorting and movement rendering remain presentation-local.
+
+Scope:
+
+```text
+1 file changed
++4 / -19
+net -15 lines
+```
+
+Exact-head qualification passed all six triggered checks: Practical Open Scheduled, Practical Scheduled Open-World Read, Practical Scheduled Replacement Readers, Practical Scheduled Balance, Compression Audit, and Selected Lean Observations.
+
+Audit conclusion: the gain is not the 15 lines by themselves. The standalone open-Scheduled frontend no longer owns a second copy of replacement-aware frontier error semantics.
+
+## Finding 009 - DailyQuantity resembles BalanceReview but retains a distinct diagnostic boundary
+
+Classification: **KEEP / DO NOT COLLAPSE YET**.
+
+`DailyQuantityCli` and `BalanceReview` both use zero-origin coverage and `inspectZeroOriginQuantity`, so textual inspection shows real overlap. However they do not currently have the same authority contract:
+
+- `BalanceReview` is the manifest-based production review boundary used by TUI and higher reviews;
+- `DailyQuantityCli` is a retained explicit `balances` / `current` diagnostic entrance;
+- without `LOAM_MOVEMENT_MANIFEST_ROOT`, `DailyQuantityCli` intentionally reads the caller-supplied EventMemory sidecar path;
+- Practical Zero-Origin Coverage CI constructs raw EventMemory fixtures and exercises that direct diagnostic contract.
+
+The production entrance retirement audit already classifies `loamDailyQuantity` as KEEP.
+
+Audit conclusion: do not route `DailyQuantityCli` through `BalanceReview.loadEvidence` merely to remove similar loaders. A later change may share a pure projection helper or explicitly retire the raw-sidecar diagnostic contract, but those are separate decisions requiring their own qualification.
+
 ## Audit passes
 
 ### Pass 1 - current production recensus
 
-**COMPLETE AND REFRESHED.** Current practical subtotal is 23,575 lines / 158 files; candidate-unreachable practical source remains zero.
+**COMPLETE AND REFRESHED.** Current practical subtotal is 23,560 lines / 158 files; candidate-unreachable practical source remains zero.
 
 ### Pass 2 - residue graduation
 
@@ -369,13 +410,16 @@ Completed or already shared:
 - complete-text sibling replacement -> `SiblingStage`, with semantic stop points retained;
 - duplicated Capacity frontend writer -> #608 closed;
 - duplicated Movement sidecar writer/authority path -> #615 closed;
-- duplicated Budget Window frontend reader -> #616 closed.
+- duplicated Budget Window frontend reader -> #616 closed;
+- duplicated Open Scheduled current-open frontier branching -> #617 closed.
 
 Continue with:
 
 - duplicated read projection where a production Review boundary already exists;
 - repeated review/orchestration that can share an already-earned read boundary;
 - frontend plumbing that reconstructs semantics already published by Application or authority modules.
+
+Do not treat `DailyQuantityCli` as a straightforward instance of this pattern while its explicit sidecar diagnostic contract remains qualified.
 
 ### Pass 4 - dependency-island audit
 
