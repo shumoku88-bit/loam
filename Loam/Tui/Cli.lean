@@ -19,6 +19,8 @@ import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession
+import Loam.Tui.ActualRoutingAdministration
+import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
 import Loam.BoundaryPresetConfig
 import Loam.MovementPublisher
@@ -30,6 +32,7 @@ import Loam.AttentionReview
 import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
+import Loam.ActualRoutingReview
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
@@ -1080,6 +1083,22 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
     if ← cycleBudgetLoop bounds dataDir root budget budgetFrame then return
     let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if isHome && (key = .input 'u' || key = .input 'U') then
+    let routingSnapshot ←
+      match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
+      | .error message => throw (IO.userError message)
+      | .ok routingSnapshot => pure routingSnapshot
+    let administration := Loam.Tui.ActualRoutingAdministration.initial routingSnapshot
+    let administrationFrame :=
+      compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds administration)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
+    let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
+      bounds (dataDir / "actual-routing.loam") administration administrationFrame
+    let home := { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
@@ -18,6 +19,7 @@ on:
       - main
     paths:
       - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
