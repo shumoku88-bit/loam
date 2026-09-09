@@ -28,6 +28,8 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  /-- Presentation-only cursor within the currently filtered Locus candidates. -/
+  candidateIndex : Nat := 0
 
 structure Step where
   state : State
@@ -74,15 +76,44 @@ def activeLocus? (form : Form) : Option String := do
     let row ← form.rows[(form.focus.val - 2) / 2]?
     some row.locus
 
-def candidate? (known : List String) (form : Form) : Option String := do
-  let entered ← activeLocus? form
-  known.find? fun token => entered.isPrefixOf token && token != entered
+/-- All current prefix matches for the focused Locus field, retaining supplied display order. -/
+def candidates (known : List String) (form : Form) : List String :=
+  match activeLocus? form with
+  | none => []
+  | some entered => known.filter fun token => entered.isPrefixOf token && token != entered
+
+/-- Backwards-compatible first match used by the other small posting editors. -/
+def candidate? (known : List String) (form : Form) : Option String :=
+  (candidates known form).head?
+
+/-- The Record editor may move among all prefix matches before accepting one. -/
+def selectedCandidate? (known : List String) (state : State) : Option String :=
+  let matches := candidates known state.form
+  if matches.isEmpty then none
+  else matches[state.candidateIndex % matches.length]?
 
 /-- Candidates change only the focused text field and carry no write authority. -/
 def acceptCandidate (known : List String) (form : Form) : Form :=
   match candidate? known form with
   | none => form
   | some token => editActive form (fun _ => token)
+
+/-- Move only the local candidate cursor; canonical vocabulary and form text are untouched. -/
+def moveCandidate (known : List String) (state : State) (back : Bool) : State :=
+  let matches := candidates known state.form
+  if matches.isEmpty then { state with candidateIndex := 0 }
+  else
+    let count := matches.length
+    let next := if back then (state.candidateIndex + count - 1) % count
+                else (state.candidateIndex + 1) % count
+    { state with candidateIndex := next }
+
+/-- Accept exactly the currently selected filtered candidate. -/
+def acceptSelectedCandidate (known : List String) (state : State) : State :=
+  match selectedCandidate? known state with
+  | none => state
+  | some token =>
+      { state with form := editActive state.form (fun _ => token), candidateIndex := 0 }
 
 /-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
@@ -137,30 +168,32 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
         | _ => { state }
     | .editing =>
         match key with
-        | .tab => { state := { state with form := moveFocus state.form false } }
-        | .shiftTab => { state := { state with form := moveFocus state.form true } }
+        | .tab => { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
+        | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
             { state := { state with
                 form := editActive state.form (fun text => String.ofList (text.toList.dropLast)),
-                notice := "" } }
+                notice := "", candidateIndex := 0 } }
         | .input char =>
             { state := { state with
                 form := editActive state.form (fun text => text.push char),
-                notice := "" } }
-        | .right => { state := { state with form := acceptCandidate known state.form } }
+                notice := "", candidateIndex := 0 } }
+        | .up => { state := moveCandidate known state true }
+        | .down => { state := moveCandidate known state false }
+        | .right => { state := acceptSelectedCandidate known state }
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
             let focus := state.form.focus.val
             if focus + 1 = firstAction then
               { state := preview world state }
             else if focus < firstAction then
-              { state := { state with form := moveFocus state.form false } }
+              { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
             else if focus = firstAction && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = firstAction then
-              { state := { state with form := appendRow state.form } }
+              { state := { state with form := appendRow state.form, candidateIndex := 0 } }
             else if focus = firstAction + 1 then
-              { state := { state with form := dropRow state.form } }
+              { state := { state with form := dropRow state.form, candidateIndex := 0 } }
             else if focus = firstAction + 2 then
               { state := preview world state }
             else { state, cancel := true }
@@ -194,14 +227,22 @@ def view (known : List String) (state : State) : Widget :=
         [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
          field form (3 + index * 2) "  JPY" row.amount]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let matches := candidates known form
+      let selectedIndex := if matches.isEmpty then 0 else state.candidateIndex % matches.length
+      let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
+      let visible := (matches.drop candidateStart).take 5
+      let candidateText := if visible.isEmpty then "(none)" else
+        String.intercalate "  " <| (visible.zipIdx).map fun (token, index) =>
+          if candidateStart + index = selectedIndex then "[" ++ token ++ "]" else token
       .column <| [line "Record / Edit", field form 0 "Date" form.date,
         field form 1 "Description" form.description] ++ rowLines ++
         [.row ((actions.zipIdx).map fun (label, index) =>
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
-         line ("Candidate: " ++ (candidate? known form).getD ""),
+         line ("Candidates: " ++ candidateText),
          line "Posting JPY is signed; negative and positive rows may appear in any order.",
-         line "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate",
+         line "Tab / Shift-Tab focus   Enter next/final amount preview/action",
+         line "Up / Down choose candidate   Right accept candidate",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>
