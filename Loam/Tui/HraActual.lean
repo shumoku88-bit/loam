@@ -1,3 +1,4 @@
+import Loam.Tui.Layout
 import Loam.Tui.Main
 
 namespace Loam.Tui.HraActual
@@ -141,13 +142,10 @@ private def repeatChar (count : Nat) (char : Char) : String :=
   String.ofList (List.replicate count char)
 
 private def fit (width : Nat) (text : String) : String :=
-  if text.length <= width then
-    text ++ repeatChar (width - text.length) ' '
-  else
-    String.ofList (text.toList.take width)
+  Loam.Tui.Layout.padRight width text
 
 private def rule (bounds : Bounds) (char : Char) : Widget :=
-  plainLine (repeatChar (if bounds.width > 1 then bounds.width - 1 else bounds.width) char)
+  plainLine (repeatChar (Loam.Tui.Layout.contentWidth bounds) char)
 
 private def scopeText (snapshot : Snapshot) (state : State) : String :=
   match state.scope with
@@ -243,7 +241,7 @@ pane focus, windowing and cursor coordinates are process-local presentation stat
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
-  let writable := if bounds.width > 1 then bounds.width - 1 else bounds.width
+  let writable := Loam.Tui.Layout.contentWidth bounds
   let leftWidth :=
     if writable >= 70 then min 28 (writable / 3) else min 22 (writable / 2)
   let rightWidth := if writable > leftWidth + 3 then writable - leftWidth - 3 else 0
