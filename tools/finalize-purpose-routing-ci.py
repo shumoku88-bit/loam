@@ -1,6 +1,7 @@
 from pathlib import Path
 
 # Branch-only fail-closed transformer; removed by the workflow after use.
+# Re-triggered by the post-compression audit to finish the branch-local CI fold.
 
 def replace_exact(path: Path, old: str, new: str, expected: int) -> None:
     text = path.read_text()
