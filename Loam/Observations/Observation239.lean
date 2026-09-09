@@ -56,6 +56,7 @@ theorem catalog_is_not_capacity_authority
             (decorateCapacityRows metadata rest).map (·.semantic) =
           row :: rest
       rw [ih]
+      rfl
 
 /-- Consequently a catalog cannot change how many semantic Capacity rows exist. -/
 theorem catalog_cannot_admit_purpose
