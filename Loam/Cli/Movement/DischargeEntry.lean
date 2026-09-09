@@ -1,22 +1,13 @@
 import Loam.Core.OpenRelation
+import Loam.MovementAdmission
 import Loam.Persistence
 
 namespace Loam.MovementDischargeEntry
 
 set_option autoImplicit false
 
-/--
-Human-input draft for one exact discharge against an existing RelationUnit.
-
-The draft deliberately has no EventId. The later Event identity is allocated only
-after writer ownership is acquired, so human think time cannot reserve durable
-identity. Target identity and quantity are explicit; no automatic settlement or
-matching is inferred from Movement Effects, endpoint labels, or source sign.
--/
-structure Draft where
-  target : Loam.Core.RelationUnitId
-  quantity : Loam.Core.Quantity
-  deriving Repr, DecidableEq
+/-- Compatibility name for the semantic draft owned by Movement admission. -/
+abbrev Draft := Loam.MovementAdmission.DischargeDraft
 
 private def promptLine (prompt : String) : IO String := do
   IO.print prompt
@@ -63,7 +54,7 @@ RELATION_ID<TAB>POSITIVE_QUANTITY
 The target is checked again under writer ownership against the current admitted
 relation frontier and the complete candidate discharge set.
 -/
-def parseScripted? (text : String) : Except String (List Draft) :=
+def parseScripted? (text : String) : Except String (List Draft) := do
   if text.isEmpty then
     pure []
   else

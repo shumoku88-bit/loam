@@ -1,25 +1,14 @@
 import Loam.Core.OpenRelation
 import Loam.Core.Event
+import Loam.MovementAdmission
 import Loam.Persistence
 
 namespace Loam.MovementRelationEntry
 
 set_option autoImplicit false
 
-/--
-Human-input draft for one positive open relation attached to an already-collected
-Movement Effect.
-
-The draft deliberately has no EventId or RelationUnitId. Durable identities are
-allocated only after writer ownership is acquired. Debtor/creditor are already
-explicit here, so Effect sign is never consulted for relation direction.
--/
-structure Draft where
-  sourceEffect : Loam.Core.EffectKey
-  debtor : Loam.Core.RelationEndpoint
-  creditor : Loam.Core.RelationEndpoint
-  quantity : Loam.Core.Quantity
-  deriving Repr, DecidableEq
+/-- Compatibility name for the semantic draft owned by Movement admission. -/
+abbrev Draft := Loam.MovementAdmission.RelationDraft
 
 private def promptLine (prompt : String) : IO String := do
   IO.print prompt

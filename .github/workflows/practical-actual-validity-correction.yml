@@ -3,7 +3,6 @@ name: Practical Actual Validity Correction
 on:
   pull_request:
     paths:
-      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
@@ -16,7 +15,6 @@ on:
       - 'lake-manifest.json'
   push:
     paths:
-      - 'Loam/ActualValidityV2Identity.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ActualValidityPersistence.lean'
