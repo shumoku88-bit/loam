@@ -37,10 +37,10 @@ def main : IO Unit := do
   let some draft := publish.publish | throw (IO.userError "preview confirmation emitted no draft")
   expect (draft.token == "stationery") "published draft lost stable token"
 
-  let invalid := typeText initial "bad token"
+  let invalid := { initial with entered := "bad\ttoken" }
   let invalidStep := Loam.Tui.LocusAdmissionAdministration.update invalid .enter
-  expect (invalidStep.state.phase == .editing) "invalid token entered preview"
-  expect (invalidStep.publish.isNone) "invalid token emitted publication"
+  expect (invalidStep.state.phase == .editing) "persistence-invalid token entered preview"
+  expect (invalidStep.publish.isNone) "persistence-invalid token emitted publication"
 
   let scrolled := Loam.Tui.LocusAdmissionAdministration.update initial .down
   expect (scrolled.state.scroll == 1) "down arrow did not inspect the next existing Locus"
