@@ -1,4 +1,5 @@
 name: Stage shared Locus catalog wiring
+# One-shot trigger: materialize the validated production wiring on PR #635.
 
 on:
   push:
