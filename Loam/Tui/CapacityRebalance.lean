@@ -3,12 +3,13 @@ import Loam.CapacityReview
 import Loam.CurrentCoverageReview
 import Loam.ActualReview
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 
 namespace Loam.Tui.CapacityRebalance
 
-open Loam.Core Loam.Tui.Kernel Loam.Tui.Terminal
+open Loam.Core Loam.Tui.Kernel Loam.Tui.Layout Loam.Tui.Terminal
 
 set_option autoImplicit false
 
@@ -177,16 +178,6 @@ def update (state : State) (key : Key) : Step :=
       | .escape | .input 'q' | .input 'Q' =>
           stay { state with mode := .selecting }
       | _ => stay state
-
-private def padRight (width : Nat) (s : String) : String :=
-  let len := s.length
-  if len >= width then s
-  else s ++ String.ofList (List.replicate (width - len) ' ')
-
-private def padLeft (width : Nat) (s : String) : String :=
-  let len := s.length
-  if len >= width then s
-  else String.ofList (List.replicate (width - len) ' ') ++ s
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
