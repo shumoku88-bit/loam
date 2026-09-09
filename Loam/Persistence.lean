@@ -90,14 +90,10 @@ def validToken (token : String) : Bool :=
     !token.contains '\n' &&
     !token.contains '\r'
 
-/-- Compatibility name for the original amount persistence boundary. -/
-def validMeasureToken (token : String) : Bool :=
-  validToken token
-
 /-- Encode one runtime amount without changing its exact quanta. -/
 def encode? (amount : SomeAmount) : Option String :=
   let token := amount.measure.token
-  if validMeasureToken token then
+  if validToken token then
     some (encodeVersionedRows amountHeader [token ++ "\t" ++ toString amount.quantity.quanta])
   else
     none
@@ -110,7 +106,7 @@ def decode? (input : String) : Option SomeAmount :=
         if trailing = "" then
           match row.splitOn "\t" with
           | [token, quantaText] =>
-              if validMeasureToken token then
+              if validToken token then
                 match quantaText.toInt? with
                 | some quanta =>
                     some (SomeAmount.ofQuantity
