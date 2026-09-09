@@ -1,0 +1,105 @@
+import Loam.Core.LocusAdmission
+import Loam.Persistence
+
+namespace Loam.LocusCatalog
+
+open Loam.Core
+set_option autoImplicit false
+
+/-!
+# Human-readable Locus catalog
+
+`LocusAdmissionVocabulary` remains the authority for which Locus identities may
+appear in a new quantity-bearing write. This module only overlays replaceable
+human-facing labels/help onto that finite approved vocabulary.
+
+A catalog row can never admit a Locus, assign AccountingRole, infer Purpose, or
+resurrect a historical Event Locus. Missing metadata falls back to the stable
+opaque token.
+-/
+
+structure Metadata where
+  token : String
+  label : String
+  help : String
+  deriving Repr, DecidableEq
+
+structure Entry where
+  locus : LocusId
+  label : String
+  help : String
+  deriving Repr, DecidableEq
+
+abbrev Catalog := List Entry
+
+private def dropOneTrailingEmpty : List String → List String
+  | rows =>
+      match rows.reverse with
+      | "" :: rest => rest.reverse
+      | _ => rows
+
+private def decodeRow? (row : String) : Option Metadata :=
+  match row.splitOn "\t" with
+  | [token, label, help] =>
+      if Loam.Persistence.validToken token && !label.isEmpty && !help.isEmpty then
+        some { token := token, label := label, help := help }
+      else none
+  | _ => none
+
+private def uniqueTokens : List Metadata → Bool
+  | [] => true
+  | row :: rest =>
+      !(rest.any fun other => other.token == row.token) && uniqueTokens rest
+
+/-- Decode display metadata, rejecting malformed rows and duplicate token keys. -/
+def decode? (input : String) : Option (List Metadata) := do
+  let rows ← (dropOneTrailingEmpty (input.splitOn "\n")).mapM decodeRow?
+  if uniqueTokens rows then some rows else none
+
+private def metadataFor? (metadata : List Metadata) (locus : LocusId) : Option Metadata :=
+  metadata.find? fun row => row.token == locus.token
+
+/--
+Overlay metadata onto exactly the approved new-write vocabulary.
+
+Metadata for an unapproved or historical-only token is ignored. An approved token
+without metadata remains selectable under its token, so display configuration can
+never become a second admission authority.
+-/
+def forVocabulary
+    (vocabulary : LocusAdmissionVocabulary) (metadata : List Metadata) : Catalog :=
+  vocabulary.approved.map fun locus =>
+    match metadataFor? metadata locus with
+    | some row => { locus := locus, label := row.label, help := row.help }
+    | none => { locus := locus, label := locus.token, help := "" }
+
+/-- Token-only fallback for absent/unusable presentation metadata. -/
+def fallback (vocabulary : LocusAdmissionVocabulary) : Catalog :=
+  forVocabulary vocabulary []
+
+/-- Empty query means “show the whole admitted list”; otherwise match token or label prefix. -/
+def search (catalog : Catalog) (query : String) : Catalog :=
+  if query.isEmpty then catalog
+  else catalog.filter fun entry =>
+    query.isPrefixOf entry.locus.token || query.isPrefixOf entry.label
+
+/-- Exact stable-token lookup inside the admitted presentation catalog. -/
+def exactToken? (catalog : Catalog) (token : String) : Option Entry :=
+  catalog.find? fun entry => entry.locus.token == token
+
+/-- Load replaceable display metadata and overlay it onto one current admission world. -/
+def loadForVocabulary
+    (dataDir : System.FilePath) (vocabulary : LocusAdmissionVocabulary) :
+    IO (Except String Catalog) := do
+  let path := dataDir / "config" / "locus-catalog.tsv"
+  try
+    if ← path.pathExists then
+      match decode? (← IO.FS.readFile path) with
+      | none => return .error "locus catalog config is malformed"
+      | some metadata => return .ok (forVocabulary vocabulary metadata)
+    else
+      return .ok (fallback vocabulary)
+  catch error =>
+    return .error ("locus catalog config unreadable: " ++ error.toString)
+
+end Loam.LocusCatalog
