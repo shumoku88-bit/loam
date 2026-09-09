@@ -6,10 +6,11 @@ on:
       - 'Loam/Cli/BudgetWindowCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/MovementManifestAuthority.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Persistence/CapacityEffectivePersistence.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
@@ -23,10 +24,11 @@ on:
       - 'Loam/Cli/BudgetWindowCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/MovementManifestAuthority.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Persistence/CapacityEffectivePersistence.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
@@ -68,7 +70,10 @@ jobs:
           set -euo pipefail
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "$tmpdir"' EXIT
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\texpenses:food\n' >"$tmpdir/memory.loam.locus-admission"
+          manifest="$tmpdir/movement-authority"
+          memory="$tmpdir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay expenses:food
 
           printf 'unallocated\nfood\n100\n' \
             | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
@@ -79,14 +84,16 @@ jobs:
               .lake/build/bin/loamCapacity "$tmpdir/capacity.loam"
 
           printf 'paypay\n20\n\nexpenses:food\n20\n\n' \
-            | LOAM_OCCURRENCE_DATE=2026-08-16 \
-              LOAM_DESCRIPTION='before clean epoch' \
-              .lake/build/bin/loamMovement "$tmpdir/memory.loam"
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-08-16 \
+                LOAM_DESCRIPTION='before clean epoch' \
+                .lake/build/bin/loamMovement "$memory"
 
           printf 'paypay\n30\n\nexpenses:food\n30\n\n' \
-            | LOAM_OCCURRENCE_DATE=2026-08-18 \
-              LOAM_DESCRIPTION='inside clean epoch' \
-              .lake/build/bin/loamMovement "$tmpdir/memory.loam"
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-08-18 \
+                LOAM_DESCRIPTION='inside clean epoch' \
+                .lake/build/bin/loamMovement "$memory"
 
           .lake/build/bin/loamActualRouting \
             initial "$tmpdir/actual-routing.loam" expenses:food managed food
