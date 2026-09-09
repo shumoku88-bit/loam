@@ -137,6 +137,7 @@ on:
       - 'Loam/CycleFundingConfig.lean'
       - 'Loam/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
+      - 'Loam/Tests/TuiCycleBudget.lean'
       - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
