@@ -10,11 +10,12 @@ set_option autoImplicit false
 # Human-readable Locus catalog
 
 `LocusAdmissionVocabulary` remains the authority for which Locus identities may
-appear in a new quantity-bearing write. This module only overlays replaceable
-human-facing labels/help onto that finite approved vocabulary.
+appear in a new quantity-bearing write. Display metadata is deliberately broader:
+it may describe historical/read-only identities so old Actual evidence remains
+human-readable without re-admitting those identities for future publication.
 
-A catalog row can never admit a Locus, assign AccountingRole, infer Purpose, or
-resurrect a historical Event Locus. Missing metadata falls back to the stable
+A metadata row can never admit a Locus, assign AccountingRole, infer Purpose, or
+rewrite historical evidence. Missing metadata always falls back to the stable
 opaque token.
 -/
 
@@ -56,20 +57,29 @@ def decode? (input : String) : Option (List Metadata) := do
   let rows ← (dropOneTrailingEmpty (input.splitOn "\n")).mapM decodeRow?
   if uniqueTokens rows then some rows else none
 
-private def metadataFor? (metadata : List Metadata) (locus : LocusId) : Option Metadata :=
-  metadata.find? fun row => row.token == locus.token
+/-- Lookup is display-only and deliberately does not consult admission. -/
+def metadataForToken? (metadata : List Metadata) (token : String) : Option Metadata :=
+  metadata.find? fun row => row.token == token
+
+/-- Human-facing label for any current or historical token, with stable-token fallback. -/
+def labelForToken (metadata : List Metadata) (token : String) : String :=
+  (metadataForToken? metadata token).map (·.label) |>.getD token
+
+/-- Human-facing help for any current or historical token. -/
+def helpForToken (metadata : List Metadata) (token : String) : String :=
+  (metadataForToken? metadata token).map (·.help) |>.getD ""
 
 /--
-Overlay metadata onto exactly the approved new-write vocabulary.
+Overlay display metadata onto exactly the approved new-write vocabulary.
 
-Metadata for an unapproved or historical-only token is ignored. An approved token
-without metadata remains selectable under its token, so display configuration can
-never become a second admission authority.
+Metadata for an unapproved or historical-only token is ignored by this operation.
+An approved token without metadata remains selectable under its token, so display
+configuration can never become a second admission authority.
 -/
 def forVocabulary
     (vocabulary : LocusAdmissionVocabulary) (metadata : List Metadata) : Catalog :=
   vocabulary.approved.map fun locus =>
-    match metadataFor? metadata locus with
+    match metadataForToken? metadata locus.token with
     | some row => { locus := locus, label := row.label, help := row.help }
     | none => { locus := locus, label := locus.token, help := "" }
 
@@ -78,9 +88,9 @@ def fallback (vocabulary : LocusAdmissionVocabulary) : Catalog :=
   forVocabulary vocabulary []
 
 /--
-Re-scope an already loaded presentation catalog to a freshly re-read admission
-vocabulary. This preserves labels for identities that remain approved, drops any
-that ceased to be approved, and token-falls-back for newly approved identities.
+Re-scope an already loaded picker catalog to a freshly re-read admission
+vocabulary. Historical display metadata never enters this catalog unless the
+identity is independently admitted.
 -/
 def restrict
     (vocabulary : LocusAdmissionVocabulary) (catalog : Catalog) : Catalog :=
@@ -95,23 +105,29 @@ def search (catalog : Catalog) (query : String) : Catalog :=
   else catalog.filter fun entry =>
     query.isPrefixOf entry.locus.token || query.isPrefixOf entry.label
 
-/-- Exact stable-token lookup inside the admitted presentation catalog. -/
+/-- Exact stable-token lookup inside the admitted picker catalog. -/
 def exactToken? (catalog : Catalog) (token : String) : Option Entry :=
   catalog.find? fun entry => entry.locus.token == token
 
-/-- Load replaceable display metadata and overlay it onto one current admission world. -/
-def loadForVocabulary
-    (dataDir : System.FilePath) (vocabulary : LocusAdmissionVocabulary) :
-    IO (Except String Catalog) := do
+/-- Load the complete replaceable display dictionary, including historical-only rows. -/
+def loadMetadata (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
   let path := dataDir / "config" / "locus-catalog.tsv"
   try
     if ← path.pathExists then
       match decode? (← IO.FS.readFile path) with
       | none => return .error "locus catalog config is malformed"
-      | some metadata => return .ok (forVocabulary vocabulary metadata)
+      | some metadata => return .ok metadata
     else
-      return .ok (fallback vocabulary)
+      return .ok []
   catch error =>
     return .error ("locus catalog config unreadable: " ++ error.toString)
+
+/-- Load display metadata and intersect it with one current admission vocabulary. -/
+def loadForVocabulary
+    (dataDir : System.FilePath) (vocabulary : LocusAdmissionVocabulary) :
+    IO (Except String Catalog) := do
+  match ← loadMetadata dataDir with
+  | .error message => return .error message
+  | .ok metadata => return .ok (forVocabulary vocabulary metadata)
 
 end Loam.LocusCatalog
