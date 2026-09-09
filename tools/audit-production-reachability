@@ -91,13 +91,29 @@ def is_candidate_practical(path: Path) -> bool:
     return path.parts[0] == "Loam"
 
 
+def is_full_practical_source(path: Path) -> bool:
+    parts = path.parts
+    if len(parts) >= 2 and parts[0] == "Loam" and parts[1] in {"Tests", "Observations"}:
+        return False
+    if path in {
+        Path("Loam.lean"),
+        Path("Loam/Observations.lean"),
+        Path("Loam/Tests.lean"),
+    }:
+        return False
+    return path.parts[0] == "Loam"
+
+
 candidate_paths = sorted(path for path in lean_files if is_candidate_practical(path))
 candidate_modules = {path_to_module[path] for path in candidate_paths}
+full_practical_paths = sorted(path for path in lean_files if is_full_practical_source(path))
+full_practical_modules = {path_to_module[path] for path in full_practical_paths}
 
 exec_practical = candidate_modules & exe_reachable
 library_practical = candidate_modules & library_reachable
 lib_only = library_practical - exec_practical
 unreachable = candidate_modules - (exec_practical | library_practical)
+exec_full_practical = full_practical_modules & exe_reachable
 
 
 def source_lines(path: Path) -> int:
@@ -107,7 +123,7 @@ def source_lines(path: Path) -> int:
 def summarize(label: str, modules: set[str]) -> None:
     paths = sorted(module_to_path[module] for module in modules)
     lines = sum(source_lines(path) for path in paths)
-    print(f"{label:<34} {lines:8d} {len(paths):8d}")
+    print(f"{label:<38} {lines:8d} {len(paths):8d}")
 
 
 def reachability_label(module: str) -> str:
@@ -118,12 +134,22 @@ def reachability_label(module: str) -> str:
     return "NONE"
 
 
-print(f"{'reachability class':<34} {'lines':>8} {'files':>8}")
-print(f"{'-' * 34} {'-' * 8} {'-' * 8}")
+print(f"{'reachability class':<38} {'lines':>8} {'files':>8}")
+print(f"{'-' * 38} {'-' * 8} {'-' * 8}")
 summarize("Executable-reachable practical", exec_practical)
+summarize("Executable-reachable full Lean", exec_full_practical)
 summarize("Practical-library-only", lib_only)
 summarize("Candidate but unreachable", unreachable)
 summarize("Candidate practical total", candidate_modules)
+
+print("\nExecutable-reachable source outside legacy candidate subtotal:")
+legacy_excluded_reached = exec_full_practical - candidate_modules
+if legacy_excluded_reached:
+    for module in sorted(legacy_excluded_reached):
+        path = module_to_path[module]
+        print(f"  {path} ({source_lines(path)} lines)")
+else:
+    print("  (none)")
 
 print("\nExecutable closures:")
 for exe_name, root in executables:
@@ -154,7 +180,7 @@ else:
     print("  (none)")
 
 print("\nTop-level practical file reachability (EXEC / LIB / NONE):")
-for path in sorted(path for path in candidate_paths if len(path.parts) == 2):
+for path in sorted(path for path in full_practical_paths if len(path.parts) == 2):
     module = path_to_module[path]
     print(f"  {reachability_label(module):<4} {path}")
 
