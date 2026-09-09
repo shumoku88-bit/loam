@@ -1,0 +1,44 @@
+name: Observation 236
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/236_transactions_flow_sparse_presentation.lean'
+      - 'experiments/236_transactions_flow_sparse_presentation.md'
+      - 'Loam/TransactionsFlowReview.lean'
+      - '.github/workflows/observation-236-transactions-flow-sparse-presentation.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  transactions-flow-sparse-presentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 236 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/236_transactions_flow_sparse_presentation.lean > /tmp/observation-236-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-236-lean.log
+          exit "$status"
+      - name: Upload Observation 236 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-236-lean-log
+          path: /tmp/observation-236-lean.log
