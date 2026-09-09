@@ -7,6 +7,11 @@ on:
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/AccountingRolePublisher.lean'
       - 'Loam/Tests/AccountingRolePublisher.lean'
+      - 'Loam/Tui/AccountingRoleAdministration.lean'
+      - 'Loam/Tui/AccountingRoleAdministrationSession.lean'
+      - 'Loam/Tui/LocusAdmissionAdministration.lean'
+      - 'Loam/Tui/LocusAdmissionAdministrationSession.lean'
+      - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
       - '.github/workflows/initial-accounting-role-assignment.yml'
   workflow_dispatch:
 
@@ -27,7 +32,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.AccountingRolePublisher
+          build-args: Loam.AccountingRolePublisher Loam.Tui.LocusAdmissionAdministrationSession
           test: false
           lint: false
           use-mathlib-cache: false
@@ -37,3 +42,6 @@ jobs:
 
       - name: Verify initial role admission and publication
         run: lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role"
+
+      - name: Verify explicit role selection and preview interaction
+        run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
