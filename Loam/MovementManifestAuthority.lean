@@ -25,6 +25,10 @@ A selected generation is named only by `CURRENT`. Family images are immutable,
 content-addressed objects. Preparing objects does not make them authoritative;
 `commitPrepared?` changes authority through one `CURRENT` replacement.
 
+Validated pre-switch `CURRENT` manifests are retained as content-addressed recovery
+candidates. Those copies are not authority and are never discovered as fallback
+reads. `CURRENT` remains the only selected generation.
+
 Version 1 manifests contained only the five historical Movement evidence families.
 They remain readable so existing household history and read-only projections do
 not disappear during migration. They decode with an empty Locus admission
@@ -134,6 +138,37 @@ private def decodeManifest? (input : String) : Option Manifest :=
           locusAdmission := some locusAdmission
         }
   | _ => none
+
+private def recoveryManifestRelativePath (digest : String) : String :=
+  "recovery/manifests/" ++ digest ++ ".loam"
+
+/--
+Retain one already-validated manifest as an immutable off-authority recovery
+candidate. The caller is responsible for proving that its referenced generation is
+currently readable before invoking this physical retention step.
+-/
+private def retainRecoveryManifest?
+    (root : System.FilePath) (text : String) : IO (Except String String) := do
+  match decodeManifest? text with
+  | none => return .error "loam: recovery candidate manifest is malformed or unsupported"
+  | some _ => pure ()
+  let digest := Loam.Sha256.hash text.toUTF8
+  let relative := recoveryManifestRelativePath digest
+  let target := root / relative
+  if let some parent := target.parent then
+    IO.FS.createDirAll parent
+  if ← target.pathExists then
+    let existing ← IO.FS.readFile target
+    if existing != text then
+      return .error s!"loam: content-addressed recovery manifest mismatch: {relative}"
+    return .ok digest
+  let stage := System.FilePath.mk (target.toString ++ ".loam-stage")
+  IO.FS.writeFile stage text
+  let staged ← IO.FS.readFile stage
+  if staged != text then
+    return .error s!"loam: staged recovery manifest mismatch: {relative}"
+  IO.FS.rename stage target
+  return .ok digest
 
 private def boolNat (value : Bool) : Nat := if value then 1 else 0
 
@@ -312,7 +347,10 @@ def prepareWorld?
 
 /--
 Atomically select one already-prepared Movement generation by replacing only
-`CURRENT`. The staged manifest is decoded and compared before authority changes.
+`CURRENT`. Before switching, an existing selected generation must fully validate and
+its exact manifest is retained as an immutable off-authority recovery candidate.
+A malformed or unreadable current authority therefore blocks the switch rather than
+being overwritten and hidden.
 -/
 def commitPrepared?
     (root : System.FilePath) (prepared : Prepared) : IO (Except String Unit) := do
@@ -322,6 +360,15 @@ def commitPrepared?
     | none => return Except.error "loam: prepared Movement manifest is malformed"
   IO.FS.createDirAll root
   let target := root / "CURRENT"
+  if ← target.pathExists then
+    match ← loadSelectedWorld? root with
+    | .error message =>
+        return .error ("loam: existing Movement CURRENT cannot be retained for recovery: " ++ message)
+    | .ok _ => pure ()
+    let currentText ← IO.FS.readFile target
+    match ← retainRecoveryManifest? root currentText with
+    | .error message => return .error message
+    | .ok _ => pure ()
   let stage := root / "CURRENT.loam-stage"
   IO.FS.writeFile stage prepared.manifestText
   let staged ←
