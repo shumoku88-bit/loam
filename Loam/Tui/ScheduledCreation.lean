@@ -152,10 +152,6 @@ private def acceptSelectedCandidate (state : State) : State :=
           form := editActive state.form (fun _ => entry.locus.token)
           candidateIndex := 0 }
 
-private def tokenCatalog (known : List String) : Loam.LocusCatalog.Catalog :=
-  known.map fun token =>
-    { locus := ⟨token⟩, label := token, help := "" }
-
 /-- Pure advisory parsing before preview; the shared publisher re-validates under ownership. -/
 def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft := do
   if !Loam.ActualDate.validIsoDate state.form.date then
@@ -194,10 +190,7 @@ private def preview (state : State) : State :=
 
 /-- Local editor transition. Durable intent is emitted only from preview Publish. -/
 def update
-    (known : List String) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  let state := if state.candidateCatalog.isEmpty then
-      { state with candidateCatalog := tokenCatalog known }
-    else state
+    (_known : List String) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape => { state, cancel := true }
   | _ =>
@@ -258,12 +251,9 @@ private def field (form : Form) (index : Nat) (label text : String) : Widget :=
     (if form.focus = index then .selected else .normal)]
 
 /-- Creation exposes only Scheduled content and does not invent an Actual description. -/
-def view (known : List String) (state : State) : Widget :=
+def view (_known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing =>
-      let state := if state.candidateCatalog.isEmpty then
-          { state with candidateCatalog := tokenCatalog known }
-        else state
       let form := state.form
       let activeRow := (form.focus - 1) / 2
       let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
