@@ -15,6 +15,7 @@ on:
       - 'docs/research/COMPRESSION_AUDIT_PHASE4.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE5.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE6.md'
+      - 'docs/research/REPOSITORY_COMPRESSION_LIBRARY_SEEDS_2026-09.md'
       - 'Loam/**'
       - 'lakefile.lean'
       - '.github/workflows/compression-audit.yml'
@@ -31,13 +32,27 @@ jobs:
       - uses: actions/checkout@v6
       - name: Inventory production source surface
         shell: bash
-        run: bash tools/audit-production-surface
+        run: |
+          set -o pipefail
+          bash tools/audit-production-surface | tee /tmp/compression-audit-output.txt
       - name: Trace production import reachability
         shell: bash
-        run: python3 tools/audit-production-reachability
+        run: |
+          set -o pipefail
+          python3 tools/audit-production-reachability | tee -a /tmp/compression-audit-output.txt
       - name: Expose semantic candidate vocabulary
         shell: bash
-        run: python3 tools/audit-semantic-candidates
+        run: |
+          set -o pipefail
+          python3 tools/audit-semantic-candidates | tee -a /tmp/compression-audit-output.txt
       - name: Scan mechanics multiplication pressure
         shell: bash
-        run: python3 tools/audit-mechanics-patterns
+        run: |
+          set -o pipefail
+          python3 tools/audit-mechanics-patterns | tee -a /tmp/compression-audit-output.txt
+      - name: Upload compression audit output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compression-audit-output
+          path: /tmp/compression-audit-output.txt
