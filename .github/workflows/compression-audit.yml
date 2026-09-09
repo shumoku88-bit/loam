@@ -32,27 +32,13 @@ jobs:
       - uses: actions/checkout@v6
       - name: Inventory production source surface
         shell: bash
-        run: |
-          set -o pipefail
-          bash tools/audit-production-surface | tee /tmp/compression-audit-output.txt
+        run: bash tools/audit-production-surface
       - name: Trace production import reachability
         shell: bash
-        run: |
-          set -o pipefail
-          python3 tools/audit-production-reachability | tee -a /tmp/compression-audit-output.txt
+        run: python3 tools/audit-production-reachability
       - name: Expose semantic candidate vocabulary
         shell: bash
-        run: |
-          set -o pipefail
-          python3 tools/audit-semantic-candidates | tee -a /tmp/compression-audit-output.txt
+        run: python3 tools/audit-semantic-candidates
       - name: Scan mechanics multiplication pressure
         shell: bash
-        run: |
-          set -o pipefail
-          python3 tools/audit-mechanics-patterns | tee -a /tmp/compression-audit-output.txt
-      - name: Upload compression audit output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compression-audit-output
-          path: /tmp/compression-audit-output.txt
+        run: python3 tools/audit-mechanics-patterns
