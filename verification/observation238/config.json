@@ -1,0 +1,7 @@
+{
+  "challenge_module": "Challenge",
+  "solution_module": "Solution",
+  "theorem_names": ["Observation238.scheduled_absence_is_unknown"],
+  "permitted_axioms": [],
+  "enable_nanoda": false
+}
