@@ -28,8 +28,9 @@ Open the production TUI (also the default with no arguments):
   ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
 
-Record one balanced JPY movement:
-  ./tools/loam movement MEMORY_FILE
+Record one balanced JPY movement through selected manifest authority:
+  LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE
+  MEMORY_FILE is retained as a positional compatibility argument only.
 
 Move JPY spending capacity:
   ./tools/loam capacity CAPACITY_FILE
