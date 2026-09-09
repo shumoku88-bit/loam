@@ -109,10 +109,21 @@ jobs:
           PY
           git diff --check
 
-      - name: Build and run focused catalog checks
-        run: |
-          lake build loamTui
-          lake env lean --run Loam/Tests/LocusCatalog.lean
+      - name: Build patched production TUI
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run focused catalog checks
+        run: lake env lean --run Loam/Tests/LocusCatalog.lean
 
       - name: Commit staged wiring
         shell: bash
