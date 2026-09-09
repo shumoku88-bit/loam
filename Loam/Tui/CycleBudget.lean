@@ -21,7 +21,7 @@ structure State where
   deriving Repr
 
 inductive Intent where
-  | stay | home | capacity | rebalance | quit | unresolved
+  | stay | home | rebalance | quit | unresolved
   | grant (row : Loam.CurrentCoverageReview.Row)
   deriving Repr, DecidableEq
 
