@@ -6,7 +6,11 @@ on:
       - 'Loam/PurposeCatalog.lean'
       - 'Loam/Observations/Observation239.lean'
       - 'Loam/Observations.lean'
+      - 'Loam/Tui/Capacity.lean'
+      - 'Loam/Tui/CycleBudget.lean'
+      - 'Loam/Tui/Cli.lean'
       - 'Loam/Tests/PurposeCatalog.lean'
+      - 'Loam/Tests/TuiPurposeLabels.lean'
       - 'experiments/239_purpose_catalog_noninterference.md'
       - '.github/workflows/purpose-catalog.yml'
       - 'lakefile.lean'
@@ -17,7 +21,11 @@ on:
       - 'Loam/PurposeCatalog.lean'
       - 'Loam/Observations/Observation239.lean'
       - 'Loam/Observations.lean'
+      - 'Loam/Tui/Capacity.lean'
+      - 'Loam/Tui/CycleBudget.lean'
+      - 'Loam/Tui/Cli.lean'
       - 'Loam/Tests/PurposeCatalog.lean'
+      - 'Loam/Tests/TuiPurposeLabels.lean'
       - 'experiments/239_purpose_catalog_noninterference.md'
       - '.github/workflows/purpose-catalog.yml'
       - 'lakefile.lean'
@@ -30,7 +38,7 @@ permissions:
 
 jobs:
   check:
-    name: Prove display noninterference and test catalog codec
+    name: Prove display noninterference and test Purpose labels
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -46,8 +54,11 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Build selected live observations
+      - name: Build selected live observations and TUI integration
         run: lake build
 
       - name: Exercise Purpose catalog decoding and fallback
         run: lake env lean --run Loam/Tests/PurposeCatalog.lean
+
+      - name: Exercise TUI label rendering without semantic identity drift
+        run: lake env lean --run Loam/Tests/TuiPurposeLabels.lean
