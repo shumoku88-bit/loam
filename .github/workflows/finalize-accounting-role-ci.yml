@@ -1,0 +1,58 @@
+name: Finalize AccountingRole CI
+
+on:
+  push:
+    branches:
+      - 'feat/initial-accounting-role-assignment'
+    paths:
+      - 'tools/finalize-accounting-role-ci.py'
+      - '.github/workflows/finalize-accounting-role-ci.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    name: Install steady qualification and retire scaffolding
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/initial-accounting-role-assignment
+
+      - name: Apply exact Production TUI qualification patch
+        run: |
+          python3 tools/finalize-accounting-role-ci.py
+          git diff --check
+
+      - name: Prepare Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify final production wiring
+        run: |
+          lake build loamTui
+          lake build Loam.AccountingRolePublisher
+          lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role"
+          lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
+
+      - name: Commit steady state and retire branch-only scaffolding
+        run: |
+          rm -f \
+            .github/workflows/initial-accounting-role-assignment.yml \
+            .github/workflows/finalize-accounting-role-ci.yml \
+            tools/finalize-accounting-role-ci.py
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'ci(tui): qualify initial AccountingRole administration'
+          git push origin HEAD:feat/initial-accounting-role-assignment
