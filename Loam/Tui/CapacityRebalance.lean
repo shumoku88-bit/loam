@@ -335,7 +335,7 @@ def view (_bounds : Bounds) (state : State) : Widget :=
 
       .column <|
         [ line "Capacity / Rebalance"
-        , muted ("Home > Capacity > Rebalance | Effective: " ++ state.effectiveOn)
+        , muted ("Effective: " ++ state.effectiveOn)
         , muted (toString state.snapshot.rows.length ++ " remembered purpose(s)")
         , blank
         , tableHeader
