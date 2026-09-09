@@ -308,7 +308,7 @@ partial def scheduledReplacementLoop
   match step.publish with
   | some draft =>
       match ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
-          scheduledFile.toString root.toString draft with
+          root.toString correctionFile.toString draft with
       | .ok receipt =>
           return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
@@ -720,25 +720,6 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .stay =>
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    cycleBudgetLoop bounds dataDir root next nextFrame
-  | .capacity =>
-    let notice ←
-      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
-      | .error message => pure message
-      | .ok snapshot =>
-        let capacity ← attachCurrentCoverage dataDir root state.snapshot.observedAt
-          (Loam.Tui.Capacity.initial snapshot)
-        let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-        if ← capacityLoop bounds dataDir root state.snapshot.observedAt capacity capacityFrame then
-          return true
-        pure ""
-    -- Existing actions may have changed evidence. Never return to stale Budget answers.
-    let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
-    let next : Loam.Tui.CycleBudget.State := { snapshot := fresh, notice := notice }
-    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
   | .rebalance =>
     let notice ←
