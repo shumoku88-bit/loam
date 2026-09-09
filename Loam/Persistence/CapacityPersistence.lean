@@ -1,6 +1,7 @@
 import Loam.Core.CapacityMemory
 import Loam.Persistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -88,7 +89,7 @@ Every represented movement has already retained its exact zero-total proof.
 def encodeCapacityMemory? (memory : CapacityMemory) : Option String :=
   match memory.movements.mapM encodeCapacityMovementLines? with
   | some blocks =>
-      some (String.intercalate "\n" (capacityMemoryHeader :: blocks.flatten) ++ "\n")
+      some (encodeVersionedRows capacityMemoryHeader blocks.flatten)
   | none => none
 
 /--
