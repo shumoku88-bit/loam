@@ -44,6 +44,20 @@ private def scheduledUsesLocus
     occurrence.movement.changes.any fun change => decide (change.coordinate = locus)
 
 /--
+Return only currently admitted, unresolved Loci whose retained Actual and
+Scheduled evidence is still empty. Presentation surfaces may use this as a
+candidate projection without reimplementing publisher admission semantics.
+-/
+def eligibleInitialLoci
+    (world : Loam.MovementAdmission.World)
+    (scheduled : ScheduledMemory String)
+    (roles : AccountingRoleMap) : List LocusId :=
+  world.locusAdmission.approved.filter fun locus =>
+    (roles.roleOf? locus).isNone &&
+      !actualUsesLocus world locus &&
+      !scheduledUsesLocus scheduled locus
+
+/--
 Propose exactly one first AccountingRole assertion.
 
 A Locus must already be admitted for new Movement publication, must be unresolved
