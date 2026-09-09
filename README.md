@@ -48,8 +48,10 @@ Explicit named CLI commands remain available for scriptable, diagnostic, and low
 Household recording has one explicit line-CLI entrance:
 
 ```text
-./tools/loam movement MEMORY_FILE
+LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE
 ```
+
+The line CLI requires an initialized Movement manifest root and never falls back to a sidecar Movement world. `MEMORY_FILE` is retained only as a positional compatibility argument for the current command shape; Movement preflight and publication use the selected manifest authority, not that path.
 
 Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 

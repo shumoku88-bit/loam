@@ -1,6 +1,7 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventMemory
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.VersionedRows
 import Std
 
 namespace Loam.Persistence
@@ -97,8 +98,7 @@ def validMeasureToken (token : String) : Bool :=
 def encode? (amount : SomeAmount) : Option String :=
   let token := amount.measure.token
   if validMeasureToken token then
-    some (amountHeader ++ "\n" ++ token ++ "\t" ++
-      toString amount.quantity.quanta ++ "\n")
+    some (encodeVersionedRows amountHeader [token ++ "\t" ++ toString amount.quantity.quanta])
   else
     none
 
@@ -164,8 +164,7 @@ locus/measure projection coordinate.
 def encodeEvent? (event : Event) : Option String :=
   if validToken event.id.token then
     match event.effects.mapM encodeEffectRow? with
-    | some rows =>
-        some (String.intercalate "\n" ([eventHeader, event.id.token] ++ rows) ++ "\n")
+    | some rows => some (encodeVersionedRows eventHeader (event.id.token :: rows))
     | none => none
   else
     none
@@ -231,8 +230,7 @@ Event identity remains explicit and is already unique by `EventMemory` law.
 -/
 def encodeEventMemory? (memory : EventMemory) : Option String :=
   match memory.events.mapM encodeMemoryEventLines? with
-  | some blocks =>
-      some (String.intercalate "\n" (eventMemoryHeader :: blocks.flatten) ++ "\n")
+  | some blocks => some (encodeVersionedRows eventMemoryHeader blocks.flatten)
   | none => none
 
 /--
@@ -293,8 +291,7 @@ identity is preserved even when an endpoint is not present in any current
 -/
 def encodeEventCorrectionMemory? (memory : EventCorrectionMemory) : Option String :=
   match memory.corrections.mapM encodeEventCorrectionRow? with
-  | some rows =>
-      some (String.intercalate "\n" (eventCorrectionMemoryHeader :: rows) ++ "\n")
+  | some rows => some (encodeVersionedRows eventCorrectionMemoryHeader rows)
   | none => none
 
 /--

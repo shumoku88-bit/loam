@@ -7,6 +7,7 @@ on:
       - 'Loam/MovementPublisher.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Persistence/**'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'
@@ -36,6 +37,7 @@ on:
       - 'Loam/MovementPublisher.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Persistence/**'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'
@@ -91,13 +93,17 @@ jobs:
       - name: Record and review backdated split payment
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          validity="$memory.actual-validity"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tpaypay-points\nLOCUS\tgroceries\n' >"$memory.locus-admission"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay paypay-points groceries
 
           printf 'paypay\n800\npaypay-points\n200\n\ngroceries\n1000\n\n' \
-            | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" >/tmp/loam-movement.out
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-09-02 \
+                ./tools/loam-movement "$memory" >/tmp/loam-movement.out
           grep -Fq 'Movement draft' /tmp/loam-movement.out
           grep -Fq '[?] occurrence date' /tmp/loam-movement.out
           grep -Fq 'outstanding: occurrence date, balanced FROM / TO movement' /tmp/loam-movement.out
@@ -117,32 +123,43 @@ jobs:
           grep -Fq 'ready to publish' /tmp/loam-movement.out
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-02.' /tmp/loam-movement.out
 
+          event_ref="$(awk -F '\t' '$1 == "Event" { print $2; exit }' "$manifest/CURRENT")"
+          validity_ref="$(awk -F '\t' '$1 == "ActualValidity" { print $2; exit }' "$manifest/CURRENT")"
+          test -n "$event_ref"
+          test -n "$validity_ref"
+          event_object="$manifest/$event_ref"
+          validity_object="$manifest/$validity_ref"
+
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
-          test "$(cat "$memory")" = "$expected"
+          test "$(cat "$event_object")" = "$expected"
 
           expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-02'
-          test "$(cat "$validity")" = "$expected_validity"
-          ! grep -q 'validity-1' "$validity"
+          test "$(cat "$validity_object")" = "$expected_validity"
+          ! grep -q 'validity-1' "$validity_object"
 
-          ./tools/loam event-memory review "$memory" >/tmp/loam-review.out
+          LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+            ./tools/loam event-memory review "$memory" >/tmp/loam-review.out
           grep -Fq '2026-09-02  [record-1]' /tmp/loam-review.out
           grep -Fq 'paypay: -800 jpy' /tmp/loam-review.out
           grep -Fq 'groceries: 1000 jpy' /tmp/loam-review.out
 
-      - name: Re-admit a completed draft against current memory
+      - name: Re-admit a completed draft against current manifest authority
         shell: bash
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
           fifo="$tmp_dir/draft-input"
           first_out="$tmp_dir/first.out"
           first_err="$tmp_dir/first.err"
           second_out="$tmp_dir/second.out"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay cash coffee
           mkfifo "$fifo"
 
-          LOAM_OCCURRENCE_DATE=2026-09-02 \
+          env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+            LOAM_OCCURRENCE_DATE=2026-09-02 \
             ./tools/loam-movement "$memory" <"$fifo" >"$first_out" 2>"$first_err" &
           first_pid=$!
           exec 3>"$fifo"
@@ -165,8 +182,9 @@ jobs:
           test "$reached_amount" = '1'
 
           printf 'cash\n1\n\ncoffee\n1\n\n' \
-            | LOAM_OCCURRENCE_DATE=2026-09-02 timeout 15 \
-                ./tools/loam-movement "$memory" >"$second_out"
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-09-02 \
+                timeout 15 ./tools/loam-movement "$memory" >"$second_out"
           grep -Fq 'event: record-1' "$second_out"
           grep -Fq '[ok] occurrence-date evidence admitted' "$second_out"
 
@@ -177,15 +195,21 @@ jobs:
           grep -Fq 'event: record-2' "$first_out"
           grep -Fq '[ok] occurrence-date evidence admitted' "$first_out"
           grep -Fq 'Recorded movement: 2 jpy. Date: 2026-09-02.' "$first_out"
-          grep -Fq $'EVENT\trecord-1' "$memory"
-          grep -Fq $'EVENT\trecord-2' "$memory"
-          grep -Fq $'BASE\trecord-1\t2026-09-02' "$memory.actual-validity"
-          grep -Fq $'BASE\trecord-2\t2026-09-02' "$memory.actual-validity"
-          ! grep -q $'FACT\t' "$memory.actual-validity"
 
-      - name: Older undated records remain visible without guessed dates
+          event_ref="$(awk -F '\t' '$1 == "Event" { print $2; exit }' "$manifest/CURRENT")"
+          validity_ref="$(awk -F '\t' '$1 == "ActualValidity" { print $2; exit }' "$manifest/CURRENT")"
+          event_object="$manifest/$event_ref"
+          validity_object="$manifest/$validity_ref"
+          grep -Fq $'EVENT\trecord-1' "$event_object"
+          grep -Fq $'EVENT\trecord-2' "$event_object"
+          grep -Fq $'BASE\trecord-1\t2026-09-02' "$validity_object"
+          grep -Fq $'BASE\trecord-2\t2026-09-02' "$validity_object"
+          ! grep -q $'FACT\t' "$validity_object"
+
+      - name: Older undated sidecar records remain visible without guessed dates
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(mktemp -d)"
           memory="$tmp_dir/memory.loam"
           printf 'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\twallet\tjpy\t-1\n' >"$memory"
@@ -193,15 +217,22 @@ jobs:
           ./tools/loam event-memory review "$memory" >/tmp/loam-undated-review.out
           grep -Fq 'date unknown  [record-1]' /tmp/loam-undated-review.out
 
-      - name: Refuse invalid scripted calendar date without publication
+      - name: Refuse invalid scripted calendar date without authority change
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay coffee
+          cp "$manifest/CURRENT" "$tmp_dir/current.before"
 
           if printf 'paypay\n1\n\ncoffee\n1\n\n' \
-              | LOAM_OCCURRENCE_DATE=2026-02-29 ./tools/loam-movement "$memory" \
-                >/tmp/loam-date.out 2>/tmp/loam-date.err; then
+              | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                  LOAM_OCCURRENCE_DATE=2026-02-29 \
+                  ./tools/loam-movement "$memory" \
+                  >/tmp/loam-date.out 2>/tmp/loam-date.err; then
             echo 'expected invalid occurrence date to fail' >&2
             exit 1
           else
@@ -209,18 +240,24 @@ jobs:
           fi
           test "$status" = '2'
           grep -Fq 'date must be a real calendar date in YYYY-MM-DD form' /tmp/loam-date.err
-          test ! -e "$memory"
-          test ! -e "$memory.actual-validity"
+          cmp "$tmp_dir/current.before" "$manifest/CURRENT"
 
-      - name: Refuse unequal movement without publication
+      - name: Refuse unequal movement without authority change
         shell: bash
         run: |
+          set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay groceries
+          cp "$manifest/CURRENT" "$tmp_dir/current.before"
 
           if printf 'paypay\n800\n\ngroceries\n799\n\n' \
-              | LOAM_OCCURRENCE_DATE=2026-09-02 ./tools/loam-movement "$memory" \
-                >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
+              | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                  LOAM_OCCURRENCE_DATE=2026-09-02 \
+                  ./tools/loam-movement "$memory" \
+                  >/tmp/loam-movement.out 2>/tmp/loam-movement.err; then
             echo 'expected unequal movement totals to fail' >&2
             exit 1
           else
@@ -228,8 +265,7 @@ jobs:
           fi
           test "$status" = '2'
           grep -Fq 'movement totals differ: from 800 jpy, to 799 jpy' /tmp/loam-movement.err
-          test ! -e "$memory"
-          test ! -e "$memory.actual-validity"
+          cmp "$tmp_dir/current.before" "$manifest/CURRENT"
 
       - name: Qualify focused record review and nearby writer recovery
         run: |

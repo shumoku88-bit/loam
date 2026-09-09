@@ -5,23 +5,28 @@ on:
     paths:
       - 'Loam/Application/OpenRelationFrontier.lean'
       - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementRelationEntry.lean'
       - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-open-relation.yml'
       - 'lakefile.lean'
       - 'lean-toolchain'
   push:
     branches:
-      - 'cli/movement-open-relation-publication'
       - main
     paths:
       - 'Loam/Application/OpenRelationFrontier.lean'
       - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/MovementRelationEntry.lean'
       - 'Loam/Persistence/OpenRelationPersistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-open-relation.yml'
       - 'lakefile.lean'
@@ -33,7 +38,7 @@ permissions:
 
 jobs:
   movement-relation:
-    name: Movement relation Event-last publication
+    name: Movement relation through manifest authority
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -55,74 +60,60 @@ jobs:
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          relations="$memory.relations"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\n' >"$memory.locus-admission"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay travel
 
           printf 'paypay\n1000\n\ntravel\n1000\n\n' \
-            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-09-05 \
                 LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t400' \
                 ./tools/loam-movement "$memory" >"$tmp_dir/out"
 
           grep -Fq 'event: record-1' "$tmp_dir/out"
           grep -Fq '[ok] open relation evidence admitted: 1' "$tmp_dir/out"
           grep -Fq 'Recorded movement: 1000 jpy. Date: 2026-09-05.' "$tmp_dir/out"
-          grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-1000' "$memory"
 
+          event_ref="$(awk -F '\t' '$1 == "Event" { print $2; exit }' "$manifest/CURRENT")"
+          relation_ref="$(awk -F '\t' '$1 == "RelationUnit" { print $2; exit }' "$manifest/CURRENT")"
+          grep -Fq $'EFFECT\teffect-1\tpaypay\tjpy\t-1000' "$manifest/$event_ref"
           expected=$'LOAM-RELATION-UNIT-MEMORY\t1\nRELATION\trelation-1\trecord-1\teffect-1\tE\tfriend\tH\t\t400'
-          test "$(cat "$relations")" = "$expected"
+          test "$(cat "$manifest/$relation_ref")" = "$expected"
 
-      - name: Keep redirected relation-free Movement backward compatible
+      - name: Keep redirected relation-free Movement explicit
         shell: bash
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tcoffee\n' >"$memory.locus-admission"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" cash coffee
 
           printf 'cash\n25\n\ncoffee\n25\n\n' \
-            | LOAM_OCCURRENCE_DATE=2026-09-05 \
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-09-05 \
                 ./tools/loam-movement "$memory" >"$tmp_dir/out"
 
           grep -Fq '[ok] open relation decision: none' "$tmp_dir/out"
-          test -f "$memory"
-          test ! -e "$memory.relations"
+          relation_ref="$(awk -F '\t' '$1 == "RelationUnit" { print $2; exit }' "$manifest/CURRENT")"
+          test "$(cat "$manifest/$relation_ref")" = $'LOAM-RELATION-UNIT-MEMORY\t1'
 
-      - name: Reserve orphan Event and RelationUnit identities after crash residue
+      - name: Reject relation-plane over-allocation before authority switch
         shell: bash
         run: |
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          relations="$memory.relations"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\n' >"$memory.locus-admission"
-
-          cat >"$relations" <<'EOF'
-          LOAM-RELATION-UNIT-MEMORY	1
-          RELATION	relation-1	record-1	effect-1	E	friend	H		40
-          EOF
-
-          printf 'paypay\n100\n\ntravel\n100\n\n' \
-            | env LOAM_OCCURRENCE_DATE=2026-09-05 \
-                LOAM_RELATIONS=$'effect-1\tE2H\tfriend\t40' \
-                ./tools/loam-movement "$memory" >"$tmp_dir/out"
-
-          grep -Fq 'event: record-2' "$tmp_dir/out"
-          grep -Fq $'EVENT\trecord-2' "$memory"
-          grep -Fq $'RELATION\trelation-1\trecord-1\teffect-1\tE\tfriend\tH\t\t40' "$relations"
-          grep -Fq $'RELATION\trelation-2\trecord-2\teffect-1\tE\tfriend\tH\t\t40' "$relations"
-          ! grep -Fq $'EVENT\trecord-1' "$memory"
-
-      - name: Reject relation-plane over-allocation before Event authority
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmp_dir="$(mktemp -d)"
-          memory="$tmp_dir/memory.loam"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tpaypay\nLOCUS\ttravel\n' >"$memory.locus-admission"
+          manifest="$tmp_dir/movement-authority"
+          memory="$tmp_dir/compat-memory.loam"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" paypay travel
+          cp "$manifest/CURRENT" "$tmp_dir/current.before"
 
           if printf 'paypay\n100\n\ntravel\n100\n\n' \
-              | env LOAM_OCCURRENCE_DATE=2026-09-05 \
+              | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                  LOAM_OCCURRENCE_DATE=2026-09-05 \
                   LOAM_RELATIONS=$'effect-1\tE2H\tfriend-a\t60\neffect-1\tE2H\tfriend-b\t60' \
                   ./tools/loam-movement "$memory" \
                   >"$tmp_dir/out" 2>"$tmp_dir/err"; then
@@ -134,6 +125,4 @@ jobs:
 
           test "$status" = '2'
           grep -Fq 'open relation evidence did not justify one source-local frontier' "$tmp_dir/err"
-          test ! -e "$memory"
-          test ! -e "$memory.actual-validity"
-          test ! -e "$memory.relations"
+          cmp "$tmp_dir/current.before" "$manifest/CURRENT"

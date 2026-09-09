@@ -6,8 +6,11 @@ on:
       - 'Loam/WriterOwnership.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementEntry.lean'
       - 'Loam/Persistence.lean'
+      - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'tools/loam-movement'
       - 'experiments/practical_writer_ownership_holder.lean'
       - '.github/workflows/practical-writer-ownership.yml'
@@ -39,6 +42,8 @@ jobs:
           movement_bin='.lake/build/bin/loamMovement'
           memory='practical-writer-ownership-memory.loam'
           event='practical-writer-ownership-event.loam'
+          manifest='practical-writer-ownership-authority'
+          compat_memory='practical-writer-ownership-compat.loam'
           ready='practical-writer-ownership-ready'
           holder_pid=''
           writer_pid=''
@@ -52,17 +57,18 @@ jobs:
               kill -KILL "$holder_pid" 2>/dev/null || true
               wait "$holder_pid" 2>/dev/null || true
             fi
-            rm -f "$memory" "$event" "$ready" \
-              "$memory.locus-admission" "$memory.loam-writer-lock" \
-              /tmp/practical-writer-ownership-*.out
+            rm -f "$memory" "$event" "$ready" "$compat_memory" \
+              "$memory.loam-writer-lock" /tmp/practical-writer-ownership-*.out
+            rm -rf "$manifest"
           }
           trap cleanup EXIT
 
           start_holder() {
+            local anchor="$1"
             rm -f "$ready"
             LEAN_PATH='.lake/build/lib/lean' \
               lean --run experiments/practical_writer_ownership_holder.lean \
-              "$memory" "$ready" \
+              "$anchor" "$ready" \
               > /tmp/practical-writer-ownership-holder.out 2>&1 &
             holder_pid=$!
             for _ in $(seq 1 200); do
@@ -98,7 +104,7 @@ jobs:
           printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
           "$bin" event create "$event" seed-event effect-1 cash jpy -100
 
-          start_holder
+          start_holder "$memory"
           "$bin" event-memory add "$memory" "$event" \
             > /tmp/practical-writer-ownership-writer.out 2>&1 &
           writer_pid=$!
@@ -107,15 +113,19 @@ jobs:
           "$bin" event-memory get "$memory" seed-event >/dev/null
           echo 'event_memory_add_owned=true'
 
-          printf 'LOAM-EVENT-MEMORY\t1\n' > "$memory"
-          printf 'LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\tcash\nLOCUS\tfood\n' \
-            > "$memory.locus-admission"
+          lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
+            "$manifest" cash food
 
-          start_holder
-          printf 'cash\n50\n\nfood\n50\n\n' | "$movement_bin" "$memory" \
-            > /tmp/practical-writer-ownership-writer.out 2>&1 &
+          start_holder "$manifest/CURRENT"
+          printf 'cash\n50\n\nfood\n50\n\n' \
+            | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+                LOAM_OCCURRENCE_DATE=2026-09-02 \
+                "$movement_bin" "$compat_memory" \
+                > /tmp/practical-writer-ownership-writer.out 2>&1 &
           writer_pid=$!
           require_writer_waiting
           release_and_wait_writer
-          "$bin" event-memory get "$memory" record-1 >/dev/null
-          echo 'movement_owned=true'
+
+          event_ref="$(awk -F '\t' '$1 == "Event" { print $2; exit }' "$manifest/CURRENT")"
+          grep -Fq $'EVENT\trecord-1' "$manifest/$event_ref"
+          echo 'movement_manifest_owned=true'
