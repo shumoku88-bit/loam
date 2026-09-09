@@ -1,5 +1,6 @@
 import Loam.CurrentCoverageReview
 import Loam.CycleBudgetReview
+import Loam.PurposeCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Terminal
 
@@ -16,6 +17,7 @@ inductive Submode where
 
 structure State where
   snapshot : Loam.CycleBudgetReview.Snapshot
+  purposeMetadata : List Loam.PurposeCatalog.Metadata := []
   scroll : Nat := 0
   notice : String := ""
   submode : Submode := .normal
@@ -29,6 +31,20 @@ inductive Intent where
 /-- Home's c is the current-cycle Budget entrance. -/
 def isHomeEntrance (key : Key) : Bool := key == .input 'c' || key == .input 'C'
 
+/-- Attach replaceable presentation metadata without changing Budget semantics. -/
+def withPurposeMetadata
+    (metadata : List Loam.PurposeCatalog.Metadata) (state : State) : State :=
+  { state with purposeMetadata := metadata }
+
+/-- Replace the shared semantic snapshot while retaining local presentation metadata. -/
+def refreshed
+    (snapshot : Loam.CycleBudgetReview.Snapshot) (notice : String) (state : State) : State :=
+  { snapshot := snapshot
+    purposeMetadata := state.purposeMetadata
+    scroll := 0
+    notice := notice
+    submode := .normal }
+
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 private def padded (width : Nat) (text : String) : String :=
@@ -39,12 +55,15 @@ private def amount (label : String) (quantity : Loam.Core.Quantity) : Widget :=
     padded 10 (toString quantity.quanta) ++ " jpy")
 
 /-- Values are mapped directly; no budget arithmetic or status inference. -/
-def coverageRow (row : Loam.CurrentCoverageReview.Row) : Widget :=
+def coverageRow
+    (metadata : List Loam.PurposeCatalog.Metadata)
+    (row : Loam.CurrentCoverageReview.Row) : Widget :=
   line (padded 9 (toString row.entitlement.quanta) ++
     padded 9 (toString row.consumption.quanta) ++
     padded 9 (toString row.remaining.quanta) ++
     padded 14 (toString row.commitment.quanta) ++
-    padded 14 (toString row.headroom.quanta) ++ "  " ++ row.purpose.token)
+    padded 14 (toString row.headroom.quanta) ++ "  " ++
+    Loam.PurposeCatalog.labelFor metadata row.purpose)
 
 private def coverageHeader : Widget :=
   muted (padded 9 "Cap" ++
@@ -111,7 +130,7 @@ def body (state : State) : List Widget :=
   (match snapshot.coverage with
    | .error message => [line ("CurrentCoverage unavailable: " ++ message)]
    | .ok coverage =>
-     [coverageHeader] ++ coverage.rows.map coverageRow) ++
+     [coverageHeader] ++ coverage.rows.map (coverageRow state.purposeMetadata)) ++
   (if state.notice.isEmpty then [] else [line state.notice])
 
 private def pageSize (bounds : Bounds) : Nat := bounds.height - 2
@@ -179,7 +198,9 @@ def grantPickerView (_bounds : Bounds) (state : State)
     shortages.zipIdx.map fun (row, idx) =>
       let isSel := idx == selected
       let marker := if isSel then "▶  " else "   "
-      let content := marker ++ paddedRight 20 row.purpose.token ++ padded 14 (toString row.headroom.quanta) ++ " jpy"
+      let purpose := Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose
+      let content := marker ++ paddedRight 20 purpose ++
+        padded 14 (toString row.headroom.quanta) ++ " jpy"
       .row [span content (if isSel then .selected else .normal)]
   .column <|
     [ line "Capacity / Cycle Grant / Select Purpose"
