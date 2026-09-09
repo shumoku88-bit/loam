@@ -3,33 +3,13 @@ name: Observation 051
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/051_reconciliation_evidence.als'
       - '.github/workflows/observation-051.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/051_reconciliation_evidence.als'
       - '.github/workflows/observation-051.yml'
   workflow_dispatch:
 

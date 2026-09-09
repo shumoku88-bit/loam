@@ -3,33 +3,21 @@ name: Observation 050
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/AsynchronousSettlement.tla'
+      - 'tla/AsynchronousSettlement.cfg'
+      - 'tla/AsynchronousSettlementPendingBoundary.cfg'
+      - 'tla/AsynchronousSettlementSettledBoundary.cfg'
+      - 'tla/AsynchronousSettlementPhysicalBoundary.cfg'
       - '.github/workflows/observation-050.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'tla/AsynchronousSettlement.tla'
+      - 'tla/AsynchronousSettlement.cfg'
+      - 'tla/AsynchronousSettlementPendingBoundary.cfg'
+      - 'tla/AsynchronousSettlementSettledBoundary.cfg'
+      - 'tla/AsynchronousSettlementPhysicalBoundary.cfg'
       - '.github/workflows/observation-050.yml'
   workflow_dispatch:
 

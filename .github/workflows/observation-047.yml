@@ -3,33 +3,13 @@ name: Observation 047
 on:
   pull_request:
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/047_selection_policy_overlay.als'
       - '.github/workflows/observation-047.yml'
   push:
     branches:
       - main
     paths:
-      - 'Loam/Observations/**'
-      - 'Loam/Observations.lean'
-      - 'model/**'
-      - 'j/**'
-      - 'scheme/**'
-      - 'tla/**'
-      - 'observations/**'
-      - 'Loam.lean'
-      - 'lakefile.lean'
-      - 'lake-manifest.json'
-      - 'lean-toolchain'
+      - 'model/047_selection_policy_overlay.als'
       - '.github/workflows/observation-047.yml'
   workflow_dispatch:
 
