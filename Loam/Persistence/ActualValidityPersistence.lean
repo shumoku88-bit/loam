@@ -107,9 +107,7 @@ private def encodeNormalizedActualValidityHistory?
   else
     let factRows ← history.facts.mapM encodeActualValidityFactRow?
     let correctionRows ← history.corrections.mapM (encodeActualValidityCorrectionRow? history)
-    pure
-      (String.intercalate "\n"
-        (actualValidityHistoryHeader :: (factRows ++ correctionRows)) ++ "\n")
+    pure (encodeVersionedRows actualValidityHistoryHeader (factRows ++ correctionRows))
 
 /--
 Encode the canonical Event-rooted occurrence-date stream. Practical writers may
