@@ -1,9 +1,6 @@
 import Loam.LocusCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
-import Loam.AccountingRolePublisher
-import Loam.Tui.AccountingRoleAdministration
-import Loam.Tui.AccountingRoleAdministrationSession
 import Loam.Tui.Record
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
@@ -1029,31 +1026,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if isHome && (key = .input 'o' || key = .input 'O') then
-    let world ←
-      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-      | .error message => throw (IO.userError message)
-      | .ok world => pure world
-    let scheduledFile := dataDir / "scheduled.loam"
-    let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-      | throw (IO.userError "loam: Scheduled lifecycle authority is missing, malformed, or unsupported")
-    let roleFile := dataDir / "accounting-role.loam"
-    if !(← roleFile.pathExists) then
-      throw (IO.userError "loam: AccountingRole authority file is missing")
-    let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
-      | throw (IO.userError "loam: AccountingRole authority is malformed or unsupported")
-    let candidates := Loam.AccountingRolePublisher.eligibleInitialLoci
-      world lifecycle.scheduled roles
-    let admin := Loam.Tui.AccountingRoleAdministration.initial candidates
-    let adminFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds admin)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
-    let notice ← Loam.Tui.AccountingRoleAdministrationSession.run
-      bounds scheduledFile root roleFile admin adminFrame
-    let home := { state with surface := .home none, notice := notice }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
-    loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'm' || key = .input 'M') then
     let world ←
       match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
