@@ -34,9 +34,9 @@ def main (args : List String) : IO Unit := do
   expect (proposed.locusAdmission.approved.map (fun locus => locus.token) ==
       ["book", "misc", "stationery"])
     "proposal did not preserve existing admission and append one identity"
-  expect ((Loam.LocusAdmissionPublisher.propose? w { token := "book" }).isError)
+  expect (!(Loam.LocusAdmissionPublisher.propose? w { token := "book" }).isOk)
     "duplicate admission was accepted"
-  expect ((Loam.LocusAdmissionPublisher.propose? w { token := "bad token" }).isError)
+  expect (!(Loam.LocusAdmissionPublisher.propose? w { token := "bad token" }).isOk)
     "invalid stable token was accepted"
 
   let root := System.FilePath.mk rootPath
@@ -60,8 +60,8 @@ def main (args : List String) : IO Unit := do
   expect (loaded.relations == w.relations) "admission publication changed relations"
   expect (loaded.discharges == w.discharges) "admission publication changed discharges"
 
-  expect ((← Loam.LocusAdmissionPublisher.publishManifestAdmission
-      rootPath { token := "stationery" }).isError)
+  expect (!(← Loam.LocusAdmissionPublisher.publishManifestAdmission
+      rootPath { token := "stationery" }).isOk)
     "duplicate manifest admission was accepted"
 
   IO.println "Locus admission publisher: add-only policy and manifest isolation passed."
