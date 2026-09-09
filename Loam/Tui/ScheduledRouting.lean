@@ -168,12 +168,10 @@ private def muted (text : String) : Widget := .row [span text .muted]
 private def blank : Widget := line ""
 
 private def padded (width : Nat) (text : String) : String :=
-  if text.length >= width then text
-  else text ++ String.ofList (List.replicate (width - text.length) ' ')
+  Loam.Tui.Layout.padRight width text
 
 private def paddedLeft (width : Nat) (text : String) : String :=
-  if text.length >= width then text
-  else String.ofList (List.replicate (width - text.length) ' ') ++ text
+  Loam.Tui.Layout.padLeft width text
 
 private def listWindow {α : Type} (items : List α) (selected : Nat) (maxVisible : Nat) : List (Nat × α) :=
   let total := items.length
