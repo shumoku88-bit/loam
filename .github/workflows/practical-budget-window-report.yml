@@ -3,6 +3,7 @@ name: Practical Budget Window Report
 on:
   pull_request:
     paths:
+      - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Cli/BudgetWindowCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
@@ -21,6 +22,7 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Cli/BudgetWindowCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
@@ -107,6 +109,14 @@ jobs:
           grep -Fx 'Entitlement: 100 jpy' <<<"$output"
           grep -Fx 'Consumption: 30 jpy' <<<"$output"
           grep -Fx 'Remaining: 70 jpy' <<<"$output"
+
+          zero_output="$(.lake/build/bin/loamBudgetWindow \
+            "$tmpdir" 2026-08-17 2026-10-15 unseen)"
+          printf '%s\n' "$zero_output"
+          grep -Fx 'Purpose: unseen' <<<"$zero_output"
+          grep -Fx 'Entitlement: 0 jpy' <<<"$zero_output"
+          grep -Fx 'Consumption: 0 jpy' <<<"$zero_output"
+          grep -Fx 'Remaining: 0 jpy' <<<"$zero_output"
 
           all_output="$(.lake/build/bin/loamBudgetWindow \
             "$tmpdir" 2026-08-17 2026-10-15 --all)"
