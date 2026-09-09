@@ -92,12 +92,15 @@ private def positiveTotal (draft : Loam.MovementAdmission.Draft) : Int :=
     0
 
 /-- HRA-shaped completion interaction: identify Plan/Scheduled, then edit Actual. -/
-def view (known : List String) (state : State) : Widget :=
+def view (_known : List String) (state : State) : Widget :=
   match state.editor.mode with
   | .editing =>
       let form := state.editor.form
       let rowLines := Loam.Tui.Record.postingFieldLines form
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let candidate :=
+        ((Loam.Tui.Record.selectedCatalogCandidate? state.editor).map
+          (fun entry => entry.locus.token)).getD ""
       .column <|
         [ Loam.Tui.Record.line "Scheduled / Complete / Edit Actual"
         , Loam.Tui.Record.line
@@ -108,8 +111,7 @@ def view (known : List String) (state : State) : Widget :=
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal))
-        , Loam.Tui.Record.line
-            ("Candidate: " ++ (Loam.Tui.Record.candidate? known form).getD "")
+        , Loam.Tui.Record.line ("Candidate: " ++ candidate)
         , Loam.Tui.Record.line
             "Expected postings are editable defaults; Actual evidence is independent."
         , Loam.Tui.Record.line

@@ -84,16 +84,6 @@ def activeLocus? (form : Form) : Option String := do
     let row ← form.rows[(form.focus.val - 2) / 2]?
     some row.locus
 
-/-- Legacy token-only prefix helper retained for the smaller editors during cutover. -/
-def candidates (known : List String) (form : Form) : List String :=
-  match activeLocus? form with
-  | none => []
-  | some entered => known.filter fun token => entered.isPrefixOf token && token != entered
-
-/-- Backwards-compatible first token-only match. -/
-def candidate? (known : List String) (form : Form) : Option String :=
-  (candidates known form).head?
-
 /-- Current human-facing candidates for the focused Locus. Empty text lists all admitted entries. -/
 def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
   match activeLocus? state.form with

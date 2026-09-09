@@ -95,12 +95,15 @@ private def replacementTotal (draft : Loam.MovementAdmission.Draft) : Int :=
     0
 
 /-- User-facing correction editor. Date remains visible but never focusable/editable. -/
-def view (known : List String) (state : State) : Widget :=
+def view (_known : List String) (state : State) : Widget :=
   match state.editor.mode with
   | .editing =>
       let form := state.editor.form
       let rowLines := Loam.Tui.Record.postingFieldLines form
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let candidate :=
+        ((Loam.Tui.Record.selectedCatalogCandidate? state.editor).map
+          (fun entry => entry.locus.token)).getD ""
       .column <|
         [ Loam.Tui.Record.line "Correction / Edit"
         , Loam.Tui.Record.line ("Target: " ++ state.target.token)
@@ -110,8 +113,7 @@ def view (known : List String) (state : State) : Widget :=
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal))
-        , Loam.Tui.Record.line
-            ("Candidate: " ++ (Loam.Tui.Record.candidate? known form).getD "")
+        , Loam.Tui.Record.line ("Candidate: " ++ candidate)
         , Loam.Tui.Record.line
             "Posting JPY is signed; negative and positive rows may appear in any order."
         , Loam.Tui.Record.line

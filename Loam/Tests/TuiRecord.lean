@@ -94,12 +94,6 @@ def main (args : List String) : IO Unit := do
       { locus := "books", amount := "2470" }]
     focus := ⟨2, by decide⟩ }
   let pickerKnown := ["paypay", "books", "point"]
-  expect (candidates pickerKnown blankCandidateForm == pickerKnown)
-    "blank Locus did not expose the supplied token-only compatibility candidates"
-  let pCandidateForm : Form := {
-    blankCandidateForm with rows := blankCandidateForm.rows.set 0 { locus := "p", amount := "-2470" } }
-  expect (candidates pickerKnown pCandidateForm == ["paypay", "point"])
-    "prefix filter did not narrow token-only compatibility candidates"
   let pickerStart : State := { form := blankCandidateForm }
   let pickerDown := (update w pickerKnown pickerStart .down).state
   expect ((catalogCandidates pickerDown).map (fun entry => entry.locus.token) == ["paypay", "books"])
