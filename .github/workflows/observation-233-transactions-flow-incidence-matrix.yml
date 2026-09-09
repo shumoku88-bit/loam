@@ -1,0 +1,47 @@
+name: Observation 233
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/233_transactions_flow_incidence_matrix.lean'
+      - 'experiments/233_transactions_flow_incidence_matrix.md'
+      - '.github/workflows/observation-233-transactions-flow-incidence-matrix.yml'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Quantity.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  transactions-flow-incidence-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 233 Lean probe
+        shell: bash
+        run: |
+          set +e
+          lake env lean experiments/233_transactions_flow_incidence_matrix.lean > /tmp/observation-233-lean.log 2>&1
+          status=$?
+          cat /tmp/observation-233-lean.log
+          exit "$status"
+      - name: Upload Observation 233 Lean log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-233-lean-log
+          path: /tmp/observation-233-lean.log
