@@ -87,7 +87,10 @@ theorem entryFor_preserves_identity (metadata : List Metadata) (purpose : Purpos
 /-- A catalog cannot add, remove, reorder, or rewrite semantic Purpose identities. -/
 theorem forPurposes_preserves_identities (metadata : List Metadata) (purposes : List PurposeId) :
     (forPurposes metadata purposes).map (·.purpose) = purposes := by
-  simp [forPurposes, entryFor]
+  induction purposes with
+  | nil => rfl
+  | cons purpose rest ih =>
+      simp [forPurposes, entryFor, ih]
 
 /-- Load replaceable display metadata. Missing configuration is an empty catalog, not missing semantics. -/
 def loadMetadata (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
