@@ -148,11 +148,6 @@ def withBudgetSnapshot
     (state : State) (snapshot : Loam.BudgetWindowReview.Snapshot) : State :=
   { state with budgetSnapshot := some snapshot, notice := "", scroll := 0 }
 
-/-- Compatibility name for the pre-menu Budget Window surface. -/
-def withSnapshot
-    (state : State) (snapshot : Loam.BudgetWindowReview.Snapshot) : State :=
-  withBudgetSnapshot state snapshot
-
 
 def withError (state : State) (message : String) : State :=
   { state with
