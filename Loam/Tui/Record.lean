@@ -28,6 +28,8 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  /-- Presentation copy of the current authoritative LocusAdmission vocabulary. -/
+  candidateVocabulary : List String := []
   /-- Presentation-only cursor within the currently filtered Locus candidates. -/
   candidateIndex : Nat := 0
 
@@ -149,8 +151,10 @@ def dropRow (form : Form) : Form :=
   -- Keep two rows so an ordinary balanced movement remains visible by default.
   if form.rows.size > 2 then replaceRows form form.rows.pop else form
 
-def update (world : Loam.MovementAdmission.World) (known : List String)
+def update (world : Loam.MovementAdmission.World) (_known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  let approved := world.locusAdmission.approved.map (fun locus => locus.token)
+  let state := { state with candidateVocabulary := approved }
   match key with
   | .escape => { state, cancel := true }
   | _ =>
@@ -178,9 +182,9 @@ def update (world : Loam.MovementAdmission.World) (known : List String)
             { state := { state with
                 form := editActive state.form (fun text => text.push char),
                 notice := "", candidateIndex := 0 } }
-        | .up => { state := moveCandidate known state true }
-        | .down => { state := moveCandidate known state false }
-        | .right => { state := acceptSelectedCandidate known state }
+        | .up => { state := moveCandidate approved state true }
+        | .down => { state := moveCandidate approved state false }
+        | .right => { state := acceptSelectedCandidate approved state }
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
             let focus := state.form.focus.val
@@ -216,7 +220,7 @@ def field (form : Form) (index : Nat) (label text : String) : Widget :=
   .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
     (if form.focus.val = index then .selected else .normal)]
 
-def view (known : List String) (state : State) : Widget :=
+def view (_known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing =>
       let form := state.form
@@ -227,7 +231,7 @@ def view (known : List String) (state : State) : Widget :=
         [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
          field form (3 + index * 2) "  JPY" row.amount]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      let matches := candidates known form
+      let matches := candidates state.candidateVocabulary form
       let selectedIndex := if matches.isEmpty then 0 else state.candidateIndex % matches.length
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
       let visible := (matches.drop candidateStart).take 5
