@@ -58,11 +58,21 @@ def main (args : List String) : IO Unit := do
   expect (loaded.locusAdmission.approved.map (fun locus => locus.token) ==
       ["book", "misc", "stationery"])
     "manifest publication did not retain the new admission vocabulary"
-  expect (loaded.events == w.events) "admission publication changed Event evidence"
-  expect (loaded.validity == w.validity) "admission publication changed ActualValidity evidence"
-  expect (loaded.descriptions == w.descriptions) "admission publication changed descriptions"
-  expect (loaded.relations == w.relations) "admission publication changed relations"
-  expect (loaded.discharges == w.discharges) "admission publication changed discharges"
+  expect (Loam.Persistence.encodeEventMemory? loaded.events ==
+      Loam.Persistence.encodeEventMemory? w.events)
+    "admission publication changed Event evidence wire"
+  expect (Loam.Persistence.encodeActualValidityHistory? loaded.validity ==
+      Loam.Persistence.encodeActualValidityHistory? w.validity)
+    "admission publication changed ActualValidity evidence wire"
+  expect (Loam.Persistence.encodeEventDescriptionMemory? loaded.descriptions ==
+      Loam.Persistence.encodeEventDescriptionMemory? w.descriptions)
+    "admission publication changed description evidence wire"
+  expect (Loam.Persistence.encodeOpenRelationUnits? loaded.relations ==
+      Loam.Persistence.encodeOpenRelationUnits? w.relations)
+    "admission publication changed relation evidence wire"
+  expect (Loam.Persistence.encodeRelationDischarges? loaded.discharges ==
+      Loam.Persistence.encodeRelationDischarges? w.discharges)
+    "admission publication changed discharge evidence wire"
 
   expect (!(← Loam.LocusAdmissionPublisher.publishManifestAdmission
       rootPath { token := "stationery" }).isOk)
