@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.ScheduledMemory
 import Loam.Persistence
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -79,8 +80,7 @@ private def decodeScheduledChunk? (chunk : String) : Option (ScheduledOccurrence
 /-- Encode Scheduled occurrence memory without giving representation order temporal meaning. -/
 def encodeScheduledMemory? (memory : ScheduledMemory String) : Option String :=
   match memory.occurrences.mapM encodeScheduledLines? with
-  | some blocks =>
-      some (String.intercalate "\n" (scheduledMemoryHeader :: blocks.flatten) ++ "\n")
+  | some blocks => some (encodeVersionedRows scheduledMemoryHeader blocks.flatten)
   | none => none
 
 /-- Decode Scheduled occurrence memory, rechecking dates, balance, and identity. -/
