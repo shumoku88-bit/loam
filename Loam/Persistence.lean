@@ -1,5 +1,6 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventMemory
+import Loam.Persistence.SiblingStage
 import Std
 
 namespace Loam.Persistence
@@ -357,10 +358,6 @@ def loadEvent? (path : System.FilePath) : IO (Option Event) := do
   let input ← IO.FS.readFile path
   return decodeEvent? input
 
-/-- Sibling staging path reserved for Event-memory publication. -/
-private def eventMemoryStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 /--
 Publish one Event memory when every contained Event is representable.
 
@@ -377,9 +374,7 @@ the next publication overwrites that reserved staging path.
 def saveEventMemory? (path : System.FilePath) (memory : EventMemory) : IO Bool := do
   match encodeEventMemory? memory with
   | some text =>
-      let stagePath := eventMemoryStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
   | none =>
       return false
@@ -392,10 +387,6 @@ failures remain `IO` exceptions.
 def loadEventMemory? (path : System.FilePath) : IO (Option EventMemory) := do
   let input ← IO.FS.readFile path
   return decodeEventMemory? input
-
-/-- Sibling staging path reserved for raw Event-correction-memory publication. -/
-private def eventCorrectionMemoryStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
 
 /--
 Publish one raw Event-correction memory as one independently replaced stream.
@@ -410,9 +401,7 @@ def saveEventCorrectionMemory?
     (memory : EventCorrectionMemory) : IO Bool := do
   match encodeEventCorrectionMemory? memory with
   | some text =>
-      let stagePath := eventCorrectionMemoryStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
   | none =>
       return false
