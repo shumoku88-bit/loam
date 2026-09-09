@@ -48,7 +48,14 @@ theorem catalog_is_not_capacity_authority
     (metadata : List Loam.PurposeCatalog.Metadata)
     (rows : List Loam.CapacityReview.Row) :
     (decorateCapacityRows metadata rows).map (·.semantic) = rows := by
-  simp [decorateCapacityRows, decorateCapacityRow]
+  induction rows with
+  | nil => rfl
+  | cons row rest ih =>
+      change
+        (decorateCapacityRow metadata row).semantic ::
+            (decorateCapacityRows metadata rest).map (·.semantic) =
+          row :: rest
+      rw [ih]
 
 /-- Consequently a catalog cannot change how many semantic Capacity rows exist. -/
 theorem catalog_cannot_admit_purpose
