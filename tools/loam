@@ -32,6 +32,10 @@ Diagnose whether the production startup read boundary is currently coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
   This command is read-only and never repairs or rewrites household facts.
 
+Explicitly restore one retained, fully verified Movement generation:
+  ./tools/loam doctor restore RECOVERY_DIGEST [LOAM_DATA_DIR]
+  Recovery never guesses a generation. The exact retained manifest digest is required.
+
 Record one balanced JPY movement through selected manifest authority:
   LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE
   MEMORY_FILE is retained as a positional compatibility argument only.
