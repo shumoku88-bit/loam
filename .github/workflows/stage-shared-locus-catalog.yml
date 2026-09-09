@@ -27,6 +27,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           cli = Path('Loam/Tui/Cli.lean')
           text = cli.read_text(encoding='utf-8')
@@ -40,8 +41,12 @@ jobs:
                   raise SystemExit('loadSnapshot marker not found')
               text = text.replace(marker, helpers + marker, 1)
 
-          old_known = '''(world.locusAdmission.approved.map (fun locus => locus.token) ++\n        Loam.CompletionPrompt.knownLoci world.events).eraseDups'''
-          text = text.replace(old_known, 'world.locusAdmission.approved.map (fun locus => locus.token)')
+          known_pattern = re.compile(
+              r'\(world\.locusAdmission\.approved\.map \(fun locus => locus\.token\) \+\+\n'
+              r'\s*Loam\.CompletionPrompt\.knownLoci world\.events\)\.eraseDups'
+          )
+          text = known_pattern.sub(
+              'world.locusAdmission.approved.map (fun locus => locus.token)', text)
 
           replacements = [
               (
