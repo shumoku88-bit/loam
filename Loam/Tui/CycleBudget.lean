@@ -25,7 +25,7 @@ inductive Intent where
   | grant (row : Loam.CurrentCoverageReview.Row)
   deriving Repr, DecidableEq
 
-/-- Home's c is the current-cycle Budget entrance; e retains raw Capacity actions. -/
+/-- Home's c is the current-cycle Budget entrance. -/
 def isHomeEntrance (key : Key) : Bool := key == .input 'c' || key == .input 'C'
 
 private def line (text : String) : Widget := .row [span text]
@@ -139,7 +139,6 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
       match key with
       | .input 'q' | .input 'Q' => (state, .quit)
       | .escape | .input 'b' | .input 'B' => (state, .home)
-      | .input 'e' | .input 'E' => (state, .capacity)
       | .input 'r' | .input 'R' => (state, .rebalance)
       | .input 'u' | .input 'U' =>
         match state.snapshot.coverage with
@@ -198,6 +197,6 @@ def view (bounds : Bounds) (state : State) : Widget :=
       let visible := (lines.drop offset).take page
       .column (visible ++ List.replicate (page - visible.length) (line "") ++
         [muted ("j/k scroll " ++ toString (offset + 1) ++ "/" ++ toString lines.length ++
-          " | g grant | u route | r rebalance | e Capacity/actions | b Home | q quit | read only")])
+          " | g grant | u route | r rebalance | b Home | q quit")])
 
 end Loam.Tui.CycleBudget
