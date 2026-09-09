@@ -1,0 +1,106 @@
+name: Stage shared Locus catalog wiring
+
+on:
+  push:
+    branches:
+      - feat/shared-locus-catalog-picker
+    paths:
+      - '.github/workflows/stage-shared-locus-catalog.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/shared-locus-catalog-picker
+          fetch-depth: 0
+
+      - name: Wire production TUI to admission-scoped catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cli = Path('Loam/Tui/Cli.lean')
+          text = cli.read_text(encoding='utf-8')
+          if 'import Loam.LocusCatalog\n' not in text:
+              text = text.replace('import Loam.Tui.Record\n', 'import Loam.LocusCatalog\nimport Loam.Tui.Record\n', 1)
+
+          marker = 'private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do\n'
+          helper = '''private def currentLocusCatalog\n    (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :\n    IO Loam.LocusCatalog.Catalog := do\n  match ← Loam.LocusCatalog.loadForVocabulary dataDir world.locusAdmission with\n  | .ok catalog => return catalog\n  | .error _ => return Loam.LocusCatalog.fallback world.locusAdmission\n\n'''
+          if helper not in text:
+              if marker not in text:
+                  raise SystemExit('loadSnapshot marker not found')
+              text = text.replace(marker, helper + marker, 1)
+
+          old_known = '''(world.locusAdmission.approved.map (fun locus => locus.token) ++\n        Loam.CompletionPrompt.knownLoci world.events).eraseDups'''
+          text = text.replace(old_known, 'world.locusAdmission.approved.map (fun locus => locus.token)')
+
+          replacements = [
+              (
+                  '''      let editor := Loam.Tui.Record.initial state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)''',
+                  '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.Record.withCatalog\n        (Loam.Tui.Record.initial state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)'''
+              ),
+              (
+                  '''      let editor := Loam.Tui.Record.initial step.state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)''',
+                  '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.Record.withCatalog\n        (Loam.Tui.Record.initial step.state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)'''
+              ),
+              (
+                  '''      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)''',
+                  '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.ScheduledCreation.withCatalog\n        (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)'''
+              ),
+              (
+                  '''      let editor := Loam.Tui.ScheduledCreation.initial state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)''',
+                  '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.ScheduledCreation.withCatalog\n        (Loam.Tui.ScheduledCreation.initial state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)'''
+              ),
+          ]
+          changed_wiring = 0
+          for old, new in replacements:
+              count = text.count(old)
+              if count:
+                  text = text.replace(old, new)
+                  changed_wiring += count
+          if changed_wiring == 0 and 'currentLocusCatalog dataDir world' not in text:
+              raise SystemExit('no Record/Scheduled creation wiring site found')
+          if 'Loam.CompletionPrompt.knownLoci world.events' in text:
+              raise SystemExit('historical Event-derived Locus candidates remain in production TUI')
+          cli.write_text(text, encoding='utf-8', newline='\n')
+
+          workflow = Path('.github/workflows/tui.yml')
+          tui = workflow.read_text(encoding='utf-8')
+          trigger = "      - 'Loam/Tui/**'\n"
+          expanded = "      - 'Loam/LocusCatalog.lean'\n      - 'Loam/Tests/LocusCatalog.lean'\n      - 'Loam/Tui/**'\n"
+          tui = tui.replace(trigger, expanded)
+          test_marker = '''      - name: Run shared Actual review checks\n        run: lake env lean --run Loam/Tests/RecordReview.lean\n'''
+          catalog_test = '''      - name: Verify admission-scoped Locus catalog\n        run: lake env lean --run Loam/Tests/LocusCatalog.lean\n\n'''
+          if catalog_test not in tui:
+              if test_marker not in tui:
+                  raise SystemExit('Production TUI test insertion marker not found')
+              tui = tui.replace(test_marker, catalog_test + test_marker, 1)
+          workflow.write_text(tui, encoding='utf-8', newline='\n')
+          PY
+          git diff --check
+
+      - name: Build and run focused catalog checks
+        run: |
+          lake build loamTui
+          lake env lean --run Loam/Tests/LocusCatalog.lean
+
+      - name: Commit staged wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'wiring already staged'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/Cli.lean .github/workflows/tui.yml
+          git commit -m 'feat(tui): wire production Locus catalog'
+          git push origin HEAD:feat/shared-locus-catalog-picker
