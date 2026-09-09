@@ -25,7 +25,7 @@ count_group() {
     line_count=$(cat "${files[@]}" | wc -l | tr -d ' ')
   fi
 
-  printf '%-28s %8d %8d\n' "$label" "$line_count" "$file_count"
+  printf '%-34s %8d %8d\n' "$label" "$line_count" "$file_count"
 }
 
 mapfile -t core < <(find Loam/Core -type f -name '*.lean' -print | sort)
@@ -37,14 +37,20 @@ mapfile -t tests < <(find Loam/Tests -type f -name '*.lean' -print 2>/dev/null |
 mapfile -t observations < <(find Loam/Observations -type f -name '*.lean' -print 2>/dev/null | sort)
 
 # Top-level Lean implementation files are intentionally classified by role.
-# Umbrella modules only re-export/import layers and are not writer machinery.
+# Most umbrella modules only re-export/import layers. Persistence.lean is an
+# exception: it still contains codec and IO implementation, so report it
+# separately without changing the historical practical-subtotal series.
 mapfile -t top_level_all < <(find Loam -maxdepth 1 -type f -name '*.lean' -print | sort)
 writer_top=()
 other_top=()
+implementation_umbrellas=()
 for file in "${top_level_all[@]}"; do
   base=${file##*/}
   case "$base" in
-    Core.lean|Application.lean|Persistence.lean|Observations.lean|Tests.lean)
+    Persistence.lean)
+      implementation_umbrellas+=("$file")
+      ;;
+    Core.lean|Application.lean|Observations.lean|Tests.lean)
       ;;
     *Publisher.lean|WriterOwnership.lean|*Manifest*.lean|*Authority*.lean)
       writer_top+=("$file")
@@ -55,8 +61,8 @@ for file in "${top_level_all[@]}"; do
   esac
 done
 
-printf '%-28s %8s %8s\n' 'surface' 'lines' 'files'
-printf '%-28s %8s %8s\n' '----------------------------' '--------' '--------'
+printf '%-34s %8s %8s\n' 'surface' 'lines' 'files'
+printf '%-34s %8s %8s\n' '----------------------------------' '--------' '--------'
 count_group 'Core' "${core[@]}"
 count_group 'Application' "${application[@]}"
 count_group 'Persistence' "${persistence[@]}"
@@ -64,6 +70,7 @@ count_group 'Writer/top-level candidate' "${writer_top[@]}"
 count_group 'Other top-level Lean' "${other_top[@]}"
 count_group 'CLI' "${cli[@]}"
 count_group 'TUI' "${tui[@]}"
+count_group 'Implementation-bearing umbrella' "${implementation_umbrellas[@]}"
 count_group 'Tests' "${tests[@]}"
 count_group 'Historical observations' "${observations[@]}"
 
@@ -76,7 +83,13 @@ production_files=(
   "${cli[@]}"
   "${tui[@]}"
 )
-count_group 'Practical subtotal' "${production_files[@]}"
+count_group 'Practical subtotal (legacy)' "${production_files[@]}"
+
+production_with_implementation_umbrellas=(
+  "${production_files[@]}"
+  "${implementation_umbrellas[@]}"
+)
+count_group 'Practical + impl umbrella' "${production_with_implementation_umbrellas[@]}"
 
 printf '\nExecutable roots from lakefile.lean:\n'
 grep -E '^lean_exe[[:space:]]+' lakefile.lean || true
@@ -84,10 +97,19 @@ grep -E '^lean_exe[[:space:]]+' lakefile.lean || true
 printf '\nTop-level writer candidates:\n'
 printf '%s\n' "${writer_top[@]}"
 
+printf '\nImplementation-bearing umbrella files:\n'
+if (( ${#implementation_umbrellas[@]} > 0 )); then
+  printf '%s\n' "${implementation_umbrellas[@]}"
+else
+  printf '%s\n' '  (none)'
+fi
+
 printf '\nOther top-level Lean files requiring audit classification:\n'
 printf '%s\n' "${other_top[@]}"
 
 printf '\nNotes:\n'
 printf '%s\n' '- Counts are physical source lines, not semantic-complexity measurements.'
+printf '%s\n' '- Practical subtotal (legacy) preserves the historical audit series.'
+printf '%s\n' '- Practical + impl umbrella prevents implementation-bearing umbrella modules from disappearing from source-shape reporting.'
+printf '%s\n' '- Executable-reachable full-source totals are reported by audit-production-reachability.'
 printf '%s\n' '- A file being present does not prove it is reachable from a current production entrance.'
-printf '%s\n' '- Phase 1 must add reachability classification before this inventory is considered complete.'
