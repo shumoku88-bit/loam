@@ -14,6 +14,10 @@ on:
       - 'Loam/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/TuiLocusAdmissionAdministration.lean'
+      - 'Loam/AccountingRolePublisher.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/AccountingRolePublisher.lean'
+      - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -100,6 +104,10 @@ on:
       - 'Loam/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/TuiLocusAdmissionAdministration.lean'
+      - 'Loam/AccountingRolePublisher.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/AccountingRolePublisher.lean'
+      - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -208,6 +216,15 @@ jobs:
 
       - name: Verify Locus admission administration interaction
         run: lake env lean --run Loam/Tests/TuiLocusAdmissionAdministration.lean
+
+      - name: Build shared initial AccountingRole publisher boundary
+        run: lake build Loam.AccountingRolePublisher
+
+      - name: Verify virgin-Locus initial AccountingRole publication
+        run: lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role"
+
+      - name: Verify AccountingRole administration interaction
+        run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
