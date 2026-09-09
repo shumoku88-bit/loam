@@ -21,6 +21,9 @@ Add-only presentation over the current admitted picker catalog. The catalog is
 used to make existing identities visible before a new stable token is proposed;
 it does not grant write authority. Publication is delegated to the shared
 `LocusAdmissionPublisher`.
+
+The terminal session may open separate initial AccountingRole administration
+with Tab. This view itself still owns no role semantics or role write authority.
 -/
 
 inductive Phase where
@@ -139,8 +142,8 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ blank
         , line ("New stable token: " ++ state.entered ++ "_")
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing   Esc cancel"
-        , muted "Admission does not create a label, AccountingRole, Purpose route, rename, or alias."
+        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing   Tab initial roles   Esc cancel"
+        , muted "Admission itself does not create a label, AccountingRole, Purpose route, rename, or alias."
         ]
   | .preview =>
       .column
