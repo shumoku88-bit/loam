@@ -22,8 +22,7 @@ private def parseTarget?
     (mode : String)
     (purpose? : Option String) : Option Loam.ActualRoutingPublisher.Target :=
   match mode, purpose? with
-  | "managed", some token =>
-      if validToken token then some (.managed ⟨token⟩) else none
+  | "managed", some token => some (.managed ⟨token⟩)
   | "unmanaged", none => some .unmanaged
   | _, _ => none
 
@@ -51,9 +50,6 @@ private def publishDraft
 private def recordInitial
     (routingPath locus mode : String)
     (purpose? : Option String) : IO UInt32 := do
-  if !validToken locus then
-    IO.eprintln "loam: routing locus must be a nonempty single-line token"
-    return 2
   match parseTarget? mode purpose? with
   | none =>
       IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
@@ -68,9 +64,6 @@ private def recordInitial
 private def recordDated
     (routingPath date locus mode : String)
     (purpose? : Option String) : IO UInt32 := do
-  if !validToken locus then
-    IO.eprintln "loam: routing locus must be a nonempty single-line token"
-    return 2
   match parseTarget? mode purpose? with
   | none =>
       IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
