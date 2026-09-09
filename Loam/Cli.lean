@@ -16,8 +16,9 @@ def renderAmount (amount : Loam.Core.SomeAmount) : String :=
 
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
-  "Daily recording uses the movement entrance:\n" ++
-  "  ./tools/loam movement MEMORY_FILE\n\n" ++
+  "Daily recording uses selected Movement manifest authority:\n" ++
+  "  LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE\n" ++
+  "  MEMORY_FILE is retained as a positional compatibility argument only.\n\n" ++
   "Scheduled persistence is read-only here; production Scheduled mutation uses loamTui/shared publishers:\n" ++
   "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
@@ -81,8 +82,8 @@ def createEvent
   | some effects =>
       match Loam.Core.Event.ofEffects? ⟨eventToken⟩ effects with
       | none =>
-          IO.eprintln "loam: duplicate effect key in event"
-          return 2
+        IO.eprintln "loam: duplicate effect key in event"
+        return 2
       | some event =>
           let filePath := System.FilePath.mk path
           if ← filePath.pathExists then
