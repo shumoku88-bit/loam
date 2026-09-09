@@ -77,6 +77,18 @@ def forVocabulary
 def fallback (vocabulary : LocusAdmissionVocabulary) : Catalog :=
   forVocabulary vocabulary []
 
+/--
+Re-scope an already loaded presentation catalog to a freshly re-read admission
+vocabulary. This preserves labels for identities that remain approved, drops any
+that ceased to be approved, and token-falls-back for newly approved identities.
+-/
+def restrict
+    (vocabulary : LocusAdmissionVocabulary) (catalog : Catalog) : Catalog :=
+  vocabulary.approved.map fun locus =>
+    match catalog.find? (fun entry => entry.locus = locus) with
+    | some entry => entry
+    | none => { locus := locus, label := locus.token, help := "" }
+
 /-- Empty query means “show the whole admitted list”; otherwise match token or label prefix. -/
 def search (catalog : Catalog) (query : String) : Catalog :=
   if query.isEmpty then catalog
