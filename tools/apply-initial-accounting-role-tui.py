@@ -70,3 +70,5 @@ replace_exact(
     '    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [m] loci  [v] reports"\n',
     '    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [o] roles  [m] loci  [v] reports"\n',
 )
+
+# One-shot trigger for the exact branch patch workflow.
