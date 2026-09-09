@@ -21,7 +21,7 @@ import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.Reports
 import Loam.BoundaryPresetConfig
 import Loam.MovementPublisher
-import Loam.CompletionPrompt
+import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
