@@ -36,8 +36,8 @@ def main (args : List String) : IO Unit := do
     "proposal did not preserve existing admission and append one identity"
   expect (!(Loam.LocusAdmissionPublisher.propose? w { token := "book" }).isOk)
     "duplicate admission was accepted"
-  expect (!(Loam.LocusAdmissionPublisher.propose? w { token := "bad token" }).isOk)
-    "invalid stable token was accepted"
+  expect (!(Loam.LocusAdmissionPublisher.propose? w { token := "bad\ttoken" }).isOk)
+    "persistence-invalid stable token was accepted"
 
   let root := System.FilePath.mk rootPath
   match ← Loam.MovementManifestAuthority.publishWorld? root w with
