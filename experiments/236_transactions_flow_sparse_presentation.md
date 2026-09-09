@@ -1,8 +1,12 @@
 # Observation 236 — Can Transactions-Flow stay legible without rendering the dense incidence matrix?
 
-Status: **PROBE IN PROGRESS — RESEARCH_ONLY**
+Status: **QUALIFIED — coordinate-first sparse summary + focused contributors / RESEARCH_ONLY**
 
 Research baseline: LOAM `ca4d6316ff8b9d26a344bba157a7289c53974b23`
+
+Qualified head: `489c68781bb5892a20454326f6f1e3dd497bc73a`
+
+Dedicated workflow: Observation 236 run `34322750907`, job `102372908824`, **SUCCESS**.
 
 ## Trigger
 
@@ -46,7 +50,7 @@ Mechanically safe, but too close to Recent Journal. It does not foreground the k
 
 ### C. Coordinate-first sparse summary + focused contributors
 
-Selected candidate.
+**Qualified candidate.**
 
 Summary shape:
 
@@ -83,7 +87,7 @@ A net-only report erases the movement. A dense matrix preserves it but surrounds
 
 For the first presentation experiment, rows are ordered by descending gross activity. This is explicitly a presentation salience heuristic, not canonical priority or accounting importance. Stable coordinate spelling is only a deterministic tie-break.
 
-## Mechanical probe
+## Mechanical result
 
 The Lean experiment derives all presentation data from the production `TransactionsFlowReview.Snapshot`:
 
@@ -95,7 +99,7 @@ focused contributors
   = selected Event columns whose Event.quantityAt coordinate != 0
 ```
 
-It checks:
+The successful exact-head run checks:
 
 ```text
 zero-net cash circulation remains visible
@@ -117,9 +121,11 @@ gross ranking keeps cash first
 
 No matrix cells are copied into a second retained representation.
 
-## Interaction candidate
+The initial workflow failure was infrastructure-local: the newly promoted production `TransactionsFlowReview` had not yet been built into the observation cache. Adding an explicit `lake build Loam.TransactionsFlowReview` before the probe resolved that without any production source change.
 
-If the probe qualifies, the smallest production TUI candidate is:
+## Qualified interaction candidate
+
+The smallest production TUI candidate is now:
 
 ```text
 Reports
@@ -165,4 +171,4 @@ Observation 236 does not authorize:
 - gross activity as importance or risk;
 - persistence of matrix cells or presentation rows;
 - a new report-window abstraction;
-- immediate promotion before the probe compiles.
+- additional presentation features beyond the qualified sparse summary/detail candidate without new pressure.
