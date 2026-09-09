@@ -19,7 +19,7 @@ jobs:
           ref: feat/shared-locus-catalog-picker
           fetch-depth: 0
 
-      - name: Wire production TUI to admission-scoped catalog
+      - name: Wire production TUI to Locus display metadata and admission-scoped pickers
         shell: bash
         run: |
           set -euo pipefail
@@ -32,11 +32,11 @@ jobs:
               text = text.replace('import Loam.Tui.Record\n', 'import Loam.LocusCatalog\nimport Loam.Tui.Record\n', 1)
 
           marker = 'private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do\n'
-          helper = '''private def currentLocusCatalog\n    (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :\n    IO Loam.LocusCatalog.Catalog := do\n  match ← Loam.LocusCatalog.loadForVocabulary dataDir world.locusAdmission with\n  | .ok catalog => return catalog\n  | .error _ => return Loam.LocusCatalog.fallback world.locusAdmission\n\n'''
-          if helper not in text:
+          helpers = '''private def currentLocusMetadata\n    (dataDir : System.FilePath) : IO (List Loam.LocusCatalog.Metadata) := do\n  match ← Loam.LocusCatalog.loadMetadata dataDir with\n  | .ok metadata => return metadata\n  | .error _ => return []\n\nprivate def currentLocusCatalog\n    (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :\n    IO Loam.LocusCatalog.Catalog := do\n  match ← Loam.LocusCatalog.loadForVocabulary dataDir world.locusAdmission with\n  | .ok catalog => return catalog\n  | .error _ => return Loam.LocusCatalog.fallback world.locusAdmission\n\n'''
+          if 'private def currentLocusMetadata' not in text:
               if marker not in text:
                   raise SystemExit('loadSnapshot marker not found')
-              text = text.replace(marker, helper + marker, 1)
+              text = text.replace(marker, helpers + marker, 1)
 
           old_known = '''(world.locusAdmission.approved.map (fun locus => locus.token) ++\n        Loam.CompletionPrompt.knownLoci world.events).eraseDups'''
           text = text.replace(old_known, 'world.locusAdmission.approved.map (fun locus => locus.token)')
@@ -51,12 +51,20 @@ jobs:
                   '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.Record.withCatalog\n        (Loam.Tui.Record.initial step.state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)'''
               ),
               (
+                  '''    let editor := Loam.Tui.Record.initial state.selectedDate\n    let editorFrame := compileWidget (Loam.Tui.Record.view known editor)''',
+                  '''    let catalog ← currentLocusCatalog dataDir world\n    let editor := Loam.Tui.Record.withCatalog\n      (Loam.Tui.Record.initial state.selectedDate) catalog\n    let editorFrame := compileWidget (Loam.Tui.Record.view known editor)'''
+              ),
+              (
                   '''      let editor := Loam.Tui.ScheduledCreation.initial step.state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)''',
                   '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.ScheduledCreation.withCatalog\n        (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)'''
               ),
               (
                   '''      let editor := Loam.Tui.ScheduledCreation.initial state.focusDate\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)''',
                   '''      let catalog ← currentLocusCatalog dataDir world\n      let editor := Loam.Tui.ScheduledCreation.withCatalog\n        (Loam.Tui.ScheduledCreation.initial state.focusDate) catalog\n      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)'''
+              ),
+              (
+                  '''                    | .ok nextEditor =>\n                        let nextEditorFrame :=\n                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)''',
+                  '''                    | .ok nextEditor =>\n                        let catalog ← currentLocusCatalog dataDir world\n                        let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog\n                        let nextEditorFrame :=\n                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)'''
               ),
           ]
           changed_wiring = 0
@@ -67,6 +75,14 @@ jobs:
                   changed_wiring += count
           if changed_wiring == 0 and 'currentLocusCatalog dataDir world' not in text:
               raise SystemExit('no Record/Scheduled creation wiring site found')
+
+          actual_old = '''    let actual := Loam.Tui.HraActual.initial state.selectedDate\n    let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)'''
+          actual_new = '''    let metadata ← currentLocusMetadata dataDir\n    let actual := Loam.Tui.HraActual.withMetadata\n      (Loam.Tui.HraActual.initial state.selectedDate) metadata\n    let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)'''
+          if actual_old in text:
+              text = text.replace(actual_old, actual_new, 1)
+          elif 'Loam.Tui.HraActual.withMetadata' not in text:
+              raise SystemExit('HraActual metadata wiring site not found')
+
           if 'Loam.CompletionPrompt.knownLoci world.events' in text:
               raise SystemExit('historical Event-derived Locus candidates remain in production TUI')
           cli.write_text(text, encoding='utf-8', newline='\n')
@@ -77,7 +93,7 @@ jobs:
           expanded = "      - 'Loam/LocusCatalog.lean'\n      - 'Loam/Tests/LocusCatalog.lean'\n      - 'Loam/Tui/**'\n"
           tui = tui.replace(trigger, expanded)
           test_marker = '''      - name: Run shared Actual review checks\n        run: lake env lean --run Loam/Tests/RecordReview.lean\n'''
-          catalog_test = '''      - name: Verify admission-scoped Locus catalog\n        run: lake env lean --run Loam/Tests/LocusCatalog.lean\n\n'''
+          catalog_test = '''      - name: Verify display/history and admission-scoped Locus catalog\n        run: lake env lean --run Loam/Tests/LocusCatalog.lean\n\n'''
           if catalog_test not in tui:
               if test_marker not in tui:
                   raise SystemExit('Production TUI test insertion marker not found')
