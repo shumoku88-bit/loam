@@ -164,8 +164,8 @@ publication sessions own authoritative writes and fresh review.
 ## Reports
 
 Home `v` opens Reports. Reports are explicit read queries rather than hidden household
-period authority. Current report queries include Budget Window, Stock-Flow, and
-conditional Liquidity.
+period authority. Current report queries include Budget Window, Stock-Flow,
+Transactions Flow, and conditional Liquidity.
 
 Visible query coordinates are the coordinates sent to the shared Review boundary.
 Calendar-month defaults are presentation conveniences only; they do not establish a
