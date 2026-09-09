@@ -1,4 +1,5 @@
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Runtime
 
 namespace Loam.Tui.Terminal
@@ -36,16 +37,19 @@ def cursorTo (row col : Nat) : String :=
 /--
 Emit only structurally changed rows. The semantic reconstruction theorem remains
 in `Loam.Tui.Runtime`; ANSI and terminal glyph advance are the physical boundary.
+Rows are clipped by physical terminal columns before emission so a long surface
+line can never arm terminal auto-wrap and spill into the following TUI row.
 -/
 def emitDirtyDiff (bounds : Bounds) (top left : Nat)
     (old new : CompiledWidget) : IO Unit := do
   let mut output := ""
+  let available := Loam.Tui.Layout.contentWidth bounds - left
   for row in dirtyRows bounds top old new do
     output := output ++ cursorTo row.val left
     match new.rowAt top row.val with
     | none => pure ()
     | some cells =>
-        for cell in cells do
+        for cell in Loam.Tui.Layout.clipCells available cells.toList do
           output := output ++ ansiStyle cell.style ++ toString cell.glyph
     output := output ++ "\x1b[0m\x1b[K"
   IO.print output
