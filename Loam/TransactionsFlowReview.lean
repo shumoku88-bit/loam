@@ -193,7 +193,7 @@ def rowActivity
       else
         state)
     (0, 0, 0, 0)
-  return {
+  {
     net := Quantity.ofQuanta (accumulated.1 + accumulated.2.1)
     positive := Quantity.ofQuanta accumulated.1
     negative := Quantity.ofQuanta accumulated.2.1
