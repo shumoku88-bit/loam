@@ -1,18 +1,43 @@
 import Loam.ActualDate
 import Loam.Core.BalancedMovement
+import Loam.Core.OpenRelation
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.LocusAdmission
 import Loam.FreshNumberedToken
-import Loam.MovementRelationEntry
-import Loam.MovementDischargeEntry
 import Loam.Persistence
 
 namespace Loam.MovementAdmission
 
 set_option autoImplicit false
+
+/--
+Semantic draft for one positive open relation attached to an already-collected
+Movement Effect.
+
+This value belongs to Movement admission, not to any terminal or line-input
+collector. It has no durable EventId or RelationUnitId; those identities are
+allocated only while admitting the complete draft against the current world.
+-/
+structure RelationDraft where
+  sourceEffect : Loam.Core.EffectKey
+  debtor : Loam.Core.RelationEndpoint
+  creditor : Loam.Core.RelationEndpoint
+  quantity : Loam.Core.Quantity
+  deriving Repr, DecidableEq
+
+/--
+Semantic draft for one exact discharge against an existing RelationUnit.
+
+The later Event identity is intentionally absent. Human-input adapters may build
+this value, but admission owns its meaning and currentness checks.
+-/
+structure DischargeDraft where
+  target : Loam.Core.RelationUnitId
+  quantity : Loam.Core.Quantity
+  deriving Repr, DecidableEq
 
 /--
 One already-collected practical Movement before durable identity allocation.
@@ -26,8 +51,8 @@ structure Draft where
   validOn : String
   description : Option String
   effects : List Loam.Core.Effect
-  relations : List Loam.MovementRelationEntry.Draft
-  discharges : List Loam.MovementDischargeEntry.Draft
+  relations : List RelationDraft
+  discharges : List DischargeDraft
   total : Int
 
 /--
@@ -135,7 +160,7 @@ private def freshRelationUnitIds?
 private def materializeRelationUnits? :
     Loam.Core.EventId →
     List Loam.Core.RelationUnitId →
-    List Loam.MovementRelationEntry.Draft →
+    List RelationDraft →
     Option (List Loam.Core.RelationUnit)
   | _, [], [] => some []
   | eventId, id :: ids, draft :: drafts => do
@@ -152,7 +177,7 @@ private def materializeRelationUnits? :
 
 private def materializeRelationDischarges
     (eventId : Loam.Core.EventId)
-    (drafts : List Loam.MovementDischargeEntry.Draft) :
+    (drafts : List DischargeDraft) :
     List Loam.Core.RelationDischarge :=
   drafts.map fun draft => {
     event := eventId
