@@ -2,10 +2,10 @@ import Loam.ActualDate
 import Loam.MovementAdmission
 import Loam.MovementManifestAuthority
 import Loam.MovementPublisher
-import Loam.MovementEntry
-import Loam.MovementRelationEntry
-import Loam.MovementDischargeEntry
-import Loam.MovementUi
+import Loam.Cli.Movement.Entry
+import Loam.Cli.Movement.RelationEntry
+import Loam.Cli.Movement.DischargeEntry
+import Loam.Cli.Movement.Ui
 
 namespace Loam.MovementCli
 
