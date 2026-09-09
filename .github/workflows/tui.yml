@@ -20,6 +20,8 @@ on:
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
+      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
@@ -40,6 +42,8 @@ on:
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
+      - 'Loam/Tests/ActualRoutingReview.lean'
+      - 'Loam/Tests/TuiActualRoutingAdministration.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
@@ -99,6 +103,8 @@ on:
       - 'Loam/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
+      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
@@ -119,6 +125,8 @@ on:
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
+      - 'Loam/Tests/ActualRoutingReview.lean'
+      - 'Loam/Tests/TuiActualRoutingAdministration.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
@@ -275,6 +283,17 @@ jobs:
 
       - name: Verify Capacity workspace
         run: lake env lean --run Loam/Tests/TuiCapacity.lean
+
+      - name: Build shared Actual Purpose routing administration boundaries
+        run: |
+          lake build Loam.ActualRoutingPublisher
+          lake build Loam.ActualRoutingReview
+
+      - name: Verify current Expense Locus routing audit
+        run: lake env lean --run Loam/Tests/ActualRoutingReview.lean "$(mktemp -d)/actual-routing-review"
+
+      - name: Verify Actual Purpose routing administration interaction
+        run: lake env lean --run Loam/Tests/TuiActualRoutingAdministration.lean "$(mktemp -d)/tui-actual-routing-administration"
 
       - name: Build manifest-backed Budget Window review boundary
         run: lake build Loam.BudgetWindowReview
