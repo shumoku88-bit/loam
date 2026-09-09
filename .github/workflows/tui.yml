@@ -11,6 +11,9 @@ on:
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/Tests/LocusCatalog.lean'
+      - 'Loam/LocusAdmissionPublisher.lean'
+      - 'Loam/Tests/LocusAdmissionPublisher.lean'
+      - 'Loam/Tests/TuiLocusAdmissionAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -94,6 +97,9 @@ on:
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/Tests/LocusCatalog.lean'
+      - 'Loam/LocusAdmissionPublisher.lean'
+      - 'Loam/Tests/LocusAdmissionPublisher.lean'
+      - 'Loam/Tests/TuiLocusAdmissionAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -193,6 +199,15 @@ jobs:
 
       - name: Verify display/history and admission-scoped Locus catalog
         run: lake env lean --run Loam/Tests/LocusCatalog.lean
+
+      - name: Build shared Locus admission publisher boundary
+        run: lake build Loam.LocusAdmissionPublisher
+
+      - name: Verify add-only manifest-backed Locus admission
+        run: lake env lean --run Loam/Tests/LocusAdmissionPublisher.lean "$(mktemp -d)/locus-admission"
+
+      - name: Verify Locus admission administration interaction
+        run: lake env lean --run Loam/Tests/TuiLocusAdmissionAdministration.lean
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean

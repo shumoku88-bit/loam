@@ -128,7 +128,7 @@ private def statusLine
     | .error _ => "Unavailable"
   " Scheduled    : " ++ scheduled ++
     "   Pending: " ++ pendingStatus ++
-    "   Budget: [c]   Capacity: [e]   Purpose routes: [u]   Reports: [v]"
+    "   Budget: [c]   Capacity: [e]   Purpose routes: [u]   Loci: [m]   Reports: [v]"
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
@@ -175,10 +175,10 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
 
 private def helpLines (bounds : Bounds) : List Widget :=
   if bounds.width >= 120 then
-    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [v] reports  [q] quit"]
+    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [m] loci  [v] reports  [q] quit"]
   else
     [ mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [q] quit"
-    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [v] reports"
+    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [m] loci  [v] reports"
     ]
 
 /-- Reserve the bottom rows for HRA-style stable help and truncate only body rows. -/

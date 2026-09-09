@@ -1,4 +1,6 @@
 import Loam.LocusCatalog
+import Loam.Tui.LocusAdmissionAdministration
+import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
@@ -1024,6 +1026,22 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     IO.print "\x1b[2J"
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
     loop bounds dataDir root fresh home nextFrame
+  else if isHome && (key = .input 'm' || key = .input 'M') then
+    let world ←
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+      | .error message => throw (IO.userError message)
+      | .ok world => pure world
+    let catalog ← currentLocusCatalog dataDir world
+    let admin := Loam.Tui.LocusAdmissionAdministration.initial catalog
+    let adminFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds admin)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
+    let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
+      bounds root admin adminFrame
+    let home := { state with surface := .home none, notice := notice }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    IO.print "\x1b[2J"
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
     let actual := Loam.Tui.HraActual.withMetadata
