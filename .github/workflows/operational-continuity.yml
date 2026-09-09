@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'Loam/OperationalContinuity.lean'
+      - 'Loam/MovementManifestAuthority.lean'
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
+      - 'Loam/Tests/MovementRecoveryRetention.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - '.github/workflows/operational-continuity.yml'
@@ -16,7 +18,7 @@ permissions:
 
 jobs:
   lean:
-    name: Qualify read-only household diagnosis
+    name: Qualify household diagnosis and recovery retention
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -38,6 +40,9 @@ jobs:
 
       - name: Verify fail-closed diagnosis and human explanation
         run: lake env lean --run Loam/Tests/OperationalContinuity.lean "$(mktemp -d)/operational-continuity"
+
+      - name: Verify validated pre-switch Movement recovery retention
+        run: lake env lean --run Loam/Tests/MovementRecoveryRetention.lean "$(mktemp -d)/movement-recovery"
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash
