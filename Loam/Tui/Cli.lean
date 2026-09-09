@@ -308,7 +308,7 @@ partial def scheduledReplacementLoop
   match step.publish with
   | some draft =>
       match ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
-          root.toString correctionFile.toString draft with
+          scheduledFile.toString root.toString draft with
       | .ok receipt =>
           return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
