@@ -1,5 +1,6 @@
 import Loam.CurrentCoverageReview
 import Loam.CycleBudgetReview
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.CycleBudget
@@ -31,10 +32,10 @@ def isHomeEntrance (key : Key) : Bool := key == .input 'c' || key == .input 'C'
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 private def padded (width : Nat) (text : String) : String :=
-  String.ofList (List.replicate (width - text.length) ' ') ++ text
+  Loam.Tui.Layout.padLeft width text
 
 private def amount (label : String) (quantity : Loam.Core.Quantity) : Widget :=
-  line (label ++ String.ofList (List.replicate (34 - label.length) ' ') ++
+  line (Loam.Tui.Layout.padRight 34 label ++
     padded 10 (toString quantity.quanta) ++ " jpy")
 
 /-- Values are mapped directly; no budget arithmetic or status inference. -/
@@ -44,6 +45,13 @@ def coverageRow (row : Loam.CurrentCoverageReview.Row) : Widget :=
     padded 9 (toString row.remaining.quanta) ++
     padded 14 (toString row.commitment.quanta) ++
     padded 14 (toString row.headroom.quanta) ++ "  " ++ row.purpose.token)
+
+private def coverageHeader : Widget :=
+  muted (padded 9 "Cap" ++
+    padded 9 "Spent" ++
+    padded 9 "Now" ++
+    padded 14 "Known future" ++
+    padded 14 "After-known" ++ "  Purpose")
 
 private def fundingLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
   [line "Funding"] ++
@@ -103,15 +111,13 @@ def body (state : State) : List Widget :=
   (match snapshot.coverage with
    | .error message => [line ("CurrentCoverage unavailable: " ++ message)]
    | .ok coverage =>
-     [muted "      Cap    Spent      Now  Known future   After-known  Purpose"] ++
-     coverage.rows.map coverageRow) ++
+     [coverageHeader] ++ coverage.rows.map coverageRow) ++
   (if state.notice.isEmpty then [] else [line state.notice])
 
 private def pageSize (bounds : Bounds) : Nat := bounds.height - 2
 
 private def paddedRight (width : Nat) (text : String) : String :=
-  if text.length >= width then text
-  else text ++ String.ofList (List.replicate (width - text.length) ' ')
+  Loam.Tui.Layout.padRight width text
 
 def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
   match state.submode with
