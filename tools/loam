@@ -28,6 +28,10 @@ Open the production TUI (also the default with no arguments):
   ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
 
+Diagnose whether the production startup read boundary is currently coherent:
+  ./tools/loam doctor [LOAM_DATA_DIR]
+  This command is read-only and never repairs or rewrites household facts.
+
 Record one balanced JPY movement through selected manifest authority:
   LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE
   MEMORY_FILE is retained as a positional compatibility argument only.
@@ -67,6 +71,11 @@ fi
 if [[ "${1:-}" == "tui" ]]; then
   shift
   run_target loamTui "$@"
+fi
+
+if [[ "${1:-}" == "doctor" ]]; then
+  shift
+  run_target loamDoctor "$@"
 fi
 
 if [[ "${1:-}" == "shadow-audit" ]]; then
