@@ -126,11 +126,6 @@ private def activeLocus? (form : Form) : Option String := do
       let row ← form.rows[offset / 2]?
       some row.locus
 
-/-- Legacy token-only first match retained for compatibility. -/
-private def candidate? (known : List String) (form : Form) : Option String := do
-  let entered ← activeLocus? form
-  known.find? fun token => entered.isPrefixOf token && token != entered
-
 private def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
   match activeLocus? state.form with
   | none => []
@@ -210,9 +205,9 @@ def update
     | .preview draft choice =>
         match key with
         | .tab | .right =>
-            { state := { state with mode := .preview draft ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩ } }
+            { state := { state with mode := (.preview draft ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩) } }
         | .shiftTab | .left =>
-            { state := { state with mode := .preview draft ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩ } }
+            { state := { state with mode := (.preview draft ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩) } }
         | .enter =>
             if choice.val = 0 then { state, publish := some draft }
             else if choice.val = 1 then { state := { state with mode := .editing } }
