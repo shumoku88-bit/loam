@@ -15,6 +15,7 @@ on:
       - 'docs/research/COMPRESSION_AUDIT_PHASE4.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE5.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE6.md'
+      - 'docs/research/REPOSITORY_COMPRESSION_LIBRARY_SEEDS_2026-09.md'
       - 'Loam/**'
       - 'lakefile.lean'
       - '.github/workflows/compression-audit.yml'
