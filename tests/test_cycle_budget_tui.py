@@ -101,13 +101,15 @@ try:
         os.write(master, b"j")
         wait_for(f"Focus: {today + datetime.timedelta(days=7 * week)}")
     os.write(master, b"c")
-    screen = wait_for("read only")
+    screen = wait_for("r rebalance")
     assert "Budget / Pension Cycle" in screen
     assert f"{start} -> {end}" in screen
     assert f"Observed {today}" in screen
     assert "u route" in screen
     assert "g grant" in screen
     assert "r rebalance" in screen
+    assert "Capacity/actions" not in screen
+    assert "read only" not in screen
     # Cycle Grant remains an existing direct action.
     os.write(master, b"g")
     preview = wait_for("[Publish]")
@@ -131,6 +133,7 @@ try:
     os.write(master, b"r")
     rebalance = wait_for("Capacity / Rebalance")
     assert f"Effective: {today}" in rebalance
+    assert "Home > Capacity > Rebalance" not in rebalance
     assert "food" in rebalance and "stock" in rebalance
     assert "-150" in rebalance, "Budget CurrentCoverage was not carried into Rebalance"
 
@@ -161,13 +164,12 @@ try:
 
     os.write(master, b"u")
     wait_for("No unresolved Scheduled routing subjects.")
+    # Stage E3: Budget e is retired. If e still entered Capacity, this b would return
+    # to Budget instead of Home, so the Home focus below would never appear.
     os.write(master, b"e")
-    wait_for("t transfer")
-    os.write(master, b"b")
-    wait_for("Budget / Pension Cycle")
     os.write(master, b"b")
     wait_for(f"Focus: {today + datetime.timedelta(days=42)}")
-    # Home's old e entrance still works; no Capacity view is copied.
+    # Home's raw e entrance remains as the fallback/general transfer path.
     os.write(master, b"e")
     wait_for("t transfer")
     os.write(master, b"b")
@@ -181,7 +183,7 @@ try:
             break
     assert process.wait(timeout=10) == 0
     assert digest() == before, "Cancelled production navigation changed fixture evidence/config"
-    print("Production PTY: Budget grant/rebalance cancel, observedAt reuse, fresh return, raw Capacity and no writes passed.")
+    print("Production PTY: Budget actions, retired Capacity detour, Home raw Capacity fallback and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()

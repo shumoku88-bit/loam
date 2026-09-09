@@ -45,6 +45,8 @@ def main : IO Unit := do
     expect (contains value rendered) ("missing supplied answer: " ++ value)
   expect (!(contains "Safe to spend" rendered) && !(contains "Available" rendered))
     "residual was promoted to spending permission"
+  expect (!(contains "Capacity/actions" rendered)) "retired Budget Capacity detour still rendered"
+  expect (!(contains "read only" rendered)) "writable Budget still claims read only"
   let missing : Loam.Tui.CycleBudget.State := { snapshot := { fixture with
     selection := .error "not configured", funding := .error "not configured" } }
   let missingText := text (Loam.Tui.CycleBudget.view bounds missing)
@@ -61,6 +63,10 @@ def main : IO Unit := do
   expect (!(Loam.Tui.CycleBudget.isHomeEntrance (.input 'e'))) "raw Capacity alias stolen"
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'b')).2 == .home) "back is not Home"
   expect ((Loam.Tui.CycleBudget.update bounds state .escape).2 == .home) "Esc is not Home"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'e')).2 == .stay)
+    "Budget e still enters raw Capacity"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'E')).2 == .stay)
+    "Budget E still enters raw Capacity"
   expect (contains "u route" rendered) "footer missing u route"
   expect (contains "g grant" rendered) "footer missing g grant"
   expect (contains "r rebalance" rendered) "footer missing r rebalance"
@@ -214,4 +220,4 @@ def main : IO Unit := do
       "current preset was redefined by Home focus"
   expect (!(Loam.BoundaryPresetConfig.currentWindowFor? (presets ++ presets) "2026-09-08").isOk)
     "ambiguous preset accepted"
-  IO.println "Cycle Budget: supplied mappings, degraded layers, direct action intents, scrolling and dates passed."
+  IO.println "Cycle Budget: supplied mappings, direct actions, retired detour, scrolling and dates passed."
