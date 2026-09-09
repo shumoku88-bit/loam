@@ -1,5 +1,6 @@
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.SiblingStage
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence
@@ -99,14 +100,6 @@ private def renderJournal (entries : List JournalEntry) : String :=
   | [] => journalHeader ++ "\n; No effective Actual events.\n"
   | _ => journalHeader ++ "\n" ++ String.intercalate "\n\n" (entries.map renderEntry) ++ "\n"
 
-private def journalStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
-private def publishJournal (path : System.FilePath) (text : String) : IO Unit := do
-  let stagePath := journalStagePath path
-  IO.FS.writeFile stagePath text
-  IO.FS.rename stagePath path
-
 private def conflictsWithCanonicalPath
     (memoryPath correctionPath outputPath : String) : Bool :=
   outputPath == memoryPath ||
@@ -177,7 +170,8 @@ def exportJournal
                               IO.eprintln ("loam: " ++ message)
                               return 2
                           | .ok entries =>
-                              publishJournal outputFile (renderJournal (sortEntries entries))
+                              Loam.Persistence.replaceTextViaSiblingStage
+                                outputFile (renderJournal (sortEntries entries))
                               IO.println ("Regenerated readable Actual journal: " ++ outputPath)
                               return 0
 
