@@ -293,8 +293,7 @@ identity is preserved even when an endpoint is not present in any current
 -/
 def encodeEventCorrectionMemory? (memory : EventCorrectionMemory) : Option String :=
   match memory.corrections.mapM encodeEventCorrectionRow? with
-  | some rows =>
-      some (String.intercalate "\n" (eventCorrectionMemoryHeader :: rows) ++ "\n")
+  | some rows => some (encodeVersionedRows eventCorrectionMemoryHeader rows)
   | none => none
 
 /--
