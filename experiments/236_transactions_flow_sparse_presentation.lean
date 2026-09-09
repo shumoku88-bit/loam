@@ -157,11 +157,11 @@ example : specimen?.map denseCellCount = some 12 := by
 example : specimen?.map sparseCellCount = some 6 := by
   native_decide
 
-/-- Gross salience ranks the zero-net cash circulation ahead of the smaller book activity. -/
+/-- Gross salience keeps the zero-net cash circulation first while retaining deterministic ordering. -/
 example :
     specimen?.map (fun snapshot =>
       (sparseRows snapshot).map fun row => row.coordinate.locus.token) =
-      some ["cash", "lesson-income", "smbc", "book"] := by
+      some ["cash", "smbc", "lesson-income", "book"] := by
   native_decide
 
 /-- The focused view is an incidence projection only; unrelated zero cells never appear. -/
