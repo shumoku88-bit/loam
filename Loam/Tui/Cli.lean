@@ -1036,7 +1036,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let adminFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds admin)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
     let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
-      bounds root admin adminFrame
+      bounds dataDir root admin adminFrame
     let home := { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
     IO.print "\x1b[2J"
