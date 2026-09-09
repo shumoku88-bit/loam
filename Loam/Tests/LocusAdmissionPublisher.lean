@@ -1,0 +1,67 @@
+import Loam.LocusAdmissionPublisher
+
+open Loam.Core
+
+private def expect (condition : Bool) (message : String) : IO Unit := do
+  unless condition do throw (IO.userError message)
+
+private def world : IO Loam.MovementAdmission.World := do
+  let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"book"⟩, ⟨"misc"⟩]
+    | throw (IO.userError "vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := []
+      factIdNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
+
+def main (args : List String) : IO Unit := do
+  let [rootPath] := args | throw (IO.userError "supply isolated manifest root")
+  let w ← world
+
+  let .ok (proposed, receipt) :=
+      Loam.LocusAdmissionPublisher.propose? w { token := "stationery" }
+    | throw (IO.userError "valid admission proposal was rejected")
+  expect (receipt.locus.token == "stationery") "receipt lost admitted identity"
+  expect (receipt.previousCount == 2 && receipt.currentCount == 3)
+    "receipt counts do not describe one additive admission"
+  expect (proposed.locusAdmission.approved.map (fun locus => locus.token) ==
+      ["book", "misc", "stationery"])
+    "proposal did not preserve existing admission and append one identity"
+  expect ((Loam.LocusAdmissionPublisher.propose? w { token := "book" }).isError)
+    "duplicate admission was accepted"
+  expect ((Loam.LocusAdmissionPublisher.propose? w { token := "bad token" }).isError)
+    "invalid stable token was accepted"
+
+  let root := System.FilePath.mk rootPath
+  match ← Loam.MovementManifestAuthority.publishWorld? root w with
+  | .error message => throw (IO.userError message)
+  | .ok _ => pure ()
+
+  let .ok published ← Loam.LocusAdmissionPublisher.publishManifestAdmission
+      rootPath { token := "stationery" }
+    | .error message => throw (IO.userError message)
+  expect (published.currentCount == 3) "publisher receipt count mismatch"
+
+  let .ok loaded ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+    | .error message => throw (IO.userError message)
+  expect (loaded.locusAdmission.approved.map (fun locus => locus.token) ==
+      ["book", "misc", "stationery"])
+    "manifest publication did not retain the new admission vocabulary"
+  expect (loaded.events == w.events) "admission publication changed Event evidence"
+  expect (loaded.validity == w.validity) "admission publication changed ActualValidity evidence"
+  expect (loaded.descriptions == w.descriptions) "admission publication changed descriptions"
+  expect (loaded.relations == w.relations) "admission publication changed relations"
+  expect (loaded.discharges == w.discharges) "admission publication changed discharges"
+
+  expect ((← Loam.LocusAdmissionPublisher.publishManifestAdmission
+      rootPath { token := "stationery" }).isError)
+    "duplicate manifest admission was accepted"
+
+  IO.println "Locus admission publisher: add-only policy and manifest isolation passed."
