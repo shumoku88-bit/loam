@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Branch-only fail-closed transformer; removed by the workflow after use.
 
 def replace_exact(path: Path, old: str, new: str, expected: int) -> None:
     text = path.read_text()
