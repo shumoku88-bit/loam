@@ -1,0 +1,316 @@
+name: Production TUI
+
+on:
+  pull_request:
+    paths:
+      - 'tools/loam'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/Tui/**'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ActualReversalPublisher.lean'
+      - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Core/ActualReversal.lean'
+      - 'Loam/Persistence/ActualReversalPersistence.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/CorrectionPublisher.lean'
+      - 'Loam/Tests/TuiCorrection.lean'
+      - 'Loam/Tests/TuiActualDateCorrection.lean'
+      - 'Loam/Tests/ActualReversalPublisher.lean'
+      - 'Loam/Tests/TuiActualReversal.lean'
+      - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiScheduled.lean'
+      - 'Loam/Tests/TuiScheduledCreate.lean'
+      - 'Loam/Tests/TuiScheduledTerminal.lean'
+      - 'Loam/Tests/TuiSelectedDay.lean'
+      - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiBalances.lean'
+      - 'Loam/Tests/TuiCapacity.lean'
+      - 'Loam/Tests/TuiCapacityTransfer.lean'
+      - 'Loam/Tests/TuiCapacityRebalance.lean'
+      - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/TuiTransactionsFlow.lean'
+      - 'Loam/Tests/StockFlowReview.lean'
+      - 'Loam/Tests/TransactionsFlowReview.lean'
+      - 'Loam/Tests/ConditionalBalancePathReview.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/CapacityReview.lean'
+      - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/StockFlowReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/ConditionalBalancePathReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
+      - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/BalanceReview.lean'
+      - 'Loam/Tests/CapacityReview.lean'
+      - 'Loam/Tests/BudgetWindowReview.lean'
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/CycleFundingConfig.lean'
+      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Tests/CycleBudgetReview.lean'
+      - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'Loam/Tests/TuiCycleGrant.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/TuiScheduledRouting.lean'
+      - 'tests/test_cycle_budget_tui.py'
+      - 'lakefile.lean'
+      - '.github/workflows/tui.yml'
+  push:
+    branches:
+      - 'feat/tui'
+    paths:
+      - 'tools/loam'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
+      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/Tui/**'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/ActualReversalPublisher.lean'
+      - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Core/ActualReversal.lean'
+      - 'Loam/Persistence/ActualReversalPersistence.lean'
+      - 'Loam/Cli/MovementCli.lean'
+      - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/CorrectionPublisher.lean'
+      - 'Loam/Tests/TuiCorrection.lean'
+      - 'Loam/Tests/TuiActualDateCorrection.lean'
+      - 'Loam/Tests/ActualReversalPublisher.lean'
+      - 'Loam/Tests/TuiActualReversal.lean'
+      - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/Tests/TuiScheduled.lean'
+      - 'Loam/Tests/TuiScheduledCreate.lean'
+      - 'Loam/Tests/TuiScheduledTerminal.lean'
+      - 'Loam/Tests/TuiSelectedDay.lean'
+      - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiBalances.lean'
+      - 'Loam/Tests/TuiCapacity.lean'
+      - 'Loam/Tests/TuiCapacityTransfer.lean'
+      - 'Loam/Tests/TuiCapacityRebalance.lean'
+      - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/TuiTransactionsFlow.lean'
+      - 'Loam/Tests/StockFlowReview.lean'
+      - 'Loam/Tests/TransactionsFlowReview.lean'
+      - 'Loam/Tests/ConditionalBalancePathReview.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/CapacityReview.lean'
+      - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/StockFlowReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/ConditionalBalancePathReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
+      - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/BalanceReview.lean'
+      - 'Loam/Tests/CapacityReview.lean'
+      - 'Loam/Tests/BudgetWindowReview.lean'
+      - 'Loam/BoundaryPresetConfig.lean'
+      - 'Loam/CycleFundingConfig.lean'
+      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Tests/CycleBudgetReview.lean'
+      - 'Loam/Tests/TuiCycleBudget.lean'
+      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/Tests/TuiScheduledRouting.lean'
+      - 'tests/test_cycle_budget_tui.py'
+      - 'lakefile.lean'
+      - '.github/workflows/tui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build production household TUI
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build production executables
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam loamMovement loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run shared Actual review checks
+        run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Verify Record publication and fresh canonical review
+        run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
+
+      - name: Build shared Correction publisher boundary
+        run: lake build Loam.CorrectionPublisher
+
+      - name: Verify manifest-backed shared correction publication
+        run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
+
+      - name: Verify selected-day Correction editor and shared publication
+        run: lake env lean --run Loam/Tests/TuiCorrection.lean "$(mktemp -d)/tui-correction"
+
+      - name: Build shared ActualValidity publisher boundary
+        run: lake build Loam.ActualValidityPublisher
+
+      - name: Verify selected-day date editor and shared publication
+        run: lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
+
+      - name: Build shared Actual Reversal publisher boundary
+        run: lake build Loam.ActualReversalPublisher
+
+      - name: Verify relation-first exact Actual reversal publication
+        run: lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal"
+
+      - name: Verify selected-day Actual reversal and fresh canonical review
+        run: lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-actual-reversal"
+
+      - name: Verify full-day Actual local window navigation
+        run: lake env lean --run Loam/Tests/TuiActual.lean
+
+      - name: Verify Scheduled browse, detail, and open-world Unknown
+        run: lake env lean --run Loam/Tests/TuiScheduled.lean
+
+      - name: Build shared Scheduled creation publisher boundary
+        run: lake build Loam.ScheduledCreationPublisher
+
+      - name: Verify selected-day Scheduled creation and fresh canonical review
+        run: lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create"
+
+      - name: Build shared Scheduled terminal publisher boundary
+        run: lake build Loam.ScheduledTerminalPublisher
+
+      - name: Verify selected-day Scheduled completion and cancellation
+        run: lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal"
+
+      - name: Verify selected-day Actual and Scheduled composition
+        run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
+
+      - name: Build shared Attention review boundary
+        run: lake build Loam.AttentionReview
+
+      - name: Verify shared Attention persistence and review boundary
+        run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
+
+      - name: Verify read-only Attention workspace
+        run: lake env lean --run Loam/Tests/TuiAttention.lean
+
+      - name: Build manifest-backed Balance review boundary
+        run: lake build Loam.BalanceReview
+
+      - name: Verify manifest-backed Balance review boundary
+        run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
+
+      - name: Verify read-only Balances workspace
+        run: lake env lean --run Loam/Tests/TuiBalances.lean
+
+      - name: Build shared Capacity publisher boundary
+        run: lake build Loam.CapacityPublisher
+
+      - name: Verify Capacity transfer and fresh shared review
+        run: lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
+
+      - name: Verify Capacity rebalance and fresh shared review
+        run: lake env lean --run Loam/Tests/TuiCapacityRebalance.lean "$(mktemp -d)/tui-capacity-rebalance"
+
+      - name: Verify shared Capacity review boundary
+        run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
+
+      - name: Verify windowed Current Coverage review boundary
+        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
+
+      - name: Verify Capacity workspace
+        run: lake env lean --run Loam/Tests/TuiCapacity.lean
+
+      - name: Build manifest-backed Budget Window review boundary
+        run: lake build Loam.BudgetWindowReview
+
+      - name: Verify manifest-backed Budget Window review boundary
+        run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
+
+      - name: Build shared Stock-Flow review boundary
+        run: lake build Loam.StockFlowReview
+
+      - name: Verify Stock-Flow reconstruction and refusal boundaries
+        run: lake env lean --run Loam/Tests/StockFlowReview.lean
+
+      - name: Build shared Transactions-Flow review boundary
+        run: lake build Loam.TransactionsFlowReview
+
+      - name: Verify Transactions-Flow incidence, activity and refusal boundaries
+        run: lake env lean --run Loam/Tests/TransactionsFlowReview.lean
+
+      - name: Build conditional selected-balance path review boundary
+        run: lake build Loam.ConditionalBalancePathReview
+
+      - name: Verify conditional selected-balance path and refusal boundaries
+        run: lake env lean --run Loam/Tests/ConditionalBalancePathReview.lean
+
+      - name: Verify sparse Transactions-Flow Reports interaction
+        run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
+
+      - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces
+        run: lake env lean --run Loam/Tests/TuiReports.lean
+
+      - name: Build shared CycleBudget review boundary
+        run: lake build Loam.CycleBudgetReview
+
+      - name: Verify shared CycleBudget review boundary
+        run: lake env lean --run Loam/Tests/CycleBudgetReview.lean "$(mktemp -d)/cycle-budget-review"
+
+      - name: Verify Cycle Budget workspace
+        run: lake env lean --run Loam/Tests/TuiCycleBudget.lean
+
+      - name: Verify Scheduled Routing TUI interaction
+        run: lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
+
+      - name: Verify Cycle Grant TUI interaction
+        run: lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant"
+
+      - name: Verify Cycle Budget TUI PTY interactions
+        run: |
+          FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
+          lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
+          python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
