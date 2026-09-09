@@ -28,6 +28,8 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Build shared Transactions-Flow review boundary
+        run: lake build Loam.TransactionsFlowReview
       - name: Check Observation 236 Lean probe
         shell: bash
         run: |
