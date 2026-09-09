@@ -87,12 +87,6 @@ def main (args : List String) : IO Unit := do
   let invalid := preview w { form := { readyForm with date := "bad" } }
   expect ((update w [] invalid .enter).publish.isNone) "invalid preview emitted publication"
 
-  let candidateForm := { readyForm with focus := ⟨2, by decide⟩ }
-  let accepted := acceptCandidate ["paypay-extra"] candidateForm
-  expect (accepted.rows[0]!.locus == "paypay-extra") "candidate did not fill focused locus"
-  expect (accepted.rows[1]! == readyForm.rows[1]!) "candidate changed another row"
-  expect (accepted.description == readyForm.description) "candidate changed description"
-
   let blankCandidateForm : Form := {
     readyForm with
     rows := #[
@@ -101,25 +95,25 @@ def main (args : List String) : IO Unit := do
     focus := ⟨2, by decide⟩ }
   let pickerKnown := ["paypay", "books", "point"]
   expect (candidates pickerKnown blankCandidateForm == pickerKnown)
-    "blank Locus did not expose the supplied candidates"
+    "blank Locus did not expose the supplied token-only compatibility candidates"
   let pCandidateForm : Form := {
     blankCandidateForm with rows := blankCandidateForm.rows.set 0 { locus := "p", amount := "-2470" } }
   expect (candidates pickerKnown pCandidateForm == ["paypay", "point"])
-    "prefix filter did not narrow Locus candidates"
+    "prefix filter did not narrow token-only compatibility candidates"
   let pickerStart : State := { form := blankCandidateForm }
   let pickerDown := (update w pickerKnown pickerStart .down).state
-  expect (pickerDown.candidateVocabulary == ["paypay", "books"])
-    "Record candidate source was not reduced to current LocusAdmission"
-  expect (selectedCandidate? pickerDown.candidateVocabulary pickerDown == some "books")
-    "Down did not move the candidate cursor"
+  expect ((catalogCandidates pickerDown).map (fun entry => entry.locus.token) == ["paypay", "books"])
+    "Record catalog was not reduced to current LocusAdmission"
+  expect ((selectedCatalogCandidate? pickerDown).map (fun entry => entry.locus.token) == some "books")
+    "Down did not move the catalog candidate cursor"
   let pickerWrapped := (update w pickerKnown pickerDown .down).state
-  expect (selectedCandidate? pickerWrapped.candidateVocabulary pickerWrapped == some "paypay")
-    "candidate cursor escaped current LocusAdmission into recognition-only history"
+  expect ((selectedCatalogCandidate? pickerWrapped).map (fun entry => entry.locus.token) == some "paypay")
+    "catalog cursor escaped current LocusAdmission into recognition-only history"
   let pickerAccepted := (update w pickerKnown pickerDown .right).state
   expect (pickerAccepted.form.rows[0]!.locus == "books")
-    "Right did not accept the selected candidate"
+    "Right did not accept the selected catalog candidate"
   expect (pickerAccepted.form.rows[1]! == blankCandidateForm.rows[1]!)
-    "candidate selection changed another posting row"
+    "catalog candidate selection changed another posting row"
 
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
     | throw (IO.userError "initialize fixture")
@@ -141,4 +135,4 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
-  IO.println "TUI Record: signed postings, canonical candidate selection, admission, stale policy rejection, publication and fresh review passed."
+  IO.println "TUI Record: signed postings, canonical catalog selection, admission, stale policy rejection, publication and fresh review passed."
