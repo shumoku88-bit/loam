@@ -1,0 +1,53 @@
+name: Purpose Catalog Boundary
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/PurposeCatalog.lean'
+      - 'Loam/Observations/Observation239.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Tests/PurposeCatalog.lean'
+      - 'experiments/239_purpose_catalog_noninterference.md'
+      - '.github/workflows/purpose-catalog.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  push:
+    paths:
+      - 'Loam/PurposeCatalog.lean'
+      - 'Loam/Observations/Observation239.lean'
+      - 'Loam/Observations.lean'
+      - 'Loam/Tests/PurposeCatalog.lean'
+      - 'experiments/239_purpose_catalog_noninterference.md'
+      - '.github/workflows/purpose-catalog.yml'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Prove display noninterference and test catalog codec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build selected live observations
+        run: lake build
+
+      - name: Exercise Purpose catalog decoding and fallback
+        run: lake env lean --run Loam/Tests/PurposeCatalog.lean
