@@ -39,6 +39,7 @@ on:
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/StockFlowReview.lean'
+      - 'Loam/Tests/TransactionsFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -47,6 +48,7 @@ on:
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/StockFlowReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -112,6 +114,7 @@ on:
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/StockFlowReview.lean'
+      - 'Loam/Tests/TransactionsFlowReview.lean'
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -120,6 +123,7 @@ on:
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/StockFlowReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -269,6 +273,12 @@ jobs:
 
       - name: Verify Stock-Flow reconstruction and refusal boundaries
         run: lake env lean --run Loam/Tests/StockFlowReview.lean
+
+      - name: Build shared Transactions-Flow review boundary
+        run: lake build Loam.TransactionsFlowReview
+
+      - name: Verify Transactions-Flow incidence, activity and refusal boundaries
+        run: lake env lean --run Loam/Tests/TransactionsFlowReview.lean
 
       - name: Build conditional selected-balance path review boundary
         run: lake build Loam.ConditionalBalancePathReview
