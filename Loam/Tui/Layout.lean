@@ -79,6 +79,22 @@ def padLeft (columns : Nat) (text : String) : String :=
 def contentWidth (bounds : Bounds) : Nat :=
   if bounds.width > 1 then bounds.width - 1 else bounds.width
 
+/--
+Return at most `maxVisible` list items with their original indices, keeping the
+selected index near the middle when the list is larger than the window.
+
+This is presentation-only geometry. It deliberately does not clamp or reinterpret
+selection state; callers retain ownership of cursor validity and movement rules.
+-/
+def centeredListWindow {α : Type} (items : List α) (selected maxVisible : Nat) : List (Nat × α) :=
+  let total := items.length
+  if total <= maxVisible then
+    items.zipIdx.map fun (x, i) => (i, x)
+  else
+    let half := maxVisible / 2
+    let start := if selected > half then min (selected - half) (total - maxVisible) else 0
+    (items.drop start |>.take maxVisible).zipIdx.map fun (x, i) => (start + i, x)
+
 private def takeCellsColumns : List Cell → Nat → List Cell
   | [], _ => []
   | cell :: rest, remaining =>

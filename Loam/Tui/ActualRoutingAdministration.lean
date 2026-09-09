@@ -166,15 +166,6 @@ private def statusText : RoutingStatus → String
   | .unmanaged => "unmanaged"
   | .unrouted => "UNROUTED"
 
-private def listWindow {α : Type} (items : List α) (selected maxVisible : Nat) : List (Nat × α) :=
-  let total := items.length
-  if total <= maxVisible then
-    items.zipIdx.map fun (x, i) => (i, x)
-  else
-    let half := maxVisible / 2
-    let start := if selected > half then min (selected - half) (total - maxVisible) else 0
-    (items.drop start |>.take maxVisible).zipIdx.map fun (x, i) => (start + i, x)
-
 private def rowWidget (selected : Bool) (row : Loam.ActualRoutingReview.Row) : Widget :=
   let marker := if selected then "▶  " else "   "
   let locus := padRight 28 row.locus.token
@@ -186,7 +177,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let maxVisible := if bounds.height > 12 then bounds.height - 10 else 6
   match state.phase with
   | .selectLocus =>
-      let visible := listWindow state.snapshot.rows state.locusIndex maxVisible
+      let visible := centeredListWindow state.snapshot.rows state.locusIndex maxVisible
       let rows :=
         if state.snapshot.rows.isEmpty then [line "   No current Expense Locus is available."]
         else visible.map fun (idx, row) => rowWidget (idx == state.locusIndex) row
@@ -230,7 +221,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         ]
 
   | .selectPurpose =>
-      let visible := listWindow state.snapshot.purposes state.purposeIndex maxVisible
+      let visible := centeredListWindow state.snapshot.purposes state.purposeIndex maxVisible
       let purposes :=
         if state.snapshot.purposes.isEmpty then [line "   No retained Capacity Purpose."]
         else visible.map fun (idx, purpose) =>
