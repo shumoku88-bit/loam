@@ -1,8 +1,12 @@
 # Observation 233 — Can a Transactions-Flow Matrix expose household movement without inventing source/destination edges?
 
-Status: **PROBE IN PROGRESS — RESEARCH_ONLY**
+Status: **QUALIFIED MECHANICAL SEMANTICS — incidence matrix survives / RESEARCH_ONLY**
 
 Research baseline: LOAM `8e7f85c0c0607e8d63cf484914207fa77d5c2330`
+
+Qualified Lean head: `fd9d40e751310f85412dd1d3b2a70c9151632366`
+
+Dedicated workflow: Observation 233 run `34320355132`, job `102365393440`, **SUCCESS**.
 
 ## Trigger
 
@@ -60,7 +64,7 @@ food/jpy    600
 book/jpy    400
 ```
 
-This is the key anti-pairing witness. The matrix should expose all three Effects while refusing to say which positive posting is the destination of which negative posting.
+This is the key anti-pairing witness. The matrix exposes all three Effects while refusing to say which positive posting is the destination of which negative posting.
 
 ### 2. Neutral Core Event with a nonzero residual
 
@@ -68,7 +72,7 @@ This is the key anti-pairing witness. The matrix should expose all three Effects
 income/jpy  +500
 ```
 
-Practical Movement admission requires balanced JPY, but that is an entrance contract rather than a universal Core Event law. The matrix must therefore retain this Event and expose a `+500 jpy` residual instead of rejecting it or silently manufacturing a balancing row.
+Practical Movement admission requires balanced JPY, but that is an entrance contract rather than a universal Core Event law. The matrix retains this Event and exposes a `+500 jpy` residual instead of rejecting it or silently manufacturing a balancing row.
 
 ### 3. Multi-Measure Event
 
@@ -88,7 +92,7 @@ food/jpy        200
 food/jpy        300
 ```
 
-Core permits distinct Effect keys at one `(LocusId, MeasureId)` coordinate. A matrix cell may aggregate those Effects to `food/jpy = 500` without claiming that their Effect identities were the same.
+Core permits distinct Effect keys at one `(LocusId, MeasureId)` coordinate. A matrix cell aggregates those Effects to `food/jpy = 500` without claiming that their Effect identities were the same.
 
 ## Selected matrix
 
@@ -145,6 +149,23 @@ repeated/jpy    = 0
 
 A zero residual is observed conservation. It is not imposed as a global invariant on Core Event.
 
+## Executed result
+
+The dedicated Observation 233 workflow compiled the exact Lean probe successfully.
+
+Mechanically established for the selected witnesses:
+
+```text
+three-posting Event             preserved without pairwise edges
+non-balanced Core Event         retained with visible +500 JPY residual
+multi-Measure Event             JPY residual 0 / point residual +3
+same-coordinate Effect keys     aggregate to one cell quantity
+row total                       exact additive coordinate change
+Effect permutation              cell invariant by Event.quantityAt_perm
+```
+
+The initial hypothesis therefore survives: a Transactions-Flow Matrix does not need a Locus-to-Locus flow relation in order to expose system-wide structure.
+
 ## Mechanical laws in the Lean probe
 
 The experiment checks:
@@ -173,7 +194,7 @@ The permutation result reuses Core's existing `Event.quantityAt_perm` theorem ra
 
 ## What this can show
 
-If the probe survives, the matrix can safely support questions such as:
+The qualified matrix can safely support questions such as:
 
 - Which coordinates changed during the selected period?
 - Which Events contributed to a coordinate's net change?
@@ -214,7 +235,7 @@ no invented pairings
 + no second semantic engine
 ```
 
-The next step after mechanical qualification is therefore a small household-shaped read experiment against current Actual records, not a production surface.
+The next step after this mechanical qualification is therefore a small household-shaped read experiment against current Actual records, not a production surface.
 
 ## Non-claims
 
