@@ -244,16 +244,21 @@ def field (form : Form) (index : Nat) (label text : String) : Widget :=
   .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
     (if form.focus.val = index then .selected else .normal)]
 
+/-- Render the bounded signed-posting field window shared by Record-shaped editors. -/
+def postingFieldLines (form : Form) : List Widget :=
+  let activeRow := (form.focus.val - 2) / 2
+  let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
+  ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
+    let row := form.rows[index]!
+    [ field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
+    , field form (3 + index * 2) "  JPY" row.amount
+    ]
+
 def view (_known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing =>
       let form := state.form
-      let activeRow := (form.focus.val - 2) / 2
-      let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
-      let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
-        let row := form.rows[index]!
-        [field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus,
-         field form (3 + index * 2) "  JPY" row.amount]
+      let rowLines := postingFieldLines form
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
       let options := catalogCandidates state
       let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length

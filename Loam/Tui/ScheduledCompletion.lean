@@ -96,14 +96,7 @@ def view (known : List String) (state : State) : Widget :=
   match state.editor.mode with
   | .editing =>
       let form := state.editor.form
-      let activeRow := (form.focus.val - 2) / 2
-      let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
-      let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
-        let row := form.rows[index]!
-        [ Loam.Tui.Record.field form (2 + index * 2)
-            ("Posting " ++ toString (index + 1)) row.locus
-        , Loam.Tui.Record.field form (3 + index * 2) "  JPY" row.amount
-        ]
+      let rowLines := Loam.Tui.Record.postingFieldLines form
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
       .column <|
         [ Loam.Tui.Record.line "Scheduled / Complete / Edit Actual"
