@@ -9,7 +9,9 @@ set_option autoImplicit false
 
 Whole-memory publication is a read/prepare/admit/replace operation. Atomic
 replacement of one file does not by itself prevent a second process from
-publishing a stale replacement after the first writer completed.
+publishing a stale replacement after the first writer completed. The current
+physical stale-replacement counterexample and owned-publication contrast are
+retained by `Loam/Tests/WriterOwnershipPersistence.lean`.
 
 This runtime boundary provides one small process-level exclusion scope. The
 anchor is the canonical EventMemory path for the writer group. A persistent
