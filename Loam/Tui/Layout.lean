@@ -110,4 +110,33 @@ private def takeCellsColumns : List Cell → Nat → List Cell
 def clipCells (columns : Nat) (cells : List Cell) : List Cell :=
   takeCellsColumns cells columns
 
+/--
+Pack tokens into lines separated by `separator`, wrapping to a new line whenever
+adding the next token would exceed `columns` terminal columns. A single token
+that exceeds `columns` is placed on its own line without further splitting.
+-/
+def flowTokens (columns : Nat) (separator : String) (tokens : List String) : List String :=
+  let sepWidth := displayWidth separator
+  let rec loop (currentLine : String) (currentWidth : Nat) (remaining : List String) (acc : List String) : List String :=
+    match remaining with
+    | [] =>
+        if currentLine.isEmpty then acc.reverse
+        else (currentLine :: acc).reverse
+    | token :: rest =>
+        let tokWidth := displayWidth token
+        if currentLine.isEmpty then
+          loop token tokWidth rest acc
+        else if currentWidth + sepWidth + tokWidth ≤ columns then
+          loop (currentLine ++ separator ++ token) (currentWidth + sepWidth + tokWidth) rest acc
+        else
+          loop token tokWidth rest (currentLine :: acc)
+  loop "" 0 tokens []
+
+/--
+Flow multiple semantic token groups into lines. Each group starts on a new line,
+preserving logical boundaries between groups while wrapping within each group.
+-/
+def flowLines (columns : Nat) (separator : String) (groups : List (List String)) : List String :=
+  groups.flatMap (flowTokens columns separator)
+
 end Loam.Tui.Layout

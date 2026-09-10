@@ -44,6 +44,7 @@ on:
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
+      - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
@@ -134,6 +135,7 @@ on:
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
+      - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
@@ -356,6 +358,9 @@ jobs:
 
       - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
+
+      - name: Verify TUI help footer geometry and adaptive flow
+        run: lake env lean --run Loam/Tests/TuiHelpFooter.lean
 
       - name: Build shared CycleBudget review boundary
         run: lake build Loam.CycleBudgetReview
