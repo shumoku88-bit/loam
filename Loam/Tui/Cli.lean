@@ -397,8 +397,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let refreshed := Loam.Tui.HraActual.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds fresh next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       hraActualLoop bounds dataDir root fresh next nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot step.state)
@@ -433,8 +432,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       hraScheduledLoop bounds dataDir root fresh next nextFrame
   | .completeScheduled =>
       match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
@@ -474,9 +472,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
-                        IO.print "\x1b[2J"
-                        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0
-                          (compileWidget (.row [])) nextEditorFrame
+                        Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
                         let nextNotice ← Loam.Tui.ScheduledCreationSession.run
                           bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
                         if nextNotice == "Scheduled creation cancelled." then
@@ -490,8 +486,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               hraScheduledLoop bounds dataDir root fresh next nextFrame
   | .cancelScheduled =>
       match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
@@ -513,8 +508,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
           let next := { refreshed with notice := notice }
           let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
-          IO.print "\x1b[2J"
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
           hraScheduledLoop bounds dataDir root fresh next nextFrame
   | .replaceScheduled =>
       match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
@@ -547,8 +541,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               hraScheduledLoop bounds dataDir root fresh next nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot step.state)
@@ -583,8 +576,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       selectedDayLoop bounds dataDir root fresh next nextFrame
   | .completeScheduled =>
       match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
@@ -624,9 +616,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
-                        IO.print "\x1b[2J"
-                        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0
-                          (compileWidget (.row [])) nextEditorFrame
+                        Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
                         let nextNotice ← Loam.Tui.ScheduledCreationSession.run
                           bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
                         if nextNotice == "Scheduled creation cancelled." then
@@ -640,8 +630,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .cancelScheduled =>
       match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
@@ -663,8 +652,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
           let next := { refreshed with notice := notice }
           let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-          IO.print "\x1b[2J"
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
           selectedDayLoop bounds dataDir root fresh next nextFrame
   | .replaceScheduled =>
       match Loam.Tui.SelectedDay.selectedScheduled? snapshot step.state with
@@ -697,8 +685,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .correctDate =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
@@ -726,8 +713,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .correctActual =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
@@ -760,8 +746,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .reverseActual =>
       match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
@@ -791,8 +776,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-              IO.print "\x1b[2J"
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
@@ -813,8 +797,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       selectedDayLoop bounds dataDir root fresh next nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot step.state)
@@ -884,8 +867,7 @@ partial def capacityLoop
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       capacityLoop bounds dataDir root observedAt next nextFrame
   | .rebalance current =>
       let editor := Loam.Tui.CapacityRebalance.initial
@@ -902,8 +884,7 @@ partial def capacityLoop
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      IO.print "\x1b[2J"
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       capacityLoop bounds dataDir root observedAt next nextFrame
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
@@ -934,15 +915,13 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         let editor := Loam.Tui.CapacityRebalance.initial
           capacitySnapshot coverage state.snapshot.observedAt
         let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
-        IO.print "\x1b[2J"
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) editorFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityRebalanceSession.run
           bounds (dataDir / "capacity.loam") editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
   | .unresolved =>
     let notice ←
@@ -953,14 +932,12 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         let scheduledPath := dataDir / "scheduled.loam"
         let routingState := Loam.Tui.ScheduledRouting.initial coverage state.snapshot.observedAt
         let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)
-        IO.print "\x1b[2J"
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) routingFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds routingFrame
         Loam.Tui.ScheduledRoutingSession.run bounds routingPath scheduledPath routingState routingFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
   | .grant row =>
     let notice ←
@@ -974,15 +951,13 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         let editor := Loam.Tui.CapacityTransfer.initialGrant
           capacitySnapshot state.snapshot.observedAt row residual
         let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
-        IO.print "\x1b[2J"
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) editorFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityTransferSession.run
           bounds (dataDir / "capacity.loam") editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
 
 /-- Reports session. `true` means quit LOAM. -/
@@ -1030,8 +1005,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let fresh ← selectedDayLoop bounds dataDir root snapshot day dayFrame
     let home := { state with surface := .home none, notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'm' || key = .input 'M') then
     let world ←
@@ -1046,8 +1020,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       bounds dataDir root admin adminFrame
     let home := { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
@@ -1058,8 +1031,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
     let home := { state with surface := .home none, notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'p' || key = .input 'P') then
     let scheduled := Loam.Tui.HraScheduled.initial state.selectedDate
@@ -1068,8 +1040,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let fresh ← hraScheduledLoop bounds dataDir root snapshot scheduled scheduledFrame
     let home := { state with surface := .home none, notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'i' || key = .input 'I') then
     let evidence ←
@@ -1083,8 +1054,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'b' || key = .input 'B') then
     let balanceSnapshot ←
@@ -1098,8 +1068,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && Loam.Tui.CycleBudget.isHomeEntrance key then
     let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
@@ -1111,8 +1080,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     if ← cycleBudgetLoop bounds dataDir root budget budgetFrame then return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'u' || key = .input 'U') then
     let routingSnapshot ←
@@ -1127,8 +1095,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       bounds (dataDir / "actual-routing.loam") administration administrationFrame
     let home := { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'e' || key = .input 'E') then
     let capacitySnapshot ←
@@ -1146,8 +1113,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'v' || key = .input 'V') then
     let reports ←
@@ -1164,8 +1130,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       return
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'g' || key = .input 'G') then
     let home :=
@@ -1197,8 +1162,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       else
         { state with surface := .home none, notice := notice }
     let nextFrame := compiledFrameFor bounds fresh destination
-    IO.print "\x1b[2J"
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) nextFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh destination nextFrame
   else
     let event := if isHome then homeEventOfKey key else eventOfKey key
