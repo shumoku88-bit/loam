@@ -120,6 +120,12 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
   }
   return .ok { actual := actual, scheduled := scheduled }
 
+private def requireReload {α : Type} (notice : String)
+    (reload : IO (Except String α)) : IO α := do
+  match ← reload with
+  | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
+  | .ok value => pure value
+
 /-- Current Capacity and Budget share one explicit preset selection boundary. -/
 private def attachCurrentCoverage
     (dataDir root : System.FilePath)
@@ -390,10 +396,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← recordLoop bounds root world known editor editorFrame
-      let fresh ←
-        match ← loadSnapshot dataDir with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.HraActual.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds fresh next)
@@ -425,10 +428,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds (dataDir / "scheduled.loam") root known editor editorFrame
-      let fresh ←
-        match ← loadSnapshot dataDir with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
@@ -479,10 +479,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                           pure (completedNotice ++ " No next Scheduled created.")
                         else
                           pure (completedNotice ++ " " ++ nextNotice)
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
@@ -501,10 +498,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
           let notice ← scheduledCancellationLoop
             bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
-          let fresh ←
-            match ← loadSnapshot dataDir with
-            | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-            | .ok fresh => pure fresh
+          let fresh ← requireReload notice (loadSnapshot dataDir)
           let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
           let next := { refreshed with notice := notice }
           let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
@@ -534,10 +528,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
                 bounds (dataDir / "scheduled.loam") root known editor editorFrame
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
@@ -569,10 +560,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds (dataDir / "scheduled.loam") root known editor editorFrame
-      let fresh ←
-        match ← loadSnapshot dataDir with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -623,10 +611,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                           pure (completedNotice ++ " No next Scheduled created.")
                         else
                           pure (completedNotice ++ " " ++ nextNotice)
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -645,10 +630,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
           let notice ← scheduledCancellationLoop
             bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
-          let fresh ←
-            match ← loadSnapshot dataDir with
-            | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-            | .ok fresh => pure fresh
+          let fresh ← requireReload notice (loadSnapshot dataDir)
           let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
           let next := { refreshed with notice := notice }
           let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -678,10 +660,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
                 bounds (dataDir / "scheduled.loam") root known editor editorFrame
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -706,10 +685,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← actualDateCorrectionLoop
                 bounds root (dataDir / "corrections.loam") editor editorFrame
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -739,10 +715,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← correctionLoop bounds root (dataDir / "corrections.loam")
                 world known editor editorFrame
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -769,10 +742,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 bounds (dataDir / "scheduled.loam") root
                   (dataDir / "corrections.loam") (dataDir / "actual-reversals.loam")
                   editor editorFrame
-              let fresh ←
-                match ← loadSnapshot dataDir with
-                | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-                | .ok fresh => pure fresh
+              let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -790,10 +760,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← recordLoop bounds root world known editor editorFrame
-      let fresh ←
-        match ← loadSnapshot dataDir with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
@@ -859,10 +826,7 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
         bounds (dataDir / "capacity.loam") editor editorFrame
-      let fresh ←
-        match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
@@ -876,10 +840,7 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityRebalanceSession.run
         bounds (dataDir / "capacity.loam") editor editorFrame
-      let fresh ←
-        match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
-        | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-        | .ok fresh => pure fresh
+      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
@@ -1150,10 +1111,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← recordLoop bounds root world known editor editorFrame
-    let fresh ←
-      match ← loadSnapshot dataDir with
-      | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
-      | .ok fresh => pure fresh
+    let fresh ← requireReload notice (loadSnapshot dataDir)
     let destination :=
       if isActualBrowse then
         { state with
