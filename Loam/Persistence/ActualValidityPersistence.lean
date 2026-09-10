@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.ActualValidityHistory
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
+import Loam.Persistence.VersionedRows
 
 namespace Loam.ActualValidityV2
 
