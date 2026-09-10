@@ -1,3 +1,4 @@
+import Loam.MovementObjectReachability
 import Loam.MovementRecoveryPublisher
 import Loam.OperationalContinuity
 
@@ -8,6 +9,7 @@ set_option autoImplicit false
 private def usage : String :=
   "Usage:\n" ++
   "  ./tools/loam doctor [LOAM_DATA_DIR]\n" ++
+  "  ./tools/loam doctor reachability [LOAM_DATA_DIR]\n" ++
   "  ./tools/loam doctor restore RECOVERY_DIGEST [LOAM_DATA_DIR]"
 
 private def resolveDataDir (args : List String) : IO (Except String System.FilePath) := do
@@ -48,6 +50,25 @@ private def diagnose (args : List String) : IO UInt32 := do
       IO.eprintln (Loam.OperationalContinuity.renderDiagnosis diagnosis)
       return 2
 
+private def reachability (dataArgs : List String) : IO UInt32 := do
+  let dataDir ←
+    match ← resolveDataDir dataArgs with
+    | .error message => IO.eprintln message; return 2
+    | .ok path => pure path
+  let manifestRoot ←
+    match ← resolveManifestRoot dataDir with
+    | .error message => IO.eprintln message; return 2
+    | .ok path => pure path
+  match ← Loam.MovementObjectReachability.inspect manifestRoot with
+  | .error message =>
+      IO.eprintln "LOAM Movement object reachability"
+      IO.eprintln "Status: refused"
+      IO.eprintln ("Technical detail: " ++ message)
+      return 2
+  | .ok snapshot =>
+      IO.println (Loam.MovementObjectReachability.render snapshot)
+      return 0
+
 private def restore (digest : String) (dataArgs : List String) : IO UInt32 := do
   let dataDir ←
     match ← resolveDataDir dataArgs with
@@ -71,9 +92,10 @@ private def restore (digest : String) (dataArgs : List String) : IO UInt32 := do
       IO.println "No household facts were synthesized by recovery."
       return 0
 
-/-- Diagnose startup reads, or explicitly restore one exact retained Movement generation. -/
+/-- Diagnose startup reads, inspect object reachability, or explicitly restore one retained Movement generation. -/
 def run (args : List String) : IO UInt32 := do
   match args with
+  | "reachability" :: dataArgs => reachability dataArgs
   | "restore" :: digest :: dataArgs => restore digest dataArgs
   | "restore" :: [] =>
       IO.eprintln usage
