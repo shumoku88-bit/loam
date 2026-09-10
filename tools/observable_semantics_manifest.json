@@ -1,0 +1,30 @@
+[
+  {
+    "id": "observation-242-current-read-answer-basis",
+    "workflow_origin": "observable-semantics-reconstruction.yml",
+    "model": "experiments/242_current_read_answer_basis.als",
+    "expected": {
+      "showCurrentReadGraph": true,
+      "CurrentCoverageBaseMatchesProductionComposition": false,
+      "StockFlowAddsNoRetainedFamilyBeyondItsInputs": false,
+      "TransactionsFlowAddsNoRetainedFamilyBeyondActualReview": false,
+      "ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled": false,
+      "MutationOnlyCandidatesAreAbsentFromReadBasis": false,
+      "DeclaredReadBasisIsInclusionMinimal": false
+    }
+  },
+  {
+    "id": "observation-243-current-coverage-answer-basis",
+    "workflow_origin": "observable-semantics-reconstruction.yml",
+    "model": "experiments/243_current_coverage_answer_basis.als",
+    "expected": {
+      "capacityEffectivePlacementIsObservable": true,
+      "actualPurposeRoutingIsObservable": true,
+      "scheduledOpenStateIsObservable": true,
+      "sameHeadroomDifferentVisibleFrontier": true,
+      "sameHeadroomResolvedVsUnresolved": true,
+      "PrimitiveCoverageStateDeterminesFullAnswer": false,
+      "HeadroomDeterminesFullCoverageAnswer": true
+    }
+  }
+]
