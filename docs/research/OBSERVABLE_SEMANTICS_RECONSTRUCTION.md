@@ -2,372 +2,103 @@
 
 Status: **working answer-first reconstruction; no production or loam-data mutation authorized**
 
-Baseline: `f79c4a474932da5ce9fd6e4192ebb18062dd6b6c`
-
+Baseline: `f79c4a474932da5ce9fd6e4192ebb18062dd6b6c`  
 Tracking: #693
 
 ## Question
 
-Instead of asking which current canonical file or family should survive, ask:
+Do not start from current files or fact-family names. Start from:
 
-> Which answers do we want LOAM to be able to give, and what is the least retained information needed to determine each answer without guessing?
-
-The direction is therefore:
+> Which answers should LOAM give, and what is the least retained information that determines each answer without guessing?
 
 ```text
-desired answer
-    -> semantic prerequisites
-    -> reusable intermediate answers
-    -> minimal retained distinctions
-    -> publication / recovery requirements
-    -> physical storage topology
+desired answers
+  -> semantic prerequisites
+  -> reusable derived answers
+  -> minimal retained distinctions
+  -> write / safety obligations
+  -> physical topology
 ```
 
-Physical files are deliberately absent from the first four steps.
-
-## Why start from answers
-
-A current file can acquire an accidental aura of necessity:
+Minimality is vocabulary-relative. Separate:
 
 ```text
-file exists
-  -> codec exists
-  -> loader exists
-  -> writer exists
-  -> tests exist
-  -> callers know the path
-  -> file starts to look like a domain concept
+Q_read   read/report/administration answers
+Q_write  admitted writes and visible refusals
+Q_safe   crash/recovery/corruption/concurrency obligations
 ```
 
-Answer-first reconstruction reverses that pressure.
+This checkpoint starts with `Q_read`.
 
-A retained distinction earns a place only when some desired answer cannot be
-reconstructed without it.
+## Current answer map
 
-The minimal basis is therefore **vocabulary-relative**. There is not necessarily
-one metaphysical minimum for every possible future LOAM.
+| Desired answer | Current owner | Retained semantic inputs | Non-canonical query/config input | Derived, not retained |
+| --- | --- | --- | --- | --- |
+| What actually happened? | `ActualReview` | Event, ActualValidity, EventDescription, EventCorrection | selection/filter | review Record, current frontier |
+| What is still scheduled / due? | `ScheduledReview` | ScheduledOccurrence, Completion, Retirement, Replacement, Event closure | query date | current-open list, day status |
+| What is the current selected balance? | `BalanceReview` | Event, EventCorrection, ZeroOriginCoverage | balance coordinate selection | balance rows |
+| What Capacity exists across all retained history? | `CapacityReview` | CapacityMovement | none | Entitlement rows |
+| What Capacity applies to a window? | `CapacityWindowInspection` | CapacityMovement, CapacityEffective | window | windowed Entitlement |
+| What is available after spending and future pressure? | `CurrentCoverageInspection/Review` | see composition below | elapsed/future windows, observation date | Entitlement, Consumption, Remaining, Commitment, Headroom, pressure frontier |
+| Which current Expense loci are routed? | `ActualRoutingReview` | LocusAdmission, AccountingRole, ActualRouting, CapacityMovement | observation date | routing status rows, unresolved role loci, Purpose candidates |
+| Why did selected balances change? | `StockFlowReview` | inherited from Balance + ActualReview | window | opening, closing, increases, decreases, net change |
+| Which Events contributed to which coordinates? | `TransactionsFlowReview` | inherited from ActualReview | window | cells, row activity, residuals |
+| What conditional selected-balance path follows? | `ConditionalBalancePathReview` | inherited from Balance + current-open Scheduled | observation date, completeness assumption | path points, final balance, low-water |
+| What is the current cycle funding picture? | `CycleBudgetReview` | inherited from CurrentCoverage + Balance | boundary preset/window, funding selection, observation date | cycle summary |
+| What currently needs Attention? | `AttentionReview` | AttentionItem, AttentionClosure | source availability | open-item view |
 
-## Separate vocabularies before minimizing
+## CurrentCoverage is already a small algebra
 
-Do not mix all pressures at once.
-
-```text
-Q_read   current read / report / administration answers
-Q_write  admitted writes and visible refusal reasons
-Q_safe   crash, recovery, corruption, concurrency obligations
-```
-
-Start with `Q_read`.
-
-A family absent from `Q_read` is not automatically deletable. It may later earn
-its place through `Q_write` or `Q_safe`.
-
-This is especially important for current Reversal and Relation evidence.
-
-## Current question-shaped read vocabulary
-
-The current product can be described more compactly as questions than as module
-names.
-
-### A. What actually happened?
-
-Production owner: `ActualReview`.
-
-Answer includes:
-
-```text
-Event identity
-signed Effects
-current/superseded frontier membership
-occurrence date or unknown date
-description text
-replacement identity when corrected
-```
-
-Current semantic prerequisites:
-
-```text
-Event
-ActualValidity
-EventDescription
-EventCorrection
-```
-
-The review record itself is derived and should not be retained.
-
-### B. What is still scheduled / due?
-
-Production owner: `ScheduledReview`.
-
-Answer includes replacement-aware current-open Scheduled occurrences and
-explicit refusal states for unknown completion/retirement/replacement identities,
-invalid replacement graphs, and conflicting terminal evidence.
-
-Current semantic prerequisites:
-
-```text
-ScheduledOccurrence
-ScheduledCompletion
-ScheduledRetirement
-ScheduledReplacement
-Event identity closure
-query date for day-specific evidence
-```
-
-The current-open list is derived.
-
-### C. What is the current selected balance?
-
-Production owner: `BalanceReview`.
-
-Answer:
-
-```text
-selected EffectCoordinate -> current Quantity
-or explicit unavailable/refusal state
-```
-
-Current semantic prerequisites:
-
-```text
-Event
-EventCorrection
-ZeroOriginCoverage
-```
-
-Query/configuration input:
-
-```text
-selected balance coordinates
-```
-
-The selection is not historical household fact.
-
-### D. What spending capacity has been allocated?
-
-Production owner: `CapacityReview`.
-
-The all-retained answer depends on:
-
-```text
-CapacityMovement
-```
-
-A dated/windowed Entitlement answer additionally needs:
-
-```text
-CapacityEffective
-window coordinates
-```
-
-Therefore effective time can be necessary for one answer vocabulary while being
-irrelevant to the simpler all-history Capacity answer.
-
-### E. How much is available after actual spending and scheduled pressure?
-
-Production owners: `CurrentCoverageInspection` / `CurrentCoverageReview`.
-
-The current answer exposes:
+Production factors the largest current budget answer through three substantive answers:
 
 ```text
 Entitlement
+  <- CapacityMovement + CapacityEffective + elapsed window
+
 Consumption
-Remaining
+  <- Event + EventCorrection + ActualValidity + ActualRouting + elapsed window
+
 Commitment
-Headroom
-unmanaged Scheduled pressure
-unrouted Scheduled pressure
-unresolved eligibility pressure
+  <- current-open Scheduled lifecycle
+     + AccountingRole + ScheduledRouting + future horizon
 ```
 
-The production arithmetic already factors as:
+Then:
 
 ```text
 Remaining = Entitlement - Consumption
 Headroom  = Remaining - managed Commitment
 ```
 
-So `Remaining` and `Headroom` are not retained-state candidates.
+`Remaining`, `Commitment`, `Headroom`, unmanaged pressure, unrouted pressure and unresolved eligibility are projections, not additional stored budget objects.
 
-The three substantive inputs are themselves derived answers:
+The full current answer intentionally distinguishes Scheduled pressure classes:
 
 ```text
-Entitlement
-  <- CapacityMovement + CapacityEffective + current elapsed window
-
-Consumption
-  <- Event + EventCorrection + ActualValidity + ActualRouting
-     + current elapsed window
-
-Commitment
-  <- ScheduledOccurrence + Completion + Retirement + Replacement
-     + Event + AccountingRole + ScheduledRouting
-     + current future horizon
+managed for queried Purpose
+managed for another Purpose
+unmanaged
+unrouted pressure
+resolved non-pressure
+unresolved eligibility
 ```
 
-This is the strongest current example of a large-looking product answer arising
-from a relatively small composition algebra.
+A narrower answer such as Headroom alone needs fewer distinctions. The present full answer needs more because unresolved pressure is itself observable.
 
-### F. Which current Expense loci are routed to which Purposes?
+## First global Alloy graph
 
-Production owner: `ActualRoutingReview`.
-
-Answer includes:
+`experiments/242_current_read_answer_basis.als` models only:
 
 ```text
-current admitted Expense Locus -> routing status
-currently admitted Loci with unresolved AccountingRole
-historical-only routed Loci
-current Purpose candidates
-```
-
-Current semantic prerequisites:
-
-```text
-LocusAdmission
-AccountingRole
-ActualRouting
-CapacityMovement
-```
-
-Query input:
-
-```text
-observation date
-```
-
-### G. Why did selected balances change over a window?
-
-Production owner: `StockFlowReview`.
-
-Answer includes:
-
-```text
-reconstructed opening
-reconstructed closing
-positive changes
-negative changes
-net change
-current tracked total
-```
-
-It does not introduce a second retained history.
-
-It composes:
-
-```text
-Balance answer
-+ ActualReview answer
-+ explicit half-open window
-```
-
-Therefore opening, closing, increase, decrease, and net-change report state are
-all derived.
-
-### H. Which current Events contributed to which coordinates?
-
-Production owner: `TransactionsFlowReview`.
-
-Answer includes:
-
-```text
-rows    = EffectCoordinate
-columns = current dated Event
-cell    = Event quantity at coordinate
-row net / positive / negative / gross / active-event count
-per-Event Measure residual
-```
-
-It composes:
-
-```text
-ActualReview answer
-+ explicit half-open window
-```
-
-Cells and row aggregates are derived. There is no second posting store.
-
-### I. Under an explicit completeness assumption, what selected-balance path follows?
-
-Production owner: `ConditionalBalancePathReview`.
-
-Answer includes:
-
-```text
-current selected balance
-dated Scheduled changes
-conditional balance points
-final horizon balance
-low-water balance
-```
-
-It composes:
-
-```text
-Balance answer
-+ replacement-aware current-open Scheduled answer
-+ caller-supplied completeness horizon
-```
-
-The completeness assumption is explicitly not retained household evidence.
-
-### J. What is the current cycle funding / coverage picture?
-
-Production owner: `CycleBudgetReview`.
-
-This is a composition surface with independently visible failure boundaries:
-
-```text
-current window
-CurrentCoverage answer
-physical Balance answer
-replaceable funding selection
-funding summary
-```
-
-Window presets and funding selections are query/configuration inputs, not
-historical facts merely because the TUI uses them.
-
-### K. What currently needs Attention?
-
-Production owner: `AttentionReview`.
-
-Answer:
-
-```text
-open Attention items
-with due-on / no-due-date / due-undetermined meaning
-```
-
-Semantic prerequisites:
-
-```text
-AttentionItem
-AttentionClosure
-```
-
-Source availability is deliberately a separate state from an explicitly empty
-Attention lifecycle.
-
-## First global structural model
-
-`experiments/242_current_read_answer_basis.als` encodes the dependency graph
-above without any file or module topology.
-
-It separates:
-
-```text
-Retained
-QueryInput
+Retained information
+Query/config input
 Intermediate answer
 Observable answer
 ```
 
-The important role of this model is not to prove that every declared retained
-input is indispensable. It gives a common graph on which those claims can now be
-challenged one by one.
+There is no file, sidecar, manifest, codec or module concept in the model.
 
-For example, the model records these composition equalities:
+Its main structural equalities are:
 
 ```text
 CurrentCoverage
@@ -383,10 +114,11 @@ ConditionalBalancePath retained base
   = Balance retained base + ScheduledOpen retained base
 ```
 
-## Immediate read-only pressure result
+This is provenance, not yet proof that every input family is indispensable.
 
-The reconstructed `Q_read` graph does **not** consume these currently retained /
-selected families:
+## First read-only pressure result
+
+The reconstructed current `Q_read` graph does not consume:
 
 ```text
 ActualReversal
@@ -394,25 +126,54 @@ RelationUnit
 RelationDischarge
 ```
 
-This is not a deletion result.
+This is **not** a deletion result. It isolates the next question:
 
-It changes the question to:
+> Which `Q_write` or `Q_safe` obligation uniquely requires each one?
+
+That is stronger than retaining them because current authority topology happens to select them.
+
+## First semantic reduction model
+
+`experiments/243_current_coverage_answer_basis.als` stops mirroring current type boundaries and reduces one Purpose/Measure CurrentCoverage answer to answer-determining dimensions:
 
 ```text
-Which Q_write or Q_safe obligation, if any, uniquely requires each one?
+Capacity:
+  amount
+  included in elapsed window?
+
+Actual:
+  amount
+  current?
+  included in elapsed window?
+  routed to queried Purpose?
+
+Scheduled:
+  amount
+  current-open?
+  included in future horizon?
+  pressure classification
 ```
 
-That is much sharper than retaining them because the selected physical authority
-currently contains them.
+It then derives the complete current answer.
 
-## Second-order compression candidates exposed by the graph
+The intended counterexamples ask whether changing only:
 
-The graph also reveals repeated semantic shapes that should be tested rather than
-immediately generalized.
+```text
+Capacity effective placement
+Actual Purpose routing
+Scheduled open/terminal state
+Scheduled pressure classification
+```
 
-### Temporal attachment
+can change the answer.
 
-Current LOAM has several ways to attach effective/occurrence time:
+It also searches for worlds with identical Headroom but different visible pressure frontiers. Such a witness means a scalar Headroom vocabulary permits stronger compression than the current full CurrentCoverage vocabulary.
+
+## Cross-cutting compression questions exposed by the answer graph
+
+These are hypotheses, not abstractions to implement yet.
+
+### Temporal evidence
 
 ```text
 ActualValidity
@@ -421,14 +182,9 @@ ScheduledOccurrence.scheduledOn
 Actual/Scheduled routing effective coordinates
 ```
 
-Question:
+Can these be typed instances of a smaller temporal-evidence relation while preserving their different admission laws?
 
-> Are these genuinely different retained concepts, or typed instances of one
-> smaller temporal-evidence relation plus different admission laws?
-
-### Identity/lifecycle edges
-
-Several facts change how another identity is interpreted:
+### Identity/lifecycle relations
 
 ```text
 EventCorrection
@@ -438,89 +194,41 @@ ScheduledRetirement
 ScheduledReplacement
 ```
 
-Question:
-
-> Which distinctions belong to one generic identity-relation skeleton, and which
-> operation-specific laws must remain separate?
+Can they share a smaller relation skeleton without collapsing operation-specific meaning?
 
 ### Routing
 
-Production already shares a generic `RoutingHistory` shape while retaining
-ActualRouting and ScheduledRouting separately.
+ActualRouting and ScheduledRouting already share generic routing mechanics. Test semantic unification separately from authority/storage unification.
 
-Question:
-
-> Can one semantic routing algebra serve both without collapsing their different
-> subject/effective-time authority?
-
-### Epistemic completeness
-
-Current answers distinguish states such as:
+### Epistemic states
 
 ```text
-known current zero
+known zero
 coverage missing
 source unavailable
 open-world unknown
 unresolved eligibility
 ```
 
-Question:
+Test whether a small information-order/lattice vocabulary can represent these without equating states that current answers distinguish.
 
-> Can a smaller information-order / lattice vocabulary represent these states
-> without inventing false equality between them?
+## Next sequence
 
-This is a candidate place where the earlier lattice / abstract-interpretation
-idea may reduce concepts rather than add them.
-
-## Next formal sequence
-
-Do not build one giant Alloy universe immediately.
-
-Use the global graph to choose small destructive tests:
-
-```text
-1. Freeze one desired answer.
-2. Hold all other candidate information equal.
-3. Vary or erase one retained distinction.
-4. Ask Alloy for two worlds with different answers.
-5. SAT  -> the distinction is required for that answer.
-6. UNSAT within the model -> try a smaller representation / quotient.
-7. Promote only general arithmetic/uniqueness laws that need proof to Lean.
-```
-
-The highest-leverage next targets are:
-
-```text
-A. CurrentCoverage semantic basis
-   Can its many current inputs be factored further without changing the full
-   managed/unmanaged/unrouted/unresolved answer?
-
-B. ActualReview semantic basis
-   Which retained differences are numerical, temporal, contextual, or only
-   presentation?
-
-C. Scheduled lifecycle basis
-   Can completion / retirement / replacement share a smaller relation skeleton
-   while preserving every current-open refusal state?
-
-D. Q_write overlay
-   Re-introduce ActualReversal, RelationUnit, RelationDischarge only through the
-   concrete admission/refusal/safety questions that need them.
-```
+1. Qualify the two current Alloy models before merge.
+2. Extend the answer map only when a current production read is missing.
+3. For each retained family, hold all other information equal and ask Alloy for two worlds whose selected answer differs.
+4. Classify each family per answer as `WITNESS`, `DERIVABLE`, `QUERY-IRRELEVANT`, or `UNRESOLVED`.
+5. Add `Q_write` and `Q_safe` separately, especially for ActualReversal, RelationUnit and RelationDischarge.
+6. Only after the semantic basis stabilizes, resume `CapacityAuthority` / physical-topology work.
 
 ## Stop rule
 
-Do not ask how many files LOAM should have until this graph has been reduced as
-far as the desired answer vocabulary allows.
-
-The physical question becomes last:
+Do not optimize file count directly.
 
 ```text
-minimal answer-determining semantic basis
-    -> required authority / failure boundaries
-    -> smallest safe physical topology
+minimal answer-determining semantics
+  -> required authority/failure boundaries
+  -> smallest safe physical topology
 ```
 
-That is the point at which file count becomes an implementation result rather
-than a design premise.
+File count should be the result, not the premise.
