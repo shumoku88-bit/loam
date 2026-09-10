@@ -126,6 +126,9 @@ private def requireReload {α : Type} (notice : String)
   | .error message => throw (IO.userError (notice ++ " Reload failed: " ++ message))
   | .ok value => pure value
 
+private def unavailableNotice (subject message : String) : String :=
+  "[Unavailable] " ++ subject ++ ": " ++ message
+
 /-- Current Capacity and Budget share one explicit preset selection boundary. -/
 private def attachCurrentCoverage
     (dataDir root : System.FilePath)
@@ -1004,33 +1007,39 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'i' || key = .input 'I') then
-    let evidence ←
-      match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
-      | .error message => throw (IO.userError message)
-      | .ok evidence => pure evidence
-    let attention := Loam.Tui.Attention.initial evidence
-    let attentionFrame := compileWidget (Loam.Tui.Attention.view attention)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame attentionFrame
-    if ← attentionLoop bounds attention attentionFrame then
-      return
-    let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
+    | .error message =>
+        let home := { state with notice := unavailableNotice "Attention" message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok evidence =>
+        let attention := Loam.Tui.Attention.initial evidence
+        let attentionFrame := compileWidget (Loam.Tui.Attention.view attention)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame attentionFrame
+        if ← attentionLoop bounds attention attentionFrame then
+          return
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'b' || key = .input 'B') then
-    let balanceSnapshot ←
-      match ← Loam.BalanceReview.loadSnapshot dataDir root with
-      | .error message => throw (IO.userError message)
-      | .ok balanceSnapshot => pure balanceSnapshot
-    let balances := Loam.Tui.Balances.initial balanceSnapshot
-    let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
-    if ← balancesLoop bounds balances balancesFrame then
-      return
-    let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    match ← Loam.BalanceReview.loadSnapshot dataDir root with
+    | .error message =>
+        let home := { state with notice := unavailableNotice "Balances" message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok balanceSnapshot =>
+        let balances := Loam.Tui.Balances.initial balanceSnapshot
+        let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
+        if ← balancesLoop bounds balances balancesFrame then
+          return
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if isHome && Loam.Tui.CycleBudget.isHomeEntrance key then
     let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
     let purposeMetadata ← currentPurposeMetadata dataDir
@@ -1044,38 +1053,44 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'u' || key = .input 'U') then
-    let routingSnapshot ←
-      match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
-      | .error message => throw (IO.userError message)
-      | .ok routingSnapshot => pure routingSnapshot
-    let administration := Loam.Tui.ActualRoutingAdministration.initial routingSnapshot
-    let administrationFrame :=
-      compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds administration)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
-    let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
-      bounds (dataDir / "actual-routing.loam") administration administrationFrame
-    let home := { state with surface := .home none, notice := notice }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
+    | .error message =>
+        let home := { state with notice := unavailableNotice "Purpose routes" message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok routingSnapshot =>
+        let administration := Loam.Tui.ActualRoutingAdministration.initial routingSnapshot
+        let administrationFrame :=
+          compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds administration)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
+        let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
+          bounds (dataDir / "actual-routing.loam") administration administrationFrame
+        let home := { state with surface := .home none, notice := notice }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'e' || key = .input 'E') then
-    let capacitySnapshot ←
-      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
-      | .error message => throw (IO.userError message)
-      | .ok capacitySnapshot => pure capacitySnapshot
-    let purposeMetadata ← currentPurposeMetadata dataDir
-    let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
-      (Loam.Tui.Capacity.initial capacitySnapshot)
-    let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
-    let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-    if ← capacityLoop bounds dataDir root snapshot.actual.today
-        capacity capacityFrame then
-      return
-    let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+    | .error message =>
+        let home := { state with notice := unavailableNotice "Capacity" message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok capacitySnapshot =>
+        let purposeMetadata ← currentPurposeMetadata dataDir
+        let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
+          (Loam.Tui.Capacity.initial capacitySnapshot)
+        let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
+        let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
+        if ← capacityLoop bounds dataDir root snapshot.actual.today
+            capacity capacityFrame then
+          return
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'v' || key = .input 'V') then
     let reports ←
       match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with

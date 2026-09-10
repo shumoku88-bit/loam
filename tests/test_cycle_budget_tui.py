@@ -94,6 +94,12 @@ def wait_for(expected, timeout=15):
     raise AssertionError(f"Did not see {expected!r}: {ansi.sub('', data.decode(errors='replace'))}")
 
 
+def expect_local_unavailability(key, subject):
+    os.write(master, key)
+    wait_for(f"[Unavailable] {subject}:")
+    assert process.poll() is None, f"TUI exited while reporting unavailable {subject}"
+
+
 try:
     wait_for("LOAM Home")
     # Move beyond the next boundary. The current Budget must ignore this focus.
@@ -174,6 +180,33 @@ try:
     wait_for("t transfer")
     os.write(master, b"b")
     wait_for("LOAM Home")
+
+    # Independent malformed workspace evidence stays fail-closed, but no longer
+    # terminates the whole TUI. Restore every fixture after observing refusal so
+    # this remains a navigation/read test with no canonical mutation.
+    attention_path = root / "attention.loam"
+    attention_path.write_text("not-attention-evidence\n")
+    expect_local_unavailability(b"i", "Attention")
+    attention_path.unlink()
+
+    balance_view_path = root / "config" / "balance-view.tsv"
+    balance_view = balance_view_path.read_bytes()
+    balance_view_path.write_text("bad row\n")
+    expect_local_unavailability(b"b", "Balances")
+    balance_view_path.write_bytes(balance_view)
+
+    routing_path = root / "actual-routing.loam"
+    routing = routing_path.read_bytes()
+    routing_path.write_text("not-routing-evidence\n")
+    expect_local_unavailability(b"u", "Purpose routes")
+    routing_path.write_bytes(routing)
+
+    capacity_path = root / "capacity.loam"
+    capacity = capacity_path.read_bytes()
+    capacity_path.write_text("not-capacity-evidence\n")
+    expect_local_unavailability(b"e", "Capacity")
+    capacity_path.write_bytes(capacity)
+
     os.write(master, b"q")
     while select.select([master], [], [], 0.1)[0]:
         try:
@@ -183,7 +216,7 @@ try:
             break
     assert process.wait(timeout=10) == 0
     assert digest() == before, "Cancelled production navigation changed fixture evidence/config"
-    print("Production PTY: Budget actions, retired Capacity detour, Home raw Capacity fallback and no writes passed.")
+    print("Production PTY: Budget actions, local read refusals, Home raw Capacity fallback and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()
