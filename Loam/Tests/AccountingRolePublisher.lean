@@ -47,13 +47,9 @@ private def scheduledMemory : IO (ScheduledMemory String) := do
 
 private def lifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let scheduled ← scheduledMemory
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "completion fixture")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "retirement fixture")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "replacement fixture")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "terminal fixture")
+  return { scheduled, terminals }
 
 private def roleMap : IO AccountingRoleMap := do
   let some roles := AccountingRoleMap.ofAssignments?

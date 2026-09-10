@@ -20,7 +20,7 @@ Scheduled balance effects before an explicit end-exclusive horizon.
 The target is resolved only after the ordinary current-open lifecycle boundary has
 qualified the canonical Scheduled evidence. Baseline and overlay then use the same
 qualified occurrence list. The hypothetical therefore cannot repair or bypass
-broken completion/retirement evidence by inventing a second Scheduled memory.
+broken terminal evidence by inventing a second Scheduled memory.
 -/
 
 private def yen : MeasureId := ⟨"jpy"⟩
@@ -79,17 +79,14 @@ private def scheduledMemory : ScheduledMemory Nat :=
     idNodup := by decide
   }
 
-private def emptyCompletions : ScheduledCompletionMemory :=
+private def emptyTerminals : ScheduledTerminalMemory :=
   {
-    completions := []
-    scheduledNodup := by simp
-    actualNodup := by simp
-  }
-
-private def emptyRetirements : ScheduledRetirementMemory :=
-  {
-    retirements := []
-    scheduledNodup := by simp
+    terminals := []
+    completionSourceNodup := by simp
+    completionActualNodup := by simp
+    retirementSourceNodup := by simp
+    replacementSourceNodup := by simp
+    replacementTargetNodup := by simp
   }
 
 private def emptyEvents : EventMemory :=
@@ -123,7 +120,7 @@ omitting the selected current-open payment from the same qualified occurrence se
 -/
 theorem suppress_payment_changes_only_derived_projection :
     compareSuppressScheduledBalanceEffectsBefore
-      scheduledMemory emptyCompletions emptyRetirements emptyEvents
+      scheduledMemory emptyTerminals emptyEvents
       [coordinate bank, coordinate wallet]
       (4 : Nat)
       paymentHypothesis =
@@ -137,14 +134,14 @@ theorem suppress_payment_changes_only_derived_projection :
 /-- The comparison baseline is exactly the already-qualified production projection. -/
 theorem baseline_matches_existing_application_projection :
     (match compareSuppressScheduledBalanceEffectsBefore
-        scheduledMemory emptyCompletions emptyRetirements emptyEvents
+        scheduledMemory emptyTerminals emptyEvents
         [coordinate bank, coordinate wallet]
         (4 : Nat)
         paymentHypothesis with
       | .comparison value => some value.baseline
       | _ => none) =
     currentScheduledBalanceEffectsBefore?
-      scheduledMemory emptyCompletions emptyRetirements emptyEvents
+      scheduledMemory emptyTerminals emptyEvents
       [coordinate bank, coordinate wallet]
       (4 : Nat) := by
   decide
@@ -152,7 +149,7 @@ theorem baseline_matches_existing_application_projection :
 /-- A current-open target outside this horizon remains a valid hypothesis but has no visible effect here. -/
 theorem open_target_outside_horizon_can_equal_baseline :
     compareSuppressScheduledBalanceEffectsBefore
-      scheduledMemory emptyCompletions emptyRetirements emptyEvents
+      scheduledMemory emptyTerminals emptyEvents
       [coordinate bank, coordinate wallet]
       (4 : Nat)
       futureHypothesis =
@@ -166,25 +163,29 @@ theorem open_target_outside_horizon_can_equal_baseline :
 /-- An identity that is not in the qualified current-open set is rejected rather than silently becoming a no-op. -/
 theorem non_open_target_is_rejected :
     compareSuppressScheduledBalanceEffectsBefore
-      scheduledMemory emptyCompletions emptyRetirements emptyEvents
+      scheduledMemory emptyTerminals emptyEvents
       [coordinate bank]
       (4 : Nat)
       missingHypothesis =
     .targetNotOpen := by
   decide
 
-private def unknownCompletion : ScheduledCompletionMemory :=
+private def unknownCompletion : ScheduledTerminalMemory :=
   {
-    completions :=
-      [{ scheduled := ⟨"unknown-scheduled"⟩, actual := ⟨"unknown-actual"⟩ }]
-    scheduledNodup := by simp
-    actualNodup := by simp
+    terminals :=
+      [{ source := ⟨"unknown-scheduled"⟩,
+         target := some (.actual ⟨"unknown-actual"⟩) }]
+    completionSourceNodup := by simp
+    completionActualNodup := by simp
+    retirementSourceNodup := by simp
+    replacementSourceNodup := by simp
+    replacementTargetNodup := by simp
   }
 
 /-- Hypothetical comparison preserves the existing fail-closed lifecycle boundary. -/
 theorem lifecycle_failure_is_not_repaired_by_hypothesis :
     compareSuppressScheduledBalanceEffectsBefore
-      scheduledMemory unknownCompletion emptyRetirements emptyEvents
+      scheduledMemory unknownCompletion emptyEvents
       [coordinate bank]
       (4 : Nat)
       paymentHypothesis =

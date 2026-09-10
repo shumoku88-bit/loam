@@ -27,13 +27,9 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
 private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some scheduled := ScheduledMemory.ofOccurrences? []
     | throw (IO.userError "empty Scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty terminal memory")
+  return { scheduled, terminals }
 
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
@@ -106,10 +102,10 @@ def main (args : List String) : IO Unit := do
 
   let some current ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle before orphan fixture")
-  let orphan : ScheduledRetirement := { scheduled := ⟨"scheduled-3"⟩ }
-  let some orphanMemory := ScheduledRetirementMemory.ofRetirements? [orphan]
-    | throw (IO.userError "orphan retirement fixture")
-  let brokenLifecycle := { current with retirements := orphanMemory }
+  let orphan : ScheduledTerminal := { source := ⟨"scheduled-3"⟩, target := none }
+  let some orphanMemory := ScheduledTerminalMemory.ofTerminals? [orphan]
+    | throw (IO.userError "orphan terminal fixture")
+  let brokenLifecycle := { current with terminals := orphanMemory }
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
     "save orphan retirement inside complete lifecycle fixture"
 
