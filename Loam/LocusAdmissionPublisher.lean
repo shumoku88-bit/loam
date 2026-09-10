@@ -1,5 +1,5 @@
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership
 
 namespace Loam.LocusAdmissionPublisher
