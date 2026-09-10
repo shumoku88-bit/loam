@@ -1,5 +1,5 @@
 import Loam.Core.Purpose
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.PresentationMetadata
 
 namespace Loam.PurposeCatalog
