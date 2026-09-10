@@ -1,5 +1,6 @@
 import Loam.Application.QuantityInspection
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
+import Loam.Persistence.EventPersistence
 import Std
 
 namespace Loam.EffectiveCli
