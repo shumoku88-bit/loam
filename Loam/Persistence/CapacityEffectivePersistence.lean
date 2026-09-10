@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Core.CapacityEffective
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.SiblingStage
 import Loam.Persistence.VersionedRows
 
