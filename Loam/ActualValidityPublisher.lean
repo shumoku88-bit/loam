@@ -3,7 +3,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
 import Loam.WriterOwnership
 
 namespace Loam.ActualValidityPublisher

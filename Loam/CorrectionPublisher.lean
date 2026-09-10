@@ -3,7 +3,8 @@ import Loam.Application.CorrectionFrontier
 import Loam.Core.BalancedMovement
 import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ActualReversalPersistence
 import Loam.WriterOwnership
 
