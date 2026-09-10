@@ -200,6 +200,17 @@ def main : IO Unit := do
   expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
     "Scheduled on Today was incorrectly marked Pending"
 
+  -- A real Pending date is strictly before Today. Synthetic marker input checks
+  -- presentation composition without weakening that evidence boundary.
+  let overlap : Widget := .column <| (List.range 6).map fun row =>
+    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] moved row)
+  expect (hasStyledText overlap " 08! " .underlined)
+    "Synthetic Today + Pending lost its marker or underline"
+  let focusedOverlap : Widget := .column <| (List.range 6).map fun row =>
+    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
+  expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
+    "Synthetic Today + Focus + Pending lost a presentation cue"
+
   -- SGR attributes accumulate: each style must clear the previous underline,
   -- background and dim attributes before setting its own (including dirty redraw).
   for style in [Style.normal, .selected, .muted, .underlined, .selectedUnderlined] do
