@@ -11,6 +11,7 @@ on:
       - 'Loam/Cli/Movement/Entry.lean'
       - 'Loam/Persistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/WriterOwnershipPersistence.lean'
       - 'tools/loam-movement'
       - 'experiments/practical_writer_ownership_holder.lean'
       - '.github/workflows/practical-writer-ownership.yml'
@@ -33,6 +34,16 @@ jobs:
         uses: leanprover/lean-action@v1
       - name: Build production CLIs
         run: lake build loam loamMovement
+      - name: Retain physical stale-replacement counterexample
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/WriterOwnershipPersistence.lean \
+            | tee /tmp/practical-writer-ownership-persistence.out
+          grep -Fq 'stale_replace_loses_completed_update=true' \
+            /tmp/practical-writer-ownership-persistence.out
+          grep -Fq 'production_writer_ownership_preserves_both_updates=true' \
+            /tmp/practical-writer-ownership-persistence.out
       - name: Observe retained writer entrances waiting for ownership
         shell: bash
         run: |

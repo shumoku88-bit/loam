@@ -2,7 +2,9 @@
 
 ## Question
 
-Application 004 established the required physical ownership scope:
+The current `Loam/Tests/WriterOwnershipPersistence.lean` regression retains the
+physical stale-replacement counterexample and establishes the required ownership
+scope:
 
 ```text
 observe -> prepare -> admit -> publish
