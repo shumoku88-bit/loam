@@ -1,3 +1,4 @@
+import Loam.Tui.Layout
 import Loam.Tui.Main
 
 namespace Loam.Tui.HraHome
@@ -173,13 +174,24 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   , ruleLine bounds '='
   ]
 
+private def navHelpTokens : List String :=
+  ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record", "[q] quit"]
+
+private def workspaceHelpTokens : List String :=
+  ["[a] actual", "[p] scheduled", "[i] attention", "[c] budget", "[e] capacity", "[u] purpose routes", "[m] loci", "[v] reports"]
+
+private def singleHelpLine : String :=
+  "  ".intercalate
+    ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
+     "[a] actual", "[p] scheduled", "[i] attention", "[c] budget", "[e] capacity",
+     "[u] purpose routes", "[m] loci", "[v] reports", "[q] quit"]
+
 private def helpLines (bounds : Bounds) : List Widget :=
-  if bounds.width >= 120 then
-    [mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [m] loci  [v] reports  [q] quit"]
+  let width := Loam.Tui.Layout.contentWidth bounds
+  if Loam.Tui.Layout.displayWidth singleHelpLine ≤ width then
+    [mutedLine singleHelpLine]
   else
-    [ mutedLine "[h/l] day  [k/j] week  [g] known  [Enter] day  [r] record  [q] quit"
-    , mutedLine "[a] actual  [p] scheduled  [i] attention  [c] budget  [e] capacity  [u] purpose routes  [m] loci  [v] reports"
-    ]
+    (Loam.Tui.Layout.flowLines width "  " [navHelpTokens, workspaceHelpTokens]).map mutedLine
 
 /-- Reserve the bottom rows for HRA-style stable help and truncate only body rows. -/
 private def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=

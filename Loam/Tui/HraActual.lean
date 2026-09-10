@@ -251,8 +251,9 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
           toString effect.quantity.quanta ++ " " ++ effect.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  if bounds.width >= 66 then
-    [ mutedLine "[j/k] select  [h/l] pane  [f] filter  [o] order"
+  let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [o] order"
+  if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
+    [ mutedLine detailedRow1
     , mutedLine "[n] new  [q] back"
     ]
   else

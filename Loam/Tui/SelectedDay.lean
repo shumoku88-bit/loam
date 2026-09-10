@@ -289,17 +289,22 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   | .scheduled => scheduledDetail snapshot state
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
   match state.pane with
   | .actual =>
-      if bounds.width >= 110 then
-        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [q] back"]
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [q] back"
+      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [q] back"
+      if Loam.Tui.Layout.displayWidth detailed ≤ width then
+        [mutedLine detailed]
       else
-        [mutedLine "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [q] back"]
+        [mutedLine compact]
   | .scheduled =>
-      if bounds.width >= 96 then
-        [mutedLine "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [s] supersede  [x] cancel  [q] back"]
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [s] supersede  [x] cancel  [q] back"
+      let compact := "[j/k] select [h/l] pane [n] new [c/Enter] complete [s] supersede [x] cancel [q] back"
+      if Loam.Tui.Layout.displayWidth detailed ≤ width then
+        [mutedLine detailed]
       else
-        [mutedLine "[j/k] select [h/l] pane [n] new [c/Enter] complete [s] supersede [x] cancel [q] back"]
+        [mutedLine compact]
 
 private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
   let available := if bounds.height > 0 then bounds.height - 1 else 0
