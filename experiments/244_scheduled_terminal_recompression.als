@@ -5,7 +5,8 @@ module experiments/observation_244_scheduled_terminal_recompression
 -- Observation 105 represented completion, retirement and replacement as one
 -- target-preserving LifecycleEdge. Production later realized those meanings as
 -- three typed memories. Re-test that smaller representation against the mature
--- current-open contract without choosing a file, codec, writer, or migration.
+-- current-open and write-admission contracts without choosing a file, codec,
+-- generic publisher, or migration.
 
 abstract sig Endpoint {}
 sig Scheduled extends Endpoint {}
@@ -237,6 +238,138 @@ pred sameKindsDifferentTargetProvenance {
   }
 }
 
+-- Q_write ---------------------------------------------------------------
+--
+-- The retained terminal representation may be shared while operation-specific
+-- writers remain distinct. These predicates model only whether the current
+-- semantic world admits the selected operation.
+
+pred readableOpenByEdges[w : World, s : Scheduled] {
+  reviewByEdges[w] = OpenResult
+  s in openByEdges[w]
+}
+
+pred readableOpenByFacets[w : World, s : Scheduled] {
+  reviewByFacets[w] = OpenResult
+  s in openByFacets[w]
+}
+
+-- Completion may start from an untouched open occurrence or retry an already
+-- retained dangling completion. The read-side open projection captures both.
+pred completionWriteByEdges[w : World, s : Scheduled] {
+  readableOpenByEdges[w, s]
+}
+
+pred completionWriteByFacets[w : World, s : Scheduled] {
+  readableOpenByFacets[w, s]
+}
+
+-- Cancellation must not compete with any retained terminal claim. In
+-- particular, a dangling completion is still open to readers but blocks cancel.
+pred cancellationWriteByEdges[w : World, s : Scheduled] {
+  readableOpenByEdges[w, s]
+  no edge : w.terminals | edge.source = s
+}
+
+pred cancellationWriteByFacets[w : World, s : Scheduled] {
+  readableOpenByFacets[w, s]
+  no s.(completions[w])
+  s not in retirements[w]
+  no s.(replacements[w])
+}
+
+-- Replacement has the same source-side terminal exclusion. Its publisher may
+-- remain separate because it also creates the successor Scheduled occurrence.
+pred replacementWriteByEdges[w : World, s : Scheduled] {
+  readableOpenByEdges[w, s]
+  no edge : w.terminals | edge.source = s
+}
+
+pred replacementWriteByFacets[w : World, s : Scheduled] {
+  readableOpenByFacets[w, s]
+  no s.(completions[w])
+  s not in retirements[w]
+  no s.(replacements[w])
+}
+
+pred danglingCompletionAllowsRetryButBlocksCompetingTerminalWrites {
+  some w : World, s : w.scheduled, actual : Event - w.events, edge : w.terminals | {
+    edge.source = s
+    edge.target = actual
+    reviewByEdges[w] = OpenResult
+    completionWriteByEdges[w, s]
+    not cancellationWriteByEdges[w, s]
+    not replacementWriteByEdges[w, s]
+  }
+}
+
+-- Relation-first completion support is inert until the Actual endpoint becomes
+-- retained. This is the current retry-safe activation shape.
+pred completionSupportThenEventActivates {
+  some disj before, supported, activated : World,
+       s : Scheduled, actual : Event, edge : TerminalEdge | {
+    s in before.scheduled
+    actual not in before.events
+    no prior : before.terminals | prior.source = s
+
+    edge.source = s
+    edge.target = actual
+
+    supported.scheduled = before.scheduled
+    supported.events = before.events
+    supported.terminals = before.terminals + edge
+
+    activated.scheduled = supported.scheduled
+    activated.terminals = supported.terminals
+    activated.events = supported.events + actual
+
+    reviewByEdges[before] = OpenResult
+    reviewByEdges[supported] = OpenResult
+    reviewByEdges[activated] = OpenResult
+    s in openByEdges[before]
+    s in openByEdges[supported]
+    s not in openByEdges[activated]
+  }
+}
+
+pred cancellationAppendClosesSource {
+  some disj before, after : World,
+       s : Scheduled, edge : TerminalEdge | {
+    s in before.scheduled
+    cancellationWriteByEdges[before, s]
+    edge.source = s
+    no edge.target
+
+    after.scheduled = before.scheduled
+    after.events = before.events
+    after.terminals = before.terminals + edge
+
+    reviewByEdges[after] = OpenResult
+    s not in openByEdges[after]
+  }
+}
+
+pred replacementAppendClosesSourceAndOpensSuccessor {
+  some disj before, after : World,
+       source, successor : Scheduled,
+       edge : TerminalEdge | {
+    source in before.scheduled
+    successor not in before.scheduled
+    replacementWriteByEdges[before, source]
+
+    edge.source = source
+    edge.target = successor
+
+    after.scheduled = before.scheduled + successor
+    after.events = before.events
+    after.terminals = before.terminals + edge
+
+    reviewByEdges[after] = OpenResult
+    source not in openByEdges[after]
+    successor in openByEdges[after]
+  }
+}
+
 assert TargetTypedEdgePartitionsCurrentFacets {
   all w : World |
     terminalSources[w] =
@@ -265,6 +398,21 @@ assert TargetPreservingLifecycleDeterminesReadAnswer {
     }
 }
 
+assert EdgeAndFacetCompletionAdmissionAgree {
+  all w : World, s : Scheduled |
+    completionWriteByEdges[w, s] iff completionWriteByFacets[w, s]
+}
+
+assert EdgeAndFacetCancellationAdmissionAgree {
+  all w : World, s : Scheduled |
+    cancellationWriteByEdges[w, s] iff cancellationWriteByFacets[w, s]
+}
+
+assert EdgeAndFacetReplacementAdmissionAgree {
+  all w : World, s : Scheduled |
+    replacementWriteByEdges[w, s] iff replacementWriteByFacets[w, s]
+}
+
 run representativeMatureLifecycle for exactly 5 Scheduled, exactly 2 Event, 5 TerminalEdge, exactly 1 World
 run danglingCompletionStaysOpen for exactly 2 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 1 World
 run unknownCompletionSourceVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
@@ -274,8 +422,15 @@ run replacementCycleVisible for exactly 2 Scheduled, exactly 1 Event, 2 Terminal
 run crossKindConflictVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
 run sameTerminalSourcesDifferentMeaning for exactly 2 Scheduled, exactly 1 Event, 3 TerminalEdge, exactly 2 World
 run sameKindsDifferentTargetProvenance for exactly 1 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 2 World
+run danglingCompletionAllowsRetryButBlocksCompetingTerminalWrites for exactly 2 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 1 World
+run completionSupportThenEventActivates for exactly 2 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 3 World
+run cancellationAppendClosesSource for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 2 World
+run replacementAppendClosesSourceAndOpensSuccessor for exactly 3 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 2 World
 
 check TargetTypedEdgePartitionsCurrentFacets for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
 check EdgeAndFacetFailureClassificationAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
 check EdgeAndFacetCurrentOpenAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
 check TargetPreservingLifecycleDeterminesReadAnswer for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
+check EdgeAndFacetCompletionAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check EdgeAndFacetCancellationAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check EdgeAndFacetReplacementAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
