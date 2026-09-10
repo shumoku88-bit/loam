@@ -1,6 +1,6 @@
 # Observation 240 — semantic activation point
 
-Status: **candidate live Lean law pending CI qualification**
+Status: **QUALIFIED by the Selected Lean Observations umbrella on PR #692**
 
 Research baseline: LOAM `9d11b5413bc353d1e596aa7e839ee281cd28e613`
 
@@ -82,6 +82,12 @@ The observation proves two statements.
 The first theorem is polymorphic in artifact type and independent of the number of
 required evidence items, so no one-to-four dependency bound is needed.
 
+## Qualification
+
+PR #692 ran the existing `Selected Lean Observations` workflow. The selected live
+observation umbrella compiled Observation 240 successfully. No dedicated workflow
+or new formal runtime was added.
+
 ## Boundary
 
 This observation does **not** prove mechanically that every current production
@@ -92,7 +98,7 @@ acyclicity, or cross-process fairness.
 Those are separate questions. In particular, lock ordering should be tested as a
 separate small model rather than folded into this law.
 
-## Decision if CI qualifies
+## Decision
 
 Keep the semantic families separate. Reuse the law, not necessarily the code.
 

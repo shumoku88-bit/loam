@@ -5,6 +5,8 @@ set_option autoImplicit false
 /-!
 Observation 240
 
+Qualification: retained in the Selected Lean Observations umbrella.
+
 Question: can the publication pattern now shared by several production writers be
 stated as one small law without merging their semantic authorities?
 
