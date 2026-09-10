@@ -54,7 +54,7 @@ private def loadSnapshot
     today := "2026-09-08"
     allRecords := actualRecords
     undatedCount := (Loam.ActualReview.select actualRecords .undated).length }
-  return { actual := actual, scheduled := scheduled }
+  return { actual := actual, scheduled := .ok scheduled }
 
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=
@@ -118,8 +118,12 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish new Scheduled from TUI intent")
 
   let fresh ← loadSnapshot scheduledFile root
+  let freshScheduled ←
+    match fresh.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok scheduled => pure scheduled
   let due := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence fresh.scheduled "2026-09-12")
+    (Loam.ScheduledReview.dayEvidence freshScheduled "2026-09-12")
   expect (hasScheduled due receipt.scheduled)
     "fresh Scheduled read did not expose the newly created occurrence on its explicit day"
   expect (fresh.actual.allRecords.isEmpty)
