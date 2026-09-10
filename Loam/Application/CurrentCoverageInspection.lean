@@ -22,23 +22,19 @@ for one decision-support answer without mixing coordinate systems:
 
 - current elapsed effective Capacity -> Entitlement;
 - correction-frontier Actual + historical Actual routing -> Consumption;
-- current-open replacement-aware Scheduled + routing/role evidence -> Commitment.
+- current-open Scheduled + routing/role evidence -> Commitment.
+
+Completion, retirement, and replacement are ordinary target forms of one
+Scheduled-terminal relation at this boundary; replacement is no longer a second
+Application entrance.
 
 The result is explicitly current. `currentWindowStart` bounds effective Capacity
-and elapsed Actual Consumption, inclusive through `observedAt`. The same `observedAt` selects
-Scheduled-routing evidence and starts future current-open pressure;
-`endExclusive` ends only that Scheduled horizon. This is not historical
+and elapsed Actual Consumption, inclusive through `observedAt`. The same
+`observedAt` selects Scheduled-routing evidence and starts future current-open
+pressure; `endExclusive` ends only that Scheduled horizon. This is not historical
 Scheduled replay and is not the historical Budget Window report.
-
-No status, recommendation, `SafeToSpend`, Budget object, or retained Coverage
-state is introduced. Presentation may derive labels such as OVER NOW or FUTURE
-SHORT from the returned quantities while keeping unresolved pressure visible.
 -/
 
-/--
-One current Purpose coverage answer. Unmanaged, unrouted, and unresolved future
-pressure remain explicit rather than being guessed into managed Commitment.
--/
 structure CurrentCoverageView where
   entitlement : Quantity
   consumption : Quantity
@@ -51,13 +47,10 @@ structure CurrentCoverageView where
   deriving Repr, DecidableEq
 
 /--
-Compose current elapsed Capacity/Actual evidence with replacement-aware
-current-open Scheduled pressure for one Purpose and Measure.
-
-Fails closed when effective Capacity, correction-aware Actual consumption, or
-current-open Scheduled pressure cannot be justified from retained evidence.
+Compose current elapsed Capacity/Actual evidence with current-open Scheduled
+pressure for one Purpose and Measure.
 -/
-def currentCoverageAtCorrectionFrontierWithReplacement?
+def currentCoverageAtCorrectionFrontier?
     (capacity : CapacityMemory)
     (effective : CapacityEffectiveMemory Time)
     (events : EventMemory)
@@ -65,9 +58,7 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
     (validities : ActualValidityMemory Time)
     (actualRouting : RoutingHistory LocusId Time)
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
+    (terminals : ScheduledTerminalMemory)
     (roles : AccountingRoleMap)
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
@@ -77,8 +68,8 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
     consumptionAtCorrectionFrontierThrough?
       events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
-    currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events roles scheduledRouting
+    currentScheduledCommitment?
+      scheduled terminals events roles scheduledRouting
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
@@ -98,11 +89,11 @@ def currentCoverageAtCorrectionFrontierWithReplacement?
 Production-compatible current coverage using the explicit `initial | dated`
 Actual-routing coordinate retained by `ActualRoutingPersistence`.
 
-This is the same current coverage arithmetic as
-`currentCoverageAtCorrectionFrontierWithReplacement?`; only the Actual routing
-composition boundary differs. No initial calendar date is fabricated.
+This is the same current coverage arithmetic as `currentCoverageAtCorrectionFrontier?`;
+only the Actual routing composition boundary differs. No initial calendar date is
+fabricated.
 -/
-def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
+def currentCoverageAtCorrectionFrontierEffectiveRouting?
     (capacity : CapacityMemory)
     (effective : CapacityEffectiveMemory Time)
     (events : EventMemory)
@@ -110,9 +101,7 @@ def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
     (validities : ActualValidityMemory Time)
     (actualRouting : RoutingHistory LocusId (RoutingEffective Time))
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
+    (terminals : ScheduledTerminalMemory)
     (roles : AccountingRoleMap)
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
@@ -122,8 +111,8 @@ def currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
     consumptionAtCorrectionFrontierEffectiveRoutingThrough?
       events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
-    currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events roles scheduledRouting
+    currentScheduledCommitment?
+      scheduled terminals events roles scheduledRouting
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
