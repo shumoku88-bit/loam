@@ -175,11 +175,11 @@ private def unknownCompletion : ScheduledTerminalMemory :=
     terminals :=
       [{ source := ⟨"unknown-scheduled"⟩,
          target := some (.actual ⟨"unknown-actual"⟩) }]
-    completionSourceNodup := by simp
-    completionActualNodup := by simp
-    retirementSourceNodup := by simp
-    replacementSourceNodup := by simp
-    replacementTargetNodup := by simp
+    completionSourceNodup := by decide
+    completionActualNodup := by decide
+    retirementSourceNodup := by decide
+    replacementSourceNodup := by decide
+    replacementTargetNodup := by decide
   }
 
 /-- Hypothetical comparison preserves the existing fail-closed lifecycle boundary. -/
