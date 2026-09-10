@@ -1,6 +1,6 @@
 # Observation 218 — finite partial-injective frontier factorization
 
-Status: **QUALIFIED PRODUCTION SIMPLIFICATION CANDIDATE**
+Status: **PROMOTED — EXECUTABLE MIGRATION PROOF GRADUATED**
 
 Research starting point: LOAM `4cf5370a54f2e8aebb37b55077cdb1dee8efc822`
 Current production main during final qualification: `0cd1ca1e618dac3bd4eac409602d99d6981ef3fb`
@@ -46,10 +46,11 @@ plus isolated elements.
 
 ## Lean qualification
 
-The theorem-heavy probes establish the structural facts without importing a
+The theorem-heavy probes established the structural facts without importing a
 general graph framework.
 
-`experiments/218_partial_injective_frontier.lean` proves and exercises:
+Historical probe `experiments/218_partial_injective_frontier.lean` proved and
+exercised:
 
 - executable endpoint uniqueness is exactly source and successor `Nodup`;
 - reference closure is exactly membership of every represented endpoint;
@@ -58,8 +59,8 @@ general graph framework.
 - an interior repetition can be cancelled back to a return of the original start;
 - frontier membership is exactly carrier membership outside the source domain.
 
-`experiments/218_finite_partial_injection_cycle.lean` closes the remaining cycle
-question. Production originally used two different algorithms:
+Historical probe `experiments/218_finite_partial_injection_cycle.lean` closed the
+remaining cycle question. Production originally used two different algorithms:
 
 ```text
 Event / Scheduled                 seen-set traversal
@@ -68,10 +69,10 @@ ActualValidity / QuantityBasis    start-return traversal
 
 They are not path-locally equivalent on arbitrary deterministic graphs. A lasso
 can separate them from a tail start. Under the finite partial-injection premises
-used by these production families, however, Lean proves the whole-graph admission
-result is equivalent.
+used by these production families, however, Lean proved that the whole-graph
+admission result is equivalent.
 
-The proof uses only small finite ingredients:
+The proof used only small finite ingredients:
 
 ```text
 injective finite iteration
@@ -81,7 +82,13 @@ injective finite iteration
 + List.Nodup.length_le_of_subset
 ```
 
-No universal graph ontology is introduced.
+No universal graph ontology was introduced.
+
+After production standardized on the shared start-return implementation, this
+large proof became migration evidence rather than a live runtime obligation. Its
+exact source and successful historical qualification remain recoverable in Git
+history. The surviving premise boundary and design reason are now distilled next
+to `Loam/Application/ReplacementFrontier.lean`.
 
 ## Production-shaped extraction
 
@@ -220,7 +227,7 @@ The Scheduled practical story specifically preserves:
 - duplicate successor refusal;
 - persistence round-trip stability.
 
-The other practical workflows exercise the affected Event, ActualValidity, and
+The other practical workflows exercised the affected Event, ActualValidity, and
 QuantityBasis paths through their existing production stories.
 
 ## Ownership result
@@ -295,7 +302,7 @@ The original hypothesis survives in a stronger, concrete form:
 > to recognize a repeated small structure rather than to enlarge the domain
 > vocabulary.
 
-Observation 218 has now demonstrated:
+Observation 218 demonstrated:
 
 ```text
 one small structural library
@@ -304,7 +311,8 @@ one small structural library
 + 90 fewer production-shaped Application lines
 ```
 
-The production promotion criterion is therefore satisfied in principle.
-Promotion should keep `ReplacementFrontier` internal to Application, retain the
-existing family-specific public entry points, and leave the theorem-heavy probes
-as research evidence rather than moving their proof machinery into runtime code.
+The production promotion criterion was satisfied. Current production keeps
+`ReplacementFrontier` internal to Application and retains the family-specific
+public entry points. The theorem-heavy executable migration proof has graduated
+to Git history; its surviving law and qualification boundary are kept in this
+research record and next to the current `ReplacementFrontier` implementation.

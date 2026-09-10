@@ -2,6 +2,35 @@ namespace Loam.Application.ReplacementFrontier
 
 set_option autoImplicit false
 
+/-!
+# Replacement-frontier structural mechanics
+
+This module owns only the finite one-to-one supersession mechanics shared by
+several independently meaningful household domains. Domain meaning stays in the
+adapters; the common structure is a finite partial successor map with unique
+sources/successors, closed represented endpoints, cycle refusal, and frontier
+filtering outside the source domain.
+
+## Cycle-detector rationale
+
+Current production uses the bounded start-return detector in `acyclic`. Earlier
+production families used both a seen-set traversal and a start-return traversal.
+Observation 218 established an important qualification boundary: those two
+algorithms are not path-locally equivalent on arbitrary deterministic graphs,
+but their whole-domain admission decisions coincide for the finite partial-
+injective maps admitted here. Injectivity matters; it is supplied by
+`endpointUnique` together with the finite represented edge set.
+
+That result justified standardizing current production on one small
+start-return implementation rather than maintaining two cycle engines. The
+large theorem-heavy migration proof is historical evidence, not a second live
+runtime contract. Exact proof source remains recoverable in Git history.
+
+Do not generalize this helper merely to absorb relation shapes that violate
+these premises. In particular, revision models with explicit retraction or
+non-injective/multi-parent structure require their own semantics.
+-/
+
 /-- One generic supersession edge. Domain meaning stays in the adapter. -/
 structure Edge (Id : Type) where
   source : Id
