@@ -109,10 +109,8 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     | .error message => return .error message
     | .ok records => pure records
   let scheduled ←
-    match ← Loam.ScheduledReview.loadEvidenceFromManifest
-        (dataDir / "scheduled.loam") manifestRoot with
-    | .error message => return .error message
-    | .ok evidence => pure evidence
+    Loam.ScheduledReview.loadEvidenceFromManifest
+      (dataDir / "scheduled.loam") manifestRoot
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
