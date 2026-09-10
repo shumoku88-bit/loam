@@ -104,6 +104,31 @@ household question
 
 If a mathematical structure repeatedly appears after this process, name it then. Do not choose the household model to fit an attractive theory in advance.
 
+## Deferred abstraction needs a maturity re-check
+
+Avoiding premature abstraction is a temporary development decision, not a permanent prohibition on a smaller mature model.
+
+A previous `no generic X`, `keep separate for now`, or `defer framework` result should be reopened when later practical work changes the evidence that supported the deferral. Strong revisit triggers include:
+
+- several now-practical families repeatedly carry the same information-preserving structure;
+- one structural law requires synchronized edits or proofs across several semantic families;
+- an earlier formal model already described a smaller representation and the cases that were hypothetical at the time are now practical;
+- physical packaging or path conventions begin to determine Application, writer, or UI structure;
+- a shared structure can replace existing live machinery rather than merely sit above it.
+
+The re-check starts from current desired answers, not from the existing type or file graph:
+
+```text
+current Q_read / Q_write / Q_safe
+    -> independently observable distinctions
+    -> smallest representation preserving those distinctions
+    -> implementation only afterward
+```
+
+Generalization earns production status only when it pays a replacement dividend: fewer independent algorithms, protocols, proof obligations, representations, or concepts to explain while preserving every answer that current LOAM intentionally distinguishes. If the candidate needs a growing menu of callbacks, policy parameters, special cases, or adapters to imitate the old local laws, keep the local design instead.
+
+Thus `not yet generic` means exactly that: **not yet**. Once the domain has matured, the earlier stop decision itself becomes evidence to re-audit.
+
 ## What quality means here
 
 Before keeping a new primitive or abstraction, ask:
