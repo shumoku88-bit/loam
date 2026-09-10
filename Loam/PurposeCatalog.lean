@@ -1,5 +1,6 @@
 import Loam.Core.Purpose
 import Loam.Persistence
+import Loam.PresentationMetadata
 
 namespace Loam.PurposeCatalog
 
@@ -31,29 +32,11 @@ structure Entry where
 
 abbrev Catalog := List Entry
 
-private def dropOneTrailingEmpty : List String → List String
-  | rows =>
-      match rows.reverse with
-      | "" :: rest => rest.reverse
-      | _ => rows
-
-private def decodeRow? (row : String) : Option Metadata :=
-  match row.splitOn "\t" with
-  | [token, label, help] =>
-      if Loam.Persistence.validToken token && !label.isEmpty && !help.isEmpty then
-        some { purpose := ⟨token⟩, label := label, help := help }
-      else none
-  | _ => none
-
-private def uniquePurposes : List Metadata → Bool
-  | [] => true
-  | row :: rest =>
-      !(rest.any fun other => decide (other.purpose = row.purpose)) && uniquePurposes rest
-
 /-- Decode replaceable display metadata, rejecting malformed rows and duplicate Purpose identities. -/
 def decode? (input : String) : Option (List Metadata) := do
-  let rows ← (dropOneTrailingEmpty (input.splitOn "\n")).mapM decodeRow?
-  if uniquePurposes rows then some rows else none
+  let rows ← Loam.PresentationMetadata.decode? Loam.Persistence.validToken input
+  return rows.map fun row =>
+    ({ purpose := ⟨row.token⟩, label := row.label, help := row.help } : Metadata)
 
 /-- Lookup presentation metadata by stable Purpose identity. -/
 def metadataFor? (metadata : List Metadata) (purpose : PurposeId) : Option Metadata :=

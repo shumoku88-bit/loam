@@ -1,5 +1,6 @@
 import Loam.Core.LocusAdmission
 import Loam.Persistence
+import Loam.PresentationMetadata
 
 namespace Loam.LocusCatalog
 
@@ -33,29 +34,11 @@ structure Entry where
 
 abbrev Catalog := List Entry
 
-private def dropOneTrailingEmpty : List String → List String
-  | rows =>
-      match rows.reverse with
-      | "" :: rest => rest.reverse
-      | _ => rows
-
-private def decodeRow? (row : String) : Option Metadata :=
-  match row.splitOn "\t" with
-  | [token, label, help] =>
-      if Loam.Persistence.validToken token && !label.isEmpty && !help.isEmpty then
-        some { token := token, label := label, help := help }
-      else none
-  | _ => none
-
-private def uniqueTokens : List Metadata → Bool
-  | [] => true
-  | row :: rest =>
-      !(rest.any fun other => other.token == row.token) && uniqueTokens rest
-
 /-- Decode display metadata, rejecting malformed rows and duplicate token keys. -/
 def decode? (input : String) : Option (List Metadata) := do
-  let rows ← (dropOneTrailingEmpty (input.splitOn "\n")).mapM decodeRow?
-  if uniqueTokens rows then some rows else none
+  let rows ← Loam.PresentationMetadata.decode? Loam.Persistence.validToken input
+  return rows.map fun row =>
+    ({ token := row.token, label := row.label, help := row.help } : Metadata)
 
 /-- Lookup is display-only and deliberately does not consult admission. -/
 def metadataForToken? (metadata : List Metadata) (token : String) : Option Metadata :=
