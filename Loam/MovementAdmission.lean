@@ -7,7 +7,7 @@ import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.LocusAdmission
 import Loam.FreshNumberedToken
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 
 namespace Loam.MovementAdmission
 
