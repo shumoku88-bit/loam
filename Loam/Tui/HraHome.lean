@@ -31,7 +31,10 @@ private def calendarHeader : Widget :=
 private abbrev PendingEvidence := Except String (List Loam.ScheduledReview.Record)
 
 private def pendingEvidence (snapshot : Snapshot) : PendingEvidence :=
-  Loam.ScheduledReview.currentOpenBeforeDate snapshot.scheduled snapshot.actual.today
+  match snapshot.scheduled with
+  | .error message => .error message
+  | .ok scheduled =>
+      Loam.ScheduledReview.currentOpenBeforeDate scheduled snapshot.actual.today
 
 private def pendingDates : PendingEvidence → List String
   | .ok records => records.map (fun record => record.scheduledOn)
@@ -79,7 +82,9 @@ private def actualLines (snapshot : Snapshot) (state : State) : List Widget :=
 
 private def scheduledLines (snapshot : Snapshot) (state : State) : List Widget :=
   match homeScheduledEvidence snapshot state with
-  | .due first rest =>
+  | .error message =>
+      [plainLine ("   [Unavailable] " ++ message)]
+  | .ok (.due first rest) =>
       (first :: rest).flatMap fun record =>
         [ plainLine
             ("   - Scheduled: " ++ record.scheduledOn ++ "  [Open]  " ++
@@ -88,17 +93,17 @@ private def scheduledLines (snapshot : Snapshot) (state : State) : List Widget :
           plainLine
             ("       " ++ change.coordinate.token ++ "  " ++
               toString change.quantity.quanta ++ " " ++ record.measure.token))
-  | .unknown =>
+  | .ok .unknown =>
       [mutedLine "   (unknown; no completeness horizon is claimed)"]
-  | .unknownCompletionScheduled =>
+  | .ok .unknownCompletionScheduled =>
       [plainLine "   [Unavailable] completion evidence references an unknown Scheduled identity"]
-  | .unknownRetirementScheduled =>
+  | .ok .unknownRetirementScheduled =>
       [plainLine "   [Unavailable] retirement evidence references an unknown Scheduled identity"]
-  | .unknownReplacementScheduled =>
+  | .ok .unknownReplacementScheduled =>
       [plainLine "   [Unavailable] replacement evidence references an unknown Scheduled identity"]
-  | .invalidReplacementGraph =>
+  | .ok .invalidReplacementGraph =>
       [plainLine "   [Unavailable] Scheduled replacement graph is invalid"]
-  | .conflictingTerminalEvidence =>
+  | .ok .conflictingTerminalEvidence =>
       [plainLine "   [Unavailable] Scheduled terminal evidence conflicts"]
 
 private def pendingLines : PendingEvidence → List Widget
@@ -116,13 +121,14 @@ private def statusLine
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : String :=
   let scheduled :=
     match homeScheduledEvidence snapshot state with
-    | .due _ rest => "Due (" ++ toString (rest.length + 1) ++ ")"
-    | .unknown => "Unknown"
-    | .unknownCompletionScheduled => "Unavailable"
-    | .unknownRetirementScheduled => "Unavailable"
-    | .unknownReplacementScheduled => "Unavailable"
-    | .invalidReplacementGraph => "Unavailable"
-    | .conflictingTerminalEvidence => "Unavailable"
+    | .error _ => "Unavailable"
+    | .ok (.due _ rest) => "Due (" ++ toString (rest.length + 1) ++ ")"
+    | .ok .unknown => "Unknown"
+    | .ok .unknownCompletionScheduled => "Unavailable"
+    | .ok .unknownRetirementScheduled => "Unavailable"
+    | .ok .unknownReplacementScheduled => "Unavailable"
+    | .ok .invalidReplacementGraph => "Unavailable"
+    | .ok .conflictingTerminalEvidence => "Unavailable"
   let pendingStatus :=
     match pending with
     | .ok records => toString records.length
