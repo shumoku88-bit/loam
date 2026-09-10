@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Application.ScheduledInspection
 import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
 
