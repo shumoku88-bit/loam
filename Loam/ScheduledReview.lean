@@ -13,13 +13,13 @@ set_option autoImplicit false
 # Scheduled review projection and read boundary
 
 This is a read-only projection boundary, not a Scheduled repository or lifecycle
-authority. Retained Scheduled occurrence, completion, retirement and replacement
-evidence remains authoritative. Absence of explicit current-open evidence stays
-`unknown`; it is never converted into a closed-world NotDue claim.
+authority. Retained Scheduled occurrences and terminal evidence remain
+authoritative. Absence of explicit current-open evidence stays `unknown`; it is
+never converted into a closed-world NotDue claim.
 
 Observation 226 cut production reads to one complete Scheduled lifecycle image.
-The configured lifecycle path must exist and all four typed facets must decode;
-missing storage is no longer interpreted as an empty household.
+The runtime image now exposes one Scheduled-terminal memory while preserving the
+existing v1 physical authority format at the persistence boundary.
 -/
 
 abbrev Record := ScheduledOccurrence String
@@ -27,20 +27,17 @@ abbrev DayEvidence := Loam.Application.CurrentScheduledDayEvidenceResult String
 
 structure EvidenceSnapshot where
   scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
+  terminals : ScheduledTerminalMemory
   events : EventMemory
 
 /--
-Expose the replacement-aware current-open Scheduled frontier through the shared
-review boundary. This does not invent a status store: completion, cancellation,
-and replacement remain determined by retained lifecycle evidence.
+Expose the current-open Scheduled frontier through the shared review boundary.
+This does not invent a status store: completion, cancellation, and replacement
+remain projections of the retained terminal relation.
 -/
 def currentOpenRecords (snapshot : EvidenceSnapshot) : Except String (List Record) :=
-  match Loam.Application.currentOpenScheduledWithReplacement
-      snapshot.scheduled snapshot.completions snapshot.retirements
-      snapshot.replacements snapshot.events with
+  match Loam.Application.currentOpenScheduled
+      snapshot.scheduled snapshot.terminals snapshot.events with
   | .unknownCompletionScheduled =>
       .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
@@ -66,9 +63,7 @@ private def loadLifecycleSnapshot?
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
   let snapshot : EvidenceSnapshot := {
     scheduled := lifecycle.scheduled
-    completions := lifecycle.completions
-    retirements := lifecycle.retirements
-    replacements := lifecycle.replacements
+    terminals := lifecycle.terminals
     events := eventMemory
   }
   match lifecycleAdmission snapshot with
@@ -82,9 +77,8 @@ def loadEvidenceFromManifest
   | .ok world => loadLifecycleSnapshot? scheduledFile world.events
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
-  Loam.Application.currentScheduledDayEvidenceWithReplacement
-    snapshot.scheduled snapshot.completions snapshot.retirements
-    snapshot.replacements snapshot.events date
+  Loam.Application.currentScheduledDayEvidence
+    snapshot.scheduled snapshot.terminals snapshot.events date
 
 def explicitDueRecords : DayEvidence → List Record
   | .due first rest => first :: rest
