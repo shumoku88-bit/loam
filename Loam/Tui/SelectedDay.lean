@@ -63,13 +63,18 @@ def initial (focusDate : String) : State :=
 def actualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   recordsForDay snapshot state.focusDate
 
-/-- Selected-day Scheduled evidence preserves the shared open-world answer. -/
-def scheduledEvidence (snapshot : Snapshot) (state : State) : ScheduledEvidence :=
-  Loam.ScheduledReview.dayEvidence snapshot.scheduled state.focusDate
+/-- Selected-day Scheduled evidence preserves both startup refusal and the shared open-world answer. -/
+def scheduledEvidence
+    (snapshot : Snapshot) (state : State) : Except String ScheduledEvidence :=
+  match snapshot.scheduled with
+  | .error message => .error message
+  | .ok scheduled => .ok (Loam.ScheduledReview.dayEvidence scheduled state.focusDate)
 
 
 def scheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
-  Loam.ScheduledReview.explicitDueRecords (scheduledEvidence snapshot state)
+  match scheduledEvidence snapshot state with
+  | .error _ => []
+  | .ok evidence => Loam.ScheduledReview.explicitDueRecords evidence
 
 
 def selectedActual? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
@@ -78,6 +83,11 @@ def selectedActual? (snapshot : Snapshot) (state : State) : Option ReviewRecord 
 
 def selectedScheduled? (snapshot : Snapshot) (state : State) : Option ScheduledRecord :=
   (scheduledRecords snapshot state)[state.scheduledRow]?
+
+private def scheduledUnavailableNotice? (snapshot : Snapshot) : Option String :=
+  match snapshot.scheduled with
+  | .error message => some ("[Unavailable] Scheduled: " ++ message)
+  | .ok _ => none
 
 private def clampState (snapshot : Snapshot) (state : State) : State :=
   let actualCount := (actualRecords snapshot state).length
@@ -130,7 +140,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match state.pane with
       | .actual =>
           { state := { state with notice := "New Scheduled is available from the Scheduled pane." } }
-      | .scheduled => { state, command := .createScheduled }
+      | .scheduled =>
+          match scheduledUnavailableNotice? snapshot with
+          | some notice => { state := { state with notice := notice } }
+          | none => { state, command := .createScheduled }
   | .correctActual =>
       match state.pane with
       | .scheduled =>
@@ -163,28 +176,37 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .actual =>
           { state := { state with notice := "Completion is available from the Scheduled pane." } }
       | .scheduled =>
-          match selectedScheduled? snapshot state with
+          match scheduledUnavailableNotice? snapshot with
+          | some notice => { state := { state with notice := notice } }
           | none =>
-              { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
-          | some _ => { state, command := .completeScheduled }
+              match selectedScheduled? snapshot state with
+              | none =>
+                  { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
+              | some _ => { state, command := .completeScheduled }
   | .cancelScheduled =>
       match state.pane with
       | .actual =>
           { state := { state with notice := "Cancellation is available from the Scheduled pane." } }
       | .scheduled =>
-          match selectedScheduled? snapshot state with
+          match scheduledUnavailableNotice? snapshot with
+          | some notice => { state := { state with notice := notice } }
           | none =>
-              { state := { state with notice := "No current-open Scheduled occurrence is selected for cancellation." } }
-          | some _ => { state, command := .cancelScheduled }
+              match selectedScheduled? snapshot state with
+              | none =>
+                  { state := { state with notice := "No current-open Scheduled occurrence is selected for cancellation." } }
+              | some _ => { state, command := .cancelScheduled }
   | .replaceScheduled =>
       match state.pane with
       | .actual =>
           { state := { state with notice := "Supersede is available from the Scheduled pane." } }
       | .scheduled =>
-          match selectedScheduled? snapshot state with
+          match scheduledUnavailableNotice? snapshot with
+          | some notice => { state := { state with notice := notice } }
           | none =>
-              { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
-          | some _ => { state, command := .replaceScheduled }
+              match selectedScheduled? snapshot state with
+              | none =>
+                  { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
+              | some _ => { state, command := .replaceScheduled }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -231,9 +253,10 @@ private def paneRow (snapshot : Snapshot) (state : State)
     | none =>
         if row = 0 && (scheduledRecords snapshot state).isEmpty then
           match scheduledEvidence snapshot state with
-          | .unknown => " (Unknown; no completeness horizon claimed)"
-          | .due _ _ => " (none due)"
-          | _ => " (Scheduled evidence unavailable)"
+          | .error message => " [Unavailable] " ++ message
+          | .ok .unknown => " (Unknown; no completeness horizon claimed)"
+          | .ok (.due _ _) => " (none due)"
+          | .ok _ => " (Scheduled evidence unavailable)"
         else ""
   .row [span (fit leftWidth actualText), span " | ", span (fit rightWidth scheduledText)]
 
@@ -252,23 +275,28 @@ private def actualDetail (snapshot : Snapshot) (state : State) : List Widget :=
       (record.event.effects.map fun effect =>
         plainLine ("     " ++ fit 28 effect.locus.token ++ " " ++ toString effect.quantity.quanta ++ " " ++ effect.measure.token))
 
-private def scheduledUnavailableDetail (evidence : ScheduledEvidence) : List Widget :=
+private def scheduledUnavailableDetail
+    (evidence : Except String ScheduledEvidence) : List Widget :=
   match evidence with
-  | .unknown =>
+  | .error message =>
+      [ plainLine " Selected Scheduled:"
+      , plainLine ("   [Unavailable] " ++ message)
+      ]
+  | .ok .unknown =>
       [ plainLine " Selected Scheduled:"
       , mutedLine "   Unknown: absence of an explicit due occurrence is not NotDue."
       ]
-  | .unknownCompletionScheduled =>
+  | .ok .unknownCompletionScheduled =>
       [plainLine " Selected Scheduled:", plainLine "   Unavailable: completion evidence references an unknown Scheduled identity."]
-  | .unknownRetirementScheduled =>
+  | .ok .unknownRetirementScheduled =>
       [plainLine " Selected Scheduled:", plainLine "   Unavailable: retirement evidence references an unknown Scheduled identity."]
-  | .unknownReplacementScheduled =>
+  | .ok .unknownReplacementScheduled =>
       [plainLine " Selected Scheduled:", plainLine "   Unavailable: replacement evidence references an unknown Scheduled identity."]
-  | .invalidReplacementGraph =>
+  | .ok .invalidReplacementGraph =>
       [plainLine " Selected Scheduled:", plainLine "   Unavailable: Scheduled replacement graph is invalid."]
-  | .conflictingTerminalEvidence =>
+  | .ok .conflictingTerminalEvidence =>
       [plainLine " Selected Scheduled:", plainLine "   Unavailable: Scheduled terminal evidence conflicts."]
-  | .due _ _ =>
+  | .ok (.due _ _) =>
       [plainLine " Selected Scheduled:", mutedLine "   (no Scheduled selected)"]
 
 private def scheduledDetail (snapshot : Snapshot) (state : State) : List Widget :=
@@ -329,9 +357,12 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let leftHeader := fit leftWidth
     (if state.pane == .actual then " Actual [active] (" ++ toString actualCount ++ ")"
      else " Actual (" ++ toString actualCount ++ ")")
-  let rightHeader := fit rightWidth
-    (if state.pane == .scheduled then " Scheduled [active] (" ++ toString scheduledCount ++ ")"
-     else " Scheduled (" ++ toString scheduledCount ++ ")")
+  let rightHeader :=
+    match snapshot.scheduled with
+    | .error _ => fit rightWidth " Scheduled [Unavailable]"
+    | .ok _ => fit rightWidth
+        (if state.pane == .scheduled then " Scheduled [active] (" ++ toString scheduledCount ++ ")"
+         else " Scheduled (" ++ toString scheduledCount ++ ")")
   let body :=
     [ rule bounds '='
     , plainLine " Household Day Workspace"
