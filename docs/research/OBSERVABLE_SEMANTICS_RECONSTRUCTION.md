@@ -3,7 +3,7 @@
 Status: **working answer-first reconstruction; no production or loam-data mutation authorized**
 
 Baseline: `f79c4a474932da5ce9fd6e4192ebb18062dd6b6c`  
-Tracking: #693
+Tracking: #693 / draft PR #695
 
 ## Question
 
@@ -20,36 +20,36 @@ desired answers
   -> physical topology
 ```
 
-Minimality is vocabulary-relative. Separate:
+Minimality is vocabulary-relative. Keep three answer sets separate:
 
 ```text
-Q_read   read/report/administration answers
-Q_write  admitted writes and visible refusals
+Q_read   current read/report/administration answers
+Q_write  admission, preview, publication success/refusal
 Q_safe   crash/recovery/corruption/concurrency obligations
 ```
 
-This checkpoint starts with `Q_read`.
+A surface may contain more than one set. Reading current administration state is `Q_read`; deciding whether a proposed mutation is admitted is `Q_write`.
 
-## Current answer map
+## Current Q_read map
 
-| Desired answer | Current owner | Retained semantic inputs | Non-canonical query/config input | Derived, not retained |
-| --- | --- | --- | --- | --- |
-| What actually happened? | `ActualReview` | Event, ActualValidity, EventDescription, EventCorrection | selection/filter | review Record, current frontier |
-| What is still scheduled / due? | `ScheduledReview` | ScheduledOccurrence, Completion, Retirement, Replacement, Event closure | query date | current-open list, day status |
-| What is the current selected balance? | `BalanceReview` | Event, EventCorrection, ZeroOriginCoverage | balance coordinate selection | balance rows |
-| What Capacity exists across all retained history? | `CapacityReview` | CapacityMovement | none | Entitlement rows |
-| What Capacity applies to a window? | `CapacityWindowInspection` | CapacityMovement, CapacityEffective | window | windowed Entitlement |
-| What is available after spending and future pressure? | `CurrentCoverageInspection/Review` | see composition below | elapsed/future windows, observation date | Entitlement, Consumption, Remaining, Commitment, Headroom, pressure frontier |
-| Which current Expense loci are routed? | `ActualRoutingReview` | LocusAdmission, AccountingRole, ActualRouting, CapacityMovement | observation date | routing status rows, unresolved role loci, Purpose candidates |
-| Why did selected balances change? | `StockFlowReview` | inherited from Balance + ActualReview | window | opening, closing, increases, decreases, net change |
-| Which Events contributed to which coordinates? | `TransactionsFlowReview` | inherited from ActualReview | window | cells, row activity, residuals |
-| What conditional selected-balance path follows? | `ConditionalBalancePathReview` | inherited from Balance + current-open Scheduled | observation date, completeness assumption | path points, final balance, low-water |
-| What is the current cycle funding picture? | `CycleBudgetReview` | inherited from CurrentCoverage + Balance | boundary preset/window, funding selection, observation date | cycle summary |
-| What currently needs Attention? | `AttentionReview` | AttentionItem, AttentionClosure | source availability | open-item view |
+| Desired answer | Current owner | Retained semantic inputs | Query/config input |
+| --- | --- | --- | --- |
+| What actually happened? | `ActualReview` | Event, ActualValidity, EventDescription, EventCorrection | selection/filter |
+| What is still scheduled / due? | `ScheduledReview` | ScheduledOccurrence, Completion, Retirement, Replacement, Event closure | date |
+| What is the current selected balance? | `BalanceReview` | Event, EventCorrection, ZeroOriginCoverage | coordinate selection |
+| What Capacity exists? | `CapacityReview` | CapacityMovement | none |
+| What applies in a window? | `BudgetWindowReview` / Capacity inspection | CapacityMovement, CapacityEffective, Event, EventCorrection, ActualValidity, ActualRouting | window |
+| What remains after spending and future pressure? | `CurrentCoverageReview` | composed below | windows, observation date |
+| Which current Expense loci are routed? | `ActualRoutingReview` | LocusAdmission, AccountingRole, ActualRouting, CapacityMovement | observation date |
+| Why did selected balances change? | `StockFlowReview` | inherited Balance + ActualReview basis | window |
+| Which Events contributed where? | `TransactionsFlowReview` | inherited ActualReview basis | window |
+| What conditional balance path follows? | `ConditionalBalancePathReview` | inherited Balance + current-open Scheduled basis | observation date, completeness assumption |
+| What is the current cycle funding picture? | `CycleBudgetReview` | inherited CurrentCoverage + Balance basis | preset/selection/date |
+| What needs Attention? | `AttentionReview` | AttentionItem, AttentionClosure | source availability |
+
+Accounting `UNAVAILABLE` and unconditional Liquidity `UNKNOWN` are deliberate evidence-limit answers. They do not earn extra retained household state merely to produce a stronger-looking report.
 
 ## CurrentCoverage is already a small algebra
-
-Production factors the largest current budget answer through three substantive answers:
 
 ```text
 Entitlement
@@ -61,64 +61,44 @@ Consumption
 Commitment
   <- current-open Scheduled lifecycle
      + AccountingRole + ScheduledRouting + future horizon
-```
 
-Then:
-
-```text
 Remaining = Entitlement - Consumption
 Headroom  = Remaining - managed Commitment
 ```
 
 `Remaining`, `Commitment`, `Headroom`, unmanaged pressure, unrouted pressure and unresolved eligibility are projections, not additional stored budget objects.
 
-The full current answer intentionally distinguishes Scheduled pressure classes:
+Observation 243 reduces this further to answer-determining dimensions rather than current type boundaries. Alloy found worlds with equal Headroom but different visible unmanaged/unrouted/unresolved pressure. Therefore a Headroom-only vocabulary admits stronger compression than the present full CurrentCoverage answer.
 
-```text
-managed for queried Purpose
-managed for another Purpose
-unmanaged
-unrouted pressure
-resolved non-pressure
-unresolved eligibility
-```
+## Q_read witness index
 
-A narrower answer such as Headroom alone needs fewer distinctions. The present full answer needs more because unresolved pressure is itself observable.
+Do not mint a new observation when an earlier one already supplies the counterexample.
 
-## First global Alloy graph
+| Retained distinction | Current Q_read pressure | Existing witness / law | Status |
+| --- | --- | --- | --- |
+| Event + signed Effects | Actual, Balance, flow reports | base observed quantity evidence | WITNESS |
+| ActualValidity | dated Actual / historical Consumption | Obs. 111 | WITNESS |
+| EventDescription | recognition/search of otherwise quantity-identical Events | Obs. 130 Lean proofs | WITNESS |
+| EventCorrection | current Actual / Consumption frontier | Obs. 114 two-world correction witness | WITNESS |
+| ZeroOriginCoverage | answerable balance vs coverage missing | current `ZeroOriginQuantity` law | WITNESS |
+| CapacityMovement semantic plane | Entitlement distinct from physical holdings | Obs. 106 | WITNESS |
+| CapacityEffective | windowed Entitlement | Obs. 112 / 158; Obs. 243 current witness | WITNESS |
+| ActualRouting | Purpose Consumption and routing administration | Obs. 111; Obs. 243 current witness | WITNESS |
+| LocusAdmission | current routing-administration vocabulary | direct production dependency; write policy also observes it | WITNESS, representation open |
+| AccountingRole | Expense administration and Scheduled pressure eligibility | Obs. 049 / 227; Obs. 243 frontier pressure | WITNESS |
+| ScheduledOccurrence | future expected quantity/date distinct from Actual | Obs. 105 family | WITNESS |
+| ScheduledCompletion | explicit Scheduled -> Actual realization | Obs. 105 family | WITNESS |
+| ScheduledRetirement | why an expectation is no longer open | Obs. 105 family | WITNESS |
+| ScheduledReplacement | supersession / successor provenance | Obs. 105 / 122 | WITNESS |
+| ScheduledRouting | managed/unmanaged/unrouted pressure | Obs. 108 / 153 / 227; Obs. 243 | WITNESS |
+| AttentionItem | non-financial actionable matter + due meaning | Obs. 109 | WITNESS |
+| AttentionClosure | resolved/dropped lifecycle distinct from provenance | Obs. 109 | WITNESS |
 
-`experiments/242_current_read_answer_basis.als` models only:
+`WITNESS` protects information, not the current type, filename, sidecar, authority count, or container shape.
 
-```text
-Retained information
-Query/config input
-Intermediate answer
-Observable answer
-```
+## Q_read result that changes the earlier 18-family audit
 
-There is no file, sidecar, manifest, codec or module concept in the model.
-
-Its main structural equalities are:
-
-```text
-CurrentCoverage
-  = EffectiveEntitlement + ActualConsumption + ScheduledCommitment
-
-StockFlow retained base
-  = Balance retained base + ActualReview retained base
-
-TransactionsFlow retained base
-  = ActualReview retained base
-
-ConditionalBalancePath retained base
-  = Balance retained base + ScheduledOpen retained base
-```
-
-This is provenance, not yet proof that every input family is indispensable.
-
-## First read-only pressure result
-
-The reconstructed current `Q_read` graph does not consume:
+The broader Phase-2 audit asked about the current product as a whole. The narrower reconstructed `Q_read` graph does not consume:
 
 ```text
 ActualReversal
@@ -126,109 +106,103 @@ RelationUnit
 RelationDischarge
 ```
 
-This is **not** a deletion result. It isolates the next question:
+That is not a deletion result. It is evidence that read semantics and mutation semantics had been counted together.
 
-> Which `Q_write` or `Q_safe` obligation uniquely requires each one?
+## First Q_write reconstruction
 
-That is stronger than retaining them because current authority topology happens to select them.
-
-## First semantic reduction model
-
-`experiments/243_current_coverage_answer_basis.als` stops mirroring current type boundaries and reduces one Purpose/Measure CurrentCoverage answer to answer-determining dimensions:
+Current production writers answer questions such as:
 
 ```text
-Capacity:
-  amount
-  included in elapsed window?
-
-Actual:
-  amount
-  current?
-  included in elapsed window?
-  routed to queried Purpose?
-
-Scheduled:
-  amount
-  current-open?
-  included in future horizon?
-  pressure classification
+May this Movement be admitted?
+May this correction replace the selected Actual?
+May this exact reversal be published?
+Which fresh identities remain legal?
 ```
 
-It then derives the complete current answer.
+The three families absent from `Q_read` immediately reappear here.
 
-The intended counterexamples ask whether changing only:
+| Retained distinction | Current write answer it changes | Existing evidence | Q_write status |
+| --- | --- | --- | --- |
+| RelationUnit | Movement relation frontier, source coverage, correction/reversal independence | Obs. 172-177 + current `MovementAdmission` | WITNESS |
+| RelationDischarge | exact partial fulfillment, target frontier, fresh Event/Relation id reservation, correction/reversal independence | Obs. 178, 182, 183 + current `MovementAdmission` | WITNESS |
+| ActualReversal | correction admission, reversal retry/currentness, identity reservation | Obs. 241 + current `CorrectionPublisher` / `ActualReversalPublisher` | WITNESS |
+
+So the useful factorization is currently:
 
 ```text
-Capacity effective placement
-Actual Purpose routing
-Scheduled open/terminal state
-Scheduled pressure classification
+read projection basis
+  does not require RelationUnit / RelationDischarge / ActualReversal
+
+write admission basis
+  does require them
 ```
 
-can change the answer.
+This creates pressure to keep mutation-only evidence out of read projection machinery where possible, without erasing it from the household world.
 
-It also searches for worlds with identical Headroom but different visible pressure frontiers. Such a witness means a scalar Headroom vocabulary permits stronger compression than the current full CurrentCoverage vocabulary.
+### Why no new Observation 244 yet
 
-## Cross-cutting compression questions exposed by the answer graph
+Existing observations already cover the novel semantic pressure:
 
-These are hypotheses, not abstractions to implement yet.
+- Obs. 177: required positive RelationUnit support must precede Event activation for fresh Movement; no routine negative `NoRelation` fact is earned.
+- Obs. 178: `(EventId, RelationUnitId)` alone cannot determine partial fulfillment; exact discharge quantity is independent information.
+- Obs. 182: discharge-first/Event-last publication plus Event-first acquisition prevents false outstanding answers; pre-Event discharge residue can remain inert.
+- Obs. 183: raw discharge targets must reserve future RelationUnit identity so unrelated allocation cannot activate stale provenance.
+- Obs. 241: known-empty Reversal authority and unavailable Reversal authority produce different correction-admission answers, while container shape remains representation.
 
-### Temporal evidence
+A new model would currently duplicate those witnesses rather than reduce uncertainty.
+
+## Semantic regions and shared mechanics
+
+The older household-minimum-vocabulary checkpoint remains a useful factorization target:
 
 ```text
-ActualValidity
-CapacityEffective
-ScheduledOccurrence.scheduledOn
-Actual/Scheduled routing effective coordinates
+household semantic regions
+  Actual
+  Scheduled
+  Capacity
+  Attention
+
+cross-cutting mechanics / evidence dimensions
+  quantity + signed Effects
+  time
+  context
+  lifecycle / provenance
+  routing
+  classification
+  completeness
+  admission
 ```
 
-Can these be typed instances of a smaller temporal-evidence relation while preserving their different admission laws?
+Observation 242 reconstructs the current read graph in these terms. Shared mechanics do not imply shared semantic authority. Actual and Capacity can reuse quantity algebra; Actual and Scheduled can reuse routing mechanics; several families can reuse lifecycle/replacement machinery while still answering different household questions.
 
-### Identity/lifecycle relations
+## Next pressure: Q_safe without theorem inflation
+
+Before adding a new generic safety theorem, map current safety obligations onto existing witnesses:
 
 ```text
-EventCorrection
-ActualReversal
-ScheduledCompletion
-ScheduledRetirement
-ScheduledReplacement
+activation ordering
+reader acquisition ordering
+crash residue inertness
+identity reservation
+writer ownership / lock order
+malformed authority refusal
+known-empty vs unavailable
+recovery / retry idempotence
 ```
 
-Can they share a smaller relation skeleton without collapsing operation-specific meaning?
-
-### Routing
-
-ActualRouting and ScheduledRouting already share generic routing mechanics. Test semantic unification separately from authority/storage unification.
-
-### Epistemic states
-
-```text
-known zero
-coverage missing
-source unavailable
-open-world unknown
-unresolved eligibility
-```
-
-Test whether a small information-order/lattice vocabulary can represent these without equating states that current answers distinguish.
-
-## Next sequence
-
-1. Qualify the two current Alloy models before merge.
-2. Extend the answer map only when a current production read is missing.
-3. For each retained family, hold all other information equal and ask Alloy for two worlds whose selected answer differs.
-4. Classify each family per answer as `WITNESS`, `DERIVABLE`, `QUERY-IRRELEVANT`, or `UNRESOLVED`.
-5. Add `Q_write` and `Q_safe` separately, especially for ActualReversal, RelationUnit and RelationDischarge.
-6. Only after the semantic basis stabilizes, resume `CapacityAuthority` / physical-topology work.
+Prefer Obs. 055, 059, 129, 177, 182, 183, 240/241 and current production proofs when they already determine the answer. Add a new observation only for a safety distinction left genuinely unresolved.
 
 ## Stop rule
 
-Do not optimize file count directly.
+Do not optimize file count directly, and do not count a mechanism once per semantic user.
 
 ```text
-minimal answer-determining semantics
-  -> required authority/failure boundaries
-  -> smallest safe physical topology
+wanted answers
+  -> independently observable distinctions
+  -> shared mechanics
+  -> write/safety obligations
+  -> authority boundaries
+  -> physical topology
 ```
 
-File count should be the result, not the premise.
+The target is the smallest world description that still gives every selected answer, not the smallest number of files.
