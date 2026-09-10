@@ -5,6 +5,11 @@
     "model": "experiments/242_current_read_answer_basis.als",
     "expected": {
       "showCurrentReadGraph": true,
+      "quantityMechanicSpansSemanticRegions": true,
+      "temporalMechanicSpansSemanticRegions": true,
+      "lifecycleMechanicSpansSemanticRegions": true,
+      "ReadSubjectsFitFourHouseholdRegions": false,
+      "MechanicsDetermineSemanticRegion": true,
       "CurrentCoverageBaseMatchesProductionComposition": false,
       "BudgetWindowBaseMatchesProductionComposition": false,
       "StockFlowAddsNoRetainedFamilyBeyondItsInputs": false,
