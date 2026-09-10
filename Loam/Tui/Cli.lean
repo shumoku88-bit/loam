@@ -521,7 +521,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           match Loam.Tui.ScheduledReplacement.initial? record with
           | .error message =>
               let next := { step.state with notice := message }
-              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot step.state)
+              let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               hraScheduledLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
@@ -665,7 +665,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           match Loam.Tui.ScheduledReplacement.initial? record with
           | .error message =>
               let next := { step.state with notice := message }
-              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot step.state)
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>

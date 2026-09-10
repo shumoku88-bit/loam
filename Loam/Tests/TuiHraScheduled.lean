@@ -89,6 +89,13 @@ def main : IO Unit := do
     "HRA Scheduled heading was not rendered"
   expect (contains "Selected Scheduled Details:" viewText && contains "scheduled-1" viewText)
     "HRA Scheduled details did not render selected occurrence information"
+  let refusalMessage :=
+    "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY replacement editor."
+  let refusedState := { second with notice := refusalMessage }
+  let refusedText := widgetText
+    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot refusedState)
+  expect (contains refusalMessage refusedText)
+    "HRA Scheduled did not render a Scheduled replacement refusal notice from its current state"
 
   -- 4. Cycle Filter expands to allCurrent
   let allCurrent := (Loam.Tui.HraScheduled.update snapshot second .cycleFilter).state
