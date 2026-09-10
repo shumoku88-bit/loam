@@ -3,7 +3,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.CurrentCoverageInspection
 import Loam.CapacityReview
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.CapacityPersistence
