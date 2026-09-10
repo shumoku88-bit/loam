@@ -2,13 +2,13 @@ module experiments/observation_242_current_read_answer_basis
 
 -- Observation 242: current read answer basis
 --
--- Reconstruct the current product from answers first.  This model deliberately
--- contains no file, sidecar, manifest, codec, or module concept.  It records the
+-- Reconstruct the current product from answers first. This model deliberately
+-- contains no file, sidecar, manifest, codec, or module concept. It records the
 -- production dependency graph between retained household information, caller /
 -- replaceable-query inputs, intermediate answers, and user-visible read answers.
 --
 -- This is a structural provenance model, not yet a behavioral proof that every
--- listed retained family is semantically indispensable.  Later observations can
+-- listed retained family is semantically indispensable. Later observations can
 -- challenge one retained family at a time with two-world counterexamples.
 
 abstract sig Node {
@@ -41,13 +41,13 @@ one sig EventFact,
         AttentionClosure extends Retained {}
 
 -- Retained families selected by current authority machinery but not required by
--- the read-answer graph below.  They remain candidates for Q_write / safety.
+-- the read-answer graph below. They remain candidates for Q_write / Q_safe.
 one sig ActualReversal,
         RelationUnit,
         RelationDischarge extends Retained {}
 
 -- Inputs that select or condition an answer but are not historical household
--- facts.  Their physical source may be config, the caller, or the environment.
+-- facts. Their physical source may be config, the caller, or the environment.
 one sig BalanceSelection,
         WindowCoordinate,
         ObservationDate,
@@ -63,18 +63,24 @@ one sig EffectiveEntitlement,
         CycleFundingSummary extends Intermediate {}
 
 -- Current user-visible / administration read answers represented in production.
+-- AccountingUnavailable and LiquidityUnknown are deliberate evidence-limit
+-- answers: current production exposes them without pretending it has canonical
+-- information sufficient for a stronger report.
 one sig ActualRecords,
         ScheduledOpen,
         ScheduledDay,
         Balance,
         CapacityAllHistory,
+        BudgetWindow,
         CurrentCoverage,
         ActualRoutingAdministration,
         StockFlow,
         TransactionsFlow,
         ConditionalBalancePath,
         CycleBudget,
-        AttentionOpen extends Observable {}
+        AttentionOpen,
+        AccountingUnavailable,
+        LiquidityUnknown extends Observable {}
 
 fact LeavesHaveNoDependencies {
   no (Retained + QueryInput).requires
@@ -100,6 +106,12 @@ fact CurrentProductionReadDependencies {
 
   -- CapacityReview's all-history view does not use effective coordinates.
   CapacityAllHistory.requires = CapacityMovement
+
+  -- Historical BudgetWindow composes windowed Capacity entitlement with
+  -- correction-aware, validity-aware, historically routed Actual consumption.
+  BudgetWindow.requires =
+    CapacityMovement + CapacityEffective + EventFact + EventCorrection +
+    ActualValidity + ActualRouting + WindowCoordinate
 
   -- CurrentCoverageInspection factors through exactly these three computed
   -- quantities / frontiers. Remaining and Headroom are arithmetic results of
@@ -138,6 +150,12 @@ fact CurrentProductionReadDependencies {
   -- Attention availability is explicitly separate from lifecycle meaning.
   AttentionOpen.requires =
     AttentionItem + AttentionClosure + AttentionSourceAvailability
+
+  -- These are current product answers precisely because stronger claims are not
+  -- justified. They do not earn new retained household facts merely to render
+  -- the words UNAVAILABLE / UNKNOWN.
+  no AccountingUnavailable.requires
+  no LiquidityUnknown.requires
 }
 
 fact DependencyGraphIsAcyclic {
@@ -154,8 +172,9 @@ fun queryBase[a: Answer] : set QueryInput {
 
 fun readVocabulary : set Observable {
   ActualRecords + ScheduledOpen + ScheduledDay + Balance + CapacityAllHistory +
-  CurrentCoverage + ActualRoutingAdministration + StockFlow + TransactionsFlow +
-  ConditionalBalancePath + CycleBudget + AttentionOpen
+  BudgetWindow + CurrentCoverage + ActualRoutingAdministration + StockFlow +
+  TransactionsFlow + ConditionalBalancePath + CycleBudget + AttentionOpen +
+  AccountingUnavailable + LiquidityUnknown
 }
 
 fun allReadRetained : set Retained {
@@ -177,6 +196,12 @@ assert CurrentCoverageBaseMatchesProductionComposition {
     ScheduledReplacement + AccountingRole + ScheduledRouting
 }
 
+assert BudgetWindowBaseMatchesProductionComposition {
+  retainedBase[BudgetWindow] =
+    CapacityMovement + CapacityEffective + EventFact + EventCorrection +
+    ActualValidity + ActualRouting
+}
+
 assert StockFlowAddsNoRetainedFamilyBeyondItsInputs {
   retainedBase[StockFlow] = retainedBase[Balance] + retainedBase[ActualRecords]
 }
@@ -190,8 +215,13 @@ assert ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled {
     retainedBase[Balance] + retainedBase[ScheduledOpen]
 }
 
+assert EvidenceLimitReportsAddNoRetainedBasis {
+  no retainedBase[AccountingUnavailable]
+  no retainedBase[LiquidityUnknown]
+}
+
 -- These selected families may still be required by mutation admission,
--- publication, integrity, or recovery.  The narrower result here is only that
+-- publication, integrity, or recovery. The narrower result here is only that
 -- the reconstructed current READ answer graph does not consume them.
 assert MutationOnlyCandidatesAreAbsentFromReadBasis {
   no (ActualReversal + RelationUnit + RelationDischarge) & allReadRetained
@@ -199,7 +229,7 @@ assert MutationOnlyCandidatesAreAbsentFromReadBasis {
 
 -- Relative to the declared production dependency graph, its union is
 -- inclusion-minimal: removing one member necessarily leaves at least one read
--- answer without one of its declared retained prerequisites.  This is not yet a
+-- answer without one of its declared retained prerequisites. This is not yet a
 -- semantic indispensability proof; the prerequisites themselves are challenged
 -- in later two-world models.
 assert DeclaredReadBasisIsInclusionMinimal {
@@ -209,16 +239,18 @@ assert DeclaredReadBasisIsInclusionMinimal {
     all answer: readVocabulary | retainedBase[answer] in basis
 }
 
-run showCurrentReadGraph for 40 but exactly 1 EventFact, exactly 1 ActualValidity,
+run showCurrentReadGraph for 44 but exactly 1 EventFact, exactly 1 ActualValidity,
   exactly 1 EventDescription, exactly 1 EventCorrection, exactly 1 ZeroOriginCoverage,
   exactly 1 CapacityMovement, exactly 1 CapacityEffective, exactly 1 ActualRouting,
   exactly 1 LocusAdmission, exactly 1 AccountingRole, exactly 1 ScheduledOccurrence,
   exactly 1 ScheduledCompletion, exactly 1 ScheduledRetirement, exactly 1 ScheduledReplacement,
   exactly 1 ScheduledRouting, exactly 1 AttentionItem, exactly 1 AttentionClosure,
   exactly 1 ActualReversal, exactly 1 RelationUnit, exactly 1 RelationDischarge
-check CurrentCoverageBaseMatchesProductionComposition for 40
-check StockFlowAddsNoRetainedFamilyBeyondItsInputs for 40
-check TransactionsFlowAddsNoRetainedFamilyBeyondActualReview for 40
-check ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled for 40
-check MutationOnlyCandidatesAreAbsentFromReadBasis for 40
-check DeclaredReadBasisIsInclusionMinimal for 40
+check CurrentCoverageBaseMatchesProductionComposition for 44
+check BudgetWindowBaseMatchesProductionComposition for 44
+check StockFlowAddsNoRetainedFamilyBeyondItsInputs for 44
+check TransactionsFlowAddsNoRetainedFamilyBeyondActualReview for 44
+check ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled for 44
+check EvidenceLimitReportsAddNoRetainedBasis for 44
+check MutationOnlyCandidatesAreAbsentFromReadBasis for 44
+check DeclaredReadBasisIsInclusionMinimal for 44
