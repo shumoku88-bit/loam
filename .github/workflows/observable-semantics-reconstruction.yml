@@ -5,6 +5,7 @@ on:
     paths:
       - 'experiments/242_current_read_answer_basis.als'
       - 'experiments/243_current_coverage_answer_basis.als'
+      - 'experiments/244_scheduled_terminal_recompression.als'
       - 'tools/observable_semantics_manifest.json'
       - 'tools/run-alloy-manifest.py'
       - '.github/workflows/observable-semantics-reconstruction.yml'
