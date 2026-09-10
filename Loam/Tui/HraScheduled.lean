@@ -23,7 +23,8 @@ inductive Pane where
 structure State where
   focusDate : String
   scope : Scope := .focusDay
-  pane : Pane := .loci
+  /-- Scheduled occurrences are the primary browse target; Loci remain an explicit filter pane. -/
+  pane : Pane := .occurrences
   locusRow : Nat := 0
   occurrenceRow : Nat := 0
   notice : String := ""

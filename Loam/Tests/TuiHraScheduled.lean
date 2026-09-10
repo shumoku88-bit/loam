@@ -72,9 +72,10 @@ def main : IO Unit := do
   expect ((Loam.Tui.HraScheduled.recordsForScope snapshot start).length == 2)
     "HRA Scheduled Focus Day did not return the two scheduled occurrences on 2026-09-07"
 
-  -- 2. Pane navigation & Occurrence selection
-  let focused := (Loam.Tui.HraScheduled.update snapshot start .focusRight).state
-  let second := (Loam.Tui.HraScheduled.update snapshot focused .next).state
+  -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
+  expect (start.pane == .occurrences)
+    "HRA Scheduled did not open on the Scheduled occurrences pane"
+  let second := (Loam.Tui.HraScheduled.update snapshot start .next).state
   match Loam.Tui.HraScheduled.selectedRecord? snapshot second with
   | none => throw (IO.userError "HRA Scheduled occurrence selection disappeared")
   | some record =>
@@ -93,6 +94,8 @@ def main : IO Unit := do
   let allCurrent := (Loam.Tui.HraScheduled.update snapshot second .cycleFilter).state
   expect ((Loam.Tui.HraScheduled.recordsForScope snapshot allCurrent).length == 3)
     "HRA Scheduled filter cycle did not expand to all current-open Scheduled occurrences"
+  expect (allCurrent.pane == .occurrences)
+    "HRA Scheduled scope change moved focus into the Locus filter pane"
 
   let allCurrentText := widgetText (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot allCurrent)
   expect (contains "All Current-Open" allCurrentText)
