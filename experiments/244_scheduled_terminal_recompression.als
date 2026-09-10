@@ -1,24 +1,19 @@
 module experiments/observation_244_scheduled_terminal_recompression
 
--- Observation 244: modern Scheduled terminal re-compression pressure
+-- Observation 244
 --
 -- Observation 105 represented completion, retirement and replacement as one
 -- target-preserving LifecycleEdge. Production later realized those meanings as
--- three typed memories. This model asks the answer-first question again against
--- the mature read contract, including dangling completion activation, unknown
--- references, replacement cycles and cross-kind terminal conflicts.
---
--- It deliberately models no file, codec, publisher or migration shape.
+-- three typed memories. Re-test that smaller representation against the mature
+-- current-open contract without choosing a file, codec, writer, or migration.
 
 abstract sig Endpoint {}
 sig Scheduled extends Endpoint {}
 sig Event extends Endpoint {}
 
--- One raw target-preserving Scheduled terminal fact.
---
--- target Event      => completion
--- target Scheduled  => replacement
--- no target         => retirement
+-- Event target      = completion
+-- Scheduled target  = replacement
+-- no target         = retirement
 sig TerminalEdge {
   source : one Scheduled,
   target : lone Endpoint
@@ -38,30 +33,24 @@ one sig OpenResult,
         InvalidReplacementGraph,
         ConflictingTerminalEvidence extends ReviewResult {}
 
--- Mirror the current per-family Core uniqueness boundaries while allowing the
--- same cross-kind conflict that production ScheduledInspection detects after
--- loading the three individual memories.
-fact RawTerminalMemoryShape {
-  all edge : TerminalEdge |
-    edge.target != edge.source
+-- Preserve the current per-family endpoint uniqueness while still permitting
+-- cross-kind conflict as raw input for fail-closed review.
+fact RawShape {
+  all edge : TerminalEdge | edge.target != edge.source
 
-  all w : World | {
-    all s : Scheduled | {
-      lone { edge : w.terminals | edge.source = s and edge.target in Event }
-      lone { edge : w.terminals | edge.source = s and no edge.target }
-      lone { edge : w.terminals | edge.source = s and edge.target in Scheduled }
-    }
-
-    all actual : Event |
-      lone { edge : w.terminals | edge.target = actual }
-
-    all successor : Scheduled |
-      lone { edge : w.terminals | edge.target = successor }
+  all w : World, s : Scheduled | {
+    lone { edge : w.terminals | edge.source = s and edge.target in Event }
+    lone { edge : w.terminals | edge.source = s and no edge.target }
+    lone { edge : w.terminals | edge.source = s and edge.target in Scheduled }
   }
+
+  all w : World, actual : Event |
+    lone { edge : w.terminals | edge.target = actual }
+
+  all w : World, successor : Scheduled |
+    lone { edge : w.terminals | edge.target = successor }
 }
 
--- The three current production facets are projections of one target-typed edge
--- relation; no extra lifecycle kind field is needed.
 fun completions[w : World] : Scheduled -> Event {
   { s : Scheduled, actual : Event |
     some edge : w.terminals |
@@ -112,8 +101,8 @@ pred replacementEndpointsKnownByEdges[w : World] {
 }
 
 pred terminalConflictByEdges[w : World] {
-  some s : Scheduled |
-    # { edge : w.terminals | edge.source = s } > 1
+  some s : Scheduled, disj left, right : w.terminals |
+    left.source = s and right.source = s
 }
 
 pred completionSourcesKnownByFacets[w : World] {
@@ -150,8 +139,6 @@ fun reviewByEdges[w : World] : one ReviewResult {
   OpenResult
 }
 
--- Same decision order as the current replacement-aware Scheduled inspection,
--- but phrased through the three legacy facet projections.
 fun reviewByFacets[w : World] : one ReviewResult {
   (not completionSourcesKnownByFacets[w]) => UnknownCompletionScheduled else
   (not retirementSourcesKnownByFacets[w]) => UnknownRetirementScheduled else
@@ -161,10 +148,10 @@ fun reviewByFacets[w : World] : one ReviewResult {
   OpenResult
 }
 
+-- A completion becomes terminal only when its Actual endpoint is retained.
 fun effectiveCompleted[w : World] : set Scheduled {
   { s : w.scheduled |
-    some actual : Event |
-      s->actual in completions[w] and actual in w.events
+    some actual : w.events | s->actual in completions[w]
   }
 }
 
@@ -178,22 +165,20 @@ fun openByEdges[w : World] : set Scheduled {
       edge.source = s and
       (no edge.target
        or edge.target in Scheduled
-       or (edge.target in Event and edge.target in w.events))
+       or edge.target in w.events)
   }
 }
 
 pred representativeMatureLifecycle {
   some w : World | {
     reviewByEdges[w] = OpenResult
-    some completedSources[w]
+    some effectiveCompleted[w]
     some retirements[w]
     some replacementSources[w]
     some openByEdges[w]
   }
 }
 
--- Current publication permits a completion relation to exist before its Actual
--- endpoint becomes authoritative. It remains inert for the open-set answer.
 pred danglingCompletionStaysOpen {
   some w : World, s : w.scheduled, actual : Event - w.events | {
     s->actual in completions[w]
@@ -222,7 +207,7 @@ pred crossKindConflictVisible {
   some w : World | reviewByEdges[w] = ConflictingTerminalEvidence
 }
 
--- A plain closed/open summary loses which terminal meaning happened.
+-- A closed/open summary loses terminal meaning.
 pred sameTerminalSourcesDifferentMeaning {
   some disj left, right : World | {
     left.scheduled = right.scheduled
@@ -234,8 +219,7 @@ pred sameTerminalSourcesDifferentMeaning {
   }
 }
 
--- Even keeping completion/retirement/replacement source kinds is too small when
--- the target identity differs.
+-- Kind/source summaries still lose completion/replacement target identity.
 pred sameKindsDifferentTargetProvenance {
   some disj left, right : World | {
     left.scheduled = right.scheduled
@@ -255,8 +239,7 @@ assert TargetTypedEdgePartitionsCurrentFacets {
 }
 
 assert EdgeAndFacetFailureClassificationAgree {
-  all w : World |
-    reviewByEdges[w] = reviewByFacets[w]
+  all w : World | reviewByEdges[w] = reviewByFacets[w]
 }
 
 assert EdgeAndFacetCurrentOpenAgree {
@@ -265,9 +248,6 @@ assert EdgeAndFacetCurrentOpenAgree {
       openByEdges[w] = openByFacets[w]
 }
 
--- Once the target-preserving facet projections and retained endpoint sets are
--- fixed, the mature read answer is fixed. There is no additional lifecycle
--- state hidden behind the three current memory names.
 assert TargetPreservingLifecycleDeterminesReadAnswer {
   all left, right : World |
     left.scheduled = right.scheduled and
@@ -280,17 +260,17 @@ assert TargetPreservingLifecycleDeterminesReadAnswer {
     }
 }
 
-run representativeMatureLifecycle for 8 but exactly 8 Scheduled, exactly 4 Event, 12 TerminalEdge, 3 World, 5 Int
-run danglingCompletionStaysOpen for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run unknownCompletionSourceVisible for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run unknownRetirementSourceVisible for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run unknownReplacementEndpointVisible for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run replacementCycleVisible for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run crossKindConflictVisible for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 2 World, 5 Int
-run sameTerminalSourcesDifferentMeaning for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
-run sameKindsDifferentTargetProvenance for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
+run representativeMatureLifecycle for exactly 5 Scheduled, exactly 2 Event, 5 TerminalEdge, exactly 1 World
+run danglingCompletionStaysOpen for exactly 2 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 1 World
+run unknownCompletionSourceVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
+run unknownRetirementSourceVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
+run unknownReplacementEndpointVisible for exactly 3 Scheduled, exactly 1 Event, 3 TerminalEdge, exactly 1 World
+run replacementCycleVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
+run crossKindConflictVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
+run sameTerminalSourcesDifferentMeaning for exactly 2 Scheduled, exactly 1 Event, 3 TerminalEdge, exactly 2 World
+run sameKindsDifferentTargetProvenance for exactly 1 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 2 World
 
-check TargetTypedEdgePartitionsCurrentFacets for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
-check EdgeAndFacetFailureClassificationAgree for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
-check EdgeAndFacetCurrentOpenAgree for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
-check TargetPreservingLifecycleDeterminesReadAnswer for 6 but 6 Scheduled, 4 Event, 8 TerminalEdge, 3 World, 5 Int
+check TargetTypedEdgePartitionsCurrentFacets for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check EdgeAndFacetFailureClassificationAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check EdgeAndFacetCurrentOpenAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check TargetPreservingLifecycleDeterminesReadAnswer for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
