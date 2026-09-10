@@ -13,7 +13,7 @@ system:
 
 > What is the smallest independently retained household information from which
 > every currently admitted observable operation can still produce the same
-> result?
+> semantic result?
 
 This is deliberately stronger than source-line or file-count cleanup.
 
@@ -35,26 +35,53 @@ For household worlds `h1` and `h2`:
 h1 ~Q h2
 iff
 for every q in Q and admitted input x,
-observableResult(q, x, h1) = observableResult(q, x, h2)
+semanticResult(q, x, h1) = semanticResult(q, x, h2)
 ```
 
 This matters because some retained information changes whether a future write is
 admitted even when no current read value changes. `LocusAdmission` is the clearest
 example.
 
-Likewise, a missing authority may be observably different from an explicit empty
-authority at a writer boundary. Current Correction publication treats missing
-Actual Reversal authority as unavailable, not as an empty reversal relation.
+Likewise, an unavailable authority may be observably different from an explicit
+empty authority at a writer boundary. Current Correction publication, for
+example, refuses when Reversal evidence is unavailable because it cannot establish
+independence from reversal semantics.
 
-Therefore the audit must preserve all currently observable:
+Therefore the audit must preserve independently earned differences in:
 
 ```text
-value differences
-availability / refusal differences
-unresolved / unknown differences
-admission differences
-publication result differences
+values
+availability / refusal
+unresolved / unknown state
+admission
+publication result
 ```
+
+### Q must be physical-topology neutral
+
+Current filesystem behavior is evidence for semantic/authority distinctions. It
+is not itself the vocabulary to preserve.
+
+Do not automatically put observations such as these into `Q`:
+
+```text
+file X exists
+file X has this sibling filename
+this exact path is missing
+this exact error string mentions a file
+```
+
+Normalize them to the independently meaningful result when one exists:
+
+```text
+Reversal evidence unavailable
+Capacity effective evidence incomplete
+known-empty Scheduled retirement evidence
+malformed selected authority
+```
+
+Otherwise the current physical layout would prove its own necessity and the
+audit could never discover that file topology had pulled the design.
 
 ## 3. Current `Q` — first production inventory
 
@@ -117,9 +144,18 @@ not automatically retained canonical state.
 
 ### Relation / Attention / reporting
 
-Production code still contains observable relation-frontier and discharge
-operations and Attention/report surfaces. These must be traced to their selected
-operational authorities before the retained-family table is considered complete.
+Open-relation and relation-discharge evidence remain part of the explicit
+scriptable Movement entrance, so their production operations stay inside `Q` even
+though the current selected household images are empty.
+
+Attention support exists in Core/Application/TUI, but the current `loam-data`
+snapshot has no `attention.loam`. The production review therefore observes source
+unavailability rather than selected retained Attention evidence. Attention should
+not be counted as part of the **current retained household basis** merely because
+the executable can consume it if configured later.
+
+Report surfaces remain projections unless a retained distinction is separately
+earned by one of their underlying questions.
 
 ### Replaceable configuration / presentation metadata
 
@@ -144,7 +180,7 @@ For each independently retained semantic family `f`, seek one of four results:
 WITNESS
   same retained basis without f
   + two richer worlds
-  + some operation in Q has a different observable result
+  + some operation in Q has a different semantic result
 
 DERIVABLE
   reconstruct f's entire Q-visible contribution from the other retained basis
@@ -165,37 +201,68 @@ family is empty today.
 
 ## 5. Initial semantic-family table
 
-This table is intentionally preliminary. `WITNESS TARGET` means the current code
-already exposes a likely distinguishing operation, but a minimal synthetic witness
-still needs to be recorded before the audit closes that row.
+`WITNESS TARGET` means the current code already exposes a likely distinguishing
+operation, but a minimal synthetic witness still needs to be recorded before the
+audit closes that row.
 
-| Retained meaning / policy | Initial status | Distinguishing pressure to formalize |
+| Retained meaning / policy | Current audit status | Distinguishing pressure |
 | --- | --- | --- |
 | Event + signed Effects | WITNESS TARGET | recorded quantity, journal, every Movement-derived projection |
 | Actual validity / occurrence coordinate | WITNESS TARGET | dated review, windowed consumption/reporting, date correction |
 | Event description | WITNESS TARGET | human review/search result differs while quantities agree |
-| RelationUnit | WITNESS TARGET | open relation operation if production surface remains admitted |
-| RelationDischarge | WITNESS TARGET | discharge/open-frontier answer if production surface remains admitted |
+| RelationUnit | WITNESS TARGET | explicit open-relation Movement operation |
+| RelationDischarge | WITNESS TARGET | explicit relation-discharge Movement operation/frontier |
 | Locus admission policy | WITNESS TARGET | same household facts, different Movement admission outcome |
 | Event correction | WITNESS TARGET | same raw Events, different effective/current quantity |
 | Actual reversal | WITNESS TARGET | reversal result and Correction independence/refusal boundary |
 | Actual routing | WITNESS TARGET | same Actual facts, different Purpose consumption/history answer |
-| Zero-origin coverage | WITNESS TARGET | same Event history, `current q` vs `coverageMissing` |
+| Zero-origin coverage | **WITNESS — Observation 242** | same Event/Correction world, exact current zero vs `coverageMissing` |
 | Capacity movement | WITNESS TARGET | same Actual facts, different entitlement/remaining/headroom |
-| Capacity effective coordinate | WITNESS TARGET | same Capacity movements, different windowed answer |
+| Capacity effective coordinate | **WITNESS — Observation 243** | same Capacity movement, different windowed Entitlement |
 | AccountingRole classification | WITNESS TARGET | same Scheduled/routing, pressure vs non-pressure vs unresolved |
 | Scheduled occurrence | WITNESS TARGET | current-open / commitment / future answer |
 | Scheduled completion | WITNESS TARGET | same occurrence and Actual, open vs completed |
 | Scheduled retirement | WITNESS TARGET | same occurrence, open vs retired |
 | Scheduled replacement | WITNESS TARGET | same occurrences, different current replacement frontier |
 | Scheduled routing | WITNESS TARGET | same Scheduled facts, different managed/unmanaged commitment |
-| Attention item / closure | UNRESOLVED | confirm current selected production authority and admitted operations |
+| Attention item / closure | **NOT CURRENTLY RETAINED** | current production source is unavailable in `loam-data` |
 | presentation/config metadata | NOT COUNTED AS HOUSEHOLD FACT YET | current query/UI input; historical retention still unearned |
 
 This is not a claim that every listed row deserves an independent physical file,
 manifest member, writer, or package.
 
-## 6. Derived vocabulary already showing the desired compression shape
+## 6. First closed global witnesses
+
+### Observation 242 — ZeroOriginCoverage
+
+Two worlds retain identical empty Event and Correction evidence and differ only in
+whether `cash/jpy` has explicit zero-origin coverage.
+
+```text
+covered   -> current 0
+uncovered -> coverageMissing
+```
+
+Therefore coverage remains independently Q-observable. This earns **KEEP
+MEANING**, not the current coverage filename or wire shape.
+
+### Observation 243 — Capacity effective coordinate
+
+Two worlds retain one identical Capacity movement and differ only in its effective
+coordinate. One effective coordinate falls inside `[0, 2)`, the other outside.
+
+```text
+inside  -> Entitlement 100
+outside -> Entitlement 0
+```
+
+Therefore effective-time evidence remains independently Q-observable. This earns
+**KEEP MEANING**, not a separate `.effective` companion file.
+
+Both witnesses use current production types and projections rather than inventing
+a parallel audit ontology.
+
+## 7. Derived vocabulary already showing the desired compression shape
 
 Several useful household nouns are already intentionally absent from retained
 state:
@@ -222,7 +289,7 @@ rich household answer
 The global audit asks whether the same treatment can be pushed further into the
 currently retained basis itself.
 
-## 7. Semantic basis and physical topology are separate search spaces
+## 8. Semantic basis and physical topology are separate search spaces
 
 The audit must not let current filenames answer semantic questions.
 
@@ -249,7 +316,7 @@ known-empty evidence is not the same as a missing file
 same record shape is not the same semantic authority
 ```
 
-### Physical-topology hypothesis to test later
+### Physical-topology hypothesis to test
 
 A current file boundary is earned only if removing or moving that boundary loses
 an observable safety/operational property after semantic meaning and authority
@@ -272,56 +339,54 @@ pressure rather than semantic authority.
 Conversely, reducing the file count is not valid if the reduction silently merges
 one of those observable properties.
 
-This is the point where file topology may be found to have pulled the design: a
-historical physical split may have acquired types, codecs, publishers, tests, and
-vocabulary that look semantic only because the file existed. The audit must test
-that possibility rather than assume it.
+A historical physical split may have acquired types, codecs, publishers, tests,
+and vocabulary that look semantic only because the file existed. The audit must
+test that possibility rather than assume it.
 
-## 8. First concrete boundary: Actual Reversal empty authority
+## 9. First concrete topology pressure
 
-The current household `actual-reversals.loam` is explicitly empty.
-
-That does **not** make Actual Reversal semantics dispensable. Current Correction
-publication intentionally distinguishes:
+Observation 241 establishes only the factorization needed for this phase:
 
 ```text
-explicit complete empty reversal authority
-    -> Correction may prove there is no reversal conflict
-
-missing reversal authority
-    -> Correction refuses: independence cannot be proved
+known-empty Reversal authority != unavailable Reversal authority
 ```
 
-So the immediate question is not:
+for the selected Correction-like operation, while a representative physical
+container change is invisible when decoded authority state is preserved.
 
-> Can we delete the empty file?
+Production tracing then found stronger concrete pressure:
 
-It is:
+- `CorrectionPublisher` derives `actual-reversals.loam` from the Correction
+  filename instead of receiving a topology-neutral Reversal authority;
+- Capacity derives `.effective` from the Capacity filename;
+- Capacity movement and effective evidence already share one writer-ownership
+  domain and a dependent-evidence-before-activation publication order;
+- file/path assumptions are visible in review and TUI wiring above persistence;
+- physical absence has different meanings across families and even across
+  operations.
 
-> What is the minimum retained/authority state needed to preserve the distinction
-> between known-empty Reversal evidence and unavailable Reversal evidence, and
-> does that distinction require its own physical file?
+The detailed census is in
+`docs/research/PHYSICAL_TOPOLOGY_PRESSURE_2026-09-10.md`.
 
-This is the model for later topology work: preserve meaning first, then challenge
-the file.
+## 10. Next formal steps
 
-## 9. Next formal steps
+### Step A — continue semantic witnesses without duplicating old research
 
-### Step A — minimal semantic witnesses
+Prefer reusing existing qualified observations when they already provide the exact
+global collision. Add a new small proof only where the combined current basis
+needs a new witness.
 
-Start with small bounded worlds for high-leverage rows:
+Next high-leverage rows:
 
-1. ZeroOriginCoverage;
-2. Actual Reversal availability;
-3. Capacity effective evidence;
-4. Scheduled terminal evidence;
-5. AccountingRole fallback for Scheduled pressure.
-
-For each row, ask Alloy for a collision after erasure/quotienting.
+1. AccountingRole fallback for Scheduled pressure;
+2. Scheduled terminal evidence as one combined lifecycle witness set;
+3. ActualRouting versus derived Consumption;
+4. LocusAdmission as a write-vocabulary witness;
+5. ActualReversal semantics separately from its current file representation.
 
 ### Step B — authority-state factorization
 
-Separate:
+Continue separating:
 
 ```text
 family meaning
@@ -329,25 +394,26 @@ family availability / explicit emptiness
 physical container presence
 ```
 
-Search for counterexamples to any representation that identifies two currently
-observable authority states.
+The missing-file census already shows that `pathExists` cannot serve as one
+universal semantic bottom value.
 
 ### Step C — physical-topology invariance
 
-Only after A and B, model a mapping from semantic families/atomic groups to
-physical containers. A topology change is representation-only when every `Q`
-answer and required publication/failure property is invariant under that mapping.
+After enough semantic rows close, model mappings from semantic families/atomic
+groups to physical containers. A topology change is representation-only when
+every topology-neutral `Q` result and required publication/failure property is
+invariant under that mapping.
 
 ### Step D — real-data shadow
 
 Against one exact `loam-data` snapshot, materialize candidate semantic bases and
-physical layouts in scratch only. Compare the complete selected observable-result
-vector. Real-data equality supplements, but never replaces, the bounded synthetic
-counterexample search.
+physical layouts in scratch only. Compare the complete selected semantic-result
+vector. Real-data equality supplements, but never replaces, synthetic
+counterexample pressure.
 
-## 10. Stop rule
+## 11. Stop rule
 
-Do not optimize this:
+Do not optimize this directly:
 
 ```text
 number of files
