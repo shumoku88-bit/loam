@@ -40,13 +40,9 @@ private def occurrence (id day fromLocus toLocus : String) (amount : Int) :
 
 private def lifecycleFromScheduled
     (scheduled : ScheduledMemory String) : IO Loam.Persistence.ScheduledLifecycleImage := do
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty terminal memory")
+  return { scheduled, terminals }
 
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
@@ -69,6 +65,12 @@ private def completionDraft
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (token : String) : Bool :=
   records.any fun record => record.id.token == token
+
+private def completionCount (memory : ScheduledTerminalMemory) : Nat :=
+  (memory.terminals.filterMap fun terminal =>
+    match terminal.target with
+    | some (.actual event) => some (terminal.source, event)
+    | _ => none).length
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
@@ -103,8 +105,11 @@ def main (args : List String) : IO Unit := do
   let some retainedLifecycle ←
       Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after completion")
-  expect (retainedLifecycle.completions.completions.length == 1)
+  expect (completionCount retainedLifecycle.terminals == 1)
     "completion relation was not retained exactly once"
+  expect (ScheduledTerminalMemory.completionActualFor?
+      retainedLifecycle.terminals ⟨"scheduled-1"⟩ == some completion.actual)
+    "completion relation lost its Actual endpoint"
 
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
     | throw (IO.userError "load manifest Actual review")
@@ -138,30 +143,31 @@ def main (args : List String) : IO Unit := do
 
   let some currentLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle for recovery fixture")
-  let interrupted : ScheduledCompletion := {
-    scheduled := ⟨"scheduled-3"⟩
-    actual := ⟨"scheduled-completion:scheduled-3"⟩ }
-  let some withInterrupted := currentLifecycle.completions.add? interrupted
+  let interrupted : ScheduledTerminal := {
+    source := ⟨"scheduled-3"⟩
+    target := some (.actual ⟨"scheduled-completion:scheduled-3"⟩) }
+  let some withInterrupted := currentLifecycle.terminals.add? interrupted
     | throw (IO.userError "append interrupted completion relation")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
-      { currentLifecycle with completions := withInterrupted })
+      { currentLifecycle with terminals := withInterrupted })
     "save lifecycle with interrupted completion relation"
   let .ok resumed ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-3" "2026-09-09" "smbc" "rent" 3100)
     | throw (IO.userError "resume relation-first completion")
   expect resumed.resumed "retained inert completion relation was not recovered"
-  expect (resumed.actual == interrupted.actual) "recovery changed retained Actual endpoint"
+  expect (resumed.actual == ⟨"scheduled-completion:scheduled-3"⟩)
+    "recovery changed retained Actual endpoint"
 
   let some recoveryLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle for cancellation guard")
-  let interruptedCancel : ScheduledCompletion := {
-    scheduled := ⟨"scheduled-4"⟩
-    actual := ⟨"scheduled-completion:scheduled-4"⟩ }
-  let some withInterruptedCancel := recoveryLifecycle.completions.add? interruptedCancel
+  let interruptedCancel : ScheduledTerminal := {
+    source := ⟨"scheduled-4"⟩
+    target := some (.actual ⟨"scheduled-completion:scheduled-4"⟩) }
+  let some withInterruptedCancel := recoveryLifecycle.terminals.add? interruptedCancel
     | throw (IO.userError "append cancellation guard relation")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
-      { recoveryLifecycle with completions := withInterruptedCancel })
+      { recoveryLifecycle with terminals := withInterruptedCancel })
     "save lifecycle with cancellation guard relation"
   let refusedCancel ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
     scheduledFile.toString root.toString { scheduled := ⟨"scheduled-4"⟩ }
@@ -181,8 +187,8 @@ def main (args : List String) : IO Unit := do
     "Locus-policy refusal changed selected Movement authority"
   let some afterPolicyLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after policy refusal")
-  expect ((ScheduledCompletionMemory.findByScheduled?
-      afterPolicyLifecycle.completions ⟨"scheduled-5"⟩).isNone)
+  expect ((ScheduledTerminalMemory.completionActualFor?
+      afterPolicyLifecycle.terminals ⟨"scheduled-5"⟩).isNone)
     "Locus-policy refusal retained a completion relation"
 
   IO.println "Scheduled Terminal Publisher: lifecycle completion, cancellation, relation-first cross-authority recovery, stale refusal and current Locus policy passed."

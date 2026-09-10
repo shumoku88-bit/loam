@@ -128,15 +128,13 @@ def main : IO Unit := do
   let scheduledMemory ← requireSome
     (ScheduledMemory.ofOccurrences? [s1, s2, s3, s4, s5, s6, s7, s8, s9])
     "Scheduled memory was not admitted"
-  let completionMemory ← requireSome
-    (ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"scheduled-6"⟩, actual := ⟨"actual-1"⟩ },
-       { scheduled := ⟨"scheduled-7"⟩, actual := ⟨"actual-not-yet-published"⟩ }])
-    "completion fixture was not admitted"
-  let retirementMemory ← requireSome
-    (ScheduledRetirementMemory.ofRetirements?
-      [{ scheduled := ⟨"scheduled-5"⟩ }])
-    "retirement fixture was not admitted"
+  let terminalMemory ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-6"⟩, target := some (.actual ⟨"actual-1"⟩) },
+       { source := ⟨"scheduled-7"⟩,
+         target := some (.actual ⟨"actual-not-yet-published"⟩) },
+       { source := ⟨"scheduled-5"⟩, target := none }])
+    "terminal fixture was not admitted"
 
   let scheduledRouting ← requireSome
     (RoutingHistory.ofEntries?
@@ -162,7 +160,7 @@ def main : IO Unit := do
 
   let commitment ← requireSome
     (currentScheduledCommitment?
-      scheduledMemory completionMemory retirementMemory events roles scheduledRouting
+      scheduledMemory terminalMemory events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat))
     "current Scheduled commitment failed closed"
 
@@ -181,7 +179,7 @@ def main : IO Unit := do
     (headroomAtCorrectionFrontier?
       [capacityMovement]
       events corrections validities actualRouting
-      scheduledMemory completionMemory retirementMemory roles scheduledRouting
+      scheduledMemory terminalMemory roles scheduledRouting
       food yen (2 : Nat) (4 : Nat))
     "headroom projection failed closed"
 
@@ -229,12 +227,9 @@ def main : IO Unit := do
       [incomeOccurrence, debtOccurrence, expenseOccurrence, savingsOccurrence,
        mysteryOccurrence, routedMysteryOccurrence])
     "eligibility Scheduled memory was not admitted"
-  let emptyCompletions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let emptyRetirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
+  let emptyTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let eligibilityRouting ← requireSome
     (RoutingHistory.ofEntries?
       [{ subject := subject "eligibility-savings" savings,
@@ -245,7 +240,7 @@ def main : IO Unit := do
 
   let eligibility ← requireSome
     (currentScheduledCommitment?
-      eligibilityMemory emptyCompletions emptyRetirements events roles
+      eligibilityMemory emptyTerminals events roles
       eligibilityRouting food yen (2 : Nat) (4 : Nat))
     "eligibility pressure projection failed closed"
 
@@ -261,13 +256,9 @@ def main : IO Unit := do
   expect (eligibility.unresolvedEligibility.quanta == 50)
     s!"expected unresolved eligibility 50, got {eligibility.unresolvedEligibility.quanta}"
 
-  let emptyReplacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements? [])
-    "empty replacement memory was not admitted"
-
   let unresolvedRows ← requireSome
-    (currentUnresolvedScheduledPressureWithReplacement?
-      eligibilityMemory emptyCompletions emptyRetirements emptyReplacements events roles
+    (currentUnresolvedScheduledPressure?
+      eligibilityMemory emptyTerminals events roles
       eligibilityRouting yen (2 : Nat) (4 : Nat))
     "unresolved Scheduled pressure rows failed closed"
   expect (unresolvedRows.length == 1)
@@ -287,42 +278,46 @@ def main : IO Unit := do
   | _ => throw <| IO.userError "unresolved rows returned unexpected structure"
 
   let fullyResolvedRows ← requireSome
-    (currentUnresolvedScheduledPressureWithReplacement?
-      scheduledMemory completionMemory retirementMemory emptyReplacements events roles scheduledRouting
+    (currentUnresolvedScheduledPressure?
+      scheduledMemory terminalMemory events roles scheduledRouting
       yen (2 : Nat) (4 : Nat))
     "fully resolved fixture unresolved rows projection failed closed"
   expect (fullyResolvedRows.isEmpty)
     s!"expected empty unresolved rows for fully classified fixture, got {fullyResolvedRows.length}"
 
   -- An unknown Scheduled endpoint makes the whole current-open answer invalid.
-  let unknownCompletion ← requireSome
-    (ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"unknown-scheduled"⟩, actual := ⟨"actual-1"⟩ }])
-    "unknown-reference completion fixture shape was not admitted"
+  let unknownTerminal ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"unknown-scheduled"⟩, target := some (.actual ⟨"actual-1"⟩) }])
+    "unknown-reference terminal fixture shape was not admitted"
   expect
     ((currentScheduledCommitment?
-      scheduledMemory unknownCompletion retirementMemory events roles scheduledRouting
+      scheduledMemory unknownTerminal events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "unknown Scheduled completion reference did not fail closed"
   expect
-    ((currentUnresolvedScheduledPressureWithReplacement?
-      scheduledMemory unknownCompletion retirementMemory emptyReplacements events roles scheduledRouting
+    ((currentUnresolvedScheduledPressure?
+      scheduledMemory unknownTerminal events roles scheduledRouting
       yen (2 : Nat) (4 : Nat)).isNone)
     "unknown Scheduled completion reference did not fail closed for unresolved rows"
 
   -- Conflicting completion and retirement evidence also refuses the whole view.
-  let conflictRetirement ← requireSome
-    (ScheduledRetirementMemory.ofRetirements?
-      [{ scheduled := ⟨"scheduled-6"⟩ }])
-    "conflicting retirement fixture shape was not admitted"
+  let conflictTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-6"⟩, target := some (.actual ⟨"actual-1"⟩) },
+       { source := ⟨"scheduled-7"⟩,
+         target := some (.actual ⟨"actual-not-yet-published"⟩) },
+       { source := ⟨"scheduled-5"⟩, target := none },
+       { source := ⟨"scheduled-6"⟩, target := none }])
+    "conflicting terminal fixture shape was not admitted"
   expect
     ((currentScheduledCommitment?
-      scheduledMemory completionMemory conflictRetirement events roles scheduledRouting
+      scheduledMemory conflictTerminals events roles scheduledRouting
       food yen (2 : Nat) (4 : Nat)).isNone)
     "conflicting Scheduled terminal evidence did not fail closed"
   expect
-    ((currentUnresolvedScheduledPressureWithReplacement?
-      scheduledMemory completionMemory conflictRetirement emptyReplacements events roles scheduledRouting
+    ((currentUnresolvedScheduledPressure?
+      scheduledMemory conflictTerminals events roles scheduledRouting
       yen (2 : Nat) (4 : Nat)).isNone)
     "conflicting Scheduled terminal evidence did not fail closed for unresolved rows"
 

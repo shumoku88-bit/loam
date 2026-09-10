@@ -40,13 +40,9 @@ private def occurrence
 
 private def lifecycleFromScheduled
     (scheduled : ScheduledMemory String) : IO Loam.Persistence.ScheduledLifecycleImage := do
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty terminal memory")
+  return { scheduled, terminals }
 
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
@@ -64,6 +60,12 @@ private def replacementDraft
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=
   records.any fun record => decide (record.id = id)
+
+private def replacementCount (memory : ScheduledTerminalMemory) : Nat :=
+  (memory.terminals.filterMap fun terminal =>
+    match terminal.target with
+    | some (.scheduled successor) => some (terminal.source, successor)
+    | _ => none).length
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
@@ -102,10 +104,10 @@ def main (args : List String) : IO Unit := do
 
   let some retained ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after replacement")
-  expect (retained.replacements.replacements.length == 1)
+  expect (replacementCount retained.terminals == 1)
     "fresh replacement relation was not retained exactly once"
-  expect (retained.replacements.replacements.any fun relation =>
-      relation.source.token == "scheduled-1" && relation.replacement == fresh.replacement)
+  expect (ScheduledTerminalMemory.replacementFor?
+      retained.terminals ⟨"scheduled-1"⟩ == some fresh.replacement)
     "fresh replacement relation lost its endpoints"
   expect ((ScheduledMemory.findById? retained.scheduled fresh.replacement).isSome)
     "replacement endpoint was not published in the same lifecycle image"
@@ -131,12 +133,12 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile scheduledFile) == beforeStale)
     "stale replacement changed the complete lifecycle image"
 
-  let brokenRelation : ScheduledReplacement := {
+  let brokenRelation : ScheduledTerminal := {
     source := ⟨"scheduled-2"⟩
-    replacement := ⟨"missing-endpoint"⟩ }
-  let some brokenRelations := retained.replacements.add? brokenRelation
+    target := some (.scheduled ⟨"missing-endpoint"⟩) }
+  let some brokenRelations := retained.terminals.add? brokenRelation
     | throw (IO.userError "construct malformed replacement graph fixture")
-  let brokenLifecycle := { retained with replacements := brokenRelations }
+  let brokenLifecycle := { retained with terminals := brokenRelations }
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
     "save structurally inconsistent complete lifecycle fixture"
   let brokenRead ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
@@ -161,7 +163,7 @@ def main (args : List String) : IO Unit := do
 
   let some finalLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload final lifecycle")
-  expect (finalLifecycle.replacements.replacements.length == 1)
+  expect (replacementCount finalLifecycle.terminals == 1)
     "stale or malformed refusal changed replacement relation count"
 
   IO.println "Scheduled Replacement Publisher: one-image publication, append-only provenance, malformed-world refusal and terminal refusal passed."
