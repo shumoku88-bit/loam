@@ -57,29 +57,39 @@ structure Step where
   state : State
   command : Command := .stay
 
+
 def initial (focusDate : String) : State :=
   { focusDate := focusDate }
 
 abbrev Record := ScheduledOccurrence String
 
+private def unavailableNotice? (snapshot : Snapshot) : Option String :=
+  match snapshot.scheduled with
+  | .error message => some ("[Unavailable] Scheduled: " ++ message)
+  | .ok _ => none
+
+
 def scopeRecordsResult (snapshot : Snapshot) (state : State) : Except String (List Record) :=
-  match state.scope with
-  | .focusDay =>
-      match Loam.ScheduledReview.dayEvidence snapshot.scheduled state.focusDate with
-      | .due first rest => .ok (first :: rest)
-      | .unknown => .ok []
-      | .unknownCompletionScheduled => .error "Scheduled completion evidence references an unknown identity."
-      | .unknownRetirementScheduled => .error "Scheduled retirement evidence references an unknown identity."
-      | .unknownReplacementScheduled => .error "Scheduled replacement evidence references an unknown identity."
-      | .invalidReplacementGraph => .error "Scheduled replacement topology is invalid."
-      | .conflictingTerminalEvidence => .error "Scheduled terminal evidence conflicts."
-  | .allCurrent =>
-      match Loam.ScheduledReview.currentOpenRecords snapshot.scheduled with
-      | .ok records =>
-          .ok (records.mergeSort fun left right =>
-            if left.scheduledOn = right.scheduledOn then left.id.token ≤ right.id.token
-            else left.scheduledOn ≤ right.scheduledOn)
-      | .error message => .error message
+  match snapshot.scheduled with
+  | .error message => .error message
+  | .ok scheduled =>
+      match state.scope with
+      | .focusDay =>
+          match Loam.ScheduledReview.dayEvidence scheduled state.focusDate with
+          | .due first rest => .ok (first :: rest)
+          | .unknown => .ok []
+          | .unknownCompletionScheduled => .error "Scheduled completion evidence references an unknown identity."
+          | .unknownRetirementScheduled => .error "Scheduled retirement evidence references an unknown identity."
+          | .unknownReplacementScheduled => .error "Scheduled replacement evidence references an unknown identity."
+          | .invalidReplacementGraph => .error "Scheduled replacement topology is invalid."
+          | .conflictingTerminalEvidence => .error "Scheduled terminal evidence conflicts."
+      | .allCurrent =>
+          match Loam.ScheduledReview.currentOpenRecords scheduled with
+          | .ok records =>
+              .ok (records.mergeSort fun left right =>
+                if left.scheduledOn = right.scheduledOn then left.id.token ≤ right.id.token
+                else left.scheduledOn ≤ right.scheduledOn)
+          | .error message => .error message
 
 def recordsForScope (snapshot : Snapshot) (state : State) : List Record :=
   match scopeRecordsResult snapshot state with
@@ -153,28 +163,40 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .focusLeft => { state := { state with pane := .loci, notice := "" } }
   | .focusRight => { state := { state with pane := .occurrences, notice := "" } }
   | .cycleFilter => { state := cycleFilter snapshot state }
-  | .createScheduled => { state, command := .createScheduled }
+  | .createScheduled =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none => { state, command := .createScheduled }
   | .completeScheduled =>
-      match state.pane with
-      | .loci => { state := { state with notice := "Complete is available from the Scheduled pane." } }
-      | .occurrences =>
-          match selectedRecord? snapshot state with
-          | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
-          | some _ => { state, command := .completeScheduled }
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          match state.pane with
+          | .loci => { state := { state with notice := "Complete is available from the Scheduled pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
+              | some _ => { state, command := .completeScheduled }
   | .replaceScheduled =>
-      match state.pane with
-      | .loci => { state := { state with notice := "Replace is available from the Scheduled pane." } }
-      | .occurrences =>
-          match selectedRecord? snapshot state with
-          | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
-          | some _ => { state, command := .replaceScheduled }
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          match state.pane with
+          | .loci => { state := { state with notice := "Replace is available from the Scheduled pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
+              | some _ => { state, command := .replaceScheduled }
   | .cancelScheduled =>
-      match state.pane with
-      | .loci => { state := { state with notice := "Cancel is available from the Scheduled pane." } }
-      | .occurrences =>
-          match selectedRecord? snapshot state with
-          | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for cancellation." } }
-          | some _ => { state, command := .cancelScheduled }
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          match state.pane with
+          | .loci => { state := { state with notice := "Cancel is available from the Scheduled pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for cancellation." } }
+              | some _ => { state, command := .cancelScheduled }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -206,7 +228,7 @@ private def occWindowStart (state : State) : Nat :=
 
 private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
-  else (lociForScope snapshot state)[row - 1]?
+  else (lociForScope snapshot state)[state.locusRow - 1]?
 
 private def paneRow (snapshot : Snapshot) (state : State)
     (leftWidth rightWidth row : Nat) : Widget :=
@@ -241,9 +263,15 @@ private def paneRow (snapshot : Snapshot) (state : State)
 private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   match selectedRecord? snapshot state with
   | none =>
-      [ plainLine " Selected Scheduled Details:"
-      , mutedLine "   (no Scheduled selected)"
-      ]
+      match scopeRecordsResult snapshot state with
+      | .error message =>
+          [ plainLine " Selected Scheduled Details:"
+          , plainLine ("   [Unavailable] " ++ message)
+          ]
+      | .ok _ =>
+          [ plainLine " Selected Scheduled Details:"
+          , mutedLine "   (no Scheduled selected)"
+          ]
   | some record =>
       [ plainLine " Selected Scheduled Details:"
       , plainLine ("   Identity    : " ++ record.id.token)
