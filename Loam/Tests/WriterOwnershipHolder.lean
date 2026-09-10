@@ -1,7 +1,7 @@
 import Loam.WriterOwnership
 import Std
 
-namespace Loam.Experiments.PracticalWriterOwnershipHolder
+namespace Loam.Tests.WriterOwnershipHolder
 
 set_option autoImplicit false
 
@@ -15,10 +15,10 @@ def run (args : List String) : IO UInt32 := do
         IO.sleep 2000
         return 0
   | _ =>
-      IO.eprintln "usage: holder <event-memory-path> <ready-path>"
+      IO.eprintln "usage: holder <ownership-anchor-path> <ready-path>"
       return 2
 
-end Loam.Experiments.PracticalWriterOwnershipHolder
+end Loam.Tests.WriterOwnershipHolder
 
 def main (args : List String) : IO UInt32 :=
-  Loam.Experiments.PracticalWriterOwnershipHolder.run args
+  Loam.Tests.WriterOwnershipHolder.run args

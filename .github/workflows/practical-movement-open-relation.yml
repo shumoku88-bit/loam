@@ -11,6 +11,7 @@ on:
       - 'Loam/Cli/Movement/RelationEntry.lean'
       - 'Loam/Persistence/OpenRelationPersistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/OpenRelationFrontier.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-open-relation.yml'
       - 'lakefile.lean'
@@ -27,6 +28,7 @@ on:
       - 'Loam/Cli/Movement/RelationEntry.lean'
       - 'Loam/Persistence/OpenRelationPersistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/OpenRelationFrontier.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-open-relation.yml'
       - 'lakefile.lean'
@@ -54,6 +56,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Run current open relation frontier regression
+        run: lake env lean Loam/Tests/OpenRelationFrontier.lean
 
       - name: Publish explicit receivable on negative source Effect
         shell: bash

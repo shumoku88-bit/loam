@@ -20,8 +20,9 @@ OS-managed exclusive lock held on that handle.
 
 The lock file is not a semantic fact, revision, manifest, Event identity, or
 recovery record. It is deliberately not deleted after use. Process death
-releases the OS lock, as qualified by Application 005, so no stale lock-file
-cleanup protocol is introduced.
+releases the OS lock; the current `Loam/Tests/WriterOwnershipHolder.lean`
+helper and Practical Writer Ownership CI exercise that behavior through this
+production boundary, so no stale lock-file cleanup protocol is introduced.
 -/
 
 /-- Stable sibling path whose handle carries process-level writer ownership. -/

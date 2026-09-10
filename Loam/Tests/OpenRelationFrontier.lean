@@ -1,6 +1,6 @@
 import Loam.Application.OpenRelationFrontier
 
-namespace Loam.Experiments.OpenRelationFrontierQualification
+namespace Loam.Tests.OpenRelationFrontier
 
 open Loam.Core
 open Loam.Application
@@ -184,4 +184,4 @@ example :
         events [validA, duplicateIdOrphan] [] uncovered eventId effectKey) = true := by
   native_decide
 
-end Loam.Experiments.OpenRelationFrontierQualification
+end Loam.Tests.OpenRelationFrontier

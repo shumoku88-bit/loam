@@ -1,6 +1,6 @@
 import Loam.Application.RelationDischargeFrontier
 
-namespace Loam.Experiments.RelationDischargeFrontierQualification
+namespace Loam.Tests.RelationDischargeFrontier
 
 open Loam.Core
 open Loam.Application
@@ -280,4 +280,4 @@ example :
       List.length = some 2 := by
   native_decide
 
-end Loam.Experiments.RelationDischargeFrontierQualification
+end Loam.Tests.RelationDischargeFrontier
