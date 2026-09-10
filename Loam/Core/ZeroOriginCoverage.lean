@@ -38,15 +38,17 @@ priority, presentation, temporal, or accounting meaning.
   3. *Why not derive coverage from balance-view or Locus admission?*: `balance-view.tsv`
      selects presentation questions only; `LocusAdmissionVocabulary` guards new write spelling.
      Neither constitutes a factual assertion that historical origin was zero.
-  4. *Why not a universal Coverage ontology?*: World completeness, scheduled horizon completeness,
-     and quantity origin completeness share only an abstract information order; collapsing them
-     into a single generic type conflates unrelated semantic authorities.
+  4. *Why not a universal Coverage ontology?*: World completeness, Scheduled horizon completeness,
+     and quantity origin completeness share only an abstract information order. Their evidence,
+     scope representation, persistence, and result vocabulary are different semantic authorities,
+     so collapsing them into one generic type would strengthen unrelated claims by construction.
 
-- **Permanent evidence references**:
-  - `Loam.Application.ZeroOriginQuantity.inspectZeroOriginQuantity_missing`: Proves that an empty
-    coverage set yields `.coverageMissing` regardless of Event or EventCorrection contents.
-  - Observations 090, 219, 221, 223, 224: Document the elimination of pointwise-zero QuantityBasis
-    and the rejection of implicit-zero defaults and importer-fabricated opening events.
+- **Current proof ownership**:
+  `Loam.Application.ZeroOriginQuantity.inspectZeroOriginQuantity_missing` proves that an empty
+  coverage set yields `.coverageMissing` regardless of Event or EventCorrection contents.
+  The covered/uncovered inspection theorems in that module own the executable current boundary.
+  Historical research that led to this factorization remains available in Git history; Product
+  correctness does not depend on keeping those migration-era probes live.
 -/
 
 /-- Explicit finite evidence that selected retained history is complete from zero. -/
