@@ -22,39 +22,22 @@ Observation 185 earned only a read-side boundary:
   + explicitly typed hypothetical intervention
   -> derived comparison projection
 
-This module applies that boundary to one already-qualified Application projection:
-Scheduled balance effects before an explicit end-exclusive horizon.
-
-The intervention is deliberately only one thing: suppress one currently open
-Scheduled identity for the hypothetical projection. It does not retire, complete,
-delete, rewrite, replace, or otherwise mutate canonical Scheduled evidence.
+The intervention suppresses one currently open Scheduled identity only for the
+hypothetical projection. It does not retire, complete, delete, rewrite, replace,
+or otherwise mutate retained evidence.
 -/
 
-/-- One explicit hypothetical request to omit a current-open Scheduled occurrence. -/
 structure SuppressScheduledHypothesis where
   scheduled : ScheduledId
 deriving Repr, DecidableEq
 
-/-- Baseline and hypothetical Scheduled balance effects from the same qualified open set. -/
 structure ScheduledSuppressionComparison where
   hypothesis : SuppressScheduledHypothesis
   baseline : List ScheduledBalanceEffect
   projected : List ScheduledBalanceEffect
 deriving Repr, DecidableEq
 
-/--
-Typed refusal states for the pre-replacement observation boundary.
--/
 inductive ScheduledSuppressionComparisonResult where
-  | comparison (value : ScheduledSuppressionComparison)
-  | targetNotOpen
-  | unknownCompletionScheduled
-  | unknownRetirementScheduled
-  | conflictingTerminalEvidence
-deriving Repr, DecidableEq
-
-/-- Replacement-aware refusal states for practical readers. -/
-inductive ScheduledSuppressionWithReplacementComparisonResult where
   | comparison (value : ScheduledSuppressionComparison)
   | targetNotOpen
   | unknownCompletionScheduled
@@ -93,43 +76,19 @@ private def comparisonFromOpenOccurrences
     none
 
 /--
-Compare the ordinary Scheduled balance projection with a read-only suppression in
-the pre-replacement observation world retained by Observation 186.
+Compare the ordinary current Scheduled balance projection with a read-only
+suppression. Replacement is part of the ordinary lifecycle frontier, so a
+superseded Scheduled identity is already absent from the baseline and cannot be a
+hypothetical target.
 -/
 def compareSuppressScheduledBalanceEffectsBefore
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (coordinates : List EffectCoordinate)
     (endExclusive : Time)
     (hypothesis : SuppressScheduledHypothesis) : ScheduledSuppressionComparisonResult :=
-  match currentOpenScheduled scheduled completions retirements events with
-  | .unknownCompletionScheduled => .unknownCompletionScheduled
-  | .unknownRetirementScheduled => .unknownRetirementScheduled
-  | .conflictingTerminalEvidence => .conflictingTerminalEvidence
-  | .open occurrences =>
-      match comparisonFromOpenOccurrences occurrences coordinates endExclusive hypothesis with
-      | some value => .comparison value
-      | none => .targetNotOpen
-
-/--
-Compare suppression against the same replacement-aware current-open frontier used
-by practical Scheduled readers. A superseded Scheduled identity is therefore not
-a valid hypothetical target: it is already absent from the canonical baseline.
--/
-def compareSuppressScheduledBalanceEffectsBeforeWithReplacement
-    (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
-    (events : EventMemory)
-    (coordinates : List EffectCoordinate)
-    (endExclusive : Time)
-    (hypothesis : SuppressScheduledHypothesis) :
-    ScheduledSuppressionWithReplacementComparisonResult :=
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events with
+  match currentOpenScheduled scheduled terminals events with
   | .unknownCompletionScheduled => .unknownCompletionScheduled
   | .unknownRetirementScheduled => .unknownRetirementScheduled
   | .unknownReplacementScheduled => .unknownReplacementScheduled
