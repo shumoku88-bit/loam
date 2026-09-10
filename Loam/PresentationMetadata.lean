@@ -8,9 +8,7 @@ set_option autoImplicit false
 Household identity, admission, authority, I/O, and presentation policy stay with callers. -/
 
 structure Row where
-  token : String
-  label : String
-  help : String
+  token label help : String
   deriving Repr, DecidableEq
 
 private def decodeRow? (validToken : String → Bool) (row : String) : Option Row :=
