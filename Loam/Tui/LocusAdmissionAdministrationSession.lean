@@ -70,8 +70,7 @@ private def runInitialRoleAdministration
     world lifecycle.scheduled roles
   let admin := Loam.Tui.AccountingRoleAdministration.initial candidates
   let adminFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds admin)
-  IO.print "\x1b[2J"
-  Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) adminFrame
+  Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
   runInitialRoleEditor bounds scheduledFile root roleFile admin adminFrame
 
 partial def run
@@ -86,8 +85,7 @@ partial def run
         let notice ← runInitialRoleAdministration bounds dataDir root
         let resumed := { state with notice := notice }
         let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
-        IO.print "\x1b[2J"
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) resumedFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds resumedFrame
         run bounds dataDir root resumed resumedFrame
     | .preview =>
         let step := Loam.Tui.LocusAdmissionAdministration.update state key
