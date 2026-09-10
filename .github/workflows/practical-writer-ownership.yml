@@ -12,8 +12,8 @@ on:
       - 'Loam/Persistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
       - 'Loam/Tests/WriterOwnershipPersistence.lean'
+      - 'Loam/Tests/WriterOwnershipHolder.lean'
       - 'tools/loam-movement'
-      - 'experiments/practical_writer_ownership_holder.lean'
       - '.github/workflows/practical-writer-ownership.yml'
       - 'lakefile.lean'
       - 'lean-toolchain'
@@ -44,7 +44,7 @@ jobs:
             /tmp/practical-writer-ownership-persistence.out
           grep -Fq 'production_writer_ownership_preserves_both_updates=true' \
             /tmp/practical-writer-ownership-persistence.out
-      - name: Observe retained writer entrances waiting for ownership
+      - name: Observe retained writer entrances and holder-death release
         shell: bash
         run: |
           set -euo pipefail
@@ -53,6 +53,8 @@ jobs:
           movement_bin='.lake/build/bin/loamMovement'
           memory='practical-writer-ownership-memory.loam'
           event='practical-writer-ownership-event.loam'
+          death_memory='practical-writer-ownership-death-memory.loam'
+          death_event='practical-writer-ownership-death-event.loam'
           manifest='practical-writer-ownership-authority'
           compat_memory='practical-writer-ownership-compat.loam'
           ready='practical-writer-ownership-ready'
@@ -68,8 +70,9 @@ jobs:
               kill -KILL "$holder_pid" 2>/dev/null || true
               wait "$holder_pid" 2>/dev/null || true
             fi
-            rm -f "$memory" "$event" "$ready" "$compat_memory" \
-              "$memory.loam-writer-lock" /tmp/practical-writer-ownership-*.out
+            rm -f "$memory" "$event" "$death_memory" "$death_event" "$ready" \
+              "$compat_memory" "$memory.loam-writer-lock" \
+              "$death_memory.loam-writer-lock" /tmp/practical-writer-ownership-*.out
             rm -rf "$manifest"
           }
           trap cleanup EXIT
@@ -78,7 +81,7 @@ jobs:
             local anchor="$1"
             rm -f "$ready"
             LEAN_PATH='.lake/build/lib/lean' \
-              lean --run experiments/practical_writer_ownership_holder.lean \
+              lean --run Loam/Tests/WriterOwnershipHolder.lean \
               "$anchor" "$ready" \
               > /tmp/practical-writer-ownership-holder.out 2>&1 &
             holder_pid=$!
@@ -123,6 +126,23 @@ jobs:
           release_and_wait_writer
           "$bin" event-memory get "$memory" seed-event >/dev/null
           echo 'event_memory_add_owned=true'
+
+          printf 'LOAM-EVENT-MEMORY\t1\n' > "$death_memory"
+          "$bin" event create "$death_event" death-event effect-1 cash jpy -75
+
+          start_holder "$death_memory"
+          "$bin" event-memory add "$death_memory" "$death_event" \
+            > /tmp/practical-writer-ownership-writer.out 2>&1 &
+          writer_pid=$!
+          require_writer_waiting
+          kill -KILL "$holder_pid"
+          wait "$holder_pid" 2>/dev/null || true
+          holder_pid=''
+          wait "$writer_pid"
+          writer_pid=''
+          rm -f "$ready"
+          "$bin" event-memory get "$death_memory" death-event >/dev/null
+          echo 'writer_ownership_released_after_holder_death=true'
 
           lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
             "$manifest" cash food
