@@ -6,9 +6,11 @@
     "expected": {
       "showCurrentReadGraph": true,
       "CurrentCoverageBaseMatchesProductionComposition": false,
+      "BudgetWindowBaseMatchesProductionComposition": false,
       "StockFlowAddsNoRetainedFamilyBeyondItsInputs": false,
       "TransactionsFlowAddsNoRetainedFamilyBeyondActualReview": false,
       "ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled": false,
+      "EvidenceLimitReportsAddNoRetainedBasis": false,
       "MutationOnlyCandidatesAreAbsentFromReadBasis": false,
       "DeclaredReadBasisIsInclusionMinimal": false
     }
