@@ -44,6 +44,40 @@ def inspectZeroOriginQuantity
   else
     .coverageMissing
 
+/--
+A covered coordinate delegates exactly to the ordinary correction-aware Event
+quantity inspection. Zero-origin evidence gates the question; it does not add a
+second quantity engine or alter the selected Event frontier.
+-/
+theorem inspectZeroOriginQuantity_covered
+    (coverage : ZeroOriginCoverage)
+    (events : EventMemory)
+    (eventCorrections : EventCorrectionMemory)
+    (coordinate : EffectCoordinate)
+    (hCovered : coverage.covers coordinate = true) :
+    inspectZeroOriginQuantity coverage events eventCorrections coordinate =
+      (match inspectQuantity events eventCorrections coordinate.locus coordinate.measure with
+       | .recorded quantity => .current quantity
+       | .singleCorrectionEffective quantity => .current quantity
+       | .frontierEffective quantity => .current quantity
+       | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
+       | .frontierRequired => .eventFrontierRequired) := by
+  simp [inspectZeroOriginQuantity, hCovered, liftInspection]
+
+/--
+An uncovered coordinate remains unavailable regardless of Event or correction
+memory. Activity is not evidence that retained history begins at exact zero.
+-/
+theorem inspectZeroOriginQuantity_uncovered
+    (coverage : ZeroOriginCoverage)
+    (events : EventMemory)
+    (eventCorrections : EventCorrectionMemory)
+    (coordinate : EffectCoordinate)
+    (hUncovered : coverage.covers coordinate = false) :
+    inspectZeroOriginQuantity coverage events eventCorrections coordinate =
+      .coverageMissing := by
+  simp [inspectZeroOriginQuantity, hUncovered]
+
 /-- Event activity cannot strengthen an uncovered coordinate into a known zero origin. -/
 theorem inspectZeroOriginQuantity_missing
     (events : EventMemory)
