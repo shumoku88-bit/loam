@@ -1,9 +1,10 @@
 import Loam.Persistence.ActualValidityPersistence
+import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.EventPersistence
 import Loam.Persistence.SiblingStage
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
-import Loam.Persistence
 import Loam.WriterOwnership
 
 namespace Loam.JournalExportCli
