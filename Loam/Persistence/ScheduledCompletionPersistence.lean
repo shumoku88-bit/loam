@@ -1,5 +1,5 @@
 import Loam.Core.ScheduledCompletion
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence

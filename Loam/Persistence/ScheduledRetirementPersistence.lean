@@ -1,5 +1,5 @@
 import Loam.Core.ScheduledRetirement
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
