@@ -39,9 +39,11 @@ fact RawShape {
   all edge : TerminalEdge | edge.target != edge.source
 
   all w : World, s : Scheduled | {
-    lone { edge : w.terminals | edge.source = s and edge.target in Event }
+    lone { edge : w.terminals |
+      edge.source = s and some edge.target and edge.target in Event }
     lone { edge : w.terminals | edge.source = s and no edge.target }
-    lone { edge : w.terminals | edge.source = s and edge.target in Scheduled }
+    lone { edge : w.terminals |
+      edge.source = s and some edge.target and edge.target in Scheduled }
   }
 
   all w : World, actual : Event |
@@ -86,7 +88,8 @@ fun replacementSources[w : World] : set Scheduled {
 
 pred completionSourcesKnownByEdges[w : World] {
   all edge : w.terminals |
-    edge.target in Event implies edge.source in w.scheduled
+    (some edge.target and edge.target in Event) implies
+      edge.source in w.scheduled
 }
 
 pred retirementSourcesKnownByEdges[w : World] {
@@ -96,8 +99,10 @@ pred retirementSourcesKnownByEdges[w : World] {
 
 pred replacementEndpointsKnownByEdges[w : World] {
   all edge : w.terminals |
-    edge.target in Scheduled implies
-      edge.source in w.scheduled and edge.target in w.scheduled
+    (some edge.target and edge.target in Scheduled) implies {
+      edge.source in w.scheduled
+      edge.target in w.scheduled
+    }
 }
 
 pred terminalConflictByEdges[w : World] {
@@ -164,7 +169,7 @@ fun openByEdges[w : World] : set Scheduled {
     no edge : w.terminals |
       edge.source = s and
       (no edge.target
-       or edge.target in Scheduled
+       or (some edge.target and edge.target in Scheduled)
        or edge.target in w.events)
   }
 }
