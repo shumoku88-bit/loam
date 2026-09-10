@@ -1,5 +1,6 @@
 import Loam.Core.CorrectionQuantity
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
+import Loam.Persistence.EventPersistence
 import Std
 
 namespace Loam.CorrectionIntegrityCli
