@@ -7,15 +7,38 @@ module experiments/observation_242_current_read_answer_basis
 -- production dependency graph between retained household information, caller /
 -- replaceable-query inputs, intermediate answers, and user-visible read answers.
 --
--- This is a structural provenance model, not yet a behavioral proof that every
--- listed retained family is semantically indispensable. Later observations can
--- challenge one retained family at a time with two-world counterexamples.
+-- The second half revisits the older household-minimum-vocabulary checkpoint:
+-- current detailed retained names are factored into a small number of semantic
+-- regions plus reusable evidence mechanics. This is a candidate decomposition,
+-- not yet a proof that every current type can be physically or nominally merged.
 
 abstract sig Node {
   requires: set Node
 }
 
-abstract sig Retained extends Node {}
+abstract sig SemanticRegion {}
+one sig ActualRegion,
+        ScheduledRegion,
+        CapacityRegion,
+        AttentionRegion,
+        OrthogonalRegion extends SemanticRegion {}
+
+abstract sig Mechanic {}
+one sig QuantityEffectMechanic,
+        TemporalMechanic,
+        ContextMechanic,
+        LifecycleMechanic,
+        RoutingMechanic,
+        ClassificationMechanic,
+        CompletenessMechanic,
+        AdmissionMechanic,
+        DueMechanic,
+        RelationQuantityMechanic extends Mechanic {}
+
+abstract sig Retained extends Node {
+  region: one SemanticRegion,
+  mechanics: some Mechanic
+}
 abstract sig QueryInput extends Node {}
 abstract sig Answer extends Node {}
 abstract sig Observable extends Answer {}
@@ -86,13 +109,61 @@ fact LeavesHaveNoDependencies {
   no (Retained + QueryInput).requires
 }
 
+-- Candidate factorization of current detailed names. Four household semantic
+-- regions remain visible; cross-cutting evidence such as completeness,
+-- classification and admission is deliberately orthogonal rather than promoted
+-- into a fifth household occurrence kind.
+fact CurrentRetainedFactorization {
+  EventFact.region = ActualRegion
+  EventFact.mechanics = QuantityEffectMechanic
+  ActualValidity.region = ActualRegion
+  ActualValidity.mechanics = TemporalMechanic
+  EventDescription.region = ActualRegion
+  EventDescription.mechanics = ContextMechanic
+  EventCorrection.region = ActualRegion
+  EventCorrection.mechanics = LifecycleMechanic
+  ActualRouting.region = ActualRegion
+  ActualRouting.mechanics = RoutingMechanic + TemporalMechanic
+  ActualReversal.region = ActualRegion
+  ActualReversal.mechanics = LifecycleMechanic
+
+  ScheduledOccurrence.region = ScheduledRegion
+  ScheduledOccurrence.mechanics = QuantityEffectMechanic + TemporalMechanic
+  ScheduledCompletion.region = ScheduledRegion
+  ScheduledCompletion.mechanics = LifecycleMechanic
+  ScheduledRetirement.region = ScheduledRegion
+  ScheduledRetirement.mechanics = LifecycleMechanic
+  ScheduledReplacement.region = ScheduledRegion
+  ScheduledReplacement.mechanics = LifecycleMechanic
+  ScheduledRouting.region = ScheduledRegion
+  ScheduledRouting.mechanics = RoutingMechanic + TemporalMechanic
+
+  CapacityMovement.region = CapacityRegion
+  CapacityMovement.mechanics = QuantityEffectMechanic
+  CapacityEffective.region = CapacityRegion
+  CapacityEffective.mechanics = TemporalMechanic
+
+  AttentionItem.region = AttentionRegion
+  AttentionItem.mechanics = ContextMechanic + DueMechanic
+  AttentionClosure.region = AttentionRegion
+  AttentionClosure.mechanics = LifecycleMechanic
+
+  ZeroOriginCoverage.region = OrthogonalRegion
+  ZeroOriginCoverage.mechanics = CompletenessMechanic
+  LocusAdmission.region = OrthogonalRegion
+  LocusAdmission.mechanics = AdmissionMechanic
+  AccountingRole.region = OrthogonalRegion
+  AccountingRole.mechanics = ClassificationMechanic
+  RelationUnit.region = OrthogonalRegion
+  RelationUnit.mechanics = RelationQuantityMechanic
+  RelationDischarge.region = OrthogonalRegion
+  RelationDischarge.mechanics = RelationQuantityMechanic + LifecycleMechanic
+}
+
 fact CurrentProductionReadDependencies {
-  -- ActualReview: Event + correction frontier + date + description.
   ActualRecords.requires =
     EventFact + ActualValidity + EventDescription + EventCorrection
 
-  -- ScheduledReview current-open and date-specific evidence use the four
-  -- lifecycle facets plus Event identity closure.
   ScheduledOpen.requires =
     ScheduledOccurrence + ScheduledCompletion + ScheduledRetirement +
     ScheduledReplacement + EventFact
@@ -100,22 +171,15 @@ fact CurrentProductionReadDependencies {
     ScheduledOccurrence + ScheduledCompletion + ScheduledRetirement +
     ScheduledReplacement + EventFact + ObservationDate
 
-  -- BalanceReview: current quantity is not admitted from arithmetic alone.
   Balance.requires =
     EventFact + EventCorrection + ZeroOriginCoverage + BalanceSelection
 
-  -- CapacityReview's all-history view does not use effective coordinates.
   CapacityAllHistory.requires = CapacityMovement
 
-  -- Historical BudgetWindow composes windowed Capacity entitlement with
-  -- correction-aware, validity-aware, historically routed Actual consumption.
   BudgetWindow.requires =
     CapacityMovement + CapacityEffective + EventFact + EventCorrection +
     ActualValidity + ActualRouting + WindowCoordinate
 
-  -- CurrentCoverageInspection factors through exactly these three computed
-  -- quantities / frontiers. Remaining and Headroom are arithmetic results of
-  -- these answers, not retained inputs.
   EffectiveEntitlement.requires =
     CapacityMovement + CapacityEffective + WindowCoordinate
   ActualConsumption.requires =
@@ -128,14 +192,10 @@ fact CurrentProductionReadDependencies {
     EffectiveEntitlement + ActualConsumption + ScheduledCommitment +
     WindowCoordinate + ObservationDate
 
-  -- Current Actual-routing administration additionally asks which admitted
-  -- Loci are explicit Expenses and which Purpose candidates currently exist.
   ActualRoutingAdministration.requires =
     LocusAdmission + AccountingRole + ActualRouting + CapacityMovement +
     ObservationDate
 
-  -- Higher reports compose existing review answers instead of retaining report
-  -- state or introducing a second Event world.
   StockFlow.requires = Balance + ActualRecords + WindowCoordinate
   TransactionsFlow.requires = ActualRecords + WindowCoordinate
   ConditionalBalancePath.requires =
@@ -147,13 +207,9 @@ fact CurrentProductionReadDependencies {
     Balance + CurrentCoverage + CycleFundingSummary + CurrentWindowSelection +
     ObservationDate
 
-  -- Attention availability is explicitly separate from lifecycle meaning.
   AttentionOpen.requires =
     AttentionItem + AttentionClosure + AttentionSourceAvailability
 
-  -- These are current product answers precisely because stronger claims are not
-  -- justified. They do not earn new retained household facts merely to render
-  -- the words UNAVAILABLE / UNKNOWN.
   no AccountingUnavailable.requires
   no LiquidityUnknown.requires
 }
@@ -181,13 +237,53 @@ fun allReadRetained : set Retained {
   readVocabulary.^requires & Retained
 }
 
+fun primaryReadRetained : set Retained {
+  { r: allReadRetained | r.region != OrthogonalRegion }
+}
+
 pred showCurrentReadGraph {
   some readVocabulary
   some allReadRetained
 }
 
--- The CurrentCoverage retained basis follows from its three production
--- components. Remaining and Headroom add no new retained information.
+-- Current read-side domain subjects still occupy only the four historical
+-- household semantic regions. Cross-cutting policy/evidence remains Orthogonal.
+assert ReadSubjectsFitFourHouseholdRegions {
+  all r: primaryReadRetained |
+    r.region in ActualRegion + ScheduledRegion + CapacityRegion + AttentionRegion
+}
+
+-- Reusing the same mechanics must not erase semantic authority. Current LOAM has
+-- concrete examples where identical implementation shapes serve different
+-- household meanings.
+pred quantityMechanicSpansSemanticRegions {
+  some disj left, right: allReadRetained |
+    QuantityEffectMechanic in left.mechanics and
+    QuantityEffectMechanic in right.mechanics and
+    left.region != right.region
+}
+
+pred temporalMechanicSpansSemanticRegions {
+  some disj left, right: allReadRetained |
+    TemporalMechanic in left.mechanics and
+    TemporalMechanic in right.mechanics and
+    left.region != right.region
+}
+
+pred lifecycleMechanicSpansSemanticRegions {
+  some disj left, right: allReadRetained |
+    LifecycleMechanic in left.mechanics and
+    LifecycleMechanic in right.mechanics and
+    left.region != right.region
+}
+
+-- Deliberately too strong: a mechanic is implementation structure, not semantic
+-- authority. A counterexample is expected whenever one mechanic crosses regions.
+assert MechanicsDetermineSemanticRegion {
+  all left, right: allReadRetained |
+    left.mechanics = right.mechanics implies left.region = right.region
+}
+
 assert CurrentCoverageBaseMatchesProductionComposition {
   retainedBase[CurrentCoverage] =
     CapacityMovement + CapacityEffective +
@@ -220,18 +316,14 @@ assert EvidenceLimitReportsAddNoRetainedBasis {
   no retainedBase[LiquidityUnknown]
 }
 
--- These selected families may still be required by mutation admission,
--- publication, integrity, or recovery. The narrower result here is only that
--- the reconstructed current READ answer graph does not consume them.
 assert MutationOnlyCandidatesAreAbsentFromReadBasis {
   no (ActualReversal + RelationUnit + RelationDischarge) & allReadRetained
 }
 
 -- Relative to the declared production dependency graph, its union is
--- inclusion-minimal: removing one member necessarily leaves at least one read
--- answer without one of its declared retained prerequisites. This is not yet a
--- semantic indispensability proof; the prerequisites themselves are challenged
--- in later two-world models.
+-- inclusion-minimal. This is not yet semantic indispensability: later
+-- two-world models challenge whether each declared prerequisite can itself be
+-- reconstructed from a smaller common basis.
 assert DeclaredReadBasisIsInclusionMinimal {
   no basis: set Retained |
     basis in allReadRetained and
@@ -239,18 +331,17 @@ assert DeclaredReadBasisIsInclusionMinimal {
     all answer: readVocabulary | retainedBase[answer] in basis
 }
 
-run showCurrentReadGraph for 44 but exactly 1 EventFact, exactly 1 ActualValidity,
-  exactly 1 EventDescription, exactly 1 EventCorrection, exactly 1 ZeroOriginCoverage,
-  exactly 1 CapacityMovement, exactly 1 CapacityEffective, exactly 1 ActualRouting,
-  exactly 1 LocusAdmission, exactly 1 AccountingRole, exactly 1 ScheduledOccurrence,
-  exactly 1 ScheduledCompletion, exactly 1 ScheduledRetirement, exactly 1 ScheduledReplacement,
-  exactly 1 ScheduledRouting, exactly 1 AttentionItem, exactly 1 AttentionClosure,
-  exactly 1 ActualReversal, exactly 1 RelationUnit, exactly 1 RelationDischarge
-check CurrentCoverageBaseMatchesProductionComposition for 44
-check BudgetWindowBaseMatchesProductionComposition for 44
-check StockFlowAddsNoRetainedFamilyBeyondItsInputs for 44
-check TransactionsFlowAddsNoRetainedFamilyBeyondActualReview for 44
-check ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled for 44
-check EvidenceLimitReportsAddNoRetainedBasis for 44
-check MutationOnlyCandidatesAreAbsentFromReadBasis for 44
-check DeclaredReadBasisIsInclusionMinimal for 44
+run showCurrentReadGraph for 64
+run quantityMechanicSpansSemanticRegions for 64
+run temporalMechanicSpansSemanticRegions for 64
+run lifecycleMechanicSpansSemanticRegions for 64
+check ReadSubjectsFitFourHouseholdRegions for 64
+check MechanicsDetermineSemanticRegion for 64
+check CurrentCoverageBaseMatchesProductionComposition for 64
+check BudgetWindowBaseMatchesProductionComposition for 64
+check StockFlowAddsNoRetainedFamilyBeyondItsInputs for 64
+check TransactionsFlowAddsNoRetainedFamilyBeyondActualReview for 64
+check ConditionalPathAddsNoRetainedFamilyBeyondBalanceAndScheduled for 64
+check EvidenceLimitReportsAddNoRetainedBasis for 64
+check MutationOnlyCandidatesAreAbsentFromReadBasis for 64
+check DeclaredReadBasisIsInclusionMinimal for 64
