@@ -44,7 +44,7 @@ private def buildSnapshot : IO Loam.Tui.Main.Snapshot := do
     replacements := replacements
     events := events
   }
-  pure { actual, scheduled }
+  pure { actual, scheduled := .ok scheduled }
 
 def main : IO Unit := do
   let snapshot ← buildSnapshot
