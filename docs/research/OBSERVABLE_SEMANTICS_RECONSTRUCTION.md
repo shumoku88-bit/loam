@@ -139,7 +139,7 @@ write admission basis
 
 This creates pressure to keep mutation-only evidence out of read projection machinery where possible, without erasing it from the household world.
 
-Existing observations already cover the novel pressure, so no Observation 244 is currently justified:
+Existing observations already cover the novel write pressure, so no new Q-write observation is currently justified:
 
 - Obs. 177: required positive RelationUnit support precedes Event activation; routine negative `NoRelation` state is not earned.
 - Obs. 178: `(EventId, RelationUnitId)` alone cannot determine partial fulfillment; exact discharge quantity is independent information.
@@ -224,25 +224,100 @@ cross-cutting mechanics / evidence dimensions
 
 Observation 242 reconstructs the current read graph in these terms. Shared mechanics do not imply shared semantic authority. Actual and Capacity can reuse quantity algebra; Actual and Scheduled can reuse routing mechanics; several families can reuse lifecycle/replacement machinery while still answering different household questions.
 
-## Current checkpoint
+## First concrete re-compression candidate: Scheduled terminal evidence
 
-The answer-first pass has not yet earned deletion of a retained household distinction. It has earned a stronger architectural separation:
+The answer-first pass exposed one important difference between **independent information** and **independent Core families**.
+
+Current production represents Scheduled terminal meaning as three separate semantic memories:
 
 ```text
-Q_read
-  17 current retained distinctions in the reconstructed dependency graph
+ScheduledCompletion
+  ScheduledId -> EventId
 
-Q_write
-  reintroduces RelationUnit + RelationDischarge + ActualReversal
+ScheduledRetirement
+  ScheduledId
 
-Q_safe
-  mostly reuses already-qualified ordering, re-admission, ownership,
-  inertness and identity-reservation laws
+ScheduledReplacement
+  ScheduledId -> ScheduledId
 ```
 
-This is already smaller than treating every production fact, mechanism, authority and protocol as one undifferentiated canonical basis.
+This separation grew incrementally. Completion became practical first, retirement followed as a separate small slice, and replacement arrived much later. At each introduction, refusing a general lifecycle framework was a reasonable anti-abstraction guardrail.
 
-The next minimization target is therefore not another fact deletion by default. It is to ask whether the 20 answer-relevant retained distinctions can be represented as fewer orthogonal evidence dimensions and whether read paths can stop carrying write-only evidence.
+But Observation 105 had already qualified a smaller semantic representation:
+
+```text
+LifecycleEdge
+  source : Scheduled
+  target : lone Endpoint
+
+Movement target   -> completion
+Scheduled target  -> replacement
+no target         -> retirement
+```
+
+That model also showed:
+
+- a terminal/open summary alone is too small;
+- completion/retirement/replacement kind sets alone are too small when successor identity differs;
+- the target-preserving lifecycle edge determines the selected Scheduled lifecycle views;
+- postpone/advance/same-day replacement derive from source/target dates rather than stored operation kinds.
+
+The present implementation later added important operational pressure that Observation 105 did not model directly:
+
+```text
+dangling completion Actual endpoint is inert until the Event exists
+unknown Scheduled endpoints fail closed
+replacement cycles fail closed
+cross-kind terminal conflicts fail closed
+raw publication/retry behavior must remain safe
+```
+
+Therefore the correct modern question is **not** whether completion, retirement and replacement meanings may be erased. They may not. The question is:
+
+> Does current LOAM still require three independent retained memory concepts, or can one target-preserving typed Scheduled-terminal relation retain all three meanings and reject malformed/conflicting raw evidence at one boundary?
+
+Observation 226 already grouped occurrence/completion/retirement/replacement into one physical lifecycle image while deliberately keeping their semantic fact types separate. That solved authority topology, not this semantic/type-topology question.
+
+This is the first concrete place where the original answer-first model appears smaller than the mature production type graph.
+
+### Why this matters to the 001-084 hypothesis
+
+This does not show that the later implementation decision was wrong when made. It shows a more precise failure mode that can accumulate after incremental development:
+
+```text
+feature A arrives -> narrow typed evidence A
+feature B arrives -> narrow typed evidence B
+feature C arrives -> narrow typed evidence C
+
+anti-premature-abstraction rule remains active
+but
+post-maturity re-compression never re-runs the earlier minimum model
+```
+
+The likely discipline to restore is therefore:
+
+```text
+avoid abstraction before repeated pressure exists
+AND
+once the family is mature, rerun answer-first semantic compression
+```
+
+The second half is the candidate that may have weakened after early LOAM.
+
+No production change is authorized by this finding yet. The next step is to compare the current fail-closed lifecycle contract against a single typed terminal-relation candidate and demand behavior/provenance parity before any implementation refactor.
+
+## Current checkpoint
+
+The answer-first pass has not earned deletion of a household meaning. It has earned two stronger architectural conclusions:
+
+```text
+1. Q_read / Q_write / Q_safe are materially smaller when separated.
+
+2. independent meanings need not imply one Core memory/type family per meaning;
+   Scheduled terminal evidence is the first concrete re-compression candidate.
+```
+
+The current retained answer vocabulary still contains roughly twenty named distinctions when read and write questions are combined, but that number is now an **information vocabulary**, not a lower bound on Core types, files, authorities, or algorithms.
 
 ## Stop rule
 
@@ -251,6 +326,7 @@ Do not optimize file count directly, and do not count a mechanism once per seman
 ```text
 wanted answers
   -> independently observable distinctions
+  -> smallest information-preserving representation
   -> shared mechanics
   -> write/safety obligations
   -> authority boundaries
