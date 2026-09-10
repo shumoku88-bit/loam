@@ -27,7 +27,9 @@ content-addressed objects. Preparing objects does not make them authoritative;
 
 Validated pre-switch `CURRENT` manifests are retained as content-addressed recovery
 candidates. Those copies are not authority and are never discovered as fallback
-reads. `CURRENT` remains the only selected generation.
+reads. `CURRENT` remains the only selected generation. Recovery selection is always
+explicit and validates the candidate manifest, every referenced object digest, and
+typed production decoding before replacing `CURRENT`.
 
 Version 1 manifests contained only the five historical Movement evidence families.
 They remain readable so existing household history and read-only projections do
@@ -142,6 +144,15 @@ private def decodeManifest? (input : String) : Option Manifest :=
 private def recoveryManifestRelativePath (digest : String) : String :=
   "recovery/manifests/" ++ digest ++ ".loam"
 
+private def failedCurrentRelativePath (digest : String) : String :=
+  "recovery/failed-current/" ++ digest ++ ".loam"
+
+private def safeRecoveryDigestToken (digest : String) : Bool :=
+  digest.length == 64 &&
+    !digest.contains '/' &&
+    !digest.contains '\\' &&
+    Loam.Persistence.validToken digest
+
 /--
 Retain one already-validated manifest as an immutable off-authority recovery
 candidate. The caller is responsible for proving that its referenced generation is
@@ -167,6 +178,31 @@ private def retainRecoveryManifest?
   let staged ← IO.FS.readFile stage
   if staged != text then
     return .error s!"loam: staged recovery manifest mismatch: {relative}"
+  IO.FS.rename stage target
+  return .ok digest
+
+/--
+Preserve unreadable `CURRENT` bytes for diagnosis before an explicit recovery
+selection. These bytes are forensic evidence only and never become a recovery
+candidate or selected authority.
+-/
+private def retainFailedCurrent?
+    (root : System.FilePath) (text : String) : IO (Except String String) := do
+  let digest := Loam.Sha256.hash text.toUTF8
+  let relative := failedCurrentRelativePath digest
+  let target := root / relative
+  if let some parent := target.parent then
+    IO.FS.createDirAll parent
+  if ← target.pathExists then
+    let existing ← IO.FS.readFile target
+    if existing != text then
+      return .error s!"loam: content-addressed failed CURRENT mismatch: {relative}"
+    return .ok digest
+  let stage := System.FilePath.mk (target.toString ++ ".loam-stage")
+  IO.FS.writeFile stage text
+  let staged ← IO.FS.readFile stage
+  if staged != text then
+    return .error s!"loam: staged failed CURRENT mismatch: {relative}"
   IO.FS.rename stage target
   return .ok digest
 
@@ -243,24 +279,9 @@ private def loadReferenced?
     return Except.error s!"loam: selected Movement object failed digest verification: {ref.path}"
   return Except.ok text
 
-/--
-Load exactly one selected Movement generation. There is no sidecar discovery or
-legacy fallback: missing, malformed, unsupported, or digest-invalid selected
-authority fails closed.
-
-A version 1 generation remains readable but receives the empty new-write
-vocabulary. It can therefore support review/projection while refusing every new
-Movement at `MovementAdmission.admit?` until an explicit version 2 cutover.
--/
-def loadSelectedWorld?
-    (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
-  let current := root / "CURRENT"
-  if !(← current.pathExists) then
-    return Except.error "loam: selected Movement manifest CURRENT is missing"
-  let manifest ←
-    match decodeManifest? (← IO.FS.readFile current) with
-    | some manifest => pure manifest
-    | none => return Except.error "loam: selected Movement manifest CURRENT is malformed or unsupported"
+private def loadWorldForManifest?
+    (root : System.FilePath)
+    (manifest : Manifest) : IO (Except String Loam.MovementAdmission.World) := do
   let events ←
     match ← loadReferenced? root manifest.events with
     | Except.ok text => pure text
@@ -296,6 +317,100 @@ def loadSelectedWorld?
         } with
       | some world => return Except.ok world
       | none => return Except.error "loam: selected Movement generation failed production typed decoding"
+
+/--
+Load exactly one selected Movement generation. There is no sidecar discovery or
+legacy fallback: missing, malformed, unsupported, or digest-invalid selected
+authority fails closed.
+
+A version 1 generation remains readable but receives the empty new-write
+vocabulary. It can therefore support review/projection while refusing every new
+Movement at `MovementAdmission.admit?` until an explicit version 2 cutover.
+-/
+def loadSelectedWorld?
+    (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
+  let current := root / "CURRENT"
+  if !(← current.pathExists) then
+    return Except.error "loam: selected Movement manifest CURRENT is missing"
+  let manifest ←
+    match decodeManifest? (← IO.FS.readFile current) with
+    | some manifest => pure manifest
+    | none => return Except.error "loam: selected Movement manifest CURRENT is malformed or unsupported"
+  loadWorldForManifest? root manifest
+
+private def loadRecoveryManifestText?
+    (root : System.FilePath) (digest : String) : IO (Except String String) := do
+  if !safeRecoveryDigestToken digest then
+    return .error "loam: recovery digest must be one 64-character path-safe SHA-256 token"
+  let candidate := root / recoveryManifestRelativePath digest
+  if !(← candidate.pathExists) then
+    return .error "loam: requested Movement recovery candidate does not exist"
+  let text ← IO.FS.readFile candidate
+  if Loam.Sha256.hash text.toUTF8 != digest then
+    return .error "loam: requested Movement recovery candidate failed manifest digest verification"
+  let manifest ←
+    match decodeManifest? text with
+    | some manifest => pure manifest
+    | none => return .error "loam: requested Movement recovery candidate is malformed or unsupported"
+  match ← loadWorldForManifest? root manifest with
+  | .error message =>
+      return .error ("loam: requested Movement recovery candidate failed generation validation: " ++ message)
+  | .ok _ => return .ok text
+
+/-- Verify one retained recovery candidate without selecting it. -/
+def validateRecoveryCandidate?
+    (root : System.FilePath) (digest : String) : IO (Except String Unit) := do
+  match ← loadRecoveryManifestText? root digest with
+  | .error message => return .error message
+  | .ok _ => return .ok ()
+
+/--
+Explicitly select one retained recovery candidate after full validation.
+
+This operation never searches for or guesses a candidate. The caller supplies the
+exact manifest digest. If current authority is readable, its manifest is first
+retained as an ordinary recovery candidate so the restore is reversible. If current
+authority is unreadable, its exact bytes are retained only as failed-current
+diagnostic evidence before replacement.
+
+Writer ownership of `root / "CURRENT"` belongs to the caller, matching the existing
+physical publication boundary.
+-/
+def restoreRecoveryCandidate?
+    (root : System.FilePath) (digest : String) : IO (Except String Unit) := do
+  let candidateText ←
+    match ← loadRecoveryManifestText? root digest with
+    | .error message => return .error message
+    | .ok text => pure text
+  let expected ←
+    match decodeManifest? candidateText with
+    | some manifest => pure manifest
+    | none => return .error "loam: validated recovery candidate changed before selection"
+  IO.FS.createDirAll root
+  let target := root / "CURRENT"
+  if ← target.pathExists then
+    let currentText ← IO.FS.readFile target
+    match ← loadSelectedWorld? root with
+    | .ok _ =>
+        match ← retainRecoveryManifest? root currentText with
+        | .error message => return .error message
+        | .ok _ => pure ()
+    | .error _ =>
+        match ← retainFailedCurrent? root currentText with
+        | .error message => return .error message
+        | .ok _ => pure ()
+  let stage := root / "CURRENT.loam-stage"
+  IO.FS.writeFile stage candidateText
+  let staged ←
+    match decodeManifest? (← IO.FS.readFile stage) with
+    | some manifest => pure manifest
+    | none => return .error "loam: staged recovery CURRENT failed decoding"
+  if staged != expected then
+    return .error "loam: staged recovery CURRENT changed typed references"
+  IO.FS.rename stage target
+  match ← loadSelectedWorld? root with
+  | .error message => return .error ("loam: restored Movement CURRENT failed post-selection validation: " ++ message)
+  | .ok _ => return .ok ()
 
 /--
 Prepare all six typed family images off authority. Existing byte-identical

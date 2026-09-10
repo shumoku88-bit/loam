@@ -1,3 +1,4 @@
+import Loam.MovementRecoveryPublisher
 import Loam.OperationalContinuity
 
 namespace Loam.DoctorCli
@@ -5,7 +6,9 @@ namespace Loam.DoctorCli
 set_option autoImplicit false
 
 private def usage : String :=
-  "Usage: ./tools/loam doctor [LOAM_DATA_DIR]"
+  "Usage:\n" ++
+  "  ./tools/loam doctor [LOAM_DATA_DIR]\n" ++
+  "  ./tools/loam doctor restore RECOVERY_DIGEST [LOAM_DATA_DIR]"
 
 private def resolveDataDir (args : List String) : IO (Except String System.FilePath) := do
   match args with
@@ -28,8 +31,7 @@ private def resolveManifestRoot
       return .ok (System.FilePath.mk path)
   | none => return .ok (dataDir / "movement-authority")
 
-/-- Read-only production-startup diagnosis. No repair or migration is attempted. -/
-def run (args : List String) : IO UInt32 := do
+private def diagnose (args : List String) : IO UInt32 := do
   let dataDir ←
     match ← resolveDataDir args with
     | .error message => IO.eprintln message; return 2
@@ -45,6 +47,38 @@ def run (args : List String) : IO UInt32 := do
   | .error diagnosis =>
       IO.eprintln (Loam.OperationalContinuity.renderDiagnosis diagnosis)
       return 2
+
+private def restore (digest : String) (dataArgs : List String) : IO UInt32 := do
+  let dataDir ←
+    match ← resolveDataDir dataArgs with
+    | .error message => IO.eprintln message; return 2
+    | .ok path => pure path
+  let manifestRoot ←
+    match ← resolveManifestRoot dataDir with
+    | .error message => IO.eprintln message; return 2
+    | .ok path => pure path
+  match ← Loam.MovementRecoveryPublisher.restore manifestRoot.toString digest with
+  | .error message =>
+      IO.eprintln "LOAM recovery"
+      IO.eprintln "Status: refused"
+      IO.eprintln ("Technical detail: " ++ message)
+      return 2
+  | .ok () =>
+      IO.println "LOAM recovery"
+      IO.println "Status: restored"
+      IO.println ("Selected recovery generation: " ++ digest)
+      IO.println "CURRENT now selects an already-retained generation that passed manifest, object-digest, and typed-world validation."
+      IO.println "No household facts were synthesized by recovery."
+      return 0
+
+/-- Diagnose startup reads, or explicitly restore one exact retained Movement generation. -/
+def run (args : List String) : IO UInt32 := do
+  match args with
+  | "restore" :: digest :: dataArgs => restore digest dataArgs
+  | "restore" :: [] =>
+      IO.eprintln usage
+      return 2
+  | _ => diagnose args
 
 end Loam.DoctorCli
 
