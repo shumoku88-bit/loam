@@ -13,6 +13,7 @@ on:
       - 'Loam/Persistence/OpenRelationPersistence.lean'
       - 'Loam/Persistence/RelationDischargePersistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/RelationDischargeFrontier.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-relation-discharge.yml'
       - 'lakefile.lean'
@@ -31,6 +32,7 @@ on:
       - 'Loam/Persistence/OpenRelationPersistence.lean'
       - 'Loam/Persistence/RelationDischargePersistence.lean'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/RelationDischargeFrontier.lean'
       - 'tools/loam-movement'
       - '.github/workflows/practical-movement-relation-discharge.yml'
       - 'lakefile.lean'
@@ -58,6 +60,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Run current relation discharge frontier regression
+        run: lake env lean Loam/Tests/RelationDischargeFrontier.lean
 
       - name: Publish exact partial discharge on second Movement
         shell: bash
