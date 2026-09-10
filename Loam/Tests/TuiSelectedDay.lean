@@ -96,6 +96,13 @@ def main : IO Unit := do
   let scheduledText := widgetText (Loam.Tui.SelectedDay.view { width := 100, height := 30 } snapshot scheduledState)
   expect (contains "scheduled-day" scheduledText && contains "Selected Scheduled:" scheduledText)
     "Selected-day workspace did not keep Scheduled evidence and detail together"
+  let refusalMessage :=
+    "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY replacement editor."
+  let refusedScheduledState := { scheduledState with notice := refusalMessage }
+  let refusedScheduledText := widgetText
+    (Loam.Tui.SelectedDay.view { width := 100, height := 30 } snapshot refusedScheduledState)
+  expect (contains refusalMessage refusedScheduledText)
+    "Selected-day workspace did not render a Scheduled replacement refusal notice from its current state"
   let refusedCorrection := Loam.Tui.SelectedDay.update snapshot scheduledState .correctActual
   expect (refusedCorrection.command == .stay)
     "Scheduled pane emitted an Actual Correction intent"
