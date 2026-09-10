@@ -3,22 +3,16 @@
 Status: **working audit; no production or loam-data migration authorized**
 
 Baseline production main: `9d11b5413bc353d1e596aa7e839ee281cd28e613`
-
 Tracking: #693 / draft PR #694
 
 ## Question
 
-Re-run the early LOAM minimization discipline against the current product:
+Find the smallest independently retained household information from which every
+currently admitted operation can produce the same observable result. Only then
+choose the smallest physical authority topology that preserves those results and
+required publication / crash / recovery laws.
 
-> What is the smallest independently retained household information from which
-> every currently admitted operation can produce the same observable result?
-
-Then, only after that semantic basis is known:
-
-> What is the smallest physical authority topology that preserves those results
-> and the independently required publication / crash / recovery laws?
-
-The audit therefore keeps three layers separate:
+Keep three layers separate:
 
 ```text
 retained meaning
@@ -28,20 +22,10 @@ retained meaning
 
 File count, type count, and module count are not semantic evidence.
 
-## Q: observable operation vocabulary
+## Observable vocabulary Q
 
-`Q` includes current reads **and** writes/administration.
-
-For household worlds `h1` and `h2`:
-
-```text
-h1 ~Q h2
-iff
-for every admitted current operation q and input x,
-observableResult(q, x, h1) = observableResult(q, x, h2)
-```
-
-Preserve topology-neutral differences such as:
+`Q` includes current reads and writes/administration. Preserve topology-neutral
+observable differences:
 
 ```text
 value
@@ -51,27 +35,24 @@ admitted / refused
 publication success / refusal
 ```
 
-Do not freeze physical facts into Q merely because current code exposes them.
-For example:
+Do not freeze current filesystem events into Q. `Reversal authority unavailable`
+may matter; `actual-reversals.loam does not exist` is only one representation of
+such a state.
+
+For each retained family classify it as:
 
 ```text
-Reversal authority unavailable
+WITNESS       erasure identifies worlds that Q distinguishes
+DERIVABLE     every Q-visible contribution follows from the remaining basis
+IRRELEVANT    Q cannot observe the distinction
+UNRESOLVED    evidence is insufficient
 ```
 
-may be semantic, while:
+Current files, codecs, workflows, and real-data emptiness are not witnesses.
 
-```text
-file actual-reversals.loam does not exist
-```
+## Working retained basis
 
-is a current representation fact.
-
-This distinction is necessary or the current filesystem layout would prove its
-own necessity by definition.
-
-## Current retained semantic families
-
-The working census contains roughly these independently retained meanings:
+Roughly eighteen meanings remain under audit:
 
 ```text
 Event + signed Effects
@@ -94,109 +75,59 @@ Scheduled replacement
 Scheduled routing
 ```
 
-Current configuration / presentation metadata is not promoted into historical
-household fact merely because it affects today's interface.
+Presentation/config metadata is not historical household fact merely because it
+selects today's UI. Consumption, Remaining, Commitment, Headroom, current-open
+views, and report sections remain derived vocabulary.
 
-Likewise these useful household nouns remain derived results, not retained state:
+## Semantic results already earned
+
+### ZeroOriginCoverage: KEEP MEANING
+
+No new Observation is needed. Current production already owns the executable
+law in `ZeroOriginQuantity`:
 
 ```text
-Consumption
-Remaining
-Commitment
-Headroom
-current-open views
-report sections
+covered coordinate   -> delegate to correction-aware quantity inspection
+uncovered coordinate -> coverageMissing
 ```
 
-## Global witness rule
+`ZeroOriginCoverage.empty` refuses every current zero-origin question regardless
+of Event activity. Therefore Event activity cannot reconstruct the distinction.
+This protects the meaning, not a dedicated `zero-origin-coverage.loam` file.
 
-For each retained family seek one of:
+### CapacityEffective: KEEP MEANING
 
-```text
-WITNESS
-  erase the family, find two otherwise-equal worlds, and show Q differs
+No new Observation is needed. Observation 112 already established that Capacity
+effective time can be independently observable while explicitly refusing to
+choose its representation. Observation 158 later uses effective coordinates for
+windowed household questions.
 
-DERIVABLE
-  reconstruct every Q-visible contribution from the remaining basis
+This protects effective-coordinate information, not a `.effective` sidecar.
 
-QUERY-IRRELEVANT
-  Q cannot observe the distinction
+### Reversal authority availability: KEEP DISTINCTION
 
-UNRESOLVED
-  current evidence is insufficient
-```
-
-Existing files, codecs, modules, workflows, and current real-data emptiness do not
-count as indispensability witnesses.
-
-## Current closed semantic witnesses
-
-### ZeroOriginCoverage
-
-Observation 242 uses production types.
-
-Keep EventMemory and EventCorrectionMemory identical and empty. Vary only whether
-`cash / jpy` has zero-origin coverage:
+Observation 241 is the only new live Lean observation retained by this PR.
+Current Correction pressure distinguishes:
 
 ```text
-covered   -> current 0
-uncovered -> coverageMissing
-```
-
-Result:
-
-```text
-ZeroOriginCoverage = KEEP MEANING
-```
-
-This does not imply a dedicated `zero-origin-coverage.loam` file.
-
-### CapacityEffective
-
-Observation 243 keeps one Capacity movement fixed and changes only its effective
-coordinate. A selected window then yields different Entitlement answers.
-
-Result:
-
-```text
-CapacityEffective = KEEP MEANING
-```
-
-This does not imply a `.effective` companion file.
-
-### Reversal authority availability
-
-Observation 241 factors one current Correction pressure into semantic authority
-state and physical container topology:
-
-```text
-explicit known-empty Reversal authority -> Correction-like admission may proceed
+explicit known-empty Reversal authority -> admission may proceed
 Reversal authority unavailable          -> refuse
 ```
 
-Changing only representative container shape while preserving decoded authority
-state does not change that selected result.
+The same decoded state can be represented by a separate file or bundled section
+without changing that selected result. Therefore known-empty vs unavailable is
+earned; the dedicated file is not earned by that distinction alone.
 
-Result:
+## Early LOAM had already solved the topology question
 
-```text
-known-empty != unavailable     KEEP DISTINCTION
-separate file vs bundled       NOT EARNED BY THIS DISTINCTION
-```
+### Observation 054
 
-## Important rediscovery: Observation 054 already separated semantic and physical topology
+For its modeled queries, one unordered tagged fact set and several typed fact
+sets preserve the same meaning when typed membership and explicit identities are
+kept. Co-location does not itself merge semantics.
 
-Observation 054 compared one unordered tagged fact set with several typed fact
-sets.
-
-For its modeled questions, both retain the same semantic information when typed
-membership and explicit identity relations are preserved.
-
-It also showed the actual danger of a naïve "one history" representation: a
-physical global serialization order may accidentally become chronology,
-priority, or authority even though the domain never earned such an order.
-
-Therefore:
+The danger is adding an unearned global serialization order and then treating it
+as chronology, priority, or authority.
 
 ```text
 one file != one semantic family
@@ -204,91 +135,70 @@ one file != one ordered log
 co-location != semantic conflation
 ```
 
-Semantic typing must survive; physical separation is not forced by that fact.
+### Observation 055
 
-## Important rediscovery: Observation 055 already separated publication law and file topology
+Observation 055 compares atomic bundles, uncoordinated typed streams,
+dependency-ordered streams, and fail-closed admission over torn raw storage.
 
-Observation 055 compared:
+It shows:
 
-```text
-atomic bundle
-uncoordinated independent streams
-dependency-ordered independent streams
-fail-closed admitted view over torn raw storage
-```
+- atomic bundle is sufficient for referential closure but not necessary;
+- uncoordinated publication can tear;
+- dependency ordering can preserve closure while storage remains split;
+- fail-closed admission can preserve semantic closure over torn raw state.
 
-Its result was explicit:
+Therefore logical canonical topology and publication topology need not coincide.
+A duplicate Observation 244 created during this audit was immediately removed
+when 055 was rediscovered.
 
-- atomic bundle is sufficient for closure but not necessary;
-- uncoordinated stream publication can tear;
-- dependency ordering can preserve closure while streams remain separate;
-- fail-closed admission can keep semantic truth closed over temporarily torn raw
-  storage.
+## Evidence that current physical topology leaked upward
 
-So the logical canonical basis and atomic publication boundary do not have to
-share one topology.
+### Correction -> Reversal
 
-A duplicate current Observation 244 was briefly created during this audit and
-immediately removed when 055 was rediscovered. The historical result should be
-reused rather than re-proved.
-
-## Current production evidence that topology leaked upward
-
-### Correction -> Reversal sibling discovery
-
-`CorrectionPublisher` receives a Correction path and derives another semantic
-dependency from physical placement:
+`CorrectionPublisher` derives another semantic dependency from placement:
 
 ```lean
 let reversalFile := correctionFile.withFileName "actual-reversals.loam"
 ```
 
-The semantic dependency is earned: Correction must exclude retained Reversal
-participation under the current qualified rules.
+The Reversal dependency is semantic. The sibling filename is not.
 
-The sibling filename is not the semantic rule.
+### Capacity companion
 
-### Capacity companion derivation
+Capacity effective storage is derived by appending `.effective` to the Capacity
+path. That convention is visible across persistence, publisher, CLI, review,
+TUI, and tests.
 
-Capacity effective evidence is found by:
-
-```text
-capacity.loam
-    -> append ".effective"
-    -> capacity.loam.effective
-```
-
-This convention is visible in persistence, publisher, CLI, review, TUI, and tests.
-
-Yet Capacity publication already uses one writer-ownership domain for both files,
-checks their completeness together, allocates one identity across both, and writes
-Effective evidence before the activating Capacity movement.
-
-The deeper law is therefore:
+Yet Capacity publication already:
 
 ```text
-one ownership domain
-+ dependent evidence before activation
+owns one writer boundary
+loads both images
+checks completeness both ways
+allocates one identity across both
+writes Effective evidence first
+writes activating Capacity movement second
 ```
 
-not:
+So the safety law is closer to:
 
 ```text
-two semantic facts -> two files
+one ownership domain + evidence before activation
 ```
+
+than `two meanings -> two files`.
 
 ### Correction path fanout
 
-Current production/report wiring repeatedly constructs `dataDir / corrections.loam`
-in Balance, Actual, Stock-Flow, Transactions-Flow, Budget Window, Current Coverage,
-Operational Continuity, and TUI paths.
+Balance, Actual, Stock-Flow, Transactions-Flow, Budget Window, Current Coverage,
+Operational Continuity, and TUI wiring construct `corrections.loam` directly.
+Changing its physical representation therefore fans out above Persistence.
 
-Therefore changing Correction persistence currently fans out above Persistence.
-Physical placement has become application wiring.
+This is direct evidence that persistence topology has become application wiring.
 
-## Missing-storage semantics are inconsistent by family and sometimes by operation
+## Missing storage is not a semantic bottom
 
-Current code contains all of these policies:
+Current code uses all of:
 
 ```text
 missing -> empty
@@ -296,40 +206,33 @@ missing -> unavailable
 missing -> refusal/error
 ```
 
-Examples:
+Correction is especially revealing. Production quantity and integrity surfaces
+map missing Correction storage to empty EventCorrection memory; the integrity CLI
+prints the same `No corrections recorded.` result for missing and explicit-empty
+storage.
 
-- Correction readers/writers often interpret missing correction storage as an
-  empty EventCorrectionMemory.
-- CorrectionIntegrity prints the same `No corrections recorded.` result for a
-  missing file and an explicit empty correction memory.
-- Effective quantity inspection also maps missing correction storage to empty.
-- Reversal authority is required explicitly by Correction/Reversal mutation;
-  missing Reversal authority refuses.
-- Scheduled lifecycle is required and missing storage is unavailable.
-- Attention missing storage is represented as unavailable.
-- plain Capacity review treats missing movement storage as empty, while richer
-  Current Coverage requires Capacity and CapacityEffective evidence explicitly.
-
-This proves that `file missing` is not one semantic bottom value in LOAM.
-
-It also gives one concrete compression result:
+So for those admitted operations:
 
 ```text
-missing Correction storage
-and
-explicit empty Correction memory
+missing Correction storage ~Q explicit empty Correction memory
 ```
 
-are intentionally Q-equivalent for current Effective / CorrectionIntegrity
-surfaces. Physical absence itself is not earned historical meaning there.
+Physical absence itself is not earned household meaning.
 
-## Current selected authority graph
+Reversal differs: Correction/Reversal mutation currently requires explicit
+Reversal availability. Scheduled lifecycle and Attention also preserve
+unavailability rather than manufacturing empty evidence. Plain Capacity review,
+meanwhile, treats missing Capacity history as empty while richer Current Coverage
+requires the relevant evidence explicitly.
 
-The roughly eighteen semantic families do not map one-to-one to files today.
-A working authority grouping closer to current update/failure laws is:
+Therefore `file missing` must not be promoted into one cross-family ontology.
+
+## Current authority graph
+
+The semantic basis already maps non-uniformly to selected authority handles:
 
 ```text
-1 Movement generation authority
+1 Movement generation
   Event
   ActualValidity
   EventDescription
@@ -337,7 +240,7 @@ A working authority grouping closer to current update/failure laws is:
   RelationDischarge
   LocusAdmission
 
-2 Scheduled lifecycle authority
+2 Scheduled lifecycle
   ScheduledOccurrence
   ScheduledCompletion
   ScheduledRetirement
@@ -357,40 +260,27 @@ A working authority grouping closer to current update/failure laws is:
 8 ZeroOriginCoverage
 ```
 
-This is **not an eight-file target**.
+Eight is not a target and does not mean eight files.
 
-Movement currently demonstrates why selected authority handles and backing files
-must remain separate concepts: one `CURRENT` selects six typed semantic families
-stored in several immutable content-addressed objects plus recovery generations.
-
-Scheduled demonstrates the opposite physical shape: four semantic lifecycle
-families already share one typed file.
-
-Therefore:
+Movement has one selected `CURRENT` authority but several immutable backing
+objects and recovery generations. Scheduled already stores four semantic families
+in one typed image. Thus:
 
 ```text
 semantic-family count != authority-handle count != physical-file count
 ```
 
-## Tension in current MovementManifestAuthority rationale
+## Movement manifest rationale to re-check
 
-The Movement manifest is a useful production success:
+The Movement manifest is a successful example of hiding many backing objects
+behind one selected authority. Its current rationale nevertheless says a
+monolithic file would necessarily conflate semantic authorities.
 
-```text
-many typed backing objects
-    -> one selected CURRENT authority
-    -> callers do not choose family object files
-```
+Observation 054 does not justify that statement as written. A typed atomic image
+can preserve distinct meanings if it retains family tags/identities and does not
+invent global semantic order.
 
-However its current prose says a monolithic single-file snapshot would
-necessarily "conflate distinct semantic authorities".
-
-Observation 054 does not support that implication as stated.
-
-A typed atomic image can preserve distinct semantic families provided it does not
-erase family tags/identities or invent global semantic order.
-
-The real reasons to prefer the current Movement object topology are operational:
+The real reasons for Movement's object topology are operational candidates:
 
 ```text
 content-addressed reuse / deduplication
@@ -400,24 +290,14 @@ corruption localization
 human recovery / inspection
 ```
 
-Those may fully justify keeping the current backing topology. The audit only
-removes semantic conflation as an automatic argument for separate files.
+Those may fully justify keeping it. This audit only removes semantic conflation as
+an automatic argument for physical separation.
 
-No production comment is changed by this research PR yet.
+## First topology candidates
 
-## Strong physical compression candidate: Capacity
+### Capacity
 
-Current:
-
-```text
-capacity.loam
-capacity.loam.effective
-```
-
-Both are loaded and validated under the same writer-owned Capacity operation.
-Every new Capacity movement receives matching Effective evidence.
-
-Compare later:
+Compare while holding meaning fixed:
 
 ```text
 A current companion files
@@ -425,99 +305,61 @@ B one typed atomic Capacity image
 C one opaque Capacity authority handle backed by two files
 ```
 
-B could remove the intermediate incomplete crash state but may increase write and
-corruption blast radius.
+B may remove the intermediate incomplete crash state but increase rewrite and
+corruption blast radius. C preserves current backing behavior while removing
+companion-path knowledge from callers.
 
-C keeps current physical behavior while removing companion-path knowledge from
-callers.
+### Actual revision
 
-File count alone cannot choose between them.
-
-## Strong physical compression candidate: Actual revision
-
-Correction and Reversal remain semantically different operations:
+Correction and Reversal remain distinct meanings:
 
 ```text
 Correction -> replace current interpretation frontier
 Reversal   -> retain a real inverse occurrence
 ```
 
-Do not merge those meanings.
-
-But their current physical relationship is unusually tight:
+But their physical/update relationship is tight:
 
 - Correction mutation reads Reversal evidence;
 - Reversal mutation reads Correction evidence;
 - both serialize through Movement `CURRENT` ownership;
-- Reversal persistence is directly consumed in production essentially by the two
-  mutation publishers;
+- production Reversal persistence is consumed essentially by those mutation
+  publishers;
 - Correction derives the Reversal sibling filename;
-- current household Reversal authority is explicitly empty;
-- current household has no Correction file, and production treats that as known
-  empty for ordinary Correction reads.
+- current household Reversal authority is explicit-empty;
+- current household Correction storage is absent and ordinary reads interpret it
+  as known-empty.
 
-This makes a topology-neutral **Actual revision authority** a strong candidate.
-It could expose typed sections:
+A topology-neutral Actual revision authority could expose typed
+`EventCorrectionMemory` and `ActualReversalMemory` while hiding whether they live
+in one file, two files, or selected objects.
 
-```text
-Corrections : EventCorrectionMemory
-Reversals   : ActualReversalMemory
-```
-
-while hiding whether those sections live in one file, two files, or selected
-objects.
-
-The main counterpressure to one file is corruption blast radius: today damaged
-Reversal storage need not necessarily destroy ordinary Correction-only reads.
-That must be measured before choosing a bundled physical image.
+The main counterpressure to bundling is corruption blast radius: malformed
+Reversal bytes should not accidentally make every Correction-only read
+unavailable unless that coupling is deliberately chosen.
 
 ## Next production move
 
-Do **not** choose the final file count yet.
-
-First make the strongest leaking topology exchangeable behind local authority
-boundaries.
-
-Best first candidates:
-
-```text
-Capacity authority
-Actual revision authority
-```
-
-The immediate goal is:
+Do not choose final file count yet. First make the strongest leaking topology
+exchangeable behind **local** authority boundaries:
 
 ```text
 application / TUI
     -> semantic authority handle
-    -> persistence topology hidden below
+    -> hidden persistence topology
 ```
 
-After that boundary exists, compare one-file vs multi-file backing forms without
-rewiring every report and UI caller.
+Best first candidates are Capacity and Actual revision. Once callers stop knowing
+companion/sibling filenames, one-file and multi-file implementations can be
+compared without rewiring the product.
 
-This is the clean experiment that the current code cannot perform cheaply because
-physical filenames have leaked upward.
+## Merge discipline
 
-## Merge discipline for new formal abstractions
-
-A new generic theorem should not be merged merely because it is elegant.
-
-For example open PR #692 / Observation 240 extracts a representation-free
-`required evidence before activation anchor` law. It is not a direct duplicate of
-055 or 129, but under this compression audit it should pay a replacement dividend:
-
-```text
-new generic live theorem
-+ no retired/simplified older obligation
-= repository growth
-
-new generic live theorem
-+ retired/simplified specialized obligation(s)
-= candidate compression
-```
-
-This gate has been recorded on #692 before merge.
+A generic proof must pay a replacement dividend before joining the live working
+set. Open PR #692 / Observation 240 is not a direct duplicate of 055 or 129, but
+it currently adds a generic activation-last law. Before merge it should retire or
+simplify at least one older live obligation or duplicated production rationale.
+That gate is recorded on #692.
 
 ## Stop rule
 
@@ -531,12 +373,12 @@ independent retained distinctions
 
 Do not optimize raw file count directly.
 
-The audit has nevertheless reached the requested physical conclusion:
+Current conclusion:
 
-> Current LOAM's retained meanings do not determine its file topology, and some
-> filename / companion-file conventions have leaked upward far enough to shape
+> LOAM's retained meanings do not determine its file topology, and current
+> filename/companion conventions have leaked upward far enough to shape
 > application architecture.
 
-The next step is to push those conventions back below explicit local authority
-boundaries, then let the final physical file count be chosen by measured crash,
-recovery, corruption, write-amplification, and inspectability properties.
+Push those conventions back below local authority boundaries first. Then let
+measured crash behavior, recovery, corruption radius, write amplification, and
+inspectability determine the physical file count.
