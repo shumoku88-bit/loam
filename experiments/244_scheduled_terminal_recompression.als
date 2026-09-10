@@ -34,8 +34,6 @@ one sig OpenResult,
         InvalidReplacementGraph,
         ConflictingTerminalEvidence extends ReviewResult {}
 
--- Preserve the current per-family endpoint uniqueness while still permitting
--- cross-kind conflict as raw input for fail-closed review.
 fact RawShape {
   all edge : TerminalEdge | edge.target != edge.source
 
@@ -154,7 +152,6 @@ fun reviewByFacets[w : World] : one ReviewResult {
   OpenResult
 }
 
--- A completion becomes terminal only when its Actual endpoint is retained.
 fun effectiveCompleted[w : World] : set Scheduled {
   { s : w.scheduled |
     some actual : w.events | s->actual in completions[w]
@@ -213,7 +210,6 @@ pred crossKindConflictVisible {
   some w : World | reviewByEdges[w] = ConflictingTerminalEvidence
 }
 
--- A closed/open summary loses terminal meaning.
 pred sameTerminalSourcesDifferentMeaning {
   some disj left, right : World | {
     left.scheduled = right.scheduled
@@ -225,7 +221,6 @@ pred sameTerminalSourcesDifferentMeaning {
   }
 }
 
--- Kind/source summaries still lose completion/replacement target identity.
 pred sameKindsDifferentTargetProvenance {
   some disj left, right : World | {
     left.scheduled = right.scheduled
@@ -238,12 +233,8 @@ pred sameKindsDifferentTargetProvenance {
   }
 }
 
--- Q_write ---------------------------------------------------------------
---
--- The retained terminal representation may be shared while operation-specific
--- writers remain distinct. These predicates model only whether the current
--- semantic world admits the selected operation.
-
+-- Q_write: retained terminal representation may be shared while
+-- operation-specific writers remain distinct.
 pred readableOpenByEdges[w : World, s : Scheduled] {
   reviewByEdges[w] = OpenResult
   s in openByEdges[w]
@@ -254,8 +245,6 @@ pred readableOpenByFacets[w : World, s : Scheduled] {
   s in openByFacets[w]
 }
 
--- Completion may start from an untouched open occurrence or retry an already
--- retained dangling completion. The read-side open projection captures both.
 pred completionWriteByEdges[w : World, s : Scheduled] {
   readableOpenByEdges[w, s]
 }
@@ -264,8 +253,6 @@ pred completionWriteByFacets[w : World, s : Scheduled] {
   readableOpenByFacets[w, s]
 }
 
--- Cancellation must not compete with any retained terminal claim. In
--- particular, a dangling completion is still open to readers but blocks cancel.
 pred cancellationWriteByEdges[w : World, s : Scheduled] {
   readableOpenByEdges[w, s]
   no edge : w.terminals | edge.source = s
@@ -278,8 +265,6 @@ pred cancellationWriteByFacets[w : World, s : Scheduled] {
   no s.(replacements[w])
 }
 
--- Replacement has the same source-side terminal exclusion. Its publisher may
--- remain separate because it also creates the successor Scheduled occurrence.
 pred replacementWriteByEdges[w : World, s : Scheduled] {
   readableOpenByEdges[w, s]
   no edge : w.terminals | edge.source = s
@@ -303,26 +288,20 @@ pred danglingCompletionAllowsRetryButBlocksCompetingTerminalWrites {
   }
 }
 
--- Relation-first completion support is inert until the Actual endpoint becomes
--- retained. This is the current retry-safe activation shape.
 pred completionSupportThenEventActivates {
   some disj initial, supported, activated : World | {
     some s : Scheduled, actual : Event, edge : TerminalEdge | {
       s in initial.scheduled
       actual not in initial.events
       no prior : initial.terminals | prior.source = s
-
       edge.source = s
       edge.target = actual
-
       supported.scheduled = initial.scheduled
       supported.events = initial.events
       supported.terminals = initial.terminals + edge
-
       activated.scheduled = supported.scheduled
       activated.terminals = supported.terminals
       activated.events = supported.events + actual
-
       reviewByEdges[initial] = OpenResult
       reviewByEdges[supported] = OpenResult
       reviewByEdges[activated] = OpenResult
@@ -340,11 +319,9 @@ pred cancellationAppendClosesSource {
       cancellationWriteByEdges[initial, s]
       edge.source = s
       no edge.target
-
       updated.scheduled = initial.scheduled
       updated.events = initial.events
       updated.terminals = initial.terminals + edge
-
       reviewByEdges[updated] = OpenResult
       s not in openByEdges[updated]
     }
@@ -353,20 +330,17 @@ pred cancellationAppendClosesSource {
 
 pred replacementAppendClosesSourceAndOpensSuccessor {
   some disj initial, updated : World | {
-    some source, successor : Scheduled, edge : TerminalEdge | {
-      source in initial.scheduled
+    some src, successor : Scheduled, edge : TerminalEdge | {
+      src in initial.scheduled
       successor not in initial.scheduled
-      replacementWriteByEdges[initial, source]
-
-      edge.source = source
+      replacementWriteByEdges[initial, src]
+      edge.source = src
       edge.target = successor
-
       updated.scheduled = initial.scheduled + successor
       updated.events = initial.events
       updated.terminals = initial.terminals + edge
-
       reviewByEdges[updated] = OpenResult
-      source not in openByEdges[updated]
+      src not in openByEdges[updated]
       successor in openByEdges[updated]
     }
   }
