@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 
 namespace Loam.BoundaryPresetConfig
 
