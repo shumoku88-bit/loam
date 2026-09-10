@@ -2,7 +2,6 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.ScheduledInspection
 import Loam.MovementAdmission
 import Loam.MovementManifestAuthority
-import Loam.Persistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
 
