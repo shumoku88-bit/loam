@@ -48,10 +48,17 @@
       "crossKindConflictVisible": true,
       "sameTerminalSourcesDifferentMeaning": true,
       "sameKindsDifferentTargetProvenance": true,
+      "danglingCompletionAllowsRetryButBlocksCompetingTerminalWrites": true,
+      "completionSupportThenEventActivates": true,
+      "cancellationAppendClosesSource": true,
+      "replacementAppendClosesSourceAndOpensSuccessor": true,
       "TargetTypedEdgePartitionsCurrentFacets": false,
       "EdgeAndFacetFailureClassificationAgree": false,
       "EdgeAndFacetCurrentOpenAgree": false,
-      "TargetPreservingLifecycleDeterminesReadAnswer": false
+      "TargetPreservingLifecycleDeterminesReadAnswer": false,
+      "EdgeAndFacetCompletionAdmissionAgree": false,
+      "EdgeAndFacetCancellationAdmissionAgree": false,
+      "EdgeAndFacetReplacementAdmissionAgree": false
     }
   }
 ]
