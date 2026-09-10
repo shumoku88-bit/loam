@@ -46,6 +46,42 @@ The current Scheduled lifecycle has no learned-time coordinate, so this module
 answers only the current-open view. `observedAt` selects historical routing; it
 does not pretend to reconstruct when completion, retirement, or replacement
 became known.
+
+## Design Rationale
+
+- **Current semantics**: A query-local projection that partitions positive future Scheduled
+  obligations into `managed` (routed to queried Purpose), `unmanaged`, `unrouted`, and
+  `unresolvedEligibility`. It derives `Headroom = Remaining - Commitment` without storing
+  any persistent budget, reservation, or headroom records.
+
+- **Why this design**: Preserves minimal canonical evidence. Familiar household planning nouns
+  (`Commitment`, `Headroom`, `Remaining`) are transient views computed on-the-fly from
+  underlying facts (Capacity movements, actual events, open scheduled occurrences, routing,
+  and role classification).
+
+- **Prohibited simplifications**:
+  1. *Why not all positive quantities as pressure?*: Scheduled models expected future cashflow,
+     not only expenses. A scheduled pension/support receipt into a bank account is a positive
+     Asset inflow. Treating all positive quantities as Capacity pressure would falsely consume
+     budget headroom for incoming money.
+  2. *Why not Expense only as pressure?*: A scheduled debt or loan repayment is a positive
+     Liability coordinate (reducing liability). It obligates cash outflow and consumes Capacity
+     just as real expenses do. Ignoring Liability drops genuine debt obligations.
+  3. *Why is unresolved accounting role not equivalent to non-pressure?*: If an unrouted
+     scheduled coordinate lacks an `AccountingRole`, assuming non-pressure silently hides
+     unbudgeted cashflow; assuming a default role fabricates accounting evidence. It must
+     remain an explicit, actionable `unresolvedEligibility` frontier.
+  4. *Why not a stored CommitmentEligibility bit?*: Storing an eligibility flag on Scheduled
+     records duplicates intent and creates synchronization hazards. Routing owns explicit
+     pressure intent; partial `AccountingRole` serves as the qualified fallback.
+
+- **Permanent evidence references**:
+  - `theorem currentScheduledCommitmentWithReplacement?_unresolvedEligibility_eq_rows_sum`:
+    Proves that the aggregate `unresolvedEligibility` quantity matches the exact sum of
+    actionable subject-level rows (`currentUnresolvedScheduledPressureWithReplacement?`).
+  - Observations 108, 113, 153, 216-217, 227: Formalized the non-retained projection, the
+    `ScheduledId × LocusId` routing subject, partial role classification, and the fail-visible
+    unresolved eligibility frontier.
 -/
 
 /--

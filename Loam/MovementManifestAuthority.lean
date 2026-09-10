@@ -36,6 +36,46 @@ They remain readable so existing household history and read-only projections do
 not disappear during migration. They decode with an empty Locus admission
 vocabulary, which means every new quantity-bearing Movement fails closed until a
 version 2 generation explicitly publishes the sixth policy family.
+
+## Design Rationale
+
+- **Current semantics**: Physical publication and loading boundary for the six core Movement
+  fact families (Event, ActualValidity, EventDescription, RelationUnit, RelationDischarge,
+  and LocusAdmission). Authority is governed strictly by the single pointer `CURRENT`, referencing
+  immutable, content-addressed family files under `objects/<Family>/<sha256>.loam`.
+
+- **Why this design**: Provides multi-stream atomic publication across process crashes while
+  avoiding a single monolithic storage format. Writing content-addressed objects is staged
+  off-authority (`prepareWorld?`); authority switches via a single atomic file rename of `CURRENT`
+  (`commitPrepared?`). Validated pre-switch manifests are archived under `recovery/manifests/`.
+
+- **Prohibited simplifications**:
+  1. *Why not mutable sidecar files (e.g. in-place appended .loam files)?*: Multi-stream
+     persistence across physically separate files cannot be mutated in place atomically across
+     crashes. A crash during a write leaves torn states where relations refer to missing events
+     or validity records refer to non-existent events, violating referential closure.
+  2. *Why not automatic fallback or recovery discovery?*: If `CURRENT` is missing, unreadable,
+     or digest-corrupted, falling back to legacy sidecars or scanning for "latest recovery"
+     masks real data loss or corruption (as observed during early menu cutover where missing
+     authority silently rendered a populated household as empty). Missing authority must fail
+     closed; recovery requires explicit digest specification.
+  3. *Why not a monolithic single-file snapshot?*: Merging all six families into one unified file
+     would conflate distinct semantic authorities, destroy content-addressed deduplication
+     across generations (`reusedObjects`), and force rewriting entire datasets on every transaction.
+  4. *Why not a generic / universal manifest framework?*: Movement fact families require strict
+     mutual referential closure. Scheduled lifecycle and routing have different atomicity and
+     mutation boundaries (e.g. ScheduledRouting is independent of Scheduled lifecycle). A generic
+     framework prematurely couples disparate lifecycle requirements.
+
+- **Permanent evidence references**:
+  - Observation 055: Modeled multi-stream publication boundaries in Alloy, proving uncoordinated
+    streams expose torn relational state (`correctionPublicationCanTear: SAT`) and establishing
+    fail-closed referential closure requirements.
+  - Observation 129: Lean proofs on crash recovery and atomic candidate commit across streams.
+  - Observation 212: Qualification of LocusAdmissionVocabulary as an independent policy family
+    incorporated into Manifest V2.
+  - `docs/movement_manifest_menu_cutover.md`: Operational record of failure modes when manifest
+    authority was bypassed with fallback heuristics.
 -/
 
 private structure FamilyRef where
