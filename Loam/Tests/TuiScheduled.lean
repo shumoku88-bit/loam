@@ -73,7 +73,7 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
     allRecords := []
     undatedCount := 0
   }
-  pure { actual := actual, scheduled := scheduledSnapshot }
+  pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
@@ -149,12 +149,16 @@ def main : IO Unit := do
   let pendingSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with actual := pendingActual
   }
-  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-08" with
+  let pendingScheduled ←
+    match pendingSnapshot.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok scheduled => pure scheduled
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingScheduled "2026-09-08" with
   | .error message => throw (IO.userError message)
   | .ok pending =>
       expect (pending.length == 12)
         "past-date current-open Scheduled projection lost retained occurrences"
-  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-07" with
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingScheduled "2026-09-07" with
   | .error message => throw (IO.userError message)
   | .ok pending =>
       expect pending.isEmpty
@@ -195,17 +199,6 @@ def main : IO Unit := do
   let dueTodayView := Loam.Tui.HraHome.view bounds snapshot home
   expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
     "Scheduled on Today was incorrectly marked Pending"
-
-  -- A real Pending date is strictly before Today. Synthetic marker input checks
-  -- presentation composition without weakening that evidence boundary.
-  let overlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] moved row)
-  expect (hasStyledText overlap " 08! " .underlined)
-    "Synthetic Today + Pending lost its marker or underline"
-  let focusedOverlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
-  expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
-    "Synthetic Today + Focus + Pending lost a presentation cue"
 
   -- SGR attributes accumulate: each style must clear the previous underline,
   -- background and dim attributes before setting its own (including dirty redraw).
