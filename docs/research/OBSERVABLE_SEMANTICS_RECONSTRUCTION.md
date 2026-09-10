@@ -108,7 +108,7 @@ RelationDischarge
 
 That is not a deletion result. It is evidence that read semantics and mutation semantics had been counted together.
 
-## First Q_write reconstruction
+## Q_write reconstruction
 
 Current production writers answer questions such as:
 
@@ -139,17 +139,66 @@ write admission basis
 
 This creates pressure to keep mutation-only evidence out of read projection machinery where possible, without erasing it from the household world.
 
-### Why no new Observation 244 yet
+Existing observations already cover the novel pressure, so no Observation 244 is currently justified:
 
-Existing observations already cover the novel semantic pressure:
-
-- Obs. 177: required positive RelationUnit support must precede Event activation for fresh Movement; no routine negative `NoRelation` fact is earned.
+- Obs. 177: required positive RelationUnit support precedes Event activation; routine negative `NoRelation` state is not earned.
 - Obs. 178: `(EventId, RelationUnitId)` alone cannot determine partial fulfillment; exact discharge quantity is independent information.
-- Obs. 182: discharge-first/Event-last publication plus Event-first acquisition prevents false outstanding answers; pre-Event discharge residue can remain inert.
-- Obs. 183: raw discharge targets must reserve future RelationUnit identity so unrelated allocation cannot activate stale provenance.
-- Obs. 241: known-empty Reversal authority and unavailable Reversal authority produce different correction-admission answers, while container shape remains representation.
+- Obs. 182: discharge-first/Event-last publication and Event-first acquisition prevent false outstanding answers; pre-Event residue can remain inert.
+- Obs. 183: raw discharge targets reserve future RelationUnit identity so unrelated allocation cannot activate stale provenance.
+- Obs. 241: known-empty Reversal authority and unavailable Reversal authority differ for correction admission, while physical container shape is irrelevant to that distinction.
 
-A new model would currently duplicate those witnesses rather than reduce uncertainty.
+## Q_safe reconstruction
+
+`Q_safe` is not another household ontology. It is the set of invariants required so `Q_read` and `Q_write` are never strengthened by torn, stale, or ambiguous evidence.
+
+| Safety question | Existing witness / implementation | Current result |
+| --- | --- | --- |
+| Must semantically related facts occupy one atomic file/image? | Obs. 055 | no; atomic bundle is sufficient, not necessary; dependency ordering + fail-closed admission can preserve closure |
+| May a UI action admitted when rendered remain authorized later? | Obs. 118 SPIN | no; re-read and re-admit at activation |
+| Can auxiliary evidence precede a fresh Event commit and survive crash? | Obs. 129 | yes when pre-Event evidence is inert; exact prepared candidate supports restart/idempotence |
+| How may fresh RelationUnit support activate? | Obs. 177 SPIN | positive support before Event; Event-before-relation reader acquisition for that protocol |
+| How may fresh RelationDischarge support activate? | Obs. 182 SPIN | discharge before Event; Event-before-discharge acquisition; missing-later-Event residue stays inert |
+| Can dangling discharge references release their identities for unrelated reuse? | Obs. 182 / 183 SPIN | no; both Event and RelationUnit target namespaces require reservation where raw provenance names them |
+| Does atomic replacement alone prevent concurrent stale overwrite? | production `WriterOwnership` + `WriterOwnershipPersistence` | no; own from authoritative re-read through publication |
+| Is unavailable authority equivalent to explicit known-empty authority? | Obs. 241 | no; selected mutation can distinguish them |
+
+The resulting small safety vocabulary is currently closer to:
+
+```text
+re-admit on current world
+exclusive writer ownership over read/prepare/admit/publish
+support before semantic activation where required
+reader acquisition order matched to publication order
+inert pre-activation crash residue
+identity reservation across dangling retained provenance
+fail closed on unresolved active evidence
+preserve unavailable vs known-empty when Q distinguishes them
+```
+
+than to a generic transaction ontology.
+
+### Observation 240 / PR #692
+
+Observation 240 proves a useful representation-free lemma:
+
+```text
+all required evidence ranks before activation anchor
+  -> every crash prefix exposing the anchor also exposes its requirements
+```
+
+and the converse wrong-order witness.
+
+In the answer-first reconstruction this is **not a new `Q_safe` requirement**. Obs. 055, 129, 177 and 182 already supplied concrete publication-pressure witnesses. Observation 240 is therefore best classified as a candidate **mechanic extraction** over existing obligations.
+
+Merge discipline remains:
+
+```text
+new generic theorem
+  -> must replace/simplify an existing live proof obligation or duplicated production rationale
+  -> otherwise keep it out of the live working set
+```
+
+Observation 240 does not replace the reader-order, orphan-inertness, restart, or identity-reservation results. Its possible dividend is only the common activation-order fragment. Until that dividend is made concrete, #692 should not be treated as required by this reconstruction.
 
 ## Semantic regions and shared mechanics
 
@@ -175,22 +224,25 @@ cross-cutting mechanics / evidence dimensions
 
 Observation 242 reconstructs the current read graph in these terms. Shared mechanics do not imply shared semantic authority. Actual and Capacity can reuse quantity algebra; Actual and Scheduled can reuse routing mechanics; several families can reuse lifecycle/replacement machinery while still answering different household questions.
 
-## Next pressure: Q_safe without theorem inflation
+## Current checkpoint
 
-Before adding a new generic safety theorem, map current safety obligations onto existing witnesses:
+The answer-first pass has not yet earned deletion of a retained household distinction. It has earned a stronger architectural separation:
 
 ```text
-activation ordering
-reader acquisition ordering
-crash residue inertness
-identity reservation
-writer ownership / lock order
-malformed authority refusal
-known-empty vs unavailable
-recovery / retry idempotence
+Q_read
+  17 current retained distinctions in the reconstructed dependency graph
+
+Q_write
+  reintroduces RelationUnit + RelationDischarge + ActualReversal
+
+Q_safe
+  mostly reuses already-qualified ordering, re-admission, ownership,
+  inertness and identity-reservation laws
 ```
 
-Prefer Obs. 055, 059, 129, 177, 182, 183, 240/241 and current production proofs when they already determine the answer. Add a new observation only for a safety distinction left genuinely unresolved.
+This is already smaller than treating every production fact, mechanism, authority and protocol as one undifferentiated canonical basis.
+
+The next minimization target is therefore not another fact deletion by default. It is to ask whether the 20 answer-relevant retained distinctions can be represented as fewer orthogonal evidence dimensions and whether read paths can stop carrying write-only evidence.
 
 ## Stop rule
 
