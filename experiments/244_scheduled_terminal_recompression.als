@@ -306,67 +306,69 @@ pred danglingCompletionAllowsRetryButBlocksCompetingTerminalWrites {
 -- Relation-first completion support is inert until the Actual endpoint becomes
 -- retained. This is the current retry-safe activation shape.
 pred completionSupportThenEventActivates {
-  some disj before, supported, activated : World,
-       s : Scheduled, actual : Event, edge : TerminalEdge | {
-    s in before.scheduled
-    actual not in before.events
-    no prior : before.terminals | prior.source = s
+  some disj before, supported, activated : World | {
+    some s : Scheduled, actual : Event, edge : TerminalEdge | {
+      s in before.scheduled
+      actual not in before.events
+      no prior : before.terminals | prior.source = s
 
-    edge.source = s
-    edge.target = actual
+      edge.source = s
+      edge.target = actual
 
-    supported.scheduled = before.scheduled
-    supported.events = before.events
-    supported.terminals = before.terminals + edge
+      supported.scheduled = before.scheduled
+      supported.events = before.events
+      supported.terminals = before.terminals + edge
 
-    activated.scheduled = supported.scheduled
-    activated.terminals = supported.terminals
-    activated.events = supported.events + actual
+      activated.scheduled = supported.scheduled
+      activated.terminals = supported.terminals
+      activated.events = supported.events + actual
 
-    reviewByEdges[before] = OpenResult
-    reviewByEdges[supported] = OpenResult
-    reviewByEdges[activated] = OpenResult
-    s in openByEdges[before]
-    s in openByEdges[supported]
-    s not in openByEdges[activated]
+      reviewByEdges[before] = OpenResult
+      reviewByEdges[supported] = OpenResult
+      reviewByEdges[activated] = OpenResult
+      s in openByEdges[before]
+      s in openByEdges[supported]
+      s not in openByEdges[activated]
+    }
   }
 }
 
 pred cancellationAppendClosesSource {
-  some disj before, after : World,
-       s : Scheduled, edge : TerminalEdge | {
-    s in before.scheduled
-    cancellationWriteByEdges[before, s]
-    edge.source = s
-    no edge.target
+  some disj before, after : World | {
+    some s : Scheduled, edge : TerminalEdge | {
+      s in before.scheduled
+      cancellationWriteByEdges[before, s]
+      edge.source = s
+      no edge.target
 
-    after.scheduled = before.scheduled
-    after.events = before.events
-    after.terminals = before.terminals + edge
+      after.scheduled = before.scheduled
+      after.events = before.events
+      after.terminals = before.terminals + edge
 
-    reviewByEdges[after] = OpenResult
-    s not in openByEdges[after]
+      reviewByEdges[after] = OpenResult
+      s not in openByEdges[after]
+    }
   }
 }
 
 pred replacementAppendClosesSourceAndOpensSuccessor {
-  some disj before, after : World,
-       source, successor : Scheduled,
-       edge : TerminalEdge | {
-    source in before.scheduled
-    successor not in before.scheduled
-    replacementWriteByEdges[before, source]
+  some disj before, after : World | {
+    some source, successor : Scheduled, edge : TerminalEdge | {
+      source in before.scheduled
+      successor not in before.scheduled
+      replacementWriteByEdges[before, source]
 
-    edge.source = source
-    edge.target = successor
+      edge.source = source
+      edge.target = successor
 
-    after.scheduled = before.scheduled + successor
-    after.events = before.events
-    after.terminals = before.terminals + edge
+      after.scheduled = before.scheduled + successor
+      after.events = before.events
+      after.terminals = before.terminals + edge
 
-    reviewByEdges[after] = OpenResult
-    source not in openByEdges[after]
-    successor in openByEdges[after]
+      reviewByEdges[after] = OpenResult
+      source not in openByEdges[after]
+      successor in openByEdges[after]
+    }
   }
 }
 
