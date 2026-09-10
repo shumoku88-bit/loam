@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.HistoricalRouting
 import Loam.Core.RoutingEffective
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.SiblingStage
 import Loam.Persistence.VersionedRows
 
