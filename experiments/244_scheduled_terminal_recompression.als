@@ -5,8 +5,8 @@ module experiments/observation_244_scheduled_terminal_recompression
 -- Observation 105 represented completion, retirement and replacement as one
 -- target-preserving LifecycleEdge. Production later realized those meanings as
 -- three typed memories. Re-test that smaller representation against the mature
--- current-open and write-admission contracts without choosing a file, codec,
--- generic publisher, or migration.
+-- current-open, write-admission, and semantic-safety contracts without choosing
+-- a file, codec, generic publisher, or migration.
 
 abstract sig Endpoint {}
 sig Scheduled extends Endpoint {}
@@ -346,6 +346,57 @@ pred replacementAppendClosesSourceAndOpensSuccessor {
   }
 }
 
+-- Q_safe: this model checks the semantic safety envelope only. Physical
+-- crash/authority guarantees remain separate: complete-image staging/replace,
+-- writer ownership, Movement CURRENT publication, and their retry ordering must
+-- either remain unchanged or be independently re-qualified after a migration.
+pred completionSupportTransition
+    [initial, supported : World, s : Scheduled, actual : Event,
+     edge : TerminalEdge] {
+  reviewByEdges[initial] = OpenResult
+  completionWriteByEdges[initial, s]
+  actual not in initial.events
+  no prior : initial.terminals | prior.source = s
+  edge.source = s
+  edge.target = actual
+  supported.scheduled = initial.scheduled
+  supported.events = initial.events
+  supported.terminals = initial.terminals + edge
+}
+
+pred completionActivationTransition
+    [supported, activated : World, s : Scheduled, actual : Event] {
+  reviewByEdges[supported] = OpenResult
+  s in supported.scheduled
+  s->actual in completions[supported]
+  actual not in supported.events
+  activated.scheduled = supported.scheduled
+  activated.terminals = supported.terminals
+  activated.events = supported.events + actual
+}
+
+pred cancellationTransition
+    [initial, updated : World, s : Scheduled, edge : TerminalEdge] {
+  cancellationWriteByEdges[initial, s]
+  edge.source = s
+  no edge.target
+  updated.scheduled = initial.scheduled
+  updated.events = initial.events
+  updated.terminals = initial.terminals + edge
+}
+
+pred replacementTransition
+    [initial, updated : World, src, successor : Scheduled,
+     edge : TerminalEdge] {
+  replacementWriteByEdges[initial, src]
+  successor not in initial.scheduled
+  edge.source = src
+  edge.target = successor
+  updated.scheduled = initial.scheduled + successor
+  updated.events = initial.events
+  updated.terminals = initial.terminals + edge
+}
+
 assert TargetTypedEdgePartitionsCurrentFacets {
   all w : World |
     terminalSources[w] =
@@ -389,6 +440,96 @@ assert EdgeAndFacetReplacementAdmissionAgree {
     replacementWriteByEdges[w, s] iff replacementWriteByFacets[w, s]
 }
 
+assert FailureBlocksAllTerminalWrites {
+  all w : World, s : Scheduled |
+    reviewByEdges[w] != OpenResult implies {
+      not completionWriteByEdges[w, s]
+      not cancellationWriteByEdges[w, s]
+      not replacementWriteByEdges[w, s]
+    }
+}
+
+assert OpenWorldHasAtMostOneTerminalClaimPerSource {
+  all w : World |
+    reviewByEdges[w] = OpenResult implies
+      all s : Scheduled |
+        lone { edge : w.terminals | edge.source = s }
+}
+
+assert OpenWorldReplacementGraphIsAcyclic {
+  all w : World |
+    reviewByEdges[w] = OpenResult implies
+      no iden & ^(replacements[w])
+}
+
+assert DanglingCompletionIsInertAndExclusive {
+  all w : World, s : Scheduled, actual : Event |
+    reviewByEdges[w] = OpenResult and
+    s in w.scheduled and
+    s->actual in completions[w] and
+    actual not in w.events implies {
+      s in openByEdges[w]
+      completionWriteByEdges[w, s]
+      not cancellationWriteByEdges[w, s]
+      not replacementWriteByEdges[w, s]
+    }
+}
+
+assert EffectiveCompletionClosesAllTerminalWrites {
+  all w : World, s : Scheduled, actual : Event |
+    reviewByEdges[w] = OpenResult and
+    s->actual in completions[w] and
+    actual in w.events implies {
+      s not in openByEdges[w]
+      not completionWriteByEdges[w, s]
+      not cancellationWriteByEdges[w, s]
+      not replacementWriteByEdges[w, s]
+    }
+}
+
+assert CompletionSupportPreservesSemanticSafety {
+  all disj initial, supported : World |
+    all s : Scheduled, actual : Event, edge : TerminalEdge |
+      completionSupportTransition[initial, supported, s, actual, edge] implies {
+        reviewByEdges[supported] = OpenResult
+        s in openByEdges[supported]
+        completionWriteByEdges[supported, s]
+        not cancellationWriteByEdges[supported, s]
+        not replacementWriteByEdges[supported, s]
+      }
+}
+
+assert CompletionActivationPreservesSafetyAndClosesSource {
+  all disj supported, activated : World |
+    all s : Scheduled, actual : Event |
+      completionActivationTransition[supported, activated, s, actual] implies {
+        reviewByEdges[activated] = OpenResult
+        s not in openByEdges[activated]
+        not completionWriteByEdges[activated, s]
+        not cancellationWriteByEdges[activated, s]
+        not replacementWriteByEdges[activated, s]
+      }
+}
+
+assert CancellationTransitionPreservesSemanticSafety {
+  all disj initial, updated : World |
+    all s : Scheduled, edge : TerminalEdge |
+      cancellationTransition[initial, updated, s, edge] implies {
+        reviewByEdges[updated] = OpenResult
+        s not in openByEdges[updated]
+      }
+}
+
+assert ReplacementTransitionPreservesSemanticSafety {
+  all disj initial, updated : World |
+    all src, successor : Scheduled, edge : TerminalEdge |
+      replacementTransition[initial, updated, src, successor, edge] implies {
+        reviewByEdges[updated] = OpenResult
+        src not in openByEdges[updated]
+        successor in openByEdges[updated]
+      }
+}
+
 run representativeMatureLifecycle for exactly 5 Scheduled, exactly 2 Event, 5 TerminalEdge, exactly 1 World
 run danglingCompletionStaysOpen for exactly 2 Scheduled, exactly 2 Event, 2 TerminalEdge, exactly 1 World
 run unknownCompletionSourceVisible for exactly 2 Scheduled, exactly 1 Event, 2 TerminalEdge, exactly 1 World
@@ -410,3 +551,12 @@ check TargetPreservingLifecycleDeterminesReadAnswer for 3 Scheduled, 2 Event, 4 
 check EdgeAndFacetCompletionAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
 check EdgeAndFacetCancellationAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
 check EdgeAndFacetReplacementAdmissionAgree for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check FailureBlocksAllTerminalWrites for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check OpenWorldHasAtMostOneTerminalClaimPerSource for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check OpenWorldReplacementGraphIsAcyclic for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check DanglingCompletionIsInertAndExclusive for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check EffectiveCompletionClosesAllTerminalWrites for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 1 World
+check CompletionSupportPreservesSemanticSafety for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
+check CompletionActivationPreservesSafetyAndClosesSource for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
+check CancellationTransitionPreservesSemanticSafety for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
+check ReplacementTransitionPreservesSemanticSafety for 3 Scheduled, 2 Event, 4 TerminalEdge, exactly 2 World
