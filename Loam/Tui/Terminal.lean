@@ -55,6 +55,11 @@ def emitDirtyDiff (bounds : Bounds) (top left : Nat)
   IO.print output
   (← IO.getStdout).flush
 
+/-- Clear the physical screen and redraw one compiled frame from an empty structural baseline. -/
+def redrawFromBlank (bounds : Bounds) (frame : CompiledWidget) : IO Unit := do
+  IO.print "\x1b[2J"
+  emitDirtyDiff bounds 0 0 (compileWidget (.row [])) frame
+
 private def readByte : IO UInt8 := do
   let bytes ← (← IO.getStdin).read 1
   if bytes.isEmpty then return 0
