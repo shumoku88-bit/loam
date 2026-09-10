@@ -58,7 +58,16 @@
       "TargetPreservingLifecycleDeterminesReadAnswer": false,
       "EdgeAndFacetCompletionAdmissionAgree": false,
       "EdgeAndFacetCancellationAdmissionAgree": false,
-      "EdgeAndFacetReplacementAdmissionAgree": false
+      "EdgeAndFacetReplacementAdmissionAgree": false,
+      "FailureBlocksAllTerminalWrites": false,
+      "OpenWorldHasAtMostOneTerminalClaimPerSource": false,
+      "OpenWorldReplacementGraphIsAcyclic": false,
+      "DanglingCompletionIsInertAndExclusive": false,
+      "EffectiveCompletionClosesAllTerminalWrites": false,
+      "CompletionSupportPreservesSemanticSafety": false,
+      "CompletionActivationPreservesSafetyAndClosesSource": false,
+      "CancellationTransitionPreservesSemanticSafety": false,
+      "ReplacementTransitionPreservesSemanticSafety": false
     }
   }
 ]
