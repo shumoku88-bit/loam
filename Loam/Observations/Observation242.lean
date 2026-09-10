@@ -37,8 +37,14 @@ question.
 theorem covered_world_answers_current_zero :
     inspectZeroOriginQuantity cashCovered noEvents noCorrections cashJpy =
       .current (Quantity.ofQuanta 0) := by
-  simp [inspectZeroOriginQuantity, cashCovered, cashJpy, noEvents, noCorrections,
-    ZeroOriginCoverage.covers, QuantityInspection.inspectQuantity]
+  have hCovered : ZeroOriginCoverage.covers cashCovered cashJpy = true := by
+    simp [ZeroOriginCoverage.covers, cashCovered]
+  rw [inspectZeroOriginQuantity_covered
+    cashCovered noEvents noCorrections cashJpy hCovered]
+  have hNoCorrections : noCorrections.corrections = [] := rfl
+  rw [inspectQuantity_noCorrections
+    noEvents noCorrections cashJpy.locus cashJpy.measure hNoCorrections]
+  rfl
 
 /--
 With the same Event and Correction evidence but no coverage, the current query
