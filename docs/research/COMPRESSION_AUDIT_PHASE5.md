@@ -13,25 +13,26 @@ LOAM has intentionally accumulated many observations. That was useful while the 
 
 ## Graduation rule
 
-A historical Observation may graduate out of live CI when all of the following hold:
+A historical Observation may graduate out of the current working tree or live CI when all of the following hold:
 
-1. its question, witness/counterexample, and conclusion remain recorded in durable research prose;
-2. Git history retains the exact historical executable/model source and its previously successful CI state;
-3. a later observation or current production invariant subsumes the practical decision for which the old probe was needed;
+1. the surviving current decision, invariant, and prohibited simplifications are distilled into living Product rationale, a current proof/test, or compressed current documentation;
+2. Git history retains the exact historical executable/model/prose source and its previously successful CI state;
+3. a later observation, current production invariant, or intentional semantic change subsumes or retires the practical decision for which the old probe was needed;
 4. no current executable, authority, current library contract, or active research branch needs the historical implementation boundary;
-5. deleting the old executable probe does not erase a currently unique theorem required by production.
+5. deleting the old executable probe or prose does not erase a currently unique theorem or counterexample required by production.
 
 Graduation means:
 
 ```text
-KEEP   the research markdown and integrated conclusion
-KEEP   Git history as the exact historical proof artifact
-REMOVE superseded executable probe source when it depends on retired APIs
+KEEP   living Product rationale and current proof/test ownership
+KEEP   Git history as the exact historical proof and exploration archive
+REMOVE superseded executable probe source when its current meaning has moved
+REMOVE distilled historical prose when it no longer owns unique current knowledge
 REMOVE its dedicated always-live workflow
 REMOVE production residue that existed only to keep that historical probe compiling
 ```
 
-This is not deletion of history. It is stopping the historical laboratory apparatus after its result has been recorded.
+This is not deletion of knowledge. It is stopping the historical laboratory apparatus after its surviving result has been transferred to current owners.
 
 ## First graduation generation — QuantityBasis / BasisCut
 
@@ -65,7 +66,7 @@ experiments/220_origin_snapshot_factorization.lean
 experiments/222_basis_cut_overlap_normalization.lean
 ```
 
-Their corresponding prose records remain. Observation 218's reusable result is additionally embodied in current `ReplacementFrontier`; its QuantityBasis branch is not the only surviving evidence for that mechanic.
+Observation 218's reusable result is additionally embodied in current `ReplacementFrontier`; its QuantityBasis branch is not the only surviving evidence for that mechanic. Historical prose and probes that no longer own unique current knowledge may subsequently graduate to Git history after their conclusions are distilled.
 
 The dedicated workflows tied to these probes are therefore candidates for graduation rather than continued execution against every future production change.
 
@@ -78,10 +79,11 @@ The important current meanings survive elsewhere:
 - ActualValidity correction still uses current frontier mechanics;
 - Scheduled replacement still uses current frontier mechanics;
 - current balance readers use the current zero-origin path;
-- Observation 219 markdown records the real household parity and negative controls;
+- `ZeroOriginCoverage` / `ZeroOriginQuantity` design rationale and `OBSERVATION_MAP.md` carry forward the qualified current decision and fail-closed boundary;
+- Git history retains Observation 219's real-household parity, negative controls, and the exact retired QuantityBasis exploration;
 - later production-boundary research records that QuantityBasis/BasisCut is no longer on the household production path.
 
-What disappears is the obligation to keep a retired basis ontology executable merely so historical probes continue to compile.
+What disappears is the obligation to keep a retired basis ontology executable, or its fully distilled exploration notes permanently present, merely so historical probes continue to compile or daily searches keep finding them.
 
 ## AccountingRole persistence
 
@@ -104,7 +106,7 @@ Default lifecycle:
 ```text
 active question       -> dedicated CI allowed
 qualified + integrated -> production invariant/test takes over when applicable
-superseded history     -> prose + Git history, dedicated CI retired
+superseded history     -> current rationale + Git history; dedicated CI retired
 ```
 
 Long-lived workflows should primarily protect current executable behavior, current authority formats/protocols, current reusable mechanics, and explicitly active research questions.
@@ -176,20 +178,23 @@ The trusted Challenge/Solution/config fixtures and the verification checkpoint r
 
 The immediately preceding exact-head CI for the foundational-lane graduation reran all four fixtures successfully before this retirement. Future Comparator or Nanoda CI must be earned by a concrete renewed verification pressure rather than historical existence alone.
 
-## Follow-up graduation - QuantityBasis Application CI 008-009
+## Follow-up graduation - QuantityBasis Applications 008-009
 
-Applications 008 and 009 were bounded candidate probes from the old starting-quantity design arc. Both Lean files are self-contained under `import Std` and define their own experiment-local basis vocabulary rather than exercising the current production boundary. Their prose explicitly presents the names and production placement as not yet established.
+Applications 008 and 009 were bounded candidate probes from the old starting-quantity design arc. Both Lean files were self-contained under `import Std` and defined their own experiment-local basis vocabulary rather than exercising the current production boundary.
 
-The later QuantityBasis/BasisCut generation was subsequently implemented, audited against real household data, and retired in favor of explicit zero-origin coverage. Keeping these earlier candidate probes alive on `lakefile.lean`, toolchain, or manifest changes therefore no longer protects a current implementation or theorem.
+Their dedicated CI lanes had already graduated because recompiling the frozen candidate ontology no longer protected a current implementation. A later Phase 5 meaning-by-meaning audit then split the remaining probe obligations into two classes:
 
-Keep the two Lean probes and their research prose as historical design evidence. Graduate only their dedicated CI lanes:
+- **surviving current laws**: fail-closed zero-origin admission is owned by `inspectZeroOriginQuantity_covered` / `inspectZeroOriginQuantity_uncovered` (merged in #665), while generic supersession/frontier behavior is owned by `ReplacementFrontier`, selected `Observation043` theorems, and current replacement tests;
+- **retired basis-specific laws**: arbitrary non-zero starting-basis snapshots, basis-coordinate preservation, basis-identity uniqueness, and Event-only fallback without origin evidence disappeared with the QuantityBasis ontology or were intentionally replaced by the stricter zero-origin contract.
+
+The historical Markdown for these probes was already retired to Git history in #664 after its surviving rationale was distilled. With current proof ownership established, the executable probes themselves now graduate from the working tree as well:
 
 ```text
-.github/workflows/application-008-starting-quantity-basis.yml
-.github/workflows/application-009-append-only-basis-revision.yml
+experiments/application_008_starting_quantity_basis.lean
+experiments/application_009_append_only_basis_revision.lean
 ```
 
-A renewed starting-quantity question should earn a new active probe against the current zero-origin model rather than perpetually recompiling this superseded candidate ontology.
+Git history preserves the exact historical source and qualified behavior. A renewed starting-quantity question should earn a new active probe against the current zero-origin model rather than resurrecting or perpetually recompiling the superseded candidate ontology.
 
 ## Follow-up graduation - foundational Observation CI 009-017, except 011
 
