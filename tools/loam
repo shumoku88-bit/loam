@@ -32,6 +32,10 @@ Diagnose whether the production startup read boundary is currently coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
   This command is read-only and never repairs or rewrites household facts.
 
+Inspect Movement object reachability without deleting anything:
+  ./tools/loam doctor reachability [LOAM_DATA_DIR]
+  Roots are CURRENT plus fully verified recovery manifests; orphan objects are reported only.
+
 Explicitly restore one retained, fully verified Movement generation:
   ./tools/loam doctor restore RECOVERY_DIGEST [LOAM_DATA_DIR]
   Recovery never guesses a generation. The exact retained manifest digest is required.
