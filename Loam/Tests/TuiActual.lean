@@ -57,7 +57,7 @@ private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
     allRecords := [previous, second, first]
     undatedCount := 0
   }
-  pure { actual, scheduled }
+  pure { actual, scheduled := .ok scheduled }
 
 private def initialCursor : Loam.Tui.Main.ReviewCursor :=
   let displayed := ((List.range 12).map testRecord).toArray

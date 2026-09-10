@@ -73,7 +73,7 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
     allRecords := []
     undatedCount := 0
   }
-  pure { actual := actual, scheduled := scheduledSnapshot }
+  pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
@@ -149,12 +149,16 @@ def main : IO Unit := do
   let pendingSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with actual := pendingActual
   }
-  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-08" with
+  let pendingScheduled ←
+    match pendingSnapshot.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok scheduled => pure scheduled
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingScheduled "2026-09-08" with
   | .error message => throw (IO.userError message)
   | .ok pending =>
       expect (pending.length == 12)
         "past-date current-open Scheduled projection lost retained occurrences"
-  match Loam.ScheduledReview.currentOpenBeforeDate pendingSnapshot.scheduled "2026-09-07" with
+  match Loam.ScheduledReview.currentOpenBeforeDate pendingScheduled "2026-09-07" with
   | .error message => throw (IO.userError message)
   | .ok pending =>
       expect pending.isEmpty

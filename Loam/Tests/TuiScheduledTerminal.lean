@@ -60,7 +60,13 @@ private def loadSnapshot
     today := "2026-09-08"
     allRecords := actualRecords
     undatedCount := (Loam.ActualReview.select actualRecords .undated).length }
-  return { actual := actual, scheduled := scheduled }
+  return { actual := actual, scheduled := .ok scheduled }
+
+private def requireScheduled
+    (snapshot : Loam.Tui.Main.Snapshot) : IO Loam.ScheduledReview.EvidenceSnapshot := do
+  match snapshot.scheduled with
+  | .error message => throw (IO.userError message)
+  | .ok scheduled => pure scheduled
 
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (token : String) : Bool :=
@@ -142,8 +148,9 @@ def main (args : List String) : IO Unit := do
     "shared completion receipt changed selected Scheduled identity"
 
   let afterCompletion ← loadSnapshot scheduledFile root
+  let afterCompletionScheduled ← requireScheduled afterCompletion
   let dueAfterCompletion := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCompletion.scheduled "2026-09-10")
+    (Loam.ScheduledReview.dayEvidence afterCompletionScheduled "2026-09-10")
   expect (!hasScheduled dueAfterCompletion "scheduled-1" &&
       hasScheduled dueAfterCompletion "scheduled-2" &&
       hasScheduled dueAfterCompletion "scheduled-3")
@@ -183,8 +190,9 @@ def main (args : List String) : IO Unit := do
     "shared cancellation receipt changed selected Scheduled identity"
 
   let afterCancellation ← loadSnapshot scheduledFile root
+  let afterCancellationScheduled ← requireScheduled afterCancellation
   let explicitAfterCancellation := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCancellation.scheduled "2026-09-10")
+    (Loam.ScheduledReview.dayEvidence afterCancellationScheduled "2026-09-10")
   expect (explicitAfterCancellation.length == 1 && hasScheduled explicitAfterCancellation "scheduled-3")
     "fresh Scheduled read did not leave only the untouched third occurrence"
   let replacementState := Loam.Tui.SelectedDay.refreshed afterCancellation afterState
@@ -238,10 +246,11 @@ def main (args : List String) : IO Unit := do
     "shared replacement receipt changed selected source identity"
 
   let afterReplacement ← loadSnapshot scheduledFile root
+  let afterReplacementScheduled ← requireScheduled afterReplacement
   let oldDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterReplacement.scheduled "2026-09-10")
+    (Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-10")
   let newDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterReplacement.scheduled "2026-09-12")
+    (Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-12")
   expect oldDay.isEmpty
     "fresh Scheduled read retained completed, cancelled, or superseded sources on the old day"
   expect

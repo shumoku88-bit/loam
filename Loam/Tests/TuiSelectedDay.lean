@@ -66,7 +66,7 @@ private def fixture : IO Loam.Tui.Main.Snapshot := do
   let scheduledSnapshot : Loam.ScheduledReview.EvidenceSnapshot := {
     scheduled, completions, retirements, replacements, events
   }
-  pure { actual, scheduled := scheduledSnapshot }
+  pure { actual, scheduled := .ok scheduledSnapshot }
 
 def main : IO Unit := do
   let snapshot ← fixture
@@ -132,4 +132,18 @@ def main : IO Unit := do
   expect (contains "Unknown: absence of an explicit due occurrence is not NotDue." unknownText)
     "Selected-day workspace collapsed Scheduled Unknown into NotDue"
 
-  IO.println "TUI selected day: shared composition, Record/Correction/Reversal/date delegation, refresh and Unknown passed."
+  let unavailable : Loam.Tui.Main.Snapshot :=
+    { snapshot with scheduled := .error "scheduled fixture unavailable" }
+  let unavailableScheduledState :=
+    (Loam.Tui.SelectedDay.update unavailable state .focusRight).state
+  let unavailableText := widgetText
+    (Loam.Tui.SelectedDay.view { width := 100, height := 30 } unavailable unavailableScheduledState)
+  expect (contains "Scheduled [Unavailable]" unavailableText &&
+    contains "[Unavailable] scheduled fixture unavailable" unavailableText)
+    "Selected-day workspace collapsed unavailable Scheduled evidence into an empty pane"
+  let unavailableCreate :=
+    Loam.Tui.SelectedDay.update unavailable unavailableScheduledState .createScheduled
+  expect (unavailableCreate.command == .stay)
+    "Selected-day workspace emitted a Scheduled write intent while Scheduled evidence was unavailable"
+
+  IO.println "TUI selected day: shared composition, Record/Correction/Reversal/date delegation, refresh, Unknown and Scheduled unavailability passed."

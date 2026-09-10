@@ -13,6 +13,7 @@ set_option autoImplicit false
 abbrev ReviewRecord := Loam.ActualReview.Record
 abbrev ScheduledRecord := Loam.ScheduledReview.Record
 abbrev ScheduledEvidence := Loam.ScheduledReview.DayEvidence
+abbrev ScheduledAvailability := Except String Loam.ScheduledReview.EvidenceSnapshot
 
 structure ActualSnapshot where
   today : String
@@ -22,7 +23,8 @@ structure ActualSnapshot where
 /-- One admitted household read snapshot. It is process-local evidence, never TUI authority. -/
 structure Snapshot where
   actual : ActualSnapshot
-  scheduled : Loam.ScheduledReview.EvidenceSnapshot
+  /-- Scheduled refusal remains explicit and must never be reinterpreted as an empty household. -/
+  scheduled : ScheduledAvailability
 
 structure ReviewCursor where
   date : String
@@ -95,8 +97,9 @@ def cursorForDay (snapshot : Snapshot) (date : String) : ReviewCursor :=
   { date := date, totalCount := records.length, displayed := displayed, selected := selected }
 
 
-def scheduledCursorForDay (snapshot : Snapshot) (date : String) : ScheduledCursor :=
-  let evidence := Loam.ScheduledReview.dayEvidence snapshot.scheduled date
+def scheduledCursorForDay
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) (date : String) : ScheduledCursor :=
+  let evidence := Loam.ScheduledReview.dayEvidence scheduled date
   let records := Loam.ScheduledReview.explicitDueRecords evidence
   let displayed := records.toArray
   let selected : Option (Fin displayed.size) :=
@@ -161,8 +164,12 @@ def openActual (snapshot : Snapshot) (state : State) (cached : Option ReviewCurs
 
 
 def openScheduled (snapshot : Snapshot) (state : State) (cached : Option ReviewCursor) : State :=
-  let cursor := scheduledCursorForDay snapshot state.selectedDate
-  { state with surface := .scheduled cached cursor .browse, notice := "" }
+  match snapshot.scheduled with
+  | .error message =>
+      { state with surface := .home cached, notice := "[Unavailable] Scheduled: " ++ message }
+  | .ok scheduled =>
+      let cursor := scheduledCursorForDay scheduled state.selectedDate
+      { state with surface := .scheduled cached cursor .browse, notice := "" }
 
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
@@ -293,12 +300,17 @@ def homeActualPreview (snapshot : Snapshot) (state : State) : List ReviewRecord 
   recentActualPreview (homeActualRecords snapshot state)
 
 
-def homeScheduledEvidence (snapshot : Snapshot) (state : State) : ScheduledEvidence :=
-  Loam.ScheduledReview.dayEvidence snapshot.scheduled state.selectedDate
+def homeScheduledEvidence
+    (snapshot : Snapshot) (state : State) : Except String ScheduledEvidence :=
+  match snapshot.scheduled with
+  | .error message => .error message
+  | .ok scheduled => .ok (Loam.ScheduledReview.dayEvidence scheduled state.selectedDate)
 
 
 def homeScheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
-  Loam.ScheduledReview.explicitDueRecords (homeScheduledEvidence snapshot state)
+  match homeScheduledEvidence snapshot state with
+  | .error _ => []
+  | .ok evidence => Loam.ScheduledReview.explicitDueRecords evidence
 
 
 def homeScheduledPreview (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
@@ -327,13 +339,14 @@ def scheduledPreviewSpans (snapshot : Snapshot) (state : State) (index : Nat) : 
 
 def scheduledHeader (snapshot : Snapshot) (state : State) : String :=
   match homeScheduledEvidence snapshot state with
-  | .due first rest => "Scheduled / Due / " ++ toString (rest.length + 1) ++ " explicit"
-  | .unknown => "Scheduled / Unknown"
-  | .unknownCompletionScheduled => "Scheduled / refused completion evidence"
-  | .unknownRetirementScheduled => "Scheduled / refused retirement evidence"
-  | .unknownReplacementScheduled => "Scheduled / refused replacement evidence"
-  | .invalidReplacementGraph => "Scheduled / refused replacement graph"
-  | .conflictingTerminalEvidence => "Scheduled / refused terminal evidence"
+  | .error _ => "Scheduled / Unavailable"
+  | .ok (.due first rest) => "Scheduled / Due / " ++ toString (rest.length + 1) ++ " explicit"
+  | .ok .unknown => "Scheduled / Unknown"
+  | .ok .unknownCompletionScheduled => "Scheduled / refused completion evidence"
+  | .ok .unknownRetirementScheduled => "Scheduled / refused retirement evidence"
+  | .ok .unknownReplacementScheduled => "Scheduled / refused replacement evidence"
+  | .ok .invalidReplacementGraph => "Scheduled / refused replacement graph"
+  | .ok .conflictingTerminalEvidence => "Scheduled / refused terminal evidence"
 
 
 def homeEvidenceSpans (snapshot : Snapshot) (state : State) : Nat → List Span
@@ -533,11 +546,12 @@ def scheduledDetailView (cursor : ScheduledCursor) : Widget :=
 def scheduledView
     (snapshot : Snapshot) (state : State) (cursor : ScheduledCursor) (mode : ScheduledMode) : Widget :=
   match homeScheduledEvidence snapshot state with
-  | .due _ _ =>
+  | .error message => refusedScheduledView state ("Scheduled unavailable: " ++ message)
+  | .ok (.due _ _) =>
       match mode with
       | .browse => scheduledBrowseView cursor state
       | .detail => scheduledDetailView cursor
-  | .unknown =>
+  | .ok .unknown =>
       .column
         [ plainLine "Scheduled / Unknown"
         , mutedLine "Home > Scheduled"
@@ -548,11 +562,11 @@ def scheduledView
         , blankLine
         , mutedLine "b home   q quit"
         ]
-  | .unknownCompletionScheduled => refusedScheduledView state "Completion evidence references an unknown Scheduled identity."
-  | .unknownRetirementScheduled => refusedScheduledView state "Retirement evidence references an unknown Scheduled identity."
-  | .unknownReplacementScheduled => refusedScheduledView state "Replacement evidence references an unknown Scheduled identity."
-  | .invalidReplacementGraph => refusedScheduledView state "Scheduled replacement topology is invalid."
-  | .conflictingTerminalEvidence => refusedScheduledView state "Scheduled terminal evidence conflicts."
+  | .ok .unknownCompletionScheduled => refusedScheduledView state "Completion evidence references an unknown Scheduled identity."
+  | .ok .unknownRetirementScheduled => refusedScheduledView state "Retirement evidence references an unknown Scheduled identity."
+  | .ok .unknownReplacementScheduled => refusedScheduledView state "Replacement evidence references an unknown Scheduled identity."
+  | .ok .invalidReplacementGraph => refusedScheduledView state "Scheduled replacement topology is invalid."
+  | .ok .conflictingTerminalEvidence => refusedScheduledView state "Scheduled terminal evidence conflicts."
 
 
 def view (snapshot : Snapshot) (state : State) : Widget :=

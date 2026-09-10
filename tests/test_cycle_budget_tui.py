@@ -68,6 +68,8 @@ master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
 env = dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(root))
 env.pop("LOAM_MOVEMENT_MANIFEST_ROOT", None)
+
+
 def controlling_terminal():
     os.setsid()
     fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
@@ -79,19 +81,32 @@ os.close(slave)
 ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
-def wait_for(expected, timeout=15):
+def wait_for_fd(fd, expected, timeout=15):
     data = b""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if select.select([master], [], [], 0.1)[0]:
+        if select.select([fd], [], [], 0.1)[0]:
             try:
-                data += os.read(master, 65536)
+                data += os.read(fd, 65536)
             except OSError:
                 break
             clean = ansi.sub("", data.decode("utf-8", errors="replace"))
             if expected in clean:
                 return clean
     raise AssertionError(f"Did not see {expected!r}: {ansi.sub('', data.decode(errors='replace'))}")
+
+
+def wait_for(expected, timeout=15):
+    return wait_for_fd(master, expected, timeout)
+
+
+def drain_fd(fd):
+    while select.select([fd], [], [], 0.1)[0]:
+        try:
+            if not os.read(fd, 1024):
+                break
+        except OSError:
+            break
 
 
 def expect_local_unavailability(key, subject):
@@ -208,15 +223,59 @@ try:
     capacity_path.write_bytes(capacity)
 
     os.write(master, b"q")
-    while select.select([master], [], [], 0.1)[0]:
-        try:
-            if not os.read(master, 1024):
-                break
-        except OSError:
-            break
+    drain_fd(master)
     assert process.wait(timeout=10) == 0
     assert digest() == before, "Cancelled production navigation changed fixture evidence/config"
-    print("Production PTY: Budget actions, local read refusals, Home raw Capacity fallback and no writes passed.")
+
+    # Scheduled refusal is different from the on-demand workspace cases above:
+    # it is part of the startup Snapshot. Corrupt it before a fresh process starts
+    # and verify that the shell and Actual remain usable without inventing an empty
+    # or closed-world Scheduled answer.
+    scheduled_path = root / "scheduled.loam"
+    scheduled_bytes = scheduled_path.read_bytes()
+    scheduled_path.write_text("not-scheduled-evidence\n")
+    master2, slave2 = pty.openpty()
+    fcntl.ioctl(slave2, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
+
+    def controlling_terminal2():
+        os.setsid()
+        fcntl.ioctl(slave2, termios.TIOCSCTTY, 0)
+
+    process2 = subprocess.Popen([str(executable), str(root)], stdin=slave2, stdout=slave2,
+                                stderr=slave2, env=env, preexec_fn=controlling_terminal2)
+    os.close(slave2)
+    try:
+        startup = wait_for_fd(master2, "[Unavailable]")
+        assert "LOAM Home" in startup, "Scheduled startup refusal prevented Home from starting"
+        assert "Scheduled" in startup, "Home did not identify Scheduled as unavailable"
+        assert process2.poll() is None, "TUI exited after retaining Scheduled startup refusal"
+
+        os.write(master2, b"p")
+        scheduled_screen = wait_for_fd(master2, "Scheduled [Unavailable]")
+        assert "Household Scheduled Workspace" in scheduled_screen
+        assert process2.poll() is None, "TUI exited while showing unavailable Scheduled workspace"
+        os.write(master2, b"q")
+        wait_for_fd(master2, "LOAM Home")
+
+        os.write(master2, b"a")
+        actual_screen = wait_for_fd(master2, "Household Actuals Workspace")
+        assert "Actual" in actual_screen
+        assert process2.poll() is None, "Unavailable Scheduled prevented Actual workspace use"
+        os.write(master2, b"q")
+        wait_for_fd(master2, "LOAM Home")
+
+        os.write(master2, b"q")
+        drain_fd(master2)
+        assert process2.wait(timeout=10) == 0
+    finally:
+        if process2.poll() is None:
+            os.killpg(process2.pid, signal.SIGKILL)
+            process2.wait(timeout=5)
+        os.close(master2)
+        scheduled_path.write_bytes(scheduled_bytes)
+
+    assert digest() == before, "Scheduled startup resilience test changed fixture evidence/config"
+    print("Production PTY: Budget actions, local read refusals, Scheduled startup isolation, Actual survival and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()

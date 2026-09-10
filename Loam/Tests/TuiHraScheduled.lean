@@ -62,7 +62,7 @@ private def hraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
     allRecords := []
     undatedCount := 0
   }
-  pure { actual := actual, scheduled := scheduledSnapshot }
+  pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
 def main : IO Unit := do
   let snapshot ← hraScheduledSnapshot
@@ -143,4 +143,17 @@ def main : IO Unit := do
   expect (contains "Scheduled pane" lociCompleteStep.state.notice)
     "HRA Scheduled complete notice from loci pane was missing guidance"
 
-  IO.println "TUI Scheduled: HRA Scheduled workspace mechanics passed."
+  -- 8. Startup refusal remains explicit and blocks Scheduled writes.
+  let unavailable : Loam.Tui.Main.Snapshot :=
+    { snapshot with scheduled := .error "scheduled fixture unavailable" }
+  let unavailableText := widgetText
+    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } unavailable start)
+  expect (contains "Scheduled [Unavailable]" unavailableText &&
+    contains "[Unavailable] scheduled fixture unavailable" unavailableText)
+    "HRA Scheduled collapsed startup refusal into an empty Scheduled workspace"
+  let unavailableCreate := Loam.Tui.HraScheduled.update unavailable start .createScheduled
+  expect (unavailableCreate.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailableCreate.state.notice)
+    "HRA Scheduled emitted a write intent while Scheduled evidence was unavailable"
+
+  IO.println "TUI Scheduled: HRA Scheduled workspace mechanics and startup unavailability passed."
