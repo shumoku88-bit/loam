@@ -228,7 +228,7 @@ private def occWindowStart (state : State) : Nat :=
 
 private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
-  else (lociForScope snapshot state)[state.locusRow - 1]?
+  else (lociForScope snapshot state)[row - 1]?
 
 private def paneRow (snapshot : Snapshot) (state : State)
     (leftWidth rightWidth row : Nat) : Widget :=
@@ -315,9 +315,12 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
        else " Loci (" ++ toString lociCount ++ ")")
   let rightHeader :=
-    fit rightWidth
-      (if state.pane == .occurrences then " Scheduled [active] (" ++ toString occCount ++ ")"
-       else " Scheduled (" ++ toString occCount ++ ")")
+    match snapshot.scheduled with
+    | .error _ => fit rightWidth " Scheduled [Unavailable]"
+    | .ok _ =>
+        fit rightWidth
+          (if state.pane == .occurrences then " Scheduled [active] (" ++ toString occCount ++ ")"
+           else " Scheduled (" ++ toString occCount ++ ")")
   let body :=
     [ rule bounds '='
     , plainLine " Household Scheduled Workspace"
