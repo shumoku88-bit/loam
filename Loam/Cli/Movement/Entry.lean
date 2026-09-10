@@ -1,4 +1,5 @@
-import Loam.Persistence
+import Loam.Core.Event
+import Loam.Persistence.TokenSyntax
 import Std
 
 namespace Loam.MovementEntry
