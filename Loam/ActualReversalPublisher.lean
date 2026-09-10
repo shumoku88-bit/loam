@@ -4,7 +4,8 @@ import Loam.Application.CorrectionFrontier
 import Loam.Core.ActualReversal
 import Loam.Core.BalancedMovement
 import Loam.MovementManifestAuthority
-import Loam.Persistence
+import Loam.Persistence.EventCorrectionPersistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ActualReversalPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
