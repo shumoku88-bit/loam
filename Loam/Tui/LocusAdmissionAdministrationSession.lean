@@ -4,7 +4,6 @@ import Loam.MovementManifestAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tui.AccountingRoleAdministration
-import Loam.Tui.AccountingRoleAdministrationSession
 import Loam.Tui.Kernel
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.Runtime
@@ -26,8 +25,31 @@ delegated to `LocusAdmissionPublisher.publishManifestAdmission`.
 While editing, Tab opens the separate initial-AccountingRole administration
 surface. That surface computes candidates from current authorities and delegates
 its write to `AccountingRolePublisher`; Locus admission and role assignment stay
-separate publication boundaries even though their administration is colocated.
+separate publication boundaries even though their terminal orchestration shares
+this session.
 -/
+
+private partial def runInitialRoleEditor
+    (bounds : Bounds)
+    (scheduledFile root roleFile : System.FilePath)
+    (state : Loam.Tui.AccountingRoleAdministration.State)
+    (frame : CompiledWidget) : IO String := do
+  let key ← Loam.Tui.Terminal.readKey
+  let step := Loam.Tui.AccountingRoleAdministration.update state key
+  if step.cancel then
+    return "AccountingRole assignment cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.AccountingRolePublisher.publishInitialRole
+          scheduledFile.toString root.toString roleFile.toString draft with
+      | .ok receipt =>
+          return "Assigned initial AccountingRole to " ++ receipt.locus.token ++ ". Roles: " ++
+            toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
+      | .error message => return "AccountingRole assignment refused: " ++ message
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      runInitialRoleEditor bounds scheduledFile root roleFile step.state nextFrame
 
 private def runInitialRoleAdministration
     (bounds : Bounds)
@@ -50,8 +72,7 @@ private def runInitialRoleAdministration
   let adminFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds admin)
   IO.print "\x1b[2J"
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 (compileWidget (.row [])) adminFrame
-  Loam.Tui.AccountingRoleAdministrationSession.run
-    bounds scheduledFile root roleFile admin adminFrame
+  runInitialRoleEditor bounds scheduledFile root roleFile admin adminFrame
 
 partial def run
     (bounds : Bounds)
