@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Core.ScheduledMemory
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
