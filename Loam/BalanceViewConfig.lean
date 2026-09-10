@@ -1,5 +1,5 @@
 import Loam.Core.Event
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 
 namespace Loam.BalanceViewConfig
 

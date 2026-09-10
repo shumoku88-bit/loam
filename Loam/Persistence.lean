@@ -1,6 +1,7 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventMemory
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 import Std
 
@@ -82,13 +83,6 @@ def eventMemoryHeader : String := "LOAM-EVENT-MEMORY\t1"
 
 /-- Version marker for the first persisted raw Event-correction memory format. -/
 def eventCorrectionMemoryHeader : String := "LOAM-EVENT-CORRECTION-MEMORY\t1"
-
-/-- Whether one opaque identity token is representable by the first text formats. -/
-def validToken (token : String) : Bool :=
-  !token.isEmpty &&
-    !token.contains '\t' &&
-    !token.contains '\n' &&
-    !token.contains '\r'
 
 /-- Encode one runtime amount without changing its exact quanta. -/
 def encode? (amount : SomeAmount) : Option String :=
