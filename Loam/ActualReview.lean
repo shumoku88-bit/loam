@@ -1,3 +1,4 @@
+import Loam.Persistence
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Application.ActualValidityFrontier
