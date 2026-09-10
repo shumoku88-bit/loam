@@ -11,13 +11,9 @@ private def expect (condition : Bool) (message : String) : IO Unit := do
 private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some scheduled := ScheduledMemory.ofOccurrences? []
     | throw (IO.userError "empty Scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty Scheduled completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty Scheduled retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty Scheduled replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty Scheduled terminal memory")
+  return { scheduled, terminals }
 
 private def initialWorld : IO Loam.MovementAdmission.World := do
   let effects :=
