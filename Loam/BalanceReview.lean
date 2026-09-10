@@ -1,6 +1,7 @@
 import Loam.Application.ZeroOriginQuantity
 import Loam.BalanceViewConfig
 import Loam.MovementManifestAuthority
+import Loam.Persistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 namespace Loam.BalanceReview
