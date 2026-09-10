@@ -2,13 +2,13 @@ import Std
 
 namespace Loam.PresentationMetadata
 
-set_option autoImplicit false
-
 /-! Shared text mechanics for replaceable human-facing `token / label / help` rows.
 Household identity, admission, authority, I/O, and presentation policy stay with callers. -/
 
 structure Row where
-  token label help : String
+  token : String
+  label : String
+  help : String
   deriving Repr, DecidableEq
 
 private def decodeRow? (validToken : String → Bool) (row : String) : Option Row :=
