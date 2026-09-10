@@ -33,5 +33,25 @@
       "PrimitiveCoverageStateDeterminesFullAnswer": false,
       "HeadroomDeterminesFullCoverageAnswer": true
     }
+  },
+  {
+    "id": "observation-244-scheduled-terminal-recompression",
+    "workflow_origin": "observable-semantics-reconstruction.yml",
+    "model": "experiments/244_scheduled_terminal_recompression.als",
+    "expected": {
+      "representativeMatureLifecycle": true,
+      "danglingCompletionStaysOpen": true,
+      "unknownCompletionSourceVisible": true,
+      "unknownRetirementSourceVisible": true,
+      "unknownReplacementEndpointVisible": true,
+      "replacementCycleVisible": true,
+      "crossKindConflictVisible": true,
+      "sameTerminalSourcesDifferentMeaning": true,
+      "sameKindsDifferentTargetProvenance": true,
+      "TargetTypedEdgePartitionsCurrentFacets": false,
+      "EdgeAndFacetFailureClassificationAgree": false,
+      "EdgeAndFacetCurrentOpenAgree": false,
+      "TargetPreservingLifecycleDeterminesReadAnswer": false
+    }
   }
 ]
