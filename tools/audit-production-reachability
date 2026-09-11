@@ -69,7 +69,7 @@ exe_reachable = closure(exe_roots)
 # observations for the all-library qualification build.
 practical_library_roots = [
     module
-    for module in ["Loam.Core", "Loam.Application", "Loam.Persistence", "Loam.Tui"]
+    for module in ["Loam.Core", "Loam.Application", "Loam.Tui"]
     if module in module_to_path
 ]
 library_reachable = closure(practical_library_roots)
@@ -83,7 +83,6 @@ def is_candidate_practical(path: Path) -> bool:
         Path("Loam.lean"),
         Path("Loam/Core.lean"),
         Path("Loam/Application.lean"),
-        Path("Loam/Persistence.lean"),
         Path("Loam/Observations.lean"),
         Path("Loam/Tests.lean"),
     }:
