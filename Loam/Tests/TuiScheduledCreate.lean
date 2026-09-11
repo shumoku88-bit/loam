@@ -36,13 +36,9 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
 private def emptyScheduledLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some scheduled := ScheduledMemory.ofOccurrences? []
     | throw (IO.userError "empty Scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty Scheduled completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty Scheduled retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty Scheduled replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty Scheduled terminal memory")
+  return { scheduled, terminals }
 
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
