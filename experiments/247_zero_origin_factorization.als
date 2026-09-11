@@ -2,13 +2,12 @@ module experiments/zero_origin_factorization_247
 
 -- Observation 247
 --
--- Challenge whether current per-coordinate zero-origin coverage necessarily
--- represents independent household facts. Compare two semantic shapes while
--- preserving the coverage answer itself.
+-- Challenge whether per-coordinate zero-origin coverage can be replaced by one
+-- origin fact. Household coordinate names are intentionally absent: this model
+-- tests the generic information law, while current loam-data supplies concrete
+-- extension witnesses separately.
 
-abstract sig Coordinate {}
-one sig Cash, PayPay, Smbc, Yucho, AllCountry extends Coordinate {}
-
+sig Coordinate {}
 one sig Origin {}
 
 sig DirectWorld {
@@ -25,8 +24,7 @@ fun directCoverage[w : DirectWorld] : set Coordinate {
 }
 
 fun factoredCoverage[w : FactoredWorld] : set Coordinate {
-  { c : Coordinate |
-      some w.origin and c in w.trackedFromOrigin }
+  { c : Coordinate | some w.origin and c in w.trackedFromOrigin }
 }
 
 pred equivalent[d : DirectWorld, f : FactoredWorld] {
@@ -36,15 +34,16 @@ pred equivalent[d : DirectWorld, f : FactoredWorld] {
 pred everyDirectHasFactoredImage {
   all d : DirectWorld |
     some f : FactoredWorld |
-      equivalent[d, f]
-}
-
-pred explicitOriginReconstructsDirect {
-  all d : DirectWorld |
-    some f : FactoredWorld |
       some f.origin
       and f.trackedFromOrigin = d.covered
       and equivalent[d, f]
+}
+
+pred explicitOriginReconstructsDirect {
+  some d : DirectWorld, f : FactoredWorld |
+    some f.origin
+    and f.trackedFromOrigin = d.covered
+    and equivalent[d, f]
 }
 
 pred trackedSetStillCarriesInformation {
@@ -72,8 +71,8 @@ assert DirectToFactoredCoveragePreserved {
     equivalent[d, f] implies directCoverage[d] = factoredCoverage[f]
 }
 
-run everyDirectHasFactoredImage for 5 DirectWorld, 5 FactoredWorld
-run explicitOriginReconstructsDirect for 5 DirectWorld, 5 FactoredWorld
-run trackedSetStillCarriesInformation for 2 FactoredWorld
-run originFactAloneIsInsufficient for 2 FactoredWorld
-check DirectToFactoredCoveragePreserved for 5 DirectWorld, 5 FactoredWorld
+run everyDirectHasFactoredImage for 3 but 2 Coordinate, 3 DirectWorld, 3 FactoredWorld
+run explicitOriginReconstructsDirect for 3 but 2 Coordinate, 2 DirectWorld, 2 FactoredWorld
+run trackedSetStillCarriesInformation for 3 but 2 Coordinate, exactly 2 FactoredWorld
+run originFactAloneIsInsufficient for 3 but 2 Coordinate, exactly 2 FactoredWorld
+check DirectToFactoredCoveragePreserved for 3 but 2 Coordinate, 3 DirectWorld, 3 FactoredWorld
