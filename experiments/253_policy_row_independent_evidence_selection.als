@@ -65,8 +65,9 @@ assert MalformedEnvelopeBlocksEvidenceRead {
 -- factorization without making malformed evidence acceptable.
 assert PolicyRowHealthCannotChangeEvidenceAvailability {
   all left, right : ManifestState |
-    left.envelope = right.envelope
-    and all family : Family | left.evidenceRow[family] = right.evidenceRow[family]
+    (left.envelope = right.envelope
+      and (all family : Family |
+        left.evidenceRow[family] = right.evidenceRow[family]))
       implies (evidenceReadable[left] iff evidenceReadable[right])
 }
 
