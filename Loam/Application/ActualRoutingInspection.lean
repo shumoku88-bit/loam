@@ -56,6 +56,20 @@ def consumptionAtRecordedEffectiveRouting?
     0
   return Quantity.ofQuanta quanta
 
+/-- Migration witness: initial-aware Consumption is the same always-selected fold. -/
+theorem consumptionAtRecordedEffectiveRouting_eq_recordedWhere
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId (RoutingEffective Time))
+    (purpose : PurposeId)
+    (measure : MeasureId) :
+    consumptionAtRecordedEffectiveRouting? events validities routing purpose measure =
+      consumptionAtRecordedWhere? events validities
+        (fun _ => true)
+        (fun event validOn =>
+          eventConsumptionAtEffectiveRouting event validOn routing purpose measure) := by
+  rfl
+
 /-- Apply the admitted Event-correction frontier before initial-aware Consumption. -/
 def consumptionAtCorrectionFrontierEffectiveRouting?
     (events : EventMemory)
