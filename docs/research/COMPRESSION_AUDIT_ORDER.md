@@ -1,8 +1,8 @@
 # Compression audit order
 
-The active compression audit is tracked by Issue #535 and grounded by `COMPRESSION_AUDIT_CHECKPOINT_226.md`.
+The original six-phase compression audit tracked by Issue #535 is complete and remains historical evidence.
 
-Work proceeds strictly in this order:
+Its phase order was:
 
 1. reproduce the production source surface;
 2. inventory independently retained semantic meaning;
@@ -11,4 +11,16 @@ Work proceeds strictly in this order:
 5. compress research and CI history;
 6. compare before/after complexity.
 
-Do not start a later phase merely because it appears easier. Findings from an earlier phase may narrow or eliminate later work.
+Current structural-compression work continues in:
+
+`docs/research/SEMANTIC_AUDIT_LEDGER.md`
+
+That ledger is the active navigation surface for:
+
+- the current production checkpoint;
+- completed semantic/structural reductions;
+- audit verdicts that should not be repeatedly reopened without new evidence;
+- the ordered queue of remaining subtraction candidates;
+- the proof/counterexample/transition-model gate required before implementation.
+
+Before starting any listed item, re-check actual remote `main`, open PRs, current callers, canonical/wire impact, and exact-head CI scope. Do not skip to a broader abstraction merely because a smaller candidate appears tedious.
