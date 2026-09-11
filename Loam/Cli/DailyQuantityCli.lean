@@ -38,13 +38,6 @@ private def loadEventMemoryForView?
       | none => return .error "loam: malformed or unsupported event-memory file"
       | some events => return .ok events
 
-private def loadEventCorrectionMemoryForView?
-    (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventCorrectionMemory? path
-  else
-    return EventCorrectionMemory.ofCorrections? []
-
 private def loadCoverageForView?
     (path : System.FilePath) : IO (Option ZeroOriginCoverage) := do
   if ← path.pathExists then
@@ -125,7 +118,7 @@ def showCurrentQuantities
       IO.eprintln message
       return 2
   | .ok events =>
-      match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
+      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? eventCorrectionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
           return 2
@@ -163,7 +156,7 @@ def showBalances
       IO.eprintln message
       return 2
   | .ok events =>
-      match ← loadEventCorrectionMemoryForView? eventCorrectionFile with
+      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? eventCorrectionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
           return 2

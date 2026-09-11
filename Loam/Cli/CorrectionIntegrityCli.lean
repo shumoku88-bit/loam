@@ -6,13 +6,6 @@ namespace Loam.CorrectionIntegrityCli
 
 set_option autoImplicit false
 
-private def loadCorrectionMemoryForView?
-    (path : System.FilePath) : IO (Option Loam.Core.EventCorrectionMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventCorrectionMemory? path
-  else
-    return Loam.Core.EventCorrectionMemory.ofCorrections? []
-
 private def printEffects (effects : List Loam.Core.Effect) : IO Unit := do
   for effect in effects do
     IO.println
@@ -66,7 +59,7 @@ def showCorrectionIntegrity (memoryPath correctionPath : String) : IO UInt32 := 
         IO.eprintln "loam: malformed or unsupported event-memory file"
         return 2
     | some memory =>
-        match ← loadCorrectionMemoryForView? correctionFile with
+        match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
         | none =>
             IO.eprintln "loam: malformed or unsupported correction-memory file"
             return 2

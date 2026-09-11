@@ -52,18 +52,6 @@ private structure Admitted where
   reversalChanged : Bool
   receipt : Receipt
 
-private def emptyCorrections : EventCorrectionMemory :=
-  { corrections := [], idNodup := by simp }
-
-private def loadCorrectionsOrEmpty?
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadEventCorrectionMemory? path with
-    | some memory => return .ok memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
-  else
-    return .ok emptyCorrections
-
 private def loadReversals?
     (path : System.FilePath) : IO (Except String ActualReversalMemory) := do
   if !(← path.pathExists) then
@@ -238,9 +226,9 @@ private def publishUnderOwnership
     | .ok world => pure world
     | .error message => return .error message
   let corrections ←
-    match ← loadCorrectionsOrEmpty? correctionFile with
-    | .ok memory => pure memory
-    | .error message => return .error message
+    match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
+    | some memory => pure memory
+    | none => return .error "loam: malformed or unsupported correction-memory file"
   let lifecycle ←
     match ← loadScheduledLifecycle? scheduledFile with
     | .ok image => pure image

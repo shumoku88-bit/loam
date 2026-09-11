@@ -33,18 +33,6 @@ private structure Admitted where
   correctionChanged : Bool
   receipt : Receipt
 
-private def emptyCorrections : EventCorrectionMemory :=
-  { corrections := [], idNodup := by simp }
-
-private def loadCorrectionsOrEmpty?
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadEventCorrectionMemory? path with
-    | some memory => return .ok memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
-  else
-    return .ok emptyCorrections
-
 /-- Missing Reversal authority is not absence-as-empty. -/
 private def loadReversals?
     (path : System.FilePath) : IO (Except String ActualReversalMemory) := do
@@ -290,9 +278,9 @@ private def publishUnderOwnership
     | .ok world => pure world
     | .error message => return .error message
   let corrections ←
-    match ← loadCorrectionsOrEmpty? correctionFile with
-    | .ok memory => pure memory
-    | .error message => return .error message
+    match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
+    | some memory => pure memory
+    | none => return .error "loam: malformed or unsupported correction-memory file"
   let reversalFile := correctionFile.withFileName "actual-reversals.loam"
   let reversals ←
     match ← loadReversals? reversalFile with

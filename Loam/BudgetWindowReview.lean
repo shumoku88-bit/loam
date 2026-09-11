@@ -52,17 +52,11 @@ private structure Evidence where
   validities : ActualValidityMemory String
   routing : Loam.Persistence.ActualRoutingHistory
 
-private def emptyCorrections : EventCorrectionMemory :=
-  { corrections := [], idNodup := by simp }
-
 private def loadCorrections?
     (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadEventCorrectionMemory? path with
-    | some corrections => return .ok corrections
-    | none => return .error "loam: malformed or unsupported Event correction authority"
-  else
-    return .ok emptyCorrections
+  match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? path with
+  | some corrections => return .ok corrections
+  | none => return .error "loam: malformed or unsupported Event correction authority"
 
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
   if ← path.pathExists then return .ok ()

@@ -18,13 +18,6 @@ private structure JournalEntry where
   validOn : String
   description : Option String
 
-private def loadCorrectionMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventCorrectionMemory? path
-  else
-    return EventCorrectionMemory.ofCorrections? []
-
 private def loadDescriptionMemoryOrEmpty?
     (path : System.FilePath) : IO (Option EventDescriptionMemory) := do
   if ← path.pathExists then
@@ -140,7 +133,7 @@ def exportJournal
       IO.eprintln "loam: malformed or unsupported event-memory file"
       return 2
   | some memory =>
-      match ← loadCorrectionMemoryOrEmpty? correctionFile with
+      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported correction-memory file"
           return 2

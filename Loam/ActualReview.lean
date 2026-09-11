@@ -139,11 +139,10 @@ private def loadManifestWorld?
 
 private def loadCorrections?
     (correctionPath : Option String) : IO (Option EventCorrectionMemory) := do
-  let emptyCorrections : EventCorrectionMemory := { corrections := [], idNodup := by simp }
   match correctionPath with
   | some path =>
-      loadOrEmpty (System.FilePath.mk path) Loam.Persistence.loadEventCorrectionMemory? emptyCorrections
-  | none => pure (some emptyCorrections)
+      Loam.Persistence.loadEventCorrectionMemoryOrEmpty? (System.FilePath.mk path)
+  | none => EventCorrectionMemory.ofCorrections? [] |> pure
 
 private def recordsFromWorld?
     (world : ReviewMovementWorld)
