@@ -45,5 +45,8 @@ lean_exe loamShadowQuantity where
 lean_exe loamDoctor where
   root := `Loam.Cli.DoctorCli
 
+lean_exe loamHouseholdObservation where
+  root := `Loam.Cli.HouseholdObservationCli
+
 lean_exe loamTui where
   root := `Loam.Tui.Cli
