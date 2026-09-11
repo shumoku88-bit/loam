@@ -1,5 +1,6 @@
 import Loam.Application.ActualValidityFrontier
 import Loam.Core.ActualValidityHistory
+import Loam.Persistence.ActualValidityPersistence
 
 open Loam.Core
 open Loam.Application
@@ -62,6 +63,32 @@ def main : IO Unit := do
     "repeated date correction did not preserve full fact provenance"
   expect (repeatedHistory.corrections.length == 2)
     "repeated date correction did not preserve both correction relations"
+
+  let currentWire :=
+    "LOAM-ACTUAL-VALIDITY-HISTORY\t3\n" ++
+    "BASE\trecord-1\t2026-09-03\n" ++
+    "REVISION\tvalidity-2\trecord-1\t2026-09-02\n" ++
+    "REVISION\tvalidity-3\trecord-1\t2026-09-01\n" ++
+    "CORRECTION\tROOT\trecord-1\tvalidity-2\n" ++
+    "CORRECTION\tREVISION\tvalidity-2\tvalidity-3\n"
+  expect
+    (Loam.Persistence.encodeActualValidityHistory? repeatedHistory == some currentWire)
+    "current validity persistence did not use endpoint-only V3 correction rows"
+
+  let legacyWire :=
+    "LOAM-ACTUAL-VALIDITY-HISTORY\t2\n" ++
+    "BASE\trecord-1\t2026-09-03\n" ++
+    "REVISION\tvalidity-2\trecord-1\t2026-09-02\n" ++
+    "CORRECTION\tlegacy-correction-1\tROOT\trecord-1\tvalidity-2\n"
+  let legacyHistory ← requireSome
+    (Loam.Persistence.decodeActualValidityHistory? legacyWire)
+    "legacy V2 validity history no longer decoded"
+  let legacyCurrent ← requireSome
+    (admittedActualValidityMemory? legacyHistory)
+    "legacy V2 validity history no longer admitted after decoding"
+  expect
+    (ActualValidityMemory.findByEventId? legacyCurrent event == some "2026-09-02")
+    "legacy V2 correction token changed the decoded current date"
 
   let sibling := revision "validity-4" "2026-08-31"
   let siblingHistory ← requireSome
