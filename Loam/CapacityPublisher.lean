@@ -212,6 +212,16 @@ private def movementForBalancedDraft?
     let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
     pure { id := id, movement := movement }
 
+private theorem movementForDraft?_eq_toBalancedDraft
+    (id : CapacityMovementId)
+    (draft : Draft)
+    (hPositive : ¬ draft.quanta <= 0)
+    (hDifferent : draft.source ≠ draft.destination) :
+    movementForDraft? id draft =
+      movementForBalancedDraft? id draft.toBalancedDraft := by
+  simp [movementForDraft?, movementForBalancedDraft?, Draft.toBalancedDraft,
+    movementTotalQuanta, hPositive, hDifferent]
+
 private def publishBalancedUnlocked
     (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String BalancedReceipt) := do
   match validateBalancedDraft draft with
@@ -320,7 +330,7 @@ def isBalanced (p : Proposal) : Bool :=
 
 /-- True when at least one non-zero delta is present. -/
 def hasChanges (p : Proposal) : Bool :=
-  p.deltas.any (fun (_, d) => d != 0)
+  p.deltas.any fun (_, d) => d != 0
 
 /-- Convert non-zero proposal deltas into Capacity movement changes. -/
 def toChanges (p : Proposal) : List (MovementChange CapacityCoordinate) :=
