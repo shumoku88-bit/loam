@@ -63,17 +63,11 @@ def validOn : ActualValidityFact Time → Time
 
 end ActualValidityFact
 
-/-- Stable identity for one correction between Actual-validity facts. -/
-structure ActualValidityCorrectionId where
-  token : String
-deriving Repr, DecidableEq
-
 /--
 One append-only claim that an identified revision corrects an earlier base or
 revision. The relation itself assigns no arrival-order or last-write-wins authority.
 -/
 structure ActualValidityCorrection where
-  id : ActualValidityCorrectionId
   target : ActualValidityRef
   replacement : ActualValidityRevisionId
 deriving Repr, DecidableEq
@@ -81,27 +75,33 @@ deriving Repr, DecidableEq
 /--
 Raw retained Actual-validity provenance.
 
-Only fact references and correction identities are unique at this boundary.
+Fact references and exact correction edges are unique at this boundary.
 Reference closure, same-Event replacement, acyclicity, conflicts, and the
 one-current-date-per-Event law belong to the Application frontier admission.
 List position is representation only.
+
+`correctionIdNodup` retains its historical field name only to avoid a broad
+constructor-only migration in unrelated fixtures; its proposition is now edge
+uniqueness and contains no correction identity.
 -/
 structure ActualValidityHistory (Time : Type) where
   facts : List (ActualValidityFact Time)
   factRefNodup : (facts.map ActualValidityFact.ref).Nodup
   corrections : List ActualValidityCorrection
-  correctionIdNodup : (corrections.map ActualValidityCorrection.id).Nodup
+  correctionIdNodup : (corrections.map fun correction =>
+    (correction.target, correction.replacement)).Nodup
 
 namespace ActualValidityHistory
 
 variable {Time : Type}
 
-/-- Admit raw history only when retained fact references and correction identities are unique. -/
+/-- Admit raw history only when fact references and exact correction edges are unique. -/
 def ofParts?
     (facts : List (ActualValidityFact Time))
     (corrections : List ActualValidityCorrection) : Option (ActualValidityHistory Time) :=
   if hFacts : (facts.map ActualValidityFact.ref).Nodup then
-    if hCorrections : (corrections.map ActualValidityCorrection.id).Nodup then
+    if hCorrections : (corrections.map fun correction =>
+        (correction.target, correction.replacement)).Nodup then
       some {
         facts := facts
         factRefNodup := hFacts
@@ -118,12 +118,6 @@ def findFactByRef?
     (history : ActualValidityHistory Time)
     (ref : ActualValidityRef) : Option (ActualValidityFact Time) :=
   FiniteKeyed.findBy? ActualValidityFact.ref history.facts ref
-
-/-- Find one retained validity correction by stable identity. -/
-def findCorrectionById?
-    (history : ActualValidityHistory Time)
-    (id : ActualValidityCorrectionId) : Option ActualValidityCorrection :=
-  FiniteKeyed.findBy? ActualValidityCorrection.id history.corrections id
 
 /-- Append one raw validity fact without deriving currentness from list position. -/
 def addFact?

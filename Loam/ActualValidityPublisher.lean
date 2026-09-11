@@ -48,15 +48,6 @@ private def freshRevisionId?
     (history.facts.length + 1)
   pure ⟨token⟩
 
-private def freshCorrectionId?
-    (history : ActualValidityHistory String) : Option ActualValidityCorrectionId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "validity-correction-"
-    (fun token => (history.findCorrectionById? (⟨token⟩ : ActualValidityCorrectionId)).isSome)
-    1
-    (history.corrections.length + 1)
-  pure ⟨token⟩
-
 private def currentFactForEvent?
     (facts : List (ActualValidityFact String)) (event : EventId) :
     Option (ActualValidityFact String) :=
@@ -99,12 +90,7 @@ private def appendDateChange?
         match history.addFact? replacement with
         | some updated => pure updated
         | none => throw "loam: could not append occurrence-date revision evidence"
-      let correctionId ←
-        match freshCorrectionId? history with
-        | some id => pure id
-        | none => throw "loam: could not generate a fresh occurrence-date correction identity"
       let correction : ActualValidityCorrection := {
-        id := correctionId
         target := currentFact.ref
         replacement := revisionId
       }

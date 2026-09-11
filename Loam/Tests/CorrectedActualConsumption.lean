@@ -119,8 +119,7 @@ def main : IO Unit := do
       [ .base original.id (1 : Nat),
         .base revised.id (1 : Nat),
         .revision ⟨"validity-revised-new"⟩ revised.id (2 : Nat) ]
-      [ { id := ⟨"validity-correction-1"⟩,
-          target := .root revised.id,
+      [ { target := .root revised.id,
           replacement := ⟨"validity-revised-new"⟩ } ])
     "append-only validity history was not admitted"
 

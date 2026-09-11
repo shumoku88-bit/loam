@@ -96,7 +96,7 @@ jobs:
           EOF
 
           cat >"$validity" <<'EOF'
-          LOAM-ACTUAL-VALIDITY-HISTORY	2
+          LOAM-ACTUAL-VALIDITY-HISTORY	3
           BASE	old	2026-09-02
           BASE	later	2026-09-06
           BASE	replacement	2026-09-03
@@ -166,7 +166,7 @@ jobs:
           EOF
 
           cat >"$validity" <<'EOF'
-          LOAM-ACTUAL-VALIDITY-HISTORY	2
+          LOAM-ACTUAL-VALIDITY-HISTORY	3
           EOF
 
           cat >"$descriptions" <<'EOF'

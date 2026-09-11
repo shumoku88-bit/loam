@@ -1,5 +1,6 @@
 import Loam.Application.ActualValidityFrontier
 import Loam.Core.ActualValidityHistory
+import Loam.Persistence.ActualValidityPersistence
 
 open Loam.Core
 open Loam.Application
@@ -20,8 +21,8 @@ private def revision (id date : String) : ActualValidityFact String :=
   .revision ⟨id⟩ event date
 
 private def correction
-    (id : String) (target : ActualValidityRef) (replacement : String) : ActualValidityCorrection :=
-  { id := ⟨id⟩, target := target, replacement := ⟨replacement⟩ }
+    (target : ActualValidityRef) (replacement : String) : ActualValidityCorrection :=
+  { target := target, replacement := ⟨replacement⟩ }
 
 def main : IO Unit := do
   let original : ActualValidityFact String := .base event "2026-09-03"
@@ -31,7 +32,7 @@ def main : IO Unit := do
   let firstHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement]
-      [correction "validity-correction-1" (.root event) "validity-2"])
+      [correction (.root event) "validity-2"])
     "first date-correction history was not admitted"
 
   let firstCurrent ← requireSome
@@ -47,8 +48,8 @@ def main : IO Unit := do
   let repeatedHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, secondReplacement]
-      [correction "validity-correction-1" (.root event) "validity-2",
-       correction "validity-correction-2" (.revision ⟨"validity-2"⟩) "validity-3"])
+      [correction (.root event) "validity-2",
+       correction (.revision ⟨"validity-2"⟩) "validity-3"])
     "repeated date-correction history was not admitted"
 
   let repeatedCurrent ← requireSome
@@ -63,12 +64,38 @@ def main : IO Unit := do
   expect (repeatedHistory.corrections.length == 2)
     "repeated date correction did not preserve both correction relations"
 
+  let currentWire :=
+    "LOAM-ACTUAL-VALIDITY-HISTORY\t3\n" ++
+    "BASE\trecord-1\t2026-09-03\n" ++
+    "REVISION\tvalidity-2\trecord-1\t2026-09-02\n" ++
+    "REVISION\tvalidity-3\trecord-1\t2026-09-01\n" ++
+    "CORRECTION\tROOT\trecord-1\tvalidity-2\n" ++
+    "CORRECTION\tREVISION\tvalidity-2\tvalidity-3\n"
+  expect
+    (Loam.Persistence.encodeActualValidityHistory? repeatedHistory == some currentWire)
+    "current validity persistence did not use endpoint-only V3 correction rows"
+
+  let legacyWire :=
+    "LOAM-ACTUAL-VALIDITY-HISTORY\t2\n" ++
+    "BASE\trecord-1\t2026-09-03\n" ++
+    "REVISION\tvalidity-2\trecord-1\t2026-09-02\n" ++
+    "CORRECTION\tlegacy-correction-1\tROOT\trecord-1\tvalidity-2\n"
+  let legacyHistory ← requireSome
+    (Loam.Persistence.decodeActualValidityHistory? legacyWire)
+    "legacy V2 validity history no longer decoded"
+  let legacyCurrent ← requireSome
+    (admittedActualValidityMemory? legacyHistory)
+    "legacy V2 validity history no longer admitted after decoding"
+  expect
+    (ActualValidityMemory.findByEventId? legacyCurrent event == some "2026-09-02")
+    "legacy V2 correction token changed the decoded current date"
+
   let sibling := revision "validity-4" "2026-08-31"
   let siblingHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, sibling]
-      [correction "validity-correction-1" (.root event) "validity-2",
-       correction "validity-correction-2" (.root event) "validity-4"])
+      [correction (.root event) "validity-2",
+       correction (.root event) "validity-4"])
     "sibling raw date-correction history was not retained"
 
   expect
@@ -80,7 +107,7 @@ def main : IO Unit := do
   let crossEventHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, otherFact]
-      [correction "validity-correction-cross" (.root event) "validity-other"])
+      [correction (.root event) "validity-other"])
     "cross-event raw correction history was not retained"
 
   expect

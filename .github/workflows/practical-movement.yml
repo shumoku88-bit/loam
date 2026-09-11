@@ -129,7 +129,7 @@ jobs:
           expected=$'LOAM-EVENT-MEMORY\t1\nEVENT\trecord-1\nEFFECT\teffect-1\tpaypay\tjpy\t-800\nEFFECT\teffect-2\tpaypay-points\tjpy\t-200\nEFFECT\teffect-3\tgroceries\tjpy\t1000'
           test "$(cat "$event_object")" = "$expected"
 
-          expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t2\nBASE\trecord-1\t2026-09-02'
+          expected_validity=$'LOAM-ACTUAL-VALIDITY-HISTORY\t3\nBASE\trecord-1\t2026-09-02'
           test "$(cat "$validity_object")" = "$expected_validity"
           ! grep -q 'validity-1' "$validity_object"
 
