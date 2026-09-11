@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.ScheduledReplacementPublisher
 import Loam.Tui.Main
 import Loam.Tui.Record
