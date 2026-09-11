@@ -71,7 +71,8 @@ Correction row order is deterministic representation only. Referenced Event
 identity is preserved even when an endpoint is not present in any current
 `EventMemory`; referential admission remains a later Application projection.
 -/
-def encodeEventCorrectionMemory? (memory : EventCorrectionMemory) : Option String :=
+def encodeEventCorrectionMemory?
+    (memory : EventCorrectionMemory) : Option String :=
   match memory.corrections.mapM encodeEventCorrectionRow? with
   | some rows => some (encodeVersionedRows eventCorrectionMemoryHeader rows)
   | none => none
@@ -82,7 +83,8 @@ Missing target or replacement Events are deliberately not checked at this
 persistence boundary. Exact duplicate endpoint edges are rejected regardless
 of how V1 happened to label their former fact identities.
 -/
-def decodeEventCorrectionMemory? (input : String) : Option EventCorrectionMemory :=
+def decodeEventCorrectionMemory?
+    (input : String) : Option EventCorrectionMemory :=
   match input.splitOn "\n" with
   | header :: rows =>
       match rows.reverse with
@@ -124,5 +126,16 @@ def loadEventCorrectionMemory?
     (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
   let input ← IO.FS.readFile path
   return decodeEventCorrectionMemory? input
+
+/--
+Load optional Event-correction evidence. A missing side stream means no retained
+Correction evidence yet; malformed existing bytes still fail closed.
+-/
+def loadEventCorrectionMemoryOrEmpty?
+    (path : System.FilePath) : IO (Option EventCorrectionMemory) := do
+  if ← path.pathExists then
+    loadEventCorrectionMemory? path
+  else
+    return EventCorrectionMemory.ofCorrections? []
 
 end Loam.Persistence
