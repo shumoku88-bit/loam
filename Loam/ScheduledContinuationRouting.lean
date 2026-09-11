@@ -24,9 +24,9 @@ This module provides the presentation-neutral, headless-ready boundary for
 routing continuation. It separates product-level continuation orchestration
 from TUI presentation concerns while preserving existing routing semantics:
 
-- only positive-quantity changes (expenses/destinations) are routed;
+- only positive-quantity changes are routed;
 - publication is delegated exclusively to the shared `ScheduledRoutingPublisher`;
-- preconditions (authority presence, well-formedness, created identity existence,
+- preconditions (authority presence, well-formedness, predecessor and created identity existence,
   and calendar date validity) fail closed as an outer `Except.error` before
   any mutation occurs;
 - per-route publication outcomes (success or refusal) are retained individually
@@ -86,10 +86,14 @@ def inherit
   | none =>
       return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
   | some lifecycle =>
-      match ScheduledMemory.findById? lifecycle.scheduled created with
+      match ScheduledMemory.findById? lifecycle.scheduled predecessor with
       | none =>
-          return .error s!"loam: created Scheduled occurrence '{created.token}' not found"
-      | some occurrence =>
+          return .error s!"loam: predecessor Scheduled occurrence '{predecessor.token}' not found"
+      | some _ =>
+          match ScheduledMemory.findById? lifecycle.scheduled created with
+          | none =>
+              return .error s!"loam: created Scheduled occurrence '{created.token}' not found"
+          | some occurrence =>
           if !(← routingPath.pathExists) then
             return .error "loam: Scheduled routing authority is missing"
           match ← loadScheduledRoutingHistory? routingPath with

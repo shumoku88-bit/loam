@@ -181,10 +181,23 @@ def main (args : List String) : IO Unit := do
   | .error msg => expect (msg == "loam: created Scheduled occurrence 'unknown-scheduled' not found") "Q5c: created not found message"
   | .ok _ => throw (IO.userError "Q5c: unknown created scheduled must not succeed")
 
+  let res5e ← inherit routingFile scheduledFile ⟨"unknown-predecessor"⟩ ⟨"sched-new1"⟩ "2026-09-10"
+  match res5e with
+  | .error msg => expect (msg == "loam: predecessor Scheduled occurrence 'unknown-predecessor' not found") "Q5e: predecessor not found message"
+  | .ok _ => throw (IO.userError "Q5e: unknown predecessor must not succeed")
+
   let res5d ← inherit routingFile scheduledFile ⟨"sched-pred1"⟩ ⟨"sched-new1"⟩ "2026-02-29"
   match res5d with
   | .error msg => expect (msg.contains "real calendar date") "Q5d: invalid date rejected"
   | .ok _ => throw (IO.userError "Q5d: invalid date must not succeed")
+
+  -- Distinction: unknown predecessor (outer error) vs existing unrouted predecessor (ok empty)
+  let resUnknownPred ← inherit routingFile scheduledFile ⟨"ghost-pred"⟩ ⟨"sched-new3"⟩ "2026-09-10"
+  let resExistingUnrouted ← inherit routingFile scheduledFile ⟨"sched-pred3"⟩ ⟨"sched-new3"⟩ "2026-09-10"
+  expect (!resUnknownPred.isOk) "unknown predecessor must fail with outer error"
+  expect (resExistingUnrouted.isOk) "existing unrouted predecessor must return ok"
+  expect (resUnknownPred.isOk != resExistingUnrouted.isOk)
+    "unknown predecessor and existing unrouted predecessor must be distinguished"
 
   -- -------------------------------------------------------------
   -- Qualification 6: Per-route publication refusal observable in Report
