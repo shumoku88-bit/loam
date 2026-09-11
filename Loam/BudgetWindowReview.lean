@@ -21,7 +21,7 @@ This is the production read boundary for explicit half-open budget-window querie
 It consumes selected semantic authorities without exposing Capacity companion
 placement:
 
-- Event / ActualValidity come from the selected Movement manifest generation;
+- Event / ActualValidity come from the selected Movement evidence generation;
 - Capacity / CapacityEffective come through `CapacityAuthority`;
 - ActualRouting remains its independent canonical stream;
 - EventCorrection preserves the existing absent-as-empty read policy.
@@ -110,8 +110,8 @@ private def loadEvidence
   | .ok _ => pure ()
 
   let movement ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
-    | .ok world => pure world
+    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
+    | .ok evidence => pure evidence
     | .error message => return .error message
   let validities ←
     match admittedActualValidityMemory? movement.validity with
