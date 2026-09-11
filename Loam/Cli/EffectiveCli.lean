@@ -24,13 +24,6 @@ private def recordedCoordinates
         coordinates)
     []
 
-private def loadCorrectionMemoryForView?
-    (path : System.FilePath) : IO (Option Loam.Core.EventCorrectionMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventCorrectionMemory? path
-  else
-    return Loam.Core.EventCorrectionMemory.ofCorrections? []
-
 private def quantityLine
     (coordinate : Loam.Core.EffectCoordinate)
     (quantity : Loam.Core.Quantity) : String :=
@@ -100,7 +93,7 @@ def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := 
         IO.eprintln "loam: malformed or unsupported event-memory file"
         return 2
     | some memory =>
-        match ← loadCorrectionMemoryForView? correctionFile with
+        match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
         | none =>
             IO.eprintln "loam: malformed or unsupported correction-memory file"
             return 2
