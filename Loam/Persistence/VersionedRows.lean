@@ -56,6 +56,8 @@ theorem decodeVersionedRows?_encodeVersionedRows
     simpa using
       (String.toList_split_intercalate (c := '\n') (l := header :: rows ++ [""])
         linesNoNewline)
-  simp [decodeVersionedRows?, encodeVersionedRows, splitFrame]
+  unfold decodeVersionedRows? encodeVersionedRows
+  rw [splitFrame]
+  simp
 
 end Loam.Persistence
