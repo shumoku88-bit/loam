@@ -53,7 +53,6 @@ def main : IO Unit := do
     "Event memory was not admitted"
 
   let correction : EventCorrection := {
-    id := ⟨"correction-1"⟩
     target := original.id
     replacement := revised.id
   }
@@ -117,11 +116,11 @@ def main : IO Unit := do
   -- from food to household without changing Event correction evidence.
   let validityHistory ← requireSome
     (ActualValidityHistory.ofParts?
-      [ { id := ⟨"validity-original"⟩, event := original.id, validOn := (1 : Nat) },
-        { id := ⟨"validity-revised-old"⟩, event := revised.id, validOn := (1 : Nat) },
-        { id := ⟨"validity-revised-new"⟩, event := revised.id, validOn := (2 : Nat) } ]
+      [ .base original.id (1 : Nat),
+        .base revised.id (1 : Nat),
+        .revision ⟨"validity-revised-new"⟩ revised.id (2 : Nat) ]
       [ { id := ⟨"validity-correction-1"⟩,
-          target := ⟨"validity-revised-old"⟩,
+          target := .root revised.id,
           replacement := ⟨"validity-revised-new"⟩ } ])
     "append-only validity history was not admitted"
 
