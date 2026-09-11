@@ -23,9 +23,8 @@ private def printEffects (effects : List Loam.Core.Effect) : IO Unit := do
 private def printCorrection
     (memory : Loam.Core.EventMemory)
     (correction : Loam.Core.EventCorrection) : IO Bool := do
-  IO.println ("Correction " ++ correction.id.token)
   IO.println
-    ("  " ++ correction.target.token ++ " -> " ++ correction.replacement.token)
+    ("Correction " ++ correction.target.token ++ " -> " ++ correction.replacement.token)
   match Loam.Core.EventCorrection.project? memory correction with
   | none =>
       IO.println "  relation: open (one or both endpoint Events are missing)"
