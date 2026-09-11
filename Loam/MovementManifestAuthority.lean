@@ -102,6 +102,18 @@ private structure WorldBytes where
   deriving Repr, BEq
 
 /--
+The five selected household Movement evidence families, without current new-write
+policy. This is a decoded physical authority view, not a new retained semantic
+family or a second Movement engine.
+-/
+structure EvidenceWorld where
+  events : Loam.Core.EventMemory
+  validity : Loam.Core.ActualValidityHistory String
+  descriptions : Loam.Core.EventDescriptionMemory
+  relations : List Loam.Core.RelationUnit
+  discharges : List Loam.Core.RelationDischarge
+
+/--
 An off-authority Movement generation whose referenced objects have already been
 prepared and verified. `reusedObjects` is observational only and has no semantic
 or authority meaning.
@@ -259,19 +271,8 @@ private def encodeWorld?
     Loam.Persistence.encodeLocusAdmissionVocabulary? world.locusAdmission
   some { events, validity, descriptions, relations, discharges, locusAdmission }
 
-private def decodeWorld? (bytes : WorldBytes) : Option Loam.MovementAdmission.World := do
-  let events ← Loam.Persistence.decodeEventMemory? bytes.events
-  let validity ← Loam.Persistence.decodeActualValidityHistory? bytes.validity
-  let descriptions ← Loam.Persistence.decodeEventDescriptionMemory? bytes.descriptions
-  let relations ← Loam.Persistence.decodeOpenRelationUnits? bytes.relations
-  let discharges ← Loam.Persistence.decodeRelationDischarges? bytes.discharges
-  let locusAdmission ←
-    Loam.Persistence.decodeLocusAdmissionVocabulary? bytes.locusAdmission
-  some { events, validity, descriptions, relations, discharges, locusAdmission }
-
-private def decodeLegacyWorld?
-    (events validity descriptions relations discharges : String) :
-    Option Loam.MovementAdmission.World := do
+private def decodeEvidence?
+    (events validity descriptions relations discharges : String) : Option EvidenceWorld := do
   let eventMemory ← Loam.Persistence.decodeEventMemory? events
   let validityHistory ← Loam.Persistence.decodeActualValidityHistory? validity
   let descriptionMemory ← Loam.Persistence.decodeEventDescriptionMemory? descriptions
@@ -283,8 +284,18 @@ private def decodeLegacyWorld?
     descriptions := descriptionMemory
     relations := relationUnits
     discharges := relationDischarges
-    locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty
   }
+
+private def worldWithPolicy
+    (evidence : EvidenceWorld)
+    (locusAdmission : Loam.Core.LocusAdmissionVocabulary) : Loam.MovementAdmission.World := {
+  events := evidence.events
+  validity := evidence.validity
+  descriptions := evidence.descriptions
+  relations := evidence.relations
+  discharges := evidence.discharges
+  locusAdmission := locusAdmission
+}
 
 private def ensureObject?
     (root : System.FilePath) (family text : String) : IO (Except String (FamilyRef × Bool)) := do
@@ -319,9 +330,9 @@ private def loadReferenced?
     return Except.error s!"loam: selected Movement object failed digest verification: {ref.path}"
   return Except.ok text
 
-private def loadWorldForManifest?
+private def loadEvidenceForManifest?
     (root : System.FilePath)
-    (manifest : Manifest) : IO (Except String Loam.MovementAdmission.World) := do
+    (manifest : Manifest) : IO (Except String EvidenceWorld) := do
   let events ←
     match ← loadReferenced? root manifest.events with
     | Except.ok text => pure text
@@ -342,26 +353,61 @@ private def loadWorldForManifest?
     match ← loadReferenced? root manifest.discharges with
     | Except.ok text => pure text
     | Except.error message => return Except.error message
+  match decodeEvidence? events validity descriptions relations discharges with
+  | some evidence => return Except.ok evidence
+  | none => return Except.error "loam: selected Movement evidence failed production typed decoding"
+
+private def loadWorldForManifest?
+    (root : System.FilePath)
+    (manifest : Manifest) : IO (Except String Loam.MovementAdmission.World) := do
+  let evidence ←
+    match ← loadEvidenceForManifest? root manifest with
+    | Except.ok evidence => pure evidence
+    | Except.error message => return Except.error message
   match manifest.locusAdmission with
   | none =>
-      match decodeLegacyWorld? events validity descriptions relations discharges with
-      | some world => return Except.ok world
-      | none => return Except.error "loam: selected Movement generation failed production typed decoding"
+      return Except.ok (worldWithPolicy evidence Loam.Core.LocusAdmissionVocabulary.empty)
   | some locusAdmissionRef =>
-      let locusAdmission ←
+      let locusAdmissionText ←
         match ← loadReferenced? root locusAdmissionRef with
         | Except.ok text => pure text
         | Except.error message => return Except.error message
-      match decodeWorld? {
-          events, validity, descriptions, relations, discharges, locusAdmission
-        } with
-      | some world => return Except.ok world
-      | none => return Except.error "loam: selected Movement generation failed production typed decoding"
+      let locusAdmission ←
+        match Loam.Persistence.decodeLocusAdmissionVocabulary? locusAdmissionText with
+        | some vocabulary => pure vocabulary
+        | none => return Except.error "loam: selected Locus admission policy failed production typed decoding"
+      return Except.ok (worldWithPolicy evidence locusAdmission)
+
+private def loadSelectedManifest?
+    (root : System.FilePath) : IO (Except String Manifest) := do
+  let current := root / "CURRENT"
+  if !(← current.pathExists) then
+    return Except.error "loam: selected Movement manifest CURRENT is missing"
+  match decodeManifest? (← IO.FS.readFile current) with
+  | some manifest => return Except.ok manifest
+  | none => return Except.error "loam: selected Movement manifest CURRENT is malformed or unsupported"
 
 /--
-Load exactly one selected Movement generation. There is no sidecar discovery or
-legacy fallback: missing, malformed, unsupported, or digest-invalid selected
-authority fails closed.
+Load the five selected household Movement evidence families without requiring the
+selected LocusAdmission object to be readable.
+
+The `CURRENT` manifest itself and all five evidence object references still fail
+closed on missing, malformed, digest-invalid, or typed-invalid state. This function
+only removes current new-write policy from read-only household availability; it
+does not authorize publication or weaken evidence-generation closure.
+-/
+def loadSelectedEvidence?
+    (root : System.FilePath) : IO (Except String EvidenceWorld) := do
+  let manifest ←
+    match ← loadSelectedManifest? root with
+    | Except.ok manifest => pure manifest
+    | Except.error message => return Except.error message
+  loadEvidenceForManifest? root manifest
+
+/--
+Load exactly one selected Movement generation including current new-write policy.
+There is no sidecar discovery or legacy fallback: missing, malformed, unsupported,
+or digest-invalid selected authority fails closed.
 
 A version 1 generation remains readable but receives the empty new-write
 vocabulary. It can therefore support review/projection while refusing every new
@@ -369,13 +415,10 @@ Movement at `MovementAdmission.admit?` until an explicit version 2 cutover.
 -/
 def loadSelectedWorld?
     (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
-  let current := root / "CURRENT"
-  if !(← current.pathExists) then
-    return Except.error "loam: selected Movement manifest CURRENT is missing"
   let manifest ←
-    match decodeManifest? (← IO.FS.readFile current) with
-    | some manifest => pure manifest
-    | none => return Except.error "loam: selected Movement manifest CURRENT is malformed or unsupported"
+    match ← loadSelectedManifest? root with
+    | Except.ok manifest => pure manifest
+    | Except.error message => return Except.error message
   loadWorldForManifest? root manifest
 
 private def loadRecoveryManifestText?
