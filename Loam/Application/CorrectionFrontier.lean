@@ -328,9 +328,7 @@ theorem quantityAtCorrectionFrontier?_singleton_distinct
       events.events correction.target original locus measure events.idNodup hFind
   change quantityAtCorrectionFrontier? events corrections locus measure = _
   rw [quantityAtCorrectionFrontier?, hFrontier]
-  apply Quantity.ext
-  simp only [EventMemory.quantityAtRecorded, Quantity.quanta_ofQuanta, Quantity.quanta_sub]
-  rw [hFrontierEvents]
-  exact hFold
+  simp only [EventMemory.quantityAtRecorded, Quantity.sub]
+  rw [hFrontierEvents, hFold]
 
 end Loam.Application
