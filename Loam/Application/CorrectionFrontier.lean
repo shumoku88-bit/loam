@@ -88,6 +88,74 @@ private theorem targetsEvent_false_iff
       · simp [targetsEvent, hTarget]
       · simp [targetsEvent, hTarget, ih]
 
+/-- Filtering remembered Events cannot introduce a repeated Event identity. -/
+private theorem filteredEventIdsNodup
+    (items : List Event)
+    (predicate : Event → Bool)
+    (hNodup : (items.map Event.id).Nodup) :
+    ((items.filter predicate).map Event.id).Nodup := by
+  have hSublist :
+      (items.filter predicate).map Event.id <+ items.map Event.id :=
+    (List.filter_sublist).map Event.id
+  exact hNodup.sublist hSublist
+
+/-- If every represented Event differs from one target identity, filtering that target changes nothing. -/
+private theorem filterTarget_eq_self
+    (items : List Event)
+    (target : EventId)
+    (hAbsent : ∀ event ∈ items, target ≠ event.id) :
+    items.filter (fun event => decide (target ≠ event.id)) = items := by
+  induction items with
+  | nil => rfl
+  | cons event rest ih =>
+      have hEvent : target ≠ event.id := hAbsent event (by simp)
+      have hRest : ∀ item ∈ rest, target ≠ item.id := by
+        intro item hItem
+        exact hAbsent item (by simp [hItem])
+      simp [hEvent, ih hRest]
+
+/--
+With unique Event identity, filtering one present target from the recorded fold
+is exactly the original fold minus that Event's contribution once.
+-/
+private theorem filterTargetQuantityFold
+    (items : List Event)
+    (target : EventId)
+    (original : Event)
+    (locus : LocusId)
+    (measure : MeasureId)
+    (hNodup : (items.map Event.id).Nodup)
+    (hFind : FiniteKeyed.findBy? Event.id items target = some original) :
+    (items.filter (fun event => decide (target ≠ event.id))).foldr
+        (fun event total => (Event.quantityAt event locus measure).quanta + total)
+        0 =
+      items.foldr
+          (fun event total => (Event.quantityAt event locus measure).quanta + total)
+          0 - (Event.quantityAt original locus measure).quanta := by
+  induction items generalizing original with
+  | nil =>
+      simp [FiniteKeyed.findBy?] at hFind
+  | cons event rest ih =>
+      simp only [List.map_cons, List.nodup_cons] at hNodup
+      by_cases hHead : event.id = target
+      · have hOriginal : event = original := by
+          simpa [FiniteKeyed.findBy?, hHead] using hFind
+        subst original
+        have hTailAbsent : ∀ item ∈ rest, target ≠ item.id := by
+          intro item hItem hTarget
+          apply hNodup.1
+          exact List.mem_map.mpr ⟨item, hItem, hTarget.symm.trans hHead.symm⟩
+        have hFiltered := filterTarget_eq_self rest target hTailAbsent
+        have hReverse : target = event.id := hHead.symm
+        simp [hReverse, hFiltered, Int.sub_eq_add_neg, Int.add_assoc,
+          Int.add_comm, Int.add_left_comm]
+      · have hFindTail :
+            FiniteKeyed.findBy? Event.id rest target = some original := by
+          simpa [FiniteKeyed.findBy?, hHead] using hFind
+        have hIH := ih original hNodup.2 hFindTail
+        have hReverse : target ≠ event.id := Ne.symm hHead
+        simp [hReverse, hIH, Int.sub_eq_add_neg, Int.add_assoc]
+
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
 paths. Superseded targets are filtered out; terminal replacements and untouched
