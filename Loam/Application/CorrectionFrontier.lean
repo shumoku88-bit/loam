@@ -141,4 +141,21 @@ def quantityAtCorrectionFrontier?
   let frontier ← correctionFrontierMemory? events corrections
   return EventMemory.quantityAtRecorded frontier locus measure
 
+/--
+For one retained correction edge, changing only the correction-fact identity
+cannot change the selected Event frontier. The Application answer observes only
+the explicit target and replacement endpoints.
+-/
+theorem singletonCorrectionId_irrelevant
+    (events : EventMemory)
+    (leftId rightId : EventCorrectionId)
+    (target replacement : EventId) :
+    correctionFrontierMemory? events
+      { corrections := [{ id := leftId, target := target, replacement := replacement }]
+        idNodup := by simp } =
+    correctionFrontierMemory? events
+      { corrections := [{ id := rightId, target := target, replacement := replacement }]
+        idNodup := by simp } := by
+  rfl
+
 end Loam.Application
