@@ -26,18 +26,6 @@ structure Receipt where
   firstDate : Bool
   deriving Repr
 
-private def emptyCorrections : EventCorrectionMemory :=
-  { corrections := [], idNodup := by simp }
-
-private def loadCorrectionsOrEmpty?
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadEventCorrectionMemory? path with
-    | some memory => return .ok memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
-  else
-    return .ok emptyCorrections
-
 private def freshRevisionId?
     (history : ActualValidityHistory String) : Option ActualValidityRevisionId := do
   let token ← Loam.firstUnusedNumberedToken?
@@ -165,9 +153,9 @@ private def publishUnderOwnership
     | .ok world => pure world
     | .error message => return .error message
   let corrections ←
-    match ← loadCorrectionsOrEmpty? correctionFile with
-    | .ok memory => pure memory
-    | .error message => return .error message
+    match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
+    | some memory => pure memory
+    | none => return .error "loam: malformed or unsupported correction-memory file"
   let (updated, receipt) ←
     match admit? world corrections draft with
     | .ok value => pure value
