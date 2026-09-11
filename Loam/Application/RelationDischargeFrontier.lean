@@ -20,9 +20,9 @@ the acquired EventMemory snapshot is therefore inert crash residue. Once that
 Event exists, the row becomes active and all ordinary target-local fail-closed
 checks apply.
 
-The projection remains target-local. Global relation identity/revision structure
-is still checked by `currentRelationState?`, while unrelated pre-Event relation
-residue remains inert exactly as qualified by the existing source-local frontier.
+The projection remains target-local. Global RelationUnit identity is still
+checked by `currentRelationState?`, while unrelated pre-Event relation residue
+remains inert exactly as qualified by the existing source-local frontier.
 -/
 
 /-- One discharge after both its later Event and current target relation resolve. -/
@@ -55,19 +55,16 @@ private def uncovered (_ : EventId) (_ : EffectKey) : Bool := false
 Resolve one relation identity through the existing source-local current frontier.
 
 The raw row is used only to discover its source coordinate. `currentRelationState?`
-then rechecks the whole retained relation/revision structure plus the queried
-source's current admission and aggregate relation-plane bound. A retracted or
-replaced target therefore does not survive merely because its historical row is
-still retained.
+then rechecks the whole retained relation structure plus the queried source's
+current admission and aggregate relation-plane bound.
 -/
 def currentAdmittedRelationById?
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (id : RelationUnitId) : Option AdmittedRelationUnit := do
   let raw ← findRawRelationById? relations id
   let state ← currentRelationState?
-    events relations revisions uncovered raw.sourceEvent raw.sourceEffect
+    events relations uncovered raw.sourceEvent raw.sourceEffect
   match state with
   | .knownPositive current => findAdmittedRelationById? current id
   | .unknown => none
@@ -179,10 +176,9 @@ exact quantity before reaching this frontier.
 def admittedRelationDischargesFor?
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (discharges : List RelationDischarge)
     (targetId : RelationUnitId) : Option (List AdmittedRelationDischarge) := do
-  let target ← currentAdmittedRelationById? events relations revisions targetId
+  let target ← currentAdmittedRelationById? events relations targetId
   admittedForCurrentTarget? events target discharges
 
 /--
@@ -201,10 +197,9 @@ still-valid pre-discharge outstanding answer.
 def relationOutstandingQuantity?
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (discharges : List RelationDischarge)
     (targetId : RelationUnitId) : Option Quantity := do
-  let target ← currentAdmittedRelationById? events relations revisions targetId
+  let target ← currentAdmittedRelationById? events relations targetId
   let admitted ← admittedForCurrentTarget? events target discharges
   some <| Quantity.ofQuanta
     (target.relation.quantity.quanta - dischargeTotal admitted)
