@@ -163,12 +163,15 @@ SplitActivationSafe == movementNew => effectiveNew
 SplitCoverageAvailable == (effectiveNew = movementNew)
 
 SplitShape ==
-  /\ (pc = "effective" => ~effectiveNew /\ ~movementNew)
-  /\ (pc = "movement" => effectiveNew /\ ~movementNew)
-  /\ (pc = "done" => effectiveNew /\ movementNew)
-  /\ (pc = "blocked" => blocked /\ effectiveNew # movementNew)
-  /\ (blocked => pc = "blocked" /\ effectiveNew # movementNew)
-  /\ (crashedAfterEffective => effectiveNew /\ ~movementNew)
+  /\ (pc = "admit" => ~movementNew /\ ~blocked)
+  /\ (pc = "effective" => ~effectiveNew /\ ~movementNew /\ ~blocked)
+  /\ (pc = "movement" => effectiveNew /\ ~movementNew /\ ~blocked)
+  /\ (pc = "done" => effectiveNew /\ movementNew /\ writerUp /\ ~blocked)
+  /\ (pc = "blocked" => blocked /\ effectiveNew # movementNew /\ writerUp)
+  /\ (blocked => pc = "blocked" /\ effectiveNew # movementNew /\ writerUp)
+  /\ (~writerUp => writerCrashed /\ pc # "done" /\ pc # "blocked")
+  /\ (crashedAfterEffective => writerCrashed /\ effectiveNew /\ ~movementNew)
+  /\ (writerUp /\ pc = "movement" => ~crashedAfterEffective)
 
 SplitIndInv ==
   /\ TypeOK
@@ -252,8 +255,10 @@ AtomicShape ==
   /\ pc \in {"admit", "atomic", "done"}
   /\ ~blocked
   /\ ~crashedAfterEffective
+  /\ (pc = "admit" => ~effectiveNew /\ ~movementNew)
   /\ (pc = "atomic" => ~effectiveNew /\ ~movementNew)
-  /\ (pc = "done" => effectiveNew /\ movementNew)
+  /\ (pc = "done" => effectiveNew /\ movementNew /\ writerUp)
+  /\ (~writerUp => writerCrashed /\ pc # "done")
 
 AtomicIndInv == TypeOK /\ AtomicShape
 AtomicCoverageAvailable == (effectiveNew = movementNew)
