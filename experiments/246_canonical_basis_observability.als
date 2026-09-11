@@ -1,4 +1,4 @@
-module experiments/246_canonical_basis_observability
+module experiments/canonical_basis_observability_246
 
 -- Observation 246
 --
