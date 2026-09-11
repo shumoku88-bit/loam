@@ -132,7 +132,7 @@ private theorem consumptionAtRecordedWhere_eq_shared
     (selected : Time → Bool)
     (project : Event → Time → Quantity) :
     consumptionAtRecordedWhere? events validities selected project =
-      Loam.Application.consumptionAtRecordedWhere? events validities selected project := by
+      foldRecordedConsumptionWhere? events validities selected project := by
   rfl
 
 /--
