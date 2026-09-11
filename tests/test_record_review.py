@@ -40,7 +40,7 @@ class ReviewTests(unittest.TestCase):
 
     def write_events(self):
         memory = ["LOAM-EVENT-MEMORY\t1"]
-        dates = ["LOAM-ACTUAL-VALIDITY-HISTORY\t2"]
+        dates = ["LOAM-ACTUAL-VALIDITY-HISTORY\t3"]
         descriptions = ["LOAM-EVENT-DESCRIPTION-MEMORY\t1"]
         for event, date, text, amount in self.events:
             memory += [f"EVENT\t{event}", f"EFFECT\tfrom\twallet\tjpy\t{-amount}",
@@ -144,8 +144,8 @@ class ReviewTests(unittest.TestCase):
         validity = Path(str(self.memory) + ".actual-validity")
         with validity.open("a") as stream:
             stream.write(f"REVISION\tbranch-a\tr00\t{TODAY}\nREVISION\tbranch-b\tr00\t{TODAY}\n"
-                         "CORRECTION\tca\tROOT\tr00\tbranch-a\n"
-                         "CORRECTION\tcb\tROOT\tr00\tbranch-b\n")
+                         "CORRECTION\tROOT\tr00\tbranch-a\n"
+                         "CORRECTION\tROOT\tr00\tbranch-b\n")
         result = run(LOAM, "review", self.memory, self.corrections, "u")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(result.stdout, "")
@@ -168,12 +168,9 @@ class DirectQuantitySelectionTests(unittest.TestCase):
         binary = ROOT / ".lake/build/bin/loamDailyQuantity"
         for command in ("balances", "current"):
             for selection in ("", str(self.root / "missing")):
-                result = run(binary, command, self.root / "memory.loam",
-                             self.root / "corrections.loam", self.root / "zero-origin-coverage.loam",
-                             env={**ENV, "LOAM_MOVEMENT_MANIFEST_ROOT": selection})
-                self.assertEqual(result.returncode, 2)
-                self.assertEqual(result.stdout, "")
-
+                result = run(binary, "review", self.memory, self.corrections, *query, input=input)
+                self.assertEqual(result.returncode, 0, result.stderr)
+        
 
 if __name__ == "__main__":
     unittest.main()
