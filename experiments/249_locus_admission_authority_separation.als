@@ -1,5 +1,10 @@
 module experiments/observation_249_locus_admission_authority_separation
 
+-- Observation 249
+--
+-- Test whether the current add-only Locus admission policy needs to be atomically
+-- co-selected with Movement evidence merely to prevent false authorization.
+
 sig Locus {}
 
 sig Policy {
@@ -14,11 +19,7 @@ pred admitted[p: Policy, d: Draft] {
   d.uses in p.approved
 }
 
-/--
-A writer may observe an older policy snapshot while a concurrent add-only policy
-publication has already established a larger current set. The stale snapshot may
-therefore reject a newly admitted Locus.
--/
+-- A stale older snapshot may reject a Locus added by the current policy.
 pred staleOlderPolicyCanFalseReject {
   some old, current: Policy, d: Draft | {
     old != current
@@ -29,20 +30,16 @@ pred staleOlderPolicyCanFalseReject {
   }
 }
 
-/--
-Under the current add-only policy operation, admission against an older policy
-cannot authorize anything that the later current policy rejects.
--/
+-- Under add-only evolution, stale-old admission cannot over-authorize relative
+-- to the later current policy.
 assert AddOnlyStaleCannotOverAuthorize {
   all old, current: Policy, d: Draft |
     (old.approved in current.approved and admitted[old, d])
       implies admitted[current, d]
 }
 
-/--
-If future policy semantics allow removal, the stale-read argument disappears: an
-older snapshot can still authorize a Locus that the current policy revoked.
--/
+-- If future semantics permit removal, an older snapshot can over-authorize a
+-- Locus that the current policy has revoked.
 pred revocationMakesStaleOverAuthorize {
   some old, current: Policy, d: Draft | {
     old != current
@@ -52,7 +49,7 @@ pred revocationMakesStaleOverAuthorize {
   }
 }
 
-/-- Equal explicit policy sets determine the same admission answer. -/
+-- Equal explicit policy sets determine the same admission answer.
 assert EqualPolicySetsAgree {
   all left, right: Policy, d: Draft |
     left.approved = right.approved implies
