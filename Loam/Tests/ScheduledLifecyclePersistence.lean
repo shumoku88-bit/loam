@@ -94,6 +94,31 @@ def main (args : List String) : IO Unit := do
       "REPLACEMENT\tscheduled-1\tscheduled-2")
     "v1 Replacement row disappeared during semantic recompression"
 
+  let replacementSection :=
+    "BEGIN\tReplacement\n" ++
+    "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1\n" ++
+    "REPLACEMENT\tscheduled-1\tscheduled-2\n" ++
+    "END\tReplacement\n"
+  let duplicateSourceSection :=
+    "BEGIN\tReplacement\n" ++
+    "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1\n" ++
+    "REPLACEMENT\tscheduled-1\tscheduled-2\n" ++
+    "REPLACEMENT\tscheduled-1\tscheduled-3\n" ++
+    "END\tReplacement\n"
+  let duplicateSource := encoded.replace replacementSection duplicateSourceSection
+  expect ((Loam.Persistence.decodeScheduledLifecycleImage? duplicateSource).isNone)
+    "duplicate replacement source was admitted by the inline lifecycle decoder"
+
+  let duplicateTargetSection :=
+    "BEGIN\tReplacement\n" ++
+    "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1\n" ++
+    "REPLACEMENT\tscheduled-1\tscheduled-3\n" ++
+    "REPLACEMENT\tscheduled-2\tscheduled-3\n" ++
+    "END\tReplacement\n"
+  let duplicateTarget := encoded.replace replacementSection duplicateTargetSection
+  expect ((Loam.Persistence.decodeScheduledLifecycleImage? duplicateTarget).isNone)
+    "shared replacement endpoint was admitted by the inline lifecycle decoder"
+
   expect (← Loam.Persistence.saveScheduledLifecycleImage? authority image)
     "publish lifecycle specimen"
   let some reloaded ← Loam.Persistence.loadScheduledLifecycleImage? authority
@@ -116,4 +141,4 @@ def main (args : List String) : IO Unit := do
   expect ((Loam.Persistence.decodeScheduledLifecycleImage? malformedOrder).isNone)
     "malformed lifecycle section marker was admitted"
 
-  IO.println "Scheduled Lifecycle Persistence: one semantic terminal relation preserves v1 Completion/Retirement/Replacement wire meaning, explicit empty, and fail-closed authority."
+  IO.println "Scheduled Lifecycle Persistence: one semantic terminal relation directly preserves v1 Completion/Retirement/Replacement wire meaning, endpoint uniqueness, explicit empty, and fail-closed authority."
