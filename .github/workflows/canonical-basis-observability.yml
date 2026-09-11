@@ -11,6 +11,8 @@ on:
       - 'experiments/250_locus_policy_failure_recovery_domain.md'
       - 'experiments/251_recomposed_movement_recovery.als'
       - 'experiments/251_recomposed_movement_recovery.md'
+      - 'experiments/252_exact_restore_vs_evidence_rollback.als'
+      - 'experiments/252_exact_restore_vs_evidence_rollback.md'
       - '.github/workflows/canonical-basis-observability.yml'
   push:
     branches:
@@ -24,6 +26,8 @@ on:
       - 'experiments/250_locus_policy_failure_recovery_domain.md'
       - 'experiments/251_recomposed_movement_recovery.als'
       - 'experiments/251_recomposed_movement_recovery.md'
+      - 'experiments/252_exact_restore_vs_evidence_rollback.als'
+      - 'experiments/252_exact_restore_vs_evidence_rollback.md'
       - '.github/workflows/canonical-basis-observability.yml'
   workflow_dispatch:
 
@@ -104,6 +108,18 @@ jobs:
                 "CandidateAdmissionSurvivesRecomposedRecovery": false,
                 "CurrentAdmissionAnswerPreserved": false,
                 "coupledHistoricalRecoveryCanLoseLaterPermission": true
+              }
+            },
+            {
+              "id": "experiment-252-exact-restore-vs-evidence-rollback",
+              "model": "experiments/252_exact_restore_vs_evidence_rollback.als",
+              "expected": {
+                "exactAndRollbackCanSelectDifferentPolicy": true,
+                "exactAndRollbackCanDisagreeOnWriteAdmission": true,
+                "BothRestoreTheSameHistoricalEvidence": false,
+                "ExactRestoreReconstructsHistoricalSelection": false,
+                "evidenceRollbackCanViolateExactHistoricalIdentity": true,
+                "EqualPoliciesCollapseTheDifference": false
               }
             }
           ]
