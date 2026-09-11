@@ -8,6 +8,7 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Persistence/**'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/MovementEvidenceAvailability.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'
@@ -36,6 +37,7 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Persistence/**'
       - 'Loam/Tests/EmptyMovementManifest.lean'
+      - 'Loam/Tests/MovementEvidenceAvailability.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'tests/test_record_review.py'
       - 'Loam/Application/CorrectionFrontier.lean'
@@ -85,6 +87,14 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Verify policy-free household evidence availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          lake env lean --run Loam/Tests/MovementEvidenceAvailability.lean \
+            "$tmp_dir/movement-authority"
 
       - name: Record and review backdated split payment
         shell: bash
