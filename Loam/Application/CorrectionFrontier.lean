@@ -1,5 +1,6 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
+import Lean.Elab.Tactic.Omega
 
 namespace Loam.Application
 
@@ -101,11 +102,7 @@ private theorem filterTarget_eq_self
       have hRest : ∀ item ∈ rest, target ≠ item.id := by
         intro item hItem
         exact hAbsent item (by simp [hItem])
-      change
-        (if decide (target ≠ event.id) then
-          event :: rest.filter (fun item => decide (target ≠ item.id))
-        else
-          rest.filter (fun item => decide (target ≠ item.id))) = event :: rest
+      simp only [List.filter]
       rw [ih hRest]
       simp [hEvent]
 
@@ -143,16 +140,12 @@ private theorem filterTargetQuantityFold
         have hFiltered := filterTarget_eq_self rest target hTailAbsent
         have hFilterAll :
             (event :: rest).filter (fun item => decide (target ≠ item.id)) = rest := by
-          change
-            (if decide (target ≠ event.id) then
-              event :: rest.filter (fun item => decide (target ≠ item.id))
-            else
-              rest.filter (fun item => decide (target ≠ item.id))) = rest
+          simp only [List.filter]
           rw [hFiltered]
           simp [hHead]
         rw [hFilterAll]
         simp only [List.foldr_cons]
-        simp [Int.sub_eq_add_neg, Int.add_assoc, Int.add_comm, Int.add_left_comm]
+        omega
       · have hFindTail :
             FiniteKeyed.findBy? Event.id rest target = some original := by
           simpa [FiniteKeyed.findBy?, hHead] using hFind
@@ -161,17 +154,12 @@ private theorem filterTargetQuantityFold
         have hFilterAll :
             (event :: rest).filter (fun item => decide (target ≠ item.id)) =
               event :: rest.filter (fun item => decide (target ≠ item.id)) := by
-          change
-            (if decide (target ≠ event.id) then
-              event :: rest.filter (fun item => decide (target ≠ item.id))
-            else
-              rest.filter (fun item => decide (target ≠ item.id))) =
-              event :: rest.filter (fun item => decide (target ≠ item.id))
+          simp only [List.filter]
           simp [hReverse]
         rw [hFilterAll]
         simp only [List.foldr_cons]
         rw [hIH]
-        simp [Int.sub_eq_add_neg, Int.add_assoc]
+        omega
 
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
