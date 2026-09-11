@@ -201,8 +201,8 @@ private theorem frontierEvents_singleton_eq_filterTarget
   | cons event rest ih =>
       simp only [List.filter]
       by_cases hTarget : correction.target = event.id
-      · simp [targetsEvent, hTarget, ih]
-      · simp [targetsEvent, hTarget, ih]
+      · simp [targetsEvent, hTarget]
+      · simp [targetsEvent, hTarget]
 
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
@@ -301,20 +301,25 @@ theorem quantityAtCorrectionFrontier?_singleton_distinct
           (fun event => decide (correction.target ≠ event.id)) := by
     simpa [corrections] using
       frontierEvents_singleton_eq_filterTarget events correction
-  let filtered :=
-    events.events.filter (fun event => decide (correction.target ≠ event.id))
-  have hFilteredNodup : (filtered.map Event.id).Nodup := by
+  have hFrontierNodup :
+      ((frontierEvents events corrections).map Event.id).Nodup := by
+    unfold frontierEvents
     exact filteredEventIdsNodup
       events.events
-      (fun event => decide (correction.target ≠ event.id))
+      (fun event => !(targetsEvent corrections.corrections event.id))
       events.idNodup
   have hFrontier :
       correctionFrontierMemory? events corrections =
-        some { events := filtered, idNodup := hFilteredNodup } := by
+        some
+          { events := frontierEvents events corrections,
+            idNodup := hFrontierNodup } := by
     unfold correctionFrontierMemory?
     rw [if_pos (by simpa using hAdmissible)]
-    rw [hFrontierEvents]
-    simp [EventMemory.ofEvents?, filtered, hFilteredNodup]
+    unfold EventMemory.ofEvents?
+    split
+    · rfl
+    · rename_i hRejected
+      exact False.elim (hRejected hFrontierNodup)
   have hFind :
       FiniteKeyed.findBy? Event.id events.events correction.target = some original := by
     simpa [EventMemory.findById?] using hOriginal
@@ -324,7 +329,9 @@ theorem quantityAtCorrectionFrontier?_singleton_distinct
   change quantityAtCorrectionFrontier? events corrections locus measure = _
   rw [quantityAtCorrectionFrontier?, hFrontier]
   simp only [Option.bind_some]
-  apply congrArg Quantity.ofQuanta
-  simpa [EventMemory.quantityAtRecorded, Quantity.sub, filtered] using hFold
+  apply Quantity.ext
+  simp only [EventMemory.quantityAtRecorded, Quantity.quanta_ofQuanta, Quantity.quanta_sub]
+  rw [hFrontierEvents]
+  exact hFold
 
 end Loam.Application
