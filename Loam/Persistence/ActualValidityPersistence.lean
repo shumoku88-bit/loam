@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.Core.ActualValidityHistory
+import Loam.Persistence.SiblingStage
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 
@@ -152,18 +153,13 @@ def decodeActualValidityHistory?
         none
   | _ => none
 
-private def actualValidityStagePath (path : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (path.toString ++ ".loam-stage")
-
 private def saveEncoded
     (path : System.FilePath)
     (encoded : Option String) : IO Bool := do
   match encoded with
   | none => return false
   | some text =>
-      let stagePath := actualValidityStagePath path
-      IO.FS.writeFile stagePath text
-      IO.FS.rename stagePath path
+      replaceTextViaSiblingStage path text
       return true
 
 /-- Load retained occurrence-date provenance; malformed or retired content fails closed. -/
