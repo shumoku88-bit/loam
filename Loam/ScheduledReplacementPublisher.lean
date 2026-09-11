@@ -4,6 +4,7 @@ import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.ScheduledOccurrenceConstruction
 import Loam.WriterOwnership
 
 namespace Loam.ScheduledReplacementPublisher
@@ -106,6 +107,24 @@ private def occurrenceFromDraft?
       { coordinate := effect.locus, quantity := effect.quantity }
   let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
   pure { id := id, scheduledOn := draft.scheduledOn, movement := movement }
+
+private theorem freshScheduledId_eq_shared
+    (memory : ScheduledMemory String) :
+    freshScheduledId? memory =
+      Loam.ScheduledOccurrenceConstruction.freshId? memory := rfl
+
+private theorem draftMovement_eq_shared (draft : Draft) :
+    (let changes : List (MovementChange LocusId) :=
+       draft.effects.map fun effect =>
+         { coordinate := effect.locus, quantity := effect.quantity }
+     BalancedMovement.ofChanges? ⟨"jpy"⟩ changes) =
+      Loam.ScheduledOccurrenceConstruction.movementFromEffects? draft.effects := rfl
+
+private theorem occurrenceFromDraft_eq_shared
+    (id : ScheduledId) (draft : Draft) :
+    occurrenceFromDraft? id draft =
+      Loam.ScheduledOccurrenceConstruction.occurrenceFromEffects?
+        id draft.scheduledOn draft.effects := rfl
 
 private def transitionAdmissible?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
