@@ -128,13 +128,13 @@ private def loadSidecarWorld?
 
 private def loadManifestWorld?
     (manifestRoot : System.FilePath) : IO (Except String ReviewMovementWorld) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
+  match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
   | .error message => return .error message
-  | .ok world =>
+  | .ok evidence =>
       return .ok {
-        events := world.events
-        validity := world.validity
-        descriptions := world.descriptions
+        events := evidence.events
+        validity := evidence.validity
+        descriptions := evidence.descriptions
       }
 
 private def loadCorrections?
