@@ -161,6 +161,49 @@ private theorem filterTargetQuantityFold
         rw [hIH]
         omega
 
+/-- Filtering an admitted Event list cannot introduce duplicate Event identity. -/
+private theorem filteredEventIdsNodup
+    (items : List Event)
+    (predicate : Event → Bool)
+    (hNodup : (items.map Event.id).Nodup) :
+    ((items.filter predicate).map Event.id).Nodup := by
+  induction items with
+  | nil =>
+      simp
+  | cons event rest ih =>
+      simp only [List.map_cons, List.nodup_cons] at hNodup
+      simp only [List.filter]
+      by_cases hKeep : predicate event = true
+      · have hTailNodup := ih hNodup.2
+        have hHeadFresh :
+            event.id ∉ (rest.filter predicate).map Event.id := by
+          intro hMem
+          apply hNodup.1
+          simp only [List.mem_map] at hMem ⊢
+          obtain ⟨item, hItem, hId⟩ := hMem
+          exact ⟨item, (List.mem_filter.mp hItem).1, hId⟩
+        simp [hKeep, hHeadFresh, hTailNodup]
+      · simp [hKeep, ih hNodup.2]
+
+/-- A singleton correction frontier filters exactly the correction target identity. -/
+private theorem frontierEvents_singleton_eq_filterTarget
+    (events : EventMemory)
+    (correction : EventCorrection) :
+    frontierEvents
+        events
+        { corrections := [correction], idNodup := by simp } =
+      events.events.filter
+        (fun event => decide (correction.target ≠ event.id)) := by
+  unfold frontierEvents
+  induction events.events with
+  | nil =>
+      rfl
+  | cons event rest ih =>
+      simp only [List.filter]
+      by_cases hTarget : correction.target = event.id
+      · simp [targetsEvent, hTarget, ih]
+      · simp [targetsEvent, hTarget, ih]
+
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
 paths. Superseded targets are filtered out; terminal replacements and untouched
@@ -223,5 +266,65 @@ def quantityAtCorrectionFrontier?
     (measure : MeasureId) : Option Quantity := do
   let frontier ← correctionFrontierMemory? events corrections
   return EventMemory.quantityAtRecorded frontier locus measure
+
+/--
+For one distinct correction with both endpoints present, the generic frontier
+quantity is exactly the historical singleton arithmetic: recorded quantity minus
+the target Event contribution once.
+-/
+theorem quantityAtCorrectionFrontier?_singleton_distinct
+    (events : EventMemory)
+    (correction : EventCorrection)
+    (original replacement : Event)
+    (locus : LocusId)
+    (measure : MeasureId)
+    (hDistinct : correction.target ≠ correction.replacement)
+    (hOriginal :
+      EventMemory.findById? events correction.target = some original)
+    (hReplacement :
+      EventMemory.findById? events correction.replacement = some replacement) :
+    quantityAtCorrectionFrontier?
+        events
+        { corrections := [correction], idNodup := by simp }
+        locus measure =
+      some
+        (EventMemory.quantityAtRecorded events locus measure -
+          Event.quantityAt original locus measure) := by
+  let corrections : EventCorrectionMemory :=
+    { corrections := [correction], idNodup := by simp }
+  have hAdmissible : correctionFrontierAdmissible events corrections = true := by
+    simp [correctionFrontierAdmissible, correctionEdges, corrections,
+      eventPresent, hOriginal, hReplacement, hDistinct]
+  have hFrontierEvents :
+      frontierEvents events corrections =
+        events.events.filter
+          (fun event => decide (correction.target ≠ event.id)) := by
+    simpa [corrections] using
+      frontierEvents_singleton_eq_filterTarget events correction
+  let filtered :=
+    events.events.filter (fun event => decide (correction.target ≠ event.id))
+  have hFilteredNodup : (filtered.map Event.id).Nodup := by
+    exact filteredEventIdsNodup
+      events.events
+      (fun event => decide (correction.target ≠ event.id))
+      events.idNodup
+  have hFrontier :
+      correctionFrontierMemory? events corrections =
+        some { events := filtered, idNodup := hFilteredNodup } := by
+    unfold correctionFrontierMemory?
+    rw [if_pos (by simpa using hAdmissible)]
+    rw [hFrontierEvents]
+    simp [EventMemory.ofEvents?, filtered, hFilteredNodup]
+  have hFind :
+      FiniteKeyed.findBy? Event.id events.events correction.target = some original := by
+    simpa [EventMemory.findById?] using hOriginal
+  have hFold :=
+    filterTargetQuantityFold
+      events.events correction.target original locus measure events.idNodup hFind
+  change quantityAtCorrectionFrontier? events corrections locus measure = _
+  rw [quantityAtCorrectionFrontier?, hFrontier]
+  simp only [Option.bind_some]
+  apply congrArg Quantity.ofQuanta
+  simpa [EventMemory.quantityAtRecorded, Quantity.sub, filtered] using hFold
 
 end Loam.Application
