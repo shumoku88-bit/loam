@@ -326,9 +326,16 @@ theorem quantityAtCorrectionFrontier?_singleton_distinct
   have hFold :=
     filterTargetQuantityFold
       events.events correction.target original locus measure events.idNodup hFind
+  have hQuantity :
+      EventMemory.quantityAtRecorded
+          { events := frontierEvents events corrections,
+            idNodup := hFrontierNodup }
+          locus measure =
+        EventMemory.quantityAtRecorded events locus measure -
+          Event.quantityAt original locus measure := by
+    simp only [EventMemory.quantityAtRecorded, Quantity.sub]
+    rw [hFrontierEvents, hFold]
   change quantityAtCorrectionFrontier? events corrections locus measure = _
-  rw [quantityAtCorrectionFrontier?, hFrontier]
-  simp only [EventMemory.quantityAtRecorded, Quantity.sub]
-  rw [hFrontierEvents, hFold]
+  simpa [quantityAtCorrectionFrontier?, hFrontier] using congrArg some hQuantity
 
 end Loam.Application
