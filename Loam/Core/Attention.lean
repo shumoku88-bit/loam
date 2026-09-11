@@ -1,5 +1,3 @@
-import Loam.Core.Event
-
 namespace Loam.Core
 
 set_option autoImplicit false
@@ -11,11 +9,15 @@ set_option autoImplicit false
 "Issue" surface. It records a matter that may need action even when no
 financial occurrence exists yet.
 
-Observation 109 established three boundaries that this type preserves:
+Observation 109 established that due meaning is not an optional date and closure
+meaning is not a boolean. It also explored provenance relations from Attention
+to Events or later Attention identities and showed that such relations do not
+by themselves close the source item.
 
-* due meaning is not an optional date;
-* closure meaning is not a boolean;
-* relation provenance does not itself close Attention.
+Current production retains only the item and explicit closure evidence selected
+by persistence, inspection, review, and TUI paths. Attention relation provenance
+has no selected persistence, authority, publisher, or current consumer, so that
+capability remains research rather than present Core vocabulary.
 
 The first practical slice deliberately does not copy HRA's category, amount,
 mutable status, details record, or account vocabulary.
@@ -62,24 +64,6 @@ structure AttentionClosure (Time : Type) where
   attention : AttentionId
   knownOn : Time
   kind : AttentionClosureKind
-deriving Repr, DecidableEq
-
-/--
-The first qualified provenance targets from Observation 109.
-
-A relation to an Actual Event or a later Attention identity is evidence about
-what the item became or relates to. It is not closure evidence.
--/
-inductive AttentionRelationTarget where
-  | event (event : EventId)
-  | attention (attention : AttentionId)
-deriving Repr, DecidableEq
-
-/-- Append-oriented provenance relation whose existence does not close source. -/
-structure AttentionRelation (Time : Type) where
-  source : AttentionId
-  target : AttentionRelationTarget
-  knownOn : Time
 deriving Repr, DecidableEq
 
 end Loam.Core
