@@ -83,6 +83,14 @@ private structure FamilyRef where
   sha256 : String
   deriving Repr, BEq
 
+private structure EvidenceManifest where
+  events : FamilyRef
+  validity : FamilyRef
+  descriptions : FamilyRef
+  relations : FamilyRef
+  discharges : FamilyRef
+  deriving Repr, BEq
+
 private structure Manifest where
   events : FamilyRef
   validity : FamilyRef
@@ -164,31 +172,61 @@ private def decodeManifestRow? (expected : String) (row : String) : Option Famil
         none
   | _ => none
 
+private def decodeEvidenceRows?
+    (eventRow validityRow descriptionRow relationRow dischargeRow : String) :
+    Option EvidenceManifest := do
+  let events ← decodeManifestRow? "Event" eventRow
+  let validity ← decodeManifestRow? "ActualValidity" validityRow
+  let descriptions ← decodeManifestRow? "EventDescription" descriptionRow
+  let relations ← decodeManifestRow? "RelationUnit" relationRow
+  let discharges ← decodeManifestRow? "RelationDischarge" dischargeRow
+  some { events, validity, descriptions, relations, discharges }
+
+private def decodeEvidenceManifest? (input : String) : Option EvidenceManifest :=
+  match input.splitOn "\n" with
+  | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow, trailing] =>
+      if header != manifestHeaderV1 || trailing != "" then
+        none
+      else
+        decodeEvidenceRows? eventRow validityRow descriptionRow relationRow dischargeRow
+  | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow,
+      _policyRow, trailing] =>
+      if header != manifestHeaderV2 || trailing != "" then
+        none
+      else
+        decodeEvidenceRows? eventRow validityRow descriptionRow relationRow dischargeRow
+  | _ => none
+
 private def decodeManifest? (input : String) : Option Manifest :=
   match input.splitOn "\n" with
   | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow, trailing] =>
       if header != manifestHeaderV1 || trailing != "" then
         none
       else do
-        let events ← decodeManifestRow? "Event" eventRow
-        let validity ← decodeManifestRow? "ActualValidity" validityRow
-        let descriptions ← decodeManifestRow? "EventDescription" descriptionRow
-        let relations ← decodeManifestRow? "RelationUnit" relationRow
-        let discharges ← decodeManifestRow? "RelationDischarge" dischargeRow
-        some { events, validity, descriptions, relations, discharges, locusAdmission := none }
+        let evidence ←
+          decodeEvidenceRows? eventRow validityRow descriptionRow relationRow dischargeRow
+        some {
+          events := evidence.events
+          validity := evidence.validity
+          descriptions := evidence.descriptions
+          relations := evidence.relations
+          discharges := evidence.discharges
+          locusAdmission := none
+        }
   | [header, eventRow, validityRow, descriptionRow, relationRow, dischargeRow,
       locusAdmissionRow, trailing] =>
       if header != manifestHeaderV2 || trailing != "" then
         none
       else do
-        let events ← decodeManifestRow? "Event" eventRow
-        let validity ← decodeManifestRow? "ActualValidity" validityRow
-        let descriptions ← decodeManifestRow? "EventDescription" descriptionRow
-        let relations ← decodeManifestRow? "RelationUnit" relationRow
-        let discharges ← decodeManifestRow? "RelationDischarge" dischargeRow
+        let evidence ←
+          decodeEvidenceRows? eventRow validityRow descriptionRow relationRow dischargeRow
         let locusAdmission ← decodeManifestRow? "LocusAdmission" locusAdmissionRow
         some {
-          events, validity, descriptions, relations, discharges,
+          events := evidence.events
+          validity := evidence.validity
+          descriptions := evidence.descriptions
+          relations := evidence.relations
+          discharges := evidence.discharges
           locusAdmission := some locusAdmission
         }
   | _ => none
@@ -330,9 +368,9 @@ private def loadReferenced?
     return Except.error s!"loam: selected Movement object failed digest verification: {ref.path}"
   return Except.ok text
 
-private def loadEvidenceForManifest?
+private def loadEvidenceForRefs?
     (root : System.FilePath)
-    (manifest : Manifest) : IO (Except String EvidenceWorld) := do
+    (manifest : EvidenceManifest) : IO (Except String EvidenceWorld) := do
   let events ←
     match ← loadReferenced? root manifest.events with
     | Except.ok text => pure text
@@ -357,11 +395,19 @@ private def loadEvidenceForManifest?
   | some evidence => return Except.ok evidence
   | none => return Except.error "loam: selected Movement evidence failed production typed decoding"
 
+private def evidenceRefs (manifest : Manifest) : EvidenceManifest := {
+  events := manifest.events
+  validity := manifest.validity
+  descriptions := manifest.descriptions
+  relations := manifest.relations
+  discharges := manifest.discharges
+}
+
 private def loadWorldForManifest?
     (root : System.FilePath)
     (manifest : Manifest) : IO (Except String Loam.MovementAdmission.World) := do
   let evidence ←
-    match ← loadEvidenceForManifest? root manifest with
+    match ← loadEvidenceForRefs? root (evidenceRefs manifest) with
     | Except.ok evidence => pure evidence
     | Except.error message => return Except.error message
   match manifest.locusAdmission with
@@ -378,31 +424,52 @@ private def loadWorldForManifest?
         | none => return Except.error "loam: selected Locus admission policy failed production typed decoding"
       return Except.ok (worldWithPolicy evidence locusAdmission)
 
-private def loadSelectedManifest?
-    (root : System.FilePath) : IO (Except String Manifest) := do
+private def loadSelectedManifestText?
+    (root : System.FilePath) : IO (Except String String) := do
   let current := root / "CURRENT"
   if !(← current.pathExists) then
     return Except.error "loam: selected Movement manifest CURRENT is missing"
-  match decodeManifest? (← IO.FS.readFile current) with
+  return Except.ok (← IO.FS.readFile current)
+
+private def loadSelectedManifest?
+    (root : System.FilePath) : IO (Except String Manifest) := do
+  let text ←
+    match ← loadSelectedManifestText? root with
+    | Except.ok text => pure text
+    | Except.error message => return Except.error message
+  match decodeManifest? text with
   | some manifest => return Except.ok manifest
   | none => return Except.error "loam: selected Movement manifest CURRENT is malformed or unsupported"
 
+private def loadSelectedEvidenceManifest?
+    (root : System.FilePath) : IO (Except String EvidenceManifest) := do
+  let text ←
+    match ← loadSelectedManifestText? root with
+    | Except.ok text => pure text
+    | Except.error message => return Except.error message
+  match decodeEvidenceManifest? text with
+  | some manifest => return Except.ok manifest
+  | none =>
+      return Except.error "loam: selected Movement evidence manifest CURRENT is malformed or unsupported"
+
 /--
 Load the five selected household Movement evidence families without requiring the
-selected LocusAdmission object to be readable.
+selected LocusAdmission object or policy manifest row to be readable.
 
-The `CURRENT` manifest itself and all five evidence object references still fail
+The `CURRENT` manifest envelope and all five evidence object references still fail
 closed on missing, malformed, digest-invalid, or typed-invalid state. This function
 only removes current new-write policy from read-only household availability; it
-does not authorize publication or weaken evidence-generation closure.
+does not authorize publication or weaken evidence-generation closure. Full-world,
+publication, and exact-recovery paths continue to require strict full-manifest
+decoding.
 -/
 def loadSelectedEvidence?
     (root : System.FilePath) : IO (Except String EvidenceWorld) := do
   let manifest ←
-    match ← loadSelectedManifest? root with
+    match ← loadSelectedEvidenceManifest? root with
     | Except.ok manifest => pure manifest
     | Except.error message => return Except.error message
-  loadEvidenceForManifest? root manifest
+  loadEvidenceForRefs? root manifest
 
 /--
 Load exactly one selected Movement generation including current new-write policy.
