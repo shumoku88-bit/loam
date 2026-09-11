@@ -285,6 +285,17 @@ def main : IO Unit := do
   expect (fullyResolvedRows.isEmpty)
     s!"expected empty unresolved rows for fully classified fixture, got {fullyResolvedRows.length}"
 
+  let actionableRows ← requireSome
+    (currentActionableScheduledPressure?
+      eligibilityMemory emptyTerminals events roles
+      eligibilityRouting yen (2 : Nat) (4 : Nat))
+    "actionable Scheduled pressure rows failed closed"
+  expect (actionableRows.length == 3)
+    s!"expected exactly 3 actionable rows, got {actionableRows.length}"
+  expect (((actionableRows.map (fun r => r.quantity.quanta)).sum) ==
+      eligibility.unrouted.quanta + eligibility.unresolvedEligibility.quanta)
+    "actionable row quantities did not sum to unrouted + unresolved eligibility"
+
   -- An unknown Scheduled endpoint makes the whole current-open answer invalid.
   let unknownTerminal ← requireSome
     (ScheduledTerminalMemory.ofTerminals?

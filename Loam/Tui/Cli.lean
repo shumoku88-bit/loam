@@ -22,6 +22,8 @@ import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession
+import Loam.ScheduledRoutingPublisher
+import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
@@ -377,6 +379,60 @@ partial def scheduledReplacementLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       scheduledReplacementLoop bounds scheduledFile root known step.state nextFrame
 
+/--
+Inherit Scheduled routing from a predecessor occurrence to a newly created occurrence
+when completing and continuing a recurring obligation.
+-/
+private def inheritScheduledRouting
+    (dataDir : System.FilePath)
+    (predecessor : Loam.ScheduledReview.Record)
+    (created : Loam.ScheduledCreationPublisher.Receipt)
+    (effectiveOn : String) : IO (List String) := do
+  let routingPath := dataDir / "scheduled-routing.loam"
+  let scheduledPath := dataDir / "scheduled.loam"
+  if !(← routingPath.pathExists) then return []
+  match ← Loam.Persistence.loadScheduledRoutingHistory? routingPath with
+  | none => return []
+  | some history =>
+      match ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath with
+      | none => return []
+      | some lifecycle =>
+          match Loam.Core.ScheduledMemory.findById? lifecycle.scheduled created.scheduled with
+          | none => return []
+          | some occurrence =>
+              let mut inheritedNotices : List String := []
+              for change in occurrence.movement.changes do
+                if change.quantity.quanta > 0 then
+                  let subject : Loam.Core.ScheduledRoutingSubject := {
+                    scheduled := predecessor.id
+                    locus := change.coordinate
+                  }
+                  match history.statusAt subject effectiveOn with
+                  | .managed purpose =>
+                      let draft : Loam.ScheduledRoutingPublisher.Draft := {
+                        subject := { scheduled := created.scheduled, locus := change.coordinate }
+                        effectiveOn := effectiveOn
+                        target := .managed purpose
+                      }
+                      match ← Loam.ScheduledRoutingPublisher.publish routingPath.toString scheduledPath.toString draft with
+                      | .ok _ =>
+                          inheritedNotices := inheritedNotices ++
+                            [s!"inherited route: {change.coordinate.token} -> managed {purpose.token}"]
+                      | .error _ => pure ()
+                  | .unmanaged =>
+                      let draft : Loam.ScheduledRoutingPublisher.Draft := {
+                        subject := { scheduled := created.scheduled, locus := change.coordinate }
+                        effectiveOn := effectiveOn
+                        target := .unmanaged
+                      }
+                      match ← Loam.ScheduledRoutingPublisher.publish routingPath.toString scheduledPath.toString draft with
+                      | .ok _ =>
+                          inheritedNotices := inheritedNotices ++
+                            [s!"inherited route: {change.coordinate.token} -> unmanaged"]
+                      | .error _ => pure ()
+                  | .unrouted => pure ()
+              return inheritedNotices
+
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
@@ -474,12 +530,19 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let nextNotice ← Loam.Tui.ScheduledCreationSession.run
+                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
                           bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
-                        if nextNotice == "Scheduled creation cancelled." then
-                          pure (completedNotice ++ " No next Scheduled created.")
-                        else
-                          pure (completedNotice ++ " " ++ nextNotice)
+                        match createdOpt with
+                        | none =>
+                            if nextNotice == "Scheduled creation cancelled." then
+                              pure (completedNotice ++ " No next Scheduled created.")
+                            else
+                              pure (completedNotice ++ " " ++ nextNotice)
+                        | some created =>
+                            let inherited ← inheritScheduledRouting dataDir record created snapshot.actual.today
+                            let routeNotice :=
+                              if inherited.isEmpty then "" else " (" ++ String.intercalate ", " inherited ++ ")"
+                            pure (completedNotice ++ " " ++ nextNotice ++ routeNotice)
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -606,12 +669,19 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let nextNotice ← Loam.Tui.ScheduledCreationSession.run
+                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
                           bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
-                        if nextNotice == "Scheduled creation cancelled." then
-                          pure (completedNotice ++ " No next Scheduled created.")
-                        else
-                          pure (completedNotice ++ " " ++ nextNotice)
+                        match createdOpt with
+                        | none =>
+                            if nextNotice == "Scheduled creation cancelled." then
+                              pure (completedNotice ++ " No next Scheduled created.")
+                            else
+                              pure (completedNotice ++ " " ++ nextNotice)
+                        | some created =>
+                            let inherited ← inheritScheduledRouting dataDir record created snapshot.actual.today
+                            let routeNotice :=
+                              if inherited.isEmpty then "" else " (" ++ String.intercalate ", " inherited ++ ")"
+                            pure (completedNotice ++ " " ++ nextNotice ++ routeNotice)
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }

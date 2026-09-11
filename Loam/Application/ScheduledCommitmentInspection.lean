@@ -437,6 +437,143 @@ theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
   · rfl
   · rfl
 
+/-- Keep coordinates that exert unrouted or unresolved Scheduled pressure as actionable routing subjects. -/
+private def actionableRoutingRow?
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (observedAt : Time)
+    (coordinate : SelectedCoordinate Time) :
+    Option (UnresolvedScheduledPressureRow Time) :=
+  match classifyScheduledPressure roles routing observedAt coordinate.subject with
+  | .unroutedPressure
+  | .unresolvedEligibility =>
+      some {
+        subject := coordinate.subject
+        scheduledOn := coordinate.scheduledOn
+        measure := coordinate.measure
+        quantity := coordinate.quantity }
+  | _ => none
+
+/--
+Project all actionable unrouted and unresolved Scheduled pressure subjects behind one current-open
+Scheduled set. Both unrouted Expense/Liability obligations and unresolved eligibility lack an explicit
+route and can be assigned to a Purpose or marked unmanaged.
+-/
+def actionableScheduledPressureRowsFromOpen
+    (occurrences : List (ScheduledOccurrence Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) : List (UnresolvedScheduledPressureRow Time) :=
+  (occurrences.flatMap (selectedCoordinates measure observedAt endExclusive)).filterMap
+    (actionableRoutingRow? roles routing observedAt)
+
+private theorem fold_actionablePressure_eq
+    (coordinates : List (SelectedCoordinate Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (purpose : PurposeId)
+    (observedAt : Time)
+    (init : CommitmentQuanta) :
+    (coordinates.foldl
+        (addSelectedCoordinate roles routing purpose observedAt) init).unrouted +
+    (coordinates.foldl
+        (addSelectedCoordinate roles routing purpose observedAt) init).unresolvedEligibility
+      = init.unrouted + init.unresolvedEligibility +
+        ((coordinates.filterMap (actionableRoutingRow? roles routing observedAt)).map
+          (fun row => row.quantity.quanta)).sum := by
+  induction coordinates generalizing init with
+  | nil => simp
+  | cons coordinate rest ih =>
+      simp only [List.foldl_cons, List.filterMap_cons]
+      rw [ih]
+      cases hclass : classifyScheduledPressure roles routing observedAt coordinate.subject with
+      | managed routedPurpose =>
+          by_cases h : routedPurpose = purpose
+          · subst h
+            simp [addSelectedCoordinate, actionableRoutingRow?, hclass]
+          · simp [addSelectedCoordinate, actionableRoutingRow?, hclass, h]
+      | unmanaged =>
+          simp [addSelectedCoordinate, actionableRoutingRow?, hclass]
+      | unroutedPressure =>
+          simp [addSelectedCoordinate, actionableRoutingRow?, hclass, List.map_cons, List.sum_cons]
+          omega
+      | resolvedNonPressure =>
+          simp [addSelectedCoordinate, actionableRoutingRow?, hclass]
+      | unresolvedEligibility =>
+          simp [addSelectedCoordinate, actionableRoutingRow?, hclass, List.map_cons, List.sum_cons]
+          omega
+
+private theorem rowsFromOpen_actionable_sum_eq
+    (occurrences : List (ScheduledOccurrence Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (purpose : PurposeId)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) :
+    ((actionableScheduledPressureRowsFromOpen
+        occurrences roles routing measure observedAt endExclusive).map
+          (fun row => row.quantity.quanta)).sum
+      =
+    (commitmentFromOpenOccurrences
+        occurrences roles routing purpose measure observedAt endExclusive).unrouted.quanta +
+    (commitmentFromOpenOccurrences
+        occurrences roles routing purpose measure observedAt endExclusive).unresolvedEligibility.quanta := by
+  simp only [commitmentFromOpenOccurrences, actionableScheduledPressureRowsFromOpen, Loam.Core.Quantity.ofQuanta]
+  rw [fold_actionablePressure_eq]
+  simp
+
+/--
+Project the actionable unrouted and unresolved pressure subjects behind the current-open
+Scheduled frontier.
+-/
+def currentActionableScheduledPressure?
+    (scheduled : ScheduledMemory Time)
+    (terminals : ScheduledTerminalMemory)
+    (events : EventMemory)
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) :
+    Option (List (UnresolvedScheduledPressureRow Time)) :=
+  match currentOpenScheduled scheduled terminals events with
+  | .open occurrences =>
+      some <| actionableScheduledPressureRowsFromOpen
+        occurrences roles routing measure observedAt endExclusive
+  | _ => none
+
+/--
+The retained invariant tying actionable routing subjects to the unrouted and unresolved frontier.
+-/
+theorem currentScheduledCommitment?_actionablePressure_eq_rows_sum
+    (scheduled : ScheduledMemory Time)
+    (terminals : ScheduledTerminalMemory)
+    (events : EventMemory)
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (purpose : PurposeId)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) :
+    (currentScheduledCommitment?
+        scheduled terminals events roles routing purpose
+        measure observedAt endExclusive).map (fun view => view.unrouted.quanta + view.unresolvedEligibility.quanta)
+      =
+    (currentActionableScheduledPressure?
+        scheduled terminals events roles routing measure observedAt endExclusive).map
+      (fun rows => (rows.map (fun row => row.quantity.quanta)).sum) := by
+  unfold currentScheduledCommitment? currentActionableScheduledPressure?
+  cases currentOpenScheduled scheduled terminals events
+  · rename_i occurrences
+    simp only [Option.map_some]
+    apply congrArg
+    exact (rowsFromOpen_actionable_sum_eq
+      occurrences roles routing purpose measure observedAt endExclusive).symm
+  · rfl
+  · rfl
+  · rfl
+  · rfl
+  · rfl
+
 /--
 Compose correction-aware Actual Remaining with current-open Scheduled pressure.
 Only managed pressure for the queried Purpose is subtracted from Remaining;

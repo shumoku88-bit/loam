@@ -199,11 +199,11 @@ def loadSnapshotAt
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
   let unresolvedScheduled ←
-    match currentUnresolvedScheduledPressure?
+    match currentActionableScheduledPressure?
         scheduled.scheduled scheduled.terminals movement.events roles scheduledRouting
         ⟨"jpy"⟩ observedAt endExclusive with
     | some rows => pure rows
-    | none => return .error "loam: canonical evidence does not justify unresolved Scheduled pressure"
+    | none => return .error "loam: canonical evidence does not justify actionable Scheduled pressure"
 
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?

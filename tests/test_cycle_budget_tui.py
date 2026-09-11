@@ -152,11 +152,11 @@ try:
     # so the editor's effective date proves that Budget observedAt is the authority.
     before_rebalance = digest()
     os.write(master, b"r")
-    rebalance = wait_for("Capacity / Rebalance")
+    rebalance = wait_for("-150")
+    assert "Capacity / Rebalance" in rebalance
     assert f"Effective: {today}" in rebalance
     assert "Home > Capacity > Rebalance" not in rebalance
     assert "food" in rebalance and "stock" in rebalance
-    assert "-150" in rebalance, "Budget CurrentCoverage was not carried into Rebalance"
 
     # Build a balanced preview: food -10, stock +10. Do not publish.
     os.write(master, b"e")
