@@ -79,9 +79,8 @@ private def oneEffectEvent
     keyNodup := by simp }
 
 private def correction
-    (correctionToken targetToken replacementToken : String) : EventCorrection :=
-  { id := ⟨correctionToken⟩
-    target := ⟨targetToken⟩
+    (targetToken replacementToken : String) : EventCorrection :=
+  { target := ⟨targetToken⟩
     replacement := ⟨replacementToken⟩ }
 
 private def fiveEventMemory : EventMemory :=
@@ -96,10 +95,10 @@ private def fiveEventMemory : EventMemory :=
 
 private def fourCorrectionChain : EventCorrectionMemory :=
   { corrections :=
-      [ correction "c1" "a" "b"
-      , correction "c2" "b" "c"
-      , correction "c3" "c" "d"
-      , correction "c4" "d" "e"
+      [ correction "a" "b"
+      , correction "b" "c"
+      , correction "c" "d"
+      , correction "d" "e"
       ]
     idNodup := by native_decide }
 
