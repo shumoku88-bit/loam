@@ -168,9 +168,12 @@ class DirectQuantitySelectionTests(unittest.TestCase):
         binary = ROOT / ".lake/build/bin/loamDailyQuantity"
         for command in ("balances", "current"):
             for selection in ("", str(self.root / "missing")):
-                result = run(binary, "review", self.memory, self.corrections, *query, input=input)
-                self.assertEqual(result.returncode, 0, result.stderr)
-        
+                result = run(binary, command, self.root / "memory.loam",
+                             self.root / "corrections.loam", self.root / "zero-origin-coverage.loam",
+                             env={**ENV, "LOAM_MOVEMENT_MANIFEST_ROOT": selection})
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+
 
 if __name__ == "__main__":
     unittest.main()
