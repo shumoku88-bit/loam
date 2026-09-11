@@ -1,6 +1,5 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
-import Lean.Elab.Tactic.Omega
 
 namespace Loam.Application
 
@@ -37,6 +36,20 @@ private def eventPresent
     (events : EventMemory)
     (id : EventId) : Bool :=
   (EventMemory.findById? events id).isSome
+
+/--
+Whether every retained correction endpoint is represented by an Event.
+
+This is a diagnostic facet of frontier admission, not a second authority rule.
+It lets application and presentation layers distinguish missing references from
+other unsupported correction topology while using the same frontier engine for
+all effective quantity calculation.
+-/
+def correctionReferencesClosed
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Bool :=
+  ReplacementFrontier.referencesClosed
+    (eventPresent events) (correctionEdges corrections)
 
 /--
 Whether the retained correction facts justify one order-free frontier using
@@ -89,121 +102,6 @@ private theorem targetsEvent_false_iff
       · simp [targetsEvent, hTarget]
       · simp [targetsEvent, hTarget, ih]
 
-/-- If every represented Event differs from one target identity, filtering that target changes nothing. -/
-private theorem filterTarget_eq_self
-    (items : List Event)
-    (target : EventId)
-    (hAbsent : ∀ event ∈ items, target ≠ event.id) :
-    items.filter (fun event => decide (target ≠ event.id)) = items := by
-  induction items with
-  | nil => rfl
-  | cons event rest ih =>
-      have hEvent : target ≠ event.id := hAbsent event (by simp)
-      have hRest : ∀ item ∈ rest, target ≠ item.id := by
-        intro item hItem
-        exact hAbsent item (by simp [hItem])
-      simp only [List.filter]
-      rw [ih hRest]
-      simp [hEvent]
-
-/--
-With unique Event identity, filtering one present target from the recorded fold
-is exactly the original fold minus that Event's contribution once.
--/
-private theorem filterTargetQuantityFold
-    (items : List Event)
-    (target : EventId)
-    (original : Event)
-    (locus : LocusId)
-    (measure : MeasureId)
-    (hNodup : (items.map Event.id).Nodup)
-    (hFind : FiniteKeyed.findBy? Event.id items target = some original) :
-    (items.filter (fun event => decide (target ≠ event.id))).foldr
-        (fun event total => (Event.quantityAt event locus measure).quanta + total)
-        0 =
-      items.foldr
-          (fun event total => (Event.quantityAt event locus measure).quanta + total)
-          0 - (Event.quantityAt original locus measure).quanta := by
-  induction items generalizing original with
-  | nil =>
-      simp [FiniteKeyed.findBy?] at hFind
-  | cons event rest ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      by_cases hHead : event.id = target
-      · have hOriginal : event = original := by
-          simpa [FiniteKeyed.findBy?, hHead] using hFind
-        subst original
-        have hTailAbsent : ∀ item ∈ rest, target ≠ item.id := by
-          intro item hItem hTarget
-          apply hNodup.1
-          exact List.mem_map.mpr ⟨item, hItem, hTarget.symm.trans hHead.symm⟩
-        have hFiltered := filterTarget_eq_self rest target hTailAbsent
-        have hFilterAll :
-            (event :: rest).filter (fun item => decide (target ≠ item.id)) = rest := by
-          simp only [List.filter]
-          rw [hFiltered]
-          simp [hHead]
-        rw [hFilterAll]
-        simp only [List.foldr_cons]
-        omega
-      · have hFindTail :
-            FiniteKeyed.findBy? Event.id rest target = some original := by
-          simpa [FiniteKeyed.findBy?, hHead] using hFind
-        have hIH := ih original hNodup.2 hFindTail
-        have hReverse : target ≠ event.id := Ne.symm hHead
-        have hFilterAll :
-            (event :: rest).filter (fun item => decide (target ≠ item.id)) =
-              event :: rest.filter (fun item => decide (target ≠ item.id)) := by
-          simp only [List.filter]
-          simp [hReverse]
-        rw [hFilterAll]
-        simp only [List.foldr_cons]
-        rw [hIH]
-        omega
-
-/-- Filtering an admitted Event list cannot introduce duplicate Event identity. -/
-private theorem filteredEventIdsNodup
-    (items : List Event)
-    (predicate : Event → Bool)
-    (hNodup : (items.map Event.id).Nodup) :
-    ((items.filter predicate).map Event.id).Nodup := by
-  induction items with
-  | nil =>
-      simp
-  | cons event rest ih =>
-      simp only [List.map_cons, List.nodup_cons] at hNodup
-      simp only [List.filter]
-      by_cases hKeep : predicate event = true
-      · have hTailNodup := ih hNodup.2
-        have hHeadFresh :
-            event.id ∉ (rest.filter predicate).map Event.id := by
-          intro hMem
-          apply hNodup.1
-          simp only [List.mem_map] at hMem ⊢
-          obtain ⟨item, hItem, hId⟩ := hMem
-          exact ⟨item, (List.mem_filter.mp hItem).1, hId⟩
-        simp [hKeep, hHeadFresh, hTailNodup]
-      · simp [hKeep, ih hNodup.2]
-
-/-- A singleton correction frontier filters exactly the correction target identity. -/
-private theorem frontierEvents_singleton_eq_filterTarget
-    (events : EventMemory)
-    (correction : EventCorrection) :
-    frontierEvents
-        events
-        { corrections := [correction], idNodup := by simp } =
-      events.events.filter
-        (fun event => decide (correction.target ≠ event.id)) := by
-  unfold frontierEvents
-  induction events.events with
-  | nil =>
-      rfl
-  | cons event rest ih =>
-      simp only [List.filter]
-      by_cases hTarget : correction.target = event.id
-      · simp [targetsEvent, hTarget]
-      · simp [targetsEvent, hTarget]
-
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
 paths. Superseded targets are filtered out; terminal replacements and untouched
@@ -254,10 +152,9 @@ theorem correctionFrontierMemory?_mem_iff
 /--
 Project one locus/measure quantity from the admitted correction frontier.
 
-Quantity arithmetic is delegated to the existing recorded EventMemory
-projection after superseded Event identities have been removed. This keeps the
-new application semantics focused on frontier selection rather than duplicating
-Core quantity folding.
+Quantity arithmetic is delegated to the recorded EventMemory projection after
+superseded Event identities have been removed. The same path is used for one or
+many corrections; correction count carries no authority.
 -/
 def quantityAtCorrectionFrontier?
     (events : EventMemory)
@@ -266,84 +163,5 @@ def quantityAtCorrectionFrontier?
     (measure : MeasureId) : Option Quantity := do
   let frontier ← correctionFrontierMemory? events corrections
   return EventMemory.quantityAtRecorded frontier locus measure
-
-/--
-For one distinct correction with both endpoints present, the generic frontier
-quantity is exactly the historical singleton arithmetic: recorded quantity minus
-the target Event contribution once.
--/
-theorem quantityAtCorrectionFrontier?_singleton_distinct
-    (events : EventMemory)
-    (correction : EventCorrection)
-    (original replacement : Event)
-    (locus : LocusId)
-    (measure : MeasureId)
-    (hDistinct : correction.target ≠ correction.replacement)
-    (hOriginal :
-      EventMemory.findById? events correction.target = some original)
-    (hReplacement :
-      EventMemory.findById? events correction.replacement = some replacement) :
-    quantityAtCorrectionFrontier?
-        events
-        { corrections := [correction], idNodup := by simp }
-        locus measure =
-      some
-        (EventMemory.quantityAtRecorded events locus measure -
-          Event.quantityAt original locus measure) := by
-  let corrections : EventCorrectionMemory :=
-    { corrections := [correction], idNodup := by simp }
-  have hAdmissible : correctionFrontierAdmissible events corrections = true := by
-    simp [correctionFrontierAdmissible, correctionEdges, corrections,
-      eventPresent, hOriginal, hReplacement, hDistinct]
-  have hFrontierEvents :
-      frontierEvents events corrections =
-        events.events.filter
-          (fun event => decide (correction.target ≠ event.id)) := by
-    simpa [corrections] using
-      frontierEvents_singleton_eq_filterTarget events correction
-  have hFrontierNodup :
-      ((frontierEvents events corrections).map Event.id).Nodup := by
-    unfold frontierEvents
-    exact filteredEventIdsNodup
-      events.events
-      (fun event => !(targetsEvent corrections.corrections event.id))
-      events.idNodup
-  have hFrontier :
-      correctionFrontierMemory? events corrections =
-        some
-          { events := frontierEvents events corrections,
-            idNodup := hFrontierNodup } := by
-    unfold correctionFrontierMemory?
-    rw [if_pos (by simpa using hAdmissible)]
-    unfold EventMemory.ofEvents?
-    split
-    · rfl
-    · rename_i hRejected
-      exact False.elim (hRejected hFrontierNodup)
-  have hFind :
-      FiniteKeyed.findBy? Event.id events.events correction.target = some original := by
-    simpa [EventMemory.findById?] using hOriginal
-  have hFold :=
-    filterTargetQuantityFold
-      events.events correction.target original locus measure events.idNodup hFind
-  have hQuantity :
-      EventMemory.quantityAtRecorded
-          { events := frontierEvents events corrections,
-            idNodup := hFrontierNodup }
-          locus measure =
-        EventMemory.quantityAtRecorded events locus measure -
-          Event.quantityAt original locus measure := by
-    change
-      Quantity.ofQuanta
-          ((frontierEvents events corrections).foldr
-            (fun event total => (Event.quantityAt event locus measure).quanta + total)
-            0) =
-        Quantity.ofQuanta
-          (events.events.foldr
-              (fun event total => (Event.quantityAt event locus measure).quanta + total)
-              0 - (Event.quantityAt original locus measure).quanta)
-    rw [hFrontierEvents, hFold]
-  change quantityAtCorrectionFrontier? events corrections locus measure = _
-  simpa [quantityAtCorrectionFrontier?, hFrontier] using congrArg some hQuantity
 
 end Loam.Application
