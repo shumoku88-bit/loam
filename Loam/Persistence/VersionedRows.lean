@@ -16,24 +16,30 @@ typed parsing, semantic admission, or authority meaning.
 
 /-- Frame already-encoded rows under one exact version header. -/
 def encodeVersionedRows (header : String) (rows : List String) : String :=
-  String.intercalate "\n" (header :: rows) ++ "\n"
+  String.intercalate "\n" (header :: rows ++ [""])
 
-/-- Migration witness: the trailing newline is exactly one explicit empty frame row. -/
-private theorem encodeVersionedRows_explicitTrailingEmpty
-    (header : String) (rows : List String) :
-    encodeVersionedRows header rows =
-      String.intercalate "\n" (header :: rows ++ [""]) := by
-  unfold encodeVersionedRows
-  rw [String.intercalate_append_of_ne_nil (by simp) (by simp)]
-  simp
+/-- Remove one exact version header and required trailing newline, fail closed. -/
+def decodeVersionedRows?
+    (expectedHeader input : String) : Option (List String) :=
+  match (input.split '\n').toList.map (·.copy) with
+  | header :: rows =>
+      if header != expectedHeader then
+        none
+      else
+        match rows.reverse with
+        | "" :: reversedRows => some reversedRows.reverse
+        | _ => none
+  | _ => none
 
-/-- Migration witness: modern single-character splitting recovers a newline-free framed image. -/
-private theorem splitExplicitVersionedFrame
+/--
+The shared line frame decodes its own output exactly when the header and already-
+encoded rows contain no framing newline.
+-/
+theorem decodeVersionedRows?_encodeVersionedRows
     (header : String) (rows : List String)
     (headerNoNewline : '\n' ∉ header.toList)
     (rowsNoNewline : ∀ row ∈ rows, '\n' ∉ row.toList) :
-    ((String.intercalate "\n" (header :: rows ++ [""])).split '\n').toList.map (·.copy) =
-      header :: rows ++ [""] := by
+    decodeVersionedRows? header (encodeVersionedRows header rows) = some rows := by
   have linesNoNewline : ∀ line ∈ header :: rows ++ [""], '\n' ∉ line.toList := by
     intro line hLine
     simp only [List.mem_append, List.mem_cons] at hLine
@@ -44,21 +50,12 @@ private theorem splitExplicitVersionedFrame
     · rcases hEmpty with rfl | hImpossible
       · simp
       · simp at hImpossible
-  simpa using
-    (String.toList_split_intercalate (c := '\n') (l := header :: rows ++ [""])
-      linesNoNewline)
-
-/-- Remove one exact version header and required trailing newline, fail closed. -/
-def decodeVersionedRows?
-    (expectedHeader input : String) : Option (List String) :=
-  match input.splitOn "\n" with
-  | header :: rows =>
-      if header != expectedHeader then
-        none
-      else
-        match rows.reverse with
-        | "" :: reversedRows => some reversedRows.reverse
-        | _ => none
-  | _ => none
+  have splitFrame :
+      ((String.intercalate "\n" (header :: rows ++ [""])).split '\n').toList.map (·.copy) =
+        header :: rows ++ [""] := by
+    simpa using
+      (String.toList_split_intercalate (c := '\n') (l := header :: rows ++ [""])
+        linesNoNewline)
+  simp [decodeVersionedRows?, encodeVersionedRows, splitFrame]
 
 end Loam.Persistence
