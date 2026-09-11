@@ -79,6 +79,18 @@ def structurallyAdmissible {Id : Type} [DecidableEq Id]
   simp [structurallyAdmissible, endpointUnique, referencesClosed, acyclic,
     returnsToStartWithin, next?]
 
+/-- One distinct closed edge is a valid finite replacement frontier. -/
+@[simp] theorem structurallyAdmissible_singleton_distinct
+    {Id : Type} [DecidableEq Id]
+    (present : Id → Bool)
+    (source successor : Id)
+    (hSource : present source = true)
+    (hSuccessor : present successor = true)
+    (hDistinct : source ≠ successor) :
+    structurallyAdmissible present [{ source := source, successor := successor }] = true := by
+  simp [structurallyAdmissible, endpointUnique, referencesClosed, acyclic,
+    returnsToStartWithin, next?, hSource, hSuccessor, hDistinct]
+
 def isSuperseded {Id : Type} [DecidableEq Id]
     (edges : List (Edge Id)) (id : Id) : Bool :=
   edges.any fun edge => decide (edge.source = id)
