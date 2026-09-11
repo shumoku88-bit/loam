@@ -11,7 +11,7 @@ private def expect (condition : Bool) (message : String) : IO Unit := do
 
 private def emptyHistory : ActualValidityHistory String :=
   { facts := []
-    factIdNodup := by simp
+    factRefNodup := by simp
     corrections := []
     correctionIdNodup := by simp }
 
