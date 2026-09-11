@@ -46,6 +46,21 @@ structure CurrentCoverageView where
   unresolvedEligibility : Quantity
   deriving Repr, DecidableEq
 
+private def assembleCurrentCoverage
+    (entitlement consumption : Quantity)
+    (commitment : ScheduledCommitmentView) : CurrentCoverageView :=
+  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
+  {
+    entitlement := entitlement
+    consumption := consumption
+    remaining := remaining
+    commitment := commitment.managed
+    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
+    unmanagedCommitment := commitment.unmanaged
+    unroutedCommitment := commitment.unrouted
+    unresolvedEligibility := commitment.unresolvedEligibility
+  }
+
 /--
 Compose current elapsed Capacity/Actual evidence with current-open Scheduled
 pressure for one Purpose and Measure.
@@ -73,17 +88,7 @@ def currentCoverageAtCorrectionFrontier?
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
-  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
-  return {
-    entitlement := entitlement
-    consumption := consumption
-    remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
-  }
+  return assembleCurrentCoverage entitlement consumption commitment
 
 /--
 Production-compatible current coverage using the explicit `initial | dated`
@@ -116,16 +121,6 @@ def currentCoverageAtCorrectionFrontierEffectiveRouting?
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
-  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
-  return {
-    entitlement := entitlement
-    consumption := consumption
-    remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
-  }
+  return assembleCurrentCoverage entitlement consumption commitment
 
 end Loam.Application
