@@ -227,7 +227,7 @@ No current SA-008 implementation action. Reopen only if another concrete Schedul
 ### SA-009 Publisher / Authority / Review semantic echo
 
 Status: `UNREVIEWED`
-Priority: high after the remaining identity census
+Priority: highest current audit priority
 
 This is the largest remaining broad audit region.
 
@@ -241,27 +241,33 @@ Do not start by extracting a universal `Publisher<T>`.
 
 ### SA-010 Revision-only identity principle
 
-Status: `UNDER_REVIEW`, partially implemented
-Priority: highest current audit priority
+Status: `AUDIT_COMPLETE` / `KEEP`
 
-The principle has already produced two successful reductions:
+Record: `SEMANTIC_AUDIT_SA010_IDENTITY.md`
+
+The principle already produced two successful reductions:
 
 - #715 removed `EventCorrectionId` because endpoint identity was sufficient;
 - #716 removed `ActualValidityCorrectionId` while retaining independent revision identity only for actual revisions.
 
-Next step is a repository-wide identity census, one family at a time:
+The remaining production census found no further redundant identity justified for deletion.
 
-1. list remaining `*Id` values attached to base facts, revisions, relations, and publications;
-2. ask whether two base facts for one subject must coexist;
-3. ask whether anything externally references the fact independently of its subject/endpoints;
-4. ask whether persistence/recovery requires stable independent identity;
-5. only then attempt proof-first deletion.
+Keep:
 
-Do not generalize the revision-only rule to facts with genuine multiplicity or provenance.
+- `EventId`, `ScheduledId`, `CapacityMovementId`, `AttentionId`, and `RelationUnitId` because independently referable occurrences/entities have external reference or multiplicity reasons;
+- `ActualValidityRevisionId` because later retained revisions require exact correction provenance while the Event-rooted base fact already carries no extra identity;
+- `EffectKey` because distinct same-coordinate Effects may coexist and later relation provenance refers to one exact Effect;
+- `LocusId`, `MeasureId`, `PurposeId`, and `ExternalEndpointId` because they are semantic coordinates rather than persistence-row identities.
+
+The neighboring evidence families already demonstrate the desired rule by carrying no extra independent ID when subject/endpoints suffice: Event Correction, Actual Reversal, ActualValidity Correction edges, Scheduled Terminal, Attention Closure, Capacity Effective, RoutingEntry, and Relation Discharge.
+
+This is a negative audit verdict. Reopen one identity only if new semantics remove its current external-reference, multiplicity, coordinate, or revision-provenance reason.
+
+No current SA-010 implementation action.
 
 ## 5. Next work queue
 
-This is the default order after current main `0338ed7964a0acbee70eb03c1b7063b95813af72`. Re-check actual main and open PRs before every item.
+This is the default order after current production checkpoint `0338ed7964a0acbee70eb03c1b7063b95813af72`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
@@ -273,14 +279,13 @@ No current P1 item. The qualified mechanical queue was exhausted by #726, #728, 
 
 ### P2 - next conceptual audits
 
-1. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
-2. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+1. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
 
 ### P3 - reopen only with concrete pressure
 
-3. **SA-001:** further finite-keyed carrier sharing.
-4. `VersionedRows` newline-free round-trip theorem.
-5. isolated Amount / low-level product-topology usefulness review.
+2. **SA-001:** further finite-keyed carrier sharing.
+3. `VersionedRows` newline-free round-trip theorem.
+4. isolated Amount / low-level product-topology usefulness review.
 
 If a candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
 
