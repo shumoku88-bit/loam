@@ -25,7 +25,7 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\nyucho\tjpy\n"
   let world : Loam.MovementAdmission.World := {
     events := { events := [], idNodup := by simp }
-    validity := { facts := [], factIdNodup := by simp, corrections := [], correctionIdNodup := by simp }
+    validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
     descriptions := .empty, relations := [], discharges := [] }
   let .ok _ ← Loam.MovementManifestAuthority.publishWorld? (root / "movement-authority") world
     | throw (IO.userError "publish fixture world")
