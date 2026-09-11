@@ -72,9 +72,9 @@ private def loadLifecycleSnapshot?
 
 def loadEvidenceFromManifest
     (scheduledFile manifestRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
+  match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
   | .error message => return .error message
-  | .ok world => loadLifecycleSnapshot? scheduledFile world.events
+  | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence
