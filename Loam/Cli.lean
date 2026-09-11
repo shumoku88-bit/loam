@@ -1,4 +1,3 @@
-import Loam.Persistence.AmountPersistence
 import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.EventPersistence
 import Loam.Cli.ReviewCli
@@ -11,10 +10,6 @@ import Std
 namespace Loam.Cli
 
 set_option autoImplicit false
-
-/-- Render one admitted runtime amount without inventing display metadata. -/
-def renderAmount (amount : Loam.Core.SomeAmount) : String :=
-  amount.measure.token ++ "\t" ++ toString amount.quantity.quanta
 
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
@@ -35,7 +30,6 @@ private def lowLevelUsage : String :=
   "Low-level commands\n" ++
   "Replace each word in <angle brackets> with your own value.\n" ++
   "Do not type the angle-bracket words literally.\n\n" ++
-  "  ./tools/loam amount show <amount-file>\n" ++
   "  ./tools/loam event create <event-file> <event-id> [<effect-key> <locus> <measure> <quanta>]...\n" ++
   "  ./tools/loam event quantity <event-file> <locus> <measure>\n" ++
   "  ./tools/loam event-memory get <memory-file> <event-id>\n" ++
@@ -58,21 +52,6 @@ private def parseEffects : List String → Option (List Loam.Core.Effect)
                   ⟨key⟩ ⟨locus⟩ ⟨measure⟩
                   (Loam.Core.Quantity.ofQuanta quanta) :: effects)
   | _ => none
-
-/-- Read one persisted amount and print its stable measure token and exact quanta. -/
-def showAmount (path : String) : IO UInt32 := do
-  let filePath := System.FilePath.mk path
-  if ← filePath.pathExists then
-    match ← Loam.Persistence.load? filePath with
-    | some amount =>
-        IO.println (renderAmount amount)
-        return 0
-    | none =>
-        IO.eprintln "loam: malformed or unsupported amount file"
-        return 2
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
 
 /-- Create one complete Event from caller-supplied effect tuples. -/
 def createEvent
@@ -257,7 +236,6 @@ def run (args : List String) : IO UInt32 := do
       Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
   | ["correction-integrity", memoryPath, correctionPath] =>
       Loam.CorrectionIntegrityCli.showCorrectionIntegrity memoryPath correctionPath
-  | ["amount", "show", path] => showAmount path
   | "event" :: "create" :: path :: eventToken :: effectArgs =>
       createEvent path eventToken effectArgs
   | ["event", "quantity", path, locus, measure] =>
