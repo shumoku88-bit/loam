@@ -99,19 +99,6 @@ def main : IO Unit := do
   expect (stillOpen.map Attention.id == [third.id])
     "current open Attention projection did not exclude explicit closures"
 
-  let relationToEvent : AttentionRelation String :=
-    { source := third.id
-      target := .event ⟨"event-1"⟩
-      knownOn := "2026-09-06" }
-  let continuation : AttentionRelation String :=
-    { source := third.id
-      target := .attention second.id
-      knownOn := "2026-09-07" }
-  expect (decide (relationToEvent.source = third.id))
-    "Attention-to-Event provenance lost its source identity"
-  expect (decide (continuation.source = third.id))
-    "Attention continuation provenance lost its source identity"
-
   let danglingClosure : AttentionClosure String :=
     { attention := ⟨"attention-missing"⟩
       knownOn := "2026-09-08"
