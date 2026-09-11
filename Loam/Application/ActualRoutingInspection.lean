@@ -46,15 +46,11 @@ def consumptionAtRecordedEffectiveRouting?
     (validities : ActualValidityMemory Time)
     (routing : RoutingHistory LocusId (RoutingEffective Time))
     (purpose : PurposeId)
-    (measure : MeasureId) : Option Quantity := do
-  let quanta ← events.events.foldlM
-    (fun total event => do
-      let validOn ← validities.findByEventId? event.id
-      let eventQuantity :=
-        eventConsumptionAtEffectiveRouting event validOn routing purpose measure
-      return total + eventQuantity.quanta)
-    0
-  return Quantity.ofQuanta quanta
+    (measure : MeasureId) : Option Quantity :=
+  foldRecordedConsumptionWhere? events validities
+    (fun _ => true)
+    (fun event validOn =>
+      eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
 
 /-- Apply the admitted Event-correction frontier before initial-aware Consumption. -/
 def consumptionAtCorrectionFrontierEffectiveRouting?

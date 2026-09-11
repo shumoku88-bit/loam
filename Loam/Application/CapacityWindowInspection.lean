@@ -110,21 +110,6 @@ def entitlementAtEffectiveWindow?
     (measure : MeasureId) : Option Quantity :=
   capacityAtEffectiveWindow? capacity effective start end_ (.purpose purpose) measure
 
-private def consumptionAtRecordedWhere?
-    (events : EventMemory)
-    (validities : ActualValidityMemory Time)
-    (selected : Time → Bool)
-    (project : Event → Time → Quantity) : Option Quantity := do
-  let quanta ← events.events.foldlM
-    (fun total event => do
-      let validOn ← validities.findByEventId? event.id
-      if selected validOn then
-        return total + (project event validOn).quanta
-      else
-        return total)
-    0
-  return Quantity.ofQuanta quanta
-
 /--
 Project recorded Actual Consumption whose valid coordinates fall in `[start, end)`.
 Every retained Event still requires validity evidence, even if it might turn out
@@ -140,7 +125,7 @@ def consumptionAtRecordedEffectiveRoutingWindow?
   if !validCapacityWindow start end_ then
     none
   else
-    consumptionAtRecordedWhere? events validities
+    foldRecordedConsumptionWhere? events validities
       (inHalfOpen start end_)
       (fun event validOn =>
         eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
@@ -173,7 +158,7 @@ def consumptionAtCorrectionFrontierThrough?
     (measure : MeasureId) : Option Quantity := do
   if !validCurrentWindow start observedAt then none else
   let frontier ← correctionFrontierMemory? events corrections
-  consumptionAtRecordedWhere? frontier validities
+  foldRecordedConsumptionWhere? frontier validities
     (inClosed start observedAt)
     (fun event validOn => eventConsumptionAt event validOn routing purpose measure)
 
@@ -188,7 +173,7 @@ def consumptionAtCorrectionFrontierEffectiveRoutingThrough?
     (measure : MeasureId) : Option Quantity := do
   if !validCurrentWindow start observedAt then none else
   let frontier ← correctionFrontierMemory? events corrections
-  consumptionAtRecordedWhere? frontier validities
+  foldRecordedConsumptionWhere? frontier validities
     (inClosed start observedAt)
     (fun event validOn =>
       eventConsumptionAtEffectiveRouting event validOn routing purpose measure)

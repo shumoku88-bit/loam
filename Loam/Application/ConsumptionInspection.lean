@@ -60,6 +60,25 @@ def eventConsumptionAt
       0
 
 /--
+Shared fail-closed fold over recorded Actuals. Every Event requires its own
+validity coordinate before selection is decided.
+-/
+def foldRecordedConsumptionWhere?
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (selected : Time → Bool)
+    (project : Event → Time → Quantity) : Option Quantity := do
+  let quanta ← events.events.foldlM
+    (fun total event => do
+      let validOn ← validities.findByEventId? event.id
+      if selected validOn then
+        return total + (project event validOn).quanta
+      else
+        return total)
+    0
+  return Quantity.ofQuanta quanta
+
+/--
 Project recorded Actual consumption for one Purpose and Measure from an already
 selected EventMemory.
 
@@ -71,14 +90,10 @@ def consumptionAtRecorded?
     (validities : ActualValidityMemory Time)
     (routing : RoutingHistory LocusId Time)
     (purpose : PurposeId)
-    (measure : MeasureId) : Option Quantity := do
-  let quanta ← events.events.foldlM
-    (fun total event => do
-      let validOn ← validities.findByEventId? event.id
-      let eventQuantity := eventConsumptionAt event validOn routing purpose measure
-      return total + eventQuantity.quanta)
-    0
-  return Quantity.ofQuanta quanta
+    (measure : MeasureId) : Option Quantity :=
+  foldRecordedConsumptionWhere? events validities
+    (fun _ => true)
+    (fun event validOn => eventConsumptionAt event validOn routing purpose measure)
 
 /--
 Project current Actual consumption after applying the admitted Event correction
