@@ -111,15 +111,6 @@ private def freshCorrectionId? (memory : EventCorrectionMemory) : Option EventCo
     (memory.corrections.length + 1)
   pure ⟨token⟩
 
-private def freshValidityFactId?
-    (history : ActualValidityHistory String) : Option ActualValidityFactId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "validity-"
-    (fun token => (history.findFactById? (⟨token⟩ : ActualValidityFactId)).isSome)
-    1
-    (history.facts.length + 1)
-  pure ⟨token⟩
-
 private def currentFactForEvent?
     (facts : List (ActualValidityFact String)) (event : EventId) :
     Option (ActualValidityFact String) :=
@@ -185,16 +176,7 @@ private def ensureReplacementValidity?
       else
         throw "loam: replacement occurrence-date evidence conflicts with the selected Actual"
   | some targetFact, none =>
-      let factId ←
-        match freshValidityFactId? history with
-        | some id => pure id
-        | none => throw "loam: could not generate a fresh replacement validity identity"
-      let fact : ActualValidityFact String := {
-        id := factId
-        event := replacement
-        validOn := targetFact.validOn
-      }
-      match history.addFact? fact with
+      match history.addFact? (.base replacement targetFact.validOn) with
       | some updated => pure (updated, true)
       | none => throw "loam: could not append replacement occurrence-date evidence"
 
