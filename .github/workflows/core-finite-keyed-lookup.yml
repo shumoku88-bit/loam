@@ -11,7 +11,6 @@ on:
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core/AttentionMemory.lean'
       - 'Loam/Core/EventCorrectionMemory.lean'
-      - 'Loam/Core/EventResolutionMemory.lean'
       - 'Loam/Core/EventDescription.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
       - '.github/workflows/core-finite-keyed-lookup.yml'
@@ -49,7 +48,6 @@ jobs:
             Loam.Core.CapacityMemory \
             Loam.Core.AttentionMemory \
             Loam.Core.EventCorrectionMemory \
-            Loam.Core.EventResolutionMemory \
             Loam.Core.EventDescription \
             Loam.Core.ActualValidityHistory \
             > /tmp/core-finite-keyed.log 2>&1

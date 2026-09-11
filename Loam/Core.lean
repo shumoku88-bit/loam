@@ -20,9 +20,6 @@ import Loam.Core.OpenRelation
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
 import Loam.Core.EventCorrectionMemory
-import Loam.Core.EventResolution
-import Loam.Core.EventResolutionMemory
-import Loam.Core.RelationAdmission
 import Loam.Core.CorrectionQuantity
 import Loam.Core.EventDescription
 
