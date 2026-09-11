@@ -18,7 +18,7 @@ private def worldWith (tokens : List String) : IO Loam.MovementAdmission.World :
     events := events
     validity := {
       facts := []
-      factIdNodup := by simp
+      factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
     descriptions := .empty

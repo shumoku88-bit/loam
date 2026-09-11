@@ -35,7 +35,7 @@ private def publishWorld
     events := events
     validity := {
       facts := []
-      factIdNodup := by simp
+      factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
     descriptions := .empty
