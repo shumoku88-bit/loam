@@ -38,6 +38,20 @@ private def eventPresent
   (EventMemory.findById? events id).isSome
 
 /--
+Whether every retained correction endpoint is represented by an Event.
+
+This is a diagnostic facet of frontier admission, not a second authority rule.
+It lets application and presentation layers distinguish missing references from
+other unsupported correction topology while using the same frontier engine for
+all effective quantity calculation.
+-/
+def correctionReferencesClosed
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Bool :=
+  ReplacementFrontier.referencesClosed
+    (eventPresent events) (correctionEdges corrections)
+
+/--
 Whether the retained correction facts justify one order-free frontier using
 Correction alone.
 
@@ -138,10 +152,9 @@ theorem correctionFrontierMemory?_mem_iff
 /--
 Project one locus/measure quantity from the admitted correction frontier.
 
-Quantity arithmetic is delegated to the existing recorded EventMemory
-projection after superseded Event identities have been removed. This keeps the
-new application semantics focused on frontier selection rather than duplicating
-Core quantity folding.
+Quantity arithmetic is delegated to the recorded EventMemory projection after
+superseded Event identities have been removed. The same path is used for one or
+many corrections; correction count carries no authority.
 -/
 def quantityAtCorrectionFrontier?
     (events : EventMemory)

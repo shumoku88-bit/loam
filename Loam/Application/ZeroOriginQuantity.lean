@@ -24,7 +24,6 @@ deriving Repr, DecidableEq
 
 private def liftInspection : QuantityInspectionAnswer → ZeroOriginQuantityAnswer
   | .recorded quantity => .current quantity
-  | .singleCorrectionEffective quantity => .current quantity
   | .frontierEffective quantity => .current quantity
   | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
   | .frontierRequired => .eventFrontierRequired
@@ -58,7 +57,6 @@ theorem inspectZeroOriginQuantity_covered
     inspectZeroOriginQuantity coverage events eventCorrections coordinate =
       (match inspectQuantity events eventCorrections coordinate.locus coordinate.measure with
        | .recorded quantity => .current quantity
-       | .singleCorrectionEffective quantity => .current quantity
        | .frontierEffective quantity => .current quantity
        | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
        | .frontierRequired => .eventFrontierRequired) := by
