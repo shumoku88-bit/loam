@@ -1,5 +1,5 @@
 import Loam.MovementAdmission
-import Loam.Persistence
+import Loam.Persistence.EventPersistence
 import Loam.Persistence.ActualValidityPersistence
 import Loam.Persistence.EventDescriptionPersistence
 import Loam.Persistence.LocusAdmissionPersistence
