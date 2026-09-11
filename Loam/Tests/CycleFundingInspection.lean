@@ -137,7 +137,7 @@ def main : IO Unit := do
   let correctedEvents ← requireSome
     (EventMemory.ofEvents? [opening, debt, other, replacement]) "corrected events"
   let corrected ← requireSome (EventCorrectionMemory.ofCorrections?
-    [{ id := ⟨"correction-1"⟩, target := opening.id, replacement := replacement.id }]) "correction"
+    [{ target := opening.id, replacement := replacement.id }]) "correction"
   assertAmounts "corrected physical balance"
     (← requireOk (project correctedEvents corrected coverage [wallet] yen (current [row "food" 70])))
     80 70 10
