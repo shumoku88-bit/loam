@@ -63,20 +63,20 @@ jobs:
           corrections="$tmp/corrections.loam"
 
           cat >"$memory" <<'EOF'
-          LOAM-EVENT-MEMORY\t1
-          EVENT\ta
-          EFFECT\ta-from\twallet\tjpy\t-100
-          EFFECT\ta-to\tfood\tjpy\t100
-          EVENT\tb
-          EFFECT\tb-from\twallet\tjpy\t-110
-          EFFECT\tb-to\tfood\tjpy\t110
-          EVENT\tc
-          EFFECT\tc-from\twallet\tjpy\t-120
-          EFFECT\tc-to\tfood\tjpy\t120
+          LOAM-EVENT-MEMORY	1
+          EVENT	a
+          EFFECT	a-from	wallet	jpy	-100
+          EFFECT	a-to	food	jpy	100
+          EVENT	b
+          EFFECT	b-from	wallet	jpy	-110
+          EFFECT	b-to	food	jpy	110
+          EVENT	c
+          EFFECT	c-from	wallet	jpy	-120
+          EFFECT	c-to	food	jpy	120
           EOF
           cat >"$corrections" <<'EOF'
-          LOAM-EVENT-CORRECTION-MEMORY\t1
-          CORRECTION\tc1\ta\tb
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	a	b
           EOF
 
           .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
@@ -91,9 +91,9 @@ jobs:
           grep -Fq 'All correction relations are closed.' "$tmp/integrity.out"
 
           cat >"$corrections" <<'EOF'
-          LOAM-EVENT-CORRECTION-MEMORY\t1
-          CORRECTION\tc1\ta\tb
-          CORRECTION\tc2\tb\tc
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	a	b
+          CORRECTION	c2	b	c
           EOF
           .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/frontier.out"
           grep -Fq 'correction-frontier projection' "$tmp/frontier.out"
@@ -101,9 +101,9 @@ jobs:
           grep -Fq 'food: 120 jpy' "$tmp/frontier.out"
 
           cat >"$corrections" <<'EOF'
-          LOAM-EVENT-CORRECTION-MEMORY\t1
-          CORRECTION\tc1\ta\tb
-          CORRECTION\tc2\ta\tc
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	a	b
+          CORRECTION	c2	a	c
           EOF
           if .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/refuse.out" 2>&1; then
             echo 'branching correction evidence must refuse one current frontier' >&2
@@ -112,8 +112,8 @@ jobs:
           grep -Fq 'corrections do not justify one current frontier' "$tmp/refuse.out"
 
           cat >"$corrections" <<'EOF'
-          LOAM-EVENT-CORRECTION-MEMORY\t1
-          CORRECTION\tc1\ta\tmissing
+          LOAM-EVENT-CORRECTION-MEMORY	1
+          CORRECTION	c1	a	missing
           EOF
           if .lake/build/bin/loam correction-integrity "$memory" "$corrections" >"$tmp/open.out" 2>&1; then
             echo 'open correction relation must not report complete integrity' >&2
