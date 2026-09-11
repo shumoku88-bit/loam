@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
+      - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
+      - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -33,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build application and umbrella
+      - name: Build application, umbrella, and machine observer
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.Application Loam
+          build-args: Loam.Application Loam loamHouseholdObservation
           test: false
           lint: false
           use-mathlib-cache: false
