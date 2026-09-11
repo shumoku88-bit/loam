@@ -7,6 +7,8 @@ on:
       - 'experiments/246_canonical_basis_observability.md'
       - 'experiments/249_locus_admission_authority_separation.als'
       - 'experiments/249_locus_admission_authority_separation.md'
+      - 'experiments/250_locus_policy_failure_recovery_domain.als'
+      - 'experiments/250_locus_policy_failure_recovery_domain.md'
       - '.github/workflows/canonical-basis-observability.yml'
   push:
     branches:
@@ -16,6 +18,8 @@ on:
       - 'experiments/246_canonical_basis_observability.md'
       - 'experiments/249_locus_admission_authority_separation.als'
       - 'experiments/249_locus_admission_authority_separation.md'
+      - 'experiments/250_locus_policy_failure_recovery_domain.als'
+      - 'experiments/250_locus_policy_failure_recovery_domain.md'
       - '.github/workflows/canonical-basis-observability.yml'
   workflow_dispatch:
 
@@ -71,6 +75,17 @@ jobs:
                 "AddOnlyStaleCannotOverAuthorize": false,
                 "revocationMakesStaleOverAuthorize": true,
                 "EqualPolicySetsAgree": false
+              }
+            },
+            {
+              "id": "experiment-250-locus-policy-failure-recovery-domain",
+              "model": "experiments/250_locus_policy_failure_recovery_domain.als",
+              "expected": {
+                "policyOnlyFailureLeavesEvidenceReadable": true,
+                "PolicyOnlyFailureDoesNotPermitWrite": false,
+                "coupledRecoveryCanLoseCurrentPermission": true,
+                "AddOnlyHistoricalAdmissionSurvivesSplitRecovery": false,
+                "SplitRecoveryPreservesCurrentPolicyAnswer": false
               }
             }
           ]
