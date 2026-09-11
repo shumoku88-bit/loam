@@ -7,6 +7,7 @@ on:
       - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ReplacementFrontier.lean'
       - 'Loam/Application/QuantityInspection.lean'
       - 'Loam/Core/EventCorrection.lean'
       - 'Loam/Core/EventCorrectionMemory.lean'
@@ -20,6 +21,7 @@ on:
       - 'Loam/Cli/CorrectionIntegrityCli.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ReplacementFrontier.lean'
       - 'Loam/Application/QuantityInspection.lean'
       - 'Loam/Core/EventCorrection.lean'
       - 'Loam/Core/EventCorrectionMemory.lean'
@@ -91,6 +93,23 @@ jobs:
           grep -Fq 'All correction relations are closed.' "$tmp/integrity.out"
 
           cat >"$corrections" <<'EOF'
+          LOAM-EVENT-CORRECTION-MEMORY	2
+          CORRECTION	a	a
+          EOF
+          if .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/self-effective.out" 2>&1; then
+            echo 'self correction must not produce an effective quantity projection' >&2
+            exit 1
+          fi
+          grep -Fq 'corrections do not justify one current frontier' "$tmp/self-effective.out"
+
+          if .lake/build/bin/loam correction-integrity "$memory" "$corrections" >"$tmp/self-integrity.out" 2>&1; then
+            echo 'self correction must not report complete integrity' >&2
+            exit 1
+          fi
+          grep -Fq 'relation: cyclic (target and replacement are the same Event)' "$tmp/self-integrity.out"
+          grep -Fq 'one or more correction relations are open or cyclic' "$tmp/self-integrity.out"
+
+          cat >"$corrections" <<'EOF'
           LOAM-EVENT-CORRECTION-MEMORY	1
           CORRECTION	c1	a	b
           CORRECTION	c2	b	c
@@ -120,4 +139,4 @@ jobs:
             exit 1
           fi
           grep -Fq 'relation: open' "$tmp/open.out"
-          grep -Fq 'one or more correction relations are open' "$tmp/open.out"
+          grep -Fq 'one or more correction relations are open or cyclic' "$tmp/open.out"
