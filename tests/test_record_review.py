@@ -72,7 +72,7 @@ class ReviewTests(unittest.TestCase):
         self.assertIn("Date unknown (current): 1", output)
         self.assertIn("not entry time", output)
         self.assertNotIn("receipt-original", output)
-        self.assertEqual(len(re.findall(r"^  \d+\. ", output, re.M)), 10)
+        self.assertEqual(len(re.findall(r"^  (?: \d|\d{2})\. ", output, re.M)), 10)
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.review(input="more\n1\nq\n"), output)
         self.events.reverse()
