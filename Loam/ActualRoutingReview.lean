@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.CapacityReview
 import Loam.Core.AccountingRole
 import Loam.Core.RoutingEffective
-import Loam.MovementManifestAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 
@@ -22,9 +22,9 @@ This read boundary answers the practical administration question:
 > Purpose routing is visible now, and which expense Loci are still unrouted?
 
 The review does not infer Expense from spelling or sign. It requires explicit
-AccountingRole evidence, the current Movement LocusAdmission vocabulary, and the
-existing historical Actual-routing authority. Purpose candidates come only from
-retained Capacity evidence.
+AccountingRole evidence, the current LocusAdmission policy, and the existing
+historical Actual-routing authority. Purpose candidates come only from retained
+Capacity evidence.
 -/
 
 structure Row where
@@ -70,9 +70,9 @@ def loadSnapshot
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
-    | .ok world => pure world
+  let admission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? manifestRoot with
+    | .ok vocabulary => pure vocabulary
     | .error message => return .error message
   let history ←
     match ← loadActualRoutingHistory? routingPath with
@@ -88,7 +88,7 @@ def loadSnapshot
     | .error message => return .error message
 
   let effective := RoutingEffective.dated observedAt
-  let approved := world.locusAdmission.approved
+  let approved := admission.approved
   let rows := approved.filterMap fun locus =>
     match roles.roleOf? locus with
     | some .expense => some { locus := locus, status := history.statusAt locus effective }
