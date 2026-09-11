@@ -20,8 +20,8 @@ private def revision (id date : String) : ActualValidityFact String :=
   .revision ⟨id⟩ event date
 
 private def correction
-    (id : String) (target : ActualValidityRef) (replacement : String) : ActualValidityCorrection :=
-  { id := ⟨id⟩, target := target, replacement := ⟨replacement⟩ }
+    (target : ActualValidityRef) (replacement : String) : ActualValidityCorrection :=
+  { target := target, replacement := ⟨replacement⟩ }
 
 def main : IO Unit := do
   let original : ActualValidityFact String := .base event "2026-09-03"
@@ -31,7 +31,7 @@ def main : IO Unit := do
   let firstHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement]
-      [correction "validity-correction-1" (.root event) "validity-2"])
+      [correction (.root event) "validity-2"])
     "first date-correction history was not admitted"
 
   let firstCurrent ← requireSome
@@ -47,8 +47,8 @@ def main : IO Unit := do
   let repeatedHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, secondReplacement]
-      [correction "validity-correction-1" (.root event) "validity-2",
-       correction "validity-correction-2" (.revision ⟨"validity-2"⟩) "validity-3"])
+      [correction (.root event) "validity-2",
+       correction (.revision ⟨"validity-2"⟩) "validity-3"])
     "repeated date-correction history was not admitted"
 
   let repeatedCurrent ← requireSome
@@ -67,8 +67,8 @@ def main : IO Unit := do
   let siblingHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, sibling]
-      [correction "validity-correction-1" (.root event) "validity-2",
-       correction "validity-correction-2" (.root event) "validity-4"])
+      [correction (.root event) "validity-2",
+       correction (.root event) "validity-4"])
     "sibling raw date-correction history was not retained"
 
   expect
@@ -80,7 +80,7 @@ def main : IO Unit := do
   let crossEventHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, otherFact]
-      [correction "validity-correction-cross" (.root event) "validity-other"])
+      [correction (.root event) "validity-other"])
     "cross-event raw correction history was not retained"
 
   expect
