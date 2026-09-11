@@ -25,18 +25,18 @@ private def movementManifestRoot?
   | none =>
       return .ok (root / "movement-authority")
 
-private def record (fields : List String) : IO Unit :=
+private def emitRecord (fields : List String) : IO Unit :=
   IO.println (String.intercalate "\t" ("HOBS1" :: fields))
 
-private def meta (name value : String) : IO Unit :=
-  record ["meta", name, value]
+private def emitMeta (name value : String) : IO Unit :=
+  emitRecord ["meta", name, value]
 
-private def scalar (namespace name unit value : String) : IO Unit :=
-  record ["scalar", namespace, name, unit, value]
+private def emitScalar (scope name unit value : String) : IO Unit :=
+  emitRecord ["scalar", scope, name, unit, value]
 
 private def printBalance (snapshot : Loam.BalanceReview.Snapshot) : IO Unit := do
   for row in snapshot.rows do
-    record [
+    emitRecord [
       "balance",
       row.coordinate.locus.token,
       row.coordinate.measure.token,
@@ -47,7 +47,7 @@ private def printBalance (snapshot : Loam.BalanceReview.Snapshot) : IO Unit := d
 
 private def printBudget (snapshot : Loam.BudgetWindowReview.Snapshot) : IO Unit := do
   for row in snapshot.rows do
-    record [
+    emitRecord [
       "budget",
       row.purpose.token,
       "jpy",
@@ -63,13 +63,13 @@ private def printBudget (snapshot : Loam.BudgetWindowReview.Snapshot) : IO Unit 
   let totalRemaining :=
     snapshot.rows.foldl (fun total row => total + row.remaining.quanta) (0 : Int)
 
-  scalar "budget" "total_entitlement" "jpy" (toString totalEntitlement)
-  scalar "budget" "total_consumption" "jpy" (toString totalConsumption)
-  scalar "budget" "total_remaining" "jpy" (toString totalRemaining)
+  emitScalar "budget" "total_entitlement" "jpy" (toString totalEntitlement)
+  emitScalar "budget" "total_consumption" "jpy" (toString totalConsumption)
+  emitScalar "budget" "total_remaining" "jpy" (toString totalRemaining)
 
 private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit := do
   for row in snapshot.rows do
-    record [
+    emitRecord [
       "capacity",
       "purpose",
       row.purpose.token,
@@ -113,19 +113,19 @@ def report (rootPath start end_ : String) : IO UInt32 := do
         return 2
     | .ok snapshot => pure snapshot
 
-  meta "schema" "1"
-  meta "implementation" "loam"
-  meta "snapshot_kind" "composed-current-read"
-  meta "window_start" budget.start
-  meta "window_end_exclusive" budget.endExclusive
-  meta "balance_scope" "configured"
-  meta "capacity_scope" "purpose-only"
+  emitMeta "schema" "1"
+  emitMeta "implementation" "loam"
+  emitMeta "snapshot_kind" "composed-current-read"
+  emitMeta "window_start" budget.start
+  emitMeta "window_end_exclusive" budget.endExclusive
+  emitMeta "balance_scope" "configured"
+  emitMeta "capacity_scope" "purpose-only"
 
   printBalance balances
   printBudget budget
   printCapacity capacity
 
-  meta "status" "complete"
+  emitMeta "status" "complete"
   return 0
 
 end Loam.HouseholdObservationCli
