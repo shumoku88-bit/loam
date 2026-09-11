@@ -4,14 +4,9 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `c45a338ff8023abda53c7d21ff27741da19523f9`
+Current production checkpoint: `fa1542688a1680af0d3994f0f3d18b451368f85f`
 
-This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
-
-1. what has already been decided or removed?
-2. where should the next audit or subtraction begin?
-
-An entry here is not permission to delete a semantic distinction merely because it looks similar to another one. Production changes still pass the implementation gate below.
+This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history.
 
 ## 1. Governing rule
 
@@ -37,7 +32,7 @@ If yes, test the smallest shared mechanic that preserves family-specific meaning
 
 - `UNREVIEWED`: registered but not investigated.
 - `UNDER_REVIEW`: evidence gathering or formal probing is active.
-- `AUDIT_COMPLETE`: a verdict exists; see the dedicated audit record.
+- `AUDIT_COMPLETE`: a verdict exists.
 - `KEEP`: independent meaning or high-value shared primitive is justified.
 - `KEEP_WRAPPER`: semantic wrapper remains useful while mechanics may be shared.
 - `SHARE_MECHANICS`: meanings stay separate but implementation law can be shared.
@@ -48,43 +43,38 @@ If yes, test the smallest shared mechanic that preserves family-specific meaning
 - `IMPLEMENTATION_READY`: audit and formal gates are satisfied for a concrete change.
 - `IMPLEMENTED`: qualified production change has merged.
 
-## 3. Current checkpoint
-
-The earlier six-phase compression audit and Issue #535 are historical checkpoints, not the current work queue. Since the semantic ledger was created, the production audit continued and removed several previously retained or historical distinctions.
-
-Recent completed compression:
+## 3. Recent completed compression
 
 | PR | Result | Principle |
 | --- | --- | --- |
 | #707 | retired unselected `EventResolution` / `RelationAdmission` surface | research-qualified capability is not production-selected capability |
-| #713 | retired unselected `RelationRevision` capability | keep only the relation semantics current production actually selects |
-| #714 | retired unselected `AttentionRelation` vocabulary | lifecycle evidence does not earn an extra relation ontology without consumers |
-| #715 | removed redundant `EventCorrectionId` | endpoint relation already supplies identity needed by selected semantics |
-| #716 | removed redundant `ActualValidityCorrectionId`; V3 endpoint-only persistence | revision identity remains only where an independent revision lifecycle exists |
-| #717 | retired Core `CorrectionQuantity` | derived quantity projection belongs with its Application consumer |
+| #713 | retired unselected `RelationRevision` capability | keep only relation semantics current production selects |
+| #714 | retired unselected `AttentionRelation` vocabulary | lifecycle evidence does not earn extra ontology without consumers |
+| #715 | removed redundant `EventCorrectionId` | endpoint relation already supplies sufficient identity |
+| #716 | removed redundant `ActualValidityCorrectionId`; V3 endpoint-only persistence | retain identity only for independently referable revisions |
+| #717 | retired Core `CorrectionQuantity` | derived quantity belongs with its Application consumer |
 | #718 | retired legacy correction tip/next/sibling projections | historical projection generations are not current authority |
 | #719 | refused self-correction as a cycle | no singleton exception outside frontier semantics |
 | #720 | unified all nonempty Correction quantity projection on `CorrectionFrontier` | correction count carries no semantic authority |
-| #722 | removed broad `Loam.Core` import from Scheduled Routing TUI | aggregation umbrellas are convenience, not feature-level semantic dependencies |
+| #722 | removed broad `Loam.Core` import from Scheduled Routing TUI | aggregation umbrellas are convenience, not semantic dependencies |
 | #724 | shared ActualValidity ordinary stage/write/rename through `SiblingStage` | share physical replacement mechanics while keeping semantic admission local |
-| #726 | unified three fail-closed Actual-consumption folds | share one validity-required accumulation law while preserving routing/window query boundaries |
-| #728 | unified duplicated CurrentCoverage arithmetic/view assembly | share pure post-acquisition arithmetic while preserving routing-specific composition boundaries |
-| #730 | shared fresh Scheduled occurrence construction across Creation/Replacement | share pure construction mechanics while keeping operation authority and provenance explicit |
-| #734 | centralized EventCorrection absent-as-empty loading | share one family-specific optional-evidence contract without inventing a generic missing-storage policy |
+| #726 | unified three fail-closed Actual-consumption folds | share validity-required accumulation while preserving query boundaries |
+| #728 | unified duplicated CurrentCoverage arithmetic/view assembly | share pure post-acquisition arithmetic while preserving routing composition boundaries |
+| #730 | shared fresh Scheduled occurrence construction across Creation/Replacement | share pure construction mechanics while keeping operation authority explicit |
+| #734 | centralized EventCorrection absent-as-empty loading | share one family-specific optional-evidence contract without generic missing policy |
+| #736 | unified admitted Capacity publication tail | use Lean to prove the common construction, preserve genuinely different admission, then share only fresh-id/append/publication mechanics |
 
-PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
+### Proof-first controls
 
-PR #722 is the corresponding low-risk dependency control: one broad import edge was removed with no replacement import required, and exact-head Production TUI completed 62/62 functional steps alongside successful Selected Lean Observations and Compression Audit runs.
+PR #720 established the migration pattern: allow a temporary Lean witness to grow, prove equivalence, cut over runtime code, then retire one-time proof scaffolding.
 
-PR #724 is the persistence-mechanics control: ActualValidity retained its V2/V3 existing-storage admission, wire encoding, fail-closed behavior, and migration semantics while deleting a private copy of the ordinary sibling-stage replacement sequence. Six exact-head workflows passed, including Shared ActualValidity Publisher, Practical Actual Validity Correction, Practical Readable Journal Export, and Practical Movement.
+PR #726 repeated that pattern for three validity-required Consumption folds. The final production delta was 3 files, +31 / -35, with three fold implementations reduced to one.
 
-PR #726 is the Application-mechanics control: temporary Lean migration witnesses established by definitional equality that ordinary routing, initial-aware routing, and the CapacityWindow helper were specializations of the same validity-required fold. After qualification, the duplicate folds and proof scaffolding were retired. Final production delta was 3 files, +31 / -35, with fold implementations reduced from three to one. Twelve exact-head workflows passed, including Lean Application, Practical Slice A2, Actual Routing Persistence, Capacity Effective Window/Persistence, Budget Window, and Production TUI 62/62.
+PR #730 proved Creation and Replacement used the same fresh Scheduled identity choice, balanced JPY movement reconstruction, and occurrence construction. The proof witnesses were retired after cutover. Final delta: 3 files, +41 / -48.
 
-PR #728 completed the remaining SA-007 arithmetic candidate. Temporary Lean witnesses established by definitional equality that both CurrentCoverage public functions shared the same post-acquisition assembly. The witnesses were retired after cutover; one private `assembleCurrentCoverage` now owns Remaining, Headroom, and `CurrentCoverageView` construction while ordinary and `RoutingEffective` Consumption acquisition remain separate. Final production delta was 1 file, +17 / -22. Seven exact-head workflows passed, including Lean Application, Practical Slice B, and Production TUI 62/62.
+PR #734 centralized the EventCorrection family contract `missing -> empty`, `valid -> decoded`, `malformed existing bytes -> refusal`. It deliberately did not introduce a generic missing-storage policy. Final delta: 12 files, +40 / -109. Twelve exact-head workflows passed, including Production TUI 62/62.
 
-PR #730 completed the narrow SA-008 candidate. Temporary Lean witnesses proved by definitional equality that Creation and Replacement used the same fresh-id choice, balanced JPY movement reconstruction, and `ScheduledOccurrence` construction. The witnesses and publisher-local copies were retired after qualification. A small `ScheduledOccurrenceConstruction` mechanic now owns only those pure operations; Creation and Replacement retain separate validation wording, source/current-open admission, terminal provenance, transition checks, writer ownership, receipts, and publication order. Final production delta was 3 files, +41 / -48. Shared Creation and Replacement publisher workflows, Selected Lean Observations, Compression Audit, and Production TUI 62/62 all passed.
-
-PR #734 implemented the first narrow SA-009 candidate without changing publisher protocols. `loadEventCorrectionMemoryOrEmpty?` now owns the established EventCorrection family contract `missing -> empty`, `valid -> decoded`, `malformed existing bytes -> refusal`. Publisher, Review, and CLI consumers retain their own admission and diagnostics, while the raw existing-file loader remains available. Final production delta was 12 files, +40 / -109 (net -69). All 12 exact-head workflows passed, including Shared ActualValidity Publisher, Practical Correction Projection, Practical Movement, Practical Budget Window Report, Practical Readable Journal Export, Practical Zero-Origin Coverage, Selected Lean Observations, Compression Audit, and Production TUI 62/62.
+PR #736 is the strongest current example of formal methods discovering both sameness and difference. The initial audit found that binary and balanced Capacity entrances are **not** interchangeable: balanced validation additionally checks Purpose token syntax and balanced admission checks every changed Purpose against nonnegative entitlement, while the binary entrance retains its named-source rule. A temporary Lean theorem then proved that, under the binary positive-quantity and distinct-endpoint conditions, binary movement construction is exactly `Draft.toBalancedDraft` specialized through the balanced movement constructor. After that proof, the binary-only constructor and duplicated post-admission publication tail were removed. One private `publishAdmittedMovement` now owns fresh identity allocation, balanced movement construction, Capacity append, CapacityEffective append, effective-first publication, and activating Capacity publication. Both public entrances, validators, entitlement admission rules, receipts, writer ownership, crash residue, and recovery semantics remain separate. Final delta: 1 file, +41 / -45. Shared Capacity Publisher, Selected Lean Observations, Compression Audit, and Production TUI 62/62 all passed.
 
 Canonical household data was not changed by this sequence.
 
@@ -95,10 +85,9 @@ Canonical household data was not changed by this sequence.
 Status: `SHARE_MECHANICS` / `KEEP_WRAPPER`
 Priority: low unless new duplication pressure appears
 
-Current decision:
-
+Decision:
 - keep domain memories as semantic wrappers;
-- keep using `FiniteKeyed` for lookup/permutation mechanics;
+- keep `FiniteKeyed` for lookup/permutation mechanics;
 - do not introduce a public generic household `Memory` carrier merely because representations are isomorphic.
 
 Reopen only if another concrete helper removes more production/proof surface than its adapters add.
@@ -106,232 +95,141 @@ Reopen only if another concrete helper removes more production/proof surface tha
 ### SA-002 Two-endpoint relation mechanics
 
 Status: `AUDIT_COMPLETE` / `KEEP`
-
 Record: `SEMANTIC_AUDIT_SA002_TWO_ENDPOINT.md`
 
-Verdict:
-
-- keep `ActualReversalMemory` and `ScheduledTerminalMemory` explicit;
-- no generic `BiMap`, `PartialInjection`, `TwoEndpointMemory`, or household relation carrier was earned;
-- Scheduled raw cross-kind conflict observability prevents a family-blind globally source-unique carrier.
-
-No current implementation action.
+Keep `ActualReversalMemory` and `ScheduledTerminalMemory` explicit. No generic `BiMap`, `PartialInjection`, `TwoEndpointMemory`, or household relation carrier was earned.
 
 ### SA-003 Temporal / effective evidence
 
 Status: `AUDIT_COMPLETE` / `KEEP` / `KEEP_WRAPPER`
-
 Record: `SEMANTIC_AUDIT_SA003_TEMPORAL_EVIDENCE.md`
 
-Verdict:
-
-- keep independently observable `ActualValidity`, `CapacityEffective`, and historical routing evidence;
-- keep routing `initial | dated` meaning;
-- keep sharing `FiniteKeyed` and `RoutingHistory` mathematics;
-- do not invent `TemporalMap`, `TimeEvidence`, or a generic temporal revision ontology.
-
-No current implementation action.
+Keep independently observable `ActualValidity`, `CapacityEffective`, and historical routing evidence. Keep routing `initial | dated` meaning. Share only the already-earned `FiniteKeyed` and `RoutingHistory` mathematics.
 
 ### SA-004 CorrectionQuantity placement
 
 Status: `IMPLEMENTED` / `DERIVED`
+Resolved by #717-#720.
 
-Resolved by PRs #717 and #720.
-
-Result:
-
-- Core `CorrectionQuantity` was removed;
-- quantity calculation is owned by Application;
-- the historical distinct-singleton algorithm was proven equivalent to generic `CorrectionFrontier` calculation and then deleted;
-- `QuantityInspectionAnswer.singleCorrectionEffective` was deleted;
-- all nonempty correction sets now use one fail-closed frontier path.
-
-Reopen only if Correction authority itself changes.
+Core `CorrectionQuantity` and historical singleton/tip/next/sibling projection generations are gone. All nonempty correction sets now use one fail-closed Correction frontier path.
 
 ### SA-005 Practical Core public surface
 
 Status: `IMPLEMENTED`
-
 Record: `SEMANTIC_AUDIT_SA005_CORE_SURFACE.md`
 
-Verdict:
-
-- `Loam/Core.lean` is a build/aggregation convenience, not a concept inventory or semantic authority;
-- production features should prefer narrow Core imports;
-- deleting or completing the umbrella is not justified.
-
-Implemented by PR #722:
-
-- removed broad `import Loam.Core` from `Loam/Tui/ScheduledRouting.lean`;
-- existing narrow imports were sufficient with no replacement dependency;
-- exact-head Production TUI passed all 62 functional steps;
-- Selected Lean Observations and Compression Audit also passed;
-- household behavior, persistence, and canonical data were unchanged.
-
-Reopen only for another concrete broad-import edge, not as a project to abolish the umbrella itself.
+`Loam/Core.lean` is a build/aggregation convenience, not a concept inventory. #722 removed one unnecessary broad import. Reopen only for another concrete broad-import edge.
 
 ### SA-006 Persistence semantic echo
 
 Status: `IMPLEMENTED`
-
 Record: `SEMANTIC_AUDIT_SA006_PERSISTENCE.md`
 
-Verdict:
+Keep semantic wire owners and family-specific admission/recovery explicit. Keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics. Do not create a universal serializer/repository.
 
-- keep semantic wire owners and family-specific admission/recovery policy explicit;
-- keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics;
-- do not create a universal serializer or generic persistence repository.
-
-Implemented by PR #724:
-
-- removed private `actualValidityStagePath` and direct `writeFile` / `rename` duplication;
-- delegated only the ordinary physical replacement to `SiblingStage.replaceTextViaSiblingStage`;
-- retained ActualValidity V2/V3 existing-storage admission before replacement;
-- retained V3 wire bytes, V2 migration-on-publication, malformed/retired storage refusal, missing-storage meaning, and `Bool` refusal semantics;
-- exact-head Shared ActualValidity Publisher, Practical Actual Validity Correction, Practical Readable Journal Export, Practical Movement, Selected Lean Observations, and Compression Audit all passed.
-
-Secondary backlog:
-
+Residual backlog:
 - prove the newline-free `VersionedRows` encode/decode round trip in Lean;
 - review isolated `AmountPersistence` under low-level product topology, not semantic codec compression.
 
 ### SA-007 Application projection fanout
 
 Status: `AUDIT_COMPLETE` / `IMPLEMENTED`
-
 Record: `SEMANTIC_AUDIT_SA007_APPLICATION.md`
 
-Completed since the audit:
+Resolved candidates:
+- QuantityInspection historical duplication via #717-#720;
+- validity-required Consumption fold via #726;
+- CurrentCoverage post-acquisition arithmetic via #728.
 
-- Candidate B, `QuantityInspection` success provenance and singleton algorithm duplication, was resolved by #717 through #720.
-- Candidate A was resolved by #726. One `foldRecordedConsumptionWhere?` now owns the fail-closed validity-required accumulation law. Ordinary routing, `RoutingEffective`, coordinate-window selection, correction-frontier selection, and household-facing query names remain separate. Temporary migration witnesses proved the old folds definitionally equal to the shared specializations before cutover.
-- Candidate C was resolved by #728. One private `assembleCurrentCoverage` now owns `Remaining = Entitlement - Consumption`, `Headroom = Remaining - managed Commitment`, and `CurrentCoverageView` construction. Both public CurrentCoverage functions and their routing-specific Consumption acquisition remain separate.
-
-No current SA-007 implementation action. Reopen only if new concrete projection duplication appears.
+No current SA-007 action.
 
 ### SA-008 Scheduled semantic amplification
 
 Status: `AUDIT_COMPLETE` / `IMPLEMENTED`
-
 Record: `SEMANTIC_AUDIT_SA008_SCHEDULED.md`
 
-Verdict: Scheduled fanout is mostly healthy derived porcelain over a small retained basis.
-
-Implemented by PR #730:
-
-- one `ScheduledOccurrenceConstruction` module now owns first-unused Scheduled identity choice, balanced JPY movement reconstruction from Effects, and fresh `ScheduledOccurrence` construction;
-- temporary Lean witnesses proved the former Creation and Replacement copies definitionally equal to the shared mechanic before cutover;
-- publisher-local copies and migration witnesses were retired;
-- Creation and Replacement remain separate publication authorities with operation-specific validation, provenance, transition checks, ownership, receipts, and publication order;
-- no generic Scheduled publisher or lifecycle framework was introduced.
-
-No current SA-008 implementation action. Reopen only if another concrete Scheduled mechanic earns sharing without collapsing operation authority.
+Scheduled fanout is mostly healthy derived porcelain over a small retained basis. #730 shared only pure fresh occurrence construction. Creation and Replacement remain separate publication authorities.
 
 ### SA-009 Publisher / Authority / Review semantic echo
 
-Status: `AUDIT_COMPLETE` / `KEEP` / `SHARE_MECHANICS`
-Priority: active proof-first residual candidate
-
+Status: `AUDIT_COMPLETE` / `IMPLEMENTED` / `KEEP`
 Record: `SEMANTIC_AUDIT_SA009_PROTOCOL_ECHO.md`
 
 Broad verdict:
-
 - keep publisher protocols explicit where crash residue, retry admission, writer-lock order, or atomicity differ;
-- keep local Authority boundaries that hide one earned physical topology rather than inventing a universal repository abstraction;
-- keep Review boundaries named by household question rather than introducing a generic review engine;
+- keep local Authority boundaries that hide one earned physical topology;
+- keep Review boundaries named by household question;
 - keep `WriterOwnership` as the shared physical exclusion primitive;
 - do not introduce generic `Publisher<T>`, transaction, Authority, or Review frameworks.
 
-Completed narrow candidate:
+Implemented narrow mechanics:
+- #734: EventCorrection absent-as-empty family loading;
+- #736: Capacity post-admission publication tail.
 
-- Candidate A was implemented by #734. One EventCorrection-family optional loader now owns absent-as-empty file interpretation while raw loading, semantic admission, caller diagnostics, writer ownership, and publication protocols remain separate.
+Important #736 negative result retained as design law:
+- binary and balanced Capacity **validation/admission are not equivalent**;
+- do not collapse them merely because `Draft.toBalancedDraft` exists;
+- the proof earned only the shared movement/publication mechanic beneath those distinct entrances.
 
-Remaining candidate B:
-
-- `CapacityPublisher.publish` and `publishBalanced` repeat a substantial post-validation publication tail;
-- `Draft.toBalancedDraft` suggests the binary path may be a specialization of the balanced path, but this must be proven rather than assumed;
-- first prove whether binary movement construction and Purpose non-negativity admission are equivalent to the two-change balanced specialization, including `.unallocated` endpoints;
-- preserve the two public entrances/receipts, effective-first publication order, writer ownership, and explicit incomplete-evidence recovery semantics;
-- if the proof exposes a semantic mismatch or sharing requires callback-heavy adapters, record `KEEP` instead of forcing compression.
+No current SA-009 residual candidate.
 
 ### SA-010 Revision-only identity principle
 
 Status: `AUDIT_COMPLETE` / `KEEP`
-
 Record: `SEMANTIC_AUDIT_SA010_IDENTITY.md`
 
-The principle already produced two successful reductions:
+#715 and #716 removed redundant relation/correction identities. The remaining production census found no further redundant identity justified for deletion.
 
-- #715 removed `EventCorrectionId` because endpoint identity was sufficient;
-- #716 removed `ActualValidityCorrectionId` while retaining independent revision identity only for actual revisions.
-
-The remaining production census found no further redundant identity justified for deletion.
-
-Keep:
-
-- `EventId`, `ScheduledId`, `CapacityMovementId`, `AttentionId`, and `RelationUnitId` because independently referable occurrences/entities have external reference or multiplicity reasons;
-- `ActualValidityRevisionId` because later retained revisions require exact correction provenance while the Event-rooted base fact already carries no extra identity;
-- `EffectKey` because distinct same-coordinate Effects may coexist and later relation provenance refers to one exact Effect;
-- `LocusId`, `MeasureId`, `PurposeId`, and `ExternalEndpointId` because they are semantic coordinates rather than persistence-row identities.
-
-The neighboring evidence families already demonstrate the desired rule by carrying no extra independent ID when subject/endpoints suffice: Event Correction, Actual Reversal, ActualValidity Correction edges, Scheduled Terminal, Attention Closure, Capacity Effective, RoutingEntry, and Relation Discharge.
-
-This is a negative audit verdict. Reopen one identity only if new semantics remove its current external-reference, multiplicity, coordinate, or revision-provenance reason.
-
-No current SA-010 implementation action.
+Keep entity/occurrence identities (`EventId`, `ScheduledId`, `CapacityMovementId`, `AttentionId`, `RelationUnitId`), true revision identity (`ActualValidityRevisionId`), nested Effect identity (`EffectKey`), and semantic coordinate identities (`LocusId`, `MeasureId`, `PurposeId`, `ExternalEndpointId`). Neighboring relation/evidence families already avoid extra IDs when endpoints/subjects suffice.
 
 ## 5. Next work queue
 
-This is the default order after current production checkpoint `c45a338ff8023abda53c7d21ff27741da19523f9`. Re-check actual main and open PRs before every item.
+Default order after production checkpoint `fa1542688a1680af0d3994f0f3d18b451368f85f`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
-No current P0 item. The qualified low-risk queue was exhausted by #722, #724, and #734.
+No current P0 item.
 
 ### P1 - proof-first mechanical compression
 
-1. **SA-009 Capacity candidate:** prove or falsify that binary Capacity publication is a specialization of balanced Capacity publication before sharing any runtime tail.
+No current P1 item. The qualified mechanical queue through SA-009 is exhausted.
 
-### P2 - next conceptual audits
+### P2 - conceptual audits
 
-No broad conceptual audit is currently ahead of the SA-009 Capacity proof. The Publisher / Authority / Review census is complete; only the concrete residual candidate remains active.
+No broad conceptual audit currently remains open in SA-001 through SA-010.
 
-### P3 - reopen only with concrete pressure
+### P3 - reopen only with concrete pressure / small formal backlog
 
-2. **SA-001:** further finite-keyed carrier sharing.
-3. `VersionedRows` newline-free round-trip theorem.
-4. isolated Amount / low-level product-topology usefulness review.
+1. `VersionedRows` newline-free encode/decode round-trip theorem in Lean.
+2. SA-001 finite-keyed carrier sharing, only if a concrete net-negative helper appears.
+3. isolated Amount / low-level product-topology usefulness review.
 
-If a candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
+The `VersionedRows` theorem is the smallest current formal candidate. It should be treated first as a proof/audit item, not as permission for codec refactoring. If the theorem is trivial or already implied by existing implementation, keep the theorem only if it provides ongoing regression/explanatory value; otherwise record the result and do not grow proof surface.
+
+If any candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. Negative results are first-class audit outcomes.
 
 ## 6. Formal-method selection
 
 Use the smallest instrument that answers the claim.
 
 ### Lean
-
 Prefer for:
-
 - derivability and observational equivalence;
 - representation round trips;
 - pure fold/helper extraction;
 - permutation independence;
 - preservation of fail-closed admission;
 - proof-first identity deletion;
-- specialization claims such as the current binary-vs-balanced Capacity candidate.
+- specialization claims such as #736.
 
 ### Alloy
-
 Prefer for:
-
 - two worlds that collapse under a proposed semantic merge but require different answers;
 - bounded illegal combinations introduced by state-space compression;
-- identity or relation necessity when the issue is relational rather than algorithmic.
+- identity/relation necessity when the issue is relational rather than algorithmic.
 
 ### TLA+ / transition models
-
 Prefer for:
-
 - interrupted publication;
 - retry/recovery;
 - writer ownership;
@@ -341,7 +239,7 @@ Do not add a formal artifact merely because formal methods are available.
 
 ## 7. Implementation gate
 
-Before a candidate becomes production work, answer all of these:
+Before a candidate becomes production work:
 
 ```text
 [ ] independently observable information preserved
@@ -356,16 +254,15 @@ Before a candidate becomes production work, answer all of these:
 [ ] relevant exact-head CI qualification identified
 ```
 
-A proof can be migration evidence rather than permanent production machinery. If proof scaffolding is only needed to justify a one-time cutover, retire it after qualification unless the theorem has ongoing explanatory or regression value.
+A proof can be migration evidence rather than permanent production machinery. Retire one-time proof scaffolding after qualification unless the theorem has ongoing explanatory or regression value.
 
 ## 8. Update rule
 
 After every structural-compression merge:
-
 1. update `Current production checkpoint`;
-2. add the PR to the completed-compression table if it removed or unified a distinction;
-3. update the affected SA status and residual candidate;
-4. remove completed items from the Next work queue;
+2. add the PR to completed compression when it removed/unified a distinction;
+3. update affected SA status and residual candidate;
+4. remove completed queue items;
 5. promote the next smallest qualified candidate;
 6. record negative results instead of repeatedly reopening them without new evidence.
 
