@@ -1,459 +1,303 @@
 # LOAM semantic audit ledger
 
-Status: audit-only working ledger
+Status: **ACTIVE CHECKPOINT LEDGER**
 
-Baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
+Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Created after the September 2026 product-structure audit. This document records hypotheses and evidence before implementation. An entry in this ledger is not authorization to refactor production code.
+Current production checkpoint: `ba2d080ca246069e9f4ba0a1949bdc2428086a4f`
 
-## 1. Purpose
+This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
 
-LOAM should retain only distinctions that earn independent meaning, information, authority, lifecycle, or safety, while sharing mathematics and mechanics that are genuinely the same.
+1. what has already been decided or removed?
+2. where should the next audit or subtraction begin?
 
-The target is not the fewest source files, declarations, or lines. The target is:
+An entry here is not permission to delete a semantic distinction merely because it looks similar to another one. Production changes still pass the implementation gate below.
+
+## 1. Governing rule
+
+LOAM should retain only distinctions that earn independent meaning, information, authority, lifecycle, provenance, or safety.
+
+The target is not the fewest files, types, or lines. The target is:
 
 > the fewest independent implementation principles that preserve every independently observable household distinction.
 
-A physical module count is therefore an audit signal, not a concept count.
-
-The desired shape resembles a strong plumbing/porcelain architecture: a small set of generative semantic and mathematical primitives should support many derived household answers without each answer becoming a new primitive.
-
-## 2. Audit discipline
-
-Before deleting or merging a semantic distinction, ask:
+Before deleting or merging a distinction, ask:
 
 > Can two household worlds agree on the proposed compressed representation but require different correct answers?
 
-If yes, the distinction is independently meaningful and must remain visible somewhere.
+If yes, the distinction stays visible somewhere.
 
 Before retaining duplicated implementation, ask:
 
 > Do several semantic families enforce the same structural law with independently copied code?
 
-If yes, test whether a small shared mathematical/mechanical helper can preserve the semantic boundaries while removing duplicated implementation principles.
+If yes, test the smallest shared mechanic that preserves family-specific meaning and authority.
 
-A candidate concept remains independently justified if removing or merging it causes at least one of the following:
+## 2. Ledger states
 
-1. a previously impossible invalid state becomes representable or admissible;
-2. an externally observable household answer changes;
-3. non-reconstructable canonical information is lost;
-4. crash, retry, migration, recovery, or fail-closed guarantees weaken;
-5. an independently meaningful authority, lifecycle, or reason-to-change is erased.
+- `UNREVIEWED`: registered but not investigated.
+- `UNDER_REVIEW`: evidence gathering or formal probing is active.
+- `AUDIT_COMPLETE`: a verdict exists; see the dedicated audit record.
+- `KEEP`: independent meaning or high-value shared primitive is justified.
+- `KEEP_WRAPPER`: semantic wrapper remains useful while mechanics may be shared.
+- `SHARE_MECHANICS`: meanings stay separate but implementation law can be shared.
+- `DERIVED`: no independent retained information; compute from admitted evidence.
+- `MOVE`: meaning is valid but its current architectural layer is wrong.
+- `COMPRESS`: fewer implementation mechanisms appear sufficient.
+- `DELETE`: no current independent meaning, behavior, compatibility, or recovery reason remains.
+- `IMPLEMENTATION_READY`: audit and formal gates are satisfied for a concrete change.
+- `IMPLEMENTED`: qualified production change has merged.
 
-If none applies and the value is derivable from retained evidence, it should not be counted as an independent primitive even if a named type or module remains useful.
+## 3. Current checkpoint
 
-## 3. Audit states
+The earlier six-phase compression audit and Issue #535 are historical checkpoints, not the current work queue. Since the semantic ledger was created, the production audit continued and removed several previously retained or historical distinctions.
 
-Use these states consistently:
+Recent completed compression:
 
-- `UNREVIEWED`: registered but not yet investigated.
-- `UNDER_REVIEW`: evidence gathering or formal probing in progress.
-- `KEEP`: independent semantic distinction or proven high-value shared primitive.
-- `KEEP_WRAPPER`: semantic boundary should remain nominally distinct while mechanics may be shared.
-- `SHARE_MECHANICS`: preserve meanings but extract common structural mathematics/mechanics.
-- `DERIVED`: no independent retained information; compute from other admitted evidence.
-- `MOVE`: meaning remains valid but current architectural layer is probably wrong.
-- `COMPRESS`: several current production structures can likely be represented by fewer independent mechanisms.
-- `DELETE`: no independent meaning, behavior, safety, compatibility, or recovery reason remains.
-- `UNKNOWN`: current evidence is insufficient.
-- `IMPLEMENTATION_READY`: audit and formal gates are satisfied and a concrete change may be proposed.
+| PR | Result | Principle |
+| --- | --- | --- |
+| #707 | retired unselected `EventResolution` / `RelationAdmission` surface | research-qualified capability is not production-selected capability |
+| #713 | retired unselected `RelationRevision` capability | keep only the relation semantics current production actually selects |
+| #714 | retired unselected `AttentionRelation` vocabulary | lifecycle evidence does not earn an extra relation ontology without consumers |
+| #715 | removed redundant `EventCorrectionId` | endpoint relation already supplies identity needed by selected semantics |
+| #716 | removed redundant `ActualValidityCorrectionId`; V3 endpoint-only persistence | revision identity remains only where an independent revision lifecycle exists |
+| #717 | retired Core `CorrectionQuantity` | derived quantity projection belongs with its Application consumer |
+| #718 | retired legacy correction tip/next/sibling projections | historical projection generations are not current authority |
+| #719 | refused self-correction as a cycle | no singleton exception outside frontier semantics |
+| #720 | unified all nonempty Correction quantity projection on `CorrectionFrontier` | correction count carries no semantic authority |
 
-No production refactor should begin merely from `UNDER_REVIEW`, `DERIVED`, `MOVE`, or `COMPRESS`.
+PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
 
-## 4. Current physical inventory
+Canonical household data was not changed by this sequence.
 
-At the baseline above:
-
-```text
-Loam/Core/*.lean          30 modules
-Loam/Application/*.lean   18 modules
-Loam/Persistence/*.lean   21 modules
--------------------------------------
-                         69 modules
-```
-
-For comparison, `docs/research/SEMANTIC_CENSUS_2026-09-08.md` recorded Core 34 plus Application 18 at its earlier baseline. The semantic layers have therefore already contracted from 52 to 48 physical modules while preserving current production behavior.
-
-This is evidence that the current problem is not simple unchecked growth. Some qualified compression has already succeeded.
-
-## 5. Provisional Core census
-
-This is a role census, not a deletion decision.
-
-### 5.1 Strong semantic or evidential candidates
-
-These modules/types currently appear to retain independently meaningful household distinctions or canonical evidence:
-
-```text
-Quantity
-Measure
-Effect
-Event
-Purpose
-Capacity
-Scheduled
-Attention
-AccountingRole
-LocusAdmission
-ZeroOriginCoverage
-OpenRelation
-EventDescription
-ActualValidity
-CapacityEffective
-EventCorrection
-ActualReversal
-ActualValidityHistory
-HistoricalRouting
-ScheduledTerminal
-```
-
-Their internal collections, lookup procedures, or projection helpers may still be compressible. `KEEP` at the semantic level does not imply every line or helper is irreducible.
-
-### 5.2 Strong shared mechanics / algebra
-
-```text
-BalancedMovement
-FiniteKeyed
-```
-
-`BalancedMovement` is a positive control for the desired architecture: one zero-sum movement algebra is shared across different semantic coordinate types without collapsing those coordinate meanings.
-
-`FiniteKeyed` is another positive control: lookup/permutation mechanics are shared while semantic memories remain distinct authorities.
-
-### 5.3 Specializations and representational boundaries
-
-```text
-ScheduledRouting
-RoutingEffective
-EventMemory
-CapacityMemory
-ScheduledMemory
-AttentionMemory
-EventCorrectionMemory
-EventDescriptionMemory
-ActualValidityMemory
-CapacityEffectiveMemory
-```
-
-These names are useful but should not automatically be counted as independent domain primitives. Several are nominal semantic wrappers over repeated finite keyed collection mechanics.
-
-### 5.4 Derived projection candidate
-
-```text
-CorrectionQuantity
-```
-
-`CorrectionQuantity` retains no new canonical fact. It computes an effective quantity from `EventMemory` plus explicit correction evidence. Its current Core placement therefore deserves architectural review even if the projection itself remains valid.
-
-## 6. Positive compression precedents
-
-These are controls against over-aggressive deletion.
-
-### PC-001 BalancedMovement
-
-Status: `KEEP`
-
-One mathematical zero-sum movement primitive generates behavior for multiple semantic domains while typed coordinates preserve meaning. This is the model to imitate.
-
-### PC-002 ReplacementFrontier
-
-Status: `KEEP`
-
-Application replacement/supersession mechanics were extracted into one structural helper while family-specific semantic adapters retained authority. This demonstrates the rule:
-
-> share structural mathematics; preserve semantic authority.
-
-### PC-003 FiniteKeyed
-
-Status: `KEEP`
-
-PR #563 extracted keyed lookup and permutation proof mechanics across multiple semantic memories without introducing a universal household `Memory` ontology.
-
-### PC-004 Scheduled terminal consolidation
-
-Status: `KEEP`, continue review of mechanics
-
-Former completion, replacement, and retirement families are now represented by one `ScheduledTerminal` relation whose target distinguishes the three meanings. This reduced physical Core surface while preserving malformed cross-kind conflict for fail-closed application review.
-
-### PC-005 ActualValidity revision identity compression
-
-Status: `KEEP`
-
-Current `ActualValidityHistory` uses Event-rooted base identity and allocates an independent revision identity only when a temporal revision actually occurs. This is an important pattern for auditing other identities: do not allocate an independent identity before independent lifecycle pressure earns it.
-
-## 7. Active audit ledger
+## 4. Audit matrix
 
 ### SA-001 Finite keyed semantic memories
 
 Status: `SHARE_MECHANICS` / `KEEP_WRAPPER`
-Priority: medium
+Priority: low unless new duplication pressure appears
 
-Observed family includes at least:
+Current decision:
 
-```text
-EventMemory
-CapacityMemory
-ScheduledMemory
-AttentionMemory
-EventCorrectionMemory
-EventDescriptionMemory
-ActualValidityMemory
-CapacityEffectiveMemory
-```
+- keep domain memories as semantic wrappers;
+- keep using `FiniteKeyed` for lookup/permutation mechanics;
+- do not introduce a public generic household `Memory` carrier merely because representations are isomorphic.
 
-Common shape:
+Reopen only if another concrete helper removes more production/proof surface than its adapters add.
 
-```text
-items : List Item
-unique key law
-fail-closed admission
-lookup by key
-append while preserving uniqueness
-representation order has no semantic priority
-```
+### SA-002 Two-endpoint relation mechanics
 
-Current evidence already supports sharing lookup mechanics through `FiniteKeyed`.
+Status: `AUDIT_COMPLETE` / `KEEP`
 
-Open question: is there further net-negative structural extraction beyond lookup/permutation without introducing a generic public household Memory type or thicker adapters?
+Record: `SEMANTIC_AUDIT_SA002_TWO_ENDPOINT.md`
 
-Formal test:
+Verdict:
 
-- define the minimum structural carrier or helper;
-- prove representation round trips for selected families;
-- prove duplicate-key admission equivalence;
-- prove lookup/append behavior commutes with the representation;
-- measure production source delta and adapter thickness.
+- keep `ActualReversalMemory` and `ScheduledTerminalMemory` explicit;
+- no generic `BiMap`, `PartialInjection`, `TwoEndpointMemory`, or household relation carrier was earned;
+- Scheduled raw cross-kind conflict observability prevents a family-blind globally source-unique carrier.
 
-Promotion rule: do not generalize merely because the carriers are isomorphic.
+No current implementation action.
 
-### SA-002 Two-endpoint unique relation mechanics
+### SA-003 Temporal / effective evidence
 
-Status: `UNDER_REVIEW`
-Priority: high
+Status: `AUDIT_COMPLETE` / `KEEP` / `KEEP_WRAPPER`
 
-Primary current candidate:
+Record: `SEMANTIC_AUDIT_SA003_TEMPORAL_EVIDENCE.md`
 
-```text
-ActualReversalMemory
-```
+Verdict:
 
-Related lifecycle structures should be compared structurally, especially the endpoint-uniqueness portions of `ScheduledTerminalMemory`.
+- keep independently observable `ActualValidity`, `CapacityEffective`, and historical routing evidence;
+- keep routing `initial | dated` meaning;
+- keep sharing `FiniteKeyed` and `RoutingHistory` mathematics;
+- do not invent `TemporalMap`, `TimeEvidence`, or a generic temporal revision ontology.
 
-Hypothesis: independently meaningful relation types may share a finite partial-injection / partial-bijection mechanical kernel.
+No current implementation action.
 
-Risk: same endpoint shape does not imply same admission semantics. Scheduled terminal deliberately preserves cross-kind conflict, while reversal has its own inverse-effect semantic obligations.
+### SA-004 CorrectionQuantity placement
 
-Formal test:
+Status: `IMPLEMENTED` / `DERIVED`
 
-- model only endpoint uniqueness separately from semantic admission;
-- search for counterexamples where genericizing the relation would admit a world one family must reject;
-- extract mechanics only if semantic admission remains outside the helper.
+Resolved by PRs #717 and #720.
 
-### SA-003 Temporal / effective evidence family
+Result:
 
-Status: `UNDER_REVIEW`
-Priority: high
+- Core `CorrectionQuantity` was removed;
+- quantity calculation is owned by Application;
+- the historical distinct-singleton algorithm was proven equivalent to generic `CorrectionFrontier` calculation and then deleted;
+- `QuantityInspectionAnswer.singleCorrectionEffective` was deleted;
+- all nonempty correction sets now use one fail-closed frontier path.
 
-Candidates:
-
-```text
-ActualValidity
-CapacityEffective
-RoutingEffective
-HistoricalRouting
-```
-
-Question: which pieces are independent retained facts and which are typed coordinates or selection mechanics?
-
-Known caution: Actual occurrence validity is independently observable and must not be collapsed into Event structure merely because most Events have dates in practice.
-
-Formal test:
-
-- construct pairs of worlds with equal Events but different validity/effective evidence;
-- record which household answers differ;
-- separate independent temporal evidence from reusable latest-visible/coordinate mechanics.
-
-### SA-004 CorrectionQuantity architectural placement
-
-Status: `DERIVED`, possible `MOVE`
-Priority: medium
-
-Evidence: `CorrectionQuantity.quantityAtEffective?` computes from `EventMemory` and one explicit `EventCorrection`; it retains no independent canonical information.
-
-Hypothesis: the projection belongs in Application rather than Core, or can be absorbed by a stronger existing inspection boundary.
-
-Required before implementation:
-
-- enumerate all production callers;
-- prove observable quantity results unchanged under relocation/absorption;
-- verify no proof-import boundary or public API relies on Core ownership as semantic authority;
-- check whether removal produces a net simplification rather than merely moving a file.
+Reopen only if Correction authority itself changes.
 
 ### SA-005 Practical Core public surface
 
-Status: `UNDER_REVIEW`
-Priority: medium
+Status: `AUDIT_COMPLETE`
 
-`Loam/Core.lean` identifies itself as the practical Core entry point but imports only a subset of physical Core modules. Production code directly uses Core modules such as `ScheduledTerminal` and `ActualReversal` outside that barrel.
+Record: `SEMANTIC_AUDIT_SA005_CORE_SURFACE.md`
 
-Question: is `Core.lean` a meaningful public semantic surface, an outdated umbrella, or an intentionally narrow convenience import?
+Verdict:
 
-Possible outcomes:
+- `Loam/Core.lean` is a build/aggregation convenience, not a concept inventory or semantic authority;
+- production features should prefer narrow Core imports;
+- deleting or completing the umbrella is not justified.
 
-- make it accurately represent the intended public Core surface;
-- narrow and rename its purpose;
-- remove the umbrella if feature-specific imports are the real architecture.
+**Next concrete candidate:** remove broad `import Loam.Core` from `Loam/Tui/ScheduledRouting.lean`, retain the explicit narrow imports, and run exact Production TUI / library qualification. If a missing dependency appears, add only that specific module.
 
-Do not add imports merely to make counts match.
+Promotion: `IMPLEMENTATION_READY` as a narrow dependency-edge subtraction.
 
 ### SA-006 Persistence semantic echo
 
-Status: `UNDER_REVIEW`
-Priority: highest
+Status: `AUDIT_COMPLETE`
 
-Current physical surface: 21 modules.
+Record: `SEMANTIC_AUDIT_SA006_PERSISTENCE.md`
 
-Many semantic families own separate persistence files while common mechanics already exist in helpers such as:
+Verdict:
 
-```text
-TokenSyntax
-VersionedRows
-SiblingStage
-```
+- keep semantic wire owners and family-specific admission/recovery policy explicit;
+- keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics;
+- do not create a universal serializer or generic persistence repository.
 
-Hypothesis: persistence is currently the largest remaining amplification boundary, where one semantic distinction fans out into repeated codec/version/load/save/staging principles.
+**Strong next concrete candidate:** `ActualValidityPersistence` still owns its own `.loam-stage` path plus write/rename sequence. Preserve its existing-storage V2/V3 admission guard, but delegate the ordinary physical replacement to the already-earned `SiblingStage` primitive if exact behavior remains unchanged.
 
-Audit questions:
+Secondary backlog:
 
-- which persistence files own genuinely different wire formats or recovery laws?
-- which only specialize the same versioned-row codec pattern?
-- can codecs share combinators without erasing format ownership?
-- are any persisted fields reconstructable and therefore unnecessary canonical bytes?
-- can writer/reader admission be factored without creating a universal serialization framework?
-
-Important: no wire-format change is authorized by this entry.
+- prove the newline-free `VersionedRows` encode/decode round trip in Lean;
+- review isolated `AmountPersistence` under low-level product topology, not semantic codec compression.
 
 ### SA-007 Application projection fanout
 
-Status: `UNDER_REVIEW`
-Priority: high
+Status: `AUDIT_COMPLETE`, partially implemented
 
-Current physical surface: 18 modules.
+Record: `SEMANTIC_AUDIT_SA007_APPLICATION.md`
 
-Largest current modules include `ScheduledCommitmentInspection` and `OpenRelationFrontier`, while smaller Inspection/Frontier modules repeat projection vocabulary around the same retained authorities.
+Completed since the audit:
 
-Hypothesis: some Application modules are legitimate household questions, while others may be intermediate semantic echoes that can be expressed by a smaller algebra of frontier, selection, and inspection mechanisms.
+- Candidate B, `QuantityInspection` success provenance and singleton algorithm duplication, was resolved by #717 through #720.
 
-Audit method:
+**Remaining candidate A:** share one fail-closed Actual-consumption fold across `ConsumptionInspection`, `ActualRoutingInspection`, and `CapacityWindowInspection`. `CapacityWindowInspection.consumptionAtRecordedWhere?` remains the most general current shape. Prove the current public functions observationally equal to specializations before replacing duplicated folds.
 
-- classify each module by the household question it answers;
-- identify retained information used;
-- identify new law introduced;
-- identify whether its result is consumed externally or only by another projection;
-- merge only when two projections have the same authority and observational behavior.
+**Remaining candidate C:** after the consumption fold is settled, test a tiny shared arithmetic constructor for the repeated CurrentCoverage law:
+
+```text
+Remaining = Entitlement - Consumption
+Headroom  = Remaining - managed Commitment
+```
+
+Do not create a generic Inspection/Projection framework.
 
 ### SA-008 Scheduled semantic amplification
 
-Status: `UNDER_REVIEW`
-Priority: high
+Status: `AUDIT_COMPLETE`
 
-Scheduled has a deliberately small Core fact:
+Record: `SEMANTIC_AUDIT_SA008_SCHEDULED.md`
 
-```text
-ScheduledId + scheduled coordinate + BalancedMovement
-```
+Verdict: Scheduled fanout is mostly healthy derived porcelain over a small retained basis.
 
-Production behavior around it now includes memory, terminal lifecycle, routing, inspections, persistence, publishers, continuation routing, reviews, CLI/TUI surfaces.
+**Residual candidate:** `ScheduledCreationPublisher` and `ScheduledReplacementPublisher` repeat pure fresh-occurrence construction mechanics. Share only the admitted occurrence construction if Lean/regression evidence shows identical fresh-id choice, balanced movement, occurrence bytes, and refusal behavior. Keep source selection, terminal provenance, transition checks, receipts, publication order, and authority operation-specific.
 
-Question: which of these are necessary independent boundaries and which are repeated orchestration around a small retained fact?
-
-Positive evidence: terminal consolidation and shared continuation routing already reduced duplicated meanings/orchestration.
-
-Formal method: build a dependency graph from retained Scheduled evidence to observable household answers and count independent laws rather than files.
+Do not build a generic Scheduled publisher or lifecycle framework.
 
 ### SA-009 Publisher / Authority / Review semantic echo
 
 Status: `UNREVIEWED`
-Priority: high after Persistence/Application
+Priority: high after the narrow qualified candidates above
 
-The root `Loam/` surface contains multiple `*Publisher`, `*Authority`, and `*Review` modules for semantic families.
+This is the largest remaining broad audit region.
 
-Question: does each own an independent crash/recovery/authority law, or is a common publication protocol repeatedly specialized?
+Question:
 
-This area must be audited with stronger operational criteria than pure type isomorphism. TLA+ or explicit transition-system reasoning is appropriate when crash/retry/interrupted-publication behavior is involved.
+> Which `*Publisher`, `*Authority`, and `*Review` modules own independent crash/recovery/authority laws, and which repeat the same publication protocol with only semantic adapters?
+
+Use operational criteria, not type isomorphism. When interrupted publication, retry, writer ownership, or recovery is involved, prefer an explicit transition model or TLA+ over a purely structural refactor.
+
+Do not start by extracting a universal `Publisher<T>`.
 
 ### SA-010 Revision-only identity principle
 
-Status: `UNDER_REVIEW`
-Priority: medium
+Status: `UNDER_REVIEW`, partially implemented
+Priority: medium-high
 
-ActualValidityHistory established a useful compression pattern:
+The principle has already produced two successful reductions:
 
-> base evidence may reuse the subject identity; allocate a separate fact/revision identity only when a later revision needs independent identity.
+- #715 removed `EventCorrectionId` because endpoint identity was sufficient;
+- #716 removed `ActualValidityCorrectionId` while retaining independent revision identity only for actual revisions.
 
-Audit other fact-id families for identities that exist from the base case only because historical implementation introduced them.
+Next step is a repository-wide identity census, one family at a time:
 
-Formal test:
+1. list remaining `*Id` values attached to base facts, revisions, relations, and publications;
+2. ask whether two base facts for one subject must coexist;
+3. ask whether anything externally references the fact independently of its subject/endpoints;
+4. ask whether persistence/recovery requires stable independent identity;
+5. only then attempt proof-first deletion.
 
-- compare base identity and revision identity lifecycles;
-- find whether two distinct base facts for the same subject must coexist;
-- find whether external references target the base fact independently of the subject;
-- verify persistence bytes and migration/recovery requirements.
+Do not generalize the revision-only rule to facts with genuine multiplicity or provenance.
 
-Do not generalize this rule to facts whose base assertions genuinely have independent multiplicity or provenance.
+## 5. Next work queue
 
-## 8. Semantic amplification metric
+This is the default order after current main `ba2d080ca246069e9f4ba0a1949bdc2428086a4f`. Re-check actual main and open PRs before every item.
 
-Track a qualitative `semantic amplification` signal:
+### P0 - narrow, low-risk subtractions
 
-```text
-number of first-class declarations/modules/boundaries
-----------------------------------------------------
-number of independent retained facts and laws
-```
+1. **SA-005:** remove broad `Loam.Core` import from `Loam/Tui/ScheduledRouting.lean`; qualify exact TUI/library build.
+2. **SA-006:** replace ActualValidity's duplicated ordinary stage/write/rename mechanic with `SiblingStage` while preserving the V2/V3 existing-storage guard and bytes.
 
-A high ratio is an audit smell, not proof of bad design. A semantic fact may legitimately require independent persistence, crash-safe publication, projection, and presentation boundaries.
+### P1 - proof-first mechanical compression
 
-The useful question is whether each boundary introduces a new invariant or merely repeats plumbing.
+3. **SA-007 A:** prove and share the fail-closed Actual-consumption fold.
+4. **SA-007 C:** only after item 3, test shared CurrentCoverage arithmetic if the net source/proof delta is negative.
+5. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
 
-## 9. Formal-method toolbox for deletion/compression
+### P2 - next conceptual audits
 
-Prefer the smallest formal tool appropriate to the claim.
+6. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
+7. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+
+### P3 - reopen only with concrete pressure
+
+8. **SA-001:** further finite-keyed carrier sharing.
+9. `VersionedRows` newline-free round-trip theorem.
+10. isolated Amount / low-level product-topology usefulness review.
+
+If a P0/P1 candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
+
+## 6. Formal-method selection
+
+Use the smallest instrument that answers the claim.
 
 ### Lean
 
-Use for:
+Prefer for:
 
-- representation isomorphisms / round trips;
-- derivability proofs;
-- observational equivalence of pure projections;
+- derivability and observational equivalence;
+- representation round trips;
+- pure fold/helper extraction;
 - permutation independence;
 - preservation of fail-closed admission;
-- commuting diagrams between semantic wrappers and shared mechanics.
+- proof-first identity deletion.
 
 ### Alloy
 
-Use for:
+Prefer for:
 
-- searching for two worlds that collapse under a proposed merge but require different answers;
-- detecting illegal combinations introduced by separating or merging states;
-- bounded counterexamples to alleged derivability;
-- testing whether an identity or relation is independently necessary.
+- two worlds that collapse under a proposed semantic merge but require different answers;
+- bounded illegal combinations introduced by state-space compression;
+- identity or relation necessity when the issue is relational rather than algorithmic.
 
 ### TLA+ / transition models
 
-Reserve primarily for:
+Prefer for:
 
-- crash/retry/interrupted publication;
+- interrupted publication;
+- retry/recovery;
 - writer ownership;
-- multi-step persistence protocols;
-- recovery and temporal lifecycle claims.
+- multi-step persistence/publication protocols.
 
-Do not use a temporal model when a pure Lean theorem or bounded relational counterexample answers the question more directly.
+Do not add a formal artifact merely because formal methods are available.
 
-## 10. Implementation gate
+## 7. Implementation gate
 
-An audit entry may become `IMPLEMENTATION_READY` only when the proposed change has explicit answers for all of the following:
+Before a candidate becomes production work, answer all of these:
 
 ```text
 [ ] independently observable information preserved
@@ -463,41 +307,22 @@ An audit entry may become `IMPLEMENTATION_READY` only when the proposed change h
 [ ] migration requirement known
 [ ] crash/retry/recovery impact known where relevant
 [ ] semantic authority remains correctly separated
-[ ] formal counterexample search/proof appropriate to the claim completed
+[ ] appropriate proof/counterexample search completed
 [ ] production source/mechanism delta is plausibly net simpler
-[ ] relevant CI qualification plan identified
+[ ] relevant exact-head CI qualification identified
 ```
 
-If the adapters or proof burden become larger than the duplication removed, keep the existing explicit structures.
+A proof can be migration evidence rather than permanent production machinery. If proof scaffolding is only needed to justify a one-time cutover, retire it after qualification unless the theorem has ongoing explanatory or regression value.
 
-## 11. Current audit conclusion
+## 8. Update rule
 
-The current evidence does **not** support the claim that LOAM has thirty independent Core concepts or that the Core is broadly accidental complexity.
+After every structural-compression merge:
 
-Instead:
+1. update `Current production checkpoint`;
+2. add the PR to the completed-compression table if it removed or unified a distinction;
+3. update the affected SA status and residual candidate;
+4. remove completed items from the Next work queue;
+5. promote the next smallest qualified candidate;
+6. record negative results instead of repeatedly reopening them without new evidence.
 
-1. the semantic kernel contains several strong, already-compressed primitives;
-2. some physical Core modules are representations, specializations, or derived projections rather than independent concepts;
-3. earlier compression has already reduced Core from 34 to 30 modules;
-4. the strongest remaining complexity signal is semantic echo across Persistence, Application, Publisher/Authority/Review, and frontend boundaries;
-5. future work should prove which echoes own independent laws before removing them.
-
-The audit should therefore proceed from architecture census to formal counterexample/proof work before any new compression implementation.
-
-## 12. Next audit sequence
-
-No implementation is authorized yet. Refine the ledger in this order:
-
-```text
-1. SA-006 Persistence semantic echo
-2. SA-007 Application projection fanout
-3. SA-002 two-endpoint relation mechanics
-4. SA-003 temporal/effective evidence
-5. SA-008 Scheduled semantic amplification
-6. SA-005 Core public surface
-7. SA-009 Publisher/Authority/Review
-8. SA-010 revision-only identity sweep
-9. SA-004 CorrectionQuantity placement, after caller graph is known
-```
-
-For each step, update this ledger with evidence, counterexamples, proofs, and a decision before opening an implementation PR.
+The ledger should remain the navigation surface. Detailed proof history belongs in dedicated audit records, PRs, and Git history rather than being duplicated here.
