@@ -26,9 +26,9 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
 
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
-    | .ok world => pure world
+  let movement ←
+    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
+    | .ok evidence => pure evidence
     | .error message => return .error message
   match ← Loam.BalanceViewConfig.load? balanceViewPath with
   | none =>
@@ -37,7 +37,7 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
       return .ok {
         scheduled := lifecycle.scheduled
         terminals := lifecycle.terminals
-        events := world.events
+        events := movement.events
         coordinates := coordinates
       }
 
@@ -62,7 +62,7 @@ Project current-open Scheduled effects through the current replaceable balance
 view before one end-exclusive calendar boundary.
 
 The query consumes exactly one complete Scheduled lifecycle authority and the
-selected Movement manifest Event frontier. Completion, retirement, and
+selected Movement Event evidence frontier. Completion, retirement, and
 replacement are ordinary target forms of the same Scheduled terminal relation.
 It does not invent a forecast balance.
 -/

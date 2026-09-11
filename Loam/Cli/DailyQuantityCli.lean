@@ -26,9 +26,9 @@ private def loadEventMemoryForView?
   | some rootPath =>
       if rootPath.isEmpty then
         return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+      match ← Loam.MovementManifestAuthority.loadSelectedEvidence? (System.FilePath.mk rootPath) with
       | .error message => return .error message
-      | .ok world => return .ok world.events
+      | .ok evidence => return .ok evidence.events
   | none =>
       let memory ← if ← path.pathExists then
           Loam.Persistence.loadEventMemory? path

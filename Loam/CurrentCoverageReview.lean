@@ -168,8 +168,8 @@ def loadSnapshotAt
   if !capacityEffectiveEvidenceComplete capacity effective then
     return .error "loam: incomplete Capacity effective evidence"
   let movement ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
-    | .ok world => pure world
+    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
+    | .ok evidence => pure evidence
     | .error message => return .error message
   let validities ←
     match admittedActualValidityMemory? movement.validity with

@@ -102,10 +102,10 @@ structure Evidence where
 /-- Load selected manifest Events, corrections and independent zero-origin evidence. -/
 def loadEvidence
     (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
+  let movement ←
+    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
     | .error message => return .error message
-    | .ok world => pure world
+    | .ok evidence => pure evidence
   let eventCorrections ←
     match ← loadEventCorrections (dataDir / "corrections.loam") with
     | .error message => return .error message
@@ -114,7 +114,7 @@ def loadEvidence
     match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
     | .ok evidence => pure evidence
-  return .ok { events := world.events, corrections := eventCorrections, coverage := coverage }
+  return .ok { events := movement.events, corrections := eventCorrections, coverage := coverage }
 
 /--
 Load the production balance-view question. Missing zero-origin evidence does not
