@@ -88,8 +88,9 @@ def structurallyAdmissible {Id : Type} [DecidableEq Id]
     (hSuccessor : present successor = true)
     (hDistinct : source ≠ successor) :
     structurallyAdmissible present [{ source := source, successor := successor }] = true := by
+  have hReverse : successor ≠ source := Ne.symm hDistinct
   simp [structurallyAdmissible, endpointUnique, referencesClosed, acyclic,
-    returnsToStartWithin, next?, hSource, hSuccessor, hDistinct]
+    returnsToStartWithin, next?, hSource, hSuccessor, hReverse]
 
 def isSuperseded {Id : Type} [DecidableEq Id]
     (edges : List (Edge Id)) (id : Id) : Bool :=
