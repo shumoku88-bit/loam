@@ -45,13 +45,11 @@ private def sharedEvents : EventMemory :=
     idNodup := by native_decide }
 
 private def leftBaseCorrection : EventCorrection :=
-  { id := ⟨"base-correction"⟩
-    target := ⟨"a"⟩
+  { target := ⟨"a"⟩
     replacement := ⟨"b"⟩ }
 
 private def rightBaseCorrection : EventCorrection :=
-  { id := ⟨"base-correction"⟩
-    target := ⟨"c"⟩
+  { target := ⟨"c"⟩
     replacement := ⟨"d"⟩ }
 
 private def leftCorrections : EventCorrectionMemory :=
@@ -69,8 +67,7 @@ private def rightState : Loam.Observation193.CorrectionState :=
   { events := sharedEvents, corrections := rightCorrections }
 
 private def futureCorrection : EventCorrection :=
-  { id := ⟨"future-correction"⟩
-    target := ⟨"b"⟩
+  { target := ⟨"b"⟩
     replacement := ⟨"a"⟩ }
 
 private def publishFuture : Loam.Observation193.CorrectionOperation :=
