@@ -64,7 +64,7 @@ theorem consumptionAtRecordedEffectiveRouting_eq_recordedWhere
     (purpose : PurposeId)
     (measure : MeasureId) :
     consumptionAtRecordedEffectiveRouting? events validities routing purpose measure =
-      consumptionAtRecordedWhere? events validities
+      foldRecordedConsumptionWhere? events validities
         (fun _ => true)
         (fun event validOn =>
           eventConsumptionAtEffectiveRouting event validOn routing purpose measure) := by
