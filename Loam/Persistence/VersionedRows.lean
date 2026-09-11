@@ -41,7 +41,15 @@ theorem decodeVersionedRows?_encodeVersionedRows
     (rowsNoNewline : ∀ row ∈ rows, '\n' ∉ row.toList) :
     decodeVersionedRows? header (encodeVersionedRows header rows) = some rows := by
   have linesNoNewline : ∀ line ∈ header :: rows ++ [""], '\n' ∉ line.toList := by
-    simp_all
+    intro line hLine
+    simp only [List.mem_append, List.mem_cons] at hLine
+    rcases hLine with hHeadOrRow | hEmpty
+    · rcases hHeadOrRow with rfl | hRow
+      · exact headerNoNewline
+      · exact rowsNoNewline line hRow
+    · rcases hEmpty with rfl | hImpossible
+      · simp
+      · simp at hImpossible
   have splitFrame :
       ((String.intercalate "\n" (header :: rows ++ [""])).split '\n').toList.map (·.copy) =
         header :: rows ++ [""] := by
