@@ -59,6 +59,16 @@ def correctionFrontierAdmissible
   ReplacementFrontier.structurallyAdmissible
     (eventPresent events) (correctionEdges corrections)
 
+/-- A singleton self-correction is one cycle and therefore never a current frontier. -/
+@[simp] theorem correctionFrontierAdmissible_singleton_self
+    (events : EventMemory)
+    (id : EventId) :
+    correctionFrontierAdmissible
+      events
+      { corrections := [{ target := id, replacement := id }]
+        idNodup := by simp } = false := by
+  simp [correctionFrontierAdmissible, correctionEdges]
+
 private def frontierEvents
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : List Event :=
