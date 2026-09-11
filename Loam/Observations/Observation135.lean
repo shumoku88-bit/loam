@@ -1,7 +1,7 @@
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidity
 import Loam.Core.EventDescription
-import Loam.Core.ScheduledCompletion
+import Loam.Core.ScheduledTerminal
 
 namespace Loam.Observation135
 
@@ -53,13 +53,15 @@ opaque fingerprint : ByteArray → Digest
 
 /--
 The admitted canonical household state.
-Contains strictly the earned typed facts.
+Contains strictly the earned typed facts. Scheduled lifecycle meaning uses the
+current one-relation terminal basis rather than the retired completion-only
+memory shape that existed when this observation was first written.
 -/
 structure AdmittedHouseholdState where
   events : EventMemory
   validities : ActualValidityMemory String
   descriptions : EventDescriptionMemory
-  completions : ScheduledCompletionMemory
+  terminals : ScheduledTerminalMemory
 
 /--
 An admission receipt binding the physical snapshot to the admitted state.

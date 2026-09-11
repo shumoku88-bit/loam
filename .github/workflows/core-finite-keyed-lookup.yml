@@ -13,10 +13,7 @@ on:
       - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Core/EventResolutionMemory.lean'
       - 'Loam/Core/EventDescription.lean'
-      - 'Loam/Core/ScheduledRetirement.lean'
       - 'Loam/Core/ActualValidityHistory.lean'
-      - 'Loam/Core/ScheduledCompletion.lean'
-      - 'Loam/Core/ScheduledReplacement.lean'
       - '.github/workflows/core-finite-keyed-lookup.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -54,10 +51,7 @@ jobs:
             Loam.Core.EventCorrectionMemory \
             Loam.Core.EventResolutionMemory \
             Loam.Core.EventDescription \
-            Loam.Core.ScheduledRetirement \
             Loam.Core.ActualValidityHistory \
-            Loam.Core.ScheduledCompletion \
-            Loam.Core.ScheduledReplacement \
             > /tmp/core-finite-keyed.log 2>&1
           status=$?
           cat /tmp/core-finite-keyed.log

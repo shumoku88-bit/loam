@@ -1,6 +1,6 @@
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidity
-import Loam.Core.ScheduledCompletion
+import Loam.Core.Scheduled
 
 namespace Loam.Observation129
 
@@ -14,8 +14,8 @@ set_option autoImplicit false
 This observation studies the multi-stream publication protocol for a one-time
 historical admission:
 - Fresh destination-side EventId / EffectKey values are issued by LOAM
-- Several physically separate streams (EventMemory, ActualValidity, ScheduledCompletion)
-  share the same newly issued identities
+- Several physically separate streams (EventMemory, ActualValidity, historical
+  Scheduled completion evidence) share the same newly issued identities
 - A durable Prepared Admission state acts as a temporary recovery aid across crashes
   and is retired once the receipt is committed (following Observation 076)
 - The protocol guarantees:
@@ -25,7 +25,19 @@ historical admission:
   4. receipt commit guarantees complete persistent facts
   5. inconsistent destination state fails closed
   6. temporary prepared state is safely retired after receipt commit
+
+The completion shape below is local to this historical observation. Current
+production Scheduled semantics retain one `ScheduledTerminal` relation instead
+of a dedicated completion memory.
 -/
+
+structure HistoricalCompletion where
+  scheduled : ScheduledId
+  actual : EventId
+deriving Repr, DecidableEq
+
+structure HistoricalCompletionMemory where
+  completions : List HistoricalCompletion
 
 /--
 A multi-stream candidate prepared entirely in memory before publication.
@@ -34,7 +46,7 @@ All cross-stream references are validated closed within the candidate bundle.
 structure AdmissionCandidate (Time : Type) where
   events : EventMemory
   validities : ActualValidityMemory Time
-  completions : ScheduledCompletionMemory
+  completions : HistoricalCompletionMemory
   validity_closed : ∀ fact ∈ validities.entries,
     (EventMemory.findById? events fact.event).isSome = true
   completion_closed : ∀ comp ∈ completions.completions,
@@ -56,7 +68,7 @@ The observable physical persistent state across all participating streams and st
 structure PersistentWorld (Time : Type) where
   events : EventMemory
   validities : ActualValidityMemory Time
-  completions : ScheduledCompletionMemory
+  completions : HistoricalCompletionMemory
   prepared : Option (PreparedAdmission Time)
   receiptCommitted : Bool
 
@@ -69,10 +81,10 @@ def liveValidities {Time : Type} (world : PersistentWorld Time) : List (ActualVa
     (EventMemory.findById? world.events fact.event).isSome
 
 /--
-Live completions recognized by an Event-first reader.
+Live historical completions recognized by an Event-first reader.
 A completion is live only if its referenced actual Event exists in EventMemory.
 -/
-def liveCompletions {Time : Type} (world : PersistentWorld Time) : List ScheduledCompletion :=
+def liveCompletions {Time : Type} (world : PersistentWorld Time) : List HistoricalCompletion :=
   world.completions.completions.filter fun comp =>
     (EventMemory.findById? world.events comp.actual).isSome
 
@@ -96,7 +108,6 @@ def publishStep {Time : Type}
     (candidate : AdmissionCandidate Time) :
     PublicationPhase → PersistentWorld Time → PersistentWorld Time × PublicationPhase
   | .Initial, world =>
-      -- Step 1: Durably retain PREPARED admission state
       ({ world with
          prepared := some {
            snapshotHash := snapshotHash,
@@ -105,36 +116,27 @@ def publishStep {Time : Type}
          } },
        .PreparedRetained)
   | .PreparedRetained, world =>
-      -- Step 2: Publish auxiliary streams (validities, completions)
-      -- EventMemory is still base state.
       ({ world with
          validities := candidate.validities,
          completions := candidate.completions },
        .AuxiliaryReplaced)
   | .AuxiliaryReplaced, world =>
-      -- Step 3: Publish EventMemory (Canonical Commit Point)
       ({ world with events := candidate.events },
        .EventMemoryCommitted)
   | .EventMemoryCommitted, world =>
-      -- Step 4: Publish Admission Receipt (Idempotency Commit Point)
       ({ world with receiptCommitted := true },
        .ReceiptCommitted)
   | .ReceiptCommitted, world =>
-      -- Step 5: Retire temporary PREPARED admission state
       ({ world with prepared := none },
        .Retired)
   | .Retired, world =>
       (world, .Retired)
 
-/--
-Decide equality of EventMemory identities.
--/
+/-- Decide equality of EventMemory identities. -/
 def eventIdsEqual (m1 m2 : EventMemory) : Bool :=
   decide (m1.events.map Event.id = m2.events.map Event.id)
 
-/--
-Restart recovery actions on process reboot.
--/
+/-- Restart recovery actions on process reboot. -/
 inductive RestartAction
   | StartFresh
   | ResumePreparedAuxiliary
@@ -154,22 +156,17 @@ def planRestart {Time : Type}
   | true, none =>
       .StartFresh
   | true, some _ =>
-      -- Case 5: Receipt committed, clean up leftover prepared aid
       .CleanupLeftoverPrepared
   | false, none =>
-      -- Case 1: No prepared state, start fresh
       .StartFresh
   | false, some prep =>
       if prep.snapshotHash != currentSnapshotHash then
         .FailClosedInconsistent
       else if eventIdsEqual world.events prep.candidate.events then
-        -- Case 4: EventMemory already committed, recover receipt using exact prepared candidate
         .RecoverReceiptOnly
       else if eventIdsEqual world.events prep.baseEvents then
-        -- Cases 2 & 3: EventMemory still base, resume auxiliary/event publication from prepared candidate
         .ResumePreparedAuxiliary
       else
-        -- Case 6: Inconsistent destination state, fail closed
         .FailClosedInconsistent
 
 /--
@@ -203,7 +200,7 @@ theorem auxiliary_crash_inert
 /--
 Theorem 2 (Event Commit Completeness):
 The moment EventMemory is committed, every newly admitted Event already has its
-validity evidence and completion evidence present on disk.
+validity evidence and historical completion evidence present on disk.
 -/
 theorem event_commit_complete
     {Time : Type}
@@ -225,10 +222,7 @@ theorem event_commit_complete
     exact ⟨hComp, candidate.completion_closed comp hComp⟩
 
 /--
-Theorem 3 (Restart Case 4 Recovers Exact Prepared Candidate Without Reissuing IDs):
-If a crash occurs after EventMemory is committed but before receipt publication,
-restart inspects durable state, finds the exact prepared candidate matching current EventMemory,
-and chooses RecoverReceiptOnly.
+Theorem 3 (Restart Case 4 Recovers Exact Prepared Candidate Without Reissuing IDs).
 -/
 theorem restart_case4_recovers_exact_candidate
     {Time : Type}
@@ -244,11 +238,7 @@ theorem restart_case4_recovers_exact_candidate
   rw [hInitialUncommitted]
   simp
 
-/--
-Theorem 4 (Restart Case 2/3 Resumes from Prepared Candidate):
-If a crash occurs during auxiliary publication or before EventMemory commit,
-restart detects that EventMemory matches the base state and resumes from the prepared candidate.
--/
+/-- Theorem 4 (Restart Case 2/3 Resumes from Prepared Candidate). -/
 theorem restart_case2_resumes_prepared_candidate
     {Time : Type}
     (initialWorld : PersistentWorld Time)
@@ -264,11 +254,7 @@ theorem restart_case2_resumes_prepared_candidate
   dsimp [eventIdsEqual] at hCandidateFresh
   simp [eventIdsEqual, hCandidateFresh]
 
-/--
-Theorem 5 (Restart Case 5 Cleans Up Leftover Prepared Aid):
-If a crash occurs after receipt commit but before retirement,
-restart recognizes receipt completion and chooses CleanupLeftoverPrepared.
--/
+/-- Theorem 5 (Restart Case 5 Cleans Up Leftover Prepared Aid). -/
 theorem restart_case5_cleans_up_leftover_aid
     {Time : Type}
     (initialWorld : PersistentWorld Time)
@@ -281,11 +267,7 @@ theorem restart_case5_cleans_up_leftover_aid
     planRestart step4.1 snapshotHash = .CleanupLeftoverPrepared := by
   dsimp [publishStep, planRestart]
 
-/--
-Theorem 6 (Restart Case 6 Fails Closed on Unknown Destination State):
-If current EventMemory matches neither base state nor candidate state,
-restart refuses automatic repair and fails closed.
--/
+/-- Theorem 6 (Restart Case 6 Fails Closed on Unknown Destination State). -/
 theorem restart_case6_fails_closed
     {Time : Type}
     (world : PersistentWorld Time)
@@ -300,9 +282,7 @@ theorem restart_case6_fails_closed
   simp [hNotCandidate, hNotBase]
 
 /--
-Theorem 7 (Receipt Guarantees Full Canonical Publication):
-Whenever the admission receipt is committed through the protocol,
-the persistent world holds the complete candidate events, validities, and completions.
+Theorem 7 (Receipt Guarantees Full Canonical Publication).
 -/
 theorem receipt_guarantees_completeness
     {Time : Type}
