@@ -5,6 +5,8 @@ on:
     paths:
       - 'experiments/246_canonical_basis_observability.als'
       - 'experiments/246_canonical_basis_observability.md'
+      - 'experiments/249_locus_admission_authority_separation.als'
+      - 'experiments/249_locus_admission_authority_separation.md'
       - '.github/workflows/canonical-basis-observability.yml'
   push:
     branches:
@@ -12,6 +14,8 @@ on:
     paths:
       - 'experiments/246_canonical_basis_observability.als'
       - 'experiments/246_canonical_basis_observability.md'
+      - 'experiments/249_locus_admission_authority_separation.als'
+      - 'experiments/249_locus_admission_authority_separation.md'
       - '.github/workflows/canonical-basis-observability.yml'
   workflow_dispatch:
 
@@ -44,7 +48,7 @@ jobs:
           printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
           java -jar "$ALLOY_JAR" version
 
-      - name: Require observability witnesses
+      - name: Require observability and policy-separation witnesses
         shell: bash
         run: |
           set -euo pipefail
@@ -57,6 +61,16 @@ jobs:
                 "zeroCoverageHasReadWitness": true,
                 "mutationPresenceCanBeReadInvisible": true,
                 "mutationPresenceCanBeWriteVisible": true
+              }
+            },
+            {
+              "id": "experiment-249-locus-admission-authority-separation",
+              "model": "experiments/249_locus_admission_authority_separation.als",
+              "expected": {
+                "staleOlderPolicyCanFalseReject": true,
+                "AddOnlyStaleCannotOverAuthorize": false,
+                "revocationMakesStaleOverAuthorize": true,
+                "EqualPolicySetsAgree": false
               }
             }
           ]
