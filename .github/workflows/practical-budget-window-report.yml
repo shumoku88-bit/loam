@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Cli/BudgetWindowCli.lean'
+      - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/MovementManifestAuthority.lean'
@@ -24,6 +25,7 @@ on:
     paths:
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Cli/BudgetWindowCli.lean'
+      - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/MovementManifestAuthority.lean'
@@ -58,7 +60,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamMovement loamCapacity loamActualRouting loamBudgetWindow
+          build-args: loamMovement loamCapacity loamActualRouting loamBudgetWindow loamHouseholdObservation
           test: false
           lint: false
           use-mathlib-cache: false
@@ -126,6 +128,23 @@ jobs:
           grep -Fx 'Purposes:' <<<"$all_output"
           grep -Fx '  food: entitlement 100 jpy, consumption 30 jpy, remaining 70 jpy' <<<"$all_output"
           grep -Fx '  general: entitlement 50 jpy, consumption 0 jpy, remaining 50 jpy' <<<"$all_output"
+
+          observation_output="$(env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
+            .lake/build/bin/loamHouseholdObservation \
+            "$tmpdir" 2026-08-17 2026-10-15)"
+          printf '%s\n' "$observation_output"
+
+          grep -Fx $'HOBS1\tmeta\timplementation\tloam' <<<"$observation_output"
+          grep -Fx $'HOBS1\tmeta\twindow_start\t2026-08-17' <<<"$observation_output"
+          grep -Fx $'HOBS1\tmeta\twindow_end_exclusive\t2026-10-15' <<<"$observation_output"
+          grep -Fx $'HOBS1\tbudget\tfood\tjpy\t100\t30\t70' <<<"$observation_output"
+          grep -Fx $'HOBS1\tbudget\tgeneral\tjpy\t50\t0\t50' <<<"$observation_output"
+          grep -Fx $'HOBS1\tcapacity\tpurpose\tfood\tjpy\t100' <<<"$observation_output"
+          grep -Fx $'HOBS1\tcapacity\tpurpose\tgeneral\tjpy\t50' <<<"$observation_output"
+          grep -Fx $'HOBS1\tscalar\tbudget\ttotal_entitlement\tjpy\t150' <<<"$observation_output"
+          grep -Fx $'HOBS1\tscalar\tbudget\ttotal_consumption\tjpy\t30' <<<"$observation_output"
+          grep -Fx $'HOBS1\tscalar\tbudget\ttotal_remaining\tjpy\t120' <<<"$observation_output"
+          test "$(tail -n 1 <<<"$observation_output")" = $'HOBS1\tmeta\tstatus\tcomplete'
 
           mv "$tmpdir/actual-routing.loam" "$tmpdir/actual-routing.saved"
           if .lake/build/bin/loamBudgetWindow \
