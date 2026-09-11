@@ -75,14 +75,9 @@ def project
 
 private def loadEventCorrections
     (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadEventCorrectionMemory? path with
-    | some memory => return .ok memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
-  else
-    match EventCorrectionMemory.ofCorrections? [] with
-    | some memory => return .ok memory
-    | none => return .error "loam: could not construct empty correction memory"
+  match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? path with
+  | some memory => return .ok memory
+  | none => return .error "loam: malformed or unsupported correction-memory file"
 
 private def loadCoverage
     (path : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
