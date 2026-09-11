@@ -57,7 +57,7 @@ jobs:
                 "everyDirectHasFactoredImage": true,
                 "explicitOriginReconstructsDirect": true,
                 "trackedSetStillCarriesInformation": true,
-                "originFlagAloneIsInsufficient": true,
+                "originFactAloneIsInsufficient": true,
                 "DirectToFactoredCoveragePreserved": false
               }
             }
