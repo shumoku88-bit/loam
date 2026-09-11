@@ -24,25 +24,28 @@ private def printCorrection
     (correction : Loam.Core.EventCorrection) : IO Bool := do
   IO.println
     ("Correction " ++ correction.target.token ++ " -> " ++ correction.replacement.token)
-  match Loam.Core.EventCorrection.project? memory correction with
-  | none =>
-      IO.println "  relation: open (one or both endpoint Events are missing)"
-      IO.println "  effective projection: unavailable"
-      IO.println ""
-      return false
-  | some projected =>
-      IO.println "  relation: closed"
-      IO.println "  Original contribution:"
-      printEffects projected.original.effects
-      IO.println "  Replacement contribution:"
-      printEffects projected.effective.effects
-      if correction.target = correction.replacement then
-        IO.println "  Projection law: self-relation leaves recorded quantities unchanged"
-      else
+  if correction.target = correction.replacement then
+    IO.println "  relation: cyclic (target and replacement are the same Event)"
+    IO.println "  effective projection: unavailable"
+    IO.println ""
+    return false
+  else
+    match Loam.Core.EventCorrection.project? memory correction with
+    | none =>
+        IO.println "  relation: open (one or both endpoint Events are missing)"
+        IO.println "  effective projection: unavailable"
+        IO.println ""
+        return false
+    | some projected =>
+        IO.println "  relation: closed"
+        IO.println "  Original contribution:"
+        printEffects projected.original.effects
+        IO.println "  Replacement contribution:"
+        printEffects projected.effective.effects
         IO.println "  Projection law: original contribution excluded; replacement retained once"
-      IO.println "  Arithmetic balance: not asserted across different coordinates or measures"
-      IO.println ""
-      return true
+        IO.println "  Arithmetic balance: not asserted across different coordinates or measures"
+        IO.println ""
+        return true
 
 /--
 Show why recorded correction facts are structurally usable without pretending
@@ -74,15 +77,15 @@ def showCorrectionIntegrity (memoryPath correctionPath : String) : IO UInt32 := 
                 return 0
             | items =>
                 IO.println "Correction integrity:"
-                let mut allClosed := true
+                let mut allUsable := true
                 for correction in items do
                   if !(← printCorrection memory correction) then
-                    allClosed := false
-                if allClosed then
+                    allUsable := false
+                if allUsable then
                   IO.println "All correction relations are closed."
                   return 0
                 else
-                  IO.eprintln "loam: one or more correction relations are open"
+                  IO.eprintln "loam: one or more correction relations are open or cyclic"
                   return 1
 
 end Loam.CorrectionIntegrityCli

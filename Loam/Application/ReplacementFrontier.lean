@@ -71,6 +71,14 @@ def structurallyAdmissible {Id : Type} [DecidableEq Id]
     (present : Id → Bool) (edges : List (Edge Id)) : Bool :=
   endpointUnique edges && referencesClosed present edges && acyclic edges
 
+/-- A singleton self-loop is always a cycle, regardless of endpoint presence. -/
+@[simp] theorem structurallyAdmissible_singleton_self
+    {Id : Type} [DecidableEq Id]
+    (present : Id → Bool) (id : Id) :
+    structurallyAdmissible present [{ source := id, successor := id }] = false := by
+  simp [structurallyAdmissible, endpointUnique, referencesClosed, acyclic,
+    returnsToStartWithin, next?]
+
 def isSuperseded {Id : Type} [DecidableEq Id]
     (edges : List (Edge Id)) (id : Id) : Bool :=
   edges.any fun edge => decide (edge.source = id)

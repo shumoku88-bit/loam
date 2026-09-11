@@ -17,8 +17,8 @@ into the Core.
 
 The operation is deliberately read-only. It does not load files, publish data,
 or claim that a recorded/effective quantity is a balance or universally current
-state. For multiple corrections it exposes a quantity only when the correction
-facts justify one disjoint-path frontier; otherwise it refuses explicitly.
+state. Correction shapes that do not justify one current frontier remain
+explicit refusals rather than acquiring representation-order authority.
 -/
 
 inductive QuantityInspectionAnswer where
@@ -30,14 +30,12 @@ inductive QuantityInspectionAnswer where
 deriving Repr, DecidableEq
 
 /--
-Historical single-correction quantity projection, now owned by the only
-Application operation that consumes it.
+Historical arithmetic for one distinct correction, retained locally until its
+full equivalence with the generic frontier projection is separately qualified.
 
-Both endpoint Events remain recorded. A distinct correction therefore removes
-the superseded target contribution without adding the already-recorded
-replacement again. The qualified legacy self-relation behavior is retained
-unchanged here; this refactor does not reinterpret self-correction as an
-admitted frontier.
+Both endpoint Events remain recorded. The projection therefore removes the
+superseded target contribution without adding the already-recorded replacement
+again.
 -/
 private def singleCorrectionQuantity?
     (memory : EventMemory)
@@ -46,23 +44,18 @@ private def singleCorrectionQuantity?
     (measure : MeasureId) : Option Quantity := do
   let projected ← EventCorrection.project? memory correction
   let recorded := EventMemory.quantityAtRecorded memory locus measure
-  let effective :=
-    if correction.target = correction.replacement then
-      recorded
-    else
-      recorded - Event.quantityAt projected.original locus measure
-  return effective
+  return recorded - Event.quantityAt projected.original locus measure
 
 /--
 Inspect one explicit locus/measure coordinate using retained Core facts and the
 qualified correction projections owned by this Application boundary.
 
-Zero corrections exposes the recorded projection. Exactly one correction keeps
-the previously qualified single-correction behavior, including its existing
-self-relation behavior. Two or more corrections expose a frontier quantity only
-when they form closed, non-branching, non-merging, acyclic correction paths.
-Any unsupported multi-correction shape remains fail-closed rather than acquiring
-an arrival-order winner.
+Zero corrections exposes the recorded projection. Exactly one distinct,
+closed correction keeps the previously qualified arithmetic. A singleton
+self-correction is one cycle and therefore requires a valid frontier rather
+than being treated as a quantity-preserving exception. Two or more corrections
+expose a frontier quantity only when they form closed, non-branching,
+non-merging, acyclic correction paths.
 -/
 def inspectQuantity
     (events : EventMemory)
@@ -73,9 +66,12 @@ def inspectQuantity
   | [] =>
       .recorded (EventMemory.quantityAtRecorded events locus measure)
   | [correction] =>
-      match singleCorrectionQuantity? events correction locus measure with
-      | some quantity => .singleCorrectionEffective quantity
-      | none => .missingCorrectionEndpoint
+      if correction.target = correction.replacement then
+        .frontierRequired
+      else
+        match singleCorrectionQuantity? events correction locus measure with
+        | some quantity => .singleCorrectionEffective quantity
+        | none => .missingCorrectionEndpoint
   | _ =>
       match quantityAtCorrectionFrontier? events corrections locus measure with
       | some quantity => .frontierEffective quantity
@@ -92,7 +88,20 @@ theorem inspectQuantity_noCorrections
       .recorded (EventMemory.quantityAtRecorded events locus measure) := by
   simp [inspectQuantity, hCorrections]
 
-/-- One closed correction exposes exactly the local single-correction projection. -/
+/-- A singleton self-correction is refused as one correction cycle. -/
+@[simp] theorem inspectQuantity_singleSelf
+    (events : EventMemory)
+    (id : EventId)
+    (locus : LocusId)
+    (measure : MeasureId) :
+    inspectQuantity
+      events
+      { corrections := [{ target := id, replacement := id }]
+        idNodup := by simp }
+      locus measure = .frontierRequired := by
+  simp [inspectQuantity]
+
+/-- One distinct closed correction exposes exactly the local singleton projection. -/
 private theorem inspectQuantity_singleEffective
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
@@ -101,13 +110,14 @@ private theorem inspectQuantity_singleEffective
     (measure : MeasureId)
     (quantity : Quantity)
     (hCorrections : corrections.corrections = [correction])
+    (hDistinct : correction.target ≠ correction.replacement)
     (hEffective :
       singleCorrectionQuantity? events correction locus measure = some quantity) :
     inspectQuantity events corrections locus measure =
       .singleCorrectionEffective quantity := by
-  simp [inspectQuantity, hCorrections, hEffective]
+  simp [inspectQuantity, hCorrections, hDistinct, hEffective]
 
-/-- One correction with an unavailable endpoint remains an explicit refusal. -/
+/-- One distinct correction with an unavailable endpoint remains an explicit refusal. -/
 private theorem inspectQuantity_singleMissing
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
@@ -115,10 +125,11 @@ private theorem inspectQuantity_singleMissing
     (locus : LocusId)
     (measure : MeasureId)
     (hCorrections : corrections.corrections = [correction])
+    (hDistinct : correction.target ≠ correction.replacement)
     (hMissing :
       singleCorrectionQuantity? events correction locus measure = none) :
     inspectQuantity events corrections locus measure = .missingCorrectionEndpoint := by
-  simp [inspectQuantity, hCorrections, hMissing]
+  simp [inspectQuantity, hCorrections, hDistinct, hMissing]
 
 /-- A qualified multi-correction frontier exposes exactly its derived quantity. -/
 theorem inspectQuantity_multipleEffective
