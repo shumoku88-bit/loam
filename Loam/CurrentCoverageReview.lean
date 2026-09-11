@@ -27,8 +27,8 @@ current coverage question introduced by `CurrentCoverageInspection`.
 It deliberately does not turn this into the historical Budget Window report.
 Capacity is effective within the closed current elapsed window; Actual Consumption is correction-frontier and
 historical-routing aware inside the explicit current elapsed window, and
-Scheduled pressure is replacement-aware current-open evidence from `observedAt`
-through the explicit future `endExclusive` horizon.
+Scheduled pressure is current-open evidence from `observedAt` through the
+explicit future `endExclusive` horizon.
 
 `currentWindowStart` is retained from the selected boundary preset rather than
 being discarded. Scheduled lifecycle state is current-open only; it is not
@@ -44,7 +44,6 @@ structure Row where
   headroom : Quantity
   deriving Repr, DecidableEq
 
-/-- JPY-wide Scheduled pressure that is not owned by one managed Purpose. -/
 structure ScheduledFrontier where
   unmanaged : Quantity
   unrouted : Quantity
@@ -94,10 +93,10 @@ private def projectPurpose?
     (purpose : PurposeId) : Option ProjectedRow := do
   let yen : MeasureId := ⟨"jpy"⟩
   let view ←
-    currentCoverageAtCorrectionFrontierEffectiveRoutingWithReplacement?
+    currentCoverageAtCorrectionFrontierEffectiveRouting?
       capacity effective events corrections validities actualRouting
-      scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
-      roles scheduledRouting purpose yen currentWindowStart observedAt endExclusive
+      scheduled.scheduled scheduled.terminals roles scheduledRouting
+      purpose yen currentWindowStart observedAt endExclusive
   return {
     row := {
       purpose := purpose
@@ -174,7 +173,6 @@ def loadSnapshotAt
     match ← Loam.Persistence.loadCapacityEffectiveMemory? effectivePath with
     | some memory => pure memory
     | none => return .error "loam: missing, malformed or unsupported Capacity effective evidence"
-  -- Validate even when no Purpose rows exist (including orphan evidence).
   if !capacityEffectiveEvidenceComplete capacity effective then
     return .error "loam: incomplete Capacity effective evidence"
   let movement ←
@@ -209,9 +207,9 @@ def loadSnapshotAt
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
   let unresolvedScheduled ←
-    match currentUnresolvedScheduledPressureWithReplacement?
-        scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
-        movement.events roles scheduledRouting ⟨"jpy"⟩ observedAt endExclusive with
+    match currentUnresolvedScheduledPressure?
+        scheduled.scheduled scheduled.terminals movement.events roles scheduledRouting
+        ⟨"jpy"⟩ observedAt endExclusive with
     | some rows => pure rows
     | none => return .error "loam: canonical evidence does not justify unresolved Scheduled pressure"
 

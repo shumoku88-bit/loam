@@ -15,19 +15,18 @@ set_option autoImplicit false
 # Shared Scheduled terminal publication
 
 Scheduled lifecycle evidence remains one complete Scheduled authority image while
-Actual Events remain in selected Movement manifest authority. This publisher
-coordinates those existing authorities without creating a combined repository.
+Actual Events remain in selected Movement manifest authority. Completion and
+cancellation retain different terminal meanings in one `ScheduledTerminalMemory`.
 
-The lock order is deliberately fixed:
+The lock order and crash behavior are deliberately unchanged:
 
 ```text
 Scheduled lifecycle authority -> Movement CURRENT
 ```
 
-Human input must already be collected before this boundary is entered.
-Completion publishes the lifecycle image containing the ScheduledCompletion
-relation first and the complete Movement manifest generation second. A retained
-relation whose Actual endpoint is still absent is inert to existing Scheduled
+Completion publishes the lifecycle image containing the Scheduled -> Actual
+terminal claim first and the complete Movement manifest generation second. A
+retained Actual target that is still absent from Movement is inert to Scheduled
 readers, so interruption remains fail-closed and a later retry can finish the
 same endpoint. Cancellation refuses such an interrupted completion instead of
 competing with it.
@@ -68,9 +67,8 @@ private def loadLifecycle?
 private def currentOpen?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String (List (ScheduledOccurrence String)) :=
-  match Loam.Application.currentOpenScheduledWithReplacement
-      lifecycle.scheduled lifecycle.completions lifecycle.retirements
-      lifecycle.replacements events with
+  match Loam.Application.currentOpenScheduled
+      lifecycle.scheduled lifecycle.terminals events with
   | .unknownCompletionScheduled =>
       .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
@@ -190,36 +188,33 @@ private def publishCompletionUnderOwnership
     match findOpen? lifecycle world.events draft.scheduled with
     | .ok occurrence => pure occurrence
     | .error message => return .error message
-  let existing := ScheduledCompletionMemory.findByScheduled?
-    lifecycle.completions draft.scheduled
-  let actualId := match existing with
-    | some completion => completion.actual
-    | none => completionEventId draft.scheduled
+  let existing := lifecycle.terminals.completionActualFor? draft.scheduled
+  let actualId := existing.getD (completionEventId draft.scheduled)
   match EventMemory.findById? world.events actualId with
   | some _ =>
       return .error "loam: selected Scheduled identity is already completed"
   | none => pure ()
-  match ScheduledCompletionMemory.findByActual? lifecycle.completions actualId with
-  | some completion =>
-      if completion.scheduled != draft.scheduled then
+  match lifecycle.terminals.completionSourceForActual? actualId with
+  | some source =>
+      if source != draft.scheduled then
         return .error "loam: Scheduled completion Actual identity belongs to another Scheduled occurrence"
   | none => pure ()
   let updatedWorld ←
     match appendCompletionActual? world draft.scheduled actualId draft.movement with
     | .ok updated => pure updated
     | .error message => return .error message
-  let relation : ScheduledCompletion := {
-    scheduled := draft.scheduled
-    actual := actualId
+  let relation : ScheduledTerminal := {
+    source := draft.scheduled
+    target := some (.actual actualId)
   }
-  let updatedCompletions ←
+  let updatedTerminals ←
     match existing with
-    | some _ => pure lifecycle.completions
+    | some _ => pure lifecycle.terminals
     | none =>
-        match lifecycle.completions.add? relation with
-        | some completions => pure completions
+        match lifecycle.terminals.add? relation with
+        | some terminals => pure terminals
         | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
-  let updatedLifecycle := { lifecycle with completions := updatedCompletions }
+  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
   match completionClosesTarget? updatedLifecycle updatedWorld.events draft.scheduled with
   | .error message => return .error message
   | .ok () => pure ()
@@ -252,9 +247,9 @@ private def publishCancellationUnderOwnership
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => return .error message
-  match ScheduledCompletionMemory.findByScheduled? lifecycle.completions draft.scheduled with
-  | some completion =>
-      if (EventMemory.findById? world.events completion.actual).isSome then
+  match lifecycle.terminals.completionActualFor? draft.scheduled with
+  | some actual =>
+      if (EventMemory.findById? world.events actual).isSome then
         return .error "loam: selected Scheduled identity is already completed"
       else
         return .error "loam: selected Scheduled identity has an interrupted completion; retry completion before cancellation"
@@ -263,12 +258,15 @@ private def publishCancellationUnderOwnership
     match findOpen? lifecycle world.events draft.scheduled with
     | .ok occurrence => pure occurrence
     | .error message => return .error message
-  let retirement : ScheduledRetirement := { scheduled := draft.scheduled }
-  let updatedRetirements ←
-    match lifecycle.retirements.add? retirement with
-    | some retirements => pure retirements
+  let retirement : ScheduledTerminal := {
+    source := draft.scheduled
+    target := none
+  }
+  let updatedTerminals ←
+    match lifecycle.terminals.add? retirement with
+    | some terminals => pure terminals
     | none => return .error "loam: could not append Scheduled retirement evidence"
-  let updatedLifecycle := { lifecycle with retirements := updatedRetirements }
+  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
   match currentOpen? updatedLifecycle world.events with
   | .error message => return .error message
   | .ok occurrences =>

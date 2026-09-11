@@ -22,10 +22,8 @@ private def occurrence (id day : String) (amount1 amount2 : Int) : IO (Scheduled
 private def lifecycleFromOccurrences
     (occurrences : List (ScheduledOccurrence String)) : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some scheduled := ScheduledMemory.ofOccurrences? occurrences | throw (IO.userError "scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? [] | throw (IO.userError "completions")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? [] | throw (IO.userError "retirements")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? [] | throw (IO.userError "replacements")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? [] | throw (IO.userError "terminals")
+  return { scheduled, terminals }
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
@@ -43,7 +41,6 @@ def main (args : List String) : IO Unit := do
   let subjGroceries : ScheduledRoutingSubject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"groceries"⟩ }
   let subjCoffee : ScheduledRoutingSubject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"coffee"⟩ }
 
-  -- 1. managed publish success
   let resManaged ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjGroceries, effectiveOn := "2026-09-06", target := .managed ⟨"food"⟩ }
@@ -58,7 +55,6 @@ def main (args : List String) : IO Unit := do
   expect (afterManaged.contains "ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-06\tMANAGED\tfood")
     "managed route not found in routing authority"
 
-  -- 2. unmanaged publish success
   let resUnmanaged ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjCoffee, effectiveOn := "2026-09-06", target := .unmanaged }
@@ -73,7 +69,6 @@ def main (args : List String) : IO Unit := do
   expect (afterUnmanaged.contains "ROUTE\tscheduled-1\tcoffee\tFROM\t2026-09-06\tUNMANAGED")
     "unmanaged route not found in routing authority"
 
-  -- 3. invalid date reject
   let snapshotBeforeInvalid ← IO.FS.readFile routingFile
   let resInvalidDate ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
@@ -81,14 +76,12 @@ def main (args : List String) : IO Unit := do
   expect (!resInvalidDate.isOk) "invalid date admitted"
   expect ((← IO.FS.readFile routingFile) == snapshotBeforeInvalid) "routing authority modified on invalid date"
 
-  -- 4. invalid managed Purpose reject
   let resInvalidPurpose ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjGroceries, effectiveOn := "2026-09-07", target := .managed ⟨""⟩ }
   expect (!resInvalidPurpose.isOk) "empty purpose token admitted"
   expect ((← IO.FS.readFile routingFile) == snapshotBeforeInvalid) "routing authority modified on invalid purpose"
 
-  -- 5. missing ScheduledId reject
   let resMissingId ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := { scheduled := ⟨"unknown-scheduled"⟩, locus := ⟨"groceries"⟩ },
@@ -97,7 +90,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: scheduled identity not found" => pure ()
   | other => throw (IO.userError s!"expected scheduled identity not found, got {repr other}")
 
-  -- 6. Locus absent from occurrence reject
   let resAbsentLocus ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"absent-locus"⟩ },
@@ -106,7 +98,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: Scheduled occurrence does not contain that Locus" => pure ()
   | other => throw (IO.userError s!"expected occurrence does not contain Locus, got {repr other}")
 
-  -- 7. routing authority missing reject
   let resMissingRouting ← Loam.ScheduledRoutingPublisher.publish
     (dataDir / "nonexistent-routing.loam").toString scheduledFile.toString
     { subject := subjGroceries, effectiveOn := "2026-09-07", target := .managed ⟨"food"⟩ }
@@ -114,7 +105,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: Scheduled routing authority is missing" => pure ()
   | other => throw (IO.userError s!"expected routing missing, got {repr other}")
 
-  -- 8. malformed routing authority reject
   let malformedRouting := dataDir / "malformed-routing.loam"
   IO.FS.writeFile malformedRouting "NOT-ROUTING\tGARBAGE\n"
   let resMalformedRouting ← Loam.ScheduledRoutingPublisher.publish
@@ -124,7 +114,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: malformed or unsupported Scheduled routing authority" => pure ()
   | other => throw (IO.userError s!"expected malformed routing, got {repr other}")
 
-  -- 9. malformed lifecycle reject
   let malformedScheduled := dataDir / "malformed-scheduled.loam"
   IO.FS.writeFile malformedScheduled "GARBAGE\n"
   let resMalformedScheduled ← Loam.ScheduledRoutingPublisher.publish
@@ -134,7 +123,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported" => pure ()
   | other => throw (IO.userError s!"expected malformed lifecycle, got {repr other}")
 
-  -- 10. duplicate subject/effective coordinate reject
   let resDuplicate ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjGroceries, effectiveOn := "2026-09-06", target := .managed ⟨"household"⟩ }
@@ -142,7 +130,6 @@ def main (args : List String) : IO Unit := do
   | .error "loam: Scheduled routing already has evidence at this subject/effective coordinate" => pure ()
   | other => throw (IO.userError s!"expected duplicate refusal, got {repr other}")
 
-  -- 11. appended history selects new route at/after effectiveOn
   let .ok _ ← Loam.ScheduledRoutingPublisher.publish
       routingFile.toString scheduledFile.toString
       { subject := subjGroceries, effectiveOn := "2026-09-10", target := .managed ⟨"special"⟩ }
@@ -154,14 +141,11 @@ def main (args : List String) : IO Unit := do
     "history did not select new route at effectiveOn"
   expect (loadedHistory.statusAt subjGroceries "2026-09-11" == .managed ⟨"special"⟩)
     "history did not select new route after effectiveOn"
-
-  -- 12. earlier historical query unaffected
   expect (loadedHistory.statusAt subjGroceries "2026-09-08" == .managed ⟨"food"⟩)
     "earlier query did not retain original route"
   expect (loadedHistory.statusAt subjGroceries "2026-09-05" == .unrouted)
     "pre-effective query did not retain unrouted"
 
-  -- 13. CLI managed route delegates and succeeds
   let cliManaged ← IO.Process.output {
     cmd := ".lake/build/bin/loamScheduledRouting"
     args := #[routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "groceries", "managed", "cli-food"]
@@ -170,7 +154,6 @@ def main (args : List String) : IO Unit := do
   expect (cliManaged.stdout.contains "Recorded Scheduled route: scheduled-1 / groceries @ 2026-09-12 = managed -> cli-food.")
     "CLI managed stdout mismatch"
 
-  -- 14. CLI unmanaged route delegates and succeeds
   let cliUnmanaged ← IO.Process.output {
     cmd := ".lake/build/bin/loamScheduledRouting"
     args := #[routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "coffee", "unmanaged"]
@@ -179,8 +162,6 @@ def main (args : List String) : IO Unit := do
   expect (cliUnmanaged.stdout.contains "Recorded Scheduled route: scheduled-1 / coffee @ 2026-09-12 = unmanaged.")
     "CLI unmanaged stdout mismatch"
 
-  -- 15. writer ownership/re-read behavior preserved:
-  -- update Scheduled lifecycle on disk with new occurrence scheduled-2, then publish route to scheduled-2
   let s2 ← occurrence "scheduled-2" "2026-09-20" 800 100
   let lifecycleUpdated ← lifecycleFromOccurrences [s1, s2]
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycleUpdated)

@@ -32,15 +32,11 @@ private def evidence
     (occurrences : List (ScheduledOccurrence String)) : IO Loam.ScheduledReview.EvidenceSnapshot := do
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? occurrences)
     "Scheduled memory fixture was not admitted"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? [])
-    "completion memory fixture was not admitted"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? [])
-    "retirement memory fixture was not admitted"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? [])
-    "replacement memory fixture was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "terminal memory fixture was not admitted"
   let events ← requireSome (EventMemory.ofEvents? [])
     "Event memory fixture was not admitted"
-  pure { scheduled, completions, retirements, replacements, events }
+  pure { scheduled, terminals, events }
 
 private def balances : Loam.BalanceReview.Snapshot := {
   rows :=

@@ -27,8 +27,8 @@ silently turn missing retained evidence into a negative household claim.
 -/
 
 /--
-Open-world answer for one exact Scheduled day through the replacement-aware
-current lifecycle frontier.
+Open-world answer for one exact Scheduled day through the current lifecycle
+frontier.
 
 `due` is structurally non-empty: one explicit current-open occurrence is carried
 separately from any additional same-day occurrences. `unknown` means that no
@@ -36,8 +36,8 @@ explicit current-open occurrence is retained for the queried day. It does **not*
 mean that no household obligation is due on that day.
 
 The remaining constructors preserve the fail-closed refusal vocabulary of
-`currentOpenScheduledWithReplacement` rather than collapsing malformed lifecycle
-or replacement evidence into ordinary `unknown`.
+`currentOpenScheduled` rather than collapsing malformed terminal evidence into
+ordinary `unknown`.
 -/
 inductive CurrentScheduledDayEvidenceResult (Time : Type) where
   | due
@@ -61,22 +61,16 @@ private def explicitDayEvidence {Time : Type} [DecidableEq Time]
 /--
 Query one exact day without inventing closed-world Scheduled semantics.
 
-The operation first obtains the complete *retained current-open Scheduled set*
-through the existing replacement-aware lifecycle frontier. It then asks only
-whether that retained evidence contains one or more occurrences on `day`.
-
-No recurrence, Series, generation policy, completeness horizon, or future
-materialization policy is inferred from a missing row.
+The operation first obtains the complete retained current-open Scheduled set from
+one Scheduled terminal memory. It then asks only whether that retained evidence
+contains one or more occurrences on `day`.
 -/
-def currentScheduledDayEvidenceWithReplacement {Time : Type} [DecidableEq Time]
+def currentScheduledDayEvidence {Time : Type} [DecidableEq Time]
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (day : Time) : CurrentScheduledDayEvidenceResult Time :=
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events with
+  match currentOpenScheduled scheduled terminals events with
   | .open occurrences => explicitDayEvidence day occurrences
   | .unknownCompletionScheduled => .unknownCompletionScheduled
   | .unknownRetirementScheduled => .unknownRetirementScheduled

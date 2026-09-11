@@ -14,9 +14,7 @@ set_option autoImplicit false
 
 private structure QueryContext where
   scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
+  terminals : ScheduledTerminalMemory
   events : EventMemory
   coordinates : List EffectCoordinate
 
@@ -38,9 +36,7 @@ private def loadContext (rootPath : String) : IO (Except String QueryContext) :=
   | some coordinates =>
       return .ok {
         scheduled := lifecycle.scheduled
-        completions := lifecycle.completions
-        retirements := lifecycle.retirements
-        replacements := lifecycle.replacements
+        terminals := lifecycle.terminals
         events := world.events
         coordinates := coordinates
       }
@@ -62,11 +58,13 @@ private def printCoverageCaveat : IO Unit :=
     "Coverage: explicit current-open Scheduled evidence only; unmaterialized future obligations remain Unknown."
 
 /--
-Project replacement-aware current-open Scheduled effects through the current
-replaceable balance view before one end-exclusive calendar boundary.
+Project current-open Scheduled effects through the current replaceable balance
+view before one end-exclusive calendar boundary.
 
 The query consumes exactly one complete Scheduled lifecycle authority and the
-selected Movement manifest Event frontier. It does not invent a forecast balance.
+selected Movement manifest Event frontier. Completion, retirement, and
+replacement are ordinary target forms of the same Scheduled terminal relation.
+It does not invent a forecast balance.
 -/
 def report (rootPath endExclusive : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate endExclusive then
@@ -78,12 +76,12 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
         IO.eprintln message
         return 2
     | .ok context =>
-        match currentScheduledBalanceEffectsBeforeWithReplacement?
-            context.scheduled context.completions context.retirements context.replacements
-            context.events context.coordinates endExclusive with
+        match currentScheduledBalanceEffectsBefore?
+            context.scheduled context.terminals context.events
+            context.coordinates endExclusive with
         | none =>
             IO.eprintln
-              "loam: Scheduled balance effects unavailable: lifecycle or replacement evidence is inconsistent"
+              "loam: Scheduled balance effects unavailable: terminal lifecycle evidence is inconsistent"
             return 1
         | some effects =>
             IO.println
@@ -94,8 +92,8 @@ def report (rootPath endExclusive : String) : IO UInt32 := do
             return 0
 
 /--
-Compare the replacement-aware Scheduled balance projection with one read-only
-hypothetical that suppresses exactly one currently open Scheduled identity.
+Compare the current Scheduled balance projection with one read-only hypothetical
+that suppresses exactly one currently open Scheduled identity.
 -/
 def reportSuppression
     (rootPath endExclusive scheduledId : String) : IO UInt32 := do
@@ -113,9 +111,9 @@ def reportSuppression
     | .ok context =>
         let hypothesis : SuppressScheduledHypothesis :=
           { scheduled := ⟨scheduledId⟩ }
-        match compareSuppressScheduledBalanceEffectsBeforeWithReplacement
-            context.scheduled context.completions context.retirements context.replacements
-            context.events context.coordinates endExclusive hypothesis with
+        match compareSuppressScheduledBalanceEffectsBefore
+            context.scheduled context.terminals context.events
+            context.coordinates endExclusive hypothesis with
         | .targetNotOpen =>
             IO.eprintln
               ("loam: hypothetical Scheduled suppression target is not currently open: " ++

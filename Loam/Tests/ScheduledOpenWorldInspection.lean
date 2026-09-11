@@ -50,53 +50,42 @@ def main : IO Unit := do
   let scheduled ← requireSome
     (ScheduledMemory.ofOccurrences? [old, replacement])
     "Scheduled memory was not admitted"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
-  let noReplacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements? [])
-    "empty replacement memory was not admitted"
+  let emptyTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let events ← requireSome
     (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
 
   expectDueId
-    (currentScheduledDayEvidenceWithReplacement
-      scheduled completions retirements noReplacements events (2 : Nat))
+    (currentScheduledDayEvidence scheduled emptyTerminals events (2 : Nat))
     "rent-old"
     "explicit Scheduled evidence on the queried day did not produce Due"
 
   expectUnknown
-    (currentScheduledDayEvidenceWithReplacement
-      scheduled completions retirements noReplacements events (3 : Nat))
+    (currentScheduledDayEvidence scheduled emptyTerminals events (3 : Nat))
     "missing explicit Scheduled evidence was incorrectly treated as Due"
 
   let replacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"rent-old"⟩, replacement := ⟨"rent-new"⟩ }])
-    "replacement relation was not admitted"
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"rent-old"⟩, target := some (.scheduled ⟨"rent-new"⟩) }])
+    "replacement terminal relation was not admitted"
 
   expectUnknown
-    (currentScheduledDayEvidenceWithReplacement
-      scheduled completions retirements replacements events (2 : Nat))
+    (currentScheduledDayEvidence scheduled replacements events (2 : Nat))
     "superseded Scheduled evidence leaked into the old day"
 
   expectDueId
-    (currentScheduledDayEvidenceWithReplacement
-      scheduled completions retirements replacements events (4 : Nat))
+    (currentScheduledDayEvidence scheduled replacements events (4 : Nat))
     "rent-new"
     "replacement Scheduled evidence did not appear on the replacement day"
 
-  let unknownTargetReplacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"rent-old"⟩, replacement := ⟨"missing"⟩ }])
-    "unknown-target replacement memory was not retained for frontier testing"
+  let unknownTarget ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"rent-old"⟩, target := some (.scheduled ⟨"missing"⟩) }])
+    "unknown-target terminal memory was not retained for frontier testing"
 
-  match currentScheduledDayEvidenceWithReplacement
-      scheduled completions retirements unknownTargetReplacements events (2 : Nat) with
+  match currentScheduledDayEvidence scheduled unknownTarget events (2 : Nat) with
   | .unknownReplacementScheduled => pure ()
   | _ =>
       throw <| IO.userError

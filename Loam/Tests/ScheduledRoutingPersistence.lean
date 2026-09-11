@@ -84,24 +84,18 @@ def main : IO Unit := do
   let scheduled ← requireSome
     (ScheduledMemory.ofOccurrences? [occurrence])
     "Scheduled memory fixture was not admitted"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
+  let terminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let events ← requireSome
     (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
 
-  -- This fixture deliberately carries no AccountingRole evidence: explicit
-  -- ScheduledRouting itself is sufficient to select the positive coordinate as
-  -- Capacity pressure before and after the dated Purpose override.
   let roles := AccountingRoleMap.empty
 
   let beforeOverride ← requireSome
     (currentScheduledCommitment?
-      scheduled completions retirements events roles decoded food yen
+      scheduled terminals events roles decoded food yen
       "2026-09-10" "2026-10-01")
     "Scheduled Commitment failed closed before routing override"
   expect (beforeOverride.managed.quanta == 500)
@@ -111,7 +105,7 @@ def main : IO Unit := do
 
   let afterOverride ← requireSome
     (currentScheduledCommitment?
-      scheduled completions retirements events roles decoded household yen
+      scheduled terminals events roles decoded household yen
       "2026-09-20" "2026-10-01")
     "Scheduled Commitment failed closed after routing override"
   expect (afterOverride.managed.quanta == 500)

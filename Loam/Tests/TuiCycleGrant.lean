@@ -69,11 +69,9 @@ def main (args : List String) : IO Unit := do
   let occurrence : ScheduledOccurrence String :=
     { id := ⟨"scheduled-1"⟩, scheduledOn := "2026-10-08", movement := scheduledMovement }
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? [occurrence]) "scheduled"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? []) "completions"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? []) "retirements"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? []) "replacements"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
-    { scheduled, completions, retirements, replacements }) "save lifecycle"
+    { scheduled, terminals }) "save lifecycle"
 
   -- Route scheduled-1 to managed 固定費予定
   let scheduledRouting ← requireSome

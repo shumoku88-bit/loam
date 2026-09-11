@@ -76,9 +76,9 @@ became known.
      pressure intent; partial `AccountingRole` serves as the qualified fallback.
 
 - **Permanent evidence references**:
-  - `theorem currentScheduledCommitmentWithReplacement?_unresolvedEligibility_eq_rows_sum`:
+  - `theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum`:
     Proves that the aggregate `unresolvedEligibility` quantity matches the exact sum of
-    actionable subject-level rows (`currentUnresolvedScheduledPressureWithReplacement?`).
+    actionable subject-level rows (`currentUnresolvedScheduledPressure?`).
   - Observations 108, 113, 153, 216-217, 227: Formalized the non-retained projection, the
     `ScheduledId × LocusId` routing subject, partial role classification, and the fail-visible
     unresolved eligibility frontier.
@@ -369,39 +369,14 @@ private theorem rowsFromOpen_sum_eq
 /-- Project current Scheduled Capacity pressure for one Purpose and Measure. -/
 def currentScheduledCommitment?
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
     (observedAt endExclusive : Time) : Option ScheduledCommitmentView :=
-  match currentOpenScheduled scheduled completions retirements events with
-  | .unknownCompletionScheduled => none
-  | .unknownRetirementScheduled => none
-  | .conflictingTerminalEvidence => none
-  | .open occurrences =>
-      some <| commitmentFromOpenOccurrences
-        occurrences roles routing purpose measure observedAt endExclusive
-
-/--
-Project current Scheduled Capacity pressure through explicit replacement
-provenance. Any replacement-graph or lifecycle refusal fails closed as `none`.
--/
-def currentScheduledCommitmentWithReplacement?
-    (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
-    (events : EventMemory)
-    (roles : AccountingRoleMap)
-    (routing : RoutingHistory ScheduledRoutingSubject Time)
-    (purpose : PurposeId)
-    (measure : MeasureId)
-    (observedAt endExclusive : Time) : Option ScheduledCommitmentView :=
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events with
+  match currentOpenScheduled scheduled terminals events with
   | .open occurrences =>
       some <| commitmentFromOpenOccurrences
         occurrences roles routing purpose measure observedAt endExclusive
@@ -409,27 +384,20 @@ def currentScheduledCommitmentWithReplacement?
 
 /--
 Project the actionable unresolved-pressure subjects behind the current-open
-Scheduled frontier, through explicit replacement provenance.
-
-This is the same current-open lifecycle, horizon, Measure, positive
+Scheduled frontier. It shares the same lifecycle, horizon, Measure, positive
 aggregation, routing status, and AccountingRole evidence as
-`currentScheduledCommitmentWithReplacement?`; any lifecycle refusal fails
-closed as `none`. Only the answer granularity differs: one row per
-unresolved `ScheduledId × LocusId` subject instead of one aggregate quantity.
+`currentScheduledCommitment?`; only answer granularity differs.
 -/
-def currentUnresolvedScheduledPressureWithReplacement?
+def currentUnresolvedScheduledPressure?
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (measure : MeasureId)
     (observedAt endExclusive : Time) :
     Option (List (UnresolvedScheduledPressureRow Time)) :=
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events with
+  match currentOpenScheduled scheduled terminals events with
   | .open occurrences =>
       some <| unresolvedScheduledPressureRowsFromOpen
         occurrences roles routing measure observedAt endExclusive
@@ -437,33 +405,27 @@ def currentUnresolvedScheduledPressureWithReplacement?
 
 /--
 The retained invariant tying both granularities to the same semantics: the
-unresolved subject rows and the aggregate unresolved eligibility frontier fail
-identically, and when both are justified the row quantities sum exactly to the
-aggregate, for any queried Purpose.
+unresolved subject rows and aggregate unresolved eligibility frontier fail
+identically, and when justified the row quantities sum exactly to the aggregate.
 -/
-theorem currentScheduledCommitmentWithReplacement?_unresolvedEligibility_eq_rows_sum
+theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (roles : AccountingRoleMap)
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
     (measure : MeasureId)
     (observedAt endExclusive : Time) :
-    (currentScheduledCommitmentWithReplacement?
-        scheduled completions retirements replacements events roles routing purpose
+    (currentScheduledCommitment?
+        scheduled terminals events roles routing purpose
         measure observedAt endExclusive).map (fun view => view.unresolvedEligibility.quanta)
       =
-    (currentUnresolvedScheduledPressureWithReplacement?
-        scheduled completions retirements replacements events roles routing
-        measure observedAt endExclusive).map (fun rows =>
-          (rows.map (fun row => row.quantity.quanta)).sum) := by
-  unfold currentScheduledCommitmentWithReplacement?
-    currentUnresolvedScheduledPressureWithReplacement?
-  cases currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events
+    (currentUnresolvedScheduledPressure?
+        scheduled terminals events roles routing measure observedAt endExclusive).map
+      (fun rows => (rows.map (fun row => row.quantity.quanta)).sum) := by
+  unfold currentScheduledCommitment? currentUnresolvedScheduledPressure?
+  cases currentOpenScheduled scheduled terminals events
   · rename_i occurrences
     simp only [Option.map_some]
     apply congrArg
@@ -476,7 +438,7 @@ theorem currentScheduledCommitmentWithReplacement?_unresolvedEligibility_eq_rows
   · rfl
 
 /--
-Compose correction-aware Actual Remaining with current open Scheduled pressure.
+Compose correction-aware Actual Remaining with current-open Scheduled pressure.
 Only managed pressure for the queried Purpose is subtracted from Remaining;
 other pressure and unresolved eligibility stay visible in the answer.
 -/
@@ -487,8 +449,7 @@ def headroomAtCorrectionFrontier?
     (validities : ActualValidityMemory Time)
     (actualRouting : RoutingHistory LocusId Time)
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
+    (terminals : ScheduledTerminalMemory)
     (roles : AccountingRoleMap)
     (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
     (purpose : PurposeId)
@@ -499,45 +460,8 @@ def headroomAtCorrectionFrontier?
       capacityMovements events corrections validities actualRouting purpose measure
   let commitment ←
     currentScheduledCommitment?
-      scheduled completions retirements events roles scheduledRouting purpose measure
+      scheduled terminals events roles scheduledRouting purpose measure
       observedAt endExclusive
-  return {
-    remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
-  }
-
-/--
-Compose correction-aware Actual Remaining with replacement-aware Scheduled
-pressure. Replacement provenance changes only which retained Scheduled
-occurrences contribute; Remaining remains the same correction-aware Actual
-projection.
--/
-def headroomAtCorrectionFrontierWithReplacement?
-    (capacityMovements : List CapacityMovement)
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (validities : ActualValidityMemory Time)
-    (actualRouting : RoutingHistory LocusId Time)
-    (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
-    (roles : AccountingRoleMap)
-    (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
-    (purpose : PurposeId)
-    (measure : MeasureId)
-    (observedAt endExclusive : Time) : Option HeadroomView := do
-  let remaining ←
-    remainingAtCorrectionFrontier?
-      capacityMovements events corrections validities actualRouting purpose measure
-  let commitment ←
-    currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events roles scheduledRouting
-      purpose measure observedAt endExclusive
   return {
     remaining := remaining
     commitment := commitment.managed

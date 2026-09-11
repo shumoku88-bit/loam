@@ -28,7 +28,7 @@ private def scheduled?
   pure { id := ⟨id⟩, scheduledOn := day, movement := movement }
 
 private def openIds
-    (result : CurrentOpenScheduledWithReplacementResult String) : Option (List String) :=
+    (result : CurrentOpenScheduledResult String) : Option (List String) :=
   match result with
   | .open occurrences => some (occurrences.map fun occurrence => occurrence.id.token)
   | _ => none
@@ -43,43 +43,42 @@ def main : IO Unit := do
   let scheduled ← requireSome
     (ScheduledMemory.ofOccurrences? [a, b, c])
     "Scheduled memory fixture was not admitted"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
   let events ← requireSome
     (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
 
   let chain ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-b"⟩ },
-       { source := ⟨"scheduled-b"⟩, replacement := ⟨"scheduled-c"⟩ }])
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-a"⟩, target := some (.scheduled ⟨"scheduled-b"⟩) },
+       { source := ⟨"scheduled-b"⟩, target := some (.scheduled ⟨"scheduled-c"⟩) }])
     "replacement chain fixture was not admitted"
 
   let chainIds ← requireSome
-    (openIds <| currentOpenScheduledWithReplacement
-      scheduled completions retirements chain events)
+    (openIds <| currentOpenScheduled scheduled chain events)
     "valid replacement chain failed closed"
   expect (chainIds == ["scheduled-c"])
     s!"expected only terminal replacement scheduled-c open, got {chainIds}"
 
   let permuted ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-b"⟩, replacement := ⟨"scheduled-c"⟩ },
-       { source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-b"⟩ }])
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-b"⟩, target := some (.scheduled ⟨"scheduled-c"⟩) },
+       { source := ⟨"scheduled-a"⟩, target := some (.scheduled ⟨"scheduled-b"⟩) }])
     "permuted replacement chain fixture was not admitted"
   let permutedIds ← requireSome
-    (openIds <| currentOpenScheduledWithReplacement
-      scheduled completions retirements permuted events)
+    (openIds <| currentOpenScheduled scheduled permuted events)
     "permuted replacement chain failed closed"
   expect (permutedIds == chainIds)
     "replacement row order changed current-open meaning"
 
+  -- The physical v1 replacement codec remains a Persistence-only adapter even
+  -- though runtime lifecycle semantics now use one terminal relation.
+  let wireChain ← requireSome
+    (ScheduledReplacementMemory.ofReplacements?
+      [{ source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-b"⟩ },
+       { source := ⟨"scheduled-b"⟩, replacement := ⟨"scheduled-c"⟩ }])
+    "replacement wire fixture was not admitted"
   let encoded ← requireSome
-    (encodeScheduledReplacementMemory? chain)
+    (encodeScheduledReplacementMemory? wireChain)
     "replacement chain could not be encoded"
   let decoded ← requireSome
     (decodeScheduledReplacementMemory? encoded)
@@ -91,43 +90,38 @@ def main : IO Unit := do
     "replacement decode/encode changed canonical bytes"
 
   let missing ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-missing"⟩ }])
-    "missing-endpoint raw replacement fixture was not admitted"
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements missing events with
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-a"⟩,
+         target := some (.scheduled ⟨"scheduled-missing"⟩) }])
+    "missing-endpoint raw terminal fixture was not admitted"
+  match currentOpenScheduled scheduled missing events with
   | .unknownReplacementScheduled => pure ()
   | _ => throw <| IO.userError "missing replacement endpoint did not fail closed"
 
   let cycle ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-b"⟩ },
-       { source := ⟨"scheduled-b"⟩, replacement := ⟨"scheduled-a"⟩ }])
-    "cyclic raw replacement fixture was not admitted"
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements cycle events with
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-a"⟩, target := some (.scheduled ⟨"scheduled-b"⟩) },
+       { source := ⟨"scheduled-b"⟩, target := some (.scheduled ⟨"scheduled-a"⟩) }])
+    "cyclic raw terminal fixture was not admitted"
+  match currentOpenScheduled scheduled cycle events with
   | .invalidReplacementGraph => pure ()
   | _ => throw <| IO.userError "replacement cycle did not fail closed"
 
   let completionConflict ← requireSome
-    (ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"scheduled-a"⟩, actual := ⟨"actual-a"⟩ }])
-    "completion conflict fixture was not admitted"
-  let oneReplacement ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-a"⟩, replacement := ⟨"scheduled-b"⟩ }])
-    "single replacement fixture was not admitted"
-  match currentOpenScheduledWithReplacement
-      scheduled completionConflict retirements oneReplacement events with
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-a"⟩, target := some (.actual ⟨"actual-a"⟩) },
+       { source := ⟨"scheduled-a"⟩, target := some (.scheduled ⟨"scheduled-b"⟩) }])
+    "completion/replacement conflict fixture was not admitted"
+  match currentOpenScheduled scheduled completionConflict events with
   | .conflictingTerminalEvidence => pure ()
   | _ => throw <| IO.userError "completion/replacement conflict was not refused"
 
   let retirementConflict ← requireSome
-    (ScheduledRetirementMemory.ofRetirements?
-      [{ scheduled := ⟨"scheduled-a"⟩ }])
-    "retirement conflict fixture was not admitted"
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirementConflict oneReplacement events with
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-a"⟩, target := none },
+       { source := ⟨"scheduled-a"⟩, target := some (.scheduled ⟨"scheduled-b"⟩) }])
+    "retirement/replacement conflict fixture was not admitted"
+  match currentOpenScheduled scheduled retirementConflict events with
   | .conflictingTerminalEvidence => pure ()
   | _ => throw <| IO.userError "retirement/replacement conflict was not refused"
 

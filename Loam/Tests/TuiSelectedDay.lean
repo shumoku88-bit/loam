@@ -50,12 +50,8 @@ private def fixture : IO Loam.Tui.Main.Snapshot := do
   let scheduledRecord ← requireSome scheduledRecord? "Scheduled day fixture was not admitted"
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? [scheduledRecord])
     "Scheduled memory fixture was not admitted"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? [])
-    "empty replacement memory was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let events ← requireSome (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
   let actual : Loam.Tui.Main.ActualSnapshot := {
@@ -64,7 +60,7 @@ private def fixture : IO Loam.Tui.Main.Snapshot := do
     undatedCount := 0
   }
   let scheduledSnapshot : Loam.ScheduledReview.EvidenceSnapshot := {
-    scheduled, completions, retirements, replacements, events
+    scheduled, terminals, events
   }
   pure { actual, scheduled := .ok scheduledSnapshot }
 

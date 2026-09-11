@@ -13,36 +13,39 @@ private def movement? (amount : Int) : Option (BalancedMovement LocusId) :=
 
 private def specimen : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some movement := movement? 1000 | throw (IO.userError "movement")
-  let occurrence : ScheduledOccurrence String := {
+  let occurrence1 : ScheduledOccurrence String := {
     id := ⟨"scheduled-1"⟩
     scheduledOn := "2026-09-10"
     movement := movement }
-  let replacementOccurrence : ScheduledOccurrence String := {
+  let occurrence2 : ScheduledOccurrence String := {
     id := ⟨"scheduled-2"⟩
     scheduledOn := "2026-09-11"
     movement := movement }
-  let some scheduled := ScheduledMemory.ofOccurrences? [occurrence, replacementOccurrence]
+  let occurrence3 : ScheduledOccurrence String := {
+    id := ⟨"scheduled-3"⟩
+    scheduledOn := "2026-09-12"
+    movement := movement }
+  let some scheduled := ScheduledMemory.ofOccurrences?
+      [occurrence1, occurrence2, occurrence3]
     | throw (IO.userError "scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"scheduled-2"⟩, actual := ⟨"actual-2"⟩ }]
-    | throw (IO.userError "completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-1"⟩, replacement := ⟨"scheduled-2"⟩ }]
-    | throw (IO.userError "replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let terminalsRaw : List ScheduledTerminal :=
+    [ { source := ⟨"scheduled-1"⟩,
+        target := some (.scheduled ⟨"scheduled-2"⟩) }
+    , { source := ⟨"scheduled-2"⟩,
+        target := some (.actual ⟨"actual-2"⟩) }
+    , { source := ⟨"scheduled-3"⟩,
+        target := none }
+    ]
+  let some terminals := ScheduledTerminalMemory.ofTerminals? terminalsRaw
+    | throw (IO.userError "terminal memory")
+  return { scheduled, terminals }
 
 private def emptySpecimen : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some scheduled := ScheduledMemory.ofOccurrences? []
     | throw (IO.userError "empty scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty replacement memory")
-  return { scheduled, completions, retirements, replacements }
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty terminal memory")
+  return { scheduled, terminals }
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
@@ -59,48 +62,58 @@ def main (args : List String) : IO Unit := do
   let some decodedEmpty := Loam.Persistence.decodeScheduledLifecycleImage? emptyText
     | throw (IO.userError "decode explicit empty lifecycle")
   expect (decodedEmpty.scheduled.occurrences.isEmpty &&
-      decodedEmpty.completions.completions.isEmpty &&
-      decodedEmpty.retirements.retirements.isEmpty &&
-      decodedEmpty.replacements.replacements.isEmpty)
-    "explicit empty lifecycle lost an empty facet"
+      decodedEmpty.terminals.terminals.isEmpty)
+    "explicit empty lifecycle lost semantic emptiness"
+  expect (emptyText.contains "BEGIN\tCompletion\n" &&
+      emptyText.contains "BEGIN\tRetirement\n" &&
+      emptyText.contains "BEGIN\tReplacement\n")
+    "semantic recompression changed the v1 physical section contract"
 
   let image ← specimen
   let some encoded := Loam.Persistence.encodeScheduledLifecycleImage? image
     | throw (IO.userError "encode lifecycle specimen")
   let some decoded := Loam.Persistence.decodeScheduledLifecycleImage? encoded
     | throw (IO.userError "decode lifecycle specimen")
-  expect (decoded.scheduled.occurrences.length == 2)
-    "Scheduled facet did not round-trip"
-  expect (decoded.completions.completions.length == 1)
-    "Completion facet did not round-trip"
-  expect (decoded.retirements.retirements.isEmpty)
-    "Retirement empty facet did not round-trip"
-  expect (decoded.replacements.replacements.length == 1)
-    "Replacement facet did not round-trip"
-  expect ((ScheduledReplacementMemory.findBySource?
-      decoded.replacements ⟨"scheduled-1"⟩).isSome)
+  expect (decoded.scheduled.occurrences.length == 3)
+    "Scheduled occurrences did not round-trip"
+  expect (decoded.terminals.terminals.length == 3)
+    "terminal meanings did not round-trip"
+  expect (decoded.terminals.replacementFor? ⟨"scheduled-1"⟩ == some ⟨"scheduled-2"⟩)
     "replacement endpoint identity changed on round-trip"
+  expect (decoded.terminals.completionActualFor? ⟨"scheduled-2"⟩ == some ⟨"actual-2"⟩)
+    "completion endpoint identity changed on round-trip"
+  expect ((decoded.terminals.retirementFor? ⟨"scheduled-3"⟩).isSome)
+    "retirement meaning changed on round-trip"
+
+  expect (encoded.contains
+      "COMPLETION\tscheduled-2\tactual-2")
+    "v1 Completion row disappeared during semantic recompression"
+  expect (encoded.contains "RETIREMENT\tscheduled-3")
+    "v1 Retirement row disappeared during semantic recompression"
+  expect (encoded.contains
+      "REPLACEMENT\tscheduled-1\tscheduled-2")
+    "v1 Replacement row disappeared during semantic recompression"
 
   expect (← Loam.Persistence.saveScheduledLifecycleImage? authority image)
     "publish lifecycle specimen"
   let some reloaded ← Loam.Persistence.loadScheduledLifecycleImage? authority
     | throw (IO.userError "reload published lifecycle")
-  expect (reloaded.scheduled.occurrences.length == 2 &&
-      reloaded.completions.completions.length == 1 &&
-      reloaded.replacements.replacements.length == 1)
-    "published lifecycle did not reload all facets"
+  expect (reloaded.scheduled.occurrences.length == 3 &&
+      reloaded.terminals.terminals.length == 3)
+    "published lifecycle did not reload its semantic terminal relation"
 
-  let withoutCompletionSection :=
-    encoded.replace
-      ("BEGIN\tCompletion\n" ++
-       (Loam.Persistence.encodeScheduledCompletionMemory? image.completions).getD "" ++
-       "END\tCompletion\n") ""
+  let completionSection :=
+    "BEGIN\tCompletion\n" ++
+    "LOAM-SCHEDULED-COMPLETION-MEMORY\t1\n" ++
+    "COMPLETION\tscheduled-2\tactual-2\n" ++
+    "END\tCompletion\n"
+  let withoutCompletionSection := encoded.replace completionSection ""
   expect ((Loam.Persistence.decodeScheduledLifecycleImage?
       withoutCompletionSection).isNone)
-    "missing Completion section was interpreted as explicit empty"
+    "missing v1 Completion section was interpreted as explicit empty"
 
   let malformedOrder := encoded.replace "BEGIN\tRetirement\n" "BEGIN\tWrong\n"
   expect ((Loam.Persistence.decodeScheduledLifecycleImage? malformedOrder).isNone)
     "malformed lifecycle section marker was admitted"
 
-  IO.println "Scheduled Lifecycle Persistence: explicit empty, full typed round-trip, missing authority and missing-section refusal passed."
+  IO.println "Scheduled Lifecycle Persistence: one semantic terminal relation preserves v1 Completion/Retirement/Replacement wire meaning, explicit empty, and fail-closed authority."

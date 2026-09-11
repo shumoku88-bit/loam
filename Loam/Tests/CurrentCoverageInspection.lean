@@ -65,7 +65,6 @@ private def assertCoverage
   expect (view.unroutedCommitment.quanta == 0)
     s!"{label}: fixture unexpectedly retained role-qualified unrouted Commitment"
 
-
 def main : IO Unit := do
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments?
@@ -116,12 +115,8 @@ def main : IO Unit := do
   let mixedMemory ← requireSome
     (ScheduledMemory.ofOccurrences? [historicalOpen, managed, unresolved])
     "mixed Scheduled memory was not admitted"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? [])
-    "empty replacement memory was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let scheduledRouting ← requireSome
     (RoutingHistory.ofEntries?
       [{ subject := subject "scheduled-historical-open" fixedExpense,
@@ -146,39 +141,34 @@ def main : IO Unit := do
   let effective20 ← requireSome (effectiveFor capacity20) "effective evidence"
   let effective60 ← requireSome (effectiveFor capacity60) "effective evidence"
 
-  -- Covered now and after known managed Scheduled pressure.
   let covered ← requireSome
-    (currentCoverageAtCorrectionFrontierWithReplacement?
+    (currentCoverageAtCorrectionFrontier?
       memory100 effective100 events corrections validities actualRouting
-      managedMemory completions retirements replacements roles scheduledRouting
+      managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "covered current projection failed closed"
   assertCoverage "covered" covered 100 30 70 35 35 0
 
-  -- Already-consumed pressure is visible before any presentation label exists.
   let overNow ← requireSome
-    (currentCoverageAtCorrectionFrontierWithReplacement?
+    (currentCoverageAtCorrectionFrontier?
       memory20 effective20 events corrections validities actualRouting
-      managedMemory completions retirements replacements roles scheduledRouting
+      managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "over-now current projection failed closed"
   assertCoverage "over-now" overNow 20 30 (-10) 35 (-45) 0
 
-  -- Remaining can still be positive while known future Commitment makes Headroom negative.
   let futureShort ← requireSome
-    (currentCoverageAtCorrectionFrontierWithReplacement?
+    (currentCoverageAtCorrectionFrontier?
       memory60 effective60 events corrections validities actualRouting
-      managedMemory completions retirements replacements roles scheduledRouting
+      managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "future-short current projection failed closed"
   assertCoverage "future-short" futureShort 60 30 30 35 (-5) 0
 
-  -- Missing AccountingRole on an unrouted positive Scheduled coordinate remains
-  -- visible instead of being silently counted or discarded.
   let unresolvedView ← requireSome
-    (currentCoverageAtCorrectionFrontierWithReplacement?
+    (currentCoverageAtCorrectionFrontier?
       memory100 effective100 events corrections validities actualRouting
-      mixedMemory completions retirements replacements roles scheduledRouting
+      mixedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "unresolved current projection failed closed"
   assertCoverage "unresolved" unresolvedView 100 30 70 35 35 9
@@ -190,9 +180,9 @@ def main : IO Unit := do
      { movement := capacity20.id, effectiveOn := (0 : Nat) },
      { movement := capacity60.id, effectiveOn := (3 : Nat) }]) "temporal evidence"
   let temporalView ← requireSome
-    (currentCoverageAtCorrectionFrontierWithReplacement?
+    (currentCoverageAtCorrectionFrontier?
       temporalMemory temporalEffective events corrections validities actualRouting
-      managedMemory completions retirements replacements roles scheduledRouting
+      managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat)) "temporal coverage"
   assertCoverage "future and pre-start excluded; observed endpoint included"
     temporalView 100 30 70 35 35 0

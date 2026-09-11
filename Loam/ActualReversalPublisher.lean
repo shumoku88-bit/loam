@@ -114,7 +114,7 @@ private def worldRelationsMentionEvent
 
 private def scheduledCompletionMentionsEvent
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage) (event : EventId) : Bool :=
-  lifecycle.completions.completions.any fun completion => decide (completion.actual = event)
+  (lifecycle.terminals.completionSourceForActual? event).isSome
 
 private def deterministicReversalId (target : EventId) : EventId :=
   ⟨"actual-reversal:" ++ target.token⟩

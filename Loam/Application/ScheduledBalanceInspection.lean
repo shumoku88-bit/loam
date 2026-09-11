@@ -26,7 +26,7 @@ Observation 119 qualified the narrow decomposition
 without AccountType, Asset, Income, Expense, holding classification, or a second
 balance subsystem. Observation 108 already qualified the current-open
 end-exclusive horizon rule used here: overdue open Scheduled evidence remains
-visible until lifecycle evidence closes it, while an occurrence exactly at the
+visible until terminal evidence closes it, while an occurrence exactly at the
 end boundary is excluded.
 
 This module deliberately projects signed effects only. It does not combine them
@@ -82,10 +82,7 @@ Project one already-qualified Scheduled occurrence list onto selected balance
 coordinates before `endExclusive`.
 
 This operation carries no lifecycle authority of its own. Callers that start from
-retained Scheduled evidence must first obtain a qualified current-open set, as
-`currentScheduledBalanceEffectsBefore?` does below. Exposing this pure projection
-lets a read-only hypothetical query compare the same qualified open set with a
-derived subset without fabricating a second Scheduled memory.
+retained Scheduled evidence first obtain the single qualified current-open set.
 -/
 def scheduledBalanceEffectsBefore
     (occurrences : List (ScheduledOccurrence Time))
@@ -98,43 +95,17 @@ def scheduledBalanceEffectsBefore
 Project aggregate signed effects of the complete current-open Scheduled set onto
 one replaceable balance-coordinate selection before `endExclusive`.
 
-This compatibility entry retains the pre-replacement practical world used by
-existing observations. New practical readers that admit replacement evidence
-must use `currentScheduledBalanceEffectsBeforeWithReplacement?` below.
+All terminal meanings, including replacement, are part of the ordinary Scheduled
+frontier. Structural refusal collapses to `none` at this older Option-shaped
+projection boundary.
 -/
 def currentScheduledBalanceEffectsBefore?
     (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
+    (terminals : ScheduledTerminalMemory)
     (events : EventMemory)
     (coordinates : List EffectCoordinate)
     (endExclusive : Time) : Option (List ScheduledBalanceEffect) :=
-  match currentOpenScheduled scheduled completions retirements events with
-  | .unknownCompletionScheduled => none
-  | .unknownRetirementScheduled => none
-  | .conflictingTerminalEvidence => none
-  | .open occurrences =>
-      some <| scheduledBalanceEffectsBefore occurrences coordinates endExclusive
-
-/--
-Project Scheduled balance effects through the replacement-aware current frontier.
-
-Every structural refusal from `currentOpenScheduledWithReplacement` collapses to
-`none` at this older Option-shaped projection boundary. Superseded Scheduled
-sources contribute nothing once replacement evidence is admissible; the retained
-replacement occurrence contributes normally according to its own date and
-movement.
--/
-def currentScheduledBalanceEffectsBeforeWithReplacement?
-    (scheduled : ScheduledMemory Time)
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory)
-    (events : EventMemory)
-    (coordinates : List EffectCoordinate)
-    (endExclusive : Time) : Option (List ScheduledBalanceEffect) :=
-  match currentOpenScheduledWithReplacement
-      scheduled completions retirements replacements events with
+  match currentOpenScheduled scheduled terminals events with
   | .open occurrences =>
       some <| scheduledBalanceEffectsBefore occurrences coordinates endExclusive
   | _ => none

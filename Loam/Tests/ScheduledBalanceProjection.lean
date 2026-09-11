@@ -60,18 +60,15 @@ def main : IO Unit := do
     "Scheduled memory was not admitted"
   let actual ← requireSome actualEvent? "Actual fixture was not admitted"
   let events ← requireSome (EventMemory.ofEvents? [actual]) "Event memory was not admitted"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"scheduled-completed"⟩, actual := ⟨"actual-1"⟩ }])
-    "completion memory was not admitted"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements?
-      [{ scheduled := ⟨"scheduled-retired"⟩ }])
-    "retirement memory was not admitted"
+  let terminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-completed"⟩, target := some (.actual ⟨"actual-1"⟩) },
+       { source := ⟨"scheduled-retired"⟩, target := none }])
+    "terminal memory was not admitted"
 
   let projected ← requireSome
     (currentScheduledBalanceEffectsBefore?
-      scheduledMemory completions retirements events
+      scheduledMemory terminals events
       [coordinate bank, coordinate wallet, coordinate bank, coordinate yucho]
       (4 : Nat))
     "Scheduled balance projection failed closed"
@@ -94,13 +91,14 @@ def main : IO Unit := do
       throw <| IO.userError
         "duplicate balance-view coordinate was not normalized to three projected rows"
 
-  let unknownCompletion ← requireSome
-    (ScheduledCompletionMemory.ofCompletions?
-      [{ scheduled := ⟨"unknown-scheduled"⟩, actual := ⟨"actual-1"⟩ }])
-    "unknown completion fixture shape was not admitted"
+  let unknownTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"unknown-scheduled"⟩, target := some (.actual ⟨"actual-1"⟩) },
+       { source := ⟨"scheduled-retired"⟩, target := none }])
+    "unknown terminal fixture shape was not admitted"
   expect
     ((currentScheduledBalanceEffectsBefore?
-      scheduledMemory unknownCompletion retirements events
+      scheduledMemory unknownTerminals events
       [coordinate bank] (4 : Nat)).isNone)
     "unknown Scheduled completion endpoint did not fail closed"
 

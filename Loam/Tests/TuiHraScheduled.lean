@@ -42,19 +42,13 @@ private def hraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
     "future-day Scheduled fixture was not admitted"
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? [first, second, future])
     "Scheduled memory fixture was not admitted"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? [])
-    "empty replacement memory was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted"
   let events ← requireSome (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
   let scheduledSnapshot : Loam.ScheduledReview.EvidenceSnapshot := {
     scheduled := scheduled
-    completions := completions
-    retirements := retirements
-    replacements := replacements
+    terminals := terminals
     events := events
   }
   let actual : Loam.Tui.Main.ActualSnapshot := {

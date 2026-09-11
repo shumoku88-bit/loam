@@ -46,16 +46,11 @@ def main : IO Unit := do
   let scheduled ← requireSome
     (ScheduledMemory.ofOccurrences? [old, replacement])
     "Scheduled memory was not admitted"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? [])
-    "empty completion memory was not admitted"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? [])
-    "empty retirement memory was not admitted"
-  let replacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements?
-      [{ source := ⟨"scheduled-old"⟩, replacement := ⟨"scheduled-new"⟩ }])
-    "replacement relation was not admitted"
+  let terminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-old"⟩,
+         target := some (.scheduled ⟨"scheduled-new"⟩) }])
+    "replacement terminal relation was not admitted"
   let events ← requireSome
     (EventMemory.ofEvents? [])
     "empty Event memory was not admitted"
@@ -66,13 +61,11 @@ def main : IO Unit := do
        { subject := subject "scheduled-new", effectiveOn := (1 : Nat), purpose := some food }])
     "Scheduled routing fixture was not admitted"
 
-  -- Explicit ScheduledRouting is sufficient pressure intent even when this
-  -- synthetic fixture deliberately carries no AccountingRole assignments.
   let roles := AccountingRoleMap.empty
 
   let commitment ← requireSome
-    (currentScheduledCommitmentWithReplacement?
-      scheduled completions retirements replacements events roles routing
+    (currentScheduledCommitment?
+      scheduled terminals events roles routing
       food yen (3 : Nat) (4 : Nat))
     "replacement-aware Commitment failed closed"
   expect (commitment.managed.quanta == 12)
@@ -81,8 +74,8 @@ def main : IO Unit := do
     "explicit ScheduledRouting did not resolve missing-role pressure eligibility"
 
   let balance ← requireSome
-    (currentScheduledBalanceEffectsBeforeWithReplacement?
-      scheduled completions retirements replacements events
+    (currentScheduledBalanceEffectsBefore?
+      scheduled terminals events
       [coordinate paypay, coordinate groceries] (4 : Nat))
     "replacement-aware Scheduled balance failed closed"
   match balance with
@@ -110,9 +103,9 @@ def main : IO Unit := do
     "empty Actual routing history was not admitted"
 
   let headroom ← requireSome
-    (headroomAtCorrectionFrontierWithReplacement?
+    (headroomAtCorrectionFrontier?
       [capacityMovement] events corrections validities actualRouting
-      scheduled completions retirements replacements roles routing
+      scheduled terminals roles routing
       food yen (3 : Nat) (4 : Nat))
     "replacement-aware Headroom failed closed"
   expect (headroom.remaining.quanta == 100)

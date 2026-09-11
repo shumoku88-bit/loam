@@ -1,3 +1,4 @@
+import Loam.Core.ScheduledTerminal
 import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
 import Loam.Persistence.ScheduledReplacementPersistence
@@ -12,34 +13,31 @@ set_option autoImplicit false
 /-!
 # Complete Scheduled lifecycle persistence
 
-Observation 226 selected one physical commit image for the four fact families
-that jointly determine the Scheduled lifecycle frontier:
+The authoritative runtime image now exposes two semantic components:
 
 - retained Scheduled occurrences;
-- Scheduled -> Actual completion relations;
-- explicit Scheduled retirements;
-- Scheduled -> Scheduled replacement provenance.
+- one target-preserving Scheduled terminal relation.
 
-The fact families remain semantically distinct and continue to use their existing
-typed codecs. This module adds only a thin versioned outer frame so one complete
-lifecycle image can be staged and atomically replace the authority path.
+The physical `LOAM-SCHEDULED-LIFECYCLE\t1` format is intentionally unchanged in
+this cutover. Its historical Completion / Retirement / Replacement sections are
+codec adapters only. Decoding joins them into one `ScheduledTerminalMemory`, and
+encoding projects that memory back into the same three sections.
 
-ScheduledRouting is deliberately not part of this image. It remains an
-independent historical authority because no observed requirement couples routing
-publication atomically to lifecycle publication.
+This separates semantic recompression from operational-data migration. A future
+wire-format revision may replace the three physical sections with one Terminal
+section, but that is not required to remove three independently threaded runtime
+memories.
 
-There is no missing-as-empty entrance here. A configured lifecycle authority must
-exist and decode completely. Empty relation families are represented explicitly
-by their valid empty inner images.
+ScheduledRouting remains an independent historical authority. Missing lifecycle
+authority still fails closed at callers, and complete-image staging plus one
+same-filesystem replacement remains the physical publication boundary.
 -/
 
 structure ScheduledLifecycleImage where
   scheduled : ScheduledMemory String
-  completions : ScheduledCompletionMemory
-  retirements : ScheduledRetirementMemory
-  replacements : ScheduledReplacementMemory
+  terminals : ScheduledTerminalMemory
 
-/-- Version marker for the first complete Scheduled lifecycle image. -/
+/-- Existing v1 physical marker retained during semantic recompression. -/
 def scheduledLifecycleHeader : String := "LOAM-SCHEDULED-LIFECYCLE\t1"
 
 private def sectionBegin (name : String) : String :=
@@ -51,16 +49,62 @@ private def sectionEnd (name : String) : String :=
 private def encodeSection (name body : String) : String :=
   sectionBegin name ++ body ++ sectionEnd name
 
+private def terminalsFromLegacy?
+    (completions : ScheduledCompletionMemory)
+    (retirements : ScheduledRetirementMemory)
+    (replacements : ScheduledReplacementMemory) : Option ScheduledTerminalMemory :=
+  let completionTerminals := completions.completions.map fun completion =>
+    ({ source := completion.scheduled,
+       target := some (.actual completion.actual) } : ScheduledTerminal)
+  let retirementTerminals := retirements.retirements.map fun retirement =>
+    ({ source := retirement.scheduled,
+       target := none } : ScheduledTerminal)
+  let replacementTerminals := replacements.replacements.map fun replacement =>
+    ({ source := replacement.source,
+       target := some (.scheduled replacement.replacement) } : ScheduledTerminal)
+  ScheduledTerminalMemory.ofTerminals?
+    (completionTerminals ++ retirementTerminals ++ replacementTerminals)
+
+private def legacyCompletions?
+    (terminals : ScheduledTerminalMemory) : Option ScheduledCompletionMemory :=
+  let completions := terminals.terminals.filterMap fun terminal =>
+    match terminal.target with
+    | some (.actual actual) =>
+        some ({ scheduled := terminal.source, actual := actual } : ScheduledCompletion)
+    | _ => none
+  ScheduledCompletionMemory.ofCompletions? completions
+
+private def legacyRetirements?
+    (terminals : ScheduledTerminalMemory) : Option ScheduledRetirementMemory :=
+  let retirements := terminals.terminals.filterMap fun terminal =>
+    match terminal.target with
+    | none => some ({ scheduled := terminal.source } : ScheduledRetirement)
+    | _ => none
+  ScheduledRetirementMemory.ofRetirements? retirements
+
+private def legacyReplacements?
+    (terminals : ScheduledTerminalMemory) : Option ScheduledReplacementMemory :=
+  let replacements := terminals.terminals.filterMap fun terminal =>
+    match terminal.target with
+    | some (.scheduled successor) =>
+        some ({ source := terminal.source,
+                replacement := successor } : ScheduledReplacement)
+    | _ => none
+  ScheduledReplacementMemory.ofReplacements? replacements
+
 /--
-Encode one complete lifecycle image while delegating each semantic family to its
-already-qualified codec.
+Encode one semantic lifecycle image into the existing v1 physical envelope.
+Terminal meaning is projected only at this codec boundary.
 -/
 def encodeScheduledLifecycleImage?
     (image : ScheduledLifecycleImage) : Option String := do
   let scheduled ← encodeScheduledMemory? image.scheduled
-  let completions ← encodeScheduledCompletionMemory? image.completions
-  let retirements ← encodeScheduledRetirementMemory? image.retirements
-  let replacements ← encodeScheduledReplacementMemory? image.replacements
+  let completionMemory ← legacyCompletions? image.terminals
+  let retirementMemory ← legacyRetirements? image.terminals
+  let replacementMemory ← legacyReplacements? image.terminals
+  let completions ← encodeScheduledCompletionMemory? completionMemory
+  let retirements ← encodeScheduledRetirementMemory? retirementMemory
+  let replacements ← encodeScheduledReplacementMemory? replacementMemory
   pure <|
     scheduledLifecycleHeader ++ "\n" ++
     encodeSection "Scheduled" scheduled ++
@@ -83,8 +127,8 @@ private def takeSection?
   | _ => none
 
 /--
-Decode one complete lifecycle image. Every section is mandatory, including valid
-empty relation sections; missing or duplicate sections fail closed.
+Decode the existing v1 physical sections into one semantic terminal memory.
+Every physical section remains mandatory in v1, including valid empty sections.
 -/
 def decodeScheduledLifecycleImage?
     (input : String) : Option ScheduledLifecycleImage := do
@@ -104,7 +148,8 @@ def decodeScheduledLifecycleImage?
       let completions ← decodeScheduledCompletionMemory? completionText
       let retirements ← decodeScheduledRetirementMemory? retirementText
       let replacements ← decodeScheduledReplacementMemory? replacementText
-      some { scheduled, completions, retirements, replacements }
+      let terminals ← terminalsFromLegacy? completions retirements replacements
+      some { scheduled, terminals }
 
 private def scheduledLifecycleStagePath
     (path : System.FilePath) : System.FilePath :=

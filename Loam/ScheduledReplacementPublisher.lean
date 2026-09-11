@@ -15,10 +15,9 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled replacement publication
 
-Replacement remains explicit `Scheduled -> Scheduled` provenance. Observation 226
-moves the occurrence and replacement relation into one complete Scheduled
-lifecycle authority image, so replacement no longer needs a relation-first
-intermediate publication or resume protocol.
+Replacement remains explicit `Scheduled -> Scheduled` provenance, now retained as
+one target form in `ScheduledTerminalMemory`. The replacement writer remains a
+separate operation because it also creates the successor Scheduled occurrence.
 
 The fixed ownership order matches Scheduled terminal publication:
 
@@ -31,7 +30,6 @@ a concurrent completion from changing the Event frontier between current-open
 admission and lifecycle publication.
 -/
 
-/-- Surface-independent replacement content. Effect identities are presentation-only. -/
 structure Draft where
   source : ScheduledId
   scheduledOn : String
@@ -55,9 +53,8 @@ private def loadLifecycle?
 private def currentOpen?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String (List (ScheduledOccurrence String)) :=
-  match Loam.Application.currentOpenScheduledWithReplacement
-      lifecycle.scheduled lifecycle.completions lifecycle.retirements
-      lifecycle.replacements events with
+  match Loam.Application.currentOpenScheduled
+      lifecycle.scheduled lifecycle.terminals events with
   | .unknownCompletionScheduled =>
       .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>
@@ -136,8 +133,7 @@ private def publishUnderOwnership
     | .error message => return .error message
   if (ScheduledMemory.findById? lifecycle.scheduled draft.source).isNone then
     return .error "loam: selected Scheduled identity is not retained"
-  if (ScheduledReplacementMemory.findBySource?
-      lifecycle.replacements draft.source).isSome then
+  if (lifecycle.terminals.replacementFor? draft.source).isSome then
     return .error "loam: selected Scheduled identity is already replaced"
   let openOccurrences ←
     match currentOpen? lifecycle world.events with
@@ -157,18 +153,18 @@ private def publishUnderOwnership
     match lifecycle.scheduled.add? occurrence with
     | some scheduled => pure scheduled
     | none => return .error "loam: replacement Scheduled identity collides with retained evidence"
-  let relation : ScheduledReplacement := {
+  let relation : ScheduledTerminal := {
     source := draft.source
-    replacement := replacementId
+    target := some (.scheduled replacementId)
   }
-  let updatedReplacements ←
-    match lifecycle.replacements.add? relation with
-    | some replacements => pure replacements
+  let updatedTerminals ←
+    match lifecycle.terminals.add? relation with
+    | some terminals => pure terminals
     | none => return .error "loam: replacement relation violates one-to-one endpoint ownership"
   let updatedLifecycle := {
     lifecycle with
     scheduled := updatedScheduled
-    replacements := updatedReplacements
+    terminals := updatedTerminals
   }
   match transitionAdmissible?
       updatedLifecycle world.events draft.source replacementId with
@@ -194,11 +190,11 @@ private def withReplacementOwnership {α : Type}
 /--
 Replace one current-open Scheduled occurrence with one new Scheduled occurrence.
 
-The source-closing relation and replacement occurrence are constructed in memory
-and published together as one complete lifecycle image. There is no reader-visible
-missing replacement endpoint and therefore no replacement resume state. No
-recurrence, continuation, edit-kind, routing inheritance, or Movement Event is
-created here.
+The source-closing terminal relation and replacement occurrence are constructed
+in memory and published together as one complete lifecycle image. There is no
+reader-visible missing replacement endpoint and therefore no replacement resume
+state. No recurrence, continuation, edit-kind, routing inheritance, or Movement
+Event is created here.
 -/
 def publishManifestReplacement
     (scheduledPath rootPath : String)

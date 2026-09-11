@@ -18,10 +18,9 @@ set_option autoImplicit false
 This module exposes only the surface-independent write boundary needed by
 production TUI and later callers.
 
-Creation re-reads the same replacement-aware lifecycle world used by production
-Scheduled readers before choosing a fresh Scheduled identity. Observation 226
-makes that world one complete lifecycle image; missing authority no longer means
-an empty lifecycle.
+Creation re-reads the same lifecycle world used by production Scheduled readers
+before choosing a fresh Scheduled identity. Observation 226 makes that world one
+complete lifecycle image; missing authority no longer means an empty lifecycle.
 
 The fixed ownership order matches other Scheduled publishers:
 
@@ -50,9 +49,8 @@ private def loadLifecycle?
 private def lifecycleReadable?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
     (events : EventMemory) : Except String Unit :=
-  match Loam.Application.currentOpenScheduledWithReplacement
-      lifecycle.scheduled lifecycle.completions lifecycle.retirements
-      lifecycle.replacements events with
+  match Loam.Application.currentOpenScheduled
+      lifecycle.scheduled lifecycle.terminals events with
   | .unknownCompletionScheduled =>
       .error "loam: Scheduled completion refers to an unknown Scheduled identity"
   | .unknownRetirementScheduled =>

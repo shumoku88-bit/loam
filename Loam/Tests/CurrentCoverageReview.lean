@@ -118,18 +118,12 @@ def main (args : List String) : IO Unit := do
   let scheduled ← scheduledOccurrence
   let scheduledMemory ← requireSome
     (ScheduledMemory.ofOccurrences? [scheduled]) "Scheduled memory"
-  let completions ← requireSome
-    (ScheduledCompletionMemory.ofCompletions? []) "empty Scheduled completion memory"
-  let retirements ← requireSome
-    (ScheduledRetirementMemory.ofRetirements? []) "empty Scheduled retirement memory"
-  let replacements ← requireSome
-    (ScheduledReplacementMemory.ofReplacements? []) "empty Scheduled replacement memory"
+  let terminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? []) "empty Scheduled terminal memory"
   expect (← Loam.Persistence.saveScheduledLifecycleImage?
       (root / "scheduled.loam") {
         scheduled := scheduledMemory
-        completions := completions
-        retirements := retirements
-        replacements := replacements })
+        terminals := terminals })
     "save Scheduled lifecycle"
 
   let scheduledRouting ← requireSome

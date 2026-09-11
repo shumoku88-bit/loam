@@ -15,9 +15,8 @@ This read-only review implements only the arithmetic and provenance boundary
 qualified by Observations 229 and 231.
 
 It starts from the same replaceable balance-view selection already admitted by
-`BalanceReview`, reads the replacement-aware current-open Scheduled frontier,
-and applies one caller-supplied completeness assumption through an inclusive
-calendar horizon.
+`BalanceReview`, reads the current-open Scheduled frontier, and applies one
+caller-supplied completeness assumption through an inclusive calendar horizon.
 
 The assumption is not retained evidence. The result is therefore conditional,
 not a forecast, qualified knowledge, safe-to-spend authority, or canonical
@@ -74,9 +73,8 @@ private def occurrenceSelectedQuanta
 private def currentOpenOccurrences
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot) :
     Except String (List (ScheduledOccurrence String)) :=
-  match Loam.Application.currentOpenScheduledWithReplacement
-      scheduled.scheduled scheduled.completions scheduled.retirements
-      scheduled.replacements scheduled.events with
+  match Loam.Application.currentOpenScheduled
+      scheduled.scheduled scheduled.terminals scheduled.events with
   | .open occurrences => .ok occurrences
   | .unknownCompletionScheduled =>
       .error "loam: conditional outlook unavailable: Scheduled completion endpoint is unknown"

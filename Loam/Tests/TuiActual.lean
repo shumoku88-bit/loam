@@ -38,11 +38,9 @@ private def actualRecord?
 
 private def emptyScheduledSnapshot : IO Loam.ScheduledReview.EvidenceSnapshot := do
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "empty Scheduled memory was not admitted"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? []) "empty completion memory was not admitted"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? []) "empty retirement memory was not admitted"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? []) "empty replacement memory was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "empty terminal memory was not admitted"
   let events ← requireSome (EventMemory.ofEvents? []) "empty Event memory was not admitted"
-  pure { scheduled, completions, retirements, replacements, events }
+  pure { scheduled, terminals, events }
 
 private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
   let first ← requireSome (actualRecord? "event-0" "2026-09-07" "alpha" "paypay" "food" 100)
