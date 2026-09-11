@@ -86,6 +86,8 @@ on:
       - 'Loam/Tests/TuiCycleGrant.lean'
       - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/ScheduledContinuationRouting.lean'
+      - 'Loam/Tests/ScheduledContinuationRouting.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
@@ -176,6 +178,8 @@ on:
       - 'Loam/Tests/TuiCycleBudget.lean'
       - 'Loam/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
+      - 'Loam/ScheduledContinuationRouting.lean'
+      - 'Loam/Tests/ScheduledContinuationRouting.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
       - 'lakefile.lean'
@@ -377,6 +381,12 @@ jobs:
 
       - name: Verify Scheduled Routing TUI interaction
         run: lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
+
+      - name: Build shared Scheduled continuation routing boundary
+        run: lake build Loam.ScheduledContinuationRouting
+
+      - name: Verify presentation-neutral Scheduled continuation routing inheritance
+        run: lake env lean --run Loam/Tests/ScheduledContinuationRouting.lean "$(mktemp -d)/continuation-routing"
 
       - name: Verify Cycle Grant TUI interaction
         run: lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant"
