@@ -4,7 +4,7 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `ba2d080ca246069e9f4ba0a1949bdc2428086a4f`
+Current production checkpoint: `3d33500368ed26d79827bbf5724de273d328ffdd`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
 
@@ -65,8 +65,11 @@ Recent completed compression:
 | #718 | retired legacy correction tip/next/sibling projections | historical projection generations are not current authority |
 | #719 | refused self-correction as a cycle | no singleton exception outside frontier semantics |
 | #720 | unified all nonempty Correction quantity projection on `CorrectionFrontier` | correction count carries no semantic authority |
+| #722 | removed broad `Loam.Core` import from Scheduled Routing TUI | aggregation umbrellas are convenience, not feature-level semantic dependencies |
 
 PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
+
+PR #722 is the corresponding low-risk dependency control: one broad import edge was removed with no replacement import required, and exact-head Production TUI completed 62/62 functional steps alongside successful Selected Lean Observations and Compression Audit runs.
 
 Canonical household data was not changed by this sequence.
 
@@ -132,7 +135,7 @@ Reopen only if Correction authority itself changes.
 
 ### SA-005 Practical Core public surface
 
-Status: `AUDIT_COMPLETE`
+Status: `IMPLEMENTED`
 
 Record: `SEMANTIC_AUDIT_SA005_CORE_SURFACE.md`
 
@@ -142,13 +145,19 @@ Verdict:
 - production features should prefer narrow Core imports;
 - deleting or completing the umbrella is not justified.
 
-**Next concrete candidate:** remove broad `import Loam.Core` from `Loam/Tui/ScheduledRouting.lean`, retain the explicit narrow imports, and run exact Production TUI / library qualification. If a missing dependency appears, add only that specific module.
+Implemented by PR #722:
 
-Promotion: `IMPLEMENTATION_READY` as a narrow dependency-edge subtraction.
+- removed broad `import Loam.Core` from `Loam/Tui/ScheduledRouting.lean`;
+- existing narrow imports were sufficient with no replacement dependency;
+- exact-head Production TUI passed all 62 functional steps;
+- Selected Lean Observations and Compression Audit also passed;
+- household behavior, persistence, and canonical data were unchanged.
+
+Reopen only for another concrete broad-import edge, not as a project to abolish the umbrella itself.
 
 ### SA-006 Persistence semantic echo
 
-Status: `AUDIT_COMPLETE`
+Status: `AUDIT_COMPLETE` / `IMPLEMENTATION_READY`
 
 Record: `SEMANTIC_AUDIT_SA006_PERSISTENCE.md`
 
@@ -158,7 +167,15 @@ Verdict:
 - keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics;
 - do not create a universal serializer or generic persistence repository.
 
-**Strong next concrete candidate:** `ActualValidityPersistence` still owns its own `.loam-stage` path plus write/rename sequence. Preserve its existing-storage V2/V3 admission guard, but delegate the ordinary physical replacement to the already-earned `SiblingStage` primitive if exact behavior remains unchanged.
+**Next concrete candidate:** `ActualValidityPersistence` still owns its own `.loam-stage` path plus write/rename sequence. Preserve its existing-storage V2/V3 admission guard, but delegate the ordinary physical replacement to the already-earned `SiblingStage` primitive.
+
+Current implementation-readiness evidence:
+
+- `actualValidityStagePath` is private and has no external production reference;
+- the duplicated physical operation is exactly `.loam-stage` + `writeFile` + `rename`;
+- `SiblingStage.replaceTextViaSiblingStage` owns exactly that ordinary physical operation and explicitly does not absorb semantic admission or stronger recovery claims;
+- ActualValidity's V2/V3 existing-storage admission remains local before replacement;
+- relevant qualification includes ActualValidity publication paths and practical journal/export persistence coverage.
 
 Secondary backlog:
 
@@ -235,29 +252,28 @@ Do not generalize the revision-only rule to facts with genuine multiplicity or p
 
 ## 5. Next work queue
 
-This is the default order after current main `ba2d080ca246069e9f4ba0a1949bdc2428086a4f`. Re-check actual main and open PRs before every item.
+This is the default order after current main `3d33500368ed26d79827bbf5724de273d328ffdd`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
-1. **SA-005:** remove broad `Loam.Core` import from `Loam/Tui/ScheduledRouting.lean`; qualify exact TUI/library build.
-2. **SA-006:** replace ActualValidity's duplicated ordinary stage/write/rename mechanic with `SiblingStage` while preserving the V2/V3 existing-storage guard and bytes.
+1. **SA-006:** replace ActualValidity's duplicated ordinary stage/write/rename mechanic with `SiblingStage` while preserving the V2/V3 existing-storage guard and bytes.
 
 ### P1 - proof-first mechanical compression
 
-3. **SA-007 A:** prove and share the fail-closed Actual-consumption fold.
-4. **SA-007 C:** only after item 3, test shared CurrentCoverage arithmetic if the net source/proof delta is negative.
-5. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
+2. **SA-007 A:** prove and share the fail-closed Actual-consumption fold.
+3. **SA-007 C:** only after item 2, test shared CurrentCoverage arithmetic if the net source/proof delta is negative.
+4. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
 
 ### P2 - next conceptual audits
 
-6. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
-7. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+5. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
+6. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
 
 ### P3 - reopen only with concrete pressure
 
-8. **SA-001:** further finite-keyed carrier sharing.
-9. `VersionedRows` newline-free round-trip theorem.
-10. isolated Amount / low-level product-topology usefulness review.
+7. **SA-001:** further finite-keyed carrier sharing.
+8. `VersionedRows` newline-free round-trip theorem.
+9. isolated Amount / low-level product-topology usefulness review.
 
 If a P0/P1 candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
 
