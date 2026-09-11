@@ -36,13 +36,14 @@ private theorem splitExplicitVersionedFrame
       header :: rows ++ [""] := by
   have linesNoNewline : ∀ line ∈ header :: rows ++ [""], '\n' ∉ line.toList := by
     intro line hLine
-    simp only [List.mem_append, List.mem_cons, List.mem_singleton] at hLine
+    simp only [List.mem_append, List.mem_cons] at hLine
     rcases hLine with hHeadOrRow | hEmpty
     · rcases hHeadOrRow with rfl | hRow
       · exact headerNoNewline
       · exact rowsNoNewline line hRow
-    · subst line
-      simp
+    · rcases hEmpty with rfl | hImpossible
+      · simp
+      · simp at hImpossible
   simpa using
     (String.toList_split_intercalate (c := '\n') (l := header :: rows ++ [""])
       linesNoNewline)
