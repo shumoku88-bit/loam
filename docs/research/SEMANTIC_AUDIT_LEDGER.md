@@ -4,7 +4,7 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `0338ed7964a0acbee70eb03c1b7063b95813af72`
+Current production checkpoint: `c45a338ff8023abda53c7d21ff27741da19523f9`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
 
@@ -70,6 +70,7 @@ Recent completed compression:
 | #726 | unified three fail-closed Actual-consumption folds | share one validity-required accumulation law while preserving routing/window query boundaries |
 | #728 | unified duplicated CurrentCoverage arithmetic/view assembly | share pure post-acquisition arithmetic while preserving routing-specific composition boundaries |
 | #730 | shared fresh Scheduled occurrence construction across Creation/Replacement | share pure construction mechanics while keeping operation authority and provenance explicit |
+| #734 | centralized EventCorrection absent-as-empty loading | share one family-specific optional-evidence contract without inventing a generic missing-storage policy |
 
 PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
 
@@ -82,6 +83,8 @@ PR #726 is the Application-mechanics control: temporary Lean migration witnesses
 PR #728 completed the remaining SA-007 arithmetic candidate. Temporary Lean witnesses established by definitional equality that both CurrentCoverage public functions shared the same post-acquisition assembly. The witnesses were retired after cutover; one private `assembleCurrentCoverage` now owns Remaining, Headroom, and `CurrentCoverageView` construction while ordinary and `RoutingEffective` Consumption acquisition remain separate. Final production delta was 1 file, +17 / -22. Seven exact-head workflows passed, including Lean Application, Practical Slice B, and Production TUI 62/62.
 
 PR #730 completed the narrow SA-008 candidate. Temporary Lean witnesses proved by definitional equality that Creation and Replacement used the same fresh-id choice, balanced JPY movement reconstruction, and `ScheduledOccurrence` construction. The witnesses and publisher-local copies were retired after qualification. A small `ScheduledOccurrenceConstruction` mechanic now owns only those pure operations; Creation and Replacement retain separate validation wording, source/current-open admission, terminal provenance, transition checks, writer ownership, receipts, and publication order. Final production delta was 3 files, +41 / -48. Shared Creation and Replacement publisher workflows, Selected Lean Observations, Compression Audit, and Production TUI 62/62 all passed.
+
+PR #734 implemented the first narrow SA-009 candidate without changing publisher protocols. `loadEventCorrectionMemoryOrEmpty?` now owns the established EventCorrection family contract `missing -> empty`, `valid -> decoded`, `malformed existing bytes -> refusal`. Publisher, Review, and CLI consumers retain their own admission and diagnostics, while the raw existing-file loader remains available. Final production delta was 12 files, +40 / -109 (net -69). All 12 exact-head workflows passed, including Shared ActualValidity Publisher, Practical Correction Projection, Practical Movement, Practical Budget Window Report, Practical Readable Journal Export, Practical Zero-Origin Coverage, Selected Lean Observations, Compression Audit, and Production TUI 62/62.
 
 Canonical household data was not changed by this sequence.
 
@@ -226,18 +229,30 @@ No current SA-008 implementation action. Reopen only if another concrete Schedul
 
 ### SA-009 Publisher / Authority / Review semantic echo
 
-Status: `UNREVIEWED`
-Priority: highest current audit priority
+Status: `AUDIT_COMPLETE` / `KEEP` / `SHARE_MECHANICS`
+Priority: active proof-first residual candidate
 
-This is the largest remaining broad audit region.
+Record: `SEMANTIC_AUDIT_SA009_PROTOCOL_ECHO.md`
 
-Question:
+Broad verdict:
 
-> Which `*Publisher`, `*Authority`, and `*Review` modules own independent crash/recovery/authority laws, and which repeat the same publication protocol with only semantic adapters?
+- keep publisher protocols explicit where crash residue, retry admission, writer-lock order, or atomicity differ;
+- keep local Authority boundaries that hide one earned physical topology rather than inventing a universal repository abstraction;
+- keep Review boundaries named by household question rather than introducing a generic review engine;
+- keep `WriterOwnership` as the shared physical exclusion primitive;
+- do not introduce generic `Publisher<T>`, transaction, Authority, or Review frameworks.
 
-Use operational criteria, not type isomorphism. When interrupted publication, retry, writer ownership, or recovery is involved, prefer an explicit transition model or TLA+ over a purely structural refactor.
+Completed narrow candidate:
 
-Do not start by extracting a universal `Publisher<T>`.
+- Candidate A was implemented by #734. One EventCorrection-family optional loader now owns absent-as-empty file interpretation while raw loading, semantic admission, caller diagnostics, writer ownership, and publication protocols remain separate.
+
+Remaining candidate B:
+
+- `CapacityPublisher.publish` and `publishBalanced` repeat a substantial post-validation publication tail;
+- `Draft.toBalancedDraft` suggests the binary path may be a specialization of the balanced path, but this must be proven rather than assumed;
+- first prove whether binary movement construction and Purpose non-negativity admission are equivalent to the two-change balanced specialization, including `.unallocated` endpoints;
+- preserve the two public entrances/receipts, effective-first publication order, writer ownership, and explicit incomplete-evidence recovery semantics;
+- if the proof exposes a semantic mismatch or sharing requires callback-heavy adapters, record `KEEP` instead of forcing compression.
 
 ### SA-010 Revision-only identity principle
 
@@ -267,19 +282,19 @@ No current SA-010 implementation action.
 
 ## 5. Next work queue
 
-This is the default order after current production checkpoint `0338ed7964a0acbee70eb03c1b7063b95813af72`. Re-check actual main and open PRs before every item.
+This is the default order after current production checkpoint `c45a338ff8023abda53c7d21ff27741da19523f9`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
-No current P0 item. The qualified low-risk queue was exhausted by #722 and #724.
+No current P0 item. The qualified low-risk queue was exhausted by #722, #724, and #734.
 
 ### P1 - proof-first mechanical compression
 
-No current P1 item. The qualified mechanical queue was exhausted by #726, #728, and #730.
+1. **SA-009 Capacity candidate:** prove or falsify that binary Capacity publication is a specialization of balanced Capacity publication before sharing any runtime tail.
 
 ### P2 - next conceptual audits
 
-1. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+No broad conceptual audit is currently ahead of the SA-009 Capacity proof. The Publisher / Authority / Review census is complete; only the concrete residual candidate remains active.
 
 ### P3 - reopen only with concrete pressure
 
@@ -302,7 +317,8 @@ Prefer for:
 - pure fold/helper extraction;
 - permutation independence;
 - preservation of fail-closed admission;
-- proof-first identity deletion.
+- proof-first identity deletion;
+- specialization claims such as the current binary-vs-balanced Capacity candidate.
 
 ### Alloy
 
