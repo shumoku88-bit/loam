@@ -1,6 +1,5 @@
 import Loam.ActualDate
 import Loam.Application.ScheduledInspection
-import Loam.FreshNumberedToken
 import Loam.MovementManifestAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -64,15 +63,6 @@ private def lifecycleReadable?
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open _ => .ok ()
 
-private def freshScheduledId?
-    (memory : ScheduledMemory String) : Option ScheduledId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "scheduled-"
-    (fun token => (ScheduledMemory.findById? memory (⟨token⟩ : ScheduledId)).isSome)
-    1
-    (memory.occurrences.length + 1)
-  pure ⟨token⟩
-
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
     throw "loam: Scheduled date must be a real calendar date in YYYY-MM-DD form"
@@ -81,41 +71,12 @@ private def validateDraft (draft : Draft) : Except String Unit := do
       decide (effect.measure = ⟨"jpy"⟩) &&
       effect.quantity.quanta != 0) then
     throw "loam: Scheduled creation requires valid Locus tokens and nonzero JPY quantities"
-  let changes : List (MovementChange LocusId) :=
-    draft.effects.map fun effect =>
-      { coordinate := effect.locus, quantity := effect.quantity }
-  if (BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isNone then
+  if (Loam.ScheduledOccurrenceConstruction.movementFromEffects? draft.effects).isNone then
     throw "loam: Scheduled movement totals differ"
   let positive := draft.effects.foldl
     (fun total effect => total + max 0 effect.quantity.quanta) 0
   if positive <= 0 || draft.total != positive then
     throw "loam: Scheduled creation requires a positive total matching the draft"
-
-private def occurrenceFromDraft?
-    (id : ScheduledId) (draft : Draft) : Option (ScheduledOccurrence String) := do
-  let changes : List (MovementChange LocusId) :=
-    draft.effects.map fun effect =>
-      { coordinate := effect.locus, quantity := effect.quantity }
-  let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
-  pure { id := id, scheduledOn := draft.scheduledOn, movement := movement }
-
-private theorem freshScheduledId_eq_shared
-    (memory : ScheduledMemory String) :
-    freshScheduledId? memory =
-      Loam.ScheduledOccurrenceConstruction.freshId? memory := rfl
-
-private theorem draftMovement_eq_shared (draft : Draft) :
-    (let changes : List (MovementChange LocusId) :=
-       draft.effects.map fun effect =>
-         { coordinate := effect.locus, quantity := effect.quantity }
-     BalancedMovement.ofChanges? ⟨"jpy"⟩ changes) =
-      Loam.ScheduledOccurrenceConstruction.movementFromEffects? draft.effects := rfl
-
-private theorem occurrenceFromDraft_eq_shared
-    (id : ScheduledId) (draft : Draft) :
-    occurrenceFromDraft? id draft =
-      Loam.ScheduledOccurrenceConstruction.occurrenceFromEffects?
-        id draft.scheduledOn draft.effects := rfl
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
@@ -137,11 +98,12 @@ private def publishUnderOwnership
   | .error message => return .error message
   | .ok () => pure ()
   let scheduledId ←
-    match freshScheduledId? lifecycle.scheduled with
+    match Loam.ScheduledOccurrenceConstruction.freshId? lifecycle.scheduled with
     | some id => pure id
     | none => return .error "loam: could not generate a fresh Scheduled identity"
   let occurrence ←
-    match occurrenceFromDraft? scheduledId draft with
+    match Loam.ScheduledOccurrenceConstruction.occurrenceFromEffects?
+        scheduledId draft.scheduledOn draft.effects with
     | some occurrence => pure occurrence
     | none => return .error "loam: Scheduled movement could not be admitted"
   let updatedScheduled ←
