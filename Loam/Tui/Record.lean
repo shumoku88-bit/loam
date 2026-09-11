@@ -220,14 +220,14 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
               { state := preview world state }
             else if focus < firstAction then
               { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
-            else if focus = firstAction && state.form.rows.size >= 6 then
-              { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = firstAction then
-              { state := { state with form := appendRow state.form, candidateIndex := 0 } }
-            else if focus = firstAction + 1 then
-              { state := { state with form := dropRow state.form, candidateIndex := 0 } }
-            else if focus = firstAction + 2 then
               { state := preview world state }
+            else if focus = firstAction + 1 && state.form.rows.size >= 6 then
+              { state := { state with notice := "This editor supports up to six posting rows." } }
+            else if focus = firstAction + 1 then
+              { state := { state with form := appendRow state.form, candidateIndex := 0 } }
+            else if focus = firstAction + 2 then
+              { state := { state with form := dropRow state.form, candidateIndex := 0 } }
             else { state, cancel := true }
         | _ => { state }
 
@@ -263,7 +263,7 @@ def view (_known : List String) (state : State) : Widget :=
   | .editing =>
       let form := state.form
       let rowLines := postingFieldLines form
-      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let actions := ["Preview", "Add posting", "Drop last row", "Cancel"]
       let options := catalogCandidates state
       let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4

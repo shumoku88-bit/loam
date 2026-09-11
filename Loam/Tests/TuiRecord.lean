@@ -54,9 +54,14 @@ def main (args : List String) : IO Unit := do
     "direct preview did not preserve explicit publish confirmation"
   let finalAmountTab := update w [] { form := finalAmountForm } .tab
   expect (finalAmountTab.state.form.focus.val == 6)
-    "Tab from final amount no longer reaches row actions"
+    "Tab from final amount reaches Preview action"
+  let previewActionForm := { readyForm with focus := ⟨6, by decide⟩ }
+  let previewed := update w [] { form := previewActionForm } .enter
+  match previewed.state.mode with
+  | .preview _ choice => expect (choice.val == 0) "Preview action did not open preview"
+  | .editing => throw (IO.userError "Preview action did not open preview")
 
-  let addPostingForm := { readyForm with focus := ⟨6, by decide⟩ }
+  let addPostingForm := { readyForm with focus := ⟨7, by decide⟩ }
   let added := update w [] { form := addPostingForm } .enter
   expect (added.state.form.rows.size == 3) "Add posting did not append one row"
   expect (added.state.form.focus.val == 6) "Add posting did not focus the new Locus"
