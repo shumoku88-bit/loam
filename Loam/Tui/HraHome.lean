@@ -22,7 +22,8 @@ private def monthTitle (state : State) : String :=
 
 private def centeredMonthTitle (state : State) : String :=
   let title := monthTitle state
-  let padding := if title.length < 35 then (35 - title.length) / 2 else 0
+  let width := Loam.Tui.Layout.displayWidth title
+  let padding := if width < 35 then (35 - width) / 2 else 0
   repeatChar padding ' ' ++ title
 
 private def calendarHeader : Widget :=
@@ -117,8 +118,8 @@ private def pendingLines : PendingEvidence → List Widget
           ("   - " ++ record.scheduledOn ++ "  [Still open]  " ++
             Loam.ScheduledReview.summary record)
 
-private def statusLine
-    (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : String :=
+private def statusTokens
+    (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List String :=
   let scheduled :=
     match homeScheduledEvidence snapshot state with
     | .error _ => "Unavailable"
@@ -133,9 +134,8 @@ private def statusLine
     match pending with
     | .ok records => toString records.length
     | .error _ => "Unavailable"
-  " Scheduled    : " ++ scheduled ++
-    "   Pending: " ++ pendingStatus ++
-    "   Budget: [c]   Capacity: [e]   Purpose routes: [u]   Loci: [m]   Reports: [v]"
+  ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus,
+   "[c] budget", "[e] capacity", "[u] routes", "[m] loci", "[v] reports"]
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
@@ -159,8 +159,10 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   [ ruleLine bounds '-'
   , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
   , plainLine (" Known Through: " ++ snapshot.actual.today)
-  , plainLine (statusLine snapshot state pending)
-  , ruleLine bounds '-'
+  ] ++
+  (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
+    (fun text => plainLine (" " ++ text)) ++
+  [ ruleLine bounds '-'
   , plainLine " Pending Scheduled:"
   ] ++
   pendingLines pending ++

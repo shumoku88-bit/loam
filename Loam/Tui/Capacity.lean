@@ -3,6 +3,7 @@ import Loam.CurrentCoverageReview
 import Loam.ActualReview
 import Loam.PurposeCatalog
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Lean.Elab.Tactic.Omega
 
 namespace Loam.Tui.Capacity
@@ -178,6 +179,9 @@ def coverageLabel (state : State) (row : Loam.CurrentCoverageReview.Row) : Strin
   else
     "OK"
 
+private def padNum (columns : Nat) (text : String) : String :=
+  Loam.Tui.Layout.padLeft columns text
+
 private def rowLine
     (state : State) (index : Nat) (row : Loam.CapacityReview.Row) : Widget :=
   let selected :=
@@ -185,17 +189,21 @@ private def rowLine
     | none => false
     | some current => current.val == index
   let marker := if selected then "▶ " else "  "
-  let purpose := Loam.ActualReview.shortText 28
-    (Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose)
+  let purpose := Loam.Tui.Layout.padRight 22
+    (Loam.ActualReview.shortText 22
+      (Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose))
   let text :=
     match coverageRow? state row.purpose with
-    | none => marker ++ purpose ++ ": " ++ toString row.entitlement.quanta ++ " jpy"
+    | none =>
+        marker ++ purpose ++
+          padNum 8 (toString row.entitlement.quanta) ++
+          "       --       --         -- "
     | some current =>
         marker ++ purpose ++
-          ": cap " ++ toString current.entitlement.quanta ++
-          " | now " ++ toString current.remaining.quanta ++
-          " | after-known " ++ toString current.headroom.quanta ++
-          " | " ++ coverageLabel state current
+          padNum 8 (toString current.entitlement.quanta) ++
+          padNum 8 (toString current.remaining.quanta) ++
+          padNum 8 (toString current.headroom.quanta) ++
+          "  " ++ Loam.Tui.Layout.padRight 13 (coverageLabel state current)
   .row [span text (if selected then .selected else .normal)]
 
 private def coverageFooter (state : State) : List Widget :=
@@ -248,7 +256,8 @@ def view (state : State) : Widget :=
       [ line "Capacity / Current"
       , muted "Home > Capacity"
       , muted (toString state.snapshot.rows.length ++ " remembered purpose(s)")
-      , blank
+      , muted ("  " ++ Loam.Tui.Layout.padRight 22 "Purpose" ++
+          padNum 8 "Cap" ++ padNum 8 "Now" ++ padNum 8 "After" ++ "  Status")
       ] ++
       ((visibleRows state).map fun row => rowLine state row.1 row.2) ++
       [ blank

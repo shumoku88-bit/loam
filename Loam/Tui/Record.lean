@@ -4,6 +4,7 @@ import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
+import Loam.Tui.Layout
 
 namespace Loam.Tui.Record
 open Loam.Tui.Kernel
@@ -262,7 +263,8 @@ def view (_known : List String) (state : State) : Widget :=
       .column <| [line "Record / Preview", line draft.validOn,
         line (draft.description.getD "(no description)")] ++
         (draft.effects.take 12).map (fun effect =>
-          line (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++ " jpy")) ++
+          line (Loam.Tui.Layout.padRight 20 effect.locus.token ++
+            Loam.Tui.Layout.padLeft 10 (toString effect.quantity.quanta) ++ " jpy")) ++
         [line ("Balanced total: " ++ toString draft.total ++ " jpy"),
          line "Publication rechecks current evidence and Locus admission.",
          .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>

@@ -58,7 +58,9 @@ private def showResult (records : List Record) (query : Query) : IO Unit := do
     let date := record.date.getD "date unknown"
     if previousDate != some date then IO.println date
     previousDate := some date
-    IO.println ("  " ++ toString (index + 1) ++ ". " ++ summary record)
+    let num := toString (index + 1)
+    let padded := if num.length < 2 then " " ++ num else num
+    IO.println ("  " ++ padded ++ ". " ++ summary record)
 
 /-- Read-only, bounded one-shot review. Standard input is never consumed. -/
 def review (memoryPath correctionPath : String) (queryText : Option String := none) : IO UInt32 := do

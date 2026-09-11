@@ -528,6 +528,12 @@ private def blank : Widget := .row []
 private def signedQuanta (quantity : Loam.Core.Quantity) : String :=
   if quantity.quanta > 0 then "+" ++ toString quantity.quanta else toString quantity.quanta
 
+private def padNum (columns : Nat) (text : String) : String :=
+  let width := Loam.Tui.Layout.displayWidth text
+  if width ≥ columns then Loam.Tui.Layout.clip columns text
+  else Loam.Tui.Layout.padLeft columns text
+
+
 private def field (state : State) (index : Nat) (label text : String) : Widget :=
   .row
     [ span (label ++ ": ")
@@ -574,15 +580,16 @@ private def stockFlowResultLines (state : State) : List Widget :=
   match state.stockFlowSnapshot with
   | none => [muted "No explicit Stock–Flow window has been run yet."]
   | some snapshot =>
+      let label := Loam.Tui.Layout.padRight 36
       [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-      , line ("Reconstructed at start: " ++ toString snapshot.reconstructedStart.quanta ++ " jpy")
-      , line ("Reconstructed at end:   " ++ toString snapshot.reconstructedEnd.quanta ++ " jpy")
+      , line (label "Reconstructed at start:" ++ padNum 12 (toString snapshot.reconstructedStart.quanta) ++ " jpy")
+      , line (label "Reconstructed at end:" ++ padNum 12 (toString snapshot.reconstructedEnd.quanta) ++ " jpy")
       , blank
-      , line ("Tracked increases across Events: " ++ signedQuanta snapshot.increasesAcrossEvents ++ " jpy")
-      , line ("Tracked decreases across Events: " ++ signedQuanta snapshot.decreasesAcrossEvents ++ " jpy")
-      , line ("Net change:                     " ++ signedQuanta snapshot.netChange ++ " jpy")
+      , line (label "Tracked increases across Events:" ++ padNum 12 (signedQuanta snapshot.increasesAcrossEvents) ++ " jpy")
+      , line (label "Tracked decreases across Events:" ++ padNum 12 (signedQuanta snapshot.decreasesAcrossEvents) ++ " jpy")
+      , line (label "Net change:" ++ padNum 12 (signedQuanta snapshot.netChange) ++ " jpy")
       , blank
-      , muted ("Current tracked balance now: " ++ toString snapshot.currentTracked.quanta ++ " jpy")
+      , muted (label "Current tracked balance now:" ++ padNum 12 (toString snapshot.currentTracked.quanta) ++ " jpy")
       , muted "Boundary values are reconstructed from current accepted evidence."
       , muted "They are not archived historical balance snapshots."
       , muted "Increase/decrease is tracked-balance motion, not income/spending."
@@ -683,10 +690,6 @@ private def TableLayout.totalWidth (layout : TableLayout) : Nat :=
     (if layout.negWidth > 0 then layout.negWidth else 0) +
     (match layout.evWidth? with | some w => w | none => 0)
 
-private def padNum (columns : Nat) (text : String) : String :=
-  let width := Loam.Tui.Layout.displayWidth text
-  if width ≥ columns then text
-  else Loam.Tui.Layout.padLeft columns text
 
 private def transactionTableHeader (layout : TableLayout) : Widget :=
   let marker := "  "
@@ -714,7 +717,7 @@ private def transactionRowLine
   let marker := if state.transactionsIndex = index then "> " else "  "
   let coordToken := coordinate.locus.token ++ "/" ++ coordinate.measure.token
   let coord := Loam.Tui.Layout.padRight layout.coordWidth coordToken
-  let net := padNum layout.netWidth (toString activity.net.quanta)
+  let net := padNum layout.netWidth (signedQuanta activity.net)
   let gross := padNum layout.grossWidth (toString activity.gross.quanta)
   let pos := padNum layout.posWidth (signedQuanta activity.positive)
   let neg := if layout.negWidth > 0 then padNum layout.negWidth (signedQuanta activity.negative) else ""
@@ -838,8 +841,8 @@ private def liquidityPointLine
     (point : Loam.ConditionalBalancePathReview.Point) : Widget :=
   line
     ("- " ++ point.date ++
-      "  Scheduled " ++ signedQuanta point.scheduledChange ++
-      "  -> " ++ toString point.balance.quanta ++ " " ++ measure.token)
+      "  Scheduled " ++ padNum 10 (signedQuanta point.scheduledChange) ++
+      "  -> " ++ padNum 10 (toString point.balance.quanta) ++ " " ++ measure.token)
 
 private def liquidityResultLines (state : State) : List Widget :=
   match state.liquiditySnapshot with
@@ -903,10 +906,17 @@ private def liquidityView (state : State) : Widget :=
 
 private def budgetRowLine (row : Loam.BudgetWindowReview.Row) : Widget :=
   line
-    ("- " ++ row.purpose.token ++
-      ": entitlement " ++ toString row.entitlement.quanta ++
-      " | consumption " ++ toString row.consumption.quanta ++
-      " | remaining " ++ toString row.remaining.quanta ++ " jpy")
+    (Loam.Tui.Layout.padRight 16 row.purpose.token ++
+      padNum 10 (toString row.entitlement.quanta) ++
+      padNum 10 (toString row.consumption.quanta) ++
+      padNum 10 (toString row.remaining.quanta) ++ " jpy")
+
+private def budgetTableHeader : Widget :=
+  muted
+    (Loam.Tui.Layout.padRight 16 "Purpose" ++
+      padNum 10 "Entitled" ++
+      padNum 10 "Consumed" ++
+      padNum 10 "Remaining")
 
 private def budgetResultLines (state : State) : List Widget :=
   match state.budgetSnapshot with
@@ -914,6 +924,7 @@ private def budgetResultLines (state : State) : List Widget :=
   | some snapshot =>
       [ line ("Budget window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
       , muted (toString snapshot.rows.length ++ " remembered purpose(s)")
+      , budgetTableHeader
       ] ++
       (snapshot.rows.take 10).map budgetRowLine ++
       [ muted "Remaining is derived exactly as Entitlement - Consumption." ]

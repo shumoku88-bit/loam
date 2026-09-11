@@ -307,7 +307,8 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let body :=
     [ rule bounds '='
     , plainLine " Household Actuals Workspace"
-    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  Time: " ++ scopeText snapshot state ++ "  |  Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
+    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  " ++ scopeText snapshot state)
+    , plainLine (" Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
     , rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++

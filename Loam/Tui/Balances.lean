@@ -1,5 +1,6 @@
 import Loam.BalanceReview
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 
 namespace Loam.Tui.Balances
 
@@ -29,8 +30,8 @@ private def blank : Widget := .row []
 
 private def rowLine (row : Loam.BalanceReview.Row) : Widget :=
   line
-    ("- " ++ row.coordinate.locus.token ++
-      ": " ++ toString row.quantity.quanta ++
+    ("  " ++ Loam.Tui.Layout.padRight 20 row.coordinate.locus.token ++
+      Loam.Tui.Layout.padLeft 12 (toString row.quantity.quanta) ++
       " " ++ row.coordinate.measure.token)
 
 /-- Render the replaceable current balance view without accounting-role inference. -/
