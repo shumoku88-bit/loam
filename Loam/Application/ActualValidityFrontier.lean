@@ -84,27 +84,4 @@ def admittedActualValidityMemory?
       some { entries := [], eventNodup := by simp } := by
   rfl
 
-/--
-For one retained validity-correction edge, changing only the correction-fact
-identity cannot change the admitted current facts. The frontier observes the
-structural target and replacement revision only.
--/
-theorem singletonCorrectionId_irrelevant
-    (facts : List (ActualValidityFact Time))
-    (hFacts : (facts.map ActualValidityFact.ref).Nodup)
-    (leftId rightId : ActualValidityCorrectionId)
-    (target : ActualValidityRef)
-    (replacement : ActualValidityRevisionId) :
-    admittedActualValidityFacts?
-      { facts := facts
-        factRefNodup := hFacts
-        corrections := [{ id := leftId, target := target, replacement := replacement }]
-        correctionIdNodup := by simp } =
-    admittedActualValidityFacts?
-      { facts := facts
-        factRefNodup := hFacts
-        corrections := [{ id := rightId, target := target, replacement := replacement }]
-        correctionIdNodup := by simp } := by
-  rfl
-
 end Loam.Application
