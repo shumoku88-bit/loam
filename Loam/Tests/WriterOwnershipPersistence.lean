@@ -1,4 +1,4 @@
-import Loam.Persistence
+import Loam.Persistence.EventPersistence
 import Loam.WriterOwnership
 import Std
 
