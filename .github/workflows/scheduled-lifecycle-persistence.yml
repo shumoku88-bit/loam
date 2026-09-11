@@ -4,10 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
-      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
-      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
-      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
       - '.github/workflows/scheduled-lifecycle-persistence.yml'
       - 'lean-toolchain'
@@ -19,10 +16,7 @@ on:
       - feat/tui
     paths:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
-      - 'Loam/Persistence/ScheduledCompletionPersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
-      - 'Loam/Persistence/ScheduledReplacementPersistence.lean'
-      - 'Loam/Persistence/ScheduledRetirementPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
       - '.github/workflows/scheduled-lifecycle-persistence.yml'
       - 'lean-toolchain'
