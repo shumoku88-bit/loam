@@ -4,7 +4,7 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `3d33500368ed26d79827bbf5724de273d328ffdd`
+Current production checkpoint: `b164db1d9a2b2e55e50f44b2b2406501a3872f8a`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
 
@@ -66,10 +66,13 @@ Recent completed compression:
 | #719 | refused self-correction as a cycle | no singleton exception outside frontier semantics |
 | #720 | unified all nonempty Correction quantity projection on `CorrectionFrontier` | correction count carries no semantic authority |
 | #722 | removed broad `Loam.Core` import from Scheduled Routing TUI | aggregation umbrellas are convenience, not feature-level semantic dependencies |
+| #724 | shared ActualValidity ordinary stage/write/rename through `SiblingStage` | share physical replacement mechanics while keeping semantic admission local |
 
 PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
 
 PR #722 is the corresponding low-risk dependency control: one broad import edge was removed with no replacement import required, and exact-head Production TUI completed 62/62 functional steps alongside successful Selected Lean Observations and Compression Audit runs.
+
+PR #724 is the persistence-mechanics control: ActualValidity retained its V2/V3 existing-storage admission, wire encoding, fail-closed behavior, and migration semantics while deleting a private copy of the ordinary sibling-stage replacement sequence. Six exact-head workflows passed, including Shared ActualValidity Publisher, Practical Actual Validity Correction, Practical Readable Journal Export, and Practical Movement.
 
 Canonical household data was not changed by this sequence.
 
@@ -157,7 +160,7 @@ Reopen only for another concrete broad-import edge, not as a project to abolish 
 
 ### SA-006 Persistence semantic echo
 
-Status: `AUDIT_COMPLETE` / `IMPLEMENTATION_READY`
+Status: `IMPLEMENTED`
 
 Record: `SEMANTIC_AUDIT_SA006_PERSISTENCE.md`
 
@@ -167,15 +170,13 @@ Verdict:
 - keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics;
 - do not create a universal serializer or generic persistence repository.
 
-**Next concrete candidate:** `ActualValidityPersistence` still owns its own `.loam-stage` path plus write/rename sequence. Preserve its existing-storage V2/V3 admission guard, but delegate the ordinary physical replacement to the already-earned `SiblingStage` primitive.
+Implemented by PR #724:
 
-Current implementation-readiness evidence:
-
-- `actualValidityStagePath` is private and has no external production reference;
-- the duplicated physical operation is exactly `.loam-stage` + `writeFile` + `rename`;
-- `SiblingStage.replaceTextViaSiblingStage` owns exactly that ordinary physical operation and explicitly does not absorb semantic admission or stronger recovery claims;
-- ActualValidity's V2/V3 existing-storage admission remains local before replacement;
-- relevant qualification includes ActualValidity publication paths and practical journal/export persistence coverage.
+- removed private `actualValidityStagePath` and direct `writeFile` / `rename` duplication;
+- delegated only the ordinary physical replacement to `SiblingStage.replaceTextViaSiblingStage`;
+- retained ActualValidity V2/V3 existing-storage admission before replacement;
+- retained V3 wire bytes, V2 migration-on-publication, malformed/retired storage refusal, missing-storage meaning, and `Bool` refusal semantics;
+- exact-head Shared ActualValidity Publisher, Practical Actual Validity Correction, Practical Readable Journal Export, Practical Movement, Selected Lean Observations, and Compression Audit all passed.
 
 Secondary backlog:
 
@@ -192,7 +193,7 @@ Completed since the audit:
 
 - Candidate B, `QuantityInspection` success provenance and singleton algorithm duplication, was resolved by #717 through #720.
 
-**Remaining candidate A:** share one fail-closed Actual-consumption fold across `ConsumptionInspection`, `ActualRoutingInspection`, and `CapacityWindowInspection`. `CapacityWindowInspection.consumptionAtRecordedWhere?` remains the most general current shape. Prove the current public functions observationally equal to specializations before replacing duplicated folds.
+**Next candidate A:** share one fail-closed Actual-consumption fold across `ConsumptionInspection`, `ActualRoutingInspection`, and `CapacityWindowInspection`. `CapacityWindowInspection.consumptionAtRecordedWhere?` remains the most general current shape. Prove the current public functions observationally equal to specializations before replacing duplicated folds.
 
 **Remaining candidate C:** after the consumption fold is settled, test a tiny shared arithmetic constructor for the repeated CurrentCoverage law:
 
@@ -252,28 +253,28 @@ Do not generalize the revision-only rule to facts with genuine multiplicity or p
 
 ## 5. Next work queue
 
-This is the default order after current main `3d33500368ed26d79827bbf5724de273d328ffdd`. Re-check actual main and open PRs before every item.
+This is the default order after current main `b164db1d9a2b2e55e50f44b2b2406501a3872f8a`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
-1. **SA-006:** replace ActualValidity's duplicated ordinary stage/write/rename mechanic with `SiblingStage` while preserving the V2/V3 existing-storage guard and bytes.
+No current P0 item. The qualified low-risk queue was exhausted by #722 and #724.
 
 ### P1 - proof-first mechanical compression
 
-2. **SA-007 A:** prove and share the fail-closed Actual-consumption fold.
-3. **SA-007 C:** only after item 2, test shared CurrentCoverage arithmetic if the net source/proof delta is negative.
-4. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
+1. **SA-007 A:** prove and share the fail-closed Actual-consumption fold.
+2. **SA-007 C:** only after item 1, test shared CurrentCoverage arithmetic if the net source/proof delta is negative.
+3. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
 
 ### P2 - next conceptual audits
 
-5. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
-6. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+4. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
+5. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
 
 ### P3 - reopen only with concrete pressure
 
-7. **SA-001:** further finite-keyed carrier sharing.
-8. `VersionedRows` newline-free round-trip theorem.
-9. isolated Amount / low-level product-topology usefulness review.
+6. **SA-001:** further finite-keyed carrier sharing.
+7. `VersionedRows` newline-free round-trip theorem.
+8. isolated Amount / low-level product-topology usefulness review.
 
 If a P0/P1 candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
 
