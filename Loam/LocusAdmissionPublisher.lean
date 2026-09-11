@@ -1,6 +1,5 @@
-import Loam.MovementManifestAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
-import Loam.WriterOwnership
 
 namespace Loam.LocusAdmissionPublisher
 
@@ -22,7 +21,7 @@ structure Draft where
   token : String
   deriving Repr, DecidableEq
 
-/-- Receipt for one successful manifest-backed admission change. -/
+/-- Receipt for one successful admission-policy change. -/
 structure Receipt where
   locus : LocusId
   previousCount : Nat
@@ -30,58 +29,43 @@ structure Receipt where
   deriving Repr, DecidableEq
 
 /--
-Pure proposal against one already-loaded Movement world.
+Pure proposal against one already-loaded current admission vocabulary.
 
 The existing vocabulary remains the sole source of current permission. Historical
 Events and display metadata are never consulted while deciding admission.
 -/
 def propose?
-    (world : Loam.MovementAdmission.World) (draft : Draft) :
-    Except String (Loam.MovementAdmission.World × Receipt) := do
+    (vocabulary : LocusAdmissionVocabulary) (draft : Draft) :
+    Except String (LocusAdmissionVocabulary × Receipt) := do
   if !Loam.Persistence.validToken draft.token then
     throw "loam: new Locus must be one valid stable token"
   let locus : LocusId := ⟨draft.token⟩
-  if world.locusAdmission.allows locus then
+  if vocabulary.allows locus then
     throw "loam: Locus is already admitted for new writes"
-  let approved := world.locusAdmission.approved ++ [locus]
-  let vocabulary ←
+  let approved := vocabulary.approved ++ [locus]
+  let updated ←
     match LocusAdmissionVocabulary.ofLoci? approved with
-    | some vocabulary => pure vocabulary
+    | some updated => pure updated
     | none => throw "loam: proposed Locus admission vocabulary is not unique"
-  pure ({ world with locusAdmission := vocabulary }, {
+  pure (updated, {
     locus := locus
-    previousCount := world.locusAdmission.approved.length
-    currentCount := vocabulary.approved.length
+    previousCount := vocabulary.approved.length
+    currentCount := updated.approved.length
   })
 
-private def publishUnderOwnership
-    (root : System.FilePath) (draft : Draft) : IO (Except String Receipt) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
-    | .error message => return .error message
-  let (updated, receipt) ←
-    match propose? world draft with
-    | .ok value => pure value
-    | .error message => return .error message
-  match ← Loam.MovementManifestAuthority.publishWorld? root updated with
-  | .error message => return .error message
-  | .ok _ => return .ok receipt
-
 /--
-Admit one new Locus against the current Movement manifest authority.
+Admit one new Locus against the current admission-policy authority.
 
-Publication re-reads the selected generation while holding the shared `CURRENT`
-ownership anchor and republishes one complete generation with only
-`world.locusAdmission` changed.
+The local authority owns the current physical policy placement, writer lock, and
+read/modify/publish protocol. This publisher contributes only the policy-local
+proposal semantics and therefore does not depend on household Movement evidence.
 -/
 def publishManifestAdmission
     (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
     return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
   let root := System.FilePath.mk rootPath
-  Loam.WriterOwnership.withOwnership
-    (root / "CURRENT")
-    (publishUnderOwnership root draft)
+  Loam.LocusAdmissionAuthority.updateCurrent? root
+    (fun vocabulary => propose? vocabulary draft)
 
 end Loam.LocusAdmissionPublisher
