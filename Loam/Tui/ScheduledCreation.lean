@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.LocusCatalog
-import Loam.Persistence
+import Loam.Persistence.TokenSyntax
 import Loam.ScheduledCreationPublisher
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker

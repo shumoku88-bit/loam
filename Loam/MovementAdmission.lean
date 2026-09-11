@@ -185,17 +185,6 @@ private def materializeRelationDischarges
     quantity := draft.quantity
   }
 
-private def freshValidityFactId?
-    (history : Loam.Core.ActualValidityHistory String) :
-    Option Loam.Core.ActualValidityFactId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "validity-"
-    (fun token =>
-      (history.findFactById? (⟨token⟩ : Loam.Core.ActualValidityFactId)).isSome)
-    1
-    (history.facts.length + 1)
-  pure ⟨token⟩
-
 private def uncoveredRelationSource
     (_ : Loam.Core.EventId) (_ : Loam.Core.EffectKey) : Bool := false
 
@@ -283,9 +272,6 @@ def admit? (world : World) (draft : Draft) : Except String Admitted := do
   let eventId ← match freshRecordEventId? world with
     | some id => pure id
     | none => throw "loam: could not generate fresh recording identities"
-  let factId ← match freshValidityFactId? world.validity with
-    | some id => pure id
-    | none => throw "loam: could not generate fresh recording identities"
   let relationIds ← match freshRelationUnitIds? world draft.relations.length with
     | some ids => pure ids
     | none => throw "loam: could not generate fresh recording identities"
@@ -296,11 +282,8 @@ def admit? (world : World) (draft : Draft) : Except String Admitted := do
     | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
   let newDischarges := materializeRelationDischarges eventId draft.discharges
-  let fact : Loam.Core.ActualValidityFact String := {
-    id := factId
-    event := eventId
-    validOn := draft.validOn
-  }
+  let fact : Loam.Core.ActualValidityFact String :=
+    .base eventId draft.validOn
   let updatedDescriptions ← match draft.description with
     | none => pure world.descriptions
     | some text =>

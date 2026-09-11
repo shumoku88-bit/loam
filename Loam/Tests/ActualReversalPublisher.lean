@@ -29,8 +29,8 @@ private def initialWorld : IO Loam.MovementAdmission.World := do
   return {
     events := events
     validity := {
-      facts := [{ id := ⟨"validity-1"⟩, event := event.id, validOn := "2026-09-07" }]
-      factIdNodup := by simp
+      facts := [.base event.id "2026-09-07"]
+      factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
     descriptions := .empty

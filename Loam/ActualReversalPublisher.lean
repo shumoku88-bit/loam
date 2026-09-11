@@ -119,9 +119,6 @@ private def scheduledCompletionMentionsEvent
 private def deterministicReversalId (target : EventId) : EventId :=
   ⟨"actual-reversal:" ++ target.token⟩
 
-private def deterministicValidityId (target : EventId) : ActualValidityFactId :=
-  ⟨"actual-reversal-validity:" ++ target.token⟩
-
 private def inverseEffects (reversal : EventId) (target : Event) : List Effect :=
   target.effects.zipIdx.map fun (effect, index) =>
     Effect.ofQuantity
@@ -197,12 +194,8 @@ private def admit?
     | some events => pure events
     | none => throw "loam: reversal Event could not be appended"
 
-  let factId := deterministicValidityId draft.target
-  if (world.validity.findFactById? factId).isSome then
-    throw "loam: reversal occurrence-date identity already exists"
   let validity ←
-    match world.validity.addFact? {
-        id := factId, event := relation.reversal, validOn := draft.validOn } with
+    match world.validity.addFact? (.base relation.reversal draft.validOn) with
     | some history => pure history
     | none => throw "loam: reversal occurrence date could not be appended"
   let some admittedDates := Loam.Application.admittedActualValidityFacts? validity

@@ -41,9 +41,9 @@ private def movementWorld : IO Loam.MovementAdmission.World := do
   let events ← requireSome (EventMemory.ofEvents? [oldEvent, insideEvent]) "event memory"
   let validity : ActualValidityHistory String := {
     facts := [
-      { id := ⟨"validity-old"⟩, event := ⟨"actual-old"⟩, validOn := "2026-08-16" },
-      { id := ⟨"validity-inside"⟩, event := ⟨"actual-inside"⟩, validOn := "2026-08-18" }]
-    factIdNodup := by decide
+      .base ⟨"actual-old"⟩ "2026-08-16",
+      .base ⟨"actual-inside"⟩ "2026-08-18"]
+    factRefNodup := by decide
     corrections := []
     correctionIdNodup := by simp
   }

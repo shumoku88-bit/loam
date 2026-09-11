@@ -38,11 +38,12 @@ private def loadCorrectionsOrEmpty?
   else
     return .ok emptyCorrections
 
-private def freshFactId?
-    (history : ActualValidityHistory String) : Option ActualValidityFactId := do
+private def freshRevisionId?
+    (history : ActualValidityHistory String) : Option ActualValidityRevisionId := do
   let token ← Loam.firstUnusedNumberedToken?
     "validity-"
-    (fun token => (history.findFactById? (⟨token⟩ : ActualValidityFactId)).isSome)
+    (fun token =>
+      (history.findFactByRef? (.revision (⟨token⟩ : ActualValidityRevisionId))).isSome)
     1
     (history.facts.length + 1)
   pure ⟨token⟩
@@ -82,30 +83,30 @@ private def appendDateChange?
     (event : Event)
     (currentFact? : Option (ActualValidityFact String))
     (validOn : String) : Except String (ActualValidityHistory String) := do
-  let factId ←
-    match freshFactId? history with
-    | some id => pure id
-    | none => throw "loam: could not generate a fresh occurrence-date identity"
-  let replacement : ActualValidityFact String := {
-    id := factId
-    event := event.id
-    validOn := validOn
-  }
-  let withFact ←
-    match history.addFact? replacement with
-    | some updated => pure updated
-    | none => throw "loam: could not append occurrence-date evidence"
   match currentFact? with
-  | none => pure withFact
+  | none =>
+      match history.addFact? (.base event.id validOn) with
+      | some updated => pure updated
+      | none => throw "loam: could not append first occurrence-date evidence"
   | some currentFact =>
+      let revisionId ←
+        match freshRevisionId? history with
+        | some id => pure id
+        | none => throw "loam: could not generate a fresh occurrence-date revision identity"
+      let replacement : ActualValidityFact String :=
+        .revision revisionId event.id validOn
+      let withFact ←
+        match history.addFact? replacement with
+        | some updated => pure updated
+        | none => throw "loam: could not append occurrence-date revision evidence"
       let correctionId ←
         match freshCorrectionId? history with
         | some id => pure id
         | none => throw "loam: could not generate a fresh occurrence-date correction identity"
       let correction : ActualValidityCorrection := {
         id := correctionId
-        target := currentFact.id
-        replacement := replacement.id
+        target := currentFact.ref
+        replacement := revisionId
       }
       match withFact.addCorrection? correction with
       | some updated => pure updated

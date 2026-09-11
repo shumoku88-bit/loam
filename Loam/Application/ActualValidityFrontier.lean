@@ -11,20 +11,20 @@ variable {Time : Type}
 
 private def correctionEdges
     (history : ActualValidityHistory Time) :
-    List (ReplacementFrontier.Edge ActualValidityFactId) :=
+    List (ReplacementFrontier.Edge ActualValidityRef) :=
   history.corrections.map fun correction =>
-    { source := correction.target, successor := correction.replacement }
+    { source := correction.target, successor := .revision correction.replacement }
 
 private def factPresent
     (history : ActualValidityHistory Time)
-    (id : ActualValidityFactId) : Bool :=
-  (history.findFactById? id).isSome
+    (ref : ActualValidityRef) : Bool :=
+  (history.findFactByRef? ref).isSome
 
 private def preservesEvent
     (history : ActualValidityHistory Time) : Bool :=
   history.corrections.all fun correction =>
-    match history.findFactById? correction.target,
-        history.findFactById? correction.replacement with
+    match history.findFactByRef? correction.target,
+        history.findFactByRef? (.revision correction.replacement) with
     | some target, some replacement => decide (target.event = replacement.event)
     | _, _ => false
 
@@ -32,7 +32,7 @@ private def preservesEvent
 def actualValidityFrontierFacts
     (history : ActualValidityHistory Time) : List (ActualValidityFact Time) :=
   ReplacementFrontier.frontier
-    ActualValidityFact.id history.facts (correctionEdges history)
+    ActualValidityFact.ref history.facts (correctionEdges history)
 
 private def uniqueFrontierEvents : List (ActualValidityFact Time) → Bool
   | [] => true
@@ -77,7 +77,7 @@ def admittedActualValidityMemory?
     admittedActualValidityMemory?
       ({
         facts := []
-        factIdNodup := by simp
+        factRefNodup := by simp
         corrections := []
         correctionIdNodup := by simp
       } : ActualValidityHistory Time) =

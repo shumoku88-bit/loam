@@ -16,7 +16,7 @@ private def emptyWorldWithLoci
     events := events
     validity := {
       facts := []
-      factIdNodup := by simp
+      factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
     descriptions := .empty

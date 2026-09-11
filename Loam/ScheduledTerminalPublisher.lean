@@ -54,9 +54,6 @@ structure CancellationReceipt where
 private def completionEventId (scheduled : ScheduledId) : EventId :=
   ⟨"scheduled-completion:" ++ scheduled.token⟩
 
-private def completionValidityFactId (scheduled : ScheduledId) : ActualValidityFactId :=
-  ⟨"scheduled-completion-validity:" ++ scheduled.token⟩
-
 private def loadLifecycle?
     (scheduledFile : System.FilePath) :
     IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
@@ -107,7 +104,7 @@ private def dischargesMentionEvent
 
 private def appendCompletionActual?
     (world : Loam.MovementAdmission.World)
-    (target : ScheduledId)
+    (_target : ScheduledId)
     (actualId : EventId)
     (draft : Loam.MovementAdmission.Draft) :
     Except String Loam.MovementAdmission.World := do
@@ -116,24 +113,18 @@ private def appendCompletionActual?
     throw "loam: Scheduled completion currently admits plain Actual Movement effects only"
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: Scheduled completion uses a Locus not approved for new publication"
-  let factId := completionValidityFactId target
   if (EventMemory.findById? world.events actualId).isSome ||
       historyMentionsEvent world.validity actualId ||
       (EventDescriptionMemory.findText? world.descriptions actualId).isSome ||
       relationsMentionEvent world.relations actualId ||
       dischargesMentionEvent world.discharges actualId then
     throw "loam: Scheduled completion Actual identity already has retained Movement evidence"
-  if (world.validity.findFactById? factId).isSome then
-    throw "loam: Scheduled completion occurrence-date identity already exists"
   let event ←
     match Event.ofEffects? actualId draft.effects with
     | some event => pure event
     | none => throw "loam: could not admit Scheduled completion Actual Event"
-  let fact : ActualValidityFact String := {
-    id := factId
-    event := actualId
-    validOn := draft.validOn
-  }
+  let fact : ActualValidityFact String :=
+    .base actualId draft.validOn
   let events ←
     match EventMemory.add? world.events event with
     | some events => pure events
