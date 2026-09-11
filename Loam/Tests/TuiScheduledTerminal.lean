@@ -87,17 +87,11 @@ def main (args : List String) : IO Unit := do
   let third ← occurrence "scheduled-3" "rent" 300
   let some scheduledMemory := ScheduledMemory.ofOccurrences? [first, second, third]
     | throw (IO.userError "scheduled memory")
-  let some completions := ScheduledCompletionMemory.ofCompletions? []
-    | throw (IO.userError "empty completion memory")
-  let some retirements := ScheduledRetirementMemory.ofRetirements? []
-    | throw (IO.userError "empty retirement memory")
-  let some replacements := ScheduledReplacementMemory.ofReplacements? []
-    | throw (IO.userError "empty replacement memory")
+  let some terminals := ScheduledTerminalMemory.ofTerminals? []
+    | throw (IO.userError "empty terminal memory")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile {
       scheduled := scheduledMemory
-      completions := completions
-      retirements := retirements
-      replacements := replacements })
+      terminals := terminals })
     "save Scheduled lifecycle fixture"
 
   let snapshot ← loadSnapshot scheduledFile root
