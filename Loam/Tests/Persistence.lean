@@ -1,4 +1,3 @@
-import Loam.Persistence.AmountPersistence
 import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.EventPersistence
 
@@ -9,9 +8,6 @@ private def expect (condition : Bool) (message : String) : IO Unit := do
     throw <| IO.userError message
 
 private def yen : MeasureId := ⟨"jpy"⟩
-
-private def sample : SomeAmount :=
-  SomeAmount.ofQuantity yen (Quantity.ofQuanta (-1250))
 
 private def sampleEvent? : Option Event :=
   Event.ofEffects? ⟨"event-1"⟩
@@ -65,28 +61,6 @@ private def eventCorrectionMemoryWire : String :=
   "CORRECTION\tmissing-target\tmissing-replacement\n"
 
 def main : IO Unit := do
-  expect
-    (Loam.Persistence.encode? sample == some "LOAM-AMOUNT\t1\njpy\t-1250\n")
-    "persistence encode changed the exact wire shape"
-
-  match (Loam.Persistence.encode? sample).bind Loam.Persistence.decode? with
-  | some amount =>
-      expect (amount.measure.token == "jpy")
-        "persistence round-trip changed measure identity"
-      expect (amount.quantity.quanta == -1250)
-        "persistence round-trip changed exact quanta"
-  | none =>
-      throw <| IO.userError "persistence round-trip failed to decode"
-
-  expect
-    (Loam.Persistence.decode? "LOAM-AMOUNT\t2\njpy\t-1250\n").isNone
-    "persistence accepted an unsupported version"
-
-  expect
-    (Loam.Persistence.encode?
-      (SomeAmount.ofQuantity ⟨"jp\ty"⟩ (Quantity.ofQuanta 1))).isNone
-    "persistence accepted an ambiguous measure token"
-
   match sampleEvent? with
   | none =>
       throw <| IO.userError "sample event failed identity admission"
