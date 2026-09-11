@@ -82,7 +82,7 @@ jobs:
           EOF
 
           .lake/build/bin/loam effective "$memory" "$corrections" >"$tmp/effective.out"
-          grep -Fq 'single-correction projection' "$tmp/effective.out"
+          grep -Fq 'correction-frontier projection' "$tmp/effective.out"
           grep -Fq 'wallet: -230 jpy' "$tmp/effective.out"
           grep -Fq 'food: 230 jpy' "$tmp/effective.out"
 
