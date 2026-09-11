@@ -125,6 +125,16 @@ private def consumptionAtRecordedWhere?
     0
   return Quantity.ofQuanta quanta
 
+/-- Migration witness: the window-local fold is definitionally the shared Consumption fold. -/
+private theorem consumptionAtRecordedWhere_eq_shared
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (selected : Time → Bool)
+    (project : Event → Time → Quantity) :
+    consumptionAtRecordedWhere? events validities selected project =
+      Loam.Application.consumptionAtRecordedWhere? events validities selected project := by
+  rfl
+
 /--
 Project recorded Actual Consumption whose valid coordinates fall in `[start, end)`.
 Every retained Event still requires validity evidence, even if it might turn out
