@@ -1,9 +1,8 @@
 import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
+import Loam.CapacityAuthority
 import Loam.CapacityPublisher
 import Loam.CapacityReview
-import Loam.Persistence.CapacityEffectivePersistence
-import Loam.Persistence.CapacityPersistence
 import Std
 
 namespace Loam.CapacityCli
@@ -29,13 +28,6 @@ private def promptLine (prompt : String) : IO String := do
   stdout.flush
   let stdin ← IO.getStdin
   return (← stdin.getLine).trimAsciiEnd.toString
-
-private def loadCapacityMemoryForView?
-    (path : System.FilePath) : IO (Option CapacityMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadCapacityMemory? path
-  else
-    return CapacityMemory.ofMovements? []
 
 private def validateEffectiveDate (text : String) : Except String String :=
   if Loam.ActualDate.validIsoDate text then
@@ -154,36 +146,32 @@ def showCapacityWindow
     return 2
   else
     let capacityFile := System.FilePath.mk capacityPath
-    let effectiveFile := Loam.Persistence.capacityEffectivePathForMemory capacityFile
-    match ← loadCapacityMemoryForView? capacityFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported capacity file"
+    match ← Loam.CapacityAuthority.loadOrEmpty capacityFile with
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
         return 2
-    | some memory =>
-        match ← Loam.Persistence.loadCapacityEffectiveMemoryOrEmpty? effectiveFile with
+    | .ok image =>
+        let memory := image.movements
+        let effective := image.effective
+        let purposes := Loam.CapacityReview.rememberedPurposes memory
+        let yen : MeasureId := ⟨"jpy"⟩
+        match purposes.mapM
+            (fun purpose =>
+              entitlementAtEffectiveWindow?
+                memory effective start end_ purpose yen) with
         | none =>
-            IO.eprintln "loam: malformed or unsupported Capacity effective evidence"
+            IO.eprintln
+              "loam: cannot project Capacity window from incomplete effective evidence or an invalid window"
             return 2
-        | some effective =>
-            let purposes := Loam.CapacityReview.rememberedPurposes memory
-            let yen : MeasureId := ⟨"jpy"⟩
-            match purposes.mapM
-                (fun purpose =>
-                  entitlementAtEffectiveWindow?
-                    memory effective start end_ purpose yen) with
-            | none =>
-                IO.eprintln
-                  "loam: cannot project Capacity window from incomplete effective evidence or an invalid window"
-                return 2
-            | some quantities =>
-                if purposes.isEmpty then
-                  IO.println "No spending-purpose capacity."
-                else
-                  IO.println ("Spending capacity [" ++ start ++ ", " ++ end_ ++ "):")
-                  for (purpose, quantity) in purposes.zip quantities do
-                    IO.println
-                      ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
-                return 0
+        | some quantities =>
+            if purposes.isEmpty then
+              IO.println "No spending-purpose capacity."
+            else
+              IO.println ("Spending capacity [" ++ start ++ ", " ++ end_ ++ "):")
+              for (purpose, quantity) in purposes.zip quantities do
+                IO.println
+                  ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
+            return 0
 
 /-- Command dispatcher for practical Capacity recording and inspection. -/
 def run (args : List String) : IO UInt32 :=
