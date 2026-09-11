@@ -3,44 +3,6 @@ import Loam.Core.ActualValidityHistory
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 
-namespace Loam.ActualValidityV2
-
-open Loam.Core
-
-set_option autoImplicit false
-
-private def scheduledCompletionPrefix : String := "scheduled-completion:"
-private def scheduledCompletionValidityPrefix : String := "scheduled-completion-validity:"
-
-/--
-Derived in-memory adapter identity for a V2 Event-rooted occurrence date.
-
-V2 persistence does not store an independent identity for the initial date.
-Existing `ActualValidityHistory` consumers still speak in fact identities, so
-while that compatibility boundary exists the EventId is injected into a
-reserved derived token. This token is representation glue, not new canonical
-evidence and is never serialized as the identity of a BASE row.
-
-Scheduled completion historically used a deterministic initial validity token
-for interrupted-publication recovery. While the compatibility adapter exists,
-that one family is derived back from the Scheduled completion EventId so old V1
-and new V2 retries observe the same in-memory identity. The V2 file still stores
-only `BASE scheduled-completion:* DATE`; this legacy spelling never becomes V2
-canonical evidence and disappears with the adapter.
--/
-def rootFactId (event : EventId) : ActualValidityFactId :=
-  if event.token.startsWith scheduledCompletionPrefix then
-    let suffix := event.token.drop scheduledCompletionPrefix.length
-    ⟨scheduledCompletionValidityPrefix ++ suffix⟩
-  else
-    ⟨"event-root:" ++ event.token⟩
-
-/-- True exactly when a compatibility fact identity is derived from its Event. -/
-def isRootFact {Time : Type} (fact : ActualValidityFact Time) : Bool :=
-  decide (fact.id = rootFactId fact.event)
-
-end Loam.ActualValidityV2
-
 namespace Loam.Persistence
 
 open Loam.Core
@@ -57,62 +19,20 @@ second user-facing path argument.
 def actualValidityPathForEventMemory (memoryPath : System.FilePath) : System.FilePath :=
   System.FilePath.mk (memoryPath.toString ++ ".actual-validity")
 
-private def isReplacementId
-    (history : ActualValidityHistory String)
-    (id : ActualValidityFactId) : Bool :=
-  history.corrections.any fun correction => decide (correction.replacement = id)
-
-private def idForCanonicalFact
-    (history : ActualValidityHistory String)
-    (fact : ActualValidityFact String) : ActualValidityFactId :=
-  if isReplacementId history fact.id then
-    fact.id
-  else
-    Loam.ActualValidityV2.rootFactId fact.event
-
-private def idForCanonicalExisting?
-    (history : ActualValidityHistory String)
-    (id : ActualValidityFactId) : Option ActualValidityFactId := do
-  let fact ← history.findFactById? id
-  pure (idForCanonicalFact history fact)
-
-/--
-Normalize only identity representation before persistence. Initial/source facts
-receive Event-derived adapter ids; replacement facts keep their actual revision
-ids. No current-date winner is inferred here and list order has no authority.
--/
-private def normalizeHistoryForStorage?
-    (history : ActualValidityHistory String) : Option (ActualValidityHistory String) := do
-  let facts := history.facts.map fun fact =>
-    { fact with id := idForCanonicalFact history fact }
-  let corrections ← history.corrections.mapM fun correction => do
-    let target ← idForCanonicalExisting? history correction.target
-    let replacement ← idForCanonicalExisting? history correction.replacement
-    pure {
-      id := correction.id
-      target := target
-      replacement := replacement
-    }
-  ActualValidityHistory.ofParts? facts corrections
-
-private def storageCompatible (history : ActualValidityHistory String) : Bool :=
-  history.facts.all fun fact =>
-    if isReplacementId history fact.id then
-      !Loam.ActualValidityV2.isRootFact fact
-    else
-      Loam.ActualValidityV2.isRootFact fact
-
-private def encodeActualValidityFactRow?
-    (fact : ActualValidityFact String) : Option String :=
-  if !validToken fact.event.token || !Loam.ActualDate.validIsoDate fact.validOn then
-    none
-  else if Loam.ActualValidityV2.isRootFact fact then
-    some ("BASE\t" ++ fact.event.token ++ "\t" ++ fact.validOn)
-  else if validToken fact.id.token then
-    some
-      ("REVISION\t" ++ fact.id.token ++ "\t" ++ fact.event.token ++ "\t" ++ fact.validOn)
-  else
-    none
+private def encodeActualValidityFactRow? :
+    ActualValidityFact String → Option String
+  | .base event validOn =>
+      if !validToken event.token || !Loam.ActualDate.validIsoDate validOn then
+        none
+      else
+        some ("BASE\t" ++ event.token ++ "\t" ++ validOn)
+  | .revision revision event validOn =>
+      if !validToken revision.token || !validToken event.token ||
+          !Loam.ActualDate.validIsoDate validOn then
+        none
+      else
+        some
+          ("REVISION\t" ++ revision.token ++ "\t" ++ event.token ++ "\t" ++ validOn)
 
 private def encodeActualValidityCorrectionRow?
     (history : ActualValidityHistory String)
@@ -120,42 +40,30 @@ private def encodeActualValidityCorrectionRow?
   if !validToken correction.id.token || !validToken correction.replacement.token then
     none
   else
-    let targetFact ← history.findFactById? correction.target
-    let replacementFact ← history.findFactById? correction.replacement
-    if Loam.ActualValidityV2.isRootFact replacementFact then
-      none
-    else if Loam.ActualValidityV2.isRootFact targetFact then
-      if validToken targetFact.event.token then
-        pure
-          ("CORRECTION\t" ++ correction.id.token ++ "\tROOT\t" ++
-            targetFact.event.token ++ "\t" ++ correction.replacement.token)
-      else
-        none
-    else if validToken correction.target.token then
-      pure
-        ("CORRECTION\t" ++ correction.id.token ++ "\tREVISION\t" ++
-          correction.target.token ++ "\t" ++ correction.replacement.token)
-    else
-      none
+    let _ ← history.findFactByRef? correction.target
+    let _ ← history.findFactByRef? (.revision correction.replacement)
+    match correction.target with
+    | .root event =>
+        if validToken event.token then
+          pure
+            ("CORRECTION\t" ++ correction.id.token ++ "\tROOT\t" ++
+              event.token ++ "\t" ++ correction.replacement.token)
+        else
+          none
+    | .revision target =>
+        if validToken target.token then
+          pure
+            ("CORRECTION\t" ++ correction.id.token ++ "\tREVISION\t" ++
+              target.token ++ "\t" ++ correction.replacement.token)
+        else
+          none
 
-private def encodeNormalizedActualValidityHistory?
-    (history : ActualValidityHistory String) : Option String := do
-  if !storageCompatible history then
-    none
-  else
-    let factRows ← history.facts.mapM encodeActualValidityFactRow?
-    let correctionRows ← history.corrections.mapM (encodeActualValidityCorrectionRow? history)
-    pure (encodeVersionedRows actualValidityHistoryHeader (factRows ++ correctionRows))
-
-/--
-Encode the canonical Event-rooted occurrence-date stream. Practical writers may
-still supply compatibility fact ids in memory; source ids are normalized away
-before bytes are produced, while correction-created revision identity remains.
--/
+/-- Encode the canonical Event-rooted occurrence-date stream without identity adapters. -/
 def encodeActualValidityHistory?
     (history : ActualValidityHistory String) : Option String := do
-  let normalized ← normalizeHistoryForStorage? history
-  encodeNormalizedActualValidityHistory? normalized
+  let factRows ← history.facts.mapM encodeActualValidityFactRow?
+  let correctionRows ← history.corrections.mapM (encodeActualValidityCorrectionRow? history)
+  pure (encodeVersionedRows actualValidityHistoryHeader (factRows ++ correctionRows))
 
 private def decodeHistoryRows :
     List String → Option (List (ActualValidityFact String) × List ActualValidityCorrection)
@@ -165,30 +73,24 @@ private def decodeHistoryRows :
       match row.splitOn "\t" with
       | ["BASE", eventToken, validOn] =>
           if validToken eventToken && Loam.ActualDate.validIsoDate validOn then
-            let event : EventId := ⟨eventToken⟩
             pure
-              ({ id := Loam.ActualValidityV2.rootFactId event
-                 event := event
-                 validOn := validOn } :: facts,
-                corrections)
+              (.base ⟨eventToken⟩ validOn :: facts, corrections)
           else
             none
       | ["REVISION", revisionToken, eventToken, validOn] =>
           if validToken revisionToken && validToken eventToken &&
               Loam.ActualDate.validIsoDate validOn then
             pure
-              ({ id := ⟨revisionToken⟩, event := ⟨eventToken⟩, validOn := validOn } :: facts,
-                corrections)
+              (.revision ⟨revisionToken⟩ ⟨eventToken⟩ validOn :: facts, corrections)
           else
             none
       | ["CORRECTION", correctionIdToken, "ROOT", eventToken, replacementToken] =>
           if validToken correctionIdToken && validToken eventToken &&
               validToken replacementToken then
-            let event : EventId := ⟨eventToken⟩
             pure
               (facts,
                 { id := ⟨correctionIdToken⟩
-                  target := Loam.ActualValidityV2.rootFactId event
+                  target := .root ⟨eventToken⟩
                   replacement := ⟨replacementToken⟩ } :: corrections)
           else
             none
@@ -198,7 +100,7 @@ private def decodeHistoryRows :
             pure
               (facts,
                 { id := ⟨correctionIdToken⟩
-                  target := ⟨targetToken⟩
+                  target := .revision ⟨targetToken⟩
                   replacement := ⟨replacementToken⟩ } :: corrections)
           else
             none
@@ -220,9 +122,8 @@ def decodeActualValidityHistory?
     (input : String) : Option (ActualValidityHistory String) :=
   match input.splitOn "\n" with
   | header :: rows =>
-      if header = actualValidityHistoryHeader then do
-        let history ← decodeRows rows
-        if storageCompatible history then pure history else none
+      if header = actualValidityHistoryHeader then
+        decodeRows rows
       else
         none
   | _ => none
