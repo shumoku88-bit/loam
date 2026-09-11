@@ -1,4 +1,4 @@
-module experiments/247_zero_origin_factorization
+module experiments/zero_origin_factorization_247
 
 -- Observation 247
 --
@@ -9,6 +9,9 @@ module experiments/247_zero_origin_factorization
 abstract sig Coordinate {}
 one sig Cash, PayPay, Smbc, Yucho, AllCountry extends Coordinate {}
 
+abstract sig Bool {}
+one sig Yes, No extends Bool {}
+
 sig DirectWorld {
   covered : set Coordinate
 }
@@ -17,9 +20,6 @@ sig FactoredWorld {
   originEstablished : one Bool,
   trackedFromOrigin : set Coordinate
 }
-
-abstract sig Bool {}
-one sig Yes, No extends Bool {}
 
 fun directCoverage[w : DirectWorld] : set Coordinate {
   w.covered
