@@ -1,8 +1,7 @@
 import Loam.Core.ScheduledTerminal
-import Loam.Persistence.ScheduledCompletionPersistence
 import Loam.Persistence.ScheduledPersistence
-import Loam.Persistence.ScheduledReplacementPersistence
-import Loam.Persistence.ScheduledRetirementPersistence
+import Loam.Persistence.TokenSyntax
+import Loam.Persistence.VersionedRows
 
 namespace Loam.Persistence
 
@@ -13,20 +12,16 @@ set_option autoImplicit false
 /-!
 # Complete Scheduled lifecycle persistence
 
-The authoritative runtime image now exposes two semantic components:
+The authoritative runtime image exposes two semantic components:
 
 - retained Scheduled occurrences;
 - one target-preserving Scheduled terminal relation.
 
-The physical `LOAM-SCHEDULED-LIFECYCLE\t1` format is intentionally unchanged in
-this cutover. Its historical Completion / Retirement / Replacement sections are
-codec adapters only. Decoding joins them into one `ScheduledTerminalMemory`, and
-encoding projects that memory back into the same three sections.
-
-This separates semantic recompression from operational-data migration. A future
-wire-format revision may replace the three physical sections with one Terminal
-section, but that is not required to remove three independently threaded runtime
-memories.
+The physical `LOAM-SCHEDULED-LIFECYCLE\t1` format remains unchanged. Its
+historical Completion / Retirement / Replacement sections are decoded directly
+into `ScheduledTerminal` values and encoded directly from that terminal relation.
+No dedicated runtime Completion / Retirement / Replacement memory is retained at
+this boundary.
 
 ScheduledRouting remains an independent historical authority. Missing lifecycle
 authority still fails closed at callers, and complete-image staging plus one
@@ -40,6 +35,15 @@ structure ScheduledLifecycleImage where
 /-- Existing v1 physical marker retained during semantic recompression. -/
 def scheduledLifecycleHeader : String := "LOAM-SCHEDULED-LIFECYCLE\t1"
 
+private def scheduledCompletionMemoryHeader : String :=
+  "LOAM-SCHEDULED-COMPLETION-MEMORY\t1"
+
+private def scheduledRetirementMemoryHeader : String :=
+  "LOAM-SCHEDULED-RETIREMENT-MEMORY\t1"
+
+private def scheduledReplacementMemoryHeader : String :=
+  "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1"
+
 private def sectionBegin (name : String) : String :=
   "BEGIN\t" ++ name ++ "\n"
 
@@ -49,48 +53,100 @@ private def sectionEnd (name : String) : String :=
 private def encodeSection (name body : String) : String :=
   sectionBegin name ++ body ++ sectionEnd name
 
-private def terminalsFromLegacy?
-    (completions : ScheduledCompletionMemory)
-    (retirements : ScheduledRetirementMemory)
-    (replacements : ScheduledReplacementMemory) : Option ScheduledTerminalMemory :=
-  let completionTerminals := completions.completions.map fun completion =>
-    ({ source := completion.scheduled,
-       target := some (.actual completion.actual) } : ScheduledTerminal)
-  let retirementTerminals := retirements.retirements.map fun retirement =>
-    ({ source := retirement.scheduled,
-       target := none } : ScheduledTerminal)
-  let replacementTerminals := replacements.replacements.map fun replacement =>
-    ({ source := replacement.source,
-       target := some (.scheduled replacement.replacement) } : ScheduledTerminal)
-  ScheduledTerminalMemory.ofTerminals?
-    (completionTerminals ++ retirementTerminals ++ replacementTerminals)
-
-private def legacyCompletions?
-    (terminals : ScheduledTerminalMemory) : Option ScheduledCompletionMemory :=
-  let completions := terminals.terminals.filterMap fun terminal =>
+private def completionPairs
+    (terminals : List ScheduledTerminal) : List (ScheduledId × EventId) :=
+  terminals.filterMap fun terminal =>
     match terminal.target with
-    | some (.actual actual) =>
-        some ({ scheduled := terminal.source, actual := actual } : ScheduledCompletion)
+    | some (.actual actual) => some (terminal.source, actual)
     | _ => none
-  ScheduledCompletionMemory.ofCompletions? completions
 
-private def legacyRetirements?
-    (terminals : ScheduledTerminalMemory) : Option ScheduledRetirementMemory :=
-  let retirements := terminals.terminals.filterMap fun terminal =>
+private def retirementSources
+    (terminals : List ScheduledTerminal) : List ScheduledId :=
+  terminals.filterMap fun terminal =>
     match terminal.target with
-    | none => some ({ scheduled := terminal.source } : ScheduledRetirement)
+    | none => some terminal.source
     | _ => none
-  ScheduledRetirementMemory.ofRetirements? retirements
 
-private def legacyReplacements?
-    (terminals : ScheduledTerminalMemory) : Option ScheduledReplacementMemory :=
-  let replacements := terminals.terminals.filterMap fun terminal =>
+private def replacementPairs
+    (terminals : List ScheduledTerminal) : List (ScheduledId × ScheduledId) :=
+  terminals.filterMap fun terminal =>
     match terminal.target with
-    | some (.scheduled successor) =>
-        some ({ source := terminal.source,
-                replacement := successor } : ScheduledReplacement)
+    | some (.scheduled replacement) => some (terminal.source, replacement)
     | _ => none
-  ScheduledReplacementMemory.ofReplacements? replacements
+
+private def encodeCompletionMemory?
+    (memory : ScheduledTerminalMemory) : Option String := do
+  let rows ← (completionPairs memory.terminals).mapM fun pair =>
+    let (scheduled, actual) := pair
+    if validToken scheduled.token && validToken actual.token then
+      some ("COMPLETION\t" ++ scheduled.token ++ "\t" ++ actual.token)
+    else
+      none
+  pure (encodeVersionedRows scheduledCompletionMemoryHeader rows)
+
+private def encodeRetirementMemory?
+    (memory : ScheduledTerminalMemory) : Option String := do
+  let rows ← (retirementSources memory.terminals).mapM fun scheduled =>
+    if validToken scheduled.token then
+      some ("RETIREMENT\t" ++ scheduled.token)
+    else
+      none
+  pure (encodeVersionedRows scheduledRetirementMemoryHeader rows)
+
+private def encodeReplacementMemory?
+    (memory : ScheduledTerminalMemory) : Option String := do
+  let rows ← (replacementPairs memory.terminals).mapM fun pair =>
+    let (source, replacement) := pair
+    if validToken source.token && validToken replacement.token then
+      some ("REPLACEMENT\t" ++ source.token ++ "\t" ++ replacement.token)
+    else
+      none
+  pure (encodeVersionedRows scheduledReplacementMemoryHeader rows)
+
+private def decodeCompletionRow? (row : String) : Option ScheduledTerminal :=
+  match row.splitOn "\t" with
+  | ["COMPLETION", scheduledToken, actualToken] =>
+      if validToken scheduledToken && validToken actualToken then
+        some {
+          source := ⟨scheduledToken⟩
+          target := some (.actual ⟨actualToken⟩)
+        }
+      else
+        none
+  | _ => none
+
+private def decodeRetirementRow? (row : String) : Option ScheduledTerminal :=
+  match row.splitOn "\t" with
+  | ["RETIREMENT", scheduledToken] =>
+      if validToken scheduledToken then
+        some { source := ⟨scheduledToken⟩, target := none }
+      else
+        none
+  | _ => none
+
+private def decodeReplacementRow? (row : String) : Option ScheduledTerminal :=
+  match row.splitOn "\t" with
+  | ["REPLACEMENT", sourceToken, replacementToken] =>
+      if validToken sourceToken && validToken replacementToken then
+        some {
+          source := ⟨sourceToken⟩
+          target := some (.scheduled ⟨replacementToken⟩)
+        }
+      else
+        none
+  | _ => none
+
+private def decodeCompletionMemory? (input : String) : Option (List ScheduledTerminal) := do
+  let rows ← decodeVersionedRows? scheduledCompletionMemoryHeader input
+  rows.mapM decodeCompletionRow?
+
+private def decodeRetirementMemory? (input : String) : Option (List ScheduledTerminal) := do
+  let rows ← decodeVersionedRows? scheduledRetirementMemoryHeader input
+  rows.mapM decodeRetirementRow?
+
+private def decodeReplacementMemory? (input : String) : Option (List ScheduledTerminal) := do
+  let rows ← decodeVersionedRows? scheduledReplacementMemoryHeader input
+  rows.mapM decodeReplacementRow?
 
 /--
 Encode one semantic lifecycle image into the existing v1 physical envelope.
@@ -99,12 +155,9 @@ Terminal meaning is projected only at this codec boundary.
 def encodeScheduledLifecycleImage?
     (image : ScheduledLifecycleImage) : Option String := do
   let scheduled ← encodeScheduledMemory? image.scheduled
-  let completionMemory ← legacyCompletions? image.terminals
-  let retirementMemory ← legacyRetirements? image.terminals
-  let replacementMemory ← legacyReplacements? image.terminals
-  let completions ← encodeScheduledCompletionMemory? completionMemory
-  let retirements ← encodeScheduledRetirementMemory? retirementMemory
-  let replacements ← encodeScheduledReplacementMemory? replacementMemory
+  let completions ← encodeCompletionMemory? image.terminals
+  let retirements ← encodeRetirementMemory? image.terminals
+  let replacements ← encodeReplacementMemory? image.terminals
   pure <|
     scheduledLifecycleHeader ++ "\n" ++
     encodeSection "Scheduled" scheduled ++
@@ -129,6 +182,9 @@ private def takeSection?
 /--
 Decode the existing v1 physical sections into one semantic terminal memory.
 Every physical section remains mandatory in v1, including valid empty sections.
+The terminal constructor rechecks the same per-kind endpoint uniqueness that the
+former dedicated inner memories enforced while preserving cross-kind conflict for
+application-level fail-closed review.
 -/
 def decodeScheduledLifecycleImage?
     (input : String) : Option ScheduledLifecycleImage := do
@@ -145,10 +201,11 @@ def decodeScheduledLifecycleImage?
       none
     else
       let scheduled ← decodeScheduledMemory? scheduledText
-      let completions ← decodeScheduledCompletionMemory? completionText
-      let retirements ← decodeScheduledRetirementMemory? retirementText
-      let replacements ← decodeScheduledReplacementMemory? replacementText
-      let terminals ← terminalsFromLegacy? completions retirements replacements
+      let completions ← decodeCompletionMemory? completionText
+      let retirements ← decodeRetirementMemory? retirementText
+      let replacements ← decodeReplacementMemory? replacementText
+      let terminals ← ScheduledTerminalMemory.ofTerminals?
+        (completions ++ retirements ++ replacements)
       some { scheduled, terminals }
 
 private def scheduledLifecycleStagePath
