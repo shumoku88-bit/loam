@@ -1,5 +1,4 @@
 import Loam.Application.CorrectionFrontier
-import Loam.Core.CorrectionQuantity
 import Loam.Core.EventCorrectionMemory
 
 namespace Loam.Application
@@ -31,9 +30,14 @@ inductive QuantityInspectionAnswer where
 deriving Repr, DecidableEq
 
 /--
-Application-local form of the historical single-correction quantity projection.
-It retains the qualified behavior exactly while testing whether the derived
-calculation needs to remain a public Core surface.
+Historical single-correction quantity projection, now owned by the only
+Application operation that consumes it.
+
+Both endpoint Events remain recorded. A distinct correction therefore removes
+the superseded target contribution without adding the already-recorded
+replacement again. The qualified legacy self-relation behavior is retained
+unchanged here; this refactor does not reinterpret self-correction as an
+admitted frontier.
 -/
 private def singleCorrectionQuantity?
     (memory : EventMemory)
@@ -49,27 +53,16 @@ private def singleCorrectionQuantity?
       recorded - Event.quantityAt projected.original locus measure
   return effective
 
-/-- Moving the derived single-correction calculation into Application changes no result. -/
-private theorem singleCorrectionQuantity?_matchesCore
-    (memory : EventMemory)
-    (correction : EventCorrection)
-    (locus : LocusId)
-    (measure : MeasureId) :
-    singleCorrectionQuantity? memory correction locus measure =
-      EventCorrection.quantityAtEffective? memory correction locus measure := by
-  rfl
-
 /--
-Inspect one explicit locus/measure coordinate using only the correction
-semantics retained by the Practical Core and the qualified Application 007
-frontier law.
+Inspect one explicit locus/measure coordinate using retained Core facts and the
+qualified correction projections owned by this Application boundary.
 
 Zero corrections exposes the recorded projection. Exactly one correction keeps
-the existing single-correction projection, including its established self-
-relation behavior. Two or more corrections expose a frontier quantity only when
-they form closed, non-branching, non-merging, acyclic correction paths. Any
-unsupported multi-correction shape remains fail-closed rather than acquiring an
-arrival-order winner.
+the previously qualified single-correction behavior, including its existing
+self-relation behavior. Two or more corrections expose a frontier quantity only
+when they form closed, non-branching, non-merging, acyclic correction paths.
+Any unsupported multi-correction shape remains fail-closed rather than acquiring
+an arrival-order winner.
 -/
 def inspectQuantity
     (events : EventMemory)
@@ -80,7 +73,7 @@ def inspectQuantity
   | [] =>
       .recorded (EventMemory.quantityAtRecorded events locus measure)
   | [correction] =>
-      match EventCorrection.quantityAtEffective? events correction locus measure with
+      match singleCorrectionQuantity? events correction locus measure with
       | some quantity => .singleCorrectionEffective quantity
       | none => .missingCorrectionEndpoint
   | _ =>
@@ -99,8 +92,8 @@ theorem inspectQuantity_noCorrections
       .recorded (EventMemory.quantityAtRecorded events locus measure) := by
   simp [inspectQuantity, hCorrections]
 
-/-- One closed correction exposes exactly the existing Core effective projection. -/
-theorem inspectQuantity_singleEffective
+/-- One closed correction exposes exactly the local single-correction projection. -/
+private theorem inspectQuantity_singleEffective
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (correction : EventCorrection)
@@ -109,13 +102,13 @@ theorem inspectQuantity_singleEffective
     (quantity : Quantity)
     (hCorrections : corrections.corrections = [correction])
     (hEffective :
-      EventCorrection.quantityAtEffective? events correction locus measure = some quantity) :
+      singleCorrectionQuantity? events correction locus measure = some quantity) :
     inspectQuantity events corrections locus measure =
       .singleCorrectionEffective quantity := by
   simp [inspectQuantity, hCorrections, hEffective]
 
 /-- One correction with an unavailable endpoint remains an explicit refusal. -/
-theorem inspectQuantity_singleMissing
+private theorem inspectQuantity_singleMissing
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (correction : EventCorrection)
@@ -123,7 +116,7 @@ theorem inspectQuantity_singleMissing
     (measure : MeasureId)
     (hCorrections : corrections.corrections = [correction])
     (hMissing :
-      EventCorrection.quantityAtEffective? events correction locus measure = none) :
+      singleCorrectionQuantity? events correction locus measure = none) :
     inspectQuantity events corrections locus measure = .missingCorrectionEndpoint := by
   simp [inspectQuantity, hCorrections, hMissing]
 
