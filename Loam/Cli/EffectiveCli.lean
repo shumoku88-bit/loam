@@ -56,9 +56,9 @@ private def printRecorded
   return true
 
 /--
-Print the single-correction answers supplied by the production Application
-boundary. A missing endpoint remains an explicit refusal instead of being
-reinterpreted by the CLI.
+Print one distinct single-correction answer supplied by the production
+Application boundary. A missing endpoint remains an explicit refusal instead of
+being reinterpreted by the CLI.
 -/
 private def printSingleCorrection
     (memory : Loam.Core.EventMemory)
@@ -103,11 +103,13 @@ Application quantity-inspection boundary. Zero-valued coordinates remain part
 of the computed projection but are omitted from this ordinary human-facing
 view.
 
-Zero and one correction preserve the previously qualified presentation paths.
-Two or more corrections are shown only when the Application boundary can derive
-one correction frontier without using list position as authority. Unsupported
-branching, merging, cyclic, or referentially open shapes fail closed before any
-frontier quantities are printed.
+Zero corrections preserve the recorded presentation path. One distinct
+correction keeps the qualified singleton presentation, while a singleton
+self-correction is refused as a cycle. Two or more corrections are shown only
+when the Application boundary can derive one correction frontier without using
+list position as authority. Unsupported branching, merging, cyclic, or
+referentially open shapes fail closed before any frontier quantities are
+printed.
 -/
 def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := do
   let memoryFile := System.FilePath.mk memoryPath
@@ -135,13 +137,18 @@ def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := 
                 else
                   IO.eprintln "loam: application quantity inspection disagreed with recorded mode"
                   return 2
-            | [_] =>
-                IO.println "Effective quantities (single-correction projection; zero coordinates omitted):"
-                if ← printSingleCorrection memory corrections coordinates then
-                  return 0
+            | [correction] =>
+                if correction.target = correction.replacement then
+                  IO.eprintln
+                    "loam: effective quantities unavailable: corrections do not justify one current frontier"
+                  return 1
                 else
-                  IO.eprintln "loam: correction references are not closed in event memory"
-                  return 2
+                  IO.println "Effective quantities (single-correction projection; zero coordinates omitted):"
+                  if ← printSingleCorrection memory corrections coordinates then
+                    return 0
+                  else
+                    IO.eprintln "loam: correction references are not closed in event memory"
+                    return 2
             | _ =>
                 match frontierLines? memory corrections coordinates with
                 | none =>
