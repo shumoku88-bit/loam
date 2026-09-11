@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'experiments/Observation245CapacityPublicationTopology.tla'
+      - 'experiments/245_capacity_recovery_ambiguity.als'
       - 'experiments/245_capacity_publication_topology.md'
       - '.github/workflows/capacity-publication-topology-experiment.yml'
   push:
@@ -11,6 +12,7 @@ on:
       - 'experiment/245-capacity-publication-topology'
     paths:
       - 'experiments/Observation245CapacityPublicationTopology.tla'
+      - 'experiments/245_capacity_recovery_ambiguity.als'
       - 'experiments/245_capacity_publication_topology.md'
       - '.github/workflows/capacity-publication-topology-experiment.yml'
   workflow_dispatch:
@@ -19,8 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  apalache:
-    name: Apalache Capacity topology comparison
+  formal:
+    name: Capacity topology and recovery comparison
     runs-on: ubuntu-latest
 
     steps:
@@ -182,3 +184,39 @@ jobs:
           printf '%s\n' "$output"
           test "$status" -ne 0
           grep -Eq 'state invariant [0-9]+ violated|counterexample' <<<"$output"
+
+      - name: Install Alloy 6.2.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/alloy.tar.gz \
+            https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+          mkdir -p /tmp/alloy
+          tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+          ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+          test -n "$ALLOY_JAR"
+          printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+          java -jar "$ALLOY_JAR" version
+
+      - name: Require orphan recovery ambiguity witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/capacity-recovery-manifest.json <<'JSON'
+          [
+            {
+              "id": "experiment-245-capacity-recovery-ambiguity",
+              "model": "experiments/245_capacity_recovery_ambiguity.als",
+              "expected": {
+                "ambiguousMissingMovement": true,
+                "OrphanEffectiveDeterminesOneSafeDestination": true,
+                "SameOrphanImpliesSameCompletion": true
+              }
+            }
+          ]
+          JSON
+          python3 tools/run-alloy-manifest.py \
+            --alloy-jar "$ALLOY_JAR" \
+            --manifest /tmp/capacity-recovery-manifest.json \
+            --verbose
