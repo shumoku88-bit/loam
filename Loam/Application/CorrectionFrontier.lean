@@ -333,7 +333,15 @@ theorem quantityAtCorrectionFrontier?_singleton_distinct
           locus measure =
         EventMemory.quantityAtRecorded events locus measure -
           Event.quantityAt original locus measure := by
-    simp only [EventMemory.quantityAtRecorded, Quantity.sub]
+    change
+      Quantity.ofQuanta
+          ((frontierEvents events corrections).foldr
+            (fun event total => (Event.quantityAt event locus measure).quanta + total)
+            0) =
+        Quantity.ofQuanta
+          (events.events.foldr
+              (fun event total => (Event.quantityAt event locus measure).quanta + total)
+              0 - (Event.quantityAt original locus measure).quanta)
     rw [hFrontierEvents, hFold]
   change quantityAtCorrectionFrontier? events corrections locus measure = _
   simpa [quantityAtCorrectionFrontier?, hFrontier] using congrArg some hQuantity
