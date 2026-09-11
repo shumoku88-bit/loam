@@ -20,6 +20,7 @@ inductive Key where
   | enter
   | backspace
   | escape
+  | ctrl (char : Char)
   | input (char : Char)
   | other
   deriving Repr, DecidableEq
@@ -87,7 +88,9 @@ def readKey : IO Key := do
     return .enter
   else if value = 8 ∨ value = 127 then
     return .backspace
-  else if value < 32 then
+  else if value > 0 && value < 32 then
+    return .ctrl (Char.ofNat (value + 96))
+  else if value = 0 then
     return .other
   else if 126 < value then
     let count := if value >= 194 && value <= 223 then 2

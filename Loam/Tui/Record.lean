@@ -115,6 +115,25 @@ def acceptSelectedCandidate (state : State) : State :=
           form := editActive state.form (fun _ => entry.locus.token)
           candidateIndex := 0 }
 
+/-- Accept candidate and advance focus to the Amount field. If a candidate is selected, use it;
+    otherwise use the first filtered candidate if available. -/
+def acceptCandidateAndAdvance (state : State) : State :=
+  match selectedCatalogCandidate? state with
+  | some entry =>
+      let state' := { state with
+        form := editActive state.form (fun _ => entry.locus.token),
+        candidateIndex := 0 }
+      { state' with form := moveFocus state'.form false }
+  | none =>
+      match (catalogCandidates state).head? with
+      | some entry =>
+          let state' := { state with
+            form := editActive state.form (fun _ => entry.locus.token),
+            candidateIndex := 0 }
+          { state' with form := moveFocus state'.form false }
+      | none =>
+          { state with form := moveFocus state.form false, candidateIndex := 0 }
+
 /-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
   let mut effects := []
@@ -172,6 +191,13 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | _ => { state }
     | .editing =>
         match key with
+        | .ctrl 'n' =>
+            if state.form.rows.size >= 6 then
+              { state := { state with notice := "This editor supports up to six posting rows." } }
+            else
+              { state := { state with form := appendRow state.form, candidateIndex := 0, notice := "" } }
+        | .ctrl 'd' =>
+            { state := { state with form := dropRow state.form, candidateIndex := 0, notice := "" } }
         | .tab => { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
         | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
@@ -184,11 +210,13 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
                 notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }
-        | .right => { state := acceptSelectedCandidate state }
+        | .right => { state := acceptCandidateAndAdvance state }
         | .enter =>
             let firstAction := 2 + state.form.rows.size * 2
             let focus := state.form.focus.val
-            if focus + 1 = firstAction then
+            if activeLocus? state.form != none then
+              { state := acceptCandidateAndAdvance state }
+            else if focus + 1 = firstAction then
               { state := preview world state }
             else if focus < firstAction then
               { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
@@ -255,8 +283,8 @@ def view (_known : List String) (state : State) : Widget :=
             (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
          line "Locus catalog:"] ++ candidateLines ++ helpLine ++
         [line "Posting JPY is signed; negative and positive rows may appear in any order.",
-         line "Tab / Shift-Tab focus   Enter next/final amount preview/action",
-         line "Up / Down choose Locus   Right accept Locus",
+         line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
+         line "Up / Down choose candidate   Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>
