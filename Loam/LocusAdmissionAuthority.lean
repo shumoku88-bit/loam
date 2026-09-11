@@ -1,5 +1,6 @@
 import Loam.Core.LocusAdmission
 import Loam.MovementManifestAuthority
+import Loam.WriterOwnership
 
 namespace Loam.LocusAdmissionAuthority
 
@@ -11,12 +12,12 @@ set_option autoImplicit false
 # Locus admission authority boundary
 
 LocusAdmission is current new-write policy, not household Event evidence. This
-module hides only the policy's current physical placement.
+module hides only the policy's current physical placement and publication anchor.
 
 The representation remains Movement-manifest-backed for now. Callers that need
 only the current admission vocabulary therefore no longer depend directly on the
-Movement world layout, and a later independently persisted policy can be tested
-without changing those callers.
+Movement world layout or the `CURRENT` child path, and a later independently
+persisted policy can be tested without changing those callers.
 
 This is deliberately local rather than a generic authority abstraction.
 -/
@@ -29,22 +30,34 @@ def loadCurrent?
   | .error message => return .error message
 
 /--
-Replace only the policy meaning while preserving the currently selected household
-Movement world.
+Apply one policy-local read/modify/write while preserving the currently selected
+household Movement world.
 
-Physical publication is intentionally unchanged: the current implementation still
-publishes one complete Movement generation. The caller owns the existing
-`root / "CURRENT"` writer lock, so read-modify-publish remains serialized exactly
-as before.
+The callback sees only the policy meaning and returns its replacement plus an
+operation-specific result. Physical publication is intentionally unchanged: this
+implementation still locks Movement `CURRENT` and publishes one complete Movement
+generation. Neither the callback nor its caller knows that placement.
+
+No add-only assumption is encoded here. If future policy semantics earn removal
+or retirement, synchronization can be re-qualified inside this boundary without
+changing policy-only callers.
 -/
-def replaceCurrent?
+def updateCurrent? {α : Type}
     (root : System.FilePath)
-    (vocabulary : LocusAdmissionVocabulary) : IO (Except String Nat) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+    (propose : LocusAdmissionVocabulary →
+      Except String (LocusAdmissionVocabulary × α)) : IO (Except String α) :=
+  Loam.WriterOwnership.withOwnership (root / "CURRENT") do
+    let world ←
+      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+      | .ok world => pure world
+      | .error message => return .error message
+    let (updated, result) ←
+      match propose world.locusAdmission with
+      | .ok value => pure value
+      | .error message => return .error message
+    match ← Loam.MovementManifestAuthority.publishWorld? root
+        { world with locusAdmission := updated } with
     | .error message => return .error message
-  Loam.MovementManifestAuthority.publishWorld? root
-    { world with locusAdmission := vocabulary }
+    | .ok _ => return .ok result
 
 end Loam.LocusAdmissionAuthority
