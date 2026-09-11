@@ -4,7 +4,7 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `2a34698ed2bdda70c5c1338a4cdf9e6972fb7b79`
+Current production checkpoint: `0338ed7964a0acbee70eb03c1b7063b95813af72`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history. This ledger should stay short enough to answer two questions quickly:
 
@@ -69,6 +69,7 @@ Recent completed compression:
 | #724 | shared ActualValidity ordinary stage/write/rename through `SiblingStage` | share physical replacement mechanics while keeping semantic admission local |
 | #726 | unified three fail-closed Actual-consumption folds | share one validity-required accumulation law while preserving routing/window query boundaries |
 | #728 | unified duplicated CurrentCoverage arithmetic/view assembly | share pure post-acquisition arithmetic while preserving routing-specific composition boundaries |
+| #730 | shared fresh Scheduled occurrence construction across Creation/Replacement | share pure construction mechanics while keeping operation authority and provenance explicit |
 
 PR #720 is an important control for future work: a temporary Lean migration proof was allowed to grow while proving equivalence, then the proof scaffolding was retired after the runtime duplication was removed. Formal methods should justify subtraction, not permanently replace runtime duplication with proof duplication.
 
@@ -79,6 +80,8 @@ PR #724 is the persistence-mechanics control: ActualValidity retained its V2/V3 
 PR #726 is the Application-mechanics control: temporary Lean migration witnesses established by definitional equality that ordinary routing, initial-aware routing, and the CapacityWindow helper were specializations of the same validity-required fold. After qualification, the duplicate folds and proof scaffolding were retired. Final production delta was 3 files, +31 / -35, with fold implementations reduced from three to one. Twelve exact-head workflows passed, including Lean Application, Practical Slice A2, Actual Routing Persistence, Capacity Effective Window/Persistence, Budget Window, and Production TUI 62/62.
 
 PR #728 completed the remaining SA-007 arithmetic candidate. Temporary Lean witnesses established by definitional equality that both CurrentCoverage public functions shared the same post-acquisition assembly. The witnesses were retired after cutover; one private `assembleCurrentCoverage` now owns Remaining, Headroom, and `CurrentCoverageView` construction while ordinary and `RoutingEffective` Consumption acquisition remain separate. Final production delta was 1 file, +17 / -22. Seven exact-head workflows passed, including Lean Application, Practical Slice B, and Production TUI 62/62.
+
+PR #730 completed the narrow SA-008 candidate. Temporary Lean witnesses proved by definitional equality that Creation and Replacement used the same fresh-id choice, balanced JPY movement reconstruction, and `ScheduledOccurrence` construction. The witnesses and publisher-local copies were retired after qualification. A small `ScheduledOccurrenceConstruction` mechanic now owns only those pure operations; Creation and Replacement retain separate validation wording, source/current-open admission, terminal provenance, transition checks, writer ownership, receipts, and publication order. Final production delta was 3 files, +41 / -48. Shared Creation and Replacement publisher workflows, Selected Lean Observations, Compression Audit, and Production TUI 62/62 all passed.
 
 Canonical household data was not changed by this sequence.
 
@@ -205,20 +208,26 @@ No current SA-007 implementation action. Reopen only if new concrete projection 
 
 ### SA-008 Scheduled semantic amplification
 
-Status: `AUDIT_COMPLETE`
+Status: `AUDIT_COMPLETE` / `IMPLEMENTED`
 
 Record: `SEMANTIC_AUDIT_SA008_SCHEDULED.md`
 
 Verdict: Scheduled fanout is mostly healthy derived porcelain over a small retained basis.
 
-**Next residual candidate:** `ScheduledCreationPublisher` and `ScheduledReplacementPublisher` repeat pure fresh-occurrence construction mechanics. Share only the admitted occurrence construction if Lean/regression evidence shows identical fresh-id choice, balanced movement, occurrence bytes, and refusal behavior. Keep source selection, terminal provenance, transition checks, receipts, publication order, and authority operation-specific.
+Implemented by PR #730:
 
-Do not build a generic Scheduled publisher or lifecycle framework.
+- one `ScheduledOccurrenceConstruction` module now owns first-unused Scheduled identity choice, balanced JPY movement reconstruction from Effects, and fresh `ScheduledOccurrence` construction;
+- temporary Lean witnesses proved the former Creation and Replacement copies definitionally equal to the shared mechanic before cutover;
+- publisher-local copies and migration witnesses were retired;
+- Creation and Replacement remain separate publication authorities with operation-specific validation, provenance, transition checks, ownership, receipts, and publication order;
+- no generic Scheduled publisher or lifecycle framework was introduced.
+
+No current SA-008 implementation action. Reopen only if another concrete Scheduled mechanic earns sharing without collapsing operation authority.
 
 ### SA-009 Publisher / Authority / Review semantic echo
 
 Status: `UNREVIEWED`
-Priority: high after the narrow qualified candidates above
+Priority: high after the remaining identity census
 
 This is the largest remaining broad audit region.
 
@@ -233,7 +242,7 @@ Do not start by extracting a universal `Publisher<T>`.
 ### SA-010 Revision-only identity principle
 
 Status: `UNDER_REVIEW`, partially implemented
-Priority: medium-high
+Priority: highest current audit priority
 
 The principle has already produced two successful reductions:
 
@@ -252,7 +261,7 @@ Do not generalize the revision-only rule to facts with genuine multiplicity or p
 
 ## 5. Next work queue
 
-This is the default order after current main `2a34698ed2bdda70c5c1338a4cdf9e6972fb7b79`. Re-check actual main and open PRs before every item.
+This is the default order after current main `0338ed7964a0acbee70eb03c1b7063b95813af72`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
@@ -260,20 +269,20 @@ No current P0 item. The qualified low-risk queue was exhausted by #722 and #724.
 
 ### P1 - proof-first mechanical compression
 
-1. **SA-008:** prove whether Creation/Replacement can share fresh Scheduled occurrence construction without sharing publication authority.
+No current P1 item. The qualified mechanical queue was exhausted by #726, #728, and #730.
 
 ### P2 - next conceptual audits
 
-2. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
-3. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
+1. **SA-010:** continue the remaining identity census and attack only independently proven redundant identities.
+2. **SA-009:** audit Publisher / Authority / Review protocol echo, using transition reasoning for crash/retry/recovery behavior.
 
 ### P3 - reopen only with concrete pressure
 
-4. **SA-001:** further finite-keyed carrier sharing.
-5. `VersionedRows` newline-free round-trip theorem.
-6. isolated Amount / low-level product-topology usefulness review.
+3. **SA-001:** further finite-keyed carrier sharing.
+4. `VersionedRows` newline-free round-trip theorem.
+5. isolated Amount / low-level product-topology usefulness review.
 
-If a P0/P1 candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
+If a candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. The ledger is allowed to record negative results.
 
 ## 6. Formal-method selection
 
