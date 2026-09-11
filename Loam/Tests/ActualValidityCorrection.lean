@@ -16,21 +16,22 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
 private def event : EventId := ⟨"record-1"⟩
 private def otherEvent : EventId := ⟨"record-2"⟩
 
-private def fact (id date : String) : ActualValidityFact String :=
-  { id := ⟨id⟩, event := event, validOn := date }
+private def revision (id date : String) : ActualValidityFact String :=
+  .revision ⟨id⟩ event date
 
-private def correction (id target replacement : String) : ActualValidityCorrection :=
-  { id := ⟨id⟩, target := ⟨target⟩, replacement := ⟨replacement⟩ }
+private def correction
+    (id : String) (target : ActualValidityRef) (replacement : String) : ActualValidityCorrection :=
+  { id := ⟨id⟩, target := target, replacement := ⟨replacement⟩ }
 
 def main : IO Unit := do
-  let original := fact "validity-1" "2026-09-03"
-  let replacement := fact "validity-2" "2026-09-02"
-  let secondReplacement := fact "validity-3" "2026-09-01"
+  let original : ActualValidityFact String := .base event "2026-09-03"
+  let replacement := revision "validity-2" "2026-09-02"
+  let secondReplacement := revision "validity-3" "2026-09-01"
 
   let firstHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement]
-      [correction "validity-correction-1" "validity-1" "validity-2"])
+      [correction "validity-correction-1" (.root event) "validity-2"])
     "first date-correction history was not admitted"
 
   let firstCurrent ← requireSome
@@ -46,8 +47,8 @@ def main : IO Unit := do
   let repeatedHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, secondReplacement]
-      [correction "validity-correction-1" "validity-1" "validity-2",
-       correction "validity-correction-2" "validity-2" "validity-3"])
+      [correction "validity-correction-1" (.root event) "validity-2",
+       correction "validity-correction-2" (.revision ⟨"validity-2"⟩) "validity-3"])
     "repeated date-correction history was not admitted"
 
   let repeatedCurrent ← requireSome
@@ -62,12 +63,12 @@ def main : IO Unit := do
   expect (repeatedHistory.corrections.length == 2)
     "repeated date correction did not preserve both correction relations"
 
-  let sibling := fact "validity-4" "2026-08-31"
+  let sibling := revision "validity-4" "2026-08-31"
   let siblingHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, replacement, sibling]
-      [correction "validity-correction-1" "validity-1" "validity-2",
-       correction "validity-correction-2" "validity-1" "validity-4"])
+      [correction "validity-correction-1" (.root event) "validity-2",
+       correction "validity-correction-2" (.root event) "validity-4"])
     "sibling raw date-correction history was not retained"
 
   expect
@@ -75,11 +76,11 @@ def main : IO Unit := do
     "sibling date corrections silently selected a winner"
 
   let otherFact : ActualValidityFact String :=
-    { id := ⟨"validity-other"⟩, event := otherEvent, validOn := "2026-09-01" }
+    .revision ⟨"validity-other"⟩ otherEvent "2026-09-01"
   let crossEventHistory ← requireSome
     (ActualValidityHistory.ofParts?
       [original, otherFact]
-      [correction "validity-correction-cross" "validity-1" "validity-other"])
+      [correction "validity-correction-cross" (.root event) "validity-other"])
     "cross-event raw correction history was not retained"
 
   expect
