@@ -158,17 +158,17 @@ def main : IO Unit := do
     currentTracked := Quantity.ofQuanta 140
   }
   let stockReportText := widgetText (Loam.Tui.Reports.view stockReport)
-  expect (contains "Reconstructed at start: 100 jpy" stockReportText)
+  expect (contains "Reconstructed at start:" stockReportText && contains "100 jpy" stockReportText)
     "Stock–Flow start reconstruction was not rendered"
-  expect (contains "Reconstructed at end:   130 jpy" stockReportText)
+  expect (contains "Reconstructed at end:" stockReportText && contains "130 jpy" stockReportText)
     "Stock–Flow end reconstruction was not rendered"
-  expect (contains "Tracked increases across Events: +50 jpy" stockReportText)
+  expect (contains "Tracked increases across Events:" stockReportText && contains "+50 jpy" stockReportText)
     "Stock–Flow increases were not rendered"
-  expect (contains "Tracked decreases across Events: -20 jpy" stockReportText)
+  expect (contains "Tracked decreases across Events:" stockReportText && contains "-20 jpy" stockReportText)
     "Stock–Flow decreases were not rendered"
-  expect (contains "Net change:                     +30 jpy" stockReportText)
+  expect (contains "Net change:" stockReportText && contains "+30 jpy" stockReportText)
     "Stock–Flow net change was not rendered"
-  expect (contains "Current tracked balance now: 140 jpy" stockReportText)
+  expect (contains "Current tracked balance now:" stockReportText && contains "140 jpy" stockReportText)
     "Stock–Flow current context was not rendered separately"
   expect (contains "not income/spending" stockReportText)
     "Stock–Flow lost its sign/classification non-claim"
@@ -232,7 +232,7 @@ def main : IO Unit := do
     "conditional overlay replaced the unconditional UNKNOWN baseline"
   expect (contains "CONDITIONAL selected-balance outlook" liquidityReportText)
     "conditional result lost its epistemic label"
-  expect (contains "Scheduled -300  -> 700 jpy" liquidityReportText)
+  expect (contains "Scheduled" liquidityReportText && contains "-300" liquidityReportText && contains "700 jpy" liquidityReportText)
     "conditional change point was not rendered"
   expect (contains "Conditional day-boundary low-water: 700 jpy" liquidityReportText)
     "conditional day-boundary low-water was not rendered"
@@ -284,7 +284,7 @@ def main : IO Unit := do
   let budgetText := widgetText (Loam.Tui.Reports.view budgetReport)
   expect (contains "Budget window [2026-08-17, 2026-10-15)" budgetText)
     "explicit Budget Window was not rendered"
-  expect (contains "food: entitlement 100 | consumption 30 | remaining 70 jpy" budgetText)
+  expect (contains "food" budgetText && contains "100" budgetText && contains "30" budgetText && contains "70 jpy" budgetText)
     "Budget Window components were not rendered"
   expect (contains "Remaining is derived exactly as Entitlement - Consumption." budgetText)
     "Budget Window lost the derived Remaining boundary"

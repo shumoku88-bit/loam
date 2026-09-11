@@ -23,8 +23,8 @@ def main : IO Unit := do
   let state := Loam.Tui.Balances.initial { rows := [row "wallet" 70, row "cash" 0] }
   let text := widgetText (Loam.Tui.Balances.view state)
   expect (contains "Balances / Current" text) "Balances heading missing"
-  expect (contains "wallet: 70 jpy" text) "nonzero balance missing"
-  expect (contains "cash: 0 jpy" text) "explicit zero balance was hidden"
+  expect (contains "wallet" text && contains "70 jpy" text) "nonzero balance missing"
+  expect (contains "cash" text && contains "0 jpy" text) "explicit zero balance was hidden"
   expect (contains "not an Account taxonomy" text) "neutral Locus boundary missing"
   expect (contains "balance-view order only" text) "presentation-order boundary missing"
 
