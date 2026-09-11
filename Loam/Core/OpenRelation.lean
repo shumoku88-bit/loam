@@ -15,11 +15,16 @@ Observation 178 later qualified exact discharge quantity as independent evidence
 once aggregate `RelationUnit` values became practically writable. A bare later
 Event-to-relation pair cannot preserve partial fulfillment.
 
+Production currently retains relation units plus exact discharge provenance. The
+retraction / replacement revision capability explored by Observations 175–176 has
+no selected authority, persistence, publisher, canonical wire, or practical
+entrance, so it remains research rather than present Core vocabulary.
+
 This module contains raw semantic provenance only. In particular it deliberately
 does not decide whether referenced Event / Effect identities are present,
 whether a quantity is positive or bounded by its source Effect / target relation,
-whether a revision or discharge is current or conflicting, or whether absence
-means known-none. Those are later admission / projection questions.
+whether a discharge target is current or conflicting, or whether absence means
+known-none. Those are later admission / projection questions.
 -/
 
 /--
@@ -98,26 +103,6 @@ structure RelationDischarge where
   event : EventId
   target : RelationUnitId
   quantity : Quantity
-deriving Repr, DecidableEq
-
-/-- Stable identity for one retained relation revision claim. -/
-structure RelationRevisionId where
-  token : String
-deriving Repr, DecidableEq
-
-/--
-One append-only raw revision of a retained relation unit.
-
-A present `replacement` offers another positive-relation candidate. `none`
-records an explicit retraction outcome for the target; it is not silent deletion
-and does not by itself mean that the source Effect is globally known to have no
-open relation. Same-source replacement, reference closure, acyclicity, conflict
-handling, and currentness remain later admission / frontier laws.
--/
-structure RelationRevision where
-  id : RelationRevisionId
-  target : RelationUnitId
-  replacement : Option RelationUnitId
 deriving Repr, DecidableEq
 
 end Loam.Core
