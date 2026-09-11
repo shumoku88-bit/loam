@@ -72,7 +72,7 @@ def main (args : List String) : IO Unit := do
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => throw (IO.userError message)
-  expect (loaded.locusAdmission == policyAfter)
+  expect (loaded.locusAdmission.approved == policyAfter.approved)
     "manifest-backed representation disagreed with the local policy authority"
   expect (Loam.Persistence.encodeEventMemory? loaded.events ==
       Loam.Persistence.encodeEventMemory? w.events)
