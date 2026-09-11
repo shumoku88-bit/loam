@@ -87,6 +87,15 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "save complete Scheduled lifecycle fixture"
 
+  let beforeUnapproved ← IO.FS.readFile scheduledFile
+  let unapproved ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+    scheduledFile.toString root.toString
+    (replacementDraft "scheduled-1" "2026-09-13" "paypay" "coffee" 1000)
+  expect (!unapproved.isOk)
+    "Scheduled replacement admitted an Effect on a Locus outside current LocusAdmission"
+  expect ((← IO.FS.readFile scheduledFile) == beforeUnapproved)
+    "refused unapproved-Locus Scheduled replacement changed lifecycle authority"
+
   let beforeInvalid ← IO.FS.readFile scheduledFile
   let invalid ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
     scheduledFile.toString root.toString
@@ -166,4 +175,4 @@ def main (args : List String) : IO Unit := do
   expect (replacementCount finalLifecycle.terminals == 1)
     "stale or malformed refusal changed replacement relation count"
 
-  IO.println "Scheduled Replacement Publisher: one-image publication, append-only provenance, malformed-world refusal and terminal refusal passed."
+  IO.println "Scheduled Replacement Publisher: Locus admission, one-image publication, append-only provenance, malformed-world refusal and terminal refusal passed."
