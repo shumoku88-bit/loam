@@ -4,7 +4,7 @@ Status: **ACTIVE CHECKPOINT LEDGER**
 
 Original audit baseline: `3227fcf59ae1fa15191378be84ab5527dd57e29c`
 
-Current production checkpoint: `fa1542688a1680af0d3994f0f3d18b451368f85f`
+Current production checkpoint: `b0cdfa210948f8bff7b09228efaa5461d1718bc4`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history.
 
@@ -43,7 +43,7 @@ If yes, test the smallest shared mechanic that preserves family-specific meaning
 - `IMPLEMENTATION_READY`: audit and formal gates are satisfied for a concrete change.
 - `IMPLEMENTED`: qualified production change has merged.
 
-## 3. Recent completed compression
+## 3. Recent completed compression and formal consolidation
 
 | PR | Result | Principle |
 | --- | --- | --- |
@@ -62,7 +62,8 @@ If yes, test the smallest shared mechanic that preserves family-specific meaning
 | #728 | unified duplicated CurrentCoverage arithmetic/view assembly | share pure post-acquisition arithmetic while preserving routing composition boundaries |
 | #730 | shared fresh Scheduled occurrence construction across Creation/Replacement | share pure construction mechanics while keeping operation authority explicit |
 | #734 | centralized EventCorrection absent-as-empty loading | share one family-specific optional-evidence contract without generic missing policy |
-| #736 | unified admitted Capacity publication tail | use Lean to prove the common construction, preserve genuinely different admission, then share only fresh-id/append/publication mechanics |
+| #736 | unified admitted Capacity publication tail | prove the common construction, preserve different admission, then share only publication mechanics |
+| #738 | made `VersionedRows` framing law explicit and retired legacy `String.splitOn` | retain one permanent round-trip law where shared persistence mechanics justify proof surface |
 
 ### Proof-first controls
 
@@ -74,7 +75,9 @@ PR #730 proved Creation and Replacement used the same fresh Scheduled identity c
 
 PR #734 centralized the EventCorrection family contract `missing -> empty`, `valid -> decoded`, `malformed existing bytes -> refusal`. It deliberately did not introduce a generic missing-storage policy. Final delta: 12 files, +40 / -109. Twelve exact-head workflows passed, including Production TUI 62/62.
 
-PR #736 is the strongest current example of formal methods discovering both sameness and difference. The initial audit found that binary and balanced Capacity entrances are **not** interchangeable: balanced validation additionally checks Purpose token syntax and balanced admission checks every changed Purpose against nonnegative entitlement, while the binary entrance retains its named-source rule. A temporary Lean theorem then proved that, under the binary positive-quantity and distinct-endpoint conditions, binary movement construction is exactly `Draft.toBalancedDraft` specialized through the balanced movement constructor. After that proof, the binary-only constructor and duplicated post-admission publication tail were removed. One private `publishAdmittedMovement` now owns fresh identity allocation, balanced movement construction, Capacity append, CapacityEffective append, effective-first publication, and activating Capacity publication. Both public entrances, validators, entitlement admission rules, receipts, writer ownership, crash residue, and recovery semantics remain separate. Final delta: 1 file, +41 / -45. Shared Capacity Publisher, Selected Lean Observations, Compression Audit, and Production TUI 62/62 all passed.
+PR #736 demonstrated both sameness and difference. Binary and balanced Capacity validation/admission are not interchangeable, but Lean proved binary movement construction is the two-change specialization of the balanced constructor under binary admission conditions. Only the post-admission publication tail was shared. Final delta: 1 file, +41 / -45; Shared Capacity Publisher, Selected Lean Observations, Compression Audit, and Production TUI 62/62 passed.
+
+PR #738 completed the `VersionedRows` formal backlog. A proof-first migration established that the former trailing `++ "\n"` bytes equal an explicit final empty frame row and that Lean's modern single-character split recovers newline-free frames exactly. Production now uses `String.split '\n'` instead of legacy `String.splitOn`, keeps the required trailing-newline behavior and exact wire bytes, and retains one permanent theorem: newline-free `encodeVersionedRows` output decodes exactly to its rows. Temporary migration witnesses and compilation probes were retired. No family wire schema, typed row parser, semantic admission rule, or canonical household data changed.
 
 Canonical household data was not changed by this sequence.
 
@@ -127,8 +130,10 @@ Record: `SEMANTIC_AUDIT_SA006_PERSISTENCE.md`
 
 Keep semantic wire owners and family-specific admission/recovery explicit. Keep shared `TokenSyntax`, `VersionedRows`, and `SiblingStage` mechanics. Do not create a universal serializer/repository.
 
+Completed formal backlog:
+- #738 proved the newline-free `VersionedRows` encode/decode round trip and retired legacy `String.splitOn` from that shared frame.
+
 Residual backlog:
-- prove the newline-free `VersionedRows` encode/decode round trip in Lean;
 - review isolated `AmountPersistence` under low-level product topology, not semantic codec compression.
 
 ### SA-007 Application projection fanout
@@ -167,7 +172,7 @@ Implemented narrow mechanics:
 - #736: Capacity post-admission publication tail.
 
 Important #736 negative result retained as design law:
-- binary and balanced Capacity **validation/admission are not equivalent**;
+- binary and balanced Capacity validation/admission are not equivalent;
 - do not collapse them merely because `Draft.toBalancedDraft` exists;
 - the proof earned only the shared movement/publication mechanic beneath those distinct entrances.
 
@@ -184,7 +189,7 @@ Keep entity/occurrence identities (`EventId`, `ScheduledId`, `CapacityMovementId
 
 ## 5. Next work queue
 
-Default order after production checkpoint `fa1542688a1680af0d3994f0f3d18b451368f85f`. Re-check actual main and open PRs before every item.
+Default order after production checkpoint `b0cdfa210948f8bff7b09228efaa5461d1718bc4`. Re-check actual main and open PRs before every item.
 
 ### P0 - narrow, low-risk subtractions
 
@@ -192,19 +197,18 @@ No current P0 item.
 
 ### P1 - proof-first mechanical compression
 
-No current P1 item. The qualified mechanical queue through SA-009 is exhausted.
+No current P1 item. The qualified mechanical queue through SA-009 and the `VersionedRows` formal backlog is exhausted.
 
 ### P2 - conceptual audits
 
 No broad conceptual audit currently remains open in SA-001 through SA-010.
 
-### P3 - reopen only with concrete pressure / small formal backlog
+### P3 - reopen only with concrete pressure / low-level topology review
 
-1. `VersionedRows` newline-free encode/decode round-trip theorem in Lean.
+1. isolated `AmountPersistence` / low-level product-topology usefulness review.
 2. SA-001 finite-keyed carrier sharing, only if a concrete net-negative helper appears.
-3. isolated Amount / low-level product-topology usefulness review.
 
-The `VersionedRows` theorem is the smallest current formal candidate. It should be treated first as a proof/audit item, not as permission for codec refactoring. If the theorem is trivial or already implied by existing implementation, keep the theorem only if it provides ongoing regression/explanatory value; otherwise record the result and do not grow proof surface.
+The Amount review is not permission to remove persistence merely because the module is small. Determine first whether it serves a current product entrance, test/qualification role, or useful low-level typed boundary that is independent of household Event persistence. Record `KEEP` if its independent role remains justified.
 
 If any candidate stops being net-negative once proof/adapters are included, mark it `KEEP` and move on. Negative results are first-class audit outcomes.
 
@@ -260,7 +264,7 @@ A proof can be migration evidence rather than permanent production machinery. Re
 
 After every structural-compression merge:
 1. update `Current production checkpoint`;
-2. add the PR to completed compression when it removed/unified a distinction;
+2. add the PR to completed compression when it removed/unified a distinction or consolidated a shared formal law;
 3. update affected SA status and residual candidate;
 4. remove completed queue items;
 5. promote the next smallest qualified candidate;
