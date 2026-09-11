@@ -1,4 +1,4 @@
-import Loam.Core.RelationAdmission
+import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
 
 namespace Loam.Application
@@ -15,7 +15,7 @@ facts that justify a collection of disjoint finite paths.
 
 It deliberately does not make correction-memory list order authoritative and it
 does not reinterpret branching or merging correction shapes as if they had a
-winner. Multi-parent settlement remains the separate `EventResolution` concept.
+winner. Multi-parent settlement remains outside the current production Core.
 -/
 
 private def targetsEvent : List EventCorrection → EventId → Bool
@@ -46,7 +46,7 @@ The admitted shape is intentionally narrower than an arbitrary directed graph:
 - every referenced Event is present;
 - one target has at most one replacement, so sibling corrections remain unresolved;
 - one replacement has at most one target, so Correction cannot silently perform
-  a multi-parent merge that belongs to `EventResolution`;
+  a multi-parent merge that current production semantics do not admit;
 - following replacements cannot cycle.
 
 Together these conditions make the correction relation a collection of disjoint
