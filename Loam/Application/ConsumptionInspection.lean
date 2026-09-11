@@ -66,7 +66,7 @@ Every Event requires its own validity coordinate before selection is decided.
 The caller owns the coordinate predicate and Event projection; this helper owns
 only the common validity-required accumulation law.
 -/
-def consumptionAtRecordedWhere?
+def foldRecordedConsumptionWhere?
     (events : EventMemory)
     (validities : ActualValidityMemory Time)
     (selected : Time → Bool)
@@ -110,7 +110,7 @@ theorem consumptionAtRecorded_eq_recordedWhere
     (purpose : PurposeId)
     (measure : MeasureId) :
     consumptionAtRecorded? events validities routing purpose measure =
-      consumptionAtRecordedWhere? events validities
+      foldRecordedConsumptionWhere? events validities
         (fun _ => true)
         (fun event validOn => eventConsumptionAt event validOn routing purpose measure) := by
   rfl
