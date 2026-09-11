@@ -1,5 +1,4 @@
 import Loam.Core.EventCorrection
-import Loam.Core.FiniteKeyed
 
 namespace Loam.Core
 
@@ -9,21 +8,24 @@ set_option autoImplicit false
 A practical memory of explicit Event correction relations.
 
 `corrections` is a deterministic representation only. Its list position carries
-no temporal, causal, priority, authority, or arrival-order meaning. One
-`EventCorrectionId` may occur at most once in the memory.
+no temporal, causal, priority, authority, or arrival-order meaning. One exact
+`target -> replacement` edge may occur at most once in the raw memory.
 
-Referential closure against `EventMemory` is deliberately not part of this
-structure. That remains the separate fail-closed relation-admission boundary.
+Referential closure and one-to-one frontier admission against `EventMemory` are
+deliberately not part of this structure. Those remain separate fail-closed
+Application concerns.
 -/
 structure EventCorrectionMemory where
   corrections : List EventCorrection
-  idNodup : (corrections.map EventCorrection.id).Nodup
+  idNodup : (corrections.map fun correction =>
+    (correction.target, correction.replacement)).Nodup
 
 namespace EventCorrectionMemory
 
-/-- Admit a runtime correction collection only when correction identity is unique. -/
+/-- Admit raw correction facts while refusing duplicate semantic edges. -/
 def ofCorrections? (corrections : List EventCorrection) : Option EventCorrectionMemory :=
-  if h : (corrections.map EventCorrection.id).Nodup then
+  if h : (corrections.map fun correction =>
+      (correction.target, correction.replacement)).Nodup then
     some { corrections := corrections, idNodup := h }
   else
     none
@@ -33,51 +35,23 @@ def ofCorrections? (corrections : List EventCorrection) : Option EventCorrection
     ofCorrections? [] = some { corrections := [], idNodup := by simp } := by
   simp [ofCorrections?]
 
-/-- One correction always has unique identity within a correction memory. -/
+/-- One correction edge is always unique within a correction memory. -/
 @[simp] theorem ofCorrections?_singleton (correction : EventCorrection) :
     ofCorrections? [correction] =
       some { corrections := [correction], idNodup := by simp } := by
   simp [ofCorrections?]
 
-/-- Repeating one correction identity is rejected rather than ordered. -/
+/-- Repeating one exact correction edge is rejected rather than ordered. -/
 @[simp] theorem ofCorrections?_duplicate (correction : EventCorrection) :
     ofCorrections? [correction, correction] = none := by
   simp [ofCorrections?]
 
 /--
-Find one remembered correction by stable relation identity.
-
-The lookup observes `EventCorrectionId` only. List position cannot select a
-winner among relations because repeated identity is rejected at admission.
--/
-def findById?
-    (memory : EventCorrectionMemory)
-    (id : EventCorrectionId) : Option EventCorrection :=
-  FiniteKeyed.findBy? EventCorrection.id memory.corrections id
-
-/-- Correction identity lookup is invariant under representation permutation. -/
-theorem findById?_perm
-    (left right : EventCorrectionMemory)
-    (hPerm : left.corrections.Perm right.corrections)
-    (id : EventCorrectionId) :
-    findById? left id = findById? right id := by
-  exact FiniteKeyed.findBy?_perm EventCorrection.id hPerm left.idNodup id
-
-@[simp] theorem findById?_empty (id : EventCorrectionId) :
-    findById? { corrections := [], idNodup := by simp } id = none := by
-  simp [findById?, FiniteKeyed.findBy?]
-
-@[simp] theorem findById?_singleton_self (correction : EventCorrection) :
-    findById? { corrections := [correction], idNodup := by simp } correction.id =
-      some correction := by
-  simp [findById?, FiniteKeyed.findBy?]
-
-/--
-Add one complete raw correction relation, rejecting repeated correction identity.
+Add one complete raw correction relation, rejecting an exact duplicate edge.
 
 This operation deliberately does not inspect `EventMemory`. Referential closure
-remains a derived `RelationAdmission` concern, so raw fact retention cannot
-depend on physical Event/relation arrival order.
+and frontier shape remain derived Application concerns, so raw fact retention
+cannot depend on physical Event/relation arrival order.
 -/
 def add?
     (memory : EventCorrectionMemory)
@@ -95,7 +69,8 @@ def add?
 
 theorem add?_singleton_distinct
     (existing added : EventCorrection)
-    (h : existing.id ≠ added.id) :
+    (h : (existing.target, existing.replacement) ≠
+      (added.target, added.replacement)) :
     add? { corrections := [existing], idNodup := by simp } added =
       some { corrections := [existing, added], idNodup := by simp [h] } := by
   simp [add?, ofCorrections?, h]

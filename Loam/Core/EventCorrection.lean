@@ -5,16 +5,6 @@ namespace Loam.Core
 set_option autoImplicit false
 
 /--
-Stable identity for one explicit correction relation.
-
-The token identifies the correction fact itself. It does not encode chronology,
-authority, reason, event kind, or accounting meaning.
--/
-structure EventCorrectionId where
-  token : String
-deriving Repr, DecidableEq
-
-/--
 One explicit claim that a remembered Event supplies a corrected interpretation
 of another remembered Event.
 
@@ -24,7 +14,6 @@ Repeated correction, competing corrections, and conflict projection are handled
 by later collection and projection boundaries rather than by this raw value.
 -/
 structure EventCorrection where
-  id : EventCorrectionId
   target : EventId
   replacement : EventId
 deriving Repr, DecidableEq
@@ -48,14 +37,13 @@ simultaneously possible.
 
 `branches` is a deterministic representation only. Its list position carries
 no arrival, temporal, priority, or authority meaning. Every branch targets the
-same interpretation, correction identity is not repeated, and replacement
-Event identity is not repeated. At least two candidate interpretations are
-present, so this value deliberately exposes no single `effective` Event.
+same interpretation and replacement Event identity is not repeated. At least
+two candidate interpretations are present, so this value deliberately exposes
+no single `effective` Event.
 -/
 structure UnresolvedCorrection where
   target : EventId
   branches : List EventCorrection
-  branchIdNodup : (branches.map EventCorrection.id).Nodup
   branchTarget : ∀ branch ∈ branches, branch.target = target
   candidateIdNodup : (branches.map EventCorrection.replacement).Nodup
   multiple : 2 ≤ branches.length
@@ -209,10 +197,10 @@ theorem projectFromTip?_perm
 Project two sibling corrections as an unresolved current state.
 
 Both correction facts must directly target the same explicit interpretation,
-both replacement Events must be present in memory, correction identity must be
-distinct, and replacement Event identity must be distinct. No branch is chosen
-as effective. The returned branch list is representation only; callers that
-care about candidate meaning should treat it modulo permutation.
+both replacement Events must be present in memory, and replacement Event
+identity must be distinct. No branch is chosen as effective. The returned
+branch list is representation only; callers that care about candidate meaning
+should treat it modulo permutation.
 -/
 def projectSiblingConflict?
     (memory : EventMemory)
@@ -220,26 +208,22 @@ def projectSiblingConflict?
     (left right : EventCorrection) : Option UnresolvedCorrection :=
   if hLeftTarget : left.target = tip then
     if hRightTarget : right.target = tip then
-      if hBranchId : left.id ≠ right.id then
-        if hCandidateId : left.replacement ≠ right.replacement then
-          match project? memory left, project? memory right with
-          | some _, some _ =>
-              some {
-                target := tip
-                branches := [left, right]
-                branchIdNodup := by simp [hBranchId]
-                branchTarget := by
-                  intro branch hBranch
-                  simp only [List.mem_cons, List.not_mem_nil, or_false] at hBranch
-                  rcases hBranch with rfl | rfl
-                  · exact hLeftTarget
-                  · exact hRightTarget
-                candidateIdNodup := by simp [hCandidateId]
-                multiple := by simp
-              }
-          | _, _ => none
-        else
-          none
+      if hCandidateId : left.replacement ≠ right.replacement then
+        match project? memory left, project? memory right with
+        | some _, some _ =>
+            some {
+              target := tip
+              branches := [left, right]
+              branchTarget := by
+                intro branch hBranch
+                simp only [List.mem_cons, List.not_mem_nil, or_false] at hBranch
+                rcases hBranch with rfl | rfl
+                · exact hLeftTarget
+                · exact hRightTarget
+              candidateIdNodup := by simp [hCandidateId]
+              multiple := by simp
+            }
+        | _, _ => none
       else
         none
     else

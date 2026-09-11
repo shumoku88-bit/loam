@@ -40,9 +40,9 @@ inductive CorrectionQuestion where
   deriving Repr, DecidableEq
 
 /--
-Append one raw Correction fact. Repeated correction identity leaves the state
-unchanged in this total transition wrapper. Semantic frontier admission remains
-separate and fail-closed in `CorrectionFrontier`.
+Append one raw Correction fact. Repeating the same correction edge leaves the
+state unchanged in this total transition wrapper. Semantic frontier admission
+remains separate and fail-closed in `CorrectionFrontier`.
 -/
 def correctionStep
     (state : CorrectionState) : CorrectionOperation → CorrectionState
@@ -111,8 +111,7 @@ private def rightState : CorrectionState :=
   { events := rightEvents, corrections := emptyCorrections }
 
 private def targetCorrection : EventCorrection :=
-  { id := ⟨"correction-1"⟩
-    target := targetId
+  { target := targetId
     replacement := replacementId }
 
 private def publishTarget : CorrectionOperation :=
@@ -237,7 +236,7 @@ The witness uses existing LOAM types and operations:
 
 - retained `EventMemory`;
 - raw `EventCorrectionMemory.add?`;
-- explicit `EventCorrection` identity and endpoints;
+- explicit `EventCorrection` endpoints;
 - fail-closed `CorrectionFrontier` admission;
 - existing correction-effective quantity projection.
 

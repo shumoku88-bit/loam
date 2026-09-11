@@ -30,14 +30,12 @@ private def sampleMemory? : Option EventMemory := do
 
 private def firstCorrection : EventCorrection :=
   {
-    id := ⟨"correction-1"⟩
     target := ⟨"event-1"⟩
     replacement := ⟨"event-2"⟩
   }
 
 private def danglingCorrection : EventCorrection :=
   {
-    id := ⟨"correction-2"⟩
     target := ⟨"missing-target"⟩
     replacement := ⟨"missing-replacement"⟩
   }
@@ -62,9 +60,9 @@ private def eventMemoryWire : String :=
   "EFFECT\teffect-d\twallet\tjpy\t-500\n"
 
 private def eventCorrectionMemoryWire : String :=
-  "LOAM-EVENT-CORRECTION-MEMORY\t1\n" ++
-  "CORRECTION\tcorrection-1\tevent-1\tevent-2\n" ++
-  "CORRECTION\tcorrection-2\tmissing-target\tmissing-replacement\n"
+  "LOAM-EVENT-CORRECTION-MEMORY\t2\n" ++
+  "CORRECTION\tevent-1\tevent-2\n" ++
+  "CORRECTION\tmissing-target\tmissing-replacement\n"
 
 def main : IO Unit := do
   expect
@@ -244,12 +242,12 @@ def main : IO Unit := do
 
   match sampleCorrectionMemory? with
   | none =>
-      throw <| IO.userError "sample Event-correction memory failed identity admission"
+      throw <| IO.userError "sample Event-correction memory failed edge admission"
   | some memory =>
       expect
         (Loam.Persistence.encodeEventCorrectionMemory? memory ==
           some eventCorrectionMemoryWire)
-        "Event-correction-memory persistence changed the exact wire shape"
+        "Event-correction-memory persistence changed the exact V2 wire shape"
 
       match
           (Loam.Persistence.encodeEventCorrectionMemory? memory).bind
@@ -259,8 +257,6 @@ def main : IO Unit := do
       | some restored =>
           match restored.corrections with
           | [first, second] =>
-              expect (first.id.token == "correction-1")
-                "Event-correction-memory round-trip changed first correction identity"
               expect (first.target.token == "event-1" && first.replacement.token == "event-2")
                 "Event-correction-memory round-trip changed correction endpoints"
               expect
@@ -300,42 +296,57 @@ def main : IO Unit := do
   expect
     ((Loam.Persistence.encodeEventCorrectionMemory?
       { corrections := [], idNodup := by simp }) ==
-      some "LOAM-EVENT-CORRECTION-MEMORY\t1\n")
-    "empty Event-correction memory changed its exact wire shape"
+      some "LOAM-EVENT-CORRECTION-MEMORY\t2\n")
+    "empty Event-correction memory changed its exact V2 wire shape"
 
   match
       Loam.Persistence.decodeEventCorrectionMemory?
         "LOAM-EVENT-CORRECTION-MEMORY\t1\n" with
   | some memory =>
       expect memory.corrections.isEmpty
-        "empty Event-correction-memory persistence restored phantom corrections"
+        "legacy empty Event-correction memory restored phantom corrections"
   | none =>
-      throw <| IO.userError "empty Event-correction memory failed to decode"
+      throw <| IO.userError "legacy empty Event-correction memory failed to decode"
+
+  match
+      Loam.Persistence.decodeEventCorrectionMemory?
+        ("LOAM-EVENT-CORRECTION-MEMORY\t1\n" ++
+         "CORRECTION\tlegacy-id\tevent-1\tevent-2\n") with
+  | some memory =>
+      match memory.corrections with
+      | [correction] =>
+          expect
+            (correction.target.token == "event-1" &&
+              correction.replacement.token == "event-2")
+            "legacy V1 correction endpoints changed while discarding fact identity"
+      | _ =>
+          throw <| IO.userError "legacy V1 correction changed relation count"
+  | none =>
+      throw <| IO.userError "legacy V1 correction row failed to decode"
 
   expect
     (Loam.Persistence.decodeEventCorrectionMemory?
       ("LOAM-EVENT-CORRECTION-MEMORY\t1\n" ++
-       "CORRECTION\tsame-id\tevent-1\tevent-2\n" ++
-       "CORRECTION\tsame-id\tevent-3\tevent-4\n")).isNone
-    "Event-correction-memory persistence admitted duplicate correction identity"
+       "CORRECTION\told-a\tevent-1\tevent-2\n" ++
+       "CORRECTION\told-b\tevent-1\tevent-2\n")).isNone
+    "legacy Event-correction memory admitted the same semantic edge twice"
 
   expect
     (Loam.Persistence.decodeEventCorrectionMemory?
-      "LOAM-EVENT-CORRECTION-MEMORY\t2\n").isNone
+      "LOAM-EVENT-CORRECTION-MEMORY\t3\n").isNone
     "Event-correction-memory persistence accepted an unsupported version"
 
   expect
     (Loam.Persistence.decodeEventCorrectionMemory?
-      "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\te1\te2").isNone
+      "LOAM-EVENT-CORRECTION-MEMORY\t2\nCORRECTION\te1\te2").isNone
     "Event-correction-memory persistence accepted a missing trailing newline"
 
   let invalidCorrection : EventCorrection :=
     {
-      id := ⟨"bad\tid"⟩
-      target := ⟨"event-1"⟩
+      target := ⟨"bad\ttarget"⟩
       replacement := ⟨"event-2"⟩
     }
   expect
     ((Loam.Persistence.encodeEventCorrectionMemory?
       { corrections := [invalidCorrection], idNodup := by simp }).isNone)
-    "Event-correction-memory persistence accepted an ambiguous identity token"
+    "Event-correction-memory persistence accepted an ambiguous endpoint token"
