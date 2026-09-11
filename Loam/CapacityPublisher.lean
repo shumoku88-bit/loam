@@ -137,16 +137,42 @@ private def freshCapacityId?
     (memory.movements.length + effective.entries.length + 1)
   pure ⟨token⟩
 
-private def movementForDraft?
-    (id : CapacityMovementId) (draft : Draft) : Option CapacityMovement := do
-  if draft.quanta <= 0 || draft.source = draft.destination then
+private def movementForBalancedDraft?
+    (id : CapacityMovementId) (draft : BalancedDraft) : Option CapacityMovement := do
+  if draft.changes.isEmpty || movementTotalQuanta draft.changes != 0 then
     none
   else
-    let changes : List (MovementChange CapacityCoordinate) :=
-      [ { coordinate := draft.source, quantity := Quantity.ofQuanta (-draft.quanta) }
-      , { coordinate := draft.destination, quantity := Quantity.ofQuanta draft.quanta } ]
-    let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
+    let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
     pure { id := id, movement := movement }
+
+/--
+Publish one already-admitted balanced movement shape through the one Capacity
+physical sequence. Callers retain operation-specific validation and entitlement
+admission; this helper owns only fresh identity, append, and effective-first
+publication mechanics shared by the binary and multi-coordinate entrances.
+-/
+private def publishAdmittedMovement
+    (capacityFile : System.FilePath)
+    (memory : CapacityMemory)
+    (effective : CapacityEffectiveMemory String)
+    (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
+  let some movementId := freshCapacityId? memory effective
+    | return .error "Could not generate a fresh Capacity movement identity."
+  let some movement := movementForBalancedDraft? movementId draft
+    | return .error "Capacity movement could not be represented as a balanced JPY movement."
+  let some updated := memory.add? movement
+    | return .error "Could not append Capacity movement authority."
+  let some updatedEffective := CapacityEffectiveMemory.ofEntries?
+      (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
+    | return .error "Could not append Capacity effective evidence."
+
+  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
+    return .error "Capacity effective evidence could not be published."
+  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
+    return .error
+      "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
+
+  return .ok movementId
 
 private def publishUnlocked
     (capacityFile : System.FilePath) (draft : Draft) : IO (Except String Receipt) := do
@@ -168,21 +194,10 @@ private def publishUnlocked
   if !canMoveCapacityFrom memory.movements draft.source ⟨"jpy"⟩ draft.quanta then
     return .error "Capacity source has insufficient current entitlement."
 
-  let some movementId := freshCapacityId? memory effective
-    | return .error "Could not generate a fresh Capacity movement identity."
-  let some movement := movementForDraft? movementId draft
-    | return .error "Capacity movement could not be represented as a balanced JPY movement."
-  let some updated := memory.add? movement
-    | return .error "Could not append Capacity movement authority."
-  let some updatedEffective := CapacityEffectiveMemory.ofEntries?
-      (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
-    | return .error "Could not append Capacity effective evidence."
-
-  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
-    return .error "Capacity effective evidence could not be published."
-  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
-    return .error
-      "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
+  let movementId ←
+    match ← publishAdmittedMovement capacityFile memory effective draft.toBalancedDraft with
+    | .ok id => pure id
+    | .error message => return .error message
 
   return .ok {
     movement := movementId
@@ -203,14 +218,6 @@ def publish
     (capacityPath : String) (draft : Draft) : IO (Except String Receipt) :=
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishUnlocked capacityFile draft)
-
-private def movementForBalancedDraft?
-    (id : CapacityMovementId) (draft : BalancedDraft) : Option CapacityMovement := do
-  if draft.changes.isEmpty || movementTotalQuanta draft.changes != 0 then
-    none
-  else
-    let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
-    pure { id := id, movement := movement }
 
 private def publishBalancedUnlocked
     (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String BalancedReceipt) := do
@@ -237,21 +244,10 @@ private def publishBalancedUnlocked
           return .error s!"Capacity Purpose '{purpose.token}' entitlement would become negative: {current + change.quantity.quanta}."
     | .unallocated => pure ()
 
-  let some movementId := freshCapacityId? memory effective
-    | return .error "Could not generate a fresh Capacity movement identity."
-  let some movement := movementForBalancedDraft? movementId draft
-    | return .error "Capacity movement could not be represented as a balanced JPY movement."
-  let some updated := memory.add? movement
-    | return .error "Could not append Capacity movement authority."
-  let some updatedEffective := CapacityEffectiveMemory.ofEntries?
-      (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
-    | return .error "Could not append Capacity effective evidence."
-
-  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
-    return .error "Capacity effective evidence could not be published."
-  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
-    return .error
-      "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
+  let movementId ←
+    match ← publishAdmittedMovement capacityFile memory effective draft with
+    | .ok id => pure id
+    | .error message => return .error message
 
   return .ok {
     movement := movementId
