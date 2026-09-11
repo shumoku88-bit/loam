@@ -82,7 +82,7 @@ def showCorrectionIntegrity (memoryPath correctionPath : String) : IO UInt32 := 
                   if !(← printCorrection memory correction) then
                     allUsable := false
                 if allUsable then
-                  IO.println "All correction relations are closed and acyclic individually."
+                  IO.println "All correction relations are closed."
                   return 0
                 else
                   IO.eprintln "loam: one or more correction relations are open or cyclic"
