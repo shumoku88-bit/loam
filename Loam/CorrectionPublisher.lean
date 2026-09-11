@@ -22,7 +22,6 @@ structure Draft where
 structure Receipt where
   target : EventId
   replacement : EventId
-  correction : EventCorrectionId
   carriedDate : Bool
   publishedDescription : Bool
   resumed : Bool
@@ -101,14 +100,6 @@ private def freshReplacementId?
       world.descriptions.entries.length + world.relations.length +
       world.discharges.length + 2 * corrections.corrections.length +
       2 * reversals.reversals.length + 1)
-  pure ⟨token⟩
-
-private def freshCorrectionId? (memory : EventCorrectionMemory) : Option EventCorrectionId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "correction-"
-    (fun token => (memory.findById? (⟨token⟩ : EventCorrectionId)).isSome)
-    1
-    (memory.corrections.length + 1)
   pure ⟨token⟩
 
 private def currentFactForEvent?
@@ -229,11 +220,7 @@ private def admit?
           match freshReplacementId? world corrections reversals with
           | some id => pure id
           | none => throw "loam: could not generate a fresh replacement Event identity"
-        let correctionId ←
-          match freshCorrectionId? corrections with
-          | some id => pure id
-          | none => throw "loam: could not generate a fresh correction identity"
-        pure { id := correctionId, target := draft.target, replacement := replacement }
+        pure { target := draft.target, replacement := replacement }
 
   if correction.target != draft.target then
     throw "loam: internal correction target mismatch"
@@ -289,7 +276,6 @@ private def admit?
     receipt := {
       target := draft.target
       replacement := correction.replacement
-      correction := correction.id
       carriedDate := carriedDate
       publishedDescription := publishedDescription
       resumed := !correctionChanged
