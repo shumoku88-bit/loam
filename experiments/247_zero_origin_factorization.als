@@ -34,15 +34,12 @@ pred equivalent[d : DirectWorld, f : FactoredWorld] {
   directCoverage[d] = factoredCoverage[f]
 }
 
--- Every current-style direct coverage set has some factored representation.
 pred everyDirectHasFactoredImage {
   all d : DirectWorld |
     some f : FactoredWorld |
       equivalent[d, f]
 }
 
--- When an origin is explicitly established, one origin fact plus the tracked
--- coordinate set can reconstruct any direct covered set exactly.
 pred explicitOriginReconstructsDirect {
   all d : DirectWorld |
     some f : FactoredWorld |
@@ -51,26 +48,28 @@ pred explicitOriginReconstructsDirect {
       and equivalent[d, f]
 }
 
--- The factorization is not itself a compression result if trackedFromOrigin
--- remains an arbitrary set: distinct tracked coordinate sets remain observably
--- distinct. This witness prevents us from claiming that one Boolean origin fact
--- alone can replace the current coordinate evidence.
+-- Direct witness: with the same established origin, one coordinate can be
+-- tracked in one world and not in another, changing the coverage answer.
 pred trackedSetStillCarriesInformation {
-  some disj f1, f2 : FactoredWorld |
-    f1.originEstablished = Yes
+  some f1, f2 : FactoredWorld, c : Coordinate |
+    f1 != f2
+    and f1.originEstablished = Yes
     and f2.originEstablished = Yes
-    and f1.trackedFromOrigin != f2.trackedFromOrigin
-    and factoredCoverage[f1] != factoredCoverage[f2]
+    and c in f1.trackedFromOrigin
+    and c not in f2.trackedFromOrigin
+    and c in factoredCoverage[f1]
+    and c not in factoredCoverage[f2]
 }
 
--- If one tried to retain only the origin flag and discard tracked coordinates,
--- worlds with the same origin flag could still require different coverage
--- answers. This is the key counterexample against over-compression.
+-- Therefore retaining only the origin flag identifies worlds whose coverage
+-- answers differ.
 pred originFlagAloneIsInsufficient {
-  some disj f1, f2 : FactoredWorld |
-    f1.originEstablished = Yes
-    and f2.originEstablished = Yes
-    and factoredCoverage[f1] != factoredCoverage[f2]
+  some f1, f2 : FactoredWorld, c : Coordinate |
+    f1 != f2
+    and f1.originEstablished = f2.originEstablished
+    and f1.originEstablished = Yes
+    and c in factoredCoverage[f1]
+    and c not in factoredCoverage[f2]
 }
 
 assert DirectToFactoredCoveragePreserved {
