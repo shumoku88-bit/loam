@@ -9,6 +9,8 @@ on:
       - 'experiments/249_locus_admission_authority_separation.md'
       - 'experiments/250_locus_policy_failure_recovery_domain.als'
       - 'experiments/250_locus_policy_failure_recovery_domain.md'
+      - 'experiments/251_recomposed_movement_recovery.als'
+      - 'experiments/251_recomposed_movement_recovery.md'
       - '.github/workflows/canonical-basis-observability.yml'
   push:
     branches:
@@ -20,6 +22,8 @@ on:
       - 'experiments/249_locus_admission_authority_separation.md'
       - 'experiments/250_locus_policy_failure_recovery_domain.als'
       - 'experiments/250_locus_policy_failure_recovery_domain.md'
+      - 'experiments/251_recomposed_movement_recovery.als'
+      - 'experiments/251_recomposed_movement_recovery.md'
       - '.github/workflows/canonical-basis-observability.yml'
   workflow_dispatch:
 
@@ -86,6 +90,20 @@ jobs:
                 "coupledRecoveryCanLoseCurrentPermission": true,
                 "AddOnlyHistoricalAdmissionSurvivesSplitRecovery": false,
                 "SplitRecoveryPreservesCurrentPolicyAnswer": false
+              }
+            },
+            {
+              "id": "experiment-251-recomposed-movement-recovery",
+              "model": "experiments/251_recomposed_movement_recovery.als",
+              "expected": {
+                "recomposedRecoveryExists": true,
+                "RecomposedRecoveryRestoresEveryCandidateEvidenceFamily": false,
+                "RecomposedRecoveryPreservesCurrentPolicy": false,
+                "MissingCurrentPolicyRefusesRecomposition": false,
+                "historicalPolicyFallbackWouldMaskCurrentPolicyFailure": true,
+                "CandidateAdmissionSurvivesRecomposedRecovery": false,
+                "CurrentAdmissionAnswerPreserved": false,
+                "coupledHistoricalRecoveryCanLoseLaterPermission": true
               }
             }
           ]
