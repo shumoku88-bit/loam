@@ -10,13 +10,14 @@ set_option autoImplicit false
 /-!
 # Open relation admission and frontier
 
-This module is the first executable projection over the raw open-relation
-vocabulary promoted after Observation 176.
+This module is the executable projection over the currently selected raw
+open-relation vocabulary.
 
-Raw `RelationUnit` and `RelationRevision` values remain append-only provenance.
-This boundary decides only whether their current semantic frontier is safe to
-publish. It deliberately introduces no relation memory, persistence topology,
-writer protocol, endpoint registry, or universal revision framework.
+Raw `RelationUnit` values remain append-only provenance. This boundary decides
+only whether their current semantic frontier is safe to publish. The
+retraction / replacement revision capability explored by Observations 175–176
+is intentionally outside production until a concrete authority and persistence
+path select it.
 
 A failed projection is represented by outer `none`: malformed or conflicting
 current evidence is unresolved and must not be mistaken for absence.
@@ -141,104 +142,11 @@ theorem admitRelationUnit?_eventMemory_perm
   unfold admitRelationUnit?
   rw [relationSourceEffect?_eventMemory_perm left right hPerm relation]
 
-private def findRelationById? :
-    List RelationUnit → RelationUnitId → Option RelationUnit
-  | [], _ => none
-  | relation :: rest, id =>
-      if relation.id = id then
-        some relation
-      else
-        findRelationById? rest id
-
 private def uniqueUnitIds : List RelationUnit → Bool
   | [] => true
   | relation :: rest =>
       !(rest.any fun other => decide (other.id = relation.id)) &&
         uniqueUnitIds rest
-
-private def uniqueRevisionIds : List RelationRevision → Bool
-  | [] => true
-  | revision :: rest =>
-      !(rest.any fun other => decide (other.id = revision.id)) &&
-        uniqueRevisionIds rest
-
-private def uniqueRevisionTargets : List RelationRevision → Bool
-  | [] => true
-  | revision :: rest =>
-      !(rest.any fun other => decide (other.target = revision.target)) &&
-        uniqueRevisionTargets rest
-
-private def uniqueRevisionReplacements : List RelationRevision → Bool
-  | [] => true
-  | revision :: rest =>
-      match revision.replacement with
-      | none => uniqueRevisionReplacements rest
-      | some replacement =>
-          !(rest.any fun other => decide (other.replacement = some replacement)) &&
-            uniqueRevisionReplacements rest
-
-private def closedRevisionReferences
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  revisions.all fun revision =>
-    match findRelationById? relations revision.target with
-    | none => false
-    | some _ =>
-        match revision.replacement with
-        | none => true
-        | some replacement => (findRelationById? relations replacement).isSome
-
-private def preservesRevisionSource
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  revisions.all fun revision =>
-    match findRelationById? relations revision.target with
-    | none => false
-    | some target =>
-        match revision.replacement with
-        | none => true
-        | some replacementId =>
-            match findRelationById? relations replacementId with
-            | none => false
-            | some replacement =>
-                decide
-                  (target.sourceEvent = replacement.sourceEvent ∧
-                    target.sourceEffect = replacement.sourceEffect)
-
-private def nextReplacement? :
-    List RelationRevision → RelationUnitId → Option RelationUnitId
-  | [], _ => none
-  | revision :: rest, id =>
-      if revision.target = id then
-        revision.replacement
-      else
-        nextReplacement? rest id
-
-private def pathAcyclicFrom
-    (revisions : List RelationRevision)
-    (start : RelationUnitId) : Nat → RelationUnitId → Bool
-  | 0, _ => true
-  | fuel + 1, current =>
-      match nextReplacement? revisions current with
-      | none => true
-      | some next =>
-          if next = start then
-            false
-          else
-            pathAcyclicFrom revisions start fuel next
-
-private def revisionsAcyclic (revisions : List RelationRevision) : Bool :=
-  revisions.all fun revision =>
-    pathAcyclicFrom revisions revision.target revisions.length revision.target
-
-private def targetUsed
-    (revisions : List RelationRevision) (id : RelationUnitId) : Bool :=
-  revisions.any fun revision => decide (revision.target = id)
-
-private def relationFrontierUnits
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : List RelationUnit :=
-  relations.filter fun relation => !(targetUsed revisions relation.id)
 
 private def admitAll?
     (events : EventMemory) : List RelationUnit → Option (List AdmittedRelationUnit)
@@ -250,9 +158,8 @@ private def admitAll?
 
 private def currentUnitsAdmissible
     (events : EventMemory)
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  (relationFrontierUnits relations revisions).all fun relation =>
+    (relations : List RelationUnit) : Bool :=
+  relations.all fun relation =>
     (admitRelationUnit? events relation).isSome
 
 private def sameRelationSource (left right : RelationUnit) : Bool :=
@@ -268,21 +175,18 @@ private def sameRawSource
     (relation.sourceEvent = sourceEvent ∧
       relation.sourceEffect = sourceEffect)
 
-private def sourceRelationFrontierUnits
+private def sourceRelationUnits
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : List RelationUnit :=
-  (relationFrontierUnits relations revisions).filter
-    (sameRawSource sourceEvent sourceEffect)
+  relations.filter (sameRawSource sourceEvent sourceEffect)
 
 private def sourceCurrentUnitsAdmissible
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Bool :=
-  (sourceRelationFrontierUnits relations revisions sourceEvent sourceEffect).all
+  (sourceRelationUnits relations sourceEvent sourceEffect).all
     fun relation => (admitRelationUnit? events relation).isSome
 
 private def currentCoverageFor
@@ -303,23 +207,19 @@ combined exact quantity may not exceed that source magnitude.
 -/
 private def currentRelationCoverageBounded
     (events : EventMemory)
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  let current := relationFrontierUnits relations revisions
-  current.all fun relation =>
+    (relations : List RelationUnit) : Bool :=
+  relations.all fun relation =>
     match relationSourceEffect? events relation with
     | none => false
     | some source =>
-        currentCoverageFor current relation <= magnitudeQuanta source.quantity
+        currentCoverageFor relations relation <= magnitudeQuanta source.quantity
 
 private def sourceRelationCoverageBounded
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Bool :=
-  let current := sourceRelationFrontierUnits
-    relations revisions sourceEvent sourceEffect
+  let current := sourceRelationUnits relations sourceEvent sourceEffect
   current.all fun relation =>
     match relationSourceEffect? events relation with
     | none => false
@@ -327,83 +227,69 @@ private def sourceRelationCoverageBounded
         currentCoverageFor current relation <= magnitudeQuanta source.quantity
 
 /--
-Global relation/revision structure that must remain coherent even when some raw
-relation units are not yet source-admissible.
+Global relation structure that must remain coherent even when some raw relation
+units are not yet source-admissible.
 
-Identity uniqueness, revision reference closure, source-preserving replacement,
-and acyclicity are properties of retained provenance itself. They are therefore
-checked across the whole raw collection rather than weakened by one source query.
+At the currently selected production capability, stable RelationUnit identity is
+the only whole-family structural law. Retraction / replacement graph laws remain
+research until a concrete writer and authority select that capability.
 -/
 private def relationFrontierStructurallyAdmissible
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  uniqueUnitIds relations &&
-    uniqueRevisionIds revisions &&
-    uniqueRevisionTargets revisions &&
-    uniqueRevisionReplacements revisions &&
-    closedRevisionReferences relations revisions &&
-    preservesRevisionSource relations revisions &&
-    revisionsAcyclic revisions
+    (relations : List RelationUnit) : Bool :=
+  uniqueUnitIds relations
 
 /--
-Whether one raw relation/revision collection has one safe append-only frontier.
+Whether one raw relation collection has one safe append-only frontier.
 
-The whole-frontier boundary rejects repeated relation/revision identity, sibling
-revisions of one target, shared positive replacements, open revision references,
-source-changing positive replacement, revision cycles, malformed current
+The whole-frontier boundary rejects repeated relation identity, malformed current
 relation units, and aggregate current relation coverage beyond a source Effect's
-exact magnitude. Historical units that have been explicitly revised remain raw
-provenance and need not themselves satisfy the current positive admission law.
+exact magnitude.
 -/
 def relationFrontierAdmissible
     (events : EventMemory)
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Bool :=
-  relationFrontierStructurallyAdmissible relations revisions &&
-    currentUnitsAdmissible events relations revisions &&
-    currentRelationCoverageBounded events relations revisions
+    (relations : List RelationUnit) : Bool :=
+  relationFrontierStructurallyAdmissible relations &&
+    currentUnitsAdmissible events relations &&
+    currentRelationCoverageBounded events relations
 
 /--
 Return the admitted current positive frontier, or `none` when the whole raw
 frontier cannot currently be resolved safely.
 
-Representation list order is retained only for deterministic output. Revision
-targets decide currentness; no list position acquires authority. A pre-Event raw
-relation may therefore make this whole-frontier view unresolved until its source
-Event appears; source-specific queries use a narrower projection below.
+Representation list order is retained only for deterministic output. A pre-Event
+raw relation may therefore make this whole-frontier view unresolved until its
+source Event appears; source-specific queries use a narrower projection below.
 -/
 def admittedRelationFrontier?
     (events : EventMemory)
-    (relations : List RelationUnit)
-    (revisions : List RelationRevision) : Option (List AdmittedRelationUnit) :=
-  if relationFrontierAdmissible events relations revisions then
-    admitAll? events (relationFrontierUnits relations revisions)
+    (relations : List RelationUnit) : Option (List AdmittedRelationUnit) :=
+  if relationFrontierAdmissible events relations then
+    admitAll? events relations
   else
     none
 
 /--
 Admit only the current units attached to one queried source while retaining the
-global identity/revision invariants of the raw relation family.
+global RelationUnit identity invariant of the raw relation family.
 
 This is the executable counterpart of Observation 176's source-local status
 projection and Observation 177's permitted pre-Event crash residue. An orphan
 raw relation for another source remains inert instead of poisoning an unrelated
-Effect query. Global identity collisions and malformed revision structure still
-fail closed because they make retained provenance itself ambiguous.
+Effect query. Global identity collisions still fail closed because they make
+retained provenance itself ambiguous.
 -/
 private def admittedRelationSourceFrontier?
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Option (List AdmittedRelationUnit) :=
-  if relationFrontierStructurallyAdmissible relations revisions &&
+  if relationFrontierStructurallyAdmissible relations &&
       sourceCurrentUnitsAdmissible
-        events relations revisions sourceEvent sourceEffect &&
+        events relations sourceEvent sourceEffect &&
       sourceRelationCoverageBounded
-        events relations revisions sourceEvent sourceEffect then
+        events relations sourceEvent sourceEffect then
     admitAll? events
-      (sourceRelationFrontierUnits relations revisions sourceEvent sourceEffect)
+      (sourceRelationUnits relations sourceEvent sourceEffect)
   else
     none
 
@@ -412,13 +298,12 @@ Project one source Effect to `knownPositive`, `knownNone`, or `unknown`.
 
 `completeAt` is supplied by the caller because no concrete relation completeness
 writer/cutover has yet been promoted. This function never invents completeness
-from storage order or from the mere presence of a retraction.
+from storage order.
 
-Only current units attached to the queried `(EventId, EffectKey)` are subjected
+Only relation units attached to the queried `(EventId, EffectKey)` are subjected
 to source admission and relation-plane coverage. Thus unrelated pre-Event raw
-residue stays inert. Global relation/revision identity and structural invariants
-remain whole-family checks, so ambiguity is not hidden merely because it sits on
-another source coordinate.
+residue stays inert. Global RelationUnit identity remains a whole-family check,
+so ambiguity is not hidden merely because it sits on another source coordinate.
 
 A malformed current raw relation on the queried source still returns outer
 `none` even when `completeAt` says the source is covered; it cannot be filtered
@@ -427,14 +312,13 @@ away and mispublished as `knownNone`.
 def currentRelationState?
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (completeAt : EventId → EffectKey → Bool)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Option RelationSourceState := do
   let event ← EventMemory.findById? events sourceEvent
   let _source ← findEffectByKey? event.effects sourceEffect
   let current ← admittedRelationSourceFrontier?
-    events relations revisions sourceEvent sourceEffect
+    events relations sourceEvent sourceEffect
   if current.isEmpty then
     if completeAt sourceEvent sourceEffect then
       some .knownNone
@@ -447,13 +331,12 @@ def currentRelationState?
 @[simp] theorem currentRelationState?_missing_event
     (events : EventMemory)
     (relations : List RelationUnit)
-    (revisions : List RelationRevision)
     (completeAt : EventId → EffectKey → Bool)
     (sourceEvent : EventId)
     (sourceEffect : EffectKey)
     (hMissing : EventMemory.findById? events sourceEvent = none) :
     currentRelationState?
-      events relations revisions completeAt sourceEvent sourceEffect = none := by
+      events relations completeAt sourceEvent sourceEffect = none := by
   simp [currentRelationState?, hMissing]
 
 end Loam.Application

@@ -194,7 +194,7 @@ private def relationSourceResolved?
     (eventId : Loam.Core.EventId)
     (effectKey : Loam.Core.EffectKey) : Bool :=
   (Loam.Application.currentRelationState?
-    events relations [] uncoveredRelationSource eventId effectKey).isSome
+    events relations uncoveredRelationSource eventId effectKey).isSome
 
 private def relationSourcePositive?
     (events : Loam.Core.EventMemory)
@@ -202,7 +202,7 @@ private def relationSourcePositive?
     (eventId : Loam.Core.EventId)
     (effectKey : Loam.Core.EffectKey) : Bool :=
   match Loam.Application.currentRelationState?
-      events relations [] uncoveredRelationSource eventId effectKey with
+      events relations uncoveredRelationSource eventId effectKey with
   | some (.knownPositive _) => true
   | _ => false
 
@@ -223,7 +223,7 @@ private def dischargePublicationAdmissible
     (newDischarges : List Loam.Core.RelationDischarge) : Bool :=
   newDischarges.all fun discharge =>
     match Loam.Application.admittedRelationDischargesFor?
-        events relations [] discharges discharge.target with
+        events relations discharges discharge.target with
     | none => false
     | some admitted =>
         admitted.any fun item =>
