@@ -1,4 +1,6 @@
-import Loam.Persistence
+import Loam.Persistence.AmountPersistence
+import Loam.Persistence.EventCorrectionPersistence
+import Loam.Persistence.EventPersistence
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
 import Loam.Cli.EffectiveCli
