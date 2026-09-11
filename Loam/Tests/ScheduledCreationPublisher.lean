@@ -70,6 +70,15 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "initialize explicit empty Scheduled lifecycle authority"
 
+  let beforeUnapproved ← IO.FS.readFile scheduledFile
+  let unapproved ← Loam.ScheduledCreationPublisher.publishManifestCreation
+    scheduledFile.toString root.toString
+    (draft "2026-09-10" "paypay" "coffee" 1000)
+  expect (!unapproved.isOk)
+    "Scheduled creation admitted an Effect on a Locus outside current LocusAdmission"
+  expect ((← IO.FS.readFile scheduledFile) == beforeUnapproved)
+    "refused unapproved-Locus Scheduled creation changed lifecycle authority"
+
   let .ok first ← Loam.ScheduledCreationPublisher.publishManifestCreation
       scheduledFile.toString root.toString
       (draft "2026-09-10" "paypay" "rent" 1000)
@@ -124,4 +133,4 @@ def main (args : List String) : IO Unit := do
       (ScheduledMemory.findById? afterRefusal.scheduled ⟨"scheduled-3"⟩).isNone)
     "lifecycle refusal still retained the candidate Scheduled identity"
 
-  IO.println "Scheduled Creation Publisher: explicit authority, fresh append, date validation, current-open review and orphan-evidence fail-closed admission passed."
+  IO.println "Scheduled Creation Publisher: explicit authority, Locus admission, fresh append, date validation, current-open review and orphan-evidence fail-closed admission passed."

@@ -112,6 +112,8 @@ private def publishUnderOwnership
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => return .error message
+  if !world.locusAdmission.admitsEffects draft.effects then
+    return .error "loam: Scheduled creation uses a Locus not approved for new publication"
   match lifecycleReadable? lifecycle world.events with
   | .error message => return .error message
   | .ok () => pure ()
@@ -150,7 +152,8 @@ Publish one independent Scheduled occurrence into the complete lifecycle image.
 The draft carries only date and expected balanced signed JPY effects. Creation does
 not imply recurrence, continuation, replacement, routing inheritance, or Actual
 evidence. Existing lifecycle evidence must already be readable before a fresh
-identity can be admitted.
+identity can be admitted. Every Effect must also use the current explicit Locus
+admission vocabulary; UI completion remains advisory rather than authoritative.
 -/
 def publishManifestCreation
     (scheduledPath rootPath : String)

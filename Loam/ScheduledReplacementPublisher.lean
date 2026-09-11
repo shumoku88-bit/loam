@@ -131,6 +131,8 @@ private def publishUnderOwnership
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => return .error message
+  if !world.locusAdmission.admitsEffects draft.effects then
+    return .error "loam: Scheduled replacement uses a Locus not approved for new publication"
   if (ScheduledMemory.findById? lifecycle.scheduled draft.source).isNone then
     return .error "loam: selected Scheduled identity is not retained"
   if (lifecycle.terminals.replacementFor? draft.source).isSome then
@@ -194,7 +196,8 @@ The source-closing terminal relation and replacement occurrence are constructed
 in memory and published together as one complete lifecycle image. There is no
 reader-visible missing replacement endpoint and therefore no replacement resume
 state. No recurrence, continuation, edit-kind, routing inheritance, or Movement
-Event is created here.
+Event is created here. The replacement Effects must use the current explicit
+Locus admission vocabulary before the lifecycle image can change.
 -/
 def publishManifestReplacement
     (scheduledPath rootPath : String)
