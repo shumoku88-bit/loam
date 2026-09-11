@@ -9,8 +9,12 @@ open Loam.Core
 
 set_option autoImplicit false
 
-/-- Event-rooted canonical format: initial dates have no independently stored identity. -/
-def actualValidityHistoryHeader : String := "LOAM-ACTUAL-VALIDITY-HISTORY\t2"
+/-- Current Event-rooted format with endpoint-only validity corrections. -/
+def actualValidityHistoryHeader : String := "LOAM-ACTUAL-VALIDITY-HISTORY\t3"
+
+/-- Previous Event-rooted format whose correction rows carried a redundant fact token. -/
+private def legacyActualValidityHistoryHeader : String :=
+  "LOAM-ACTUAL-VALIDITY-HISTORY\t2"
 
 /--
 Keep practical date provenance adjacent to its Event memory without adding a
@@ -37,7 +41,7 @@ private def encodeActualValidityFactRow? :
 private def encodeActualValidityCorrectionRow?
     (history : ActualValidityHistory String)
     (correction : ActualValidityCorrection) : Option String := do
-  if !validToken correction.id.token || !validToken correction.replacement.token then
+  if !validToken correction.replacement.token then
     none
   else
     let _ ← history.findFactByRef? correction.target
@@ -46,84 +50,104 @@ private def encodeActualValidityCorrectionRow?
     | .root event =>
         if validToken event.token then
           pure
-            ("CORRECTION\t" ++ correction.id.token ++ "\tROOT\t" ++
-              event.token ++ "\t" ++ correction.replacement.token)
+            ("CORRECTION\tROOT\t" ++ event.token ++ "\t" ++
+              correction.replacement.token)
         else
           none
     | .revision target =>
         if validToken target.token then
           pure
-            ("CORRECTION\t" ++ correction.id.token ++ "\tREVISION\t" ++
-              target.token ++ "\t" ++ correction.replacement.token)
+            ("CORRECTION\tREVISION\t" ++ target.token ++ "\t" ++
+              correction.replacement.token)
         else
           none
 
-/-- Encode the canonical Event-rooted occurrence-date stream without identity adapters. -/
+/-- Encode the current Event-rooted occurrence-date stream. -/
 def encodeActualValidityHistory?
     (history : ActualValidityHistory String) : Option String := do
   let factRows ← history.facts.mapM encodeActualValidityFactRow?
   let correctionRows ← history.corrections.mapM (encodeActualValidityCorrectionRow? history)
   pure (encodeVersionedRows actualValidityHistoryHeader (factRows ++ correctionRows))
 
-private def decodeHistoryRows :
+private def decodeFactRow? (row : String) : Option (ActualValidityFact String) :=
+  match row.splitOn "\t" with
+  | ["BASE", eventToken, validOn] =>
+      if validToken eventToken && Loam.ActualDate.validIsoDate validOn then
+        some (.base ⟨eventToken⟩ validOn)
+      else
+        none
+  | ["REVISION", revisionToken, eventToken, validOn] =>
+      if validToken revisionToken && validToken eventToken &&
+          Loam.ActualDate.validIsoDate validOn then
+        some (.revision ⟨revisionToken⟩ ⟨eventToken⟩ validOn)
+      else
+        none
+  | _ => none
+
+private def decodeCurrentCorrectionRow? (row : String) : Option ActualValidityCorrection :=
+  match row.splitOn "\t" with
+  | ["CORRECTION", "ROOT", eventToken, replacementToken] =>
+      if validToken eventToken && validToken replacementToken then
+        some { target := .root ⟨eventToken⟩, replacement := ⟨replacementToken⟩ }
+      else
+        none
+  | ["CORRECTION", "REVISION", targetToken, replacementToken] =>
+      if validToken targetToken && validToken replacementToken then
+        some { target := .revision ⟨targetToken⟩, replacement := ⟨replacementToken⟩ }
+      else
+        none
+  | _ => none
+
+/-- Decode one V2 correction row while discarding its no-longer-semantic fact token. -/
+private def decodeLegacyCorrectionRow? (row : String) : Option ActualValidityCorrection :=
+  match row.splitOn "\t" with
+  | ["CORRECTION", correctionToken, "ROOT", eventToken, replacementToken] =>
+      if validToken correctionToken && validToken eventToken && validToken replacementToken then
+        some { target := .root ⟨eventToken⟩, replacement := ⟨replacementToken⟩ }
+      else
+        none
+  | ["CORRECTION", correctionToken, "REVISION", targetToken, replacementToken] =>
+      if validToken correctionToken && validToken targetToken && validToken replacementToken then
+        some { target := .revision ⟨targetToken⟩, replacement := ⟨replacementToken⟩ }
+      else
+        none
+  | _ => none
+
+private def decodeHistoryRows
+    (decodeCorrection : String → Option ActualValidityCorrection) :
     List String → Option (List (ActualValidityFact String) × List ActualValidityCorrection)
   | [] => some ([], [])
   | row :: rest => do
-      let (facts, corrections) ← decodeHistoryRows rest
-      match row.splitOn "\t" with
-      | ["BASE", eventToken, validOn] =>
-          if validToken eventToken && Loam.ActualDate.validIsoDate validOn then
-            pure
-              (.base ⟨eventToken⟩ validOn :: facts, corrections)
-          else
-            none
-      | ["REVISION", revisionToken, eventToken, validOn] =>
-          if validToken revisionToken && validToken eventToken &&
-              Loam.ActualDate.validIsoDate validOn then
-            pure
-              (.revision ⟨revisionToken⟩ ⟨eventToken⟩ validOn :: facts, corrections)
-          else
-            none
-      | ["CORRECTION", correctionIdToken, "ROOT", eventToken, replacementToken] =>
-          if validToken correctionIdToken && validToken eventToken &&
-              validToken replacementToken then
-            pure
-              (facts,
-                { id := ⟨correctionIdToken⟩
-                  target := .root ⟨eventToken⟩
-                  replacement := ⟨replacementToken⟩ } :: corrections)
-          else
-            none
-      | ["CORRECTION", correctionIdToken, "REVISION", targetToken, replacementToken] =>
-          if validToken correctionIdToken && validToken targetToken &&
-              validToken replacementToken then
-            pure
-              (facts,
-                { id := ⟨correctionIdToken⟩
-                  target := .revision ⟨targetToken⟩
-                  replacement := ⟨replacementToken⟩ } :: corrections)
-          else
-            none
-      | _ => none
+      let (facts, corrections) ← decodeHistoryRows decodeCorrection rest
+      if row.startsWith "CORRECTION\t" then
+        let correction ← decodeCorrection row
+        pure (facts, correction :: corrections)
+      else
+        let fact ← decodeFactRow? row
+        pure (fact :: facts, corrections)
 
 private def decodeRows
+    (decodeCorrection : String → Option ActualValidityCorrection)
     (rows : List String) : Option (ActualValidityHistory String) :=
   match rows.reverse with
   | "" :: reversedRows => do
-      let (facts, corrections) ← decodeHistoryRows reversedRows.reverse
+      let (facts, corrections) ←
+        decodeHistoryRows decodeCorrection reversedRows.reverse
       ActualValidityHistory.ofParts? facts corrections
   | _ => none
 
 /--
-Decode only the canonical Event-rooted generation. Historical V1 bytes are no
-longer a supported production input and therefore fail closed here.
+Decode current V3 and legacy Event-rooted V2 history. V2 correction fact tokens
+are syntax-checked and discarded. Historical V1 remains retired and fails closed.
 -/
 def decodeActualValidityHistory?
     (input : String) : Option (ActualValidityHistory String) :=
   match input.splitOn "\n" with
   | header :: rows =>
       if header = actualValidityHistoryHeader then
-        decodeRows rows
+        decodeRows decodeCurrentCorrectionRow? rows
+      else if header = legacyActualValidityHistoryHeader then
+        decodeRows decodeLegacyCorrectionRow? rows
       else
         none
   | _ => none
@@ -156,11 +180,11 @@ private def existingStorageAdmitted?
     return true
 
 /--
-Publish one complete canonical Event-rooted image through stage+rename.
+Publish one complete current Event-rooted image through stage+rename.
 
-An existing stream must first decode under the current canonical format. This
-prevents a normal practical write from silently overwriting retired V1 or other
-unknown bytes and accidentally becoming a migration mechanism.
+Existing V2 is admitted and will be rewritten as V3 on the next intentional
+publication. Retired V1 or malformed bytes still fail closed rather than being
+silently overwritten.
 -/
 def saveActualValidityHistory?
     (path : System.FilePath)
