@@ -31,6 +31,35 @@ inductive QuantityInspectionAnswer where
 deriving Repr, DecidableEq
 
 /--
+Application-local form of the historical single-correction quantity projection.
+It retains the qualified behavior exactly while testing whether the derived
+calculation needs to remain a public Core surface.
+-/
+private def singleCorrectionQuantity?
+    (memory : EventMemory)
+    (correction : EventCorrection)
+    (locus : LocusId)
+    (measure : MeasureId) : Option Quantity := do
+  let projected ← EventCorrection.project? memory correction
+  let recorded := EventMemory.quantityAtRecorded memory locus measure
+  let effective :=
+    if correction.target = correction.replacement then
+      recorded
+    else
+      recorded - Event.quantityAt projected.original locus measure
+  return effective
+
+/-- Moving the derived single-correction calculation into Application changes no result. -/
+private theorem singleCorrectionQuantity?_matchesCore
+    (memory : EventMemory)
+    (correction : EventCorrection)
+    (locus : LocusId)
+    (measure : MeasureId) :
+    singleCorrectionQuantity? memory correction locus measure =
+      EventCorrection.quantityAtEffective? memory correction locus measure := by
+  rfl
+
+/--
 Inspect one explicit locus/measure coordinate using only the correction
 semantics retained by the Practical Core and the qualified Application 007
 frontier law.
