@@ -1,6 +1,5 @@
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
-import Loam.WriterOwnership
 
 namespace Loam.LocusAdmissionPublisher
 
@@ -54,34 +53,19 @@ def propose?
     currentCount := updated.approved.length
   })
 
-private def publishUnderOwnership
-    (root : System.FilePath) (draft : Draft) : IO (Except String Receipt) := do
-  let vocabulary ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok vocabulary => pure vocabulary
-    | .error message => return .error message
-  let (updated, receipt) ←
-    match propose? vocabulary draft with
-    | .ok value => pure value
-    | .error message => return .error message
-  match ← Loam.LocusAdmissionAuthority.replaceCurrent? root updated with
-  | .error message => return .error message
-  | .ok _ => return .ok receipt
-
 /--
 Admit one new Locus against the current admission-policy authority.
 
-The caller keeps the existing Movement `CURRENT` ownership anchor while the local
-`LocusAdmissionAuthority` hides the policy's current manifest-backed placement.
-No household evidence is exposed to this publisher's proposal semantics.
+The local authority owns the current physical policy placement, writer lock, and
+read/modify/publish protocol. This publisher contributes only the policy-local
+proposal semantics and therefore does not depend on household Movement evidence.
 -/
 def publishManifestAdmission
     (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
     return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
   let root := System.FilePath.mk rootPath
-  Loam.WriterOwnership.withOwnership
-    (root / "CURRENT")
-    (publishUnderOwnership root draft)
+  Loam.LocusAdmissionAuthority.updateCurrent? root
+    (fun vocabulary => propose? vocabulary draft)
 
 end Loam.LocusAdmissionPublisher
