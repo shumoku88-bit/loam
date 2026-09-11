@@ -4,6 +4,7 @@ import Loam.CapacityAuthority
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership
+import Lean.Elab.Tactic.Omega
 
 namespace Loam.CapacityPublisher
 
@@ -221,6 +222,7 @@ private theorem movementForDraft?_eq_toBalancedDraft
       movementForBalancedDraft? id draft.toBalancedDraft := by
   simp [movementForDraft?, movementForBalancedDraft?, Draft.toBalancedDraft,
     movementTotalQuanta, hPositive, hDifferent]
+  omega
 
 private def publishBalancedUnlocked
     (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String BalancedReceipt) := do
@@ -330,7 +332,7 @@ def isBalanced (p : Proposal) : Bool :=
 
 /-- True when at least one non-zero delta is present. -/
 def hasChanges (p : Proposal) : Bool :=
-  p.deltas.any fun (_, d) => d != 0
+  p.deltas.any (fun (_, d) => d != 0)
 
 /-- Convert non-zero proposal deltas into Capacity movement changes. -/
 def toChanges (p : Proposal) : List (MovementChange CapacityCoordinate) :=
