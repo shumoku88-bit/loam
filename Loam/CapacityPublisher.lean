@@ -1,8 +1,7 @@
 import Loam.ActualDate
 import Loam.Application.CapacityInspection
+import Loam.CapacityAuthority
 import Loam.FreshNumberedToken
-import Loam.Persistence.CapacityEffectivePersistence
-import Loam.Persistence.CapacityPersistence
 import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership
 
@@ -25,6 +24,9 @@ CLI: effective-coordinate evidence is published first, then Capacity authority.
 If the second publication fails, the effective entry is inert because no
 Capacity movement with that identity exists; later writes refuse incomplete
 evidence and require explicit recovery rather than guessing the missing movement.
+
+Physical companion placement is owned by `CapacityAuthority`; this publisher
+operates only on the two retained semantic families returned by that boundary.
 -/
 
 structure Draft where
@@ -110,13 +112,6 @@ def validateDraft (draft : Draft) : Except String Unit := do
   if draft.source = draft.destination then
     throw "Capacity movement endpoints must differ."
 
-private def loadCapacityMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option CapacityMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadCapacityMemory? path
-  else
-    return CapacityMemory.ofMovements? []
-
 private def effectiveEvidenceComplete
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String) : Bool :=
@@ -159,11 +154,12 @@ private def publishUnlocked
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let effectiveFile := Loam.Persistence.capacityEffectivePathForMemory capacityFile
-  let some memory ← loadCapacityMemoryOrEmpty? capacityFile
-    | return .error "Malformed or unsupported Capacity authority."
-  let some effective ← Loam.Persistence.loadCapacityEffectiveMemoryOrEmpty? effectiveFile
-    | return .error "Malformed or unsupported Capacity effective evidence."
+  let image ←
+    match ← Loam.CapacityAuthority.loadOrEmpty capacityFile with
+    | .ok image => pure image
+    | .error message => return .error message
+  let memory := image.movements
+  let effective := image.effective
 
   if !effectiveEvidenceComplete memory effective then
     return .error
@@ -182,9 +178,9 @@ private def publishUnlocked
       (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
     | return .error "Could not append Capacity effective evidence."
 
-  if !(← Loam.Persistence.saveCapacityEffectiveMemory? effectiveFile updatedEffective) then
+  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
     return .error "Capacity effective evidence could not be published."
-  if !(← Loam.Persistence.saveCapacityMemory? capacityFile updated) then
+  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
     return .error
       "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
 
@@ -222,11 +218,12 @@ private def publishBalancedUnlocked
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let effectiveFile := Loam.Persistence.capacityEffectivePathForMemory capacityFile
-  let some memory ← loadCapacityMemoryOrEmpty? capacityFile
-    | return .error "Malformed or unsupported Capacity authority."
-  let some effective ← Loam.Persistence.loadCapacityEffectiveMemoryOrEmpty? effectiveFile
-    | return .error "Malformed or unsupported Capacity effective evidence."
+  let image ←
+    match ← Loam.CapacityAuthority.loadOrEmpty capacityFile with
+    | .ok image => pure image
+    | .error message => return .error message
+  let memory := image.movements
+  let effective := image.effective
 
   if !effectiveEvidenceComplete memory effective then
     return .error
@@ -250,9 +247,9 @@ private def publishBalancedUnlocked
       (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
     | return .error "Could not append Capacity effective evidence."
 
-  if !(← Loam.Persistence.saveCapacityEffectiveMemory? effectiveFile updatedEffective) then
+  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
     return .error "Capacity effective evidence could not be published."
-  if !(← Loam.Persistence.saveCapacityMemory? capacityFile updated) then
+  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
     return .error
       "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
 

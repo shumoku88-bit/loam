@@ -1,13 +1,12 @@
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CurrentCoverageInspection
+import Loam.CapacityAuthority
 import Loam.CapacityReview
 import Loam.MovementManifestAuthority
 import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
-import Loam.Persistence.CapacityPersistence
-import Loam.Persistence.CapacityEffectivePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 
@@ -32,7 +31,9 @@ explicit future `endExclusive` horizon.
 
 `currentWindowStart` is retained from the selected boundary preset rather than
 being discarded. Scheduled lifecycle state is current-open only; it is not
-replayed into the past.
+replayed into the past. Capacity movement and effective-coordinate meanings are
+loaded through one local `CapacityAuthority` handle so this review does not know
+their physical companion topology.
 -/
 
 structure Row where
@@ -139,19 +140,16 @@ def loadSnapshotAt
     return .error "loam: current coverage horizon must be later than the observation date"
 
   let capacityPath := dataDir / "capacity.loam"
-  let effectivePath := Loam.Persistence.capacityEffectivePathForMemory capacityPath
   let actualRoutingPath := dataDir / "actual-routing.loam"
   let correctionPath := dataDir / "corrections.loam"
   let scheduledPath := dataDir / "scheduled.loam"
   let scheduledRoutingPath := dataDir / "scheduled-routing.loam"
   let accountingRolePath := dataDir / "accounting-role.loam"
 
-  match ← requireFile capacityPath "Capacity authority" with
-  | .error message => return .error message
-  | .ok _ => pure ()
-  match ← requireFile effectivePath "Capacity effective evidence" with
-  | .error message => return .error message
-  | .ok _ => pure ()
+  let capacityImage ←
+    match ← Loam.CapacityAuthority.loadRequired capacityPath with
+    | .ok image => pure image
+    | .error message => return .error message
   match ← requireFile actualRoutingPath "Actual routing evidence" with
   | .error message => return .error message
   | .ok _ => pure ()
@@ -165,14 +163,8 @@ def loadSnapshotAt
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let capacity ←
-    match ← Loam.Persistence.loadCapacityMemory? capacityPath with
-    | some memory => pure memory
-    | none => return .error "loam: malformed or unsupported Capacity authority"
-  let effective ←
-    match ← Loam.Persistence.loadCapacityEffectiveMemory? effectivePath with
-    | some memory => pure memory
-    | none => return .error "loam: missing, malformed or unsupported Capacity effective evidence"
+  let capacity := capacityImage.movements
+  let effective := capacityImage.effective
   if !capacityEffectiveEvidenceComplete capacity effective then
     return .error "loam: incomplete Capacity effective evidence"
   let movement ←

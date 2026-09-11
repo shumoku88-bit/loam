@@ -1,12 +1,11 @@
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CapacityWindowInspection
+import Loam.CapacityAuthority
 import Loam.CapacityReview
 import Loam.MovementManifestAuthority
 import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.ActualRoutingPersistence
-import Loam.Persistence.CapacityEffectivePersistence
-import Loam.Persistence.CapacityPersistence
 
 namespace Loam.BudgetWindowReview
 
@@ -19,11 +18,11 @@ set_option autoImplicit false
 # Shared Budget Window review
 
 This is the production read boundary for explicit half-open budget-window queries.
-It deliberately follows the current authority topology instead of reviving frozen
-Movement sidecars:
+It consumes selected semantic authorities without exposing Capacity companion
+placement:
 
 - Event / ActualValidity come from the selected Movement manifest generation;
-- Capacity / CapacityEffective remain their independent canonical streams;
+- Capacity / CapacityEffective come through `CapacityAuthority`;
 - ActualRouting remains its independent canonical stream;
 - EventCorrection preserves the existing absent-as-empty read policy.
 
@@ -99,28 +98,17 @@ private def projectPurpose?
 private def loadEvidence
     (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
   let capacityPath := dataDir / "capacity.loam"
-  let effectivePath := Loam.Persistence.capacityEffectivePathForMemory capacityPath
   let routingPath := dataDir / "actual-routing.loam"
   let correctionPath := dataDir / "corrections.loam"
 
-  match ← requireFile capacityPath "Capacity authority" with
-  | .error message => return .error message
-  | .ok _ => pure ()
-  match ← requireFile effectivePath "Capacity effective evidence" with
-  | .error message => return .error message
-  | .ok _ => pure ()
+  let capacityImage ←
+    match ← Loam.CapacityAuthority.loadRequired capacityPath with
+    | .ok image => pure image
+    | .error message => return .error message
   match ← requireFile routingPath "Actual routing evidence" with
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let capacity ←
-    match ← Loam.Persistence.loadCapacityMemory? capacityPath with
-    | some memory => pure memory
-    | none => return .error "loam: malformed or unsupported Capacity authority"
-  let effective ←
-    match ← Loam.Persistence.loadCapacityEffectiveMemory? effectivePath with
-    | some memory => pure memory
-    | none => return .error "loam: malformed or unsupported Capacity effective evidence"
   let movement ←
     match ← Loam.MovementManifestAuthority.loadSelectedWorld? manifestRoot with
     | .ok world => pure world
@@ -141,8 +129,8 @@ private def loadEvidence
     | none => return .error "loam: malformed or unsupported Actual routing evidence"
 
   return .ok {
-    capacity := capacity
-    effective := effective
+    capacity := capacityImage.movements
+    effective := capacityImage.effective
     events := movement.events
     corrections := corrections
     validities := validities
