@@ -88,49 +88,7 @@ def currentCoverageAtCorrectionFrontier?
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
-  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
-  return {
-    entitlement := entitlement
-    consumption := consumption
-    remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
-  }
-
-private theorem currentCoverageAtCorrectionFrontier_eq_assembled
-    (capacity : CapacityMemory)
-    (effective : CapacityEffectiveMemory Time)
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (validities : ActualValidityMemory Time)
-    (actualRouting : RoutingHistory LocusId Time)
-    (scheduled : ScheduledMemory Time)
-    (terminals : ScheduledTerminalMemory)
-    (roles : AccountingRoleMap)
-    (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
-    (purpose : PurposeId)
-    (measure : MeasureId)
-    (currentWindowStart observedAt endExclusive : Time) :
-    currentCoverageAtCorrectionFrontier?
-        capacity effective events corrections validities actualRouting
-        scheduled terminals roles scheduledRouting purpose measure
-        currentWindowStart observedAt endExclusive =
-      (do
-        let consumption ←
-          consumptionAtCorrectionFrontierThrough?
-            events corrections validities actualRouting
-            currentWindowStart observedAt purpose measure
-        let commitment ←
-          currentScheduledCommitment?
-            scheduled terminals events roles scheduledRouting
-            purpose measure observedAt endExclusive
-        let entitlement ← entitlementAtEffectiveThrough?
-          capacity effective currentWindowStart observedAt purpose measure
-        return assembleCurrentCoverage entitlement consumption commitment) := by
-  rfl
+  return assembleCurrentCoverage entitlement consumption commitment
 
 /--
 Production-compatible current coverage using the explicit `initial | dated`
@@ -163,48 +121,6 @@ def currentCoverageAtCorrectionFrontierEffectiveRouting?
       purpose measure observedAt endExclusive
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
-  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
-  return {
-    entitlement := entitlement
-    consumption := consumption
-    remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
-  }
-
-private theorem currentCoverageAtCorrectionFrontierEffectiveRouting_eq_assembled
-    (capacity : CapacityMemory)
-    (effective : CapacityEffectiveMemory Time)
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (validities : ActualValidityMemory Time)
-    (actualRouting : RoutingHistory LocusId (RoutingEffective Time))
-    (scheduled : ScheduledMemory Time)
-    (terminals : ScheduledTerminalMemory)
-    (roles : AccountingRoleMap)
-    (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
-    (purpose : PurposeId)
-    (measure : MeasureId)
-    (currentWindowStart observedAt endExclusive : Time) :
-    currentCoverageAtCorrectionFrontierEffectiveRouting?
-        capacity effective events corrections validities actualRouting
-        scheduled terminals roles scheduledRouting purpose measure
-        currentWindowStart observedAt endExclusive =
-      (do
-        let consumption ←
-          consumptionAtCorrectionFrontierEffectiveRoutingThrough?
-            events corrections validities actualRouting
-            currentWindowStart observedAt purpose measure
-        let commitment ←
-          currentScheduledCommitment?
-            scheduled terminals events roles scheduledRouting
-            purpose measure observedAt endExclusive
-        let entitlement ← entitlementAtEffectiveThrough?
-          capacity effective currentWindowStart observedAt purpose measure
-        return assembleCurrentCoverage entitlement consumption commitment) := by
-  rfl
+  return assembleCurrentCoverage entitlement consumption commitment
 
 end Loam.Application
