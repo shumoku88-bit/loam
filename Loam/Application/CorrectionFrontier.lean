@@ -88,17 +88,6 @@ private theorem targetsEvent_false_iff
       · simp [targetsEvent, hTarget]
       · simp [targetsEvent, hTarget, ih]
 
-/-- Filtering remembered Events cannot introduce a repeated Event identity. -/
-private theorem filteredEventIdsNodup
-    (items : List Event)
-    (predicate : Event → Bool)
-    (hNodup : (items.map Event.id).Nodup) :
-    ((items.filter predicate).map Event.id).Nodup := by
-  have hSublist :
-      (items.filter predicate).map Event.id <+ items.map Event.id :=
-    (List.filter_sublist).map Event.id
-  exact hNodup.sublist hSublist
-
 /-- If every represented Event differs from one target identity, filtering that target changes nothing. -/
 private theorem filterTarget_eq_self
     (items : List Event)
@@ -112,7 +101,13 @@ private theorem filterTarget_eq_self
       have hRest : ∀ item ∈ rest, target ≠ item.id := by
         intro item hItem
         exact hAbsent item (by simp [hItem])
-      simp [hEvent, ih hRest]
+      change
+        (if decide (target ≠ event.id) then
+          event :: rest.filter (fun item => decide (target ≠ item.id))
+        else
+          rest.filter (fun item => decide (target ≠ item.id))) = event :: rest
+      rw [ih hRest]
+      simp [hEvent]
 
 /--
 With unique Event identity, filtering one present target from the recorded fold
@@ -146,15 +141,37 @@ private theorem filterTargetQuantityFold
           apply hNodup.1
           exact List.mem_map.mpr ⟨item, hItem, hTarget.symm.trans hHead.symm⟩
         have hFiltered := filterTarget_eq_self rest target hTailAbsent
-        have hReverse : target = event.id := hHead.symm
-        simp [hReverse, hFiltered, Int.sub_eq_add_neg, Int.add_assoc,
-          Int.add_comm, Int.add_left_comm]
+        have hFilterAll :
+            (event :: rest).filter (fun item => decide (target ≠ item.id)) = rest := by
+          change
+            (if decide (target ≠ event.id) then
+              event :: rest.filter (fun item => decide (target ≠ item.id))
+            else
+              rest.filter (fun item => decide (target ≠ item.id))) = rest
+          rw [hFiltered]
+          simp [hHead]
+        rw [hFilterAll]
+        simp only [List.foldr_cons]
+        simp [Int.sub_eq_add_neg, Int.add_assoc, Int.add_comm, Int.add_left_comm]
       · have hFindTail :
             FiniteKeyed.findBy? Event.id rest target = some original := by
           simpa [FiniteKeyed.findBy?, hHead] using hFind
         have hIH := ih original hNodup.2 hFindTail
         have hReverse : target ≠ event.id := Ne.symm hHead
-        simp [hReverse, hIH, Int.sub_eq_add_neg, Int.add_assoc]
+        have hFilterAll :
+            (event :: rest).filter (fun item => decide (target ≠ item.id)) =
+              event :: rest.filter (fun item => decide (target ≠ item.id)) := by
+          change
+            (if decide (target ≠ event.id) then
+              event :: rest.filter (fun item => decide (target ≠ item.id))
+            else
+              rest.filter (fun item => decide (target ≠ item.id))) =
+              event :: rest.filter (fun item => decide (target ≠ item.id))
+          simp [hReverse]
+        rw [hFilterAll]
+        simp only [List.foldr_cons]
+        rw [hIH]
+        simp [Int.sub_eq_add_neg, Int.add_assoc]
 
 /--
 Derive the retained Event frontier when correction facts justify disjoint finite
