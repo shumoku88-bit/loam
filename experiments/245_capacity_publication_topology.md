@@ -1,19 +1,19 @@
 # Experiment 245: Capacity publication topology
 
-Status: **research only; no production topology migration authorized**
+Status: **qualified research result; no production topology migration authorized**
 
 Baseline: production PR #698 introduced one local `CapacityAuthority` handle while deliberately retaining the current two-file backing representation.
 
 ## Question
 
-Hold the retained Capacity meaning fixed:
+Hold the retained meanings fixed:
 
 ```text
 CapacityMovement
 CapacityEffective
 ```
 
-Then compare only the publication topology for one fresh Capacity operation:
+and compare only publication topology for one new Capacity operation:
 
 ```text
 A. current split backing
@@ -23,195 +23,176 @@ B. one typed atomic Capacity image
    { movements, effective }
 ```
 
-The question is not whether `CapacityEffective` can be deleted. Observations 112 and 158 already earned that information independently. The question is narrower:
-
-> What additional crash/recovery state is created solely by publishing these two meanings through two separately replaced physical images?
+This experiment does **not** ask whether `CapacityEffective` can be deleted. Observations 112 and 158 already earned effective-coordinate information independently.
 
 ## Why this is not Observation 055, 060, or 240 again
 
-Observation 055 already established that logical fact topology does not determine atomic publication topology. Dependency ordering or fail-closed admission can preserve semantic closure over split storage.
+Observation 055 already established that semantic fact topology does not determine physical publication topology. Dependency ordering and fail-closed admission can preserve closure over split storage.
 
-Observation 060 then modeled an Event/Correction split protocol whose first step is explicitly retryable after restart. The same publication request can be replayed from its first idempotent step and eventually complete.
+Observation 060 modeled a split protocol whose first step is deliberately idempotent, so the same request can be retried after restart.
 
-Observation 240 proposes the representation-free evidence-before-activation safety law. It remains separately gated by the repository's replacement-dividend rule.
+Observation 240 states a representation-free evidence-before-activation candidate law and remains separately gated by the repository's replacement-dividend rule.
 
-Capacity has a different current production pressure:
+Capacity has a narrower production-specific pressure: its ordinary publisher refuses an incomplete Capacity image **before** it can replay or continue the interrupted operation.
 
-```text
-load complete Capacity image
-  -> publish effective evidence
-  -> publish activating movement
-```
+## Current production contract
 
-If the second publication fails, production reports that already-published effective evidence is inert and requires explicit recovery. On a subsequent ordinary `publish` call, the publisher first checks bidirectional completeness and refuses the incomplete image before allocating or replaying the movement.
-
-Therefore the interesting question is no longer only **safety**. It is **availability and ordinary-retry recoverability**.
-
-## Production correspondence
-
-`CapacityAuthority.Image` exposes the two retained families behind one topology-neutral handle:
+`CapacityAuthority.Image` exposes:
 
 ```text
 movements : CapacityMemory
 effective : CapacityEffectiveMemory String
 ```
 
-The current publisher retains these rules:
+The current publisher:
 
-1. acquire Capacity writer ownership;
-2. load both families;
-3. reject incomplete evidence;
-4. construct one fresh movement/effective pair;
-5. save effective evidence first;
-6. save the movement image second.
+1. acquires Capacity writer ownership;
+2. loads both families;
+3. rejects bidirectionally incomplete evidence;
+4. constructs one fresh movement/effective pair;
+5. publishes effective evidence first;
+6. publishes the activating movement image second.
 
-The current completeness predicate is bidirectional:
+If step 6 fails, effective evidence is durable but inert. A later ordinary `publish` sees incomplete evidence and refuses with `explicit recovery is required`.
 
-```text
-every movement has effective evidence
-and
-every effective entry names a movement
-```
+The existing Capacity publisher regression deliberately seeds such an orphan effective entry and requires normal publication to fail closed. Experiment 245 therefore treats this behavior as a current contract, not an accidental bug.
 
-So an effective-only crash residue is not merely ignored by Current Coverage. It makes the complete Capacity projection unavailable and blocks another ordinary Capacity publication until some separate recovery action repairs the authority.
+## Temporal result: TLA+ / Apalache
 
-The existing Capacity publisher regression deliberately seeds an orphan effective entry and requires later publication to fail closed. This experiment treats that as the current contract, not as an accidental implementation bug.
-
-## Model
-
-`Observation245CapacityPublicationTopology.tla` uses one fresh operation and two booleans:
+`Observation245CapacityPublicationTopology.tla` models one fresh operation using:
 
 ```text
 effectiveNew
 movementNew
 ```
 
-They represent whether the operation's two retained meanings are durable in the current physical image(s).
+The dedicated CI pinned Apalache 0.62.2 and qualified all intended checks.
 
-### Split protocol
+### Current split protocol
 
-The modeled writer is:
-
-```text
-admit complete image
--> publish effective
--> publish movement
-```
-
-A crash can occur before completion. Restart re-enters the ordinary publication admission boundary.
-
-If the crash happened after effective publication, restart observes:
-
-```text
-effectiveNew = TRUE
-movementNew  = FALSE
-```
-
-and the ordinary completeness check moves the writer to `blocked` rather than replaying the second half.
-
-### Atomic-image candidate
-
-The comparison candidate retains both semantic fields but replaces them as one image:
-
-```text
-admit complete image
--> atomic commit { effectiveNew = TRUE, movementNew = TRUE }
-```
-
-A crash before the replacement leaves the previous complete image intact. Ordinary restart can re-admit and try the atomic replacement again.
-
-This assumes the one-image replacement primitive itself is atomic at the same abstraction level as today's individual sibling-stage + rename operations. It does not model power-loss durability beyond that assumption.
-
-## Properties
-
-### Split activation safety
+The model proved an inductive activation-safety invariant:
 
 ```text
 movementNew => effectiveNew
 ```
 
-The current effective-before-movement ordering should preserve this invariant.
+So the current effective-before-movement ordering is genuinely useful: an activating movement cannot become visible without its effective evidence in the modeled protocol.
 
-### Split coverage availability
+However, Apalache also found the required counterexamples:
 
-```text
-effectiveNew = movementNew
-```
+- after effective publication, a crash can leave complete Capacity coverage unavailable;
+- after restart, ordinary publication can reach `blocked` because it first observes incomplete evidence.
 
-This is deliberately **not** expected to be invariant. The model must find the crash prefix where effective evidence is durable but movement authority is not.
+The availability-loss witness appears by model state 3; the blocked-restart witness by state 5.
 
-### Split ordinary-retry recovery
+Therefore the current split protocol is **activation-safe but not ordinary-retry recoverable**.
 
-The model must also find the longer path:
+### Atomic-image candidate
 
-```text
-admit
--> effective
--> crash
--> restart
--> ordinary admission
--> blocked
-```
-
-This distinguishes current Capacity behavior from Observation 060's explicitly idempotent retry protocol.
-
-### Atomic completeness
-
-The atomic-image candidate should preserve:
+For one typed image replaced atomically at the same abstraction level as today's individual staged-file rename, Apalache proved:
 
 ```text
 effectiveNew = movementNew
 ```
 
-across every modeled crash/restart step.
+as an inductive invariant.
 
-### Atomic ordinary retry
+It also found the required crash/restart/completion witness: a crash before atomic commit leaves the old complete image intact, ordinary restart can re-admit, and a later atomic commit can complete the operation. The completion witness appears by model state 4.
 
-The model must find a path where a pre-commit crash is followed by ordinary restart and eventual complete publication.
+This does not model power-loss durability inside the filesystem's replacement primitive. It compares only the cross-file state introduced above that primitive.
 
-## Expected checker results
+## Static recovery result: Alloy
 
-The temporary CI should establish:
+Temporal recovery raised a second question:
 
-1. `SplitIndInv` starts true: PASS.
-2. one `SplitNext` step preserves `SplitIndInv`: PASS.
-3. `SplitIndInv` implies activation safety: PASS.
-4. split crash can make complete Capacity coverage unavailable: counterexample required.
-5. restart after that crash can reach ordinary-publication `blocked`: counterexample required.
-6. `AtomicIndInv` starts true: PASS.
-7. one `AtomicNext` step preserves `AtomicIndInv`: PASS.
-8. atomic topology preserves complete paired evidence: PASS.
-9. crash before atomic commit can still recover through ordinary restart: counterexample to `NoAtomicRecoveredCompletion` required.
+> Could LOAM simply reconstruct the missing movement from the orphan effective row?
 
-## What a positive result would mean
+`245_capacity_recovery_ambiguity.als` models the retained orphan observation and alternative possible completed worlds.
 
-It would **not** prove that one file is globally better.
+The orphan contains only:
 
-It would establish a narrower result:
+```text
+movement id
+effective coordinate
+```
 
-> The current split topology buys no additional semantic distinction for this operation, while it does introduce a reachable complete-authority availability loss that the current ordinary publisher cannot repair by retrying the same entrance.
+while the missing `CapacityMovement` contains the actual balanced movement payload.
 
-That makes the split topology pay an operational rent. To keep it, LOAM should be able to point to compensating value such as materially lower write amplification, corruption localization, human recovery, or another measured property.
+Alloy 6.2.0 produced the required SAT results for all three commands:
 
-## Not modeled
+```text
+ambiguousMissingMovement                       SAT
+OrphanEffectiveDeterminesOneSafeDestination    SAT counterexample
+SameOrphanImpliesSameCompletion                 SAT counterexample
+```
 
-- concurrent Capacity writers beyond the existing ownership assumption;
-- partial/corrupt bytes inside one staged file replacement;
-- fsync or power-loss durability;
+A single orphan effective observation is therefore compatible with at least two different missing Capacity movements that would produce different completed household worlds.
+
+Consequently:
+
+```text
+orphan effective evidence
+    != enough information
+       to reconstruct missing movement payload
+```
+
+Automatic **completion** recovery cannot be derived from retained orphan evidence alone.
+
+## What about deleting the orphan effective row?
+
+The model does not justify blind deletion either.
+
+An effective-only row can be consistent with an interrupted publication, but raw bytes alone do not prove that origin. It could also reflect corruption, manual intervention, or another unmodeled failure. Deleting retained evidence merely because it is currently orphaned would introduce a new recovery policy that needs its own justification.
+
+A split design that wants safe automatic recovery therefore needs additional evidence such as a staged request / transaction identity / recovery receipt, or an independently justified rollback rule.
+
+That extra recovery state is itself semantic and operational surface area.
+
+## Qualified conclusion
+
+Experiment 245 establishes a Capacity-specific distinction not supplied by Observation 060:
+
+```text
+current split topology
+  + evidence-before-activation
+  = activation safety
+  + reachable incomplete authority
+  + ordinary retry refusal
+  + missing payload not reconstructable from orphan evidence
+```
+
+At the same individual-file atomic-replacement abstraction level:
+
+```text
+one typed atomic image
+  = paired completeness across modeled crash/restart
+  + ordinary retry remains possible
+```
+
+This still does **not** prove that one physical file is globally superior.
+
+It does mean the current split topology now owes an operational justification for the additional failure/recovery state it creates.
+
+## Remaining operational counterweights
+
+Before choosing a production topology, compare only properties not answered here:
+
 - write amplification;
 - corruption blast radius;
-- human inspectability;
-- automatic repair policy;
-- deletion/rollback of an orphan effective row;
-- multiple pending Capacity operations;
-- any change to Capacity, Purpose, Entitlement, or effective-time semantics.
+- human inspection / manual recovery;
+- backup and restore granularity;
+- power-loss durability assumptions below rename;
+- whether a split-specific recovery journal would cost more complexity than an atomic image.
+
+One observation already narrows the write-amplification question: today's Capacity publisher rewrites **both complete images** for every successful Capacity change. A single combined image would therefore not automatically turn one current append into a whole-image rewrite; the current design already performs two whole-image rewrites. The exact byte and failure costs still need measurement.
 
 ## Stop rule
 
-This branch is a research lab. Do not merge the TLA+ model or its dedicated workflow merely because the checker is green.
+This PR remains a research lab. Do not merge the TLA+, Alloy model, or dedicated workflow wholesale merely because they are green.
 
-After qualification:
+Next durable move should be one of:
 
-- if the result only restates an already-owned law, retire the lab;
-- if it exposes a Capacity-specific production decision, retain the conclusion in the smallest durable place and choose the next production experiment separately;
-- do not turn this into a generic transaction/repository framework.
+1. measure the remaining operational counterweights and, if the split topology still fails to pay rent, prototype an atomic Capacity image behind the already-landed `CapacityAuthority`; or
+2. if split storage has a measured advantage, explicitly design and qualify the additional recovery evidence it requires.
+
+Do not grow a generic transaction/repository framework from this result.
