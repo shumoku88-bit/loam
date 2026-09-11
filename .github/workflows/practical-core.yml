@@ -5,7 +5,9 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
-      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/AmountPersistence.lean'
+      - 'Loam/Persistence/EventCorrectionPersistence.lean'
+      - 'Loam/Persistence/EventPersistence.lean'
       - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
@@ -18,7 +20,9 @@ on:
     paths:
       - 'Loam/Core/**'
       - 'Loam/Core.lean'
-      - 'Loam/Persistence.lean'
+      - 'Loam/Persistence/AmountPersistence.lean'
+      - 'Loam/Persistence/EventCorrectionPersistence.lean'
+      - 'Loam/Persistence/EventPersistence.lean'
       - 'Loam/Persistence/EventDescriptionPersistence.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/**'
@@ -48,7 +52,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core Loam.Persistence Loam.Persistence.EventDescriptionPersistence
+          build-args: Loam.Core Loam.Persistence.AmountPersistence Loam.Persistence.EventCorrectionPersistence Loam.Persistence.EventPersistence Loam.Persistence.EventDescriptionPersistence
           test: false
           lint: false
           use-mathlib-cache: false
