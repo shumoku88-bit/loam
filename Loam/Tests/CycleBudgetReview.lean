@@ -41,11 +41,9 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (root / "scheduled-routing.loam") "LOAM-SCHEDULED-ROUTING\t1\n"
   IO.FS.writeFile (root / "accounting-role.loam") "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "scheduled"
-  let completions ← requireSome (ScheduledCompletionMemory.ofCompletions? []) "completions"
-  let retirements ← requireSome (ScheduledRetirementMemory.ofRetirements? []) "retirements"
-  let replacements ← requireSome (ScheduledReplacementMemory.ofReplacements? []) "replacements"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
-    { scheduled, completions, retirements, replacements }) "save lifecycle"
+    { scheduled, terminals }) "save lifecycle"
   let load := Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") "2026-09-08"
   let missing ← load
   expect (missing.coverage.isOk && missing.physical.isOk && !missing.funding.isOk)
