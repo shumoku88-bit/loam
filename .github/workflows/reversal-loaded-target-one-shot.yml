@@ -1,0 +1,32 @@
+name: Reversal loaded target one-shot
+
+on:
+  push:
+    branches:
+      - refactor/reversal-loaded-target-validation
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/reversal-loaded-target-validation
+      - name: Build persistence and reversal boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Persistence.NormalizedActualPersistence Loam.ActualReversalPublisher Loam.Tests.ActualWorldFixture Loam.Tests.NormalizedActualPersistenceTest Loam.Tests.ActualReversalPublisher
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify normalized Actual persistence boundary
+        shell: bash
+        run: lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
+      - name: Verify exact Actual reversal publication
+        shell: bash
+        run: lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal"
