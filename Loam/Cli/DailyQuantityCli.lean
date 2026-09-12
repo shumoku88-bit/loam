@@ -13,9 +13,9 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM daily quantity\n\n" ++
   "Show balances from explicit zero-origin coverage:\n" ++
-  "  ./tools/loam balances <actual-file> <ignored-correction> <zero-origin-coverage> [balance-view]\n\n" ++
+  "  ./tools/loam balances <actual-file> <zero-origin-coverage> [balance-view]\n\n" ++
   "Show all nonzero current quantities admitted by zero-origin coverage:\n" ++
-  "  ./tools/loam current <actual-file> <ignored-correction> <zero-origin-coverage>\n\n" ++
+  "  ./tools/loam current <actual-file> <zero-origin-coverage>\n\n" ++
   "Starting-quantity writers are retired. Zero-origin coverage is changed only by explicit reconstruction/cutover."
 
 private def loadEvidenceForView?
@@ -100,7 +100,7 @@ private def reportCollectionFailure
 
 /-- Show all nonzero current quantities whose retained history is explicitly complete from zero. -/
 def showCurrentQuantities
-    (actualPath _ignoredCorrection coveragePath : String) : IO UInt32 := do
+    (actualPath coveragePath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
   match ← loadEvidenceForView? actualFile with
@@ -131,7 +131,7 @@ zero-origin-covered coordinate is selected. With a view path, presentation
 selection remains independent and cannot create coverage.
 -/
 def showBalances
-    (actualPath _ignoredCorrection coveragePath : String)
+    (actualPath coveragePath : String)
     (balanceViewPath? : Option String := none) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
@@ -170,14 +170,14 @@ def showBalances
                   | failure => reportCollectionFailure "balances" failure
 
 /-- Dispatcher for the narrow daily quantity executable behind `tools/loam`. -/
-def run (args : List String) : IO UInt32 :=
+def run (args : List String) : IO UInt32 := do
   match args with
-  | ["balances", memoryPath, eventCorrectionPath, coveragePath] =>
-      showBalances memoryPath eventCorrectionPath coveragePath
-  | ["balances", memoryPath, eventCorrectionPath, coveragePath, balanceViewPath] =>
-      showBalances memoryPath eventCorrectionPath coveragePath (some balanceViewPath)
-  | ["current", memoryPath, eventCorrectionPath, coveragePath] =>
-      showCurrentQuantities memoryPath eventCorrectionPath coveragePath
+  | ["balances", actualPath, coveragePath] =>
+      showBalances actualPath coveragePath
+  | ["balances", actualPath, coveragePath, balanceViewPath] =>
+      showBalances actualPath coveragePath (some balanceViewPath)
+  | ["current", actualPath, coveragePath] =>
+      showCurrentQuantities actualPath coveragePath
   | "starting-quantity" :: _ => do
       IO.eprintln
         "loam: starting-quantity is retired; zero-origin coverage is explicit reconstruction/cutover evidence"
