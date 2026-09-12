@@ -28,22 +28,49 @@ trap 'rm -rf "$work"' EXIT
 streams="$work/streams"
 rebuilt="$work/rebuilt"
 
+printf '%s\n' '== exact selected-byte round trip =='
 python3 "$projector" check "$data_root" "$work/exact-check"
 python3 "$projector" pack "$data_root" "$streams"
 python3 "$projector" unpack "$streams" "$rebuilt" --support-from "$data_root"
 
-"$observer" "$data_root" "$start" "$end" >"$work/original.hobs1"
-"$observer" "$rebuilt" "$start" "$end" >"$work/rebuilt.hobs1"
+printf '%s\n' '== HOBS1 original =='
+if ! "$observer" "$data_root" "$start" "$end" >"$work/original.hobs1" 2>"$work/original.hobs1.err"; then
+  cat "$work/original.hobs1.err" >&2
+  echo 'original HOBS1 observation failed' >&2
+  exit 1
+fi
+
+printf '%s\n' '== HOBS1 rebuilt =='
+if ! "$observer" "$rebuilt" "$start" "$end" >"$work/rebuilt.hobs1" 2>"$work/rebuilt.hobs1.err"; then
+  cat "$work/rebuilt.hobs1.err" >&2
+  echo 'rebuilt HOBS1 observation failed' >&2
+  exit 1
+fi
+
+printf '%s\n' '== HOBS1 diff =='
 diff -u "$work/original.hobs1" "$work/rebuilt.hobs1"
 
-(
+printf '%s\n' '== CycleBudgetDogfood original =='
+if ! (
   cd "$repo_root"
   lake env lean --run "$cycle_check" "$data_root"
-) >"$work/original.cycle"
-(
+) >"$work/original.cycle" 2>&1; then
+  cat "$work/original.cycle" >&2
+  echo 'original CycleBudgetDogfood failed' >&2
+  exit 1
+fi
+
+printf '%s\n' '== CycleBudgetDogfood rebuilt =='
+if ! (
   cd "$repo_root"
   lake env lean --run "$cycle_check" "$rebuilt"
-) >"$work/rebuilt.cycle"
+) >"$work/rebuilt.cycle" 2>&1; then
+  cat "$work/rebuilt.cycle" >&2
+  echo 'rebuilt CycleBudgetDogfood failed' >&2
+  exit 1
+fi
+
+printf '%s\n' '== CycleBudgetDogfood diff =='
 diff -u "$work/original.cycle" "$work/rebuilt.cycle"
 
 printf '%s\n' \
