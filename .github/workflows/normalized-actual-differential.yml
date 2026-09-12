@@ -55,6 +55,17 @@ jobs:
           python3 tools/normalized_to_current_fixture.py \
             tools/normalized_actual_fixture.loam "$tmpdir"
 
+      - name: Isolate production reader phases
+        shell: bash
+        run: |
+          set -euo pipefail
+          for phase in frontiers events corrections reversals relations; do
+            echo "=== diagnostic phase: $phase ==="
+            .lake/build/bin/normalizedActualProductionObservation \
+              "$DIFF_ROOT" "$phase" >/dev/null
+            echo "=== diagnostic phase passed: $phase ==="
+          done
+
       - name: Compare normalized semantics with current production readers
         shell: bash
         run: |
