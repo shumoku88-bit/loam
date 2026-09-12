@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+  echo "usage: tools/check-normalized-actual-dogfood DATA_ROOT [START END]" >&2
+  exit 2
+fi
+
+data_root="$(cd "$1" && pwd)"
+start="${2:-2026-08-17}"
+end="${3:-2026-10-15}"
+cycle_observed_at="${LOAM_NORMALIZED_ACTUAL_OBSERVED_AT:-2026-09-12}"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+production_observer="$repo_root/.lake/build/bin/normalizedActualProductionObservation"
+hobs1_observer="$repo_root/.lake/build/bin/loamHouseholdObservation"
+normalized_tool="$repo_root/tools/normalized_actual.py"
+current_to_normalized="$repo_root/tools/current_to_normalized_actual.py"
+normalized_to_current="$repo_root/tools/normalized_to_current_fixture.py"
+compare_observations="$repo_root/tools/compare_actual_observations.py"
+three_stream="$repo_root/tools/three-stream-projection.py"
+cycle_observer="$repo_root/Loam/Tests/ThreeStreamCycleObservation.lean"
+
+for executable in "$production_observer" "$hobs1_observer"; do
+  if [[ ! -x "$executable" ]]; then
+    echo "missing $executable; build normalizedActualProductionObservation and loamHouseholdObservation first" >&2
+    exit 2
+  fi
+done
+if [[ ! -d "$data_root" ]]; then
+  echo "data root not found: $data_root" >&2
+  exit 2
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+normalized="$work/actual.loam"
+rebuilt="$work/rebuilt"
+
+printf '%s\n' '== project current canonical Actual -> normalized Actual =='
+python3 "$current_to_normalized" "$data_root" "$normalized"
+python3 "$normalized_tool" check "$normalized"
+
+printf '%s\n' '== normalized observation vs production readers on canonical data =='
+python3 "$normalized_tool" observe "$normalized" >"$work/normalized.obs"
+"$production_observer" "$data_root" >"$work/current.production.obs"
+python3 "$compare_observations" "$work/normalized.obs" "$work/current.production.obs"
+
+printf '%s\n' '== normalized -> test-only current fixture -> production readers =='
+cp -a "$data_root" "$rebuilt"
+python3 "$normalized_to_current" "$normalized" "$rebuilt"
+"$production_observer" "$rebuilt" >"$work/rebuilt.production.obs"
+python3 "$compare_observations" "$work/normalized.obs" "$work/rebuilt.production.obs"
+
+printf '%s\n' '== HOBS1 parity =='
+"$hobs1_observer" "$data_root" "$start" "$end" >"$work/current.hobs1"
+"$hobs1_observer" "$rebuilt" "$start" "$end" >"$work/rebuilt.hobs1"
+diff -u "$work/current.hobs1" "$work/rebuilt.hobs1"
+printf '%s\n' 'HOBS1 Balance/Budget/Capacity parity PASS'
+
+printf '%s\n' '== CycleBudgetReview parity =='
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_observer" "$data_root" "$cycle_observed_at"
+) >"$work/current.cycle" 2>&1
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_observer" "$rebuilt" "$cycle_observed_at"
+) >"$work/rebuilt.cycle" 2>&1
+diff -u "$work/current.cycle" "$work/rebuilt.cycle"
+printf '%s\n' 'CycleBudgetReview Funding/CurrentCoverage/Scheduled pressure/Headroom parity PASS'
+
+printf '%s\n' '== active semantic payload measurement =='
+python3 "$three_stream" pack "$data_root" "$work/three-stream" | tee "$work/three-stream.log"
+
+printf '%s\n' '== metrics =='
+PYTHONPATH="$repo_root/tools" python3 - "$data_root" "$normalized" "$work/three-stream.log" <<'PY'
+from __future__ import annotations
+
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+
+from normalized_actual import parse
+
+root = Path(sys.argv[1])
+normalized_path = Path(sys.argv[2])
+three_stream_log = Path(sys.argv[3])
+
+lines = (root / "movement-authority" / "CURRENT").read_text(encoding="utf-8").splitlines()
+selected: dict[str, Path] = {}
+for line in lines[1:]:
+    if not line:
+        continue
+    family, relative, _digest = line.split("\t")
+    selected[family] = root / "movement-authority" / relative
+
+actual_families = [
+    "Event",
+    "ActualValidity",
+    "EventDescription",
+    "RelationUnit",
+    "RelationDischarge",
+]
+family_bytes = {family: selected[family].stat().st_size for family in actual_families}
+correction_path = root / "corrections.loam"
+reversal_path = root / "actual-reversals.loam"
+correction_bytes = correction_path.stat().st_size if correction_path.is_file() else 0
+reversal_bytes = reversal_path.stat().st_size if reversal_path.is_file() else 0
+current_actual_bytes = sum(family_bytes.values()) + correction_bytes + reversal_bytes
+normalized_bytes = normalized_path.stat().st_size
+saving = current_actual_bytes - normalized_bytes
+reduction = 100.0 * saving / current_actual_bytes if current_actual_bytes else 0.0
+
+actual = parse(normalized_path.read_bytes())
+effects = [effect for tx in actual.txs for effect in tx.effects]
+keyed = [effect for effect in effects if effect.key is not None]
+date_revisions = [r for tx in actual.txs for r in tx.date_revisions]
+relations = [r for tx in actual.txs for r in tx.relations]
+discharges = [d for tx in actual.txs for d in tx.discharges]
+corrections = [tx for tx in actual.txs if tx.replaces is not None]
+reversals = [tx for tx in actual.txs if tx.reversal_of is not None]
+duplicate_coordinate_extras = 0
+for tx in actual.txs:
+    counts = Counter((e.locus, e.measure) for e in tx.effects)
+    duplicate_coordinate_extras += sum(n - 1 for n in counts.values() if n > 1)
+
+payload_match = re.search(
+    r"projected\s+(\d+)\s+current semantic sections:\s+(\d+)\s+payload bytes",
+    three_stream_log.read_text(encoding="utf-8"),
+)
+if payload_match is None:
+    raise SystemExit("could not parse three-stream payload measurement")
+section_count = int(payload_match.group(1))
+active_payload = int(payload_match.group(2))
+normalized_active_payload = active_payload - current_actual_bytes + normalized_bytes
+active_saving = active_payload - normalized_active_payload
+active_reduction = 100.0 * active_saving / active_payload if active_payload else 0.0
+
+for family in actual_families:
+    print(f"METRIC\tcurrent_{family}_bytes\t{family_bytes[family]}")
+print(f"METRIC\tcurrent_correction_bytes\t{correction_bytes}")
+print(f"METRIC\tcurrent_reversal_bytes\t{reversal_bytes}")
+print(f"METRIC\tcurrent_actual_authority_bytes\t{current_actual_bytes}")
+print(f"METRIC\tnormalized_actual_bytes\t{normalized_bytes}")
+print(f"METRIC\treduction_bytes\t{saving}")
+print(f"METRIC\treduction_percent\t{reduction:.2f}")
+print(f"METRIC\ttransactions\t{len(actual.txs)}")
+print(f"METRIC\teffects\t{len(effects)}")
+print(f"METRIC\tkeyed_effects\t{len(keyed)}")
+print(f"METRIC\tdate_revisions\t{len(date_revisions)}")
+print(f"METRIC\trelations\t{len(relations)}")
+print(f"METRIC\tdischarges\t{len(discharges)}")
+print(f"METRIC\tcorrections\t{len(corrections)}")
+print(f"METRIC\treversals\t{len(reversals)}")
+print(f"METRIC\tduplicate_same_coordinate_effect_extras\t{duplicate_coordinate_extras}")
+print(f"METRIC\tactive_semantic_sections\t{section_count}")
+print(f"METRIC\tactive_semantic_payload_bytes\t{active_payload}")
+print(f"METRIC\tnormalized_active_semantic_payload_bytes\t{normalized_active_payload}")
+print(f"METRIC\tactive_payload_reduction_bytes\t{active_saving}")
+print(f"METRIC\tactive_payload_reduction_percent\t{active_reduction:.2f}")
+PY
+
+printf '%s\n' \
+  'real canonical normalized Actual dogfood PASS' \
+  '  normalized parser/admission PASS' \
+  '  normalized/current production semantic observation parity PASS' \
+  '  normalized/test-only-current production semantic observation parity PASS' \
+  '  HOBS1 parity PASS' \
+  '  CycleBudgetReview parity PASS'
