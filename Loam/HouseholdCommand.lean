@@ -5,6 +5,7 @@ import Loam.ActualReversalPublisher
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
+import Loam.ScheduledContinuationRouting
 import Loam.CapacityPublisher
 import Loam.ActualRoutingPublisher
 import Loam.ScheduledRoutingPublisher
@@ -95,6 +96,14 @@ def replaceScheduled
     (draft : Loam.ScheduledReplacementPublisher.Draft) :=
   Loam.ScheduledReplacementPublisher.publishReplacement
     (scheduledFile root).toString root.toString draft
+
+/-- Inherit predecessor Scheduled routing into one newly created continuation. -/
+def inheritScheduledRouting
+    (root : System.FilePath)
+    (predecessor created : Loam.Core.ScheduledId)
+    (effectiveOn : String) :=
+  Loam.ScheduledContinuationRouting.inherit
+    (scheduledRoutingFile root) (scheduledFile root) predecessor created effectiveOn
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity
