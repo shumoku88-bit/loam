@@ -20,7 +20,7 @@ set_option autoImplicit false
 # Locus admission administration terminal session
 
 The session owns only local interaction state. The authoritative Locus write is
-delegated to `LocusAdmissionPublisher.publishManifestAdmission`.
+delegated to `LocusAdmissionPublisher.publishAdmission`.
 
 While editing, Tab opens the separate initial-AccountingRole administration
 surface. That surface computes candidates from current authorities and delegates
@@ -98,7 +98,7 @@ partial def run
       return "Locus admission cancelled."
     match step.publish with
     | some draft =>
-        match ← Loam.LocusAdmissionPublisher.publishManifestAdmission root.toString draft with
+        match ← Loam.LocusAdmissionPublisher.publishAdmission root.toString draft with
         | .ok receipt =>
             return "Admitted Locus " ++ receipt.locus.token ++ " for new writes. Vocabulary: " ++
               toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
