@@ -7,7 +7,7 @@ sig EffectKey {}
 // Semantic multiplicity inside one immutable Actual generation. There is no
 // canonical ordinal or globally durable identity for an ordinary Effect.
 sig EffectOccurrence {
-  event: one Event,
+  owner: one Event,
   coordinate: one Coordinate
 }
 
@@ -27,15 +27,15 @@ sig ActualGeneration {
 }
 
 pred closed[g: ActualGeneration] {
-  g.effects.event in g.events
+  g.effects.owner in g.events
   g.relations.source in g.effects
 
   all relation: g.relations |
     one g.keyOf[relation.source]
 
-  all event: Event, key: EffectKey |
+  all ownerEvent: Event, key: EffectKey |
     lone { effect: g.effects |
-      effect.event = event and key in g.keyOf[effect]
+      effect.owner = ownerEvent and key in g.keyOf[effect]
     }
 
   all target, replacement: Event |
@@ -92,7 +92,6 @@ pred needsScheduled[kind: WriteKind] {
   kind = ReversalWrite
 }
 
-// Admission records only external authority versions this operation needs.
 pred dependenciesRead[w: Write] {
   needsPolicy[w.kind] implies w.policyRead = w.pre.policy
   not needsPolicy[w.kind] implies no w.policyRead
@@ -208,7 +207,7 @@ pred promoteForRelation[
   new.keyOf = old.keyOf + locator.effect->key
 }
 
-// Same event and coordinate, two distinct occurrences. Coordinate alone cannot
+// Same owner and coordinate, two distinct occurrences. Coordinate alone cannot
 // select the source, yet a generation-bound locator can promote exactly one.
 pred duplicateCoordinatePromotion {
   some disj chosen, twin: EffectOccurrence,
@@ -218,7 +217,7 @@ pred duplicateCoordinatePromotion {
        relation: Relation | {
     chosen in old.effects
     twin in old.effects
-    chosen.event = twin.event
+    chosen.owner = twin.owner
     chosen.coordinate = twin.coordinate
     locator.generation = old
     locator.effect = chosen
