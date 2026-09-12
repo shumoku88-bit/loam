@@ -41,45 +41,45 @@ LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`.
 ./tools/loam
 ```
 
-With no arguments, the wrapper opens the production `loamTui` household workspace. The TUI resolves `LOAM_DATA_DIR` itself, defaulting to `../loam-data`, and resolves `LOAM_MOVEMENT_MANIFEST_ROOT`, defaulting to `DATA_DIR/movement-authority`. Missing or corrupt selected authority fails closed rather than falling back to retired Movement sidecars.
+With no arguments, the wrapper opens the production `loamTui` household workspace. The TUI resolves `LOAM_DATA_DIR`, defaulting to `../loam-data`. That directory is the production Actual authority root; normalized Actual evidence is retained in `actual.loam`. Missing or malformed selected authority fails closed rather than falling back to retired sidecars.
 
 Explicit named CLI commands remain available for scriptable, diagnostic, and lower-level use. The default human entrance does not replace those commands.
 
 Household recording has one explicit line-CLI entrance:
 
 ```text
-LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE
+./tools/loam movement [LOAM_DATA_DIR]
 ```
 
-The line CLI requires an initialized Movement manifest root and never falls back to a sidecar Movement world. `MEMORY_FILE` is retained only as a positional compatibility argument for the current command shape; Movement preflight and publication use the selected manifest authority, not that path.
+If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
 
 Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
 Purchases, transfers, income, split payments, and other value flows use this same entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
-### Household manifest authority
+### Household Actual authority
 
-The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. `LOAM_MOVEMENT_MANIFEST_ROOT` may explicitly select a Movement manifest root; otherwise the TUI uses `DATA_DIR/movement-authority`.
+The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. The selected directory is the Actual authority root, and `actual.loam` is the normalized production Actual file.
 
-Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume the selected manifest authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
+Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume this authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
 
-Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Commands that expose lower-level authority selection must continue to fail closed rather than silently manufacture a sidecar world. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
+Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
 
 ### Focused record review
 
 The explicit `review` CLI remains available for scripted and focused record inspection even though the default interactive human entrance is now the production TUI.
 
 ```text
-./tools/loam review MEMORY_FILE CORRECTION_FILE
-./tools/loam review MEMORY_FILE CORRECTION_FILE 2026-09-03
-./tools/loam review MEMORY_FILE CORRECTION_FILE '/スーパー'
+./tools/loam review ACTUAL_FILE
+./tools/loam review ACTUAL_FILE 2026-09-03
+./tools/loam review ACTUAL_FILE '/スーパー'
 ```
 
 Review is intentionally **one-shot and bounded**. With no query, or with `t`, it prints at most ten summaries from the seven occurrence dates ending today together with a small date/count strip. It is **not** a most-recently-entered log. `YYYY-MM-DD` selects one occurrence date, `u` selects current records whose date is unknown, and `/text` searches all dates and **all recorded Events**, including clearly marked correction originals. Search uses literal, case-insensitive substrings over descriptions, loci, measures, quantity spellings, dates, and EventIds.
 
-Daily counts and lists reflect movement and date corrections. The correction path is explicit; a not-yet-created correction file means no correction facts, as in balances. Standard input is ignored and the command never opens a paging or prompt loop. Use the production TUI Actual workspace for interactive browsing and selected-record detail.
+Daily counts and lists reflect movement and date corrections retained inside normalized Actual evidence. Standard input is ignored and the command never opens a paging or prompt loop. Use the production TUI Actual workspace for interactive browsing and selected-record detail.
 
-Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid correction evidence refuses the review instead of appearing as an empty list.
+Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid Actual evidence refuses the review instead of appearing as an empty list.
 
 Unbounded raw inspection is deliberately lower-level:
 
@@ -111,7 +111,7 @@ Generic read-only shadow tools remain only where they answer an independent rese
 
 LOAM is the current day-to-day household system. Ordinary real-life recording is now done in LOAM rather than in a parallel HRA workflow.
 
-Selected `loam-data` objects, manifests, and configuration carry current operational household meaning. The implementation can continue to change, but a representation change that affects operational data needs an explicit migration, reconstruction, or other qualified transition that preserves the household facts being carried forward.
+Selected `loam-data` evidence and configuration carry current operational household meaning. The implementation can continue to change, but a representation change that affects operational data needs an explicit migration, reconstruction, or other qualified transition that preserves the household facts being carried forward.
 
 HRA remains useful as historical implementation, migration provenance, and comparison material. It is not a second operational authority and does not need to be kept structurally synchronized with LOAM.
 
