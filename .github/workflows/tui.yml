@@ -3,6 +3,7 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
@@ -98,6 +99,7 @@ on:
     branches:
       - 'feat/tui'
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
@@ -211,7 +213,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamTui
+          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamTui Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

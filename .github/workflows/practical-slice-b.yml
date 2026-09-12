@@ -3,6 +3,7 @@ name: Practical Slice B
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -37,6 +38,7 @@ on:
       - 'feat/current-capacity-coverage-tui'
       - main
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -85,7 +87,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core Loam.Application Loam.CurrentCoverageReview
+          build-args: Loam.Core Loam.Application Loam.CurrentCoverageReview Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

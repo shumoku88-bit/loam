@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.AccountingRolePublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -103,7 +104,7 @@ def main (args : List String) : IO Unit := do
   expect (hasRole decoded "fresh" .expense && hasRole decoded "assigned" .asset)
     "AccountingRole persistence round-trip lost assignments"
 
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root w
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root w
     | throw (IO.userError "publish Actual authority fixture")
   let lifecycle0 ← lifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)

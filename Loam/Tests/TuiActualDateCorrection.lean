@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.Tui.ActualDateCorrection
 import Loam.ActualReview
@@ -47,7 +48,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let root := System.FilePath.mk dataPath
   let initial ← emptyWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
   let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")

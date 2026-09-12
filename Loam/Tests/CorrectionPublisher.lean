@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.CorrectionPublisher
@@ -42,7 +43,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let root := System.FilePath.mk dataPath
   let initial ← emptyWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
   let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
@@ -60,7 +61,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
   let beforeRefusal ← IO.FS.readFile (root / "actual.loam")
@@ -69,7 +70,7 @@ def main (args : List String) : IO Unit := do
   expect (!refusedPolicy.isOk) "correction bypassed current Locus new-write policy"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeRefusal)
     "Locus-policy refusal changed Actual authority"
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root selected
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root selected
     | throw (IO.userError "restore Locus policy")
 
   let .ok receipt ← Loam.CorrectionPublisher.publishCorrection

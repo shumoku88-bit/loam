@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.LocusAdmissionPublisher
 
@@ -43,7 +44,7 @@ def main (args : List String) : IO Unit := do
     "persistence-invalid stable token was accepted"
 
   let root := System.FilePath.mk rootPath
-  match ← Loam.ActualAuthority.publishWorld? root w with
+  match ← Loam.Tests.ActualWorldFixture.publishWorld? root w with
   | .error message => throw (IO.userError message)
   | .ok _ => pure ()
 

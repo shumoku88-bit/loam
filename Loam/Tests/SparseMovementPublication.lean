@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementPublisher
 
@@ -30,7 +31,7 @@ def main (args : List String) : IO Unit := do
   let [path] := args | throw (IO.userError "supply isolated data directory")
   let root := System.FilePath.mk path
   let world ← emptyWorld
-  let .ok () ← Loam.ActualAuthority.publishWorld? root world
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "initialize Actual authority")
 
   -- Collector-local keys on an ordinary movement must not become canonical identity.

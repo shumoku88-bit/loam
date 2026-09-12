@@ -3,6 +3,7 @@ name: Lean Application
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/MovementPublisher.lean'
@@ -14,6 +15,7 @@ on:
       - '.github/workflows/application.yml'
   push:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/MovementPublisher.lean'
@@ -44,7 +46,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Application Loam Loam.MovementPublisher loamHouseholdObservation
+          build-args: Loam.Application Loam Loam.MovementPublisher loamHouseholdObservation Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

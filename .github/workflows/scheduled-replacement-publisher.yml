@@ -3,6 +3,7 @@ name: Shared Scheduled Replacement Publisher
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
@@ -20,6 +21,7 @@ on:
       - main
       - feat/tui
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
@@ -50,7 +52,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ScheduledReplacementPublisher Loam.ScheduledReview Loam.ScheduledTerminalPublisher
+          build-args: Loam.ScheduledReplacementPublisher Loam.ScheduledReview Loam.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

@@ -3,6 +3,7 @@ name: Cycle Funding Inspection
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/BalanceReview.lean'
@@ -16,6 +17,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/BalanceReview.lean'
@@ -48,7 +50,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.CycleFundingInspection
+          build-args: Loam.CycleFundingInspection Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

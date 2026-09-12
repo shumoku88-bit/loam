@@ -3,6 +3,7 @@ name: Shared ActualValidity Publisher
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/MovementPublisher.lean'
@@ -21,6 +22,7 @@ on:
       - main
       - feat/tui
     paths:
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/MovementPublisher.lean'
@@ -52,7 +54,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher
+          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false

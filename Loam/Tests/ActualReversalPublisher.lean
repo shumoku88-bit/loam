@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReversalPublisher
 import Loam.CorrectionPublisher
@@ -51,7 +52,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let world ← initialWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "publish initial Actual world")
   let lifecycle ← emptyLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
