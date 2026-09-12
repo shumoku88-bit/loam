@@ -18,6 +18,37 @@ structure ActualReversal where
   reversal : EventId
 deriving Repr, DecidableEq
 
+namespace ActualReversal
+
+/-- Remove the first physical match (locus, measure, quantity) from an Effect list. -/
+private def removeFirstPhysicalMatch
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    List Effect → Option (List Effect)
+  | [] => none
+  | e :: rest =>
+      if e.locus = locus ∧ e.measure = measure ∧ e.quantity = quantity then
+        some rest
+      else
+        match removeFirstPhysicalMatch locus measure quantity rest with
+        | some tail => some (e :: tail)
+        | none => none
+
+/--
+Check whether the physical Effects of two Events form an exact inverse multiset
+of (locus, measure, quantity) triples. EffectKey and list ordering are ignored.
+-/
+def exactPhysicalInverse? (target reversal : List Effect) : Bool :=
+  let rec matchAll (remainingTarget : List Effect) (remainingReversal : List Effect) : Bool :=
+    match remainingTarget with
+    | [] => remainingReversal.isEmpty
+    | e :: rest =>
+        match removeFirstPhysicalMatch e.locus e.measure (-e.quantity) remainingReversal with
+        | some updatedReversal => matchAll rest updatedReversal
+        | none => false
+  matchAll target reversal
+
+end ActualReversal
+
 /--
 Complete retained Actual-reversal relation evidence.
 
