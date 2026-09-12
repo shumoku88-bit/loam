@@ -126,10 +126,6 @@ def main (args : List String) : IO UInt32 :=
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
         (Loam.JournalExportCli.exportJournal actualPath outputPath)
-  | [actualPath, _ignoredCorrection, outputPath] =>
-      Loam.WriterOwnership.withOwnership
-        (System.FilePath.mk actualPath)
-        (Loam.JournalExportCli.exportJournal actualPath outputPath)
   | _ => do
       IO.eprintln journalUsage
       return 2
