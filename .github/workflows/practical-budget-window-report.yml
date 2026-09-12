@@ -16,6 +16,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'tools/three-stream-projection.py'
       - 'lakefile.lean'
       - '.github/workflows/practical-budget-window-report.yml'
       - 'lean-toolchain'
@@ -36,6 +37,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'tools/three-stream-projection.py'
       - 'lakefile.lean'
       - '.github/workflows/practical-budget-window-report.yml'
       - 'lean-toolchain'
@@ -151,6 +153,21 @@ jobs:
           grep -Fx $'HOBS1\tscalar\tbudget\ttotal_consumption\tjpy\t30' <<<"$observation_output"
           grep -Fx $'HOBS1\tscalar\tbudget\ttotal_remaining\tjpy\t120' <<<"$observation_output"
           test "$(tail -n 1 <<<"$observation_output")" = $'HOBS1\tmeta\tstatus\tcomplete'
+
+          projection="$tmpdir/three-stream"
+          rebuilt="$tmpdir/three-stream-rebuilt"
+          python3 tools/three-stream-projection.py pack "$tmpdir" "$projection"
+          python3 tools/three-stream-projection.py unpack \
+            "$projection" "$rebuilt" --support-from "$tmpdir"
+          python3 tools/three-stream-projection.py check "$tmpdir" "$tmpdir/three-stream-check"
+
+          rebuilt_observation_output="$(env \
+            LOAM_MOVEMENT_MANIFEST_ROOT="$rebuilt/movement-authority" \
+            .lake/build/bin/loamHouseholdObservation \
+            "$rebuilt" 2026-08-17 2026-10-15)"
+          diff -u \
+            <(printf '%s\n' "$observation_output") \
+            <(printf '%s\n' "$rebuilt_observation_output")
 
           mv "$tmpdir/actual-routing.loam" "$tmpdir/actual-routing.saved"
           if .lake/build/bin/loamBudgetWindow \
