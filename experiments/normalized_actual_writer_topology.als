@@ -4,8 +4,8 @@ sig Event {}
 sig Coordinate {}
 sig EffectKey {}
 
-// EffectOccurrence is semantic multiplicity inside one immutable Actual generation.
-// It deliberately has no canonical ordinal or globally durable identity.
+// Semantic multiplicity inside one immutable Actual generation. There is no
+// canonical ordinal or globally durable identity for an ordinary Effect.
 sig EffectOccurrence {
   event: one Event,
   coordinate: one Coordinate
@@ -15,8 +15,8 @@ sig Relation {
   source: one EffectOccurrence
 }
 
-// One complete immutable Actual generation. All Actual distinctions that must
-// switch together live behind this single selected generation.
+// One complete immutable Actual generation. Actual distinctions that must switch
+// together live behind this one selected generation.
 sig ActualGeneration {
   events: set Event,
   effects: set EffectOccurrence,
@@ -58,8 +58,6 @@ fact EveryActualGenerationIsClosed {
 }
 
 // Locus admission policy and Scheduled lifecycle remain independent authorities.
-// Actual publication may depend on their selected versions without physically
-// merging them into the Actual generation.
 sig PolicyGeneration {}
 sig ScheduledGeneration {}
 
@@ -70,9 +68,7 @@ sig Snapshot {
 }
 
 // Current production has four semantic Actual write entrances. Relation creation
-// and Relation discharge are optional evidence inside MovementWrite, not separate
-// writers. Keeping that distinction here prevents a future convenience feature
-// from being mistaken for a migration requirement.
+// and Relation discharge are optional evidence inside MovementWrite.
 abstract sig WriteKind {}
 one sig MovementWrite extends WriteKind {}
 one sig DateRevisionWrite extends WriteKind {}
@@ -81,8 +77,8 @@ one sig ReversalWrite extends WriteKind {}
 
 sig Write {
   kind: one WriteKind,
-  before: one Snapshot,
-  after: one Snapshot,
+  pre: one Snapshot,
+  post: one Snapshot,
   candidate: one ActualGeneration,
   policyRead: lone PolicyGeneration,
   scheduledRead: lone ScheduledGeneration
@@ -96,104 +92,87 @@ pred needsScheduled[kind: WriteKind] {
   kind = ReversalWrite
 }
 
-// Admission records only the external authority versions whose meaning is needed
-// by this operation. Date revision needs neither external authority. Movement,
-// Correction and Reversal all create quantity-bearing Effects and therefore read
-// current Locus policy; Reversal additionally reads Scheduled lifecycle.
+// Admission records only external authority versions this operation needs.
 pred dependenciesRead[w: Write] {
-  needsPolicy[w.kind] implies w.policyRead = w.before.policy
+  needsPolicy[w.kind] implies w.policyRead = w.pre.policy
   not needsPolicy[w.kind] implies no w.policyRead
 
-  needsScheduled[w.kind] implies w.scheduledRead = w.before.scheduled
+  needsScheduled[w.kind] implies w.scheduledRead = w.pre.scheduled
   not needsScheduled[w.kind] implies no w.scheduledRead
 }
 
-// A guarded Actual commit switches only the one complete Actual generation.
-// External authorities are required to remain at the versions read by admission
-// only when the operation semantically depends on them. Unneeded authorities may
-// advance independently and are not dragged into the Actual publication unit.
+// One Actual generation switch. Dependencies must remain at the version read by
+// admission, but unrelated authorities may advance independently.
 pred guardedCommit[w: Write] {
   dependenciesRead[w]
-  w.after.actual = w.candidate
+  w.post.actual = w.candidate
 
   needsPolicy[w.kind] implies
-    w.after.policy = w.before.policy
+    w.post.policy = w.pre.policy
 
   needsScheduled[w.kind] implies
-    w.after.scheduled = w.before.scheduled
+    w.post.scheduled = w.pre.scheduled
 }
 
-// Without keeping Policy stable between admission and commit, a Movement,
-// Correction or Reversal can be admitted under one vocabulary and selected after
-// another policy has become current. Keep this SAT as pressure for a lock or
-// compare-and-switch precondition rather than merging Policy into Actual.
+// Positive race witnesses. They should be SAT unless the corresponding dependency
+// is kept stable between admission and Actual selection.
 pred unguardedPolicyRace {
   some w: Write | {
     needsPolicy[w.kind]
     dependenciesRead[w]
-    w.after.actual = w.candidate
-    w.after.policy != w.before.policy
+    w.post.actual = w.candidate
+    w.post.policy != w.pre.policy
   }
 }
 
-// Reversal additionally depends on Scheduled lifecycle, so the same race exists
-// if Scheduled changes after admission and before Actual selection.
 pred unguardedScheduledRace {
   some w: Write | {
     w.kind = ReversalWrite
     dependenciesRead[w]
-    w.after.actual = w.candidate
-    w.after.scheduled != w.before.scheduled
+    w.post.actual = w.candidate
+    w.post.scheduled != w.pre.scheduled
   }
 }
 
-// Date correction is independent of Locus policy. This witness demonstrates that
-// keeping Actual atomic does not require co-publishing unrelated Policy state.
+// Independence witnesses. Atomic Actual publication does not require unrelated
+// authorities to share the same generation or change boundary.
 pred dateRevisionWhilePolicyAdvances {
   some w: Write | {
     w.kind = DateRevisionWrite
     guardedCommit[w]
-    w.after.policy != w.before.policy
+    w.post.policy != w.pre.policy
   }
 }
 
-// Ordinary Movement depends on Policy but not Scheduled lifecycle. Scheduled may
-// therefore advance independently while the exact Policy version remains stable.
 pred movementWhileScheduledAdvances {
   some w: Write | {
     w.kind = MovementWrite
     guardedCommit[w]
-    w.after.scheduled != w.before.scheduled
+    w.post.scheduled != w.pre.scheduled
   }
 }
 
 assert GuardedPolicyDependencyCannotRace {
   all w: Write |
     guardedCommit[w] and needsPolicy[w.kind] implies
-      w.after.policy = w.policyRead
+      w.post.policy = w.policyRead
 }
 
 assert GuardedScheduledDependencyCannotRace {
   all w: Write |
     guardedCommit[w] and needsScheduled[w.kind] implies
-      w.after.scheduled = w.scheduledRead
+      w.post.scheduled = w.scheduledRead
 }
 
 assert GuardedCommitSelectsOneClosedActualGeneration {
   all w: Write |
-    guardedCommit[w] implies closed[w.after.actual]
+    guardedCommit[w] implies closed[w.post.actual]
 }
 
-// --- Optional future extension: later Relation attachment. ---
-//
-// Current production creates Relation evidence only inside MovementWrite, so the
-// migration does not need this capability. It is modeled separately to show how a
-// future editor could promote one historically-keyless Effect without making an
-// ordinal or compatibility EffectKey part of canonical identity.
-
-// A Locator is command-local capability, not canonical Actual data. In an
-// implementation it can be represented by selected-generation digest plus an
-// occurrence locator. Its generation precondition prevents silent retargeting.
+// --- Optional future extension: attach Relation after original Movement. ---
+// Current production does not need this capability for migration. A command-local
+// generation-bound locator can nevertheless promote one keyless Effect later
+// without persisting ordinal identity.
 sig Locator {
   generation: one ActualGeneration,
   effect: one EffectOccurrence
@@ -210,9 +189,6 @@ assert StaleLocatorCannotResolveAgainstAnotherGeneration {
       not locatorResolves[l, snapshot]
 }
 
-// Promote exactly one previously-keyless occurrence while attaching the first
-// retained Relation that needs to name it. The ephemeral Locator is consumed by
-// the transition; only the new stable EffectKey and Relation survive canonically.
 pred promoteForRelation[
     old, new: ActualGeneration,
     locator: Locator,
@@ -232,9 +208,8 @@ pred promoteForRelation[
   new.keyOf = old.keyOf + locator.effect->key
 }
 
-// Positive pressure: two effects can have identical event/coordinate payload yet
-// a generation-bound locator can promote exactly one occurrence. Coordinate alone
-// would be insufficient to choose between them.
+// Same event and coordinate, two distinct occurrences. Coordinate alone cannot
+// select the source, yet a generation-bound locator can promote exactly one.
 pred duplicateCoordinatePromotion {
   some disj chosen, twin: EffectOccurrence,
        old, new: ActualGeneration,
@@ -253,8 +228,6 @@ pred duplicateCoordinatePromotion {
   }
 }
 
-// A stale command can exist after CURRENT changes, but must fail the resolver
-// rather than reinterpret its occurrence locator in the newly selected bytes.
 pred staleLocatorWitness {
   some locator: Locator, snapshot: Snapshot | {
     locator.effect in locator.generation.effects
