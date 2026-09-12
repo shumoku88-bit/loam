@@ -151,7 +151,4 @@ def publishCreation
   withCreationOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestCreation := publishCreation
-
 end Loam.ScheduledCreationPublisher
