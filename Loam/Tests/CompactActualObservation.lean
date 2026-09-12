@@ -39,7 +39,7 @@ def main (args : List String) : IO Unit := do
         String.intercalate "\t"
           [ "EFFECT"
           , record.event.id.token
-          , effect.key.token
+          , effect.key.map (·.token) |>.getD ""
           , effect.locus.token
           , effect.measure.token
           , toString effect.quantity.quanta

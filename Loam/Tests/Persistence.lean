@@ -76,11 +76,11 @@ def main : IO Unit := do
             "event persistence round-trip changed event identity"
           match restored.effects with
           | [left, middle, right] =>
-              expect (left.key.token == "effect-a")
+              expect (left.key == some ⟨"effect-a"⟩)
                 "event persistence changed first effect identity"
-              expect (middle.key.token == "effect-b")
+              expect (middle.key == some ⟨"effect-b"⟩)
                 "event persistence changed second effect identity"
-              expect (right.key.token == "effect-c")
+              expect (right.key == some ⟨"effect-c"⟩)
                 "event persistence changed third effect identity"
           | _ =>
               throw <| IO.userError "event persistence changed effect detail count"

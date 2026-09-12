@@ -68,10 +68,16 @@ private def loadScheduledLifecycle?
   | some image => return .ok image
   | none => return .error "loam: Scheduled lifecycle authority is malformed or unsupported"
 
+/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
+private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
+  match effect.key with
+  | none => true
+  | some key => Loam.Persistence.validToken key.token
+
 private def movementEffectsValid (effects : List Effect) : Bool :=
   if effects.isEmpty then false
   else if !effects.all (fun effect =>
-      Loam.Persistence.validToken effect.key.token &&
+      retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
     false

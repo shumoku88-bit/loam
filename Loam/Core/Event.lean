@@ -40,8 +40,16 @@ def coordinate (effect : Effect) : EffectCoordinate :=
 end Effect
 
 /-- Retained stable Effect keys, excluding ordinary anonymous Effects. -/
-def retainedEffectKeys (effects : List Effect) : List EffectKey :=
+@[simp] def retainedEffectKeys (effects : List Effect) : List EffectKey :=
   effects.filterMap Effect.key
+
+@[simp] theorem retainedEffectKeys_singleton_nodup (effect : Effect) :
+    (retainedEffectKeys [effect]).Nodup := by
+  cases h : effect.key <;> simp [retainedEffectKeys, h]
+
+@[simp] theorem filterMap_singleton_nodup {α β : Type _} (f : α → Option β) (x : α) :
+    (List.filterMap f [x]).Nodup := by
+  cases h : f x <;> simp [List.filterMap, h]
 
 /--
 One event identity together with the effects observed for that event.

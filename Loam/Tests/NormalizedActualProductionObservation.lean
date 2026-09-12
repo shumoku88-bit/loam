@@ -53,7 +53,9 @@ private def printTx
 
   for effect in event.effects do
     let key :=
-      if sourceKeyRetained evidence.relations event.id effect then effect.key.token else ""
+      if sourceKeyRetained evidence.relations event.id effect then
+        effect.key.map (·.token) |>.getD ""
+      else ""
     IO.println <| String.intercalate "\t" [
       "EFFECT", event.id.token, key, effect.locus.token, effect.measure.token,
       toString effect.quantity.quanta
