@@ -1,4 +1,4 @@
-name: One-shot current Actual vocabulary normalization
+name: One-shot current Actual workflow vocabulary normalization
 
 on:
   push:
@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[generated-actual-vocab]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -20,37 +19,20 @@ jobs:
           ref: cleanup/retire-manifest-vocabulary
           fetch-depth: 0
 
-      - name: Normalize current Actual vocabulary and fixtures
+      - name: Normalize current workflow vocabulary and fixture paths
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
           changed = []
-
-          # Current Lean source only. Historical observations retain their original vocabulary.
-          for path in Path('Loam').rglob('*.lean'):
-              if 'Observations' in path.parts:
+          for path in Path('.github/workflows').glob('*.yml'):
+              if path.name == 'normalize-current-actual-vocabulary.yml':
                   continue
-
               text = path.read_text()
               original = text
-              text = text.replace('manifestRoot', 'actualRoot')
               text = text.replace('manifest-backed', 'Actual-backed')
-              text = text.replace('selected manifest', 'selected Actual')
               text = text.replace('manifest authority', 'Actual authority')
-
-              # Old review alias had a now-meaningless correction sidecar argument.
-              text = text.replace(
-                  'Loam.ActualReview.loadRecordsFromManifest root none',
-                  'Loam.ActualReview.loadRecordsFromActual root')
-
-              # Current tests must exercise the New-only root topology, not a historical subdirectory.
-              text = text.replace('let actualRoot := root / "movement-authority"', 'let actualRoot := root')
-              text = text.replace('let actualRoot := dataDir / "movement-authority"', 'let actualRoot := dataDir')
-              text = text.replace('let root := dataDir / "movement-authority"', 'let root := dataDir')
-              text = text.replace('(root / "movement-authority")', 'root')
-              text = text.replace('(dataDir / "movement-authority")', 'dataDir')
-
+              text = text.replace('"$(mktemp -d)/movement-authority"', '"$(mktemp -d)"')
               if text != original:
                   path.write_text(text)
                   changed.append(str(path))
@@ -60,10 +42,10 @@ jobs:
               print(' ', path)
           PY
 
-      - name: Commit generated Lean cleanup
+      - name: Commit generated workflow cleanup
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Loam
-          git commit -m "cleanup(runtime): normalize current Actual authority vocabulary [generated-actual-vocab]"
+          git add .github/workflows
+          git commit -m "cleanup(ci): normalize current Actual authority vocabulary [generated-actual-workflows]"
           git push origin HEAD:cleanup/retire-manifest-vocabulary
