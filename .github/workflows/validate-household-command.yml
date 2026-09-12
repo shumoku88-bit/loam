@@ -1,0 +1,53 @@
+name: One-shot household command validation
+
+on:
+  push:
+    branches:
+      - refactor/household-command-boundary
+    paths:
+      - '.github/workflows/validate-household-command.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/household-command-boundary
+
+      - name: Build production TUI
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify Actual write surfaces
+        run: |
+          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
+          lake env lean --run Loam/Tests/TuiCorrection.lean "$(mktemp -d)/tui-correction"
+          lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
+          lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-actual-reversal"
+
+      - name: Verify Scheduled write surfaces
+        run: |
+          lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create"
+          lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal"
+          lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
+
+      - name: Verify Capacity and administration surfaces
+        run: |
+          lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
+          lake env lean --run Loam/Tests/TuiCapacityRebalance.lean "$(mktemp -d)/tui-capacity-rebalance"
+          lake env lean --run Loam/Tests/TuiActualRoutingAdministration.lean "$(mktemp -d)/tui-actual-routing-administration"
+          lake env lean --run Loam/Tests/TuiLocusAdmissionAdministration.lean
+          lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
