@@ -1,0 +1,20 @@
+[
+  {
+    "id": "normalized-actual-cutover",
+    "workflow_origin": "normalized-actual-cutover.yml",
+    "model": "experiments/normalized_actual_cutover.als",
+    "expected": {
+      "quiescedCutoverWitness": true,
+      "unguardedOldWriterRace": true,
+      "abortBeforeSelectionWitness": true,
+      "forwardRecoveryAfterSelectionWitness": true,
+      "scheduledLinkWitness": true,
+      "OfflineCutoverHasNoActiveWriters": false,
+      "ServingStatesNeverNeedDualRuntime": false,
+      "ValidatedNewPreservesActualObservation": false,
+      "ValidatedNewPreservesScheduledVisibility": false,
+      "SelectionCannotRecoverByServingOld": false,
+      "RetiringOldDoesNotChangeSelectedNew": false
+    }
+  }
+]
