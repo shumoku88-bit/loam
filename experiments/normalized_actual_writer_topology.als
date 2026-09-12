@@ -69,13 +69,15 @@ sig Snapshot {
   scheduled: one ScheduledGeneration
 }
 
+// Current production has four semantic Actual write entrances. Relation creation
+// and Relation discharge are optional evidence inside MovementWrite, not separate
+// writers. Keeping that distinction here prevents a future convenience feature
+// from being mistaken for a migration requirement.
 abstract sig WriteKind {}
-one sig RecordWrite,
+one sig MovementWrite,
         DateRevisionWrite,
         CorrectionWrite,
-        ReversalWrite,
-        RelationAttachWrite,
-        DischargeWrite extends WriteKind {}
+        ReversalWrite extends WriteKind {}
 
 sig Write {
   kind: one WriteKind,
@@ -87,7 +89,7 @@ sig Write {
 }
 
 pred needsPolicy[kind: WriteKind] {
-  kind in RecordWrite + CorrectionWrite + ReversalWrite
+  kind in MovementWrite + CorrectionWrite + ReversalWrite
 }
 
 pred needsScheduled[kind: WriteKind] {
@@ -95,7 +97,9 @@ pred needsScheduled[kind: WriteKind] {
 }
 
 // Admission records only the external authority versions whose meaning is needed
-// by this operation. Date revision, Relation attachment and discharge need neither.
+// by this operation. Date revision needs neither external authority. Movement,
+// Correction and Reversal all create quantity-bearing Effects and therefore read
+// current Locus policy; Reversal additionally reads Scheduled lifecycle.
 pred dependenciesRead[w: Write] {
   needsPolicy[w.kind] implies w.policyRead = w.before.policy
   not needsPolicy[w.kind] implies no w.policyRead
@@ -119,9 +123,10 @@ pred guardedCommit[w: Write] {
     w.after.scheduled = w.before.scheduled
 }
 
-// Without keeping Policy stable between admission and commit, a Record/Correction/
-// Reversal can be admitted under one vocabulary and selected after another policy
-// has become current. The model keeps this SAT as pressure for the lock/precondition.
+// Without keeping Policy stable between admission and commit, a Movement,
+// Correction or Reversal can be admitted under one vocabulary and selected after
+// another policy has become current. Keep this SAT as pressure for a lock or
+// compare-and-switch precondition rather than merging Policy into Actual.
 pred unguardedPolicyRace {
   some w: Write | {
     needsPolicy[w.kind]
@@ -152,11 +157,11 @@ pred dateRevisionWhilePolicyAdvances {
   }
 }
 
-// Ordinary Record depends on Policy but not Scheduled lifecycle. Scheduled may
+// Ordinary Movement depends on Policy but not Scheduled lifecycle. Scheduled may
 // therefore advance independently while the exact Policy version remains stable.
-pred recordWhileScheduledAdvances {
+pred movementWhileScheduledAdvances {
   some w: Write | {
-    w.kind = RecordWrite
+    w.kind = MovementWrite
     guardedCommit[w]
     w.after.scheduled != w.before.scheduled
   }
@@ -179,7 +184,12 @@ assert GuardedCommitSelectsOneClosedActualGeneration {
     guardedCommit[w] implies closed[w.after.actual]
 }
 
-// --- Sparse stable EffectKey promotion for a later Relation attachment. ---
+// --- Optional future extension: later Relation attachment. ---
+//
+// Current production creates Relation evidence only inside MovementWrite, so the
+// migration does not need this capability. It is modeled separately to show how a
+// future editor could promote one historically-keyless Effect without making an
+// ordinal or compatibility EffectKey part of canonical identity.
 
 // A Locator is command-local capability, not canonical Actual data. In an
 // implementation it can be represented by selected-generation digest plus an
@@ -280,7 +290,7 @@ assert RelationSourceIsStableAfterPromotion {
 run unguardedPolicyRace for 10 but exactly 2 PolicyGeneration, 1 ScheduledGeneration
 run unguardedScheduledRace for 10 but exactly 1 PolicyGeneration, 2 ScheduledGeneration
 run dateRevisionWhilePolicyAdvances for 10 but exactly 2 PolicyGeneration
-run recordWhileScheduledAdvances for 10 but exactly 2 ScheduledGeneration
+run movementWhileScheduledAdvances for 10 but exactly 2 ScheduledGeneration
 run duplicateCoordinatePromotion for 12 but exactly 2 Event, 2 EffectOccurrence, 1 Coordinate, 2 ActualGeneration, 1 EffectKey, 1 Relation, 1 Locator
 run staleLocatorWitness for 10 but exactly 2 ActualGeneration, 1 Locator, 1 Snapshot
 
