@@ -130,7 +130,7 @@ private def toChanges (record : Record) : List (MovementChange LocusId) :=
 def summary (record : Record) : String :=
   match fromChanges record, toChanges record with
   | [source], [destination] =>
-      source.coordinate.locus.token ++ " -> " ++ destination.coordinate.locus.token ++ ": " ++
+      source.coordinate.token ++ " -> " ++ destination.coordinate.token ++ ": " ++
         toString destination.quantity.quanta ++ " " ++ record.measure.token
   | _, _ =>
       toString record.movement.changes.length ++ " movement change(s)  " ++ record.measure.token
