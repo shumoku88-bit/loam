@@ -91,7 +91,7 @@ def quantityAt {Coordinate : Type} [DecidableEq Coordinate]
                   MovementChange Coordinate)) =
           -(change.quantity.quanta + movementTotalQuanta rest)
       rw [ih]
-      exact (Int.neg_add _ _).symm
+      exact Int.neg_add.symm
 
 /-- An empty change list is mathematically balanced for any explicit Measure. -/
 @[simp] theorem ofChanges?_nil {Coordinate : Type} (measure : MeasureId) :
