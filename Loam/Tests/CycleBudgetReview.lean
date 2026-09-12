@@ -31,7 +31,7 @@ def main (args : List String) : IO Unit := do
     validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
     descriptions := .empty, relations := [], discharges := []
     locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
-  let .ok _ ← Loam.ActualAuthority.publishWorld? (root / "movement-authority") world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
     | throw (IO.userError "publish fixture world")
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates?
     [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
@@ -48,7 +48,7 @@ def main (args : List String) : IO Unit := do
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
     { scheduled, terminals }) "save lifecycle"
-  let load := Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") "2026-09-08"
+  let load := Loam.CycleBudgetReview.loadSnapshotAt root root "2026-09-08"
   let missing ← load
   expect (missing.coverage.isOk && missing.physical.isOk && !missing.funding.isOk)
     "missing funding config damaged independent layers"
