@@ -27,48 +27,23 @@ private structure Admitted where
   evidence : ActualEvidence
   receipt : Receipt
 
-private def correctionMentionsEvent
-    (corrections : EventCorrectionMemory) (id : EventId) : Bool :=
-  corrections.corrections.any fun correction =>
-    decide (correction.target = id) || decide (correction.replacement = id)
-
 private def reversalMentionsEvent
     (reversals : ActualReversalMemory) (id : EventId) : Bool :=
   (reversals.findByTarget? id).isSome || (reversals.findByReversal? id).isSome
-
-private def historyMentionsEvent
-    (history : ActualValidityHistory String) (id : EventId) : Bool :=
-  history.facts.any fun fact => decide (fact.event = id)
-
-private def descriptionsMentionEvent
-    (descriptions : EventDescriptionMemory) (id : EventId) : Bool :=
-  (descriptions.findText? id).isSome
 
 private def relationsMentionEvent
     (evidence : ActualEvidence) (id : EventId) : Bool :=
   evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
     evidence.discharges.any (fun discharge => decide (discharge.event = id))
 
-private def eventIdentityReserved
-    (evidence : ActualEvidence)
-    (id : EventId) : Bool :=
-  (EventMemory.findById? evidence.events id).isSome ||
-    historyMentionsEvent evidence.validity id ||
-    descriptionsMentionEvent evidence.descriptions id ||
-    relationsMentionEvent evidence id ||
-    correctionMentionsEvent evidence.corrections id ||
-    reversalMentionsEvent evidence.reversals id
-
 private def freshReplacementId?
     (evidence : ActualEvidence) : Option EventId := do
   let token ← Loam.firstUnusedNumberedToken?
     "replacement-"
-    (fun token => eventIdentityReserved evidence (⟨token⟩ : EventId))
+    (fun token =>
+      (EventMemory.findById? evidence.events (⟨token⟩ : EventId)).isSome)
     1
-    (evidence.events.events.length + evidence.validity.facts.length +
-      evidence.descriptions.entries.length + evidence.relations.length +
-      evidence.discharges.length + 2 * evidence.corrections.corrections.length +
-      2 * evidence.reversals.reversals.length + 1)
+    (evidence.events.events.length + 1)
   pure ⟨token⟩
 
 /-- Anonymous Effects need no persisted identity token; retained keys still do. -/
