@@ -1,0 +1,23 @@
+name: Unified Actual Wire
+
+on:
+  push:
+    branches:
+      - experiment/unified-actual-wire
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic:
+    name: Unified Actual synthetic semantic parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Compile experiment tools
+        run: |
+          python3 -m py_compile tools/unified-actual-wire.py tools/test-unified-actual-wire.py
+      - name: Run edge-case semantic fixture
+        run: |
+          python3 tools/test-unified-actual-wire.py
