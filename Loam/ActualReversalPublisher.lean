@@ -156,8 +156,6 @@ private def admit?
         pure { target := draft.target, reversal := reversal }
 
   let effects := inverseEffects target
-  if !movementEffectsValid effects then
-    throw "loam: exact inverse Effects did not remain one balanced nonzero JPY Movement"
   if !locusAdmission.admitsEffects effects then
     throw "loam: reversal uses a Locus not approved for new publication"
   if (EventMemory.findById? evidence.events relation.reversal).isSome then

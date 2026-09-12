@@ -72,6 +72,27 @@ def quantityAt {Coordinate : Type} [DecidableEq Coordinate]
     movementTotalQuanta movement.changes = 0 :=
   movement.balanced
 
+/-- Negating every represented quantity negates the exact signed total. -/
+@[simp] theorem totalQuanta_negated {Coordinate : Type}
+    (changes : List (MovementChange Coordinate)) :
+    movementTotalQuanta
+        (changes.map fun change =>
+          ({ coordinate := change.coordinate, quantity := -change.quantity } :
+            MovementChange Coordinate)) =
+      -movementTotalQuanta changes := by
+  induction changes with
+  | nil => rfl
+  | cons change rest ih =>
+      change
+        -change.quantity.quanta +
+            movementTotalQuanta
+              (rest.map fun item =>
+                ({ coordinate := item.coordinate, quantity := -item.quantity } :
+                  MovementChange Coordinate)) =
+          -(change.quantity.quanta + movementTotalQuanta rest)
+      rw [ih]
+      exact Int.neg_add.symm
+
 /-- An empty change list is mathematically balanced for any explicit Measure. -/
 @[simp] theorem ofChanges?_nil {Coordinate : Type} (measure : MeasureId) :
     ofChanges? (Coordinate := Coordinate) measure [] =
