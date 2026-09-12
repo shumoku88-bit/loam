@@ -1,0 +1,14 @@
+[
+  {
+    "id": "effect-key-sparse-identity",
+    "workflow_origin": "effect-key-pressure.yml",
+    "model": "experiments/effect_key_sparse_identity.als",
+    "expected": {
+      "unreferencedEffectsCanRemainKeyless": true,
+      "relationCanIntroduceOneSparseKey": true,
+      "duplicatePayloadCanGainSparseIdentity": true,
+      "positionalIdentityChangesUnderPermutation": true,
+      "EventAndSparseKeyIdentifyAtMostOneEffect": false
+    }
+  }
+]
