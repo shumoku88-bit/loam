@@ -221,4 +221,24 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidReversal) "admitted invalid reversal"
 
+  -- 6i. Invalid Effect coordinate token is rejected at canonical decode.
+  let invalidLocusToken :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "EFFECT\t\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? invalidLocusToken)
+    "admitted an Effect with an invalid Locus token"
+
+  -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
+  let balancedUsd :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-usd\t2026-09-09\tNODESC\n" ++
+    "EFFECT\twallet\tusd\t-100\n" ++
+    "EFFECT\tbank\tusd\t100\n" ++
+    "ENDTX\n"
+  let _ ← requireSome (decodeNormalizedActual? balancedUsd)
+    "normalized Actual incorrectly imposed the practical JPY operation contract"
+
   IO.println "All NormalizedActualPersistence tests passed successfully!"
