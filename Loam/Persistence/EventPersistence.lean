@@ -28,16 +28,26 @@ def eventHeader : String := "LOAM-EVENT\t1"
 /-- Version marker for the first persisted multi-Event memory format. -/
 def eventMemoryHeader : String := "LOAM-EVENT-MEMORY\t1"
 
-/-- Encode one event effect row while preserving every explicit coordinate. -/
+/--
+Encode one version-1 Event effect row.
+
+The legacy version-1 wire requires an explicit EffectKey on every row. An
+anonymous Effect is therefore intentionally unrepresentable here instead of
+receiving a synthetic durable identity. Normalized Actual owns the future
+key-sparse wire shape.
+-/
 private def encodeEffectRow? (effect : Effect) : Option String :=
-  let key := effect.key.token
-  let locus := effect.locus.token
-  let measure := effect.measure.token
-  if validToken key && validToken locus && validToken measure then
-    some (key ++ "\t" ++ locus ++ "\t" ++ measure ++ "\t" ++
-      toString effect.quantity.quanta)
-  else
-    none
+  match effect.key with
+  | none => none
+  | some key =>
+      let keyToken := key.token
+      let locus := effect.locus.token
+      let measure := effect.measure.token
+      if validToken keyToken && validToken locus && validToken measure then
+        some (keyToken ++ "\t" ++ locus ++ "\t" ++ measure ++ "\t" ++
+          toString effect.quantity.quanta)
+      else
+        none
 
 /-- Decode one event effect from already separated text fields. -/
 private def decodeEffectFields?
