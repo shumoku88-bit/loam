@@ -7,7 +7,6 @@ import Loam.Core.ActualReversal
 import Loam.Core.BalancedMovement
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership
 
 namespace Loam.ActualReversalPublisher
@@ -106,8 +105,6 @@ private def admit?
     (draft : Draft) : Except String Admitted := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: reversal occurrence date must be a real YYYY-MM-DD calendar date"
-  if !Loam.Persistence.validToken draft.target.token then
-    throw "loam: reversal target identity is not persistable"
   if (evidence.reversals.findByReversal? draft.target).isSome then
     throw "loam: reversal-of-reversal chains are not yet qualified"
   if (evidence.reversals.findByTarget? draft.target).isSome then
