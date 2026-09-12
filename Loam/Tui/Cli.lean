@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
@@ -242,7 +243,7 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
   if step.cancel then return "Record cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.MovementPublisher.publishDraft root.toString draft with
+      match ← Loam.HouseholdCommand.record root draft with
       | .ok receipt => return "Recorded " ++ receipt.eventId.token ++ "."
       | .error message =>
           let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
@@ -263,7 +264,7 @@ partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
   if step.cancel then return "Correction cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.CorrectionPublisher.publishCorrection root.toString draft with
+      match ← Loam.HouseholdCommand.correctActual root draft with
       | .ok receipt =>
           return "Corrected " ++ receipt.target.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
@@ -284,7 +285,7 @@ partial def actualDateCorrectionLoop
   if step.cancel then return "Date correction cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ActualValidityPublisher.publishDate root.toString draft with
+      match ← Loam.HouseholdCommand.correctActualDate root draft with
       | .ok receipt =>
           if receipt.changed then
             return "Date corrected to " ++ receipt.validOn ++ "."
@@ -307,7 +308,7 @@ optionally open a separate next-Scheduled creation editor without conflating the
 facts or deriving continuation from presentation text.
 -/
 partial def scheduledCompletionLoop
-    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) :
     IO (Option Loam.ScheduledTerminalPublisher.CompletionReceipt) := do
@@ -316,39 +317,37 @@ partial def scheduledCompletionLoop
   if step.cancel then return none
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledTerminalPublisher.publishCompletion
-          scheduledFile.toString root.toString draft with
+      match ← Loam.HouseholdCommand.completeScheduled root draft with
       | .ok receipt => return some receipt
       | .error message =>
           let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          scheduledCompletionLoop bounds scheduledFile root world known next nextFrame
+          scheduledCompletionLoop bounds root world known next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      scheduledCompletionLoop bounds scheduledFile root world known step.state nextFrame
+      scheduledCompletionLoop bounds root world known step.state nextFrame
 
 /-- Cancellation confirmation is presentation-only; publisher refusal returns to fresh day evidence. -/
 partial def scheduledCancellationLoop
-    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (bounds : Bounds) (root : System.FilePath)
     (state : Loam.Tui.ScheduledCancellation.State) (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ScheduledCancellation.update state (← Loam.Tui.Terminal.readKey)
   if step.cancel then return "Scheduled cancellation kept the occurrence open."
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledTerminalPublisher.publishCancellation
-          scheduledFile.toString root.toString draft with
+      match ← Loam.HouseholdCommand.cancelScheduled root draft with
       | .ok receipt => return "Cancelled " ++ receipt.scheduled.token ++ "."
       | .error message => return "Scheduled cancellation refused: " ++ message
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCancellation.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      scheduledCancellationLoop bounds scheduledFile root step.state nextFrame
+      scheduledCancellationLoop bounds root step.state nextFrame
 
 /-- Scheduled replacement editor emits one source-bound replacement draft at most. -/
 partial def scheduledReplacementLoop
-    (bounds : Bounds) (scheduledFile root : System.FilePath)
+    (bounds : Bounds) (root : System.FilePath)
     (known : List String)
     (state : Loam.Tui.ScheduledReplacement.State) (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ScheduledReplacement.update known state
@@ -356,19 +355,18 @@ partial def scheduledReplacementLoop
   if step.cancel then return "Scheduled supersede cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledReplacementPublisher.publishReplacement
-          scheduledFile.toString root.toString draft with
+      match ← Loam.HouseholdCommand.replaceScheduled root draft with
       | .ok receipt =>
           return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          scheduledReplacementLoop bounds scheduledFile root known next nextFrame
+          scheduledReplacementLoop bounds root known next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      scheduledReplacementLoop bounds scheduledFile root known step.state nextFrame
+      scheduledReplacementLoop bounds root known step.state nextFrame
 
 
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
@@ -422,7 +420,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
-        bounds (dataDir / "scheduled.loam") root known editor editorFrame
+        bounds root known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -452,7 +450,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let completion ← scheduledCompletionLoop
-                bounds (dataDir / "scheduled.loam") root world known editor editorFrame
+                bounds root world known editor editorFrame
               let notice ←
                 match completion with
                 | none => pure "Scheduled completion cancelled."
@@ -469,7 +467,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
                         let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
-                          bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
+                          bounds root known nextEditor nextEditorFrame
                         match createdOpt with
                         | none =>
                             if nextNotice == "Scheduled creation cancelled." then
@@ -477,10 +475,8 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                             else
                               pure (completedNotice ++ " " ++ nextNotice)
                         | some created =>
-                            let routingPath := dataDir / "scheduled-routing.loam"
-                            let scheduledPath := dataDir / "scheduled.loam"
-                            let routeNotice ← match ← Loam.ScheduledContinuationRouting.inherit
-                                routingPath scheduledPath record.id created.scheduled snapshot.actual.today with
+                            let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
+                                root record.id created.scheduled snapshot.actual.today with
                             | .error err =>
                                 pure s!" (routing inheritance failed: {err})"
                             | .ok report =>
@@ -505,7 +501,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
           let notice ← scheduledCancellationLoop
-            bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
+            bounds root confirmation confirmationFrame
           let fresh ← requireReload notice (loadSnapshot dataDir)
           let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
           let next := { refreshed with notice := notice }
@@ -535,7 +531,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
-                bounds (dataDir / "scheduled.loam") root known editor editorFrame
+                bounds root known editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -567,7 +563,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
-        bounds (dataDir / "scheduled.loam") root known editor editorFrame
+        bounds root known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -597,7 +593,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let completion ← scheduledCompletionLoop
-                bounds (dataDir / "scheduled.loam") root world known editor editorFrame
+                bounds root world known editor editorFrame
               let notice ←
                 match completion with
                 | none => pure "Scheduled completion cancelled."
@@ -614,7 +610,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
                         let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
-                          bounds (dataDir / "scheduled.loam") root known nextEditor nextEditorFrame
+                          bounds root known nextEditor nextEditorFrame
                         match createdOpt with
                         | none =>
                             if nextNotice == "Scheduled creation cancelled." then
@@ -622,10 +618,8 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                             else
                               pure (completedNotice ++ " " ++ nextNotice)
                         | some created =>
-                            let routingPath := dataDir / "scheduled-routing.loam"
-                            let scheduledPath := dataDir / "scheduled.loam"
-                            let routeNotice ← match ← Loam.ScheduledContinuationRouting.inherit
-                                routingPath scheduledPath record.id created.scheduled snapshot.actual.today with
+                            let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
+                                root record.id created.scheduled snapshot.actual.today with
                             | .error err =>
                                 pure s!" (routing inheritance failed: {err})"
                             | .ok report =>
@@ -650,7 +644,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
           let notice ← scheduledCancellationLoop
-            bounds (dataDir / "scheduled.loam") root confirmation confirmationFrame
+            bounds root confirmation confirmationFrame
           let fresh ← requireReload notice (loadSnapshot dataDir)
           let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
           let next := { refreshed with notice := notice }
@@ -680,7 +674,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← scheduledReplacementLoop
-                bounds (dataDir / "scheduled.loam") root known editor editorFrame
+                bounds root known editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -760,7 +754,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ActualReversal.view editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← Loam.Tui.ActualReversalSession.run
-                bounds (dataDir / "scheduled.loam") root
+                bounds root
                   editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
@@ -845,7 +839,7 @@ partial def capacityLoop
       let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
-        bounds (dataDir / "capacity.loam") editor editorFrame
+        bounds root editor editorFrame
       let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
@@ -859,7 +853,7 @@ partial def capacityLoop
       let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityRebalanceSession.run
-        bounds (dataDir / "capacity.loam") editor editorFrame
+        bounds root editor editorFrame
       let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
@@ -898,7 +892,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
         Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityRebalanceSession.run
-          bounds (dataDir / "capacity.loam") editor editorFrame
+          bounds root editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
@@ -909,12 +903,10 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
       match state.snapshot.coverage with
       | .error message => pure ("CurrentCoverage unavailable: " ++ message)
       | .ok coverage =>
-        let routingPath := dataDir / "scheduled-routing.loam"
-        let scheduledPath := dataDir / "scheduled.loam"
         let routingState := Loam.Tui.ScheduledRouting.initial coverage state.snapshot.observedAt
         let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)
         Loam.Tui.Terminal.redrawFromBlank bounds routingFrame
-        Loam.Tui.ScheduledRoutingSession.run bounds routingPath scheduledPath routingState routingFrame
+        Loam.Tui.ScheduledRoutingSession.run bounds root routingState routingFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
@@ -934,7 +926,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
         let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
         Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityTransferSession.run
-          bounds (dataDir / "capacity.loam") editor editorFrame
+          bounds root editor editorFrame
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
@@ -1082,7 +1074,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
           compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds administration)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
         let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
-          bounds (dataDir / "actual-routing.loam") administration administrationFrame
+          bounds root administration administrationFrame
         let home := { state with surface := .home none, notice := notice }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
