@@ -2,7 +2,6 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
-import Loam.Application.CorrectionFrontier
 import Loam.FreshNumberedToken
 
 namespace Loam.ActualValidityPublisher
@@ -47,11 +46,7 @@ private def targetCurrent?
     match EventMemory.findById? events target with
     | some event => pure event
     | none => throw "loam: selected date-correction target is not retained"
-  let frontier ←
-    match Loam.Application.correctionFrontierMemory? events corrections with
-    | some memory => pure memory
-    | none => throw "loam: movement corrections do not justify one current record frontier"
-  if (EventMemory.findById? frontier target).isNone then
+  if corrections.corrections.any (fun correction => decide (correction.target = target)) then
     throw "loam: selected Actual is no longer current"
   pure targetEvent
 
@@ -84,10 +79,7 @@ private def admit?
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
   let event ← targetCurrent? evidence.events evidence.corrections draft.target
-  let currentFacts ←
-    match Loam.Application.admittedActualValidityFacts? evidence.validity with
-    | some facts => pure facts
-    | none => throw "loam: actual-validity corrections do not justify one current date per Event"
+  let currentFacts := Loam.Application.actualValidityFrontierFacts evidence.validity
   let currentFact ←
     match currentFactForEvent? currentFacts draft.target with
     | some fact => pure fact
