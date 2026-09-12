@@ -47,13 +47,12 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
-  let correctionFile := dataDir / "corrections.loam"
 
   let world ← initialWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root world
-    | throw (IO.userError "publish initial Movement world")
+    | throw (IO.userError "publish initial Actual world")
   let lifecycle ← emptyLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
     "publish explicit empty Scheduled lifecycle"
@@ -61,8 +60,8 @@ def main (args : List String) : IO Unit := do
   let draft : Loam.ActualReversalPublisher.Draft := {
     target := ⟨"actual-1"⟩
     validOn := "2026-09-08" }
-  let .ok receipt ← Loam.ActualReversalPublisher.publishManifestReversal
-      scheduledFile.toString root.toString correctionFile.toString "" draft
+  let .ok receipt ← Loam.ActualReversalPublisher.publishReversal
+      scheduledFile.toString root.toString draft
     | throw (IO.userError "publish Actual reversal")
   expect (receipt.target = ⟨"actual-1"⟩ && receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
     "reversal receipt changed deterministic endpoint identities"
@@ -70,7 +69,7 @@ def main (args : List String) : IO Unit := do
     "fresh reversal was reported as interrupted-publication resume"
 
   let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
-    | throw (IO.userError "reload selected Movement world")
+    | throw (IO.userError "reload selected Actual world")
   let target ←
     match EventMemory.findById? fresh.events receipt.target with
     | some event => pure event
@@ -98,27 +97,27 @@ def main (args : List String) : IO Unit := do
   let correctionEffects :=
     [ Effect.ofQuantity ⟨"corrected-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-710))
     , Effect.ofQuantity ⟨"corrected-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 710) ]
-  let correctTarget ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString {
+  let correctTarget ← Loam.CorrectionPublisher.publishCorrection
+    root.toString {
       target := receipt.target, effects := correctionEffects, description := none }
   expect (!correctTarget.isOk)
     "Correction changed a Reversal target and invalidated exact inverse provenance"
-  let correctInverse ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString {
+  let correctInverse ← Loam.CorrectionPublisher.publishCorrection
+    root.toString {
       target := receipt.reversal, effects := correctionEffects, description := none }
   expect (!correctInverse.isOk)
     "Correction changed a Reversal inverse and invalidated exact inverse provenance"
 
-  let second ← Loam.ActualReversalPublisher.publishManifestReversal
-    scheduledFile.toString root.toString correctionFile.toString "" draft
+  let second ← Loam.ActualReversalPublisher.publishReversal
+    scheduledFile.toString root.toString draft
   expect (!second.isOk)
     "a second reversal of the same Actual was not rejected"
 
   let reverseAgain : Loam.ActualReversalPublisher.Draft := {
     target := receipt.reversal
     validOn := "2026-09-08" }
-  let reverseAgainResult ← Loam.ActualReversalPublisher.publishManifestReversal
-    scheduledFile.toString root.toString correctionFile.toString "" reverseAgain
+  let reverseAgainResult ← Loam.ActualReversalPublisher.publishReversal
+    scheduledFile.toString root.toString reverseAgain
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
