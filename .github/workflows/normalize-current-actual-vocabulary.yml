@@ -27,8 +27,11 @@ jobs:
 
           changed = []
 
-          # Current Lean source: the parameter is an Actual authority root, not a manifest root.
+          # Current Lean source only. Historical observations retain their original vocabulary.
           for path in Path('Loam').rglob('*.lean'):
+              if 'Observations' in path.parts:
+                  continue
+
               text = path.read_text()
               original = text
               text = text.replace('manifestRoot', 'actualRoot')
@@ -52,30 +55,15 @@ jobs:
                   path.write_text(text)
                   changed.append(str(path))
 
-          # CI names and fixture paths should describe the current authority as well.
-          for path in Path('.github/workflows').glob('*.yml'):
-              if path.name == 'normalize-current-actual-vocabulary.yml':
-                  continue
-              text = path.read_text()
-              original = text
-              text = text.replace('manifest-backed', 'Actual-backed')
-              text = text.replace('manifest authority', 'Actual authority')
-              text = text.replace('"$(mktemp -d)/movement-authority"', '"$(mktemp -d)"')
-              if text != original:
-                  path.write_text(text)
-                  changed.append(str(path))
-
           print('changed files:')
           for path in changed:
               print(' ', path)
           PY
 
-      - name: Remove one-shot workflow and stale audit receipt, then commit
+      - name: Commit generated Lean cleanup
         run: |
-          git rm .github/workflows/normalize-current-actual-vocabulary.yml
-          git rm -f .legacy-manifest-audit.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Loam .github/workflows
+          git add Loam
           git commit -m "cleanup(runtime): normalize current Actual authority vocabulary [generated-actual-vocab]"
           git push origin HEAD:cleanup/retire-manifest-vocabulary
