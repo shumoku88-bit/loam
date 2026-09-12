@@ -12,6 +12,11 @@ from pathlib import Path
 MAGIC = b"LOAM-THREE-STREAM\t1\n"
 MOVEMENT_MAGIC = "LOAM-MOVEMENT-MANIFEST\t2"
 
+ACTUAL_SIDE_PATHS = (
+    "corrections.loam",
+    "actual-reversals.loam",
+)
+
 POLICY_PATHS = (
     "accounting-role.loam",
     "zero-origin-coverage.loam",
@@ -148,7 +153,8 @@ def maybe_add(root: Path, relative: str, sections: list[tuple[str, bytes]]) -> N
 
 def project(root: Path) -> dict[str, list[tuple[str, bytes]]]:
     actual = parse_selected_movement(root)
-    maybe_add(root, "actual-reversals.loam", actual)
+    for relative in ACTUAL_SIDE_PATHS:
+        maybe_add(root, relative, actual)
 
     policy: list[tuple[str, bytes]] = []
     for relative in POLICY_PATHS:
@@ -198,7 +204,7 @@ def unpack(stream_dir: Path, root: Path, support_from: Path | None) -> None:
             relative = f"objects/{family}/{digest}.loam"
             write_file(root / "movement-authority", relative, data)
             movement_rows.append(f"{family}\t{relative}\t{digest}")
-        elif name == "actual-reversals.loam":
+        elif name in ACTUAL_SIDE_PATHS:
             write_file(root, name, data)
         else:
             raise ProjectionError(f"actual.stream: unknown section {name!r}")
