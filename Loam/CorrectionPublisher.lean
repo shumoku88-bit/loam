@@ -23,12 +23,10 @@ structure Receipt where
   replacement : EventId
   carriedDate : Bool
   publishedDescription : Bool
-  resumed : Bool
   deriving Repr
 
 private structure Admitted where
   evidence : ActualEvidence
-  correctionChanged : Bool
   receipt : Receipt
 
 private def correctionMentionsEvent
@@ -79,23 +77,6 @@ private def currentFactForEvent?
     (facts : List (ActualValidityFact String)) (event : EventId) :
     Option (ActualValidityFact String) :=
   facts.find? fun fact => decide (fact.event = event)
-
-private def targetingCorrections
-    (corrections : EventCorrectionMemory) (target : EventId) : List EventCorrection :=
-  corrections.corrections.filter fun correction => decide (correction.target = target)
-
-private def pendingCorrectionForTarget?
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (target : EventId) : Except String (Option EventCorrection) :=
-  match targetingCorrections corrections target with
-  | [] => .ok none
-  | [correction] =>
-      match EventMemory.findById? events correction.replacement with
-      | none => .ok (some correction)
-      | some _ => .error "loam: selected Actual already has a published replacement"
-  | _ =>
-      .error "loam: multiple correction relations target the selected Actual; no retry winner is implied"
 
 /-- Anonymous Effects need no persisted identity token; retained keys still do. -/
 private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
@@ -178,11 +159,9 @@ private def admit?
     throw "loam: correction replacement must be one balanced nonzero JPY Movement"
   if !locusAdmission.admitsEffects draft.effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
-  let rawTarget ←
-    match EventMemory.findById? evidence.events draft.target with
-    | some event => pure event
-    | none => throw "loam: selected correction target is not retained"
-  if !practicalMovementValid rawTarget.effects then
+
+  let target ← targetCurrent? evidence.events evidence.corrections draft.target
+  if !practicalMovementValid target.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY correction entrance"
   if relationsMentionEvent evidence draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"
@@ -194,26 +173,14 @@ private def admit?
     | some facts => pure facts
     | none => throw "loam: actual-validity corrections do not justify one current date per Event"
 
-  let pending? ← pendingCorrectionForTarget? evidence.events evidence.corrections draft.target
-  let correction ←
-    match pending? with
-    | some correction => pure correction
-    | none =>
-        let _ ← targetCurrent? evidence.events evidence.corrections draft.target
-        let replacement ←
-          match freshReplacementId? evidence with
-          | some id => pure id
-          | none => throw "loam: could not generate a fresh replacement Event identity"
-        pure { target := draft.target, replacement := replacement }
-
-  if correction.target != draft.target then
-    throw "loam: internal correction target mismatch"
-  if (EventMemory.findById? evidence.events correction.replacement).isSome then
-    throw "loam: selected Actual already has a published replacement"
-  if descriptionsMentionEvent evidence.descriptions correction.replacement ||
-      relationsMentionEvent evidence correction.replacement ||
-      reversalMentionsEvent evidence.reversals correction.replacement then
-    throw "loam: replacement identity collides with retained non-Event evidence"
+  let replacementId ←
+    match freshReplacementId? evidence with
+    | some id => pure id
+    | none => throw "loam: could not generate a fresh replacement Event identity"
+  let correction : EventCorrection := {
+    target := draft.target
+    replacement := replacementId
+  }
 
   let replacement ←
     match Event.ofEffects? correction.replacement draft.effects with
@@ -223,14 +190,10 @@ private def admit?
     match EventMemory.add? evidence.events replacement with
     | some events => pure events
     | none => throw "loam: replacement Event could not be appended"
-  let correctionChanged := pending?.isNone
   let updatedCorrections ←
-    if correctionChanged then
-      match evidence.corrections.add? correction with
-      | some memory => pure memory
-      | none => throw "loam: correction relation could not be appended"
-    else
-      pure evidence.corrections
+    match evidence.corrections.add? correction with
+    | some memory => pure memory
+    | none => throw "loam: correction relation could not be appended"
 
   let frontier ←
     match Loam.Application.correctionFrontierMemory? updatedEvents updatedCorrections with
@@ -256,13 +219,11 @@ private def admit?
       relations := evidence.relations
       discharges := evidence.discharges
     }
-    correctionChanged := correctionChanged
     receipt := {
       target := draft.target
       replacement := correction.replacement
       carriedDate := carriedDate
       publishedDescription := publishedDescription
-      resumed := !correctionChanged
     }
   }
 
