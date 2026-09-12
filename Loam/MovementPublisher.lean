@@ -43,6 +43,22 @@ structure Receipt where
   dischargeCount : Nat
   deriving Repr
 
+/--
+Keep a durable EffectKey only when this Movement actually publishes a Relation
+that names it. Frontends may use temporary keys while collecting one draft, but
+ordinary quantity Effects must not acquire canonical identity merely because a
+collector needed a local handle during human input.
+-/
+private def retainReferencedEffectKeys
+    (draft : Loam.MovementAdmission.Draft) : Loam.MovementAdmission.Draft :=
+  let referenced := draft.relations.map (fun relation => relation.sourceEffect)
+  let effects := draft.effects.map fun effect =>
+    match effect.key with
+    | none => effect
+    | some key =>
+        if key ∈ referenced then effect else { effect with key := none }
+  { draft with effects := effects }
+
 private def publishUnderOwnership
     (root : System.FilePath)
     (draft : Loam.MovementAdmission.Draft)
@@ -63,7 +79,8 @@ private def publishUnderOwnership
     discharges := evidence.discharges
     locusAdmission := locusAdmission
   }
-  match Loam.MovementAdmission.admit? world draft with
+  let canonicalDraft := retainReferencedEffectKeys draft
+  match Loam.MovementAdmission.admit? world canonicalDraft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
       let receipt : Receipt := {
@@ -104,10 +121,10 @@ def publishDraft
     (draft : Loam.MovementAdmission.Draft) : IO (Except String Receipt) :=
   publishDraftWithPreview rootPath draft (fun _ => pure ())
 
-/-- Backward-compatible alias for existing call sites. -/
+/-- Transitional source-level alias; does not accept or recover legacy data. -/
 def publishManifestDraftWithPreview := publishDraftWithPreview
 
-/-- Backward-compatible alias for existing call sites. -/
+/-- Transitional source-level alias; does not accept or recover legacy data. -/
 def publishManifestDraft := publishDraft
 
 end Loam.MovementPublisher
