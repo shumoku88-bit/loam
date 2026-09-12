@@ -171,9 +171,4 @@ def publishDate
   Loam.ActualAuthority.withActualOwnership root
     (publishUnderOwnership root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestDate
-    (rootPath : String) (_correctionPath : String) (draft : Draft) : IO (Except String Receipt) :=
-  publishDate rootPath draft
-
 end Loam.ActualValidityPublisher
