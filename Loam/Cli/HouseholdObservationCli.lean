@@ -84,7 +84,7 @@ def report (rootPath start end_ : String) : IO UInt32 := do
     | .ok snapshot => pure snapshot
 
   let budget ←
-    match ← Loam.BudgetWindowReview.loadSnapshot root start end_ with
+    match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
     | .error message =>
         IO.eprintln message
         return 2
