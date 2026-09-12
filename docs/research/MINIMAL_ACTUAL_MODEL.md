@@ -148,6 +148,72 @@ world atomically, interrupted staging need not force top-level canonical familie
 remain independently addressable. A production migration must prove this boundary
 rather than carrying old crash-staging shapes into the new schema by default.
 
+### Current topology pressure
+
+Current Movement `CURRENT` atomically selects Event, ActualValidity,
+EventDescription, RelationUnit, RelationDischarge, and LocusAdmission families.
+Event correction and Actual reversal are outside that generation as root sidecars.
+
+Current Correction publication therefore performs two authority changes:
+
+```
+prepare replacement Movement generation
+publish corrections.loam
+switch Movement CURRENT
+```
+
+Current Reversal publication similarly performs:
+
+```
+prepare inverse Movement generation
+publish actual-reversals.loam
+switch Movement CURRENT
+```
+
+The relation-first order is intentionally crash-safe under the current topology: an
+interruption may expose an inert dangling relation, while the system avoids exposing
+a quantity-changing replacement/inverse Event without its explanatory relation.
+Retry logic recognizes and completes the dangling relation.
+
+That protocol is legitimate, but its intermediate state exists because the semantic
+edge and its Event live under different publication authorities. It is not evidence
+that a dangling relation is itself a household fact that must remain representable in
+a redesigned canonical schema.
+
+Observation 055 already established that an atomic bundle preserves referential
+closure. It explicitly leaves bundle replacement, dependency ordering, and
+fail-closed independent streams as alternative physical protocols. Therefore the
+old multi-stream topology is not a semantic theorem.
+
+Observation 129's durable PREPARED candidate and six restart cases solved the harder
+problem created by one-time admission into multiple independently published streams.
+A single selected Actual generation can seek the same safety invariant with a much
+smaller state machine:
+
+```
+prepare complete immutable Actual generation off-authority
+verify complete admitted generation
+atomically replace one selected-generation pointer
+```
+
+Before the pointer switch, readers see exactly the old admitted Actual world. After
+the switch, readers see exactly the new admitted Actual world. Prepared partial
+bytes are never semantic authority.
+
+### Known-empty normalization pressure
+
+Current root topology also gives unlike absence rules to nearby semantic families.
+Event correction loading treats a missing sidecar as no retained correction evidence,
+while Actual reversal publication requires an explicitly present reversal authority
+and fails if it is missing. The current household tree contains an explicit empty
+`actual-reversals.loam`, while no `corrections.loam` is present.
+
+That asymmetry may have an operational history, but a white-sheet generation should
+not encode missing-vs-empty differently unless a supported household observation
+actually distinguishes them. An admitted generation can carry explicit empty sets
+for both meanings and reserve “missing generation/object” for corruption or
+incomplete staging.
+
 ## Acceptance questions
 
 A compact model is acceptable only if all of these survive:
@@ -162,8 +228,14 @@ A compact model is acceptable only if all of these survive:
 8. HOBS1 and current CycleBudget observations;
 9. permutation-insensitivity of ordinary Effect representation;
 10. fail-closed rejection of branching, merging, cycles, open references, or other
-    unsupported topology at the admitted read boundary.
+    unsupported topology at the admitted read boundary;
+11. crash safety: no selected replacement/inverse Event can appear without its
+    correction/reversal meaning, and no selected semantic edge can name an absent
+    endpoint;
+12. restart safety: staging artifacts cannot become authority by discovery or file
+    age; only the selected-generation pointer defines the readable world.
 
-The accompanying Alloy experiment tests whether the functional/injective topology
-laws make correction, reversal, date-correction, and discharge edges representable
-as transaction-local subfacts without collapsing distinct admitted observations.
+The accompanying Alloy experiments test both semantic factorization and publication
+shape. A production migration remains blocked until synthetic correction, date
+revision, reversal, Relation/discharge, and crash-publication fixtures all reproduce
+the current admitted observations without permanent compatibility vocabulary.
