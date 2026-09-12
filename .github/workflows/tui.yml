@@ -30,7 +30,6 @@ on:
       - 'Loam/ActualRoutingPublisher.lean'
       - 'Loam/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
-      - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -73,6 +72,8 @@ on:
       - 'Loam/Persistence/AttentionPersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'Loam/Cli/JournalExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
@@ -123,7 +124,6 @@ on:
       - 'Loam/ActualRoutingPublisher.lean'
       - 'Loam/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
-      - 'Loam/Persistence/ActualReversalPersistence.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Tests/TuiRecord.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
@@ -166,6 +166,8 @@ on:
       - 'Loam/Persistence/AttentionPersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
+      - 'Loam/Cli/DailyQuantityCli.lean'
+      - 'Loam/Cli/JournalExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
@@ -207,7 +209,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamTui
+          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamTui
           test: false
           lint: false
           use-mathlib-cache: false
@@ -221,7 +223,7 @@ jobs:
       - name: Build shared Locus admission publisher boundary
         run: lake build Loam.LocusAdmissionPublisher
 
-      - name: Verify add-only manifest-backed Locus admission
+      - name: Verify add-only Locus admission publication
         run: lake env lean --run Loam/Tests/LocusAdmissionPublisher.lean "$(mktemp -d)/locus-admission"
 
       - name: Verify Locus admission administration interaction
@@ -240,12 +242,12 @@ jobs:
         run: lake env lean --run Loam/Tests/RecordReview.lean
 
       - name: Verify Record publication and fresh canonical review
-        run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
+        run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
 
       - name: Build shared Correction publisher boundary
         run: lake build Loam.CorrectionPublisher
 
-      - name: Verify manifest-backed shared correction publication
+      - name: Verify normalized Actual correction publication
         run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
 
       - name: Verify selected-day Correction editor and shared publication
@@ -299,10 +301,10 @@ jobs:
       - name: Verify read-only Attention workspace
         run: lake env lean --run Loam/Tests/TuiAttention.lean
 
-      - name: Build manifest-backed Balance review boundary
+      - name: Build Actual-backed Balance review boundary
         run: lake build Loam.BalanceReview
 
-      - name: Verify manifest-backed Balance review boundary
+      - name: Verify Actual-backed Balance review boundary
         run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
 
       - name: Verify read-only Balances workspace
@@ -337,10 +339,10 @@ jobs:
       - name: Verify Actual Purpose routing administration interaction
         run: lake env lean --run Loam/Tests/TuiActualRoutingAdministration.lean "$(mktemp -d)/tui-actual-routing-administration"
 
-      - name: Build manifest-backed Budget Window review boundary
+      - name: Build Actual-backed Budget Window review boundary
         run: lake build Loam.BudgetWindowReview
 
-      - name: Verify manifest-backed Budget Window review boundary
+      - name: Verify Actual-backed Budget Window review boundary
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
 
       - name: Build shared Stock-Flow review boundary
