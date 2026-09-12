@@ -77,8 +77,6 @@ def main (args : List String) : IO Unit := do
       root.toString correctionDraft
     | throw (IO.userError "publish correction")
   expect (receipt.target == recorded.eventId) "correction receipt changed target identity"
-  expect (receipt.carriedDate) "correction did not carry explicit current target date"
-  expect (receipt.publishedDescription) "explicit replacement description was not published"
 
   let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload actual authority")

@@ -21,8 +21,6 @@ structure Draft where
 structure Receipt where
   target : EventId
   replacement : EventId
-  carriedDate : Bool
-  publishedDescription : Bool
   deriving Repr
 
 private structure Admitted where
@@ -73,11 +71,6 @@ private def freshReplacementId?
       2 * evidence.reversals.reversals.length + 1)
   pure ⟨token⟩
 
-private def currentFactForEvent?
-    (facts : List (ActualValidityFact String)) (event : EventId) :
-    Option (ActualValidityFact String) :=
-  facts.find? fun fact => decide (fact.event = event)
-
 /-- Anonymous Effects need no persisted identity token; retained keys still do. -/
 private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
   match effect.key with
@@ -114,40 +107,6 @@ private def targetCurrent?
       | some _ => pure targetEvent
       | none => throw "loam: selected Actual is no longer current"
 
-private def ensureReplacementValidity?
-    (history : ActualValidityHistory String)
-    (currentFacts : List (ActualValidityFact String))
-    (targetFact? : Option (ActualValidityFact String))
-    (replacement : EventId) : Except String (ActualValidityHistory String × Bool) := do
-  let replacementFact? := currentFactForEvent? currentFacts replacement
-  match targetFact?, replacementFact? with
-  | none, none => pure (history, false)
-  | none, some _ =>
-      throw "loam: replacement already has occurrence-date evidence unrelated to the selected Actual"
-  | some targetFact, some replacementFact =>
-      if replacementFact.validOn = targetFact.validOn then
-        pure (history, false)
-      else
-        throw "loam: replacement occurrence-date evidence conflicts with the selected Actual"
-  | some targetFact, none =>
-      match history.addFact? (.base replacement targetFact.validOn) with
-      | some updated => pure (updated, true)
-      | none => throw "loam: could not append replacement occurrence-date evidence"
-
-private def appendDescription?
-    (descriptions : EventDescriptionMemory)
-    (replacement : EventId)
-    (description : Option String) : Except String (EventDescriptionMemory × Bool) := do
-  if (descriptions.findText? replacement).isSome then
-    throw "loam: replacement identity already has retained description evidence"
-  match description with
-  | none => pure (descriptions, false)
-  | some text =>
-      match EventDescriptionMemory.ofEntries?
-          (descriptions.entries ++ [{ event := replacement, text := text }]) with
-      | some descriptions => pure (descriptions, true)
-      | none => throw "loam: could not append replacement description"
-
 private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
@@ -172,6 +131,10 @@ private def admit?
     match Loam.Application.admittedActualValidityFacts? evidence.validity with
     | some facts => pure facts
     | none => throw "loam: actual-validity corrections do not justify one current date per Event"
+  let targetFact ←
+    match currentFacts.find? fun fact => decide (fact.event = draft.target) with
+    | some fact => pure fact
+    | none => throw "loam: selected Actual has no current occurrence date"
 
   let replacementId ←
     match freshReplacementId? evidence with
@@ -203,11 +166,18 @@ private def admit?
       (EventMemory.findById? frontier correction.target).isSome then
     throw "loam: proposed correction frontier did not select exactly the replacement"
 
-  let targetFact? := currentFactForEvent? currentFacts draft.target
-  let (updatedValidity, carriedDate) ←
-    ensureReplacementValidity? evidence.validity currentFacts targetFact? correction.replacement
-  let (updatedDescriptions, publishedDescription) ←
-    appendDescription? evidence.descriptions correction.replacement draft.description
+  let updatedValidity ←
+    match evidence.validity.addFact? (.base correction.replacement targetFact.validOn) with
+    | some history => pure history
+    | none => throw "loam: could not append replacement occurrence-date evidence"
+  let updatedDescriptions ←
+    match draft.description with
+    | none => pure evidence.descriptions
+    | some text =>
+        match EventDescriptionMemory.ofEntries?
+            (evidence.descriptions.entries ++ [{ event := correction.replacement, text := text }]) with
+        | some descriptions => pure descriptions
+        | none => throw "loam: could not append replacement description"
 
   pure {
     evidence := {
@@ -222,8 +192,6 @@ private def admit?
     receipt := {
       target := draft.target
       replacement := correction.replacement
-      carriedDate := carriedDate
-      publishedDescription := publishedDescription
     }
   }
 
