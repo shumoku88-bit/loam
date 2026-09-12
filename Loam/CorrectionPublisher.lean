@@ -103,11 +103,14 @@ private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
   | none => true
   | some key => Loam.Persistence.validToken key.token
 
-private def movementEffectsValid (effects : List Effect) : Bool :=
+/--
+Operation-level qualification shared by a new replacement and an Event already
+admitted by normalized Actual persistence. Persistence syntax is checked only at
+the boundary where new Effects enter; this helper owns practical Movement meaning.
+-/
+private def practicalMovementValid (effects : List Effect) : Bool :=
   if effects.isEmpty then false
   else if !effects.all (fun effect =>
-      retainedEffectKeyPersistable effect &&
-      Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
     false
   else
@@ -168,7 +171,10 @@ private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
     (draft : Draft) : Except String Admitted := do
-  if !movementEffectsValid draft.effects then
+  if !draft.effects.all (fun effect =>
+      retainedEffectKeyPersistable effect &&
+      Loam.Persistence.validToken effect.locus.token) ||
+      !practicalMovementValid draft.effects then
     throw "loam: correction replacement must be one balanced nonzero JPY Movement"
   if !locusAdmission.admitsEffects draft.effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
@@ -176,7 +182,7 @@ private def admit?
     match EventMemory.findById? evidence.events draft.target with
     | some event => pure event
     | none => throw "loam: selected correction target is not retained"
-  if !movementEffectsValid rawTarget.effects then
+  if !practicalMovementValid rawTarget.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY correction entrance"
   if relationsMentionEvent evidence draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"
