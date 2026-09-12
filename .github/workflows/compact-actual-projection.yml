@@ -39,7 +39,9 @@ jobs:
         run: |
           set -euo pipefail
           tmpdir="$(mktemp -d)"
-          trap 'rm -rf "$tmpdir"' EXIT
+          semantic_check="${tmpdir}.semantic-check"
+          rebuilt="${tmpdir}.rebuilt"
+          trap 'rm -rf "$tmpdir" "$semantic_check" "$rebuilt"' EXIT
           manifest="$tmpdir/movement-authority"
 
           lake env lean --run Loam/Tests/ActualValidityRevisionFixture.lean "$manifest"
@@ -54,7 +56,7 @@ jobs:
             "$tmpdir/original.actual"
 
           python3 tools/compact-actual-projection.py check \
-            "$tmpdir" "$tmpdir/semantic-check"
+            "$tmpdir" "$semantic_check"
           python3 tools/compact-actual-projection.py pack \
             "$tmpdir" "$tmpdir/actual.compact"
 
@@ -63,11 +65,11 @@ jobs:
           grep -Fx $'VALIDITY\tCORRECTION\tROOT\tevent-1\tdate-revision-1' \
             "$tmpdir/actual.compact"
 
-          cp -a "$tmpdir" "$tmpdir.rebuilt"
+          cp -a "$tmpdir" "$rebuilt"
           python3 tools/compact-actual-projection.py apply \
-            "$tmpdir/actual.compact" "$tmpdir.rebuilt"
+            "$tmpdir/actual.compact" "$rebuilt"
 
-          lake env lean --run Loam/Tests/CompactActualObservation.lean "$tmpdir.rebuilt" \
+          lake env lean --run Loam/Tests/CompactActualObservation.lean "$rebuilt" \
             >"$tmpdir/rebuilt.actual"
           diff -u "$tmpdir/original.actual" "$tmpdir/rebuilt.actual"
           grep -Fx $'RECORD\tevent-1\t2026-09-02\tcurrent\t-\tcorrected date fixture' \
