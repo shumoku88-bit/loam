@@ -73,7 +73,7 @@ private def resolveDataDir (args : List String) : IO (Except String System.FileP
       return .ok (System.FilePath.mk path)
   | _ => return .error "usage: loamTui [LOAM_DATA_DIR]"
 
-private def resolveManifestRoot
+private def resolveActualRoot
     (dataDir : System.FilePath) : IO (Except String System.FilePath) := do
   return .ok dataDir
 
@@ -242,7 +242,7 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
   if step.cancel then return "Record cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.MovementPublisher.publishManifestDraft root.toString draft with
+      match ← Loam.MovementPublisher.publishDraft root.toString draft with
       | .ok receipt => return "Recorded " ++ receipt.eventId.token ++ "."
       | .error message =>
           let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
@@ -316,7 +316,7 @@ partial def scheduledCompletionLoop
   if step.cancel then return none
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+      match ← Loam.ScheduledTerminalPublisher.publishCompletion
           scheduledFile.toString root.toString draft with
       | .ok receipt => return some receipt
       | .error message =>
@@ -337,7 +337,7 @@ partial def scheduledCancellationLoop
   if step.cancel then return "Scheduled cancellation kept the occurrence open."
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+      match ← Loam.ScheduledTerminalPublisher.publishCancellation
           scheduledFile.toString root.toString draft with
       | .ok receipt => return "Cancelled " ++ receipt.scheduled.token ++ "."
       | .error message => return "Scheduled cancellation refused: " ++ message
@@ -356,7 +356,7 @@ partial def scheduledReplacementLoop
   if step.cancel then return "Scheduled supersede cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+      match ← Loam.ScheduledReplacementPublisher.publishReplacement
           scheduledFile.toString root.toString draft with
       | .ok receipt =>
           return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
@@ -1173,7 +1173,7 @@ def run (args : List String) : IO UInt32 := do
     | .error message => IO.eprintln message; return 2
     | .ok snapshot => pure snapshot
   let root ←
-    match ← resolveManifestRoot dataDir with
+    match ← resolveActualRoot dataDir with
     | .error message => IO.eprintln message; return 2
     | .ok root => pure root
   let bounds ← Loam.Tui.Terminal.currentBounds
