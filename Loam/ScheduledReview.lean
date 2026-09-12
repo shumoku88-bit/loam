@@ -79,6 +79,16 @@ def loadEvidenceFromActual
   | .error message => return .error message
   | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
 
+/--
+Load canonical Scheduled lifecycle evidence from a household data directory while
+preserving the caller's explicit Actual source selection. High-level household
+readers use this entrance; low-level arbitrary-path callers keep
+`loadEvidenceFromActual`.
+-/
+def loadHouseholdEvidence
+    (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) :=
+  loadEvidenceFromActual (dataDir / "scheduled.loam") actualRoot
+
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence
@@ -120,7 +130,7 @@ private def toChanges (record : Record) : List (MovementChange LocusId) :=
 def summary (record : Record) : String :=
   match fromChanges record, toChanges record with
   | [source], [destination] =>
-      source.coordinate.token ++ " -> " ++ destination.coordinate.token ++ ": " ++
+      source.coordinate.locus.token ++ " -> " ++ destination.coordinate.locus.token ++ ": " ++
         toString destination.quantity.quanta ++ " " ++ record.measure.token
   | _, _ =>
       toString record.movement.changes.length ++ " movement change(s)  " ++ record.measure.token
