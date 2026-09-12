@@ -1,4 +1,4 @@
-import Loam.CapacityPublisher
+import Loam.HouseholdCommand
 import Loam.Tui.CapacityRebalance
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -14,7 +14,7 @@ set_option autoImplicit false
 # Capacity Rebalance terminal session
 
 The session drives one presentation-only rebalance editor and emits at most one
-balanced draft to the shared `CapacityPublisher.publishBalanced`.
+balanced draft to the shared household command boundary.
 
 Publication re-reads authority and effective evidence under writer ownership.
 On publication or cancellation, the session returns to the caller, which reloads
@@ -23,7 +23,7 @@ the shared Capacity review snapshot.
 
 partial def run
     (bounds : Bounds)
-    (capacityFile : System.FilePath)
+    (root : System.FilePath)
     (state : Loam.Tui.CapacityRebalance.State)
     (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.CapacityRebalance.update state
@@ -33,7 +33,7 @@ partial def run
   else
     match step.publish with
     | some draft =>
-        match ← Loam.CapacityPublisher.publishBalanced capacityFile.toString draft with
+        match ← Loam.HouseholdCommand.rebalanceCapacity root draft with
         | .ok receipt =>
             pure
               ("Rebalanced Capacity across " ++ toString receipt.changes.length ++
@@ -43,6 +43,6 @@ partial def run
     | none =>
         let nextFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds step.state)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds capacityFile step.state nextFrame
+        run bounds root step.state nextFrame
 
 end Loam.Tui.CapacityRebalanceSession
