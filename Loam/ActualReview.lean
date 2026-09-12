@@ -135,18 +135,8 @@ def loadRecordsFromActual
   | .error message => return .error message
   | .ok evidence => return recordsFromActualEvidence? evidence
 
-/--
-Load records from repository root or actual.loam path.
--/
-def loadRecords
-    (path : String)
-    (_correctionPath : Option String := none) : IO (Except String (List Record)) :=
+/-- Load records from a repository root or explicit `actual.loam` path. -/
+def loadRecords (path : String) : IO (Except String (List Record)) :=
   loadRecordsFromActual (System.FilePath.mk path)
-
-/-- Backward-compatible alias for existing call sites. -/
-def loadRecordsFromManifest
-    (manifestRoot : System.FilePath)
-    (_correctionPath : Option String := none) : IO (Except String (List Record)) :=
-  loadRecordsFromActual manifestRoot
 
 end Loam.ActualReview
