@@ -1,0 +1,53 @@
+name: One-shot legacy alias removal
+
+on:
+  push:
+    branches:
+      - cleanup/retire-manifest-vocabulary
+    paths:
+      - .github/workflows/remove-unused-legacy-aliases.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[generated-alias-removal]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: cleanup/retire-manifest-vocabulary
+          fetch-depth: 0
+
+      - name: Remove exact unused compatibility aliases
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          removals = {
+              'Loam/CorrectionPublisher.lean': '''\n/-- Backward-compatible alias for existing call sites. -/\ndef publishManifestCorrection\n    (rootPath : String) (_correctionPath : String) (draft : Draft) : IO (Except String Receipt) :=\n  publishCorrection rootPath draft\n''',
+              'Loam/ActualReversalPublisher.lean': '''\n/-- Backward-compatible alias for existing call sites. -/\ndef publishManifestReversal\n    (scheduledPath rootPath _correctionPath _reversalPath : String)\n    (draft : Draft) : IO (Except String Receipt) :=\n  publishReversal scheduledPath rootPath draft\n''',
+              'Loam/ScheduledTerminalPublisher.lean': '''\n/-- Backward-compatible alias for existing call sites. -/\ndef publishManifestCompletion := publishCompletion\n\n/-- Backward-compatible alias for existing call sites. -/\ndef publishManifestCancellation := publishCancellation\n''',
+              'Loam/ScheduledReplacementPublisher.lean': '''\n/-- Backward-compatible alias for existing call sites. -/\ndef publishManifestReplacement := publishReplacement\n''',
+              'Loam/ScheduledReview.lean': '''\ndef loadEvidenceFromManifest := loadEvidenceFromActual\n''',
+          }
+
+          for filename, block in removals.items():
+              path = Path(filename)
+              text = path.read_text()
+              count = text.count(block)
+              if count != 1:
+                  raise SystemExit(f'{filename}: expected exact alias block once, found {count}')
+              path.write_text(text.replace(block, '\n', 1))
+              print('removed alias from', filename)
+          PY
+
+      - name: Remove one-shot workflow and commit
+        run: |
+          git rm .github/workflows/remove-unused-legacy-aliases.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Loam
+          git commit -m "cleanup(runtime): remove unused legacy aliases [generated-alias-removal]"
+          git push origin HEAD:cleanup/retire-manifest-vocabulary
