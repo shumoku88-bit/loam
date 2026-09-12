@@ -16,16 +16,9 @@ def freshId? (memory : ScheduledMemory String) : Option ScheduledId := do
     (memory.occurrences.length + 1)
   pure ⟨token⟩
 
-def movementFromEffects? (effects : List Effect) : Option (BalancedMovement LocusId) := do
-  let changes : List (MovementChange LocusId) :=
-    effects.map fun effect =>
-      { coordinate := effect.locus, quantity := effect.quantity }
-  BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
-
-def occurrenceFromEffects?
-    (id : ScheduledId) (scheduledOn : String) (effects : List Effect) :
-    Option (ScheduledOccurrence String) := do
-  let movement ← movementFromEffects? effects
-  pure { id := id, scheduledOn := scheduledOn, movement := movement }
+/-- Derived positive-side total of one already-balanced Scheduled movement. -/
+def positiveTotalQuanta (movement : BalancedMovement LocusId) : Int :=
+  movement.changes.foldl
+    (fun total change => total + max 0 change.quantity.quanta) 0
 
 end Loam.ScheduledOccurrenceConstruction

@@ -102,7 +102,8 @@ def main (args : List String) : IO Unit := do
     editor with form := { editor.form with rows := rows } }
   let .ok draft := Loam.Tui.ScheduledCreation.draft? edited
     | throw (IO.userError "build new Scheduled draft")
-  expect (draft.scheduledOn == "2026-09-12" && draft.total == 700)
+  expect (draft.scheduledOn == "2026-09-12" &&
+    Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement == 700)
     "new Scheduled editor changed the explicit date or balanced total"
 
   let previewState : Loam.Tui.ScheduledCreation.State := {

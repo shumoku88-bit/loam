@@ -28,8 +28,7 @@ Scheduled lifecycle authority -> actual.loam
 structure Draft where
   source : ScheduledId
   scheduledOn : String
-  effects : List Effect
-  total : Int
+  movement : BalancedMovement LocusId
 
 structure Receipt where
   source : ScheduledId
@@ -66,29 +65,19 @@ private def containsScheduled
     (target : ScheduledId) : Bool :=
   occurrences.any fun occurrence => decide (occurrence.id = target)
 
-/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
-private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
-  match effect.key with
-  | none => true
-  | some key => Loam.Persistence.validToken key.token
-
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
     throw "loam: Scheduled replacement requires a valid ISO calendar date"
-  if draft.effects.isEmpty then
-    throw "loam: Scheduled replacement requires at least one Effect"
-  if !draft.effects.all (fun effect =>
-      retainedEffectKeyPersistable effect &&
-      Loam.Persistence.validToken effect.locus.token &&
-      decide (effect.measure = ⟨"jpy"⟩) &&
-      effect.quantity.quanta != 0) then
+  if draft.movement.measure != ⟨"jpy"⟩ then
+    throw "loam: Scheduled replacement requires a JPY movement"
+  if draft.movement.changes.isEmpty then
+    throw "loam: Scheduled replacement requires at least one movement change"
+  if !draft.movement.changes.all (fun change =>
+      Loam.Persistence.validToken change.coordinate.token &&
+      change.quantity.quanta != 0) then
     throw "loam: Scheduled replacement requires valid Locus tokens and nonzero JPY quantities"
-  if (Loam.ScheduledOccurrenceConstruction.movementFromEffects? draft.effects).isNone then
-    throw "loam: Scheduled movement totals differ"
-  let positive := draft.effects.foldl
-    (fun total effect => total + max 0 effect.quantity.quanta) 0
-  if positive <= 0 || draft.total != positive then
-    throw "loam: Scheduled replacement requires a positive total matching the draft"
+  if Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement <= 0 then
+    throw "loam: Scheduled replacement requires a positive balanced total"
 
 private def transitionAdmissible?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
@@ -118,7 +107,8 @@ private def publishUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | .ok la => pure la
     | .error message => return .error message
-  if !locusAdmission.admitsEffects draft.effects then
+  if !draft.movement.changes.all (fun change =>
+      locusAdmission.allows change.coordinate) then
     return .error "loam: Scheduled replacement uses a Locus not approved for new publication"
   if (ScheduledMemory.findById? lifecycle.scheduled draft.source).isNone then
     return .error "loam: selected Scheduled identity is not retained"
@@ -134,11 +124,11 @@ private def publishUnderOwnership
     match Loam.ScheduledOccurrenceConstruction.freshId? lifecycle.scheduled with
     | some id => pure id
     | none => return .error "loam: could not generate a fresh replacement Scheduled identity"
-  let occurrence ←
-    match Loam.ScheduledOccurrenceConstruction.occurrenceFromEffects?
-        replacementId draft.scheduledOn draft.effects with
-    | some occurrence => pure occurrence
-    | none => return .error "loam: replacement Scheduled movement could not be admitted"
+  let occurrence : ScheduledOccurrence String := {
+    id := replacementId
+    scheduledOn := draft.scheduledOn
+    movement := draft.movement
+  }
   let updatedScheduled ←
     match lifecycle.scheduled.add? occurrence with
     | some scheduled => pure scheduled
@@ -168,7 +158,7 @@ private def publishUnderOwnership
     source := draft.source
     replacement := replacementId
     scheduledOn := draft.scheduledOn
-    total := draft.total
+    total := Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement
   }
 
 private def withReplacementOwnership {α : Type}
