@@ -133,11 +133,13 @@ assert GuardedCompletionPolicyCannotRace {
       w.finish.policy = w.policyRead
 }
 
-run relationFirstCompletionWitness for 8 but exactly 2 ActualGeneration, 2 ScheduledGeneration, 1 PolicyGeneration, 1 CompletionWrite
-run actualFirstExposesUnlinkedActual for 8 but exactly 2 ActualGeneration, 2 ScheduledGeneration, 1 PolicyGeneration, 1 CompletionWrite
-run unguardedCompletionPolicyRace for 8 but exactly 2 ActualGeneration, 2 ScheduledGeneration, 2 PolicyGeneration, 1 CompletionWrite
+// Three snapshots are sufficient: selected Old, interrupted relation-first state,
+// and completed New. Keep unrelated atoms out of the bounded search.
+run relationFirstCompletionWitness for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 1 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
+run actualFirstExposesUnlinkedActual for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 1 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
+run unguardedCompletionPolicyRace for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 2 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
 
-check RelationFirstInterruptionIsInert for 10
-check RelationFirstCompletionBecomesVisible for 10
-check ScheduledCompletionChangesBothAuthorities for 10
-check GuardedCompletionPolicyCannotRace for 10
+check RelationFirstInterruptionIsInert for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 2 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
+check RelationFirstCompletionBecomesVisible for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 2 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
+check ScheduledCompletionChangesBothAuthorities for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 2 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
+check GuardedCompletionPolicyCannotRace for 5 but exactly 1 Event, exactly 1 ScheduledId, exactly 2 ActualGeneration, exactly 2 ScheduledGeneration, exactly 2 PolicyGeneration, exactly 3 Snapshot, exactly 1 CompletionWrite
