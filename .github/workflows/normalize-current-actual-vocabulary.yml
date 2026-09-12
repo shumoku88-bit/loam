@@ -1,0 +1,81 @@
+name: One-shot current Actual vocabulary normalization
+
+on:
+  push:
+    branches:
+      - cleanup/retire-manifest-vocabulary
+    paths:
+      - .github/workflows/normalize-current-actual-vocabulary.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[generated-actual-vocab]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: cleanup/retire-manifest-vocabulary
+          fetch-depth: 0
+
+      - name: Normalize current Actual vocabulary and fixtures
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          changed = []
+
+          # Current Lean source: the parameter is an Actual authority root, not a manifest root.
+          for path in Path('Loam').rglob('*.lean'):
+              text = path.read_text()
+              original = text
+              text = text.replace('manifestRoot', 'actualRoot')
+              text = text.replace('manifest-backed', 'Actual-backed')
+              text = text.replace('selected manifest', 'selected Actual')
+              text = text.replace('manifest authority', 'Actual authority')
+
+              # Old review alias had a now-meaningless correction sidecar argument.
+              text = text.replace(
+                  'Loam.ActualReview.loadRecordsFromManifest root none',
+                  'Loam.ActualReview.loadRecordsFromActual root')
+
+              # Current tests must exercise the New-only root topology, not a historical subdirectory.
+              text = text.replace('let actualRoot := root / "movement-authority"', 'let actualRoot := root')
+              text = text.replace('let actualRoot := dataDir / "movement-authority"', 'let actualRoot := dataDir')
+              text = text.replace('let root := dataDir / "movement-authority"', 'let root := dataDir')
+              text = text.replace('(root / "movement-authority")', 'root')
+              text = text.replace('(dataDir / "movement-authority")', 'dataDir')
+
+              if text != original:
+                  path.write_text(text)
+                  changed.append(str(path))
+
+          # CI names and fixture paths should describe the current authority as well.
+          for path in Path('.github/workflows').glob('*.yml'):
+              if path.name == 'normalize-current-actual-vocabulary.yml':
+                  continue
+              text = path.read_text()
+              original = text
+              text = text.replace('manifest-backed', 'Actual-backed')
+              text = text.replace('manifest authority', 'Actual authority')
+              text = text.replace('"$(mktemp -d)/movement-authority"', '"$(mktemp -d)"')
+              if text != original:
+                  path.write_text(text)
+                  changed.append(str(path))
+
+          print('changed files:')
+          for path in changed:
+              print(' ', path)
+          PY
+
+      - name: Remove one-shot workflow and stale audit receipt, then commit
+        run: |
+          git rm .github/workflows/normalize-current-actual-vocabulary.yml
+          git rm -f .legacy-manifest-audit.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Loam .github/workflows
+          git commit -m "cleanup(runtime): normalize current Actual authority vocabulary [generated-actual-vocab]"
+          git push origin HEAD:cleanup/retire-manifest-vocabulary
