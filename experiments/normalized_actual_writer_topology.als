@@ -74,10 +74,10 @@ sig Snapshot {
 // writers. Keeping that distinction here prevents a future convenience feature
 // from being mistaken for a migration requirement.
 abstract sig WriteKind {}
-one sig MovementWrite,
-        DateRevisionWrite,
-        CorrectionWrite,
-        ReversalWrite extends WriteKind {}
+one sig MovementWrite extends WriteKind {}
+one sig DateRevisionWrite extends WriteKind {}
+one sig CorrectionWrite extends WriteKind {}
+one sig ReversalWrite extends WriteKind {}
 
 sig Write {
   kind: one WriteKind,
