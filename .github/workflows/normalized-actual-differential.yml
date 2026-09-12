@@ -9,6 +9,7 @@ on:
       - 'tools/normalized_actual.py'
       - 'tools/normalized_actual_fixture.loam'
       - 'tools/normalized_to_current_fixture.py'
+      - 'tools/current_to_normalized_actual.py'
       - 'tools/compare_actual_observations.py'
       - 'Loam/Tests/NormalizedActualProductionObservation.lean'
       - '.github/workflows/normalized-actual-differential.yml'
@@ -64,3 +65,14 @@ jobs:
             "$DIFF_ROOT" >"$DIFF_ROOT/production.obs"
           python3 tools/compare_actual_observations.py \
             "$DIFF_ROOT/normalized.obs" "$DIFF_ROOT/production.obs"
+
+      - name: Project current fixture back into normalized authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/current_to_normalized_actual.py \
+            "$DIFF_ROOT" "$DIFF_ROOT/reprojected.actual.loam"
+          python3 tools/normalized_actual.py observe \
+            "$DIFF_ROOT/reprojected.actual.loam" >"$DIFF_ROOT/reprojected.obs"
+          python3 tools/compare_actual_observations.py \
+            "$DIFF_ROOT/normalized.obs" "$DIFF_ROOT/reprojected.obs"
