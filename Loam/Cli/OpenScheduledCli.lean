@@ -82,7 +82,7 @@ read-only; mutation is owned by the shared Scheduled publishers.
 def showOpenScheduled (scheduledPath manifestRoot : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk manifestRoot
-  match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root with
+  match ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root with
   | .error message =>
       IO.eprintln message
       return 2

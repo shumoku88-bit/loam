@@ -87,7 +87,7 @@ def main (args : List String) : IO Unit := do
   expect (first.scheduled.token == "scheduled-1")
     "first Scheduled creation did not choose the first fresh identity"
 
-  let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload Scheduled review after first creation")
   let firstDay := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10")
@@ -119,7 +119,7 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
     "save orphan retirement inside complete lifecycle fixture"
 
-  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
   expect (!brokenRead.isOk)
     "unknown retirement identity did not make Scheduled read fail closed"
 

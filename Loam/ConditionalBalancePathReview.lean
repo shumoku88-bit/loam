@@ -194,7 +194,7 @@ def loadSnapshot
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let scheduled ←
-    match ← Loam.ScheduledReview.loadEvidenceFromManifest
+    match ← Loam.ScheduledReview.loadEvidenceFromActual
         (dataDir / "scheduled.loam") manifestRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot

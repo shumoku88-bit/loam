@@ -89,7 +89,7 @@ def main (args : List String) : IO Unit := do
     "save complete Scheduled lifecycle fixture"
 
   let beforeUnapproved ← IO.FS.readFile scheduledFile
-  let unapproved ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let unapproved ← Loam.ScheduledReplacementPublisher.publishReplacement
     scheduledFile.toString root.toString
     (replacementDraft "scheduled-1" "2026-09-13" "paypay" "coffee" 1000)
   expect (!unapproved.isOk)
@@ -98,14 +98,14 @@ def main (args : List String) : IO Unit := do
     "refused unapproved-Locus Scheduled replacement changed lifecycle authority"
 
   let beforeInvalid ← IO.FS.readFile scheduledFile
-  let invalid ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let invalid ← Loam.ScheduledReplacementPublisher.publishReplacement
     scheduledFile.toString root.toString
     (replacementDraft "scheduled-1" "2026-02-29" "paypay" "rent" 1000)
   expect (!invalid.isOk) "impossible replacement date was admitted"
   expect ((← IO.FS.readFile scheduledFile) == beforeInvalid)
     "refused replacement changed the lifecycle authority"
 
-  let .ok fresh ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let .ok fresh ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString
       (replacementDraft "scheduled-1" "2026-09-13" "paypay" "rent" 1100)
     | throw (IO.userError "publish fresh Scheduled replacement")
@@ -122,7 +122,7 @@ def main (args : List String) : IO Unit := do
   expect ((ScheduledMemory.findById? retained.scheduled fresh.replacement).isSome)
     "replacement endpoint was not published in the same lifecycle image"
 
-  let .ok afterFresh ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok afterFresh ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload replacement-aware Scheduled review")
   let oldDay := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterFresh "2026-09-10")
@@ -136,7 +136,7 @@ def main (args : List String) : IO Unit := do
     "append-only replacement rewrote the source occurrence"
 
   let beforeStale ← IO.FS.readFile scheduledFile
-  let stale ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let stale ← Loam.ScheduledReplacementPublisher.publishReplacement
     scheduledFile.toString root.toString
     (replacementDraft "scheduled-1" "2026-09-14" "paypay" "rent" 1200)
   expect (!stale.isOk) "already-replaced source accepted another replacement"
@@ -151,10 +151,10 @@ def main (args : List String) : IO Unit := do
   let brokenLifecycle := { retained with terminals := brokenRelations }
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
     "save structurally inconsistent complete lifecycle fixture"
-  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
   expect (!brokenRead.isOk)
     "missing replacement endpoint did not make complete lifecycle read fail closed"
-  let noAutoHeal ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let noAutoHeal ← Loam.ScheduledReplacementPublisher.publishReplacement
     scheduledFile.toString root.toString
     (replacementDraft "scheduled-2" "2026-09-14" "smbc" "rent" 3100)
   expect (!noAutoHeal.isOk)
@@ -162,10 +162,10 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile retained)
     "restore admitted lifecycle after negative fixture"
 
-  let .ok _ ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+  let .ok _ ← Loam.ScheduledTerminalPublisher.publishCancellation
       scheduledFile.toString root.toString { scheduled := ⟨"scheduled-3"⟩ }
     | throw (IO.userError "cancel stale-source fixture")
-  let cancelledReplacement ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let cancelledReplacement ← Loam.ScheduledReplacementPublisher.publishReplacement
     scheduledFile.toString root.toString
     (replacementDraft "scheduled-3" "2026-09-15" "paypay" "food" 400)
   expect (!cancelledReplacement.isOk)

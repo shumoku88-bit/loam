@@ -41,7 +41,7 @@ def report (scheduledPath manifestRoot day : String) : IO UInt32 := do
   else
     let scheduledFile := System.FilePath.mk scheduledPath
     let root := System.FilePath.mk manifestRoot
-    match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root with
+    match ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root with
     | .error message =>
         IO.eprintln message
         return 2

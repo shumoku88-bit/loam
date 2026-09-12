@@ -45,7 +45,7 @@ private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Actual review")
-  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
