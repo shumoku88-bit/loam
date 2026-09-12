@@ -1,6 +1,9 @@
 name: EffectKey Pressure
 
 on:
+  push:
+    branches:
+      - experiment/effect-key-pressure
   workflow_dispatch:
 
 permissions:
@@ -14,6 +17,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: shumoku88-bit/loam-data
+          ref: 169450fc1b85fe998070b91da16af1e4dccd25ca
           path: household
       - name: Measure current persisted key pressure
         run: bash tools/run-effect-key-pressure "$GITHUB_WORKSPACE/household"
