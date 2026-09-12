@@ -175,7 +175,7 @@ theorem ofEffects?_sameCoordinate_anonymous_isSome
     (ofEffects? id
       [Effect.ofAnonymousQuantity locus measure left,
        Effect.ofAnonymousQuantity locus measure right]).isSome = true := by
-  simp [ofEffects?, retainedEffectKeys]
+  simp [ofEffects?, retainedEffectKeys, Effect.ofAnonymousQuantity]
 
 /-- A coordinate with no effects projects to exact zero. -/
 @[simp] theorem quantityAt_empty
@@ -207,7 +207,7 @@ theorem quantityAt_sameCoordinate_anonymous_two
         effects :=
           [Effect.ofAnonymousQuantity locus measure left,
            Effect.ofAnonymousQuantity locus measure right],
-        keyNodup := by simp [retainedEffectKeys] }
+        keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity] }
       locus measure = Quantity.ofQuanta (left.quanta + right.quanta) := by
   simp [quantityAt]
 
