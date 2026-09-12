@@ -1,4 +1,5 @@
 import Loam.CapacityPublisher
+import Loam.HouseholdCommand
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -14,7 +15,7 @@ set_option autoImplicit false
 # Capacity transfer terminal session
 
 The session owns no Capacity authority. It drives one presentation-only editor
-and emits at most one draft to the shared `CapacityPublisher`.
+and emits at most one draft to the shared household command boundary.
 
 Unlike a purely local validation refusal, a shared publisher refusal may mean the
 source Entitlement or retained evidence changed after this editor was opened. The
@@ -25,7 +26,7 @@ workspace again.
 
 partial def run
     (bounds : Bounds)
-    (capacityFile : System.FilePath)
+    (root : System.FilePath)
     (state : Loam.Tui.CapacityTransfer.State)
     (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.CapacityTransfer.update state
@@ -35,7 +36,7 @@ partial def run
   else
     match step.publish with
     | some draft =>
-        match ← Loam.CapacityPublisher.publish capacityFile.toString draft with
+        match ← Loam.HouseholdCommand.moveCapacity root draft with
         | .ok receipt =>
             pure
               ("Moved " ++ toString receipt.quanta ++ " jpy Capacity: " ++
@@ -47,6 +48,6 @@ partial def run
     | none =>
         let nextFrame := compileWidget (Loam.Tui.CapacityTransfer.view step.state)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds capacityFile step.state nextFrame
+        run bounds root step.state nextFrame
 
 end Loam.Tui.CapacityTransferSession
