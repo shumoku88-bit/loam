@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+  echo "usage: tools/check-three-stream-dogfood DATA_ROOT [START END]" >&2
+  exit 2
+fi
+
+data_root="$1"
+start="${2:-2026-08-17}"
+end="${3:-2026-10-15}"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+observer="$repo_root/.lake/build/bin/loamHouseholdObservation"
+projector="$repo_root/tools/three-stream-projection.py"
+cycle_check="$repo_root/Loam/Tests/CycleBudgetDogfood.lean"
+
+if [[ ! -x "$observer" ]]; then
+  echo "missing $observer; run: lake build loamHouseholdObservation" >&2
+  exit 2
+fi
+if [[ ! -d "$data_root" ]]; then
+  echo "data root not found: $data_root" >&2
+  exit 2
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+streams="$work/streams"
+rebuilt="$work/rebuilt"
+
+python3 "$projector" check "$data_root" "$work/exact-check"
+python3 "$projector" pack "$data_root" "$streams"
+python3 "$projector" unpack "$streams" "$rebuilt" --support-from "$data_root"
+
+"$observer" "$data_root" "$start" "$end" >"$work/original.hobs1"
+"$observer" "$rebuilt" "$start" "$end" >"$work/rebuilt.hobs1"
+diff -u "$work/original.hobs1" "$work/rebuilt.hobs1"
+
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_check" "$data_root"
+) >"$work/original.cycle"
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_check" "$rebuilt"
+) >"$work/rebuilt.cycle"
+diff -u "$work/original.cycle" "$work/rebuilt.cycle"
+
+printf '%s\n' \
+  "three-stream dogfood parity passed" \
+  "  HOBS1: Balance / Budget / Capacity identical" \
+  "  CycleBudgetDogfood: Funding / CurrentCoverage / Scheduled pressure identical"
