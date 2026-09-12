@@ -80,7 +80,7 @@ uses the same Correction frontier, independent of correction count. Missing
 references retain their specific diagnostic; branching, merging and cyclic
 shapes fail closed as unsupported frontier topology.
 -/
-def showEffectiveQuantities (actualPath : String) (_correctionPath : Option String := none) : IO UInt32 := do
+def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let evidence ←
     match ← Loam.ActualAuthority.loadActualFile? actualFile with
