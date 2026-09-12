@@ -43,7 +43,7 @@ private def printCorrection
 Show why recorded correction facts are structurally usable without pretending
 that unlike coordinates can be arithmetically balanced against each other.
 -/
-def showCorrectionIntegrity (actualPath : String) (_correctionPath : Option String := none) : IO UInt32 := do
+def showCorrectionIntegrity (actualPath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let evidence ←
     match ← Loam.ActualAuthority.loadActualFile? actualFile with
