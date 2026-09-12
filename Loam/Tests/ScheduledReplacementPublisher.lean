@@ -5,6 +5,8 @@ import Loam.ScheduledReview
 import Loam.ScheduledTerminalPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
+import Lean.Elab.Tactic.Omega
+
 open Loam.Core
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
@@ -46,18 +48,25 @@ private def lifecycleFromScheduled
     | throw (IO.userError "empty terminal memory")
   return { scheduled, terminals }
 
-private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
-  [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
-  , Effect.ofQuantity ⟨"effect-2"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
-  ]
+private def replacementMovement
+    (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId := {
+  measure := ⟨"jpy"⟩
+  changes :=
+    [ { coordinate := ⟨fromLocus⟩, quantity := Quantity.ofQuanta (-amount) }
+    , { coordinate := ⟨toLocus⟩, quantity := Quantity.ofQuanta amount }
+    ]
+  balanced := by
+    simp [movementTotalQuanta]
+    omega
+}
 
 private def replacementDraft
     (source day fromLocus toLocus : String) (amount : Int) :
     Loam.ScheduledReplacementPublisher.Draft := {
   source := ⟨source⟩
   scheduledOn := day
-  effects := effects fromLocus toLocus amount
-  total := amount }
+  movement := replacementMovement fromLocus toLocus amount
+}
 
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=

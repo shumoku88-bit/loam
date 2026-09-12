@@ -126,7 +126,7 @@ a second write authority.
 def draft? (state : State) : Except String Loam.ScheduledReplacementPublisher.Draft := do
   if !Loam.ActualDate.validIsoDate state.form.date then
     throw "Replacement date must be a real calendar date in YYYY-MM-DD form."
-  let mut effects : List Effect := []
+  let mut changes : List (MovementChange LocusId) := []
   let mut positive := 0
   for index in List.range state.form.rows.size do
     let row := state.form.rows[index]!
@@ -136,22 +136,19 @@ def draft? (state : State) : Except String Loam.ScheduledReplacementPublisher.Dr
       throw "Enter a nonzero signed integer JPY amount for every posting."
     if !Loam.Persistence.validToken row.locus then
       throw "Enter a valid Locus token for every posting."
-    effects := effects ++ [Effect.ofQuantity
-      ⟨"replacement-effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ ⟨"jpy"⟩
-      (Quantity.ofQuanta amount)]
+    changes := changes ++ [{
+      coordinate := ⟨row.locus⟩
+      quantity := Quantity.ofQuanta amount
+    }]
     if amount > 0 then positive := positive + amount
-  let changes : List (MovementChange LocusId) :=
-    effects.map fun effect =>
-      { coordinate := effect.locus, quantity := effect.quantity }
-  if (BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isNone then
-    throw "Scheduled replacement posting totals differ."
+  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
+    | throw "Scheduled replacement posting totals differ."
   if positive <= 0 then
     throw "Scheduled replacement requires a positive balanced total."
   pure {
     source := state.target
     scheduledOn := state.form.date
-    effects := effects
-    total := positive
+    movement := movement
   }
 
 private def preview (state : State) : State :=
@@ -252,9 +249,10 @@ def view (known : List String) (state : State) : Widget :=
         , line ("Source: " ++ state.target.token)
         , line ("Replacement due: " ++ draft.scheduledOn)
         ] ++
-        (draft.effects.take 12).map (fun effect =>
-          line (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++ " jpy")) ++
-        [ line ("Balanced total: " ++ toString draft.total ++ " jpy")
+        (draft.movement.changes.take 12).map (fun change =>
+          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++ " jpy")) ++
+        [ line ("Balanced total: " ++ toString
+            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++ " jpy")
         , line "Publish appends an explicit Scheduled replacement relation plus its endpoint."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")

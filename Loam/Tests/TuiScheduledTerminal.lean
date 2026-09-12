@@ -233,7 +233,8 @@ def main (args : List String) : IO Unit := do
   expect
     (replacementIntent.source.token == "scheduled-3" &&
       replacementIntent.scheduledOn == "2026-09-12" &&
-      replacementIntent.total == 300)
+      Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta
+        replacementIntent.movement == 300)
     "replacement editor lost selected source or edited content"
   let .ok replacement ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString replacementIntent
