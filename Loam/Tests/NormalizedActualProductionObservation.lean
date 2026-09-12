@@ -146,7 +146,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "production ActualValidity frontier unresolved")
   IO.eprintln "diagnostic: validity frontier end"
 
-  if selected mode "frontiers" then
+  if mode = "frontiers" then
     IO.println "STATUS\tfrontiers"
 
   if selected mode "events" then
