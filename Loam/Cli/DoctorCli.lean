@@ -21,24 +21,12 @@ private def resolveDataDir (args : List String) : IO (Except String System.FileP
       return .ok (System.FilePath.mk path)
   | _ => return .error usage
 
-private def resolveManifestRoot
-    (dataDir : System.FilePath) : IO (Except String System.FilePath) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some path =>
-      if path.isEmpty then return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      return .ok (System.FilePath.mk path)
-  | none => return .ok dataDir
-
 private def diagnose (args : List String) : IO UInt32 := do
   let dataDir ←
     match ← resolveDataDir args with
     | .error message => IO.eprintln message; return 2
     | .ok path => pure path
-  let manifestRoot ←
-    match ← resolveManifestRoot dataDir with
-    | .error message => IO.eprintln message; return 2
-    | .ok path => pure path
-  match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir manifestRoot with
+  match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir dataDir with
   | .ok () =>
       IO.println Loam.OperationalContinuity.renderReady
       return 0
@@ -46,20 +34,9 @@ private def diagnose (args : List String) : IO UInt32 := do
       IO.eprintln (Loam.OperationalContinuity.renderDiagnosis diagnosis)
       return 2
 
-private def reachability (_dataArgs : List String) : IO UInt32 := do
-  IO.eprintln "loam: doctor reachability is retired with normalized Actual single-file authority"
-  return 2
-
-private def restore (_dataArgs : List String) : IO UInt32 := do
-  IO.eprintln "loam: doctor restore is retired with normalized Actual single-file authority"
-  return 2
-
-/-- Diagnose startup reads on the normalized production boundary. -/
-def run (args : List String) : IO UInt32 := do
-  match args with
-  | "reachability" :: dataArgs => reachability dataArgs
-  | "restore" :: dataArgs => restore dataArgs
-  | _ => diagnose args
+/-- Diagnose startup reads on the normalized New-only production boundary. -/
+def run (args : List String) : IO UInt32 :=
+  diagnose args
 
 end Loam.DoctorCli
 
