@@ -55,17 +55,14 @@ private def loadScheduledLifecycle?
   | some image => return .ok image
   | none => return .error "loam: Scheduled lifecycle authority is malformed or unsupported"
 
-/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
-private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
-  match effect.key with
-  | none => true
-  | some key => Loam.Persistence.validToken key.token
-
-private def movementEffectsValid (effects : List Effect) : Bool :=
+/--
+Operation-level qualification for an Event already admitted by normalized Actual
+persistence. Token syntax is trusted from canonical decoding; reversal still
+requires one nonempty balanced Movement of nonzero JPY Effects.
+-/
+private def practicalTargetMovementValid (effects : List Effect) : Bool :=
   if effects.isEmpty then false
   else if !effects.all (fun effect =>
-      retainedEffectKeyPersistable effect &&
-      Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
     false
   else
@@ -140,7 +137,7 @@ private def admit?
     throw "loam: reversal of a Scheduled-completion Actual is not yet qualified"
 
   let target ← targetCurrent? evidence.events evidence.corrections draft.target
-  if !movementEffectsValid target.effects then
+  if !practicalTargetMovementValid target.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
   let pending? ← pendingForTarget? evidence.events evidence.reversals draft.target
