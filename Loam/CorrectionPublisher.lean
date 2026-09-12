@@ -75,12 +75,9 @@ private def targetCurrent?
     match EventMemory.findById? events target with
     | some event => pure event
     | none => throw "loam: selected correction target is not retained"
-  match Loam.Application.correctionFrontierMemory? events corrections with
-  | none => throw "loam: movement corrections do not justify one current record frontier"
-  | some frontier =>
-      match EventMemory.findById? frontier target with
-      | some _ => pure targetEvent
-      | none => throw "loam: selected Actual is no longer current"
+  if corrections.corrections.any (fun correction => decide (correction.target = target)) then
+    throw "loam: selected Actual is no longer current"
+  pure targetEvent
 
 private def admit?
     (evidence : ActualEvidence)
