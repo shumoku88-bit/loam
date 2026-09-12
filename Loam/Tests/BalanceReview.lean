@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.BalanceReview
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -67,7 +68,7 @@ def main (args : List String) : IO Unit := do
     "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
   let world ← movementWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? actualRoot world
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
 
   -- Frozen pre-cutover Movement sidecars must not influence the production balance view.

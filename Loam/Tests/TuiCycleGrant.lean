@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.CapacityPublisher
 import Loam.CapacityReview
@@ -42,7 +43,7 @@ def main (args : List String) : IO Unit := do
     validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
     descriptions := .empty, relations := [], discharges := []
     locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "publish fixture world")
 
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates? [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]) "zero-origin"

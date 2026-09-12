@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.ScheduledReview
@@ -81,7 +82,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
@@ -176,7 +177,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "load selected world for policy refusal")
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
   let beforePolicyRefusal ← IO.FS.readFile (root / "actual.loam")

@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -81,7 +82,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? root initialWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initialWorld
     | throw (IO.userError "initialize Actual fixture")
   let first ← occurrence "scheduled-1" "rent" 1000
   let second ← occurrence "scheduled-2" "food" 200

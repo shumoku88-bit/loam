@@ -145,26 +145,4 @@ def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.Movemen
     locusAdmission := locusAdmission
   }
 
-/--
-Publish one complete MovementAdmission.World by atomically writing `actual.loam` and `locus-admission.loam`.
--/
-def publishWorld? (root : System.FilePath) (world : Loam.MovementAdmission.World) : IO (Except String Unit) := do
-  let evidence : ActualEvidence := {
-    events := world.events
-    validity := world.validity
-    descriptions := world.descriptions
-    corrections := { corrections := [], idNodup := by simp }
-    reversals := ActualReversalMemory.empty
-    relations := world.relations
-    discharges := world.discharges
-  }
-  let path :=
-    if root.fileName == some actualFileName then root
-    else actualPath root
-  let dataDir := if root.fileName == some actualFileName then root.parent.getD root else root
-  match ← publishActualFile? path evidence with
-  | .error err => return .error err
-  | .ok () =>
-      Loam.LocusAdmissionAuthority.publishCurrent? dataDir world.locusAdmission
-
 end Loam.ActualAuthority

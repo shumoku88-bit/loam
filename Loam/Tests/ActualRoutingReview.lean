@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualRoutingReview
 import Loam.Core.Capacity
@@ -43,7 +44,7 @@ private def publishWorld
     discharges := []
     locusAdmission := locusAdmission
   }
-  match ← Loam.ActualAuthority.publishWorld? actualRoot world with
+  match ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world with
   | .ok _ => pure ()
   | .error message => throw (IO.userError message)
 

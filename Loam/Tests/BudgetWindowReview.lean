@@ -1,3 +1,4 @@
+import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.BudgetWindowReview
 import Loam.Persistence.CapacityPersistence
@@ -94,7 +95,7 @@ def main (args : List String) : IO Unit := do
     "save routing"
 
   let world ← movementWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? actualRoot world
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
 
   -- A frozen/legacy Movement sidecar must not influence this production review.
