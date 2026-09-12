@@ -1,0 +1,96 @@
+# Current manifest vocabulary audit
+
+Patterns: publishManifest | loadRecordsFromManifest | loadEvidenceFromManifest | LOAM_MOVEMENT_MANIFEST_ROOT | ownershipAllowedByManifestMode | resolveManifestRoot | movement-authority | manifestRoot | manifest-backed | selected manifest | manifest authority
+
+Loam/CurrentCoverageReview.lean:119:    (dataDir manifestRoot : System.FilePath)
+Loam/CurrentCoverageReview.lean:158:    if manifestRoot.fileName == some Loam.ActualAuthority.actualFileName then manifestRoot
+Loam/CurrentCoverageReview.lean:159:    else Loam.ActualAuthority.actualPath manifestRoot
+Loam/CurrentCoverageReview.lean:217:    (dataDir manifestRoot : System.FilePath)
+Loam/CurrentCoverageReview.lean:221:  loadSnapshotAt dataDir manifestRoot currentWindowStart observedAt endExclusive
+Loam/CycleBudgetReview.lean:30:def loadSnapshotAt (dataDir manifestRoot : System.FilePath) (observedAt : String) :
+Loam/CycleBudgetReview.lean:38:        dataDir manifestRoot window.start observedAt window.endExclusive
+Loam/CycleBudgetReview.lean:39:  let evidence ← attempt (Loam.BalanceReview.loadEvidence dataDir manifestRoot)
+Loam/ActualRoutingReview.lean:61:    (dataDir manifestRoot : System.FilePath)
+Loam/ActualRoutingReview.lean:74:    match ← Loam.LocusAdmissionAuthority.loadCurrent? manifestRoot with
+Loam/Cli/OpenScheduledCli.lean:82:def showOpenScheduled (scheduledPath manifestRoot : String) : IO UInt32 := do
+Loam/Cli/OpenScheduledCli.lean:84:  let root := System.FilePath.mk manifestRoot
+Loam/Cli/OpenScheduledCli.lean:113:  | ["day-evidence", scheduledPath, manifestRoot, day] =>
+Loam/Cli/OpenScheduledCli.lean:114:      Loam.ScheduledDayEvidenceCli.report scheduledPath manifestRoot day
+Loam/Cli/OpenScheduledCli.lean:117:  | [scheduledPath, manifestRoot] =>
+Loam/Cli/OpenScheduledCli.lean:118:      Loam.OpenScheduledCli.showOpenScheduled scheduledPath manifestRoot
+Loam/Cli/ScheduledDayEvidenceCli.lean:37:def report (scheduledPath manifestRoot day : String) : IO UInt32 := do
+Loam/Cli/ScheduledDayEvidenceCli.lean:43:    let root := System.FilePath.mk manifestRoot
+Loam/TransactionsFlowReview.lean:222:Compose the existing manifest-backed Actual reader with this pure projection.
+Loam/TransactionsFlowReview.lean:226:    (dataDir manifestRoot : System.FilePath)
+Loam/TransactionsFlowReview.lean:229:    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+Loam/OperationalContinuity.lean:76:    (dataDir manifestRoot : System.FilePath) : IO (Except Diagnosis Unit) := do
+Loam/OperationalContinuity.lean:79:  match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+Loam/OperationalContinuity.lean:84:      (dataDir / "scheduled.loam") manifestRoot with
+Loam/ConditionalBalancePathReview.lean:188:    (dataDir manifestRoot : System.FilePath)
+Loam/ConditionalBalancePathReview.lean:193:    match ← Loam.BalanceReview.loadSnapshot dataDir manifestRoot with
+Loam/ConditionalBalancePathReview.lean:198:        (dataDir / "scheduled.loam") manifestRoot with
+Loam/BalanceReview.lean:118:    (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
+Loam/BalanceReview.lean:120:    match ← loadEvidence dataDir manifestRoot with
+Loam/StockFlowReview.lean:158:    (dataDir manifestRoot : System.FilePath)
+Loam/StockFlowReview.lean:161:    match ← Loam.BalanceReview.loadSnapshot dataDir manifestRoot with
+Loam/StockFlowReview.lean:165:    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+Loam/Observations/Observation194.lean:219:or manifest authority under one transition algebra. No new mathematical theorem
+Loam/Tests/CurrentCoverageReview.lean:86:  let manifestRoot := root / "movement-authority"
+Loam/Tests/CurrentCoverageReview.lean:116:  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+Loam/Tests/CurrentCoverageReview.lean:150:        root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+Loam/Tests/CurrentCoverageReview.lean:179:      root manifestRoot "2026-08-15" "2026-10-15" "2026-10-15"
+Loam/Tests/CurrentCoverageReview.lean:184:      root manifestRoot "2026-09-09" "2026-09-08" "2026-10-15"
+Loam/Tests/CurrentCoverageReview.lean:197:    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+Loam/Tests/CurrentCoverageReview.lean:204:    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+Loam/Tests/CurrentCoverageReview.lean:208:    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+Loam/Tests/ActualRoutingReview.lean:28:    (manifestRoot : System.FilePath)
+Loam/Tests/ActualRoutingReview.lean:46:  match ← Loam.ActualAuthority.publishWorld? manifestRoot world with
+Loam/Tests/ActualRoutingReview.lean:55:  let manifestRoot := dataDir / "movement-authority"
+Loam/Tests/ActualRoutingReview.lean:58:  publishWorld manifestRoot ["coffee", "shipping", "cash", "mystery"]
+Loam/Tests/ActualRoutingReview.lean:89:    match ← Loam.ActualRoutingReview.loadSnapshot dataDir manifestRoot "2026-09-09" with
+Loam/Tests/ActualRoutingReview.lean:111:  match ← Loam.ActualRoutingReview.loadSnapshot dataDir manifestRoot "2026-02-29" with
+Loam/Tests/ScheduledReplacementPublisher.lean:75:  let root := dataDir / "movement-authority"
+Loam/Tests/ScheduledTerminalPublisher.lean:80:  let root := dataDir / "movement-authority"
+Loam/Tests/ScheduledTerminalPublisher.lean:115:  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
+Loam/Tests/AccountingRolePublisher.lean:69:  let root := dataDir / "movement-authority"
+Loam/Tests/ThreeStreamCycleObservation.lean:16:      dataDir (dataDir / "movement-authority") observedAt
+Loam/Tests/OperationalContinuity.lean:20:  let manifestRoot := dataDir
+Loam/Tests/OperationalContinuity.lean:51:  match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir manifestRoot with
+Loam/Tests/TuiCycleGrant.lean:45:  let .ok _ ← Loam.ActualAuthority.publishWorld? (root / "movement-authority") world
+Loam/Tests/TuiCycleGrant.lean:93:  let snap0 ← Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") observedAt
+Loam/Tests/TuiCycleGrant.lean:221:  let snap1 ← Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") observedAt
+Loam/Tests/BalanceReview.lean:59:  let manifestRoot := root / "movement-authority"
+Loam/Tests/BalanceReview.lean:70:  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+Loam/Tests/BalanceReview.lean:76:  let .ok snapshot ← Loam.BalanceReview.loadSnapshot root manifestRoot
+Loam/Tests/BalanceReview.lean:87:  let missingCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+Loam/Tests/BalanceReview.lean:93:  let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+Loam/Tests/BalanceReview.lean:97:  let malformedCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+Loam/Tests/BalanceReview.lean:105:  IO.FS.writeFile (manifestRoot / "actual.loam")
+Loam/Tests/BalanceReview.lean:107:  let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root manifestRoot
+Loam/Tests/BalanceReview.lean:111:    "Balance Review: manifest authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
+Loam/Tests/CurrentCoverageDogfood.lean:45:      dataDir (dataDir / "movement-authority")
+Loam/Tests/BudgetWindowReview.lean:69:  let manifestRoot := root / "movement-authority"
+Loam/Tests/BudgetWindowReview.lean:97:  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+Loam/Tests/BudgetWindowReview.lean:105:        root manifestRoot "2026-08-17" "2026-10-15"
+Loam/Tests/BudgetWindowReview.lean:120:      root manifestRoot "2026-10-15" "2026-08-17"
+Loam/Tests/BudgetWindowReview.lean:128:  IO.println "Budget Window Review: manifest authority, explicit window and derived Remaining passed."
+Loam/Tests/TuiScheduledTerminal.lean:56:  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
+Loam/Tests/TuiScheduledTerminal.lean:80:  let root := dataDir / "movement-authority"
+Loam/Tests/TuiScheduledTerminal.lean:157:    "completion did not publish independent Actual evidence through shared manifest authority"
+Loam/Tests/CycleBudgetDogfood.lean:12:  let snapshot ← Loam.CycleBudgetReview.loadSnapshotAt dataDir (dataDir / "movement-authority") "2026-09-08"
+Loam/Tests/CycleBudgetDogfood.lean:39:  let .ok movement ← Loam.ActualAuthority.loadSelectedWorld? (dataDir / "movement-authority")
+.github/workflows/scheduled-replacement-publisher.yml:42:    name: Build and test manifest-backed Scheduled replacement publisher
+.github/workflows/scheduled-replacement-publisher.yml:60:      - name: Verify manifest-backed Scheduled replacement publication
+.github/workflows/scheduled-creation-publisher.yml:40:    name: Build and test manifest-backed Scheduled creation publisher
+.github/workflows/scheduled-creation-publisher.yml:58:      - name: Verify manifest-backed Scheduled creation publication
+.github/workflows/actual-validity-publisher.yml:44:    name: Build and test manifest-backed date publisher
+.github/workflows/actual-validity-publisher.yml:62:      - name: Verify manifest-backed occurrence-date publication
+.github/workflows/tui.yml:224:      - name: Verify add-only manifest-backed Locus admission
+.github/workflows/tui.yml:243:        run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/movement-authority"
+.github/workflows/tui.yml:248:      - name: Verify manifest-backed shared correction publication
+.github/workflows/tui.yml:302:      - name: Build manifest-backed Balance review boundary
+.github/workflows/tui.yml:305:      - name: Verify manifest-backed Balance review boundary
+.github/workflows/tui.yml:340:      - name: Build manifest-backed Budget Window review boundary
+.github/workflows/tui.yml:343:      - name: Verify manifest-backed Budget Window review boundary
+.github/workflows/scheduled-terminal-publisher.yml:44:    name: Build and test manifest-backed Scheduled terminal publisher
+.github/workflows/scheduled-terminal-publisher.yml:62:      - name: Verify manifest-backed Scheduled completion and cancellation
