@@ -16,8 +16,10 @@ def main (args : List String) : IO Unit := do
   let recordsResult ←
     Loam.ActualReview.loadRecordsFromManifest
       (dataDir / "movement-authority") (some correctionPath)
-  let .ok records := recordsResult
-    | throw (IO.userError s!"ActualReview unavailable: {repr recordsResult}")
+  let records ←
+    match recordsResult with
+    | .ok records => pure records
+    | .error message => throw (IO.userError ("ActualReview unavailable: " ++ message))
 
   for record in records do
     let date := record.date.getD "-"
