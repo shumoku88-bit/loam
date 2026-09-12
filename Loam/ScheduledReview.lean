@@ -79,6 +79,16 @@ def loadEvidenceFromActual
   | .error message => return .error message
   | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
 
+/--
+Load canonical Scheduled lifecycle evidence from a household data directory while
+preserving the caller's explicit Actual source selection. High-level household
+readers use this entrance; low-level arbitrary-path callers keep
+`loadEvidenceFromActual`.
+-/
+def loadHouseholdEvidence
+    (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) :=
+  loadEvidenceFromActual (dataDir / "scheduled.loam") actualRoot
+
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence

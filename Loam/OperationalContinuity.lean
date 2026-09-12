@@ -80,8 +80,7 @@ def diagnoseStartupRead
   | .error message =>
       return .error (explainReadFailure "Actual / Movement" message)
   | .ok _ => pure ()
-  match ← Loam.ScheduledReview.loadEvidenceFromActual
-      (dataDir / "scheduled.loam") actualRoot with
+  match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir actualRoot with
   | .error message =>
       return .error (explainReadFailure "Scheduled" message)
   | .ok _ => return .ok ()
