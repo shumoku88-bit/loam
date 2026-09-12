@@ -54,7 +54,7 @@ def report
   else
     let root := System.FilePath.mk rootPath
     if purposeToken = "--all" then
-      match ← Loam.BudgetWindowReview.loadSnapshot root start end_ with
+      match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
       | .error message =>
           IO.eprintln message
           return 2
@@ -63,7 +63,7 @@ def report
           return 0
     else
       let purpose : PurposeId := ⟨purposeToken⟩
-      match ← Loam.BudgetWindowReview.loadPurposeRow root start end_ purpose with
+      match ← Loam.BudgetWindowReview.loadPurposeRow root root start end_ purpose with
       | .error message =>
           IO.eprintln message
           return 2
