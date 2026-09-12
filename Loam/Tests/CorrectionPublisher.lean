@@ -40,13 +40,11 @@ private def recordDraft : Loam.MovementAdmission.Draft := {
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
-  let dataDir := System.FilePath.mk dataPath
-  let root := dataDir / "movement-authority"
-  let correctionFile := dataDir / "corrections.loam"
+  let root := System.FilePath.mk dataPath
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
-  let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
+    | throw (IO.userError "initialize Actual fixture")
+  let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
   let correctionDraft : Loam.CorrectionPublisher.Draft := {
@@ -56,8 +54,8 @@ def main (args : List String) : IO Unit := do
 
   let unbalanced : Loam.CorrectionPublisher.Draft := {
     correctionDraft with effects := correctionDraft.effects.take 1 }
-  let refusedUnbalanced ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString unbalanced
+  let refusedUnbalanced ← Loam.CorrectionPublisher.publishCorrection
+    root.toString unbalanced
   expect (!refusedUnbalanced.isOk) "unbalanced correction replacement was admitted"
 
   let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
@@ -66,16 +64,16 @@ def main (args : List String) : IO Unit := do
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
   let beforeRefusal ← IO.FS.readFile (root / "actual.loam")
-  let refusedPolicy ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString correctionDraft
+  let refusedPolicy ← Loam.CorrectionPublisher.publishCorrection
+    root.toString correctionDraft
   expect (!refusedPolicy.isOk) "correction bypassed current Locus new-write policy"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeRefusal)
-    "Locus-policy refusal changed selected manifest authority"
+    "Locus-policy refusal changed Actual authority"
   let .ok _ ← Loam.ActualAuthority.publishWorld? root selected
     | throw (IO.userError "restore Locus policy")
 
-  let .ok receipt ← Loam.CorrectionPublisher.publishManifestCorrection
-      root.toString correctionFile.toString correctionDraft
+  let .ok receipt ← Loam.CorrectionPublisher.publishCorrection
+      root.toString correctionDraft
     | throw (IO.userError "publish correction")
   expect (receipt.target == recorded.eventId) "correction receipt changed target identity"
   expect (receipt.carriedDate) "correction did not carry explicit current target date"
@@ -90,13 +88,13 @@ def main (args : List String) : IO Unit := do
     "published correction relation lost its endpoints"
 
   let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
-    | throw (IO.userError "reload corrected manifest")
+    | throw (IO.userError "reload corrected Actual")
   expect ((EventMemory.findById? world.events recorded.eventId).isSome)
     "append-only correction rewrote the original Event"
   expect ((EventMemory.findById? world.events receipt.replacement).isSome)
-    "replacement Event is absent from selected manifest"
+    "replacement Event is absent from Actual authority"
 
-  let .ok records ← Loam.ActualReview.loadRecordsFromManifest root (some correctionFile.toString)
+  let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload correction-aware Actual review")
   let current := Loam.ActualReview.select records (.day "2026-09-07")
   expect (current.length == 1) "corrected day did not have exactly one current Actual"
@@ -108,8 +106,8 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id == recorded.eventId && !record.isCurrent)
     "original Event disappeared instead of remaining retained and non-current"
 
-  let staleRetry ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString correctionDraft
+  let staleRetry ← Loam.CorrectionPublisher.publishCorrection
+    root.toString correctionDraft
   expect (!staleRetry.isOk) "already-completed correction target was accepted again"
 
-  IO.println "Correction Publisher: manifest re-read, explicit Reversal independence, fail-closed policy, append-only relation, replacement and fresh review passed."
+  IO.println "Correction Publisher: Actual re-read, explicit Reversal independence, fail-closed policy, append-only relation, replacement and fresh review passed."
