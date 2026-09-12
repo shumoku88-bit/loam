@@ -73,9 +73,9 @@ def run (args : List String) : IO UInt32 := do
       return 0
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
-  | ["review", actualPath] => Loam.ReviewCli.review actualPath ""
+  | ["review", actualPath] => Loam.ReviewCli.review actualPath
   | ["review", actualPath, query] =>
-      Loam.ReviewCli.review actualPath "" (some query)
+      Loam.ReviewCli.review actualPath (some query)
   | ["summary", actualPath] => showRecordedQuantitySummary actualPath
   | ["effective", actualPath] =>
       Loam.EffectiveCli.showEffectiveQuantities actualPath
