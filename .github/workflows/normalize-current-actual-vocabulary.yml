@@ -1,4 +1,4 @@
-name: One-shot current Actual workflow vocabulary normalization
+name: One-shot current Actual vocabulary audit
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  patch:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -19,33 +19,41 @@ jobs:
           ref: cleanup/retire-manifest-vocabulary
           fetch-depth: 0
 
-      - name: Normalize current workflow vocabulary and fixture paths
+      - name: Audit remaining current manifest vocabulary
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          changed = []
-          for path in Path('.github/workflows').glob('*.yml'):
+          lines = [
+              '# Residual current manifest vocabulary audit',
+              '',
+              'Historical Loam/Observations sources are intentionally excluded.',
+              ''
+          ]
+
+          for path in sorted(Path('Loam').rglob('*.lean')):
+              if 'Observations' in path.parts:
+                  continue
+              for lineno, line in enumerate(path.read_text().splitlines(), 1):
+                  if 'manifest' in line.lower() or 'LOAM_MOVEMENT_MANIFEST_ROOT' in line:
+                      lines.append(f'{path}:{lineno}:{line}')
+
+          lines.append('')
+          lines.append('## workflows')
+          for path in sorted(Path('.github/workflows').glob('*.yml')):
               if path.name == 'normalize-current-actual-vocabulary.yml':
                   continue
-              text = path.read_text()
-              original = text
-              text = text.replace('manifest-backed', 'Actual-backed')
-              text = text.replace('manifest authority', 'Actual authority')
-              text = text.replace('"$(mktemp -d)/movement-authority"', '"$(mktemp -d)"')
-              if text != original:
-                  path.write_text(text)
-                  changed.append(str(path))
+              for lineno, line in enumerate(path.read_text().splitlines(), 1):
+                  if 'manifest' in line.lower() or 'movement-authority' in line:
+                      lines.append(f'{path}:{lineno}:{line}')
 
-          print('changed files:')
-          for path in changed:
-              print(' ', path)
+          Path('.legacy-manifest-audit.txt').write_text('\n'.join(lines) + '\n')
           PY
 
-      - name: Commit generated workflow cleanup
+      - name: Commit audit receipt
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows
-          git commit -m "cleanup(ci): normalize current Actual authority vocabulary [generated-actual-workflows]"
+          git add .legacy-manifest-audit.txt
+          git commit -m "docs(audit): refresh residual manifest vocabulary receipt [generated-manifest-audit]"
           git push origin HEAD:cleanup/retire-manifest-vocabulary
