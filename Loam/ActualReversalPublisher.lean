@@ -2,12 +2,10 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
-import Loam.Application.CorrectionFrontier
 import Loam.Core.ActualReversal
 import Loam.Core.BalancedMovement
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership
 
 namespace Loam.ActualReversalPublisher
@@ -76,12 +74,9 @@ private def targetCurrent?
     match EventMemory.findById? events target with
     | some event => pure event
     | none => throw "loam: selected reversal target is not retained"
-  match Loam.Application.correctionFrontierMemory? events corrections with
-  | none => throw "loam: movement corrections do not justify one current record frontier"
-  | some frontier =>
-      match EventMemory.findById? frontier target with
-      | some _ => pure targetEvent
-      | none => throw "loam: selected Actual is no longer current"
+  if corrections.corrections.any (fun correction => decide (correction.target = target)) then
+    throw "loam: selected Actual is no longer current"
+  pure targetEvent
 
 private def worldRelationsMentionEvent
     (evidence : ActualEvidence) (event : EventId) : Bool :=
@@ -106,8 +101,8 @@ private def admit?
     (draft : Draft) : Except String Admitted := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: reversal occurrence date must be a real YYYY-MM-DD calendar date"
-  if !Loam.Persistence.validToken draft.target.token then
-    throw "loam: reversal target identity is not persistable"
+
+  let target ← targetCurrent? evidence.events evidence.corrections draft.target
   if (evidence.reversals.findByReversal? draft.target).isSome then
     throw "loam: reversal-of-reversal chains are not yet qualified"
   if (evidence.reversals.findByTarget? draft.target).isSome then
@@ -116,8 +111,6 @@ private def admit?
     throw "loam: reversal of an Actual referenced by retained relation/discharge evidence is not yet qualified"
   if scheduledCompletionMentionsEvent lifecycle draft.target then
     throw "loam: reversal of a Scheduled-completion Actual is not yet qualified"
-
-  let target ← targetCurrent? evidence.events evidence.corrections draft.target
   if !practicalTargetMovementValid target.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
