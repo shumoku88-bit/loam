@@ -30,12 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build production Lean boundary
+      - name: Build production Lean boundary and native differential observer
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: loam
+          build-args: loam normalizedActualProductionObservation
           test: false
           lint: false
           use-mathlib-cache: false
@@ -61,7 +61,7 @@ jobs:
           set -euo pipefail
           python3 tools/normalized_actual.py observe \
             tools/normalized_actual_fixture.loam >"$DIFF_ROOT/normalized.obs"
-          lake env lean --run Loam/Tests/NormalizedActualProductionObservation.lean \
+          .lake/build/bin/normalizedActualProductionObservation \
             "$DIFF_ROOT" >"$DIFF_ROOT/production.obs"
           python3 tools/compare_actual_observations.py \
             "$DIFF_ROOT/normalized.obs" "$DIFF_ROOT/production.obs"
