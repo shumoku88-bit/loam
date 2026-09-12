@@ -93,7 +93,7 @@ jobs:
           replace(
               'bounds (dataDir / "scheduled.loam") root known',
               'bounds root known',
-              4)
+              6)
           replace(
               'bounds (dataDir / "scheduled.loam") root world known',
               'bounds root world known',
