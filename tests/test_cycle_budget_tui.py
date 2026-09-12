@@ -67,7 +67,6 @@ before = digest()
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
 env = dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(root))
-env.pop("LOAM_MOVEMENT_MANIFEST_ROOT", None)
 
 
 def controlling_terminal():
