@@ -83,7 +83,7 @@ private def findRow?
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
-  let actualRoot := root
+  let actualRoot := root / "actual-authority"
   IO.FS.createDirAll root
 
   let food ← allocation "capacity-food" "food" 100
