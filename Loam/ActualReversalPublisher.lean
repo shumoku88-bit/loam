@@ -99,14 +99,6 @@ private def inverseEffects (target : Event) : List Effect :=
   target.effects.map fun effect =>
     Effect.ofAnonymousQuantity effect.locus effect.measure (-effect.quantity)
 
-private def eventIdentityReserved
-    (evidence : ActualEvidence) (id : EventId) : Bool :=
-  (EventMemory.findById? evidence.events id).isSome ||
-    evidence.validity.facts.any (fun fact => decide (fact.event = id)) ||
-    (evidence.descriptions.findText? id).isSome ||
-    evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
-    evidence.discharges.any (fun discharge => decide (discharge.event = id))
-
 private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
@@ -130,10 +122,8 @@ private def admit?
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
   let reversal := deterministicReversalId draft.target
-  if eventIdentityReserved evidence reversal then
+  if (EventMemory.findById? evidence.events reversal).isSome then
     throw "loam: deterministic reversal Event identity collides with retained Movement evidence"
-  if (evidence.reversals.findByReversal? reversal).isSome then
-    throw "loam: deterministic reversal Event identity is already reserved by another reversal"
   let relation : ActualReversal := { target := draft.target, reversal := reversal }
 
   let effects := inverseEffects target
