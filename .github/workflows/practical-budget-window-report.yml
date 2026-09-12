@@ -77,7 +77,7 @@ jobs:
           manifest="$tmpdir/movement-authority"
           memory="$tmpdir/compat-memory.loam"
           lake env lean --run Loam/Tests/EmptyMovementManifest.lean \
-            "$manifest" paypay expenses:food
+            "$manifest" cash expenses:food
 
           printf 'unallocated\nfood\n100\n' \
             | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
@@ -87,13 +87,13 @@ jobs:
             | LOAM_CAPACITY_EFFECTIVE_DATE=2026-08-17 \
               .lake/build/bin/loamCapacity "$tmpdir/capacity.loam"
 
-          printf 'paypay\n20\n\nexpenses:food\n20\n\n' \
+          printf 'cash\n20\n\nexpenses:food\n20\n\n' \
             | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
                 LOAM_OCCURRENCE_DATE=2026-08-16 \
                 LOAM_DESCRIPTION='before clean epoch' \
                 .lake/build/bin/loamMovement "$memory"
 
-          printf 'paypay\n30\n\nexpenses:food\n30\n\n' \
+          printf 'cash\n30\n\nexpenses:food\n30\n\n' \
             | env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
                 LOAM_OCCURRENCE_DATE=2026-08-18 \
                 LOAM_DESCRIPTION='inside clean epoch' \
@@ -129,6 +129,11 @@ jobs:
           grep -Fx '  food: entitlement 100 jpy, consumption 30 jpy, remaining 70 jpy' <<<"$all_output"
           grep -Fx '  general: entitlement 50 jpy, consumption 0 jpy, remaining 50 jpy' <<<"$all_output"
 
+          mkdir -p "$tmpdir/config"
+          printf 'cash\tjpy\n' >"$tmpdir/config/balance-view.tsv"
+          printf 'LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\tcash\tjpy\n' \
+            >"$tmpdir/zero-origin-coverage.loam"
+
           observation_output="$(env LOAM_MOVEMENT_MANIFEST_ROOT="$manifest" \
             .lake/build/bin/loamHouseholdObservation \
             "$tmpdir" 2026-08-17 2026-10-15)"
@@ -137,6 +142,7 @@ jobs:
           grep -Fx $'HOBS1\tmeta\timplementation\tloam' <<<"$observation_output"
           grep -Fx $'HOBS1\tmeta\twindow_start\t2026-08-17' <<<"$observation_output"
           grep -Fx $'HOBS1\tmeta\twindow_end_exclusive\t2026-10-15' <<<"$observation_output"
+          grep -Fx $'HOBS1\tbalance\tcash\tjpy\t-50\tknown-zero-origin\t-' <<<"$observation_output"
           grep -Fx $'HOBS1\tbudget\tfood\tjpy\t100\t30\t70' <<<"$observation_output"
           grep -Fx $'HOBS1\tbudget\tgeneral\tjpy\t50\t0\t50' <<<"$observation_output"
           grep -Fx $'HOBS1\tcapacity\tpurpose\tfood\tjpy\t100' <<<"$observation_output"
