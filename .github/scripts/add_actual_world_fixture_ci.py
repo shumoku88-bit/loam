@@ -12,6 +12,7 @@ workflows = [
     ".github/workflows/scheduled-replacement-publisher.yml",
     ".github/workflows/scheduled-terminal-publisher.yml",
     ".github/workflows/tui.yml",
+    ".github/workflows/cycle-funding-inspection.yml",
 ]
 
 for relative in workflows:
