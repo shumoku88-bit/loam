@@ -60,7 +60,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ScheduledOccurrenceConstruction Loam.ScheduledCreationPublisher Loam.ScheduledReplacementPublisher Loam.Tui.ScheduledCreation Loam.Tui.ScheduledReplacement Loam.Tests.ActualWorldFixture
+          build-args: Loam.ScheduledOccurrenceConstruction Loam.ScheduledCreationPublisher Loam.ScheduledReplacementPublisher Loam.ScheduledTerminalPublisher Loam.Tui.ScheduledCreation Loam.Tui.ScheduledReplacement Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
