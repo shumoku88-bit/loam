@@ -56,6 +56,10 @@ def admitActualEvidence? (evidence : ActualEvidence) : Option ActualEvidence := 
 
   -- 2. Validity frontier: requires reference closure, single current date per Event
   let admittedDates ← admittedActualValidityMemory? evidence.validity
+  -- Every retained validity fact must belong to a retained Event
+  for fact in evidence.validity.facts do
+    if (evidence.events.findById? fact.event).isNone then
+      none
   -- Every remembered event must have a valid current occurrence date
   for event in evidence.events.events do
     if (admittedDates.findByEventId? event.id).isNone then
