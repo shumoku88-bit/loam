@@ -7,7 +7,7 @@
       "unguardedPolicyRace": true,
       "unguardedScheduledRace": true,
       "dateRevisionWhilePolicyAdvances": true,
-      "recordWhileScheduledAdvances": true,
+      "movementWhileScheduledAdvances": true,
       "duplicateCoordinatePromotion": true,
       "staleLocatorWitness": true,
       "GuardedPolicyDependencyCannotRace": false,
