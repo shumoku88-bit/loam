@@ -39,12 +39,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build application, umbrella, and machine observer
+      - name: Build application, umbrella, observer, and Movement publisher
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.Application Loam loamHouseholdObservation
+          build-args: Loam.Application Loam Loam.MovementPublisher loamHouseholdObservation
           test: false
           lint: false
           use-mathlib-cache: false
