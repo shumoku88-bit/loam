@@ -88,21 +88,6 @@ private def findOpen?
   | some occurrence => pure occurrence
   | none => throw "loam: selected Scheduled identity is no longer current-open"
 
-private def historyMentionsEvent
-    (history : ActualValidityHistory String)
-    (eventId : EventId) : Bool :=
-  history.facts.any fun fact => decide (fact.event = eventId)
-
-private def relationsMentionEvent
-    (relations : List RelationUnit)
-    (eventId : EventId) : Bool :=
-  relations.any fun relation => decide (relation.sourceEvent = eventId)
-
-private def dischargesMentionEvent
-    (discharges : List RelationDischarge)
-    (eventId : EventId) : Bool :=
-  discharges.any fun discharge => decide (discharge.event = eventId)
-
 private def appendCompletionActual?
     (world : Loam.MovementAdmission.World)
     (_target : ScheduledId)
@@ -114,12 +99,6 @@ private def appendCompletionActual?
     throw "loam: Scheduled completion currently admits plain Actual Movement effects only"
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: Scheduled completion uses a Locus not approved for new publication"
-  if (EventMemory.findById? world.events actualId).isSome ||
-      historyMentionsEvent world.validity actualId ||
-      (EventDescriptionMemory.findText? world.descriptions actualId).isSome ||
-      relationsMentionEvent world.relations actualId ||
-      dischargesMentionEvent world.discharges actualId then
-    throw "loam: Scheduled completion Actual identity already has retained Movement evidence"
   let event ←
     match Event.ofEffects? actualId draft.effects with
     | some event => pure event
