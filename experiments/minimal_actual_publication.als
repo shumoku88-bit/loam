@@ -75,14 +75,14 @@ pred splitClosed[s: SplitSnapshot] {
 
 // Construct pressure where New appends one Event plus its correction edge.
 pred correctionPublicationCanDangle {
-  some disj original, replacement: Event,
+  some disj original, newEvent: Event,
        c: Correction,
        s: SplitSnapshot | {
     original in Old.events
-    replacement not in Old.events
-    New.events = Old.events + replacement
+    newEvent not in Old.events
+    New.events = Old.events + newEvent
     c.target = original
-    c.replacement = replacement
+    c.replacement = newEvent
     New.corrections = Old.corrections + c
     New.reversals = Old.reversals
     splitCorrectionMid[s]
@@ -92,14 +92,14 @@ pred correctionPublicationCanDangle {
 
 // Same pressure for an inverse Event plus explicit reversal meaning.
 pred reversalPublicationCanDangle {
-  some disj original, inverse: Event,
+  some disj original, inverseEvent: Event,
        r: Reversal,
        s: SplitSnapshot | {
     original in Old.events
-    inverse not in Old.events
-    New.events = Old.events + inverse
+    inverseEvent not in Old.events
+    New.events = Old.events + inverseEvent
     r.target = original
-    r.inverse = inverse
+    r.inverse = inverseEvent
     New.reversals = Old.reversals + r
     New.corrections = Old.corrections
     splitReversalMid[s]
