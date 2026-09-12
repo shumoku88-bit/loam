@@ -1,6 +1,6 @@
+import Loam.ActualAuthority
 import Loam.ActualReversalPublisher
 import Loam.CorrectionPublisher
-import Loam.Persistence.ActualReversalPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core
@@ -50,29 +50,26 @@ def main (args : List String) : IO Unit := do
   let root := dataDir / "movement-authority"
   let scheduledFile := dataDir / "scheduled.loam"
   let correctionFile := dataDir / "corrections.loam"
-  let reversalFile := dataDir / "actual-reversals.loam"
 
   let world ← initialWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
     | throw (IO.userError "publish initial Movement world")
   let lifecycle ← emptyLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
     "publish explicit empty Scheduled lifecycle"
-  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
-    "publish explicit empty reversal authority"
 
   let draft : Loam.ActualReversalPublisher.Draft := {
     target := ⟨"actual-1"⟩
     validOn := "2026-09-08" }
   let .ok receipt ← Loam.ActualReversalPublisher.publishManifestReversal
-      scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
+      scheduledFile.toString root.toString correctionFile.toString "" draft
     | throw (IO.userError "publish Actual reversal")
   expect (receipt.target = ⟨"actual-1"⟩ && receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
     "reversal receipt changed deterministic endpoint identities"
   expect (!receipt.resumed)
     "fresh reversal was reported as interrupted-publication resume"
 
-  let .ok fresh ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected Movement world")
   let target ←
     match EventMemory.findById? fresh.events receipt.target with
@@ -89,10 +86,10 @@ def main (args : List String) : IO Unit := do
   expect (fresh.events.events.length == 2)
     "reversal rewrote the target instead of retaining both Actual Events"
 
-  let some reversalMemory ← Loam.Persistence.loadActualReversalMemory? reversalFile
-    | throw (IO.userError "reload reversal authority")
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
   let relation ←
-    match reversalMemory.findByTarget? receipt.target with
+    match actualEvidence.reversals.findByTarget? receipt.target with
     | some relation => pure relation
     | none => throw (IO.userError "reversal provenance relation missing")
   expect (relation.reversal = receipt.reversal)
@@ -113,7 +110,7 @@ def main (args : List String) : IO Unit := do
     "Correction changed a Reversal inverse and invalidated exact inverse provenance"
 
   let second ← Loam.ActualReversalPublisher.publishManifestReversal
-    scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
+    scheduledFile.toString root.toString correctionFile.toString "" draft
   expect (!second.isOk)
     "a second reversal of the same Actual was not rejected"
 
@@ -121,7 +118,7 @@ def main (args : List String) : IO Unit := do
     target := receipt.reversal
     validOn := "2026-09-08" }
   let reverseAgainResult ← Loam.ActualReversalPublisher.publishManifestReversal
-    scheduledFile.toString root.toString correctionFile.toString reversalFile.toString reverseAgain
+    scheduledFile.toString root.toString correctionFile.toString "" reverseAgain
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 

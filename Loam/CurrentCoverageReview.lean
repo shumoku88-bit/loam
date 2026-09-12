@@ -1,10 +1,9 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CurrentCoverageInspection
 import Loam.CapacityAuthority
 import Loam.CapacityReview
-import Loam.MovementManifestAuthority
-import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -64,11 +63,6 @@ private structure ProjectedRow where
   row : Row
   frontier : ScheduledFrontier
 
-private def loadCorrections?
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? path with
-  | some corrections => return .ok corrections
-  | none => return .error "loam: malformed or unsupported Event correction authority"
 
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
   if ← path.pathExists then return .ok ()
@@ -135,7 +129,6 @@ def loadSnapshotAt
 
   let capacityPath := dataDir / "capacity.loam"
   let actualRoutingPath := dataDir / "actual-routing.loam"
-  let correctionPath := dataDir / "corrections.loam"
   let scheduledPath := dataDir / "scheduled.loam"
   let scheduledRoutingPath := dataDir / "scheduled-routing.loam"
   let accountingRolePath := dataDir / "accounting-role.loam"
@@ -161,20 +154,22 @@ def loadSnapshotAt
   let effective := capacityImage.effective
   if !capacityEffectiveEvidenceComplete capacity effective then
     return .error "loam: incomplete Capacity effective evidence"
-  let movement ←
-    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
+  let path :=
+    if manifestRoot.fileName == some Loam.ActualAuthority.actualFileName then manifestRoot
+    else Loam.ActualAuthority.actualPath manifestRoot
+  let actualEvidence ←
+    match ← Loam.ActualAuthority.loadActualFile? path with
+    | .ok ev => pure ev
+    | .error message =>
+        match ← Loam.ActualAuthority.loadActual? dataDir with
+        | .ok ev => pure ev
+        | .error _ => return .error message
   let validities ←
-    match admittedActualValidityMemory? movement.validity with
+    match admittedActualValidityMemory? actualEvidence.validity with
     | some memory => pure memory
     | none =>
         return .error
           "loam: Actual validity corrections do not justify one current date per Event"
-  let corrections ←
-    match ← loadCorrections? correctionPath with
-    | .ok memory => pure memory
-    | .error message => return .error message
   let actualRouting ←
     match ← Loam.Persistence.loadActualRoutingHistory? actualRoutingPath with
     | some history => pure history
@@ -194,14 +189,14 @@ def loadSnapshotAt
 
   let unresolvedScheduled ←
     match currentActionableScheduledPressure?
-        scheduled.scheduled scheduled.terminals movement.events roles scheduledRouting
+        scheduled.scheduled scheduled.terminals actualEvidence.events roles scheduledRouting
         ⟨"jpy"⟩ observedAt endExclusive with
     | some rows => pure rows
     | none => return .error "loam: canonical evidence does not justify actionable Scheduled pressure"
 
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?
-      capacity effective movement.events corrections validities actualRouting
+      capacity effective actualEvidence.events actualEvidence.corrections validities actualRouting
       scheduled roles scheduledRouting currentWindowStart observedAt endExclusive) with
   | none =>
       return .error "loam: canonical evidence does not justify this current coverage projection"

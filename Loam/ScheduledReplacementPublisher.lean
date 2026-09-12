@@ -1,6 +1,8 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
+import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
-import Loam.MovementManifestAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledOccurrenceConstruction
@@ -15,19 +17,12 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled replacement publication
 
-Replacement remains explicit `Scheduled -> Scheduled` provenance, now retained as
-one target form in `ScheduledTerminalMemory`. The replacement writer remains a
-separate operation because it also creates the successor Scheduled occurrence.
+This module exposes the surface-independent write boundary for Scheduled replacement.
 
-The fixed ownership order matches Scheduled terminal publication:
-
+The fixed ownership order matches other Scheduled publishers:
 ```text
-Scheduled lifecycle authority -> Movement CURRENT
+Scheduled lifecycle authority -> actual.loam
 ```
-
-The Movement authority is read-only here. Holding its ownership boundary prevents
-a concurrent completion from changing the Event frontier between current-open
-admission and lifecycle publication.
 -/
 
 structure Draft where
@@ -44,8 +39,7 @@ structure Receipt where
   deriving Repr
 
 private def loadLifecycle?
-    (scheduledFile : System.FilePath) :
-    IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
+    (scheduledFile : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
   return .ok lifecycle
@@ -69,19 +63,28 @@ private def currentOpen?
 
 private def containsScheduled
     (occurrences : List (ScheduledOccurrence String))
-    (id : ScheduledId) : Bool :=
-  occurrences.any fun occurrence => decide (occurrence.id = id)
+    (target : ScheduledId) : Bool :=
+  occurrences.any fun occurrence => decide (occurrence.id = target)
+
+/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
+private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
+  match effect.key with
+  | none => true
+  | some key => Loam.Persistence.validToken key.token
 
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
-    throw "loam: replacement date must be a real calendar date in YYYY-MM-DD form"
+    throw "loam: Scheduled replacement requires a valid ISO calendar date"
+  if draft.effects.isEmpty then
+    throw "loam: Scheduled replacement requires at least one Effect"
   if !draft.effects.all (fun effect =>
+      retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) &&
       effect.quantity.quanta != 0) then
     throw "loam: Scheduled replacement requires valid Locus tokens and nonzero JPY quantities"
   if (Loam.ScheduledOccurrenceConstruction.movementFromEffects? draft.effects).isNone then
-    throw "loam: Scheduled replacement movement totals differ"
+    throw "loam: Scheduled movement totals differ"
   let positive := draft.effects.foldl
     (fun total effect => total + max 0 effect.quantity.quanta) 0
   if positive <= 0 || draft.total != positive then
@@ -107,18 +110,22 @@ private def publishUnderOwnership
     match ← loadLifecycle? scheduledFile with
     | .ok lifecycle => pure lifecycle
     | .error message => return .error message
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
     | .error message => return .error message
-  if !world.locusAdmission.admitsEffects draft.effects then
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  if !locusAdmission.admitsEffects draft.effects then
     return .error "loam: Scheduled replacement uses a Locus not approved for new publication"
   if (ScheduledMemory.findById? lifecycle.scheduled draft.source).isNone then
     return .error "loam: selected Scheduled identity is not retained"
   if (lifecycle.terminals.replacementFor? draft.source).isSome then
     return .error "loam: selected Scheduled identity is already replaced"
   let openOccurrences ←
-    match currentOpen? lifecycle world.events with
+    match currentOpen? lifecycle evidence.events with
     | .ok occurrences => pure occurrences
     | .error message => return .error message
   if !containsScheduled openOccurrences draft.source then
@@ -150,7 +157,7 @@ private def publishUnderOwnership
     terminals := updatedTerminals
   }
   match transitionAdmissible?
-      updatedLifecycle world.events draft.source replacementId with
+      updatedLifecycle evidence.events draft.source replacementId with
   | .error message => return .error message
   | .ok () => pure ()
   if (Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle).isNone then
@@ -168,28 +175,24 @@ private def withReplacementOwnership {α : Type}
     (scheduledFile root : System.FilePath)
     (action : IO (Except String α)) : IO (Except String α) :=
   Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.WriterOwnership.withOwnership (root / "CURRENT") action
+    Loam.ActualAuthority.withActualOwnership root action
 
 /--
-Replace one current-open Scheduled occurrence with one new Scheduled occurrence.
-
-The source-closing terminal relation and replacement occurrence are constructed
-in memory and published together as one complete lifecycle image. There is no
-reader-visible missing replacement endpoint and therefore no replacement resume
-state. No recurrence, continuation, edit-kind, routing inheritance, or Movement
-Event is created here. The replacement Effects must use the current explicit
-Locus admission vocabulary before the lifecycle image can change.
+Publish one Scheduled replacement into the complete lifecycle image.
 -/
-def publishManifestReplacement
+def publishReplacement
     (scheduledPath rootPath : String)
     (draft : Draft) : IO (Except String Receipt) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+    return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
   withReplacementOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
+
+/-- Backward-compatible alias for existing call sites. -/
+def publishManifestReplacement := publishReplacement
 
 end Loam.ScheduledReplacementPublisher

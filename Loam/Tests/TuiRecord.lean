@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.Tui.Record
 import Loam.MovementPublisher
 import Loam.ActualReview
@@ -114,17 +115,17 @@ def main (args : List String) : IO Unit := do
   expect (pickerAccepted.form.rows[1]! == blankCandidateForm.rows[1]!)
     "catalog candidate selection changed another posting row"
 
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root w
     | throw (IO.userError "initialize fixture")
   -- An already-previewed draft must be re-admitted against policy changed during think time.
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root
       { w with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "change fixture policy")
-  let before ← IO.FS.readFile (root / "CURRENT")
+  let before ← IO.FS.readFile (root / "actual.loam")
   let refused ← Loam.MovementPublisher.publishManifestDraft root.toString draft
   expect (!refused.isOk) "stale preview bypassed current Locus policy"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == before) "refusal changed authority"
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
+  expect ((← IO.FS.readFile (root / "actual.loam")) == before) "refusal changed authority"
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root w
     | throw (IO.userError "restore fixture policy")
   let .ok receipt ← Loam.MovementPublisher.publishManifestDraft root.toString draft
     | throw (IO.userError "canonical publish")

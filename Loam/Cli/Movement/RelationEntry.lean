@@ -21,7 +21,7 @@ private def findEffectByKey? :
     List Loam.Core.Effect → Loam.Core.EffectKey → Option Loam.Core.Effect
   | [], _ => none
   | effect :: rest, key =>
-      if effect.key = key then some effect else findEffectByKey? rest key
+      if effect.key = some key then some effect else findEffectByKey? rest key
 
 private def draftFromFields?
     (effects : List Loam.Core.Effect)
@@ -89,8 +89,12 @@ private def printEffectChoices (effects : List Loam.Core.Effect) : IO Unit := do
   for entry in effects.zipIdx do
     let effect := entry.1
     let index := entry.2 + 1
+    let keyLabel :=
+      match effect.key with
+      | some key => key.token
+      | none => "(anonymous)"
     IO.println
-      ("  " ++ toString index ++ ". " ++ effect.key.token ++
+      ("  " ++ toString index ++ ". " ++ keyLabel ++
         "  " ++ effect.locus.token ++
         "  " ++ toString effect.quantity.quanta ++
         " " ++ effect.measure.token)
@@ -111,7 +115,10 @@ private def chooseEffect?
   | some number =>
       match getEffectByIndex? effects (number - 1) with
       | none => return Except.error "loam: relation source effect number is out of range"
-      | some effect => return Except.ok effect.key
+      | some effect =>
+          match effect.key with
+          | some key => return Except.ok key
+          | none => return Except.error "loam: selected effect is anonymous and cannot be a relation source"
 
 private def collectOneInteractive
     (effects : List Loam.Core.Effect) : IO (Except String Draft) := do

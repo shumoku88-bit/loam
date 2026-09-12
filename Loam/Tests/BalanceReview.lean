@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.BalanceReview
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
@@ -66,7 +67,7 @@ def main (args : List String) : IO Unit := do
     "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
   let world ← movementWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? manifestRoot world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
     | throw (IO.userError "publish selected Movement world")
 
   -- Frozen pre-cutover Movement sidecars must not influence the production balance view.
@@ -101,8 +102,8 @@ def main (args : List String) : IO Unit := do
       (root / "zero-origin-coverage.loam") validCoverage)
     "restore zero-origin coverage"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
-  IO.FS.writeFile (root / "corrections.loam")
-    "LOAM-EVENT-CORRECTION-MEMORY\t1\nCORRECTION\tc1\tactual-1\tmissing\n"
+  IO.FS.writeFile (manifestRoot / "actual.loam")
+    "LOAM_ACTUAL_v1\nTX\tactual-2\t2026-09-08\treplaces:missing\n  wallet\t-10\tjpy\n  food\t10\tjpy\n"
   let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root manifestRoot
   expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
 

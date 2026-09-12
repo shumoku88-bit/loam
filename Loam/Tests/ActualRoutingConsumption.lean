@@ -136,7 +136,7 @@ def main : IO Unit := do
     "multi-purpose event 3 was not admitted"
 
   -- Distinct EffectKeys are preserved within the event
-  expect (ev3.effects.map Effect.key == [⟨"k-coffee"⟩, ⟨"k-groceries"⟩, ⟨"k-paypay"⟩])
+  expect (ev3.effects.map Effect.key == [some ⟨"k-coffee"⟩, some ⟨"k-groceries"⟩, some ⟨"k-paypay"⟩])
     "effect keys were not preserved in multi-purpose event"
 
   let eventMemoryMulti ← requireSome

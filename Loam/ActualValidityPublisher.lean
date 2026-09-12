@@ -1,10 +1,9 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
+import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.FreshNumberedToken
-import Loam.MovementManifestAuthority
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.WriterOwnership
 
 namespace Loam.ActualValidityPublisher
 
@@ -17,7 +16,7 @@ structure Draft where
   target : EventId
   validOn : String
 
-/-- Small frontend receipt for one manifest-backed occurrence-date publication. -/
+/-- Small frontend receipt for one occurrence-date publication. -/
 structure Receipt where
   target : EventId
   previous : Option String
@@ -87,21 +86,20 @@ private def appendDateChange?
       | none => throw "loam: could not append occurrence-date correction evidence"
 
 private def admit?
-    (world : Loam.MovementAdmission.World)
-    (corrections : EventCorrectionMemory)
-    (draft : Draft) : Except String (Loam.MovementAdmission.World × Receipt) := do
+    (evidence : ActualEvidence)
+    (draft : Draft) : Except String (ActualEvidence × Receipt) := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
-  let event ← targetCurrent? world.events corrections draft.target
+  let event ← targetCurrent? evidence.events evidence.corrections draft.target
   let currentFacts ←
-    match Loam.Application.admittedActualValidityFacts? world.validity with
+    match Loam.Application.admittedActualValidityFacts? evidence.validity with
     | some facts => pure facts
     | none => throw "loam: actual-validity corrections do not justify one current date per Event"
   let currentFact? := currentFactForEvent? currentFacts draft.target
   match currentFact? with
   | some currentFact =>
       if currentFact.validOn = draft.validOn then
-        pure (world, {
+        pure (evidence, {
           target := draft.target
           previous := some currentFact.validOn
           validOn := draft.validOn
@@ -109,7 +107,7 @@ private def admit?
           firstDate := false
         })
       else
-        let updatedValidity ← appendDateChange? world.validity event currentFact? draft.validOn
+        let updatedValidity ← appendDateChange? evidence.validity event currentFact? draft.validOn
         let admitted ←
           match Loam.Application.admittedActualValidityFacts? updatedValidity with
           | some facts => pure facts
@@ -119,7 +117,7 @@ private def admit?
             if replacement.validOn != draft.validOn then
               throw "loam: proposed date correction frontier did not select the replacement date"
         | none => throw "loam: proposed date correction lost the selected Actual date"
-        pure ({ world with validity := updatedValidity }, {
+        pure ({ evidence with validity := updatedValidity }, {
           target := draft.target
           previous := some currentFact.validOn
           validOn := draft.validOn
@@ -127,7 +125,7 @@ private def admit?
           firstDate := false
         })
   | none =>
-      let updatedValidity ← appendDateChange? world.validity event none draft.validOn
+      let updatedValidity ← appendDateChange? evidence.validity event none draft.validOn
       let admitted ←
         match Loam.Application.admittedActualValidityFacts? updatedValidity with
         | some facts => pure facts
@@ -137,7 +135,7 @@ private def admit?
           if replacement.validOn != draft.validOn then
             throw "loam: proposed first date frontier did not select the supplied date"
       | none => throw "loam: proposed first date did not become current"
-      pure ({ world with validity := updatedValidity }, {
+      pure ({ evidence with validity := updatedValidity }, {
         target := draft.target
         previous := none
         validOn := draft.validOn
@@ -146,45 +144,36 @@ private def admit?
       })
 
 private def publishUnderOwnership
-    (root correctionFile : System.FilePath)
+    (root : System.FilePath)
     (draft : Draft) : IO (Except String Receipt) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
     | .error message => return .error message
-  let corrections ←
-    match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
-    | some memory => pure memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
   let (updated, receipt) ←
-    match admit? world corrections draft with
+    match admit? evidence draft with
     | .ok value => pure value
     | .error message => return .error message
   if !receipt.changed then
     return .ok receipt
-  match ← Loam.MovementManifestAuthority.publishWorld? root updated with
+  match ← Loam.ActualAuthority.publishActual? root updated with
   | .error message => return .error message
-  | .ok _ => return .ok receipt
+  | .ok () => return .ok receipt
 
 /--
-Publish one occurrence-date attachment/correction against current manifest authority.
-
-The publisher shares the Movement `CURRENT` ownership anchor, re-reads selected
-Movement and EventCorrection evidence under ownership, verifies that the target
-Event is still current, appends only ActualValidity evidence, and republishes one
-complete manifest generation. Event payload, Movement correction, description,
-relation/discharge evidence, and Locus policy are left unchanged.
+Publish one occurrence-date attachment/correction against normalized Actual authority.
 -/
-def publishManifestDate
-    (rootPath correctionPath : String) (draft : Draft) : IO (Except String Receipt) := do
+def publishDate
+    (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-  if correctionPath.isEmpty then
-    return .error "loam: correction path must not be empty"
+    return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
-  let correctionFile := System.FilePath.mk correctionPath
-  Loam.WriterOwnership.withOwnership
-    (root / "CURRENT")
-    (publishUnderOwnership root correctionFile draft)
+  Loam.ActualAuthority.withActualOwnership root
+    (publishUnderOwnership root draft)
+
+/-- Backward-compatible alias for existing call sites. -/
+def publishManifestDate
+    (rootPath : String) (_correctionPath : String) (draft : Draft) : IO (Except String Receipt) :=
+  publishDate rootPath draft
 
 end Loam.ActualValidityPublisher

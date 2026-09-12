@@ -1,7 +1,7 @@
+import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.ActualReversalPublisher
 import Loam.MovementPublisher
-import Loam.Persistence.ActualReversalPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tui.ActualReversal
 
@@ -55,16 +55,12 @@ def main (args : List String) : IO Unit := do
   let root := dataDir / "movement-authority"
   let scheduledFile := dataDir / "scheduled.loam"
   let correctionFile := dataDir / "corrections.loam"
-  let reversalFile := dataDir / "actual-reversals.loam"
-
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
   let lifecycle ← emptyLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
     "initialize Scheduled lifecycle"
-  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
-    "initialize reversal authority"
   let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
@@ -94,7 +90,7 @@ def main (args : List String) : IO Unit := do
     "reversal intent changed target or occurrence date"
 
   let .ok receipt ← Loam.ActualReversalPublisher.publishManifestReversal
-      scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft
+      scheduledFile.toString root.toString correctionFile.toString "" draft
     | throw (IO.userError "shared reversal publisher refused TUI intent")
   expect (receipt.reversal == ⟨"actual-reversal:" ++ recorded.eventId.token⟩)
     "TUI reversal did not reach deterministic shared publisher endpoint"

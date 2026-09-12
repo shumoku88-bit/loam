@@ -4,13 +4,9 @@ on:
   pull_request:
     paths:
       - 'Loam/OperationalContinuity.lean'
-      - 'Loam/MovementManifestAuthority.lean'
-      - 'Loam/MovementRecoveryPublisher.lean'
-      - 'Loam/MovementObjectReachability.lean'
+      - 'Loam/ActualAuthority.lean'
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
-      - 'Loam/Tests/MovementRecoveryRetention.lean'
-      - 'Loam/Tests/MovementObjectReachability.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - '.github/workflows/operational-continuity.yml'
@@ -21,7 +17,7 @@ permissions:
 
 jobs:
   lean:
-    name: Qualify diagnosis, recovery, and object reachability
+    name: Qualify diagnosis and operational continuity
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -43,12 +39,6 @@ jobs:
 
       - name: Verify fail-closed diagnosis and human explanation
         run: lake env lean --run Loam/Tests/OperationalContinuity.lean "$(mktemp -d)/operational-continuity"
-
-      - name: Verify retained Movement generation and explicit restore
-        run: lake env lean --run Loam/Tests/MovementRecoveryRetention.lean "$(mktemp -d)/movement-recovery"
-
-      - name: Verify CURRENT plus recovery object roots and read-only orphan classification
-        run: lake env lean --run Loam/Tests/MovementObjectReachability.lean "$(mktemp -d)/movement-reachability"
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash

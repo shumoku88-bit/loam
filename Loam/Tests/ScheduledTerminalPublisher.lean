@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.ScheduledTerminalPublisher
@@ -80,7 +81,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
@@ -173,17 +174,17 @@ def main (args : List String) : IO Unit := do
     scheduledFile.toString root.toString { scheduled := ⟨"scheduled-4"⟩ }
   expect (!refusedCancel.isOk) "cancellation competed with an interrupted completion"
 
-  let .ok selected ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "load selected world for policy refusal")
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
-  let beforePolicyRefusal ← IO.FS.readFile (root / "CURRENT")
+  let beforePolicyRefusal ← IO.FS.readFile (root / "actual.loam")
   let refusedPolicy ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
     scheduledFile.toString root.toString
     (completionDraft "scheduled-5" "2026-09-09" "paypay" "rent" 500)
   expect (!refusedPolicy.isOk) "Scheduled completion bypassed current Locus policy"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == beforePolicyRefusal)
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforePolicyRefusal)
     "Locus-policy refusal changed selected Movement authority"
   let some afterPolicyLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after policy refusal")

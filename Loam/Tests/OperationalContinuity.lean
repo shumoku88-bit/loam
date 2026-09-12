@@ -5,11 +5,11 @@ set_option autoImplicit false
 private def expect (condition : Bool) (message : String) : IO Unit :=
   if condition then pure () else throw (IO.userError message)
 
-private def missingCurrentMessage : String :=
-  "loam: selected Movement manifest CURRENT is missing"
+private def missingActualMessage : String :=
+  "loam: actual authority not found: /data/actual.loam"
 
-private def digestMessage : String :=
-  "loam: selected Movement object failed digest verification: objects/Event/example.loam"
+private def malformedActualMessage : String :=
+  "loam: actual authority is malformed or unsupported: /data/actual.loam"
 
 private def conflictMessage : String :=
   "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
@@ -17,29 +17,29 @@ private def conflictMessage : String :=
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
-  let manifestRoot := dataDir / "movement-authority"
+  let manifestRoot := dataDir
   IO.FS.createDirAll dataDir
 
   let missing :=
-    Loam.OperationalContinuity.explainReadFailure "Actual / Movement" missingCurrentMessage
-  expect (missing.area == "Actual / Movement") "missing CURRENT area"
+    Loam.OperationalContinuity.explainReadFailure "Actual / Movement" missingActualMessage
+  expect (missing.area == "Actual / Movement") "missing actual area"
   expect
     (missing.situation ==
-      "The selected Movement authority is unavailable, so LOAM will not guess which household generation is current.")
-    "missing CURRENT human situation"
-  expect (missing.technical == missingCurrentMessage) "missing CURRENT technical preservation"
+      "The actual.loam authority file is missing, so LOAM will not guess household actual facts.")
+    "missing actual human situation"
+  expect (missing.technical == missingActualMessage) "missing actual technical preservation"
   expect
     (missing.safety ==
       "This diagnosis is read-only. It did not create, change, repair, or discard any household fact.")
     "read-only safety statement"
 
-  let digest :=
-    Loam.OperationalContinuity.explainReadFailure "Actual / Movement" digestMessage
+  let malformed :=
+    Loam.OperationalContinuity.explainReadFailure "Actual / Movement" malformedActualMessage
   expect
-    (digest.situation ==
-      "The selected Movement generation failed integrity verification and was not trusted.")
-    "digest human situation"
-  expect (digest.technical == digestMessage) "digest technical preservation"
+    (malformed.situation ==
+      "The actual.loam authority file cannot be verified, so LOAM refused to treat it as current household data.")
+    "malformed human situation"
+  expect (malformed.technical == malformedActualMessage) "malformed technical preservation"
 
   let conflict :=
     Loam.OperationalContinuity.explainReadFailure "Scheduled" conflictMessage
@@ -49,10 +49,10 @@ def main (args : List String) : IO Unit := do
     "Scheduled conflict human situation"
 
   match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir manifestRoot with
-  | .ok () => throw (IO.userError "missing CURRENT must fail closed")
+  | .ok () => throw (IO.userError "missing actual.loam must fail closed")
   | .error diagnosis =>
       expect (diagnosis.area == "Actual / Movement") "startup diagnosis area"
-      expect (diagnosis.technical == missingCurrentMessage) "startup technical cause"
+      expect (diagnosis.technical.startsWith "loam: actual authority not found:") "startup technical cause"
       expect
         ((Loam.OperationalContinuity.renderDiagnosis diagnosis).startsWith
           "LOAM operational diagnosis\nStatus: blocked\n")

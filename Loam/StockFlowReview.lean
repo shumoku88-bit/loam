@@ -162,8 +162,7 @@ def loadSnapshot
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let records ←
-    match ← Loam.ActualReview.loadRecordsFromManifest
-        manifestRoot (some (dataDir / "corrections.loam").toString) with
+    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
     | .error message => return .error message
     | .ok records => pure records
   return project balances records start endExclusive

@@ -226,8 +226,7 @@ def loadSnapshot
     (dataDir manifestRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let records ←
-    match ← Loam.ActualReview.loadRecordsFromManifest
-        manifestRoot (some (dataDir / "corrections.loam").toString) with
+    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
     | .error message => return .error message
     | .ok records => pure records
   return project records start endExclusive

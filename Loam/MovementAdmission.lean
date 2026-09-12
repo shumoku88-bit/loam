@@ -188,13 +188,21 @@ private def materializeRelationDischarges
 private def uncoveredRelationSource
     (_ : Loam.Core.EventId) (_ : Loam.Core.EffectKey) : Bool := false
 
+/--
+An anonymous Effect has no independently addressable Relation source to resolve.
+A retained key, when present, must still resolve through the same source-local
+frontier as before sparse Effect identity.
+-/
 private def relationSourceResolved?
     (events : Loam.Core.EventMemory)
     (relations : List Loam.Core.RelationUnit)
     (eventId : Loam.Core.EventId)
-    (effectKey : Loam.Core.EffectKey) : Bool :=
-  (Loam.Application.currentRelationState?
-    events relations uncoveredRelationSource eventId effectKey).isSome
+    (effectKey : Option Loam.Core.EffectKey) : Bool :=
+  match effectKey with
+  | none => true
+  | some key =>
+      (Loam.Application.currentRelationState?
+        events relations uncoveredRelationSource eventId key).isSome
 
 private def relationSourcePositive?
     (events : Loam.Core.EventMemory)
@@ -232,13 +240,19 @@ private def dischargePublicationAdmissible
               item.discharge.target = discharge.target ∧
               item.discharge.quantity = discharge.quantity)
 
+/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
+private def retainedEffectKeyPersistable (effect : Loam.Core.Effect) : Bool :=
+  match effect.key with
+  | none => true
+  | some key => Loam.Persistence.validToken key.token
+
 /-- Shared practical draft validation. Balanced JPY is an entrance contract,
 not a global law imposed on neutral Core Events. All publishers call admit?. -/
 def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
   if !draft.effects.all (fun effect =>
-      Loam.Persistence.validToken effect.key.token &&
+      retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
     throw "loam: movement requires valid effect tokens and nonzero JPY quantities"

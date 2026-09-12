@@ -1,6 +1,6 @@
+import Loam.ActualAuthority
 import Loam.ActualRoutingReview
 import Loam.Core.Capacity
-import Loam.MovementManifestAuthority
 import Loam.Persistence.CapacityPersistence
 
 open Loam.Core
@@ -43,7 +43,7 @@ private def publishWorld
     discharges := []
     locusAdmission := locusAdmission
   }
-  match ← Loam.MovementManifestAuthority.publishWorld? manifestRoot world with
+  match ← Loam.ActualAuthority.publishWorld? manifestRoot world with
   | .ok _ => pure ()
   | .error message => throw (IO.userError message)
 

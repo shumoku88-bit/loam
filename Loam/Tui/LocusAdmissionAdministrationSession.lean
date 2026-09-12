@@ -1,6 +1,6 @@
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRolePublisher
-import Loam.MovementManifestAuthority
+import Loam.ActualAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tui.AccountingRoleAdministration
@@ -57,7 +57,7 @@ private def runInitialRoleAdministration
   let scheduledFile := dataDir / "scheduled.loam"
   let roleFile := dataDir / "accounting-role.loam"
   let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+    match ← Loam.ActualAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => return "AccountingRole unavailable: " ++ message
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
@@ -67,7 +67,7 @@ private def runInitialRoleAdministration
   let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
     | return "AccountingRole unavailable: authority is malformed or unsupported."
   let candidates := Loam.AccountingRolePublisher.eligibleInitialLoci
-    world lifecycle.scheduled roles
+    world.locusAdmission world.events lifecycle.scheduled roles
   let admin := Loam.Tui.AccountingRoleAdministration.initial candidates
   let adminFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds admin)
   Loam.Tui.Terminal.redrawFromBlank bounds adminFrame

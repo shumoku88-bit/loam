@@ -1,10 +1,10 @@
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.Persistence.EventPersistence
-import Loam.Persistence.ActualValidityPersistence
-import Loam.Persistence.EventDescriptionPersistence
+import Loam.ActualAuthority
+import Loam.ActualDate
+import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
-import Loam.MovementManifestAuthority
+import Loam.Persistence.TextEscape
+import Loam.Persistence.TokenSyntax
 
 namespace Loam.ActualReview
 
@@ -16,8 +16,8 @@ set_option autoImplicit false
 # Actual review projection and read boundary
 
 The line CLI and TUI share this correction-aware, occurrence-date-aware answer.
-Retained Event / ActualValidity / EventDescription / EventCorrection evidence
-remains authoritative. `Record` is transient review evidence only.
+Authoritative Actual evidence is loaded from `actual.loam`.
+`Record` is transient review evidence only.
 -/
 
 structure Record where
@@ -39,7 +39,7 @@ def weekDays (ending : String) : List String :=
 
 def displayText (text : String) : String :=
   (Loam.Persistence.escapeText text).map fun c =>
-    if c.toNat < 32 || (c.toNat >= 127 && c.toNat < 160) then '�' else c
+    if c.toNat < 32 || (c.toNat >= 127 && c.toNat < 160) then '\uFFFD' else c
 
 def shortText (limit : Nat) (text : String) : String :=
   let text := displayText text
@@ -102,97 +102,51 @@ def detailLines (records : List Record) (record : Record) : List String :=
       record.event.effects.map fun effect => "  " ++ displayText (effectText effect)
   [heading] ++ corrects ++ effects
 
-private def loadOrEmpty {α : Type} (path : System.FilePath)
-    (loader : System.FilePath → IO (Option α)) (empty : α) : IO (Option α) := do
-  if ← path.pathExists then loader path else return some empty
-
-private structure ReviewMovementWorld where
-  events : EventMemory
-  validity : Loam.Core.ActualValidityHistory String
-  descriptions : EventDescriptionMemory
-
-private def loadSidecarWorld?
-    (memoryFile : System.FilePath) : IO (Except String ReviewMovementWorld) := do
-  if !(← memoryFile.pathExists) then
-    return .error ("loam: file not found: " ++ memoryFile.toString)
-  let some memory ← Loam.Persistence.loadEventMemory? memoryFile
-    | return .error "loam: malformed or unsupported event-memory file"
-  let some history ← Loam.Persistence.loadActualValidityHistoryOrEmpty?
-      (Loam.Persistence.actualValidityPathForEventMemory memoryFile)
-    | return .error "loam: malformed or unsupported actual-validity history"
-  let some descriptions ← loadOrEmpty
-      (Loam.Persistence.eventDescriptionPathForEventMemory memoryFile)
-      Loam.Persistence.loadEventDescriptionMemory? EventDescriptionMemory.empty
-    | return .error "loam: malformed or unsupported event-description memory"
-  return .ok { events := memory, validity := history, descriptions := descriptions }
-
-private def loadManifestWorld?
-    (manifestRoot : System.FilePath) : IO (Except String ReviewMovementWorld) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
-  | .error message => return .error message
-  | .ok evidence =>
-      return .ok {
-        events := evidence.events
-        validity := evidence.validity
-        descriptions := evidence.descriptions
-      }
-
-private def loadCorrections?
-    (correctionPath : Option String) : IO (Option EventCorrectionMemory) := do
-  match correctionPath with
-  | some path =>
-      Loam.Persistence.loadEventCorrectionMemoryOrEmpty? (System.FilePath.mk path)
-  | none => EventCorrectionMemory.ofCorrections? [] |> pure
-
-private def recordsFromWorld?
-    (world : ReviewMovementWorld)
-    (corrections : EventCorrectionMemory) : Except String (List Record) :=
-  match Loam.Application.correctionFrontierMemory? world.events corrections with
+/--
+Project transient review records from authoritative Actual evidence.
+-/
+def recordsFromActualEvidence?
+    (evidence : ActualEvidence) : Except String (List Record) :=
+  match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
   | none =>
       .error "loam: movement corrections do not justify one current record frontier"
   | some frontier =>
-      match Loam.Application.admittedActualValidityMemory? world.validity with
+      match Loam.Application.admittedActualValidityMemory? evidence.validity with
       | none =>
           .error "loam: actual-validity corrections do not justify one current date per event"
       | some validities =>
-          .ok (world.events.events.map fun event => {
+          .ok (evidence.events.events.map fun event => {
             event := event
             date := validities.findByEventId? event.id
-            description := (world.descriptions.findText? event.id).getD ""
-            replacement := (corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
+            description := (evidence.descriptions.findText? event.id).getD ""
+            replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
             isCurrent := (frontier.findById? event.id).isSome
           })
 
-private def finishLoad?
-    (worldResult : Except String ReviewMovementWorld)
-    (correctionPath : Option String) : IO (Except String (List Record)) := do
-  let world ←
-    match worldResult with
-    | .error message => return .error message
-    | .ok world => pure world
-  let some corrections ← loadCorrections? correctionPath
-    | return .error "loam: malformed or unsupported correction-memory file"
-  return recordsFromWorld? world corrections
+/--
+Load authoritative review records from the normalized Actual authority file.
+-/
+def loadRecordsFromActual
+    (root : System.FilePath) : IO (Except String (List Record)) := do
+  let path :=
+    if root.fileName == some Loam.ActualAuthority.actualFileName then root
+    else Loam.ActualAuthority.actualPath root
+  match ← Loam.ActualAuthority.loadActualFile? path with
+  | .error message => return .error message
+  | .ok evidence => return recordsFromActualEvidence? evidence
 
+/--
+Load records from repository root or actual.loam path.
+-/
+def loadRecords
+    (path : String)
+    (_correctionPath : Option String := none) : IO (Except String (List Record)) :=
+  loadRecordsFromActual (System.FilePath.mk path)
+
+/-- Backward-compatible alias for existing call sites. -/
 def loadRecordsFromManifest
     (manifestRoot : System.FilePath)
-    (correctionPath : Option String) : IO (Except String (List Record)) := do
-  finishLoad? (← loadManifestWorld? manifestRoot) correctionPath
-
-def loadRecordsFromSidecar
-    (memoryFile : System.FilePath)
-    (correctionPath : Option String) : IO (Except String (List Record)) := do
-  finishLoad? (← loadSidecarWorld? memoryFile) correctionPath
-
-def loadRecords
-    (memoryPath : String)
-    (correctionPath : Option String) : IO (Except String (List Record)) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some rootPath =>
-      if rootPath.isEmpty then
-        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      loadRecordsFromManifest (System.FilePath.mk rootPath) correctionPath
-  | none =>
-      loadRecordsFromSidecar (System.FilePath.mk memoryPath) correctionPath
+    (_correctionPath : Option String := none) : IO (Except String (List Record)) :=
+  loadRecordsFromActual manifestRoot
 
 end Loam.ActualReview

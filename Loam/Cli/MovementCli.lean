@@ -1,6 +1,6 @@
 import Loam.ActualDate
+import Loam.ActualAuthority
 import Loam.MovementAdmission
-import Loam.MovementManifestAuthority
 import Loam.MovementPublisher
 import Loam.Cli.Movement.Entry
 import Loam.Cli.Movement.RelationEntry
@@ -39,25 +39,29 @@ private def practicalDescription : IO (Option String) := do
       else
         return none
 
-/-- Resolve the single supported Movement publication authority. -/
-private def manifestRoot? : IO (Except String String) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | none =>
-      return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT is required for Movement publication"
-  | some rootPath =>
-      if rootPath.isEmpty then
-        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      return .ok rootPath
+/-- Resolve the New-only canonical data directory. -/
+private def resolveDataDir (args : List String) : IO (Except String String) := do
+  match args with
+  | [] =>
+      match ← IO.getEnv "LOAM_DATA_DIR" with
+      | some path =>
+          if path.isEmpty then return .error "loam: LOAM_DATA_DIR must not be empty"
+          return .ok path
+      | none => return .ok "../loam-data"
+  | [path] =>
+      if path.isEmpty then return .error "loam: data directory must not be empty"
+      return .ok path
+  | _ => return .error "loam: movement accepts at most one LOAM_DATA_DIR argument"
 
 /--
-Verify the selected manifest generation before human input.
+Verify the current normalized Actual authority before human input.
 
-This is observational only. `MovementPublisher` re-reads current selected
-authority under writer ownership after the draft is complete, so human think time
-does not authorize publication from stale state.
+This is observational only. `MovementPublisher` re-reads current authority under
+writer ownership after the draft is complete, so human think time does not
+authorize publication from stale state.
 -/
 private def preflightForDraft (rootPath : String) : IO (Except String Unit) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+  match ← Loam.ActualAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
   | .error message => return .error message
   | .ok _ => return .ok ()
 
@@ -159,46 +163,32 @@ private def showAdmissionPreview
 /--
 Record one balanced human-facing JPY movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
-more explicit relation discharges.
-
-The CLI is now a thin presentation adapter over the same manifest-aware
-`MovementPublisher` used by the production TUI. It owns no sidecar publication
-protocol. `LOAM_MOVEMENT_MANIFEST_ROOT` is required; selected authority is
-verified before input and re-read by the publisher under writer ownership before
-publication.
-
-The legacy `MEMORY_FILE` argument is retained only as a script-compatibility
-placeholder in this slice and is not consulted for Movement authority.
+more explicit relation discharges against the New-only canonical data directory.
 -/
-def recordMovement (_memoryPath : String) : IO UInt32 := do
-  match ← manifestRoot? with
+def recordMovement (rootPath : String) : IO UInt32 := do
+  match ← collectMovementDraft rootPath with
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok rootPath =>
-      match ← collectMovementDraft rootPath with
+  | .ok draft =>
+      match ← Loam.MovementPublisher.publishDraftWithPreview
+          rootPath draft fun receipt =>
+            showAdmissionPreview
+              draft.total draft.validOn draft.description
+              receipt.relationCount receipt.dischargeCount receipt.eventId with
       | .error message =>
           IO.eprintln message
           return 2
-      | .ok draft =>
-          match ← Loam.MovementPublisher.publishManifestDraftWithPreview
-              rootPath draft fun receipt =>
-                showAdmissionPreview
-                  draft.total draft.validOn draft.description
-                  receipt.relationCount receipt.dischargeCount receipt.eventId with
-          | .error message =>
-              IO.eprintln message
-              return 2
-          | .ok _ =>
-              IO.println
-                ("Recorded movement: " ++ toString draft.total ++
-                  " jpy. Date: " ++ draft.validOn ++ ".")
-              return 0
+      | .ok _ =>
+          IO.println
+            ("Recorded movement: " ++ toString draft.total ++
+              " jpy. Date: " ++ draft.validOn ++ ".")
+          return 0
 
 private def usage : String :=
   "Record one balanced JPY movement:\n" ++
-  "  LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE\n\n" ++
-  "MEMORY_FILE is retained as a compatibility placeholder and is not Movement authority.\n" ++
+  "  ./tools/loam movement [LOAM_DATA_DIR]\n\n" ++
+  "If LOAM_DATA_DIR is omitted, the LOAM_DATA_DIR environment variable is used, then ../loam-data.\n" ++
   "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation and relation discharge evidence.\n" ++
   "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
   "LOAM_RELATIONS rows: EFFECT_KEY<TAB>E2H|H2E<TAB>EXTERNAL_ID<TAB>POSITIVE_QUANTITY.\n" ++
@@ -207,12 +197,12 @@ private def usage : String :=
   "enter one or more TO loci and amounts and blank the next TO locus.\n" ++
   "The FROM and TO totals must match exactly."
 
-def run (args : List String) : IO UInt32 :=
-  match args with
-  | [memoryPath] => recordMovement memoryPath
-  | _ => do
+def run (args : List String) : IO UInt32 := do
+  match ← resolveDataDir args with
+  | .error _ =>
       IO.eprintln usage
       return 2
+  | .ok rootPath => recordMovement rootPath
 
 end Loam.MovementCli
 

@@ -1,12 +1,11 @@
+import Loam.ActualAuthority
+import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Core.BalancedMovement
 import Loam.FreshNumberedToken
-import Loam.MovementManifestAuthority
-import Loam.Persistence.EventCorrectionPersistence
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
-import Loam.Persistence.ActualReversalPersistence
-import Loam.WriterOwnership
 
 namespace Loam.CorrectionPublisher
 
@@ -28,19 +27,9 @@ structure Receipt where
   deriving Repr
 
 private structure Admitted where
-  world : Loam.MovementAdmission.World
-  corrections : EventCorrectionMemory
+  evidence : ActualEvidence
   correctionChanged : Bool
   receipt : Receipt
-
-/-- Missing Reversal authority is not absence-as-empty. -/
-private def loadReversals?
-    (path : System.FilePath) : IO (Except String ActualReversalMemory) := do
-  if !(← path.pathExists) then
-    return .error "loam: Actual reversal authority is missing; Correction cannot prove reversal independence"
-  match ← Loam.Persistence.loadActualReversalMemory? path with
-  | some memory => return .ok memory
-  | none => return .error "loam: Actual reversal authority is malformed or unsupported"
 
 private def correctionMentionsEvent
     (corrections : EventCorrectionMemory) (id : EventId) : Bool :=
@@ -60,34 +49,30 @@ private def descriptionsMentionEvent
   (descriptions.findText? id).isSome
 
 private def relationsMentionEvent
-    (world : Loam.MovementAdmission.World) (id : EventId) : Bool :=
-  world.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
-    world.discharges.any (fun discharge => decide (discharge.event = id))
+    (evidence : ActualEvidence) (id : EventId) : Bool :=
+  evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
+    evidence.discharges.any (fun discharge => decide (discharge.event = id))
 
 private def eventIdentityReserved
-    (world : Loam.MovementAdmission.World)
-    (corrections : EventCorrectionMemory)
-    (reversals : ActualReversalMemory)
+    (evidence : ActualEvidence)
     (id : EventId) : Bool :=
-  (EventMemory.findById? world.events id).isSome ||
-    historyMentionsEvent world.validity id ||
-    descriptionsMentionEvent world.descriptions id ||
-    relationsMentionEvent world id ||
-    correctionMentionsEvent corrections id ||
-    reversalMentionsEvent reversals id
+  (EventMemory.findById? evidence.events id).isSome ||
+    historyMentionsEvent evidence.validity id ||
+    descriptionsMentionEvent evidence.descriptions id ||
+    relationsMentionEvent evidence id ||
+    correctionMentionsEvent evidence.corrections id ||
+    reversalMentionsEvent evidence.reversals id
 
 private def freshReplacementId?
-    (world : Loam.MovementAdmission.World)
-    (corrections : EventCorrectionMemory)
-    (reversals : ActualReversalMemory) : Option EventId := do
+    (evidence : ActualEvidence) : Option EventId := do
   let token ← Loam.firstUnusedNumberedToken?
     "replacement-"
-    (fun token => eventIdentityReserved world corrections reversals (⟨token⟩ : EventId))
+    (fun token => eventIdentityReserved evidence (⟨token⟩ : EventId))
     1
-    (world.events.events.length + world.validity.facts.length +
-      world.descriptions.entries.length + world.relations.length +
-      world.discharges.length + 2 * corrections.corrections.length +
-      2 * reversals.reversals.length + 1)
+    (evidence.events.events.length + evidence.validity.facts.length +
+      evidence.descriptions.entries.length + evidence.relations.length +
+      evidence.discharges.length + 2 * evidence.corrections.corrections.length +
+      2 * evidence.reversals.reversals.length + 1)
   pure ⟨token⟩
 
 private def currentFactForEvent?
@@ -112,10 +97,16 @@ private def pendingCorrectionForTarget?
   | _ =>
       .error "loam: multiple correction relations target the selected Actual; no retry winner is implied"
 
+/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
+private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
+  match effect.key with
+  | none => true
+  | some key => Loam.Persistence.validToken key.token
+
 private def movementEffectsValid (effects : List Effect) : Bool :=
   if effects.isEmpty then false
   else if !effects.all (fun effect =>
-      Loam.Persistence.validToken effect.key.token &&
+      retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
     false
@@ -174,49 +165,48 @@ private def appendDescription?
       | none => throw "loam: could not append replacement description"
 
 private def admit?
-    (world : Loam.MovementAdmission.World)
-    (corrections : EventCorrectionMemory)
-    (reversals : ActualReversalMemory)
+    (evidence : ActualEvidence)
+    (locusAdmission : LocusAdmissionVocabulary)
     (draft : Draft) : Except String Admitted := do
   if !movementEffectsValid draft.effects then
     throw "loam: correction replacement must be one balanced nonzero JPY Movement"
-  if !world.locusAdmission.admitsEffects draft.effects then
+  if !locusAdmission.admitsEffects draft.effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
   let rawTarget ←
-    match EventMemory.findById? world.events draft.target with
+    match EventMemory.findById? evidence.events draft.target with
     | some event => pure event
     | none => throw "loam: selected correction target is not retained"
   if !movementEffectsValid rawTarget.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY correction entrance"
-  if relationsMentionEvent world draft.target then
+  if relationsMentionEvent evidence draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"
-  if reversalMentionsEvent reversals draft.target then
+  if reversalMentionsEvent evidence.reversals draft.target then
     throw "loam: correction of an Actual participating in Reversal evidence is not yet qualified"
 
   let currentFacts ←
-    match Loam.Application.admittedActualValidityFacts? world.validity with
+    match Loam.Application.admittedActualValidityFacts? evidence.validity with
     | some facts => pure facts
     | none => throw "loam: actual-validity corrections do not justify one current date per Event"
 
-  let pending? ← pendingCorrectionForTarget? world.events corrections draft.target
+  let pending? ← pendingCorrectionForTarget? evidence.events evidence.corrections draft.target
   let correction ←
     match pending? with
     | some correction => pure correction
     | none =>
-        let _ ← targetCurrent? world.events corrections draft.target
+        let _ ← targetCurrent? evidence.events evidence.corrections draft.target
         let replacement ←
-          match freshReplacementId? world corrections reversals with
+          match freshReplacementId? evidence with
           | some id => pure id
           | none => throw "loam: could not generate a fresh replacement Event identity"
         pure { target := draft.target, replacement := replacement }
 
   if correction.target != draft.target then
     throw "loam: internal correction target mismatch"
-  if (EventMemory.findById? world.events correction.replacement).isSome then
+  if (EventMemory.findById? evidence.events correction.replacement).isSome then
     throw "loam: selected Actual already has a published replacement"
-  if descriptionsMentionEvent world.descriptions correction.replacement ||
-      relationsMentionEvent world correction.replacement ||
-      reversalMentionsEvent reversals correction.replacement then
+  if descriptionsMentionEvent evidence.descriptions correction.replacement ||
+      relationsMentionEvent evidence correction.replacement ||
+      reversalMentionsEvent evidence.reversals correction.replacement then
     throw "loam: replacement identity collides with retained non-Event evidence"
 
   let replacement ←
@@ -224,17 +214,17 @@ private def admit?
     | some event => pure event
     | none => throw "loam: replacement Effect identities are not unique"
   let updatedEvents ←
-    match EventMemory.add? world.events replacement with
+    match EventMemory.add? evidence.events replacement with
     | some events => pure events
     | none => throw "loam: replacement Event could not be appended"
   let correctionChanged := pending?.isNone
   let updatedCorrections ←
     if correctionChanged then
-      match corrections.add? correction with
+      match evidence.corrections.add? correction with
       | some memory => pure memory
       | none => throw "loam: correction relation could not be appended"
     else
-      pure corrections
+      pure evidence.corrections
 
   let frontier ←
     match Loam.Application.correctionFrontierMemory? updatedEvents updatedCorrections with
@@ -246,20 +236,20 @@ private def admit?
 
   let targetFact? := currentFactForEvent? currentFacts draft.target
   let (updatedValidity, carriedDate) ←
-    ensureReplacementValidity? world.validity currentFacts targetFact? correction.replacement
+    ensureReplacementValidity? evidence.validity currentFacts targetFact? correction.replacement
   let (updatedDescriptions, publishedDescription) ←
-    appendDescription? world.descriptions correction.replacement draft.description
+    appendDescription? evidence.descriptions correction.replacement draft.description
 
   pure {
-    world := {
+    evidence := {
       events := updatedEvents
       validity := updatedValidity
       descriptions := updatedDescriptions
-      relations := world.relations
-      discharges := world.discharges
-      locusAdmission := world.locusAdmission
+      corrections := updatedCorrections
+      reversals := evidence.reversals
+      relations := evidence.relations
+      discharges := evidence.discharges
     }
-    corrections := updatedCorrections
     correctionChanged := correctionChanged
     receipt := {
       target := draft.target
@@ -271,56 +261,39 @@ private def admit?
   }
 
 private def publishUnderOwnership
-    (root correctionFile : System.FilePath)
+    (root : System.FilePath)
     (draft : Draft) : IO (Except String Receipt) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
     | .error message => return .error message
-  let corrections ←
-    match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
-    | some memory => pure memory
-    | none => return .error "loam: malformed or unsupported correction-memory file"
-  let reversalFile := correctionFile.withFileName "actual-reversals.loam"
-  let reversals ←
-    match ← loadReversals? reversalFile with
-    | .ok memory => pure memory
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
     | .error message => return .error message
   let admitted ←
-    match admit? world corrections reversals draft with
+    match admit? evidence locusAdmission draft with
     | .ok admitted => pure admitted
     | .error message => return .error message
 
-  let prepared ←
-    match ← Loam.MovementManifestAuthority.prepareWorld? root admitted.world with
-    | .ok prepared => pure prepared
-    | .error message => return .error message
-  if admitted.correctionChanged then
-    if !(← Loam.Persistence.saveEventCorrectionMemory? correctionFile admitted.corrections) then
-      return .error "loam: correction relation could not be published"
-  match ← Loam.MovementManifestAuthority.commitPrepared? root prepared with
+  match ← Loam.ActualAuthority.publishActual? root admitted.evidence with
   | .error message => return .error message
   | .ok () => return .ok admitted.receipt
 
 /--
-Publish one practical Movement correction against current manifest authority.
-
-The publisher re-reads selected Movement, Correction, and the explicit complete
-`actual-reversals.loam` sibling of the configured Correction authority while
-holding Movement `CURRENT`. Missing/malformed Reversal authority fails closed.
-An Actual named as either Reversal target or inverse cannot be corrected until
-inheritance semantics are separately qualified.
+Publish one practical Movement correction against normalized Actual authority.
 -/
-def publishManifestCorrection
-    (rootPath correctionPath : String) (draft : Draft) : IO (Except String Receipt) := do
+def publishCorrection
+    (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-  if correctionPath.isEmpty then
-    return .error "loam: correction path must not be empty"
+    return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
-  let correctionFile := System.FilePath.mk correctionPath
-  Loam.WriterOwnership.withOwnership
-    (root / "CURRENT")
-    (publishUnderOwnership root correctionFile draft)
+  Loam.ActualAuthority.withActualOwnership root
+    (publishUnderOwnership root draft)
+
+/-- Backward-compatible alias for existing call sites. -/
+def publishManifestCorrection
+    (rootPath : String) (_correctionPath : String) (draft : Draft) : IO (Except String Receipt) :=
+  publishCorrection rootPath draft
 
 end Loam.CorrectionPublisher

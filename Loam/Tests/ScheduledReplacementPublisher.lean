@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledReview
 import Loam.ScheduledTerminalPublisher
@@ -75,7 +76,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000

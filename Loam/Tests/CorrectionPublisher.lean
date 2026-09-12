@@ -1,7 +1,7 @@
+import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.CorrectionPublisher
 import Loam.MovementPublisher
-import Loam.Persistence.ActualReversalPersistence
 
 open Loam.Core
 
@@ -43,12 +43,9 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   let root := dataDir / "movement-authority"
   let correctionFile := dataDir / "corrections.loam"
-  let reversalFile := dataDir / "actual-reversals.loam"
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
-  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
-    "initialize explicit empty reversal authority"
   let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
@@ -62,21 +59,19 @@ def main (args : List String) : IO Unit := do
   let refusedUnbalanced ← Loam.CorrectionPublisher.publishManifestCorrection
     root.toString correctionFile.toString unbalanced
   expect (!refusedUnbalanced.isOk) "unbalanced correction replacement was admitted"
-  expect (!(← correctionFile.pathExists)) "refused correction created correction authority"
 
-  let .ok selected ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
-  let beforeRefusal ← IO.FS.readFile (root / "CURRENT")
+  let beforeRefusal ← IO.FS.readFile (root / "actual.loam")
   let refusedPolicy ← Loam.CorrectionPublisher.publishManifestCorrection
     root.toString correctionFile.toString correctionDraft
   expect (!refusedPolicy.isOk) "correction bypassed current Locus new-write policy"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == beforeRefusal)
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforeRefusal)
     "Locus-policy refusal changed selected manifest authority"
-  expect (!(← correctionFile.pathExists)) "Locus-policy refusal published a correction relation"
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root selected
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root selected
     | throw (IO.userError "restore Locus policy")
 
   let .ok receipt ← Loam.CorrectionPublisher.publishManifestCorrection
@@ -87,14 +82,14 @@ def main (args : List String) : IO Unit := do
   expect (receipt.publishedDescription) "explicit replacement description was not published"
   expect (!receipt.resumed) "fresh correction was reported as a resumed publication"
 
-  let some correctionMemory ← Loam.Persistence.loadEventCorrectionMemory? correctionFile
-    | throw (IO.userError "reload correction sidecar")
-  expect (correctionMemory.corrections.length == 1) "correction relation count changed"
-  expect (correctionMemory.corrections.any fun correction =>
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
+  expect (actualEvidence.corrections.corrections.length == 1) "correction relation count changed"
+  expect (actualEvidence.corrections.corrections.any fun correction =>
       correction.target == recorded.eventId && correction.replacement == receipt.replacement)
     "published correction relation lost its endpoints"
 
-  let .ok world ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload corrected manifest")
   expect ((EventMemory.findById? world.events recorded.eventId).isSome)
     "append-only correction rewrote the original Event"

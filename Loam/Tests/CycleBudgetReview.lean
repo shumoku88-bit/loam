@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.CycleBudgetReview
 
 open Loam.Core
@@ -13,6 +14,8 @@ def main (args : List String) : IO Unit := do
   let [path] := args | throw (IO.userError "supply isolated fixture directory")
   let root := System.FilePath.mk path
   IO.FS.createDirAll (root / "config")
+
+  -- 1. Minimal synthetic evidence
   let fundingPath := root / "config" / "cycle-funding.tsv"
   let config := "cash\tjpy\n"
   expect ((Loam.CycleFundingConfig.decode? config).isSome) "valid config"
@@ -26,8 +29,9 @@ def main (args : List String) : IO Unit := do
   let world : Loam.MovementAdmission.World := {
     events := { events := [], idNodup := by simp }
     validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
-    descriptions := .empty, relations := [], discharges := [] }
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? (root / "movement-authority") world
+    descriptions := .empty, relations := [], discharges := []
+    locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
     | throw (IO.userError "publish fixture world")
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates?
     [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
@@ -44,7 +48,7 @@ def main (args : List String) : IO Unit := do
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
     { scheduled, terminals }) "save lifecycle"
-  let load := Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") "2026-09-08"
+  let load := Loam.CycleBudgetReview.loadSnapshotAt root root "2026-09-08"
   let missing ← load
   expect (missing.coverage.isOk && missing.physical.isOk && !missing.funding.isOk)
     "missing funding config damaged independent layers"

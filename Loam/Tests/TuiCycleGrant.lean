@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.CapacityPublisher
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
@@ -39,8 +40,9 @@ def main (args : List String) : IO Unit := do
   let world : Loam.MovementAdmission.World := {
     events := { events := [], idNodup := by simp }
     validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
-    descriptions := .empty, relations := [], discharges := [] }
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? (root / "movement-authority") world
+    descriptions := .empty, relations := [], discharges := []
+    locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
+  let .ok _ ← Loam.ActualAuthority.publishWorld? (root / "movement-authority") world
     | throw (IO.userError "publish fixture world")
 
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates? [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]) "zero-origin"

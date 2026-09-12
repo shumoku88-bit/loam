@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.LocusAdmissionPublisher
 
 open Loam.Core
@@ -42,7 +43,7 @@ def main (args : List String) : IO Unit := do
     "persistence-invalid stable token was accepted"
 
   let root := System.FilePath.mk rootPath
-  match ← Loam.MovementManifestAuthority.publishWorld? root w with
+  match ← Loam.ActualAuthority.publishWorld? root w with
   | .error message => throw (IO.userError message)
   | .ok _ => pure ()
 
@@ -69,26 +70,21 @@ def main (args : List String) : IO Unit := do
     "local authority did not retain the published admission vocabulary"
 
   let loaded ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+    match ← Loam.ActualAuthority.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => throw (IO.userError message)
   expect (loaded.locusAdmission.approved == policyAfter.approved)
     "manifest-backed representation disagreed with the local policy authority"
-  expect (Loam.Persistence.encodeEventMemory? loaded.events ==
-      Loam.Persistence.encodeEventMemory? w.events)
-    "admission publication changed Event evidence wire"
-  expect (Loam.Persistence.encodeActualValidityHistory? loaded.validity ==
-      Loam.Persistence.encodeActualValidityHistory? w.validity)
-    "admission publication changed ActualValidity evidence wire"
-  expect (Loam.Persistence.encodeEventDescriptionMemory? loaded.descriptions ==
-      Loam.Persistence.encodeEventDescriptionMemory? w.descriptions)
-    "admission publication changed description evidence wire"
-  expect (Loam.Persistence.encodeOpenRelationUnits? loaded.relations ==
-      Loam.Persistence.encodeOpenRelationUnits? w.relations)
-    "admission publication changed relation evidence wire"
-  expect (Loam.Persistence.encodeRelationDischarges? loaded.discharges ==
-      Loam.Persistence.encodeRelationDischarges? w.discharges)
-    "admission publication changed discharge evidence wire"
+  expect (loaded.events.events.isEmpty)
+    "admission publication changed Event evidence"
+  expect (loaded.validity.facts.isEmpty && loaded.validity.corrections.isEmpty)
+    "admission publication changed ActualValidity evidence"
+  expect (loaded.descriptions.entries.isEmpty)
+    "admission publication changed description evidence"
+  expect (loaded.relations.isEmpty)
+    "admission publication changed relation evidence"
+  expect (loaded.discharges.isEmpty)
+    "admission publication changed discharge evidence"
 
   expect (!(← Loam.LocusAdmissionPublisher.publishManifestAdmission
       rootPath { token := "stationery" }).isOk)

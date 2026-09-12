@@ -32,16 +32,11 @@ private def readOnlySafety : String :=
 /-- Translate one exact fail-closed read refusal without hiding its technical cause. -/
 def explainReadFailure (area message : String) : Diagnosis :=
   let situation :=
-    if message == "loam: selected Movement manifest CURRENT is missing" then
-      "The selected Movement authority is unavailable, so LOAM will not guess which household generation is current."
-    else if message == "loam: selected Movement manifest CURRENT is malformed or unsupported" then
-      "The selected Movement authority cannot be verified, so LOAM refused to treat it as current household data."
-    else if message.startsWith "loam: selected Movement object is missing:" then
-      "The selected Movement generation is incomplete because one of its referenced objects is missing."
-    else if message.startsWith "loam: selected Movement object failed digest verification:" then
-      "The selected Movement generation failed integrity verification and was not trusted."
-    else if message == "loam: selected Movement generation failed production typed decoding" then
-      "The selected Movement generation is present but cannot be decoded as the production household model."
+    if message.startsWith "loam: actual authority not found:" then
+      "The actual.loam authority file is missing, so LOAM will not guess household actual facts."
+    else if message.startsWith "loam: actual authority is malformed or unsupported:" ||
+        message.startsWith "loam: malformed or unsupported actual file:" then
+      "The actual.loam authority file cannot be verified, so LOAM refused to treat it as current household data."
     else if message == "loam: Scheduled lifecycle authority is missing, malformed, or unsupported" then
       "Scheduled household evidence cannot be verified. LOAM will not reinterpret missing or malformed Scheduled data as an empty schedule."
     else if message.startsWith "loam: Scheduled completion refers to an unknown" ||
@@ -57,12 +52,9 @@ def explainReadFailure (area message : String) : Diagnosis :=
     else
       "LOAM could not verify the household evidence needed for this view and stopped instead of manufacturing an answer."
   let nextAction :=
-    if message == "loam: selected Movement manifest CURRENT is missing" then
-      "Check the configured Movement authority root. Select or restore a previously qualified CURRENT generation before attempting a write."
-    else if message.startsWith "loam: selected Movement manifest CURRENT" ||
-        message.startsWith "loam: selected Movement object" ||
-        message == "loam: selected Movement generation failed production typed decoding" then
-      "Keep the failing generation unchanged for diagnosis. Select or restore a previously qualified Movement generation, then retry the read before writing."
+    if message.startsWith "loam: actual authority" ||
+        message.startsWith "loam: malformed or unsupported actual file:" then
+      "Keep the failing actual.loam unchanged for diagnosis. Restore from backup or investigate syntax errors."
     else if message.startsWith "loam: Scheduled" then
       "Inspect the retained Scheduled lifecycle authority and restore or migrate it through a qualified path. Do not replace the failure with an empty schedule."
     else if message == "loam: could not determine the local date" then
@@ -84,12 +76,11 @@ def diagnoseStartupRead
     (dataDir manifestRoot : System.FilePath) : IO (Except Diagnosis Unit) := do
   let some _today ← Loam.ActualDate.todayIso?
     | return .error (explainReadFailure "Environment" "loam: could not determine the local date")
-  match ← Loam.ActualReview.loadRecordsFromManifest
-      manifestRoot (some ((dataDir / "corrections.loam").toString)) with
+  match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
   | .error message =>
       return .error (explainReadFailure "Actual / Movement" message)
   | .ok _ => pure ()
-  match ← Loam.ScheduledReview.loadEvidenceFromManifest
+  match ← Loam.ScheduledReview.loadEvidenceFromActual
       (dataDir / "scheduled.loam") manifestRoot with
   | .error message =>
       return .error (explainReadFailure "Scheduled" message)

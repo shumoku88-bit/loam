@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.CurrentCoverageReview
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.CapacityPersistence
@@ -112,7 +113,7 @@ def main (args : List String) : IO Unit := do
     "save Actual routing"
 
   let world ← movementWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? manifestRoot world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
     | throw (IO.userError "publish selected Movement world")
 
   let scheduled ← scheduledOccurrence
