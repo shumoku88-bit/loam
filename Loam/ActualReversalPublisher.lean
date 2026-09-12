@@ -39,12 +39,10 @@ structure Receipt where
   target : EventId
   reversal : EventId
   validOn : String
-  resumed : Bool
   deriving Repr
 
 private structure Admitted where
   evidence : ActualEvidence
-  reversalChanged : Bool
   receipt : Receipt
 
 private def loadScheduledLifecycle?
@@ -109,17 +107,6 @@ private def eventIdentityReserved
     evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
     evidence.discharges.any (fun discharge => decide (discharge.event = id))
 
-private def pendingForTarget?
-    (events : EventMemory)
-    (memory : ActualReversalMemory)
-    (target : EventId) : Except String (Option ActualReversal) :=
-  match memory.findByTarget? target with
-  | none => .ok none
-  | some relation =>
-      match EventMemory.findById? events relation.reversal with
-      | none => .ok (some relation)
-      | some _ => .error "loam: selected Actual is already reversed"
-
 private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
@@ -131,6 +118,8 @@ private def admit?
     throw "loam: reversal target identity is not persistable"
   if (evidence.reversals.findByReversal? draft.target).isSome then
     throw "loam: reversal-of-reversal chains are not yet qualified"
+  if (evidence.reversals.findByTarget? draft.target).isSome then
+    throw "loam: selected Actual is already reversed"
   if worldRelationsMentionEvent evidence draft.target then
     throw "loam: reversal of an Actual referenced by retained relation/discharge evidence is not yet qualified"
   if scheduledCompletionMentionsEvent lifecycle draft.target then
@@ -140,23 +129,16 @@ private def admit?
   if !practicalTargetMovementValid target.effects then
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
-  let pending? ← pendingForTarget? evidence.events evidence.reversals draft.target
-  let relation ←
-    match pending? with
-    | some relation => pure relation
-    | none =>
-        let reversal := deterministicReversalId draft.target
-        if eventIdentityReserved evidence reversal then
-          throw "loam: deterministic reversal Event identity collides with retained Movement evidence"
-        if (evidence.reversals.findByReversal? reversal).isSome then
-          throw "loam: deterministic reversal Event identity is already reserved by another reversal"
-        pure { target := draft.target, reversal := reversal }
+  let reversal := deterministicReversalId draft.target
+  if eventIdentityReserved evidence reversal then
+    throw "loam: deterministic reversal Event identity collides with retained Movement evidence"
+  if (evidence.reversals.findByReversal? reversal).isSome then
+    throw "loam: deterministic reversal Event identity is already reserved by another reversal"
+  let relation : ActualReversal := { target := draft.target, reversal := reversal }
 
   let effects := inverseEffects target
   if !locusAdmission.admitsEffects effects then
     throw "loam: reversal uses a Locus not approved for new publication"
-  if (EventMemory.findById? evidence.events relation.reversal).isSome then
-    throw "loam: selected Actual is already reversed"
 
   let event ←
     match Event.ofEffects? relation.reversal effects with
@@ -177,14 +159,10 @@ private def admit?
       decide (fact.event = relation.reversal ∧ fact.validOn = draft.validOn)) then
     throw "loam: reversal occurrence date did not become current"
 
-  let reversalChanged := pending?.isNone
   let updatedReversals ←
-    if reversalChanged then
-      match evidence.reversals.add? relation with
-      | some memory => pure memory
-      | none => throw "loam: reversal relation could not be appended"
-    else
-      pure evidence.reversals
+    match evidence.reversals.add? relation with
+    | some memory => pure memory
+    | none => throw "loam: reversal relation could not be appended"
 
   pure {
     evidence := {
@@ -196,12 +174,10 @@ private def admit?
       relations := evidence.relations
       discharges := evidence.discharges
     }
-    reversalChanged := reversalChanged
     receipt := {
       target := draft.target
       reversal := relation.reversal
       validOn := draft.validOn
-      resumed := !reversalChanged
     }
   }
 
