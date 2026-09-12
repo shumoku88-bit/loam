@@ -120,30 +120,22 @@ def updateActual? {α : Type}
 /--
 Load the full typed MovementAdmission.World by combining authoritative ActualEvidence
 from `actual.loam` and current new-write policy from `locus-admission.loam`.
+The caller-selected root is exact: missing or malformed authority fails closed
+instead of searching parent directories for a different household authority.
 -/
 def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
   let path :=
     if root.fileName == some actualFileName then root
     else actualPath root
   let dataDir := if root.fileName == some actualFileName then root.parent.getD root else root
-  let (evidence, finalDir) ←
+  let evidence ←
     match ← loadActualFile? path with
-    | .ok ev => pure (ev, dataDir)
-    | .error msg =>
-        if let some parent := root.parent then
-          match ← loadActualFile? (actualPath parent) with
-          | .ok ev => pure (ev, parent)
-          | .error _ => return .error msg
-        else return .error msg
+    | .ok ev => pure ev
+    | .error msg => return .error msg
   let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? finalDir with
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
     | .ok la => pure la
-    | .error msg =>
-        if let some parent := finalDir.parent then
-          match ← Loam.LocusAdmissionAuthority.loadCurrent? parent with
-          | .ok la => pure la
-          | .error _ => return .error msg
-        else return .error msg
+    | .error msg => return .error msg
   return .ok {
     events := evidence.events
     validity := evidence.validity
