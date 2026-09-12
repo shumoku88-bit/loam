@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -21,6 +22,34 @@ def b(text: str) -> bytes:
 
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def effect_semantic_key(effect) -> tuple:
+    return (
+        0 if effect.key is None else 1,
+        "" if effect.key is None else effect.key,
+        effect.locus,
+        effect.measure,
+        effect.quanta,
+    )
+
+
+def semantic_normal(model) -> tuple:
+    rows = []
+    for tx in model.txs:
+        counts = Counter(effect_semantic_key(effect) for effect in tx.effects)
+        rows.append((
+            tx.event,
+            tx.base_date,
+            tx.description,
+            tx.replaces,
+            tx.reversal_of,
+            tuple(sorted(counts.items())),
+            tuple(sorted(tx.revisions)),
+            tuple(sorted(tx.relations)),
+            tuple(sorted(tx.discharges)),
+        ))
+    return tuple(sorted(rows))
 
 
 def write_fixture(root: Path) -> None:
@@ -112,7 +141,7 @@ def main() -> int:
         split = m.load_split(root)
         wire = m.encode(split)
         unified = m.decode(wire)
-        assert m.normal(split) == m.normal(unified)
+        assert semantic_normal(split) == semantic_normal(unified)
 
         tx = {row.event: row for row in unified.txs}
         assert tx["new"].replaces == "old"
