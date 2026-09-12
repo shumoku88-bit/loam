@@ -1,6 +1,7 @@
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRolePublisher
 import Loam.ActualAuthority
+import Loam.HouseholdCommand
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tui.AccountingRoleAdministration
@@ -19,19 +20,19 @@ set_option autoImplicit false
 /-!
 # Locus admission administration terminal session
 
-The session owns only local interaction state. The authoritative Locus write is
-delegated to `LocusAdmissionPublisher.publishAdmission`.
+The session owns only local interaction state. Authoritative writes are delegated
+to the shared household command boundary.
 
 While editing, Tab opens the separate initial-AccountingRole administration
 surface. That surface computes candidates from current authorities and delegates
-its write to `AccountingRolePublisher`; Locus admission and role assignment stay
+its write through `HouseholdCommand`; Locus admission and role assignment stay
 separate publication boundaries even though their terminal orchestration shares
 this session.
 -/
 
 private partial def runInitialRoleEditor
     (bounds : Bounds)
-    (scheduledFile root roleFile : System.FilePath)
+    (root : System.FilePath)
     (state : Loam.Tui.AccountingRoleAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
@@ -40,8 +41,7 @@ private partial def runInitialRoleEditor
     return "AccountingRole assignment cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.AccountingRolePublisher.publishInitialRole
-          scheduledFile.toString root.toString roleFile.toString draft with
+      match ← Loam.HouseholdCommand.assignInitialAccountingRole root draft with
       | .ok receipt =>
           return "Assigned initial AccountingRole to " ++ receipt.locus.token ++ ". Roles: " ++
             toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
@@ -49,7 +49,7 @@ private partial def runInitialRoleEditor
   | none =>
       let nextFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      runInitialRoleEditor bounds scheduledFile root roleFile step.state nextFrame
+      runInitialRoleEditor bounds root step.state nextFrame
 
 private def runInitialRoleAdministration
     (bounds : Bounds)
@@ -71,7 +71,7 @@ private def runInitialRoleAdministration
   let admin := Loam.Tui.AccountingRoleAdministration.initial candidates
   let adminFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds admin)
   Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
-  runInitialRoleEditor bounds scheduledFile root roleFile admin adminFrame
+  runInitialRoleEditor bounds root admin adminFrame
 
 partial def run
     (bounds : Bounds)
@@ -98,7 +98,7 @@ partial def run
       return "Locus admission cancelled."
     match step.publish with
     | some draft =>
-        match ← Loam.LocusAdmissionPublisher.publishAdmission root.toString draft with
+        match ← Loam.HouseholdCommand.admitLocus root draft with
         | .ok receipt =>
             return "Admitted Locus " ++ receipt.locus.token ++ " for new writes. Vocabulary: " ++
               toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."

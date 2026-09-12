@@ -1,4 +1,4 @@
-import Loam.ActualRoutingPublisher
+import Loam.HouseholdCommand
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
@@ -16,8 +16,8 @@ set_option autoImplicit false
 # Actual routing administration terminal session
 
 The session drives presentation-only administration state and delegates the one
-authoritative write to `ActualRoutingPublisher.publish`. The caller reloads the
-shared review after publication.
+authoritative write to the shared household command boundary. The caller reloads
+the shared review after publication.
 -/
 
 private def effectiveText : RoutingEffective String → String
@@ -26,7 +26,7 @@ private def effectiveText : RoutingEffective String → String
 
 partial def run
     (bounds : Bounds)
-    (routingFile : System.FilePath)
+    (root : System.FilePath)
     (state : Loam.Tui.ActualRoutingAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
@@ -35,7 +35,7 @@ partial def run
     return "Actual routing administration cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ActualRoutingPublisher.publish routingFile.toString draft with
+      match ← Loam.HouseholdCommand.routeActual root draft with
       | .ok receipt =>
           let target :=
             match receipt.target with
@@ -47,6 +47,6 @@ partial def run
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds routingFile step.state nextFrame
+      run bounds root step.state nextFrame
 
 end Loam.Tui.ActualRoutingAdministrationSession
