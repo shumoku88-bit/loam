@@ -61,20 +61,20 @@ pred unreferencedEffectsCanRemainKeyless {
 // retains an Effect-level relation. Physical Effect/Event/Payload facts do not
 // change; only identity/reference evidence is added.
 pred relationCanIntroduceOneSparseKey {
-  some disj before, after: World,
+  some disj prior, later: World,
        source, other: Effect,
        k: Key | {
     source != other
     source.event = other.event
 
-    no before.keyOf
-    no before.relationEvent
-    no before.relationKey
+    no prior.keyOf
+    no prior.relationEvent
+    no prior.relationKey
 
-    after.keyOf = source->k
-    after.relationEvent = source.event
-    after.relationKey = k
-    resolved[after, source.event, k] = source
+    later.keyOf = source->k
+    later.relationEvent = source.event
+    later.relationKey = k
+    resolved[later, source.event, k] = source
   }
 }
 
