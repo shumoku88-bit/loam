@@ -11,7 +11,7 @@ open Loam.Core
 
 set_option autoImplicit false
 
-/-- Surface-independent request to attach or replace one current occurrence date. -/
+/-- Surface-independent request to reaffirm or revise one current occurrence date. -/
 structure Draft where
   target : EventId
   validOn : String
@@ -135,7 +135,7 @@ private def publishUnderOwnership
   | .ok () => return .ok receipt
 
 /--
-Publish one occurrence-date attachment/correction against normalized Actual authority.
+Publish one occurrence-date reaffirmation/correction against normalized Actual authority.
 -/
 def publishDate
     (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
