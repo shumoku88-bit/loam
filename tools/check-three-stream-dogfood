@@ -9,10 +9,11 @@ fi
 data_root="$1"
 start="${2:-2026-08-17}"
 end="${3:-2026-10-15}"
+cycle_observed_at="${LOAM_THREE_STREAM_OBSERVED_AT:-2026-09-08}"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 observer="$repo_root/.lake/build/bin/loamHouseholdObservation"
 projector="$repo_root/tools/three-stream-projection.py"
-cycle_check="$repo_root/Loam/Tests/CycleBudgetDogfood.lean"
+cycle_observer="$repo_root/Loam/Tests/ThreeStreamCycleObservation.lean"
 
 if [[ ! -x "$observer" ]]; then
   echo "missing $observer; run: lake build loamHouseholdObservation" >&2
@@ -50,30 +51,30 @@ fi
 printf '%s\n' '== HOBS1 diff =='
 diff -u "$work/original.hobs1" "$work/rebuilt.hobs1"
 
-printf '%s\n' '== CycleBudgetDogfood original =='
+printf '%s\n' '== current CycleBudget observation original =='
 if ! (
   cd "$repo_root"
-  lake env lean --run "$cycle_check" "$data_root"
+  lake env lean --run "$cycle_observer" "$data_root" "$cycle_observed_at"
 ) >"$work/original.cycle" 2>&1; then
   cat "$work/original.cycle" >&2
-  echo 'original CycleBudgetDogfood failed' >&2
+  echo 'original current CycleBudget observation failed' >&2
   exit 1
 fi
 
-printf '%s\n' '== CycleBudgetDogfood rebuilt =='
+printf '%s\n' '== current CycleBudget observation rebuilt =='
 if ! (
   cd "$repo_root"
-  lake env lean --run "$cycle_check" "$rebuilt"
+  lake env lean --run "$cycle_observer" "$rebuilt" "$cycle_observed_at"
 ) >"$work/rebuilt.cycle" 2>&1; then
   cat "$work/rebuilt.cycle" >&2
-  echo 'rebuilt CycleBudgetDogfood failed' >&2
+  echo 'rebuilt current CycleBudget observation failed' >&2
   exit 1
 fi
 
-printf '%s\n' '== CycleBudgetDogfood diff =='
+printf '%s\n' '== current CycleBudget observation diff =='
 diff -u "$work/original.cycle" "$work/rebuilt.cycle"
 
 printf '%s\n' \
   "three-stream dogfood parity passed" \
   "  HOBS1: Balance / Budget / Capacity identical" \
-  "  CycleBudgetDogfood: Funding / CurrentCoverage / Scheduled pressure identical"
+  "  CycleBudgetReview: Funding / CurrentCoverage / Scheduled pressure identical"
