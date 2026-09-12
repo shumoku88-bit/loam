@@ -1,0 +1,98 @@
+name: One-shot post-cutover hygiene
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - '.github/workflows/post-cutover-hygiene-one-shot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hygiene:
+    if: github.head_ref == 'cleanup/post-cutover-hygiene'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: cleanup/post-cutover-hygiene
+
+      - name: Qualify independent current CLI executables
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamDailyQuantity loamJournalExport
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Normalize current CI and test vocabulary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/tui.yml')
+          text = workflow.read_text()
+
+          dead_path = "      - 'Loam/Persistence/ActualReversalPersistence.lean'\n"
+          assert text.count(dead_path) == 2
+          text = text.replace(dead_path, '')
+
+          review_path = "      - 'Loam/Cli/ReviewCli.lean'\n"
+          assert text.count(review_path) == 2
+          text = text.replace(
+              review_path,
+              review_path
+              + "      - 'Loam/Cli/DailyQuantityCli.lean'\n"
+              + "      - 'Loam/Cli/JournalExportCli.lean'\n")
+
+          build_args = '          build-args: loam loamMovement loamTui\n'
+          assert text.count(build_args) == 1
+          text = text.replace(
+              build_args,
+              '          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamTui\n')
+
+          replacements = {
+              'Verify add-only manifest-backed Locus admission':
+                  'Verify add-only Locus admission publication',
+              'Verify manifest-backed shared correction publication':
+                  'Verify normalized Actual correction publication',
+              'Build manifest-backed Balance review boundary':
+                  'Build Actual-backed Balance review boundary',
+              'Verify manifest-backed Balance review boundary':
+                  'Verify Actual-backed Balance review boundary',
+              'Build manifest-backed Budget Window review boundary':
+                  'Build Actual-backed Budget Window review boundary',
+              'Verify manifest-backed Budget Window review boundary':
+                  'Verify Actual-backed Budget Window review boundary',
+              '$(mktemp -d)/movement-authority':
+                  '$(mktemp -d)/actual-root',
+          }
+          for old, new in replacements.items():
+              assert text.count(old) == 1, (old, text.count(old))
+              text = text.replace(old, new)
+          assert 'manifest-backed' not in text
+          workflow.write_text(text)
+
+          test = Path('tests/test_cycle_budget_tui.py')
+          text = test.read_text()
+          old = '    env.pop("LOAM_MOVEMENT_MANIFEST_ROOT", None)\n'
+          assert text.count(old) == 1
+          test.write_text(text.replace(old, ''))
+
+      - name: Retire the one-shot and publish cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/post-cutover-hygiene-one-shot.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'cleanup(ci): align production qualification with Actual authority'
+          git push origin HEAD:cleanup/post-cutover-hygiene
