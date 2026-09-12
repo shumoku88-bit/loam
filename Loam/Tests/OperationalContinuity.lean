@@ -70,13 +70,25 @@ def main (args : List String) : IO Unit := do
       fallbackParent Loam.Core.LocusAdmissionVocabulary.empty with
   | .error message => throw (IO.userError message)
   | .ok () => pure ()
+
   match ← Loam.ActualAuthority.loadSelectedWorld? selectedRoot with
   | .ok _ =>
-      throw (IO.userError "explicit household root silently fell back to parent authority")
+      throw (IO.userError "explicit household root silently fell back to parent Actual authority")
   | .error message =>
       expect
         (message == s!"loam: actual authority not found: {Loam.ActualAuthority.actualPath selectedRoot}")
         "selected household root did not fail at its own Actual authority"
+
+  match ← Loam.ActualAuthority.publishActual? selectedRoot Loam.ActualEvidence.empty with
+  | .error message => throw (IO.userError message)
+  | .ok () => pure ()
+  match ← Loam.ActualAuthority.loadSelectedWorld? selectedRoot with
+  | .ok _ =>
+      throw (IO.userError "explicit household root silently paired with parent Locus admission authority")
+  | .error message =>
+      expect
+        (message == s!"loam: required Locus admission authority not found: {Loam.LocusAdmissionAuthority.locusAdmissionPath selectedRoot}")
+        "selected household root did not fail at its own Locus admission authority"
 
   expect
     (Loam.OperationalContinuity.renderReady.startsWith
