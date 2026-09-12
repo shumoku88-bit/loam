@@ -84,9 +84,11 @@ private def printTx
 private def printRelations
     (evidence : Loam.MovementManifestAuthority.EvidenceWorld) : IO Unit := do
   for relation in evidence.relations do
+    IO.eprintln ("diagnostic: relation frontier begin " ++ relation.id.token)
     let some outstanding := Loam.Application.relationOutstandingQuantity?
         evidence.events evidence.relations evidence.discharges relation.id
       | throw (IO.userError ("production relation frontier unresolved: " ++ relation.id.token))
+    IO.eprintln ("diagnostic: relation frontier end " ++ relation.id.token)
     IO.println <| String.intercalate "\t" [
       "RELATION",
       relation.id.token,
@@ -98,43 +100,84 @@ private def printRelations
       toString outstanding.quanta
     ]
 
+private def selected
+    (mode wanted : String) : Bool :=
+  mode = "all" || mode = wanted
+
 /--
 Test-only observer for differential qualification of the normalized Actual model.
-All semantic calculations delegate to current production read boundaries.  This is
+All semantic calculations delegate to current production read boundaries. This is
 not a second canonical reader and is not an application entrance.
+
+An optional diagnostic phase isolates native crashes without changing semantics:
+`frontiers`, `events`, `corrections`, `reversals`, `relations`, or `all`.
 -/
 def main (args : List String) : IO Unit := do
-  let [rootText] := args
-    | throw (IO.userError "usage: NormalizedActualProductionObservation DATA_ROOT")
+  let (rootText, mode) ←
+    match args with
+    | [rootText] => pure (rootText, "all")
+    | [rootText, mode] => pure (rootText, mode)
+    | _ => throw (IO.userError
+        "usage: NormalizedActualProductionObservation DATA_ROOT [frontiers|events|corrections|reversals|relations|all]")
+  unless ["frontiers", "events", "corrections", "reversals", "relations", "all"].contains mode do
+    throw (IO.userError ("unknown diagnostic phase: " ++ mode))
+
   let root := System.FilePath.mk rootText
   let movementRoot := root / "movement-authority"
 
+  IO.eprintln "diagnostic: load selected evidence begin"
   let evidenceResult ← Loam.MovementManifestAuthority.loadSelectedEvidence? movementRoot
   let .ok evidence := evidenceResult
     | throw (IO.userError "selected production Movement evidence unavailable")
+  IO.eprintln "diagnostic: load selected evidence end"
+
+  IO.eprintln "diagnostic: load correction/reversal side authorities begin"
   let corrections ← loadCorrections (root / "corrections.loam")
   let reversals ← loadReversals (root / "actual-reversals.loam")
+  IO.eprintln "diagnostic: load correction/reversal side authorities end"
 
+  IO.eprintln "diagnostic: correction frontier begin"
   let some _ := Loam.Application.correctionFrontierMemory? evidence.events corrections
     | throw (IO.userError "production Event correction frontier unresolved")
+  IO.eprintln "diagnostic: correction frontier end"
+
+  IO.eprintln "diagnostic: validity frontier begin"
   let some dates := Loam.Application.admittedActualValidityMemory? evidence.validity
     | throw (IO.userError "production ActualValidity frontier unresolved")
+  IO.eprintln "diagnostic: validity frontier end"
 
-  for event in evidence.events.events do
-    printTx evidence dates event
+  if selected mode "frontiers" then
+    IO.println "STATUS\tfrontiers"
 
-  for correction in corrections.corrections do
-    IO.println <| String.intercalate "\t" [
-      "CORRECTION", correction.target.token, correction.replacement.token
-    ]
+  if selected mode "events" then
+    IO.eprintln "diagnostic: events begin"
+    for event in evidence.events.events do
+      printTx evidence dates event
+    IO.eprintln "diagnostic: events end"
 
-  for reversal in reversals.reversals do
-    unless (evidence.events.findById? reversal.target).isSome &&
-        (evidence.events.findById? reversal.reversal).isSome do
-      throw (IO.userError "production reversal relation has an open endpoint")
-    IO.println <| String.intercalate "\t" [
-      "REVERSAL", reversal.target.token, reversal.reversal.token
-    ]
+  if selected mode "corrections" then
+    IO.eprintln "diagnostic: corrections begin"
+    for correction in corrections.corrections do
+      IO.println <| String.intercalate "\t" [
+        "CORRECTION", correction.target.token, correction.replacement.token
+      ]
+    IO.eprintln "diagnostic: corrections end"
 
-  printRelations evidence
-  IO.println "STATUS\tcomplete"
+  if selected mode "reversals" then
+    IO.eprintln "diagnostic: reversals begin"
+    for reversal in reversals.reversals do
+      unless (evidence.events.findById? reversal.target).isSome &&
+          (evidence.events.findById? reversal.reversal).isSome do
+        throw (IO.userError "production reversal relation has an open endpoint")
+      IO.println <| String.intercalate "\t" [
+        "REVERSAL", reversal.target.token, reversal.reversal.token
+      ]
+    IO.eprintln "diagnostic: reversals end"
+
+  if selected mode "relations" then
+    IO.eprintln "diagnostic: relations begin"
+    printRelations evidence
+    IO.eprintln "diagnostic: relations end"
+
+  if mode = "all" then
+    IO.println "STATUS\tcomplete"
