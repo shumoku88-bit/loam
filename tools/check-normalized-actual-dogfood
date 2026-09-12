@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 || $# -gt 4 ]]; then
+  echo "usage: tools/check-normalized-actual-dogfood DATA_ROOT [START END [OBSERVED_AT]]" >&2
+  exit 2
+fi
+
+data_root="$1"
+start="${2:-2026-08-17}"
+end="${3:-2026-10-15}"
+observed_at="${4:-2026-09-12}"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+hobs="$repo_root/.lake/build/bin/loamHouseholdObservation"
+cycle_observer="$repo_root/Loam/Tests/ThreeStreamCycleObservation.lean"
+projector="$repo_root/tools/current_to_normalized_actual.py"
+bridge="$repo_root/tools/normalized_to_current_fixture.py"
+
+if [[ ! -x "$hobs" ]]; then
+  echo "missing $hobs; build loamHouseholdObservation first" >&2
+  exit 2
+fi
+if [[ ! -d "$data_root" ]]; then
+  echo "data root not found: $data_root" >&2
+  exit 2
+fi
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+normalized="$work/actual.loam"
+rebuilt="$work/rebuilt"
+
+printf '%s\n' '== project current Actual into normalized wire =='
+python3 "$projector" "$data_root" "$normalized"
+printf 'normalized bytes: %s\n' "$(wc -c < "$normalized" | tr -d ' ')"
+
+printf '%s\n' '== copy non-authoritative support and current policy/scheduled state =='
+python3 - "$data_root" "$rebuilt" "$repo_root" <<'PY'
+from pathlib import Path
+import shutil
+import sys
+
+source = Path(sys.argv[1]).resolve()
+target = Path(sys.argv[2]).resolve()
+repo = Path(sys.argv[3]).resolve()
+
+# This is differential-test scaffolding. Avoid copying checkout/build metadata or
+# a nested LOAM source checkout when DATA_ROOT is the loam-data Actions workspace.
+def ignored(path: str, names: list[str]):
+    p = Path(path).resolve()
+    ignored_names = {".git", ".lake"}
+    for name in names:
+        child = (p / name).resolve()
+        if child == repo:
+            ignored_names.add(name)
+    return ignored_names
+
+shutil.copytree(source, target, ignore=ignored)
+PY
+
+printf '%s\n' '== materialize normalized Actual into disposable current fixture =='
+python3 "$bridge" "$normalized" "$rebuilt"
+
+printf '%s\n' '== HOBS1 original =='
+"$hobs" "$data_root" "$start" "$end" >"$work/original.hobs1"
+printf '%s\n' '== HOBS1 rebuilt =='
+"$hobs" "$rebuilt" "$start" "$end" >"$work/rebuilt.hobs1"
+printf '%s\n' '== HOBS1 diff =='
+diff -u "$work/original.hobs1" "$work/rebuilt.hobs1"
+
+printf '%s\n' '== CycleBudget original =='
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_observer" "$data_root" "$observed_at"
+) >"$work/original.cycle" 2>&1
+printf '%s\n' '== CycleBudget rebuilt =='
+(
+  cd "$repo_root"
+  lake env lean --run "$cycle_observer" "$rebuilt" "$observed_at"
+) >"$work/rebuilt.cycle" 2>&1
+printf '%s\n' '== CycleBudget diff =='
+diff -u "$work/original.cycle" "$work/rebuilt.cycle"
+
+printf '%s\n' \
+  "normalized Actual report parity passed" \
+  "  HOBS1: Balance / Budget / Capacity identical" \
+  "  CycleBudgetReview: Funding / CurrentCoverage / Scheduled pressure / physical balances identical"
