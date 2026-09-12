@@ -31,6 +31,29 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: python3 .github/scripts/compress_scheduled_drafts.py
 
+      - name: Close generated fixture arithmetic proofs
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in [
+              'Loam/Tests/ScheduledCreationPublisher.lean',
+              'Loam/Tests/ScheduledReplacementPublisher.lean',
+          ]:
+              path = Path(name)
+              text = path.read_text()
+              if 'import Lean.Elab.Tactic.Omega' not in text:
+                  marker = '\nopen Loam.Core\n'
+                  if marker not in text:
+                      raise SystemExit(f'{name}: open marker missing')
+                  text = text.replace(marker, '\nimport Lean.Elab.Tactic.Omega\n' + marker, 1)
+              text = text.replace(
+                  'balanced := by simp [movementTotalQuanta]',
+                  'balanced := by omega')
+              path.write_text(text)
+          PY
+
       - name: Build changed Lean boundaries
         if: steps.gate.outputs.run == 'true'
         uses: leanprover/lean-action@v1
