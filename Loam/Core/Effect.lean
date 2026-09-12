@@ -29,25 +29,34 @@ deriving Repr, DecidableEq
 /--
 One exact quantity effect at one locus.
 
-`Effect` keeps stable effect identity separate from the three practical
-coordinates observed so far: where the change is observed (`LocusId`), what
-kind of quantity it is (`MeasureId` inside `SomeAmount`), and how much changed
-(`Quantity`).
+Stable Effect identity is optional: `none` is an ordinary physical Effect that
+is not independently referenced, while `some key` is a retained identity for
+later evidence such as a Relation source. Locus, Measure, and Quantity remain
+independent of whether durable identity was earned.
 
 The sign has no built-in debit, credit, inflow, outflow, or accounting meaning.
 -/
 structure Effect where
-  key : EffectKey
+  key : Option EffectKey
   locus : LocusId
   amount : SomeAmount
 
 namespace Effect
 
-/-- Construct one runtime effect from its stable key and three explicit coordinates. -/
+/-- Construct one explicitly identified runtime effect. Existing keyed callers retain this API. -/
 def ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) : Effect :=
-  ⟨key, locus, SomeAmount.ofQuantity measure quantity⟩
+  ⟨some key, locus, SomeAmount.ofQuantity measure quantity⟩
+
+/-- Construct one ordinary runtime effect without allocating durable identity. -/
+def ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) : Effect :=
+  ⟨none, locus, SomeAmount.ofQuantity measure quantity⟩
+
+/-- Promote one ordinary effect to an explicitly retained stable key. -/
+def identify (effect : Effect) (key : EffectKey) : Effect :=
+  { effect with key := some key }
 
 /-- Recover the runtime measure coordinate without assigning valuation meaning. -/
 def measure (effect : Effect) : MeasureId :=
@@ -60,7 +69,12 @@ def quantity (effect : Effect) : Quantity :=
 @[simp] theorem key_ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) :
-    (ofQuantity key locus measure quantity).key = key :=
+    (ofQuantity key locus measure quantity).key = some key :=
+  rfl
+
+@[simp] theorem key_ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    (ofAnonymousQuantity locus measure quantity).key = none :=
   rfl
 
 @[simp] theorem locus_ofQuantity
@@ -69,16 +83,46 @@ def quantity (effect : Effect) : Quantity :=
     (ofQuantity key locus measure quantity).locus = locus :=
   rfl
 
+@[simp] theorem locus_ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    (ofAnonymousQuantity locus measure quantity).locus = locus :=
+  rfl
+
 @[simp] theorem measure_ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) :
     (ofQuantity key locus measure quantity).measure = measure :=
   rfl
 
+@[simp] theorem measure_ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    (ofAnonymousQuantity locus measure quantity).measure = measure :=
+  rfl
+
 @[simp] theorem quantity_ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) :
     (ofQuantity key locus measure quantity).quantity = quantity :=
+  rfl
+
+@[simp] theorem quantity_ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    (ofAnonymousQuantity locus measure quantity).quantity = quantity :=
+  rfl
+
+@[simp] theorem coordinateIdentity_identify
+    (effect : Effect) (key : EffectKey) :
+    (identify effect key).locus = effect.locus :=
+  rfl
+
+@[simp] theorem measure_identify
+    (effect : Effect) (key : EffectKey) :
+    (identify effect key).measure = effect.measure :=
+  rfl
+
+@[simp] theorem quantity_identify
+    (effect : Effect) (key : EffectKey) :
+    (identify effect key).quantity = effect.quantity :=
   rfl
 
 end Effect
