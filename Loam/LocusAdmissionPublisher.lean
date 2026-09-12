@@ -58,12 +58,12 @@ Admit one new Locus against the current admission-policy authority.
 
 The local authority owns the current physical policy placement, writer lock, and
 read/modify/publish protocol. This publisher contributes only the policy-local
-proposal semantics and therefore does not depend on household Movement evidence.
+proposal semantics and therefore does not depend on household Actual evidence.
 -/
-def publishManifestAdmission
+def publishAdmission
     (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+    return .error "loam: data root must not be empty"
   let root := System.FilePath.mk rootPath
   Loam.LocusAdmissionAuthority.updateCurrent? root
     (fun vocabulary => propose? vocabulary draft)
