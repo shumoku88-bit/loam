@@ -12,7 +12,7 @@ private def detail (records : List Record) (record : Record) : IO Unit := do
 
 /-- Explicit raw inspection, separate from the ordinary correction-aware review. -/
 def reviewRawEvents (memoryPath : String) : IO UInt32 := do
-  match ← Loam.ActualReview.loadRecords memoryPath none with
+  match ← Loam.ActualReview.loadRecords memoryPath with
   | .error message => IO.eprintln message; return 2
   | .ok records =>
       IO.println "Recorded facts (all raw Events; current occurrence dates; display order has no time meaning):"
@@ -63,12 +63,12 @@ private def showResult (records : List Record) (query : Query) : IO Unit := do
     IO.println ("  " ++ padded ++ ". " ++ summary record)
 
 /-- Read-only, bounded one-shot review. Standard input is never consumed. -/
-def review (memoryPath correctionPath : String) (queryText : Option String := none) : IO UInt32 := do
+def review (memoryPath _correctionPath : String) (queryText : Option String := none) : IO UInt32 := do
   let some today ← Loam.ActualDate.todayIso?
     | IO.eprintln "loam: could not determine the local date"; return 2
   let some query := parseQuery today (queryText.getD "t")
     | IO.eprintln "loam: review expects YYYY-MM-DD, /text, u (undated), or t (recent week)"; return 2
-  match ← Loam.ActualReview.loadRecords memoryPath (some correctionPath) with
+  match ← Loam.ActualReview.loadRecords memoryPath with
   | .error message => IO.eprintln message; return 2
   | .ok records =>
       showResult records query

@@ -24,7 +24,7 @@ partial def runWithReceipt
   if step.cancel then return (none, "Scheduled creation cancelled.")
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledCreationPublisher.publishManifestCreation
+      match ← Loam.ScheduledCreationPublisher.publishCreation
           scheduledFile.toString root.toString draft with
       | .ok receipt =>
           return (some receipt, "Scheduled " ++ receipt.scheduled.token ++ " for " ++ receipt.scheduledOn ++ ".")

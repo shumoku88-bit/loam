@@ -20,12 +20,12 @@ private def usage : String :=
 
 private def loadEvidenceForView?
     (path : System.FilePath) : IO (Except String (EventMemory × EventCorrectionMemory)) := do
-  let actualPath :=
-    match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-    | some rootPath =>
-        if rootPath.isEmpty then path else System.FilePath.mk rootPath
-    | none => path
-  match ← Loam.ActualAuthority.loadActual? actualPath with
+  let loaded ←
+    if path.fileName == some Loam.ActualAuthority.actualFileName then
+      Loam.ActualAuthority.loadActualFile? path
+    else
+      Loam.ActualAuthority.loadActual? path
+  match loaded with
   | .ok evidence => return .ok (evidence.events, evidence.corrections)
   | .error message => return .error message
 

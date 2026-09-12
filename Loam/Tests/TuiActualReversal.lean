@@ -52,19 +52,18 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
-  let correctionFile := dataDir / "corrections.loam"
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
   let lifecycle ← emptyLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
     "initialize Scheduled lifecycle"
-  let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
+  let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
-  let .ok records ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load target Actual review")
   let record ← requireSome (Loam.ActualReview.select records (.day "2026-09-07")).head?
     "selected Actual fixture disappeared"
@@ -89,13 +88,13 @@ def main (args : List String) : IO Unit := do
   expect (draft.target == recorded.eventId && draft.validOn == "2026-09-08")
     "reversal intent changed target or occurrence date"
 
-  let .ok receipt ← Loam.ActualReversalPublisher.publishManifestReversal
-      scheduledFile.toString root.toString correctionFile.toString "" draft
+  let .ok receipt ← Loam.ActualReversalPublisher.publishReversal
+      scheduledFile.toString root.toString draft
     | throw (IO.userError "shared reversal publisher refused TUI intent")
   expect (receipt.reversal == ⟨"actual-reversal:" ++ recorded.eventId.token⟩)
     "TUI reversal did not reach deterministic shared publisher endpoint"
 
-  let .ok fresh ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review after reversal")
   expect (fresh.any fun item => item.event.id == recorded.eventId)
     "reversal removed the original Actual"

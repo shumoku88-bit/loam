@@ -155,14 +155,14 @@ Load the two existing production read answers and compose them. Canonical file
 interpretation remains owned by `BalanceReview` and `ActualReview`.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let balances ←
-    match ← Loam.BalanceReview.loadSnapshot dataDir manifestRoot with
+    match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let records ←
-    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+    match ← Loam.ActualReview.loadRecordsFromActual actualRoot with
     | .error message => return .error message
     | .ok records => pure records
   return project balances records start endExclusive

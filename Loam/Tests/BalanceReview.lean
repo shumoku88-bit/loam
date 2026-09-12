@@ -56,7 +56,7 @@ private def validCoverage : ZeroOriginCoverage :=
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
-  let manifestRoot := root / "movement-authority"
+  let actualRoot := root
   IO.FS.createDirAll (root / "config")
 
   expect
@@ -67,13 +67,13 @@ def main (args : List String) : IO Unit := do
     "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
   let world ← movementWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
 
   -- Frozen pre-cutover Movement sidecars must not influence the production balance view.
   IO.FS.writeFile (root / "memory.loam") "THIS FROZEN SIDECAR MUST NOT BE READ\n"
 
-  let .ok snapshot ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  let .ok snapshot ← Loam.BalanceReview.loadSnapshot root actualRoot
     | throw (IO.userError "balance review refused valid fixture")
   expect (snapshot.rows.length == 2) "balance-view duplicate was not normalized"
   let walletRow ← requireSome (findRow? snapshot "wallet") "missing wallet row"
@@ -84,17 +84,17 @@ def main (args : List String) : IO Unit := do
 
   -- Event activity and presentation selection do not create origin completeness.
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "food\tjpy\n"
-  let missingCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  let missingCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!missingCoverage.isOk) "Event activity outside zero-origin coverage became known"
 
   -- Duplicate coverage is malformed evidence, not a set-normalization hint.
   IO.FS.writeFile (root / "zero-origin-coverage.loam")
     "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n"
-  let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!duplicateCoverage.isOk) "duplicate zero-origin coverage did not fail closed"
 
   IO.FS.writeFile (root / "zero-origin-coverage.loam") "BROKEN\n"
-  let malformedCoverage ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  let malformedCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!malformedCoverage.isOk) "malformed zero-origin coverage did not fail closed"
 
   expect
@@ -102,10 +102,10 @@ def main (args : List String) : IO Unit := do
       (root / "zero-origin-coverage.loam") validCoverage)
     "restore zero-origin coverage"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
-  IO.FS.writeFile (manifestRoot / "actual.loam")
+  IO.FS.writeFile (actualRoot / "actual.loam")
     "LOAM_ACTUAL_v1\nTX\tactual-2\t2026-09-08\treplaces:missing\n  wallet\t-10\tjpy\n  food\t10\tjpy\n"
-  let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root manifestRoot
+  let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
 
   IO.println
-    "Balance Review: manifest authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
+    "Balance Review: Actual authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."

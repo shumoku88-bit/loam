@@ -76,13 +76,13 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
 Show retained Scheduled occurrences whose expectation remains current-open.
 
 This command consumes the same complete Scheduled lifecycle image and selected
-Movement manifest frontier as production TUI readers. It is deliberately
+Actual authority frontier as production TUI readers. It is deliberately
 read-only; mutation is owned by the shared Scheduled publishers.
 -/
-def showOpenScheduled (scheduledPath manifestRoot : String) : IO UInt32 := do
+def showOpenScheduled (scheduledPath actualRoot : String) : IO UInt32 := do
   let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk manifestRoot
-  match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root with
+  let root := System.FilePath.mk actualRoot
+  match ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root with
   | .error message =>
       IO.eprintln message
       return 2
@@ -110,13 +110,13 @@ end Loam.OpenScheduledCli
 
 def main (args : List String) : IO UInt32 :=
   match args with
-  | ["day-evidence", scheduledPath, manifestRoot, day] =>
-      Loam.ScheduledDayEvidenceCli.report scheduledPath manifestRoot day
+  | ["day-evidence", scheduledPath, actualRoot, day] =>
+      Loam.ScheduledDayEvidenceCli.report scheduledPath actualRoot day
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
-  | [scheduledPath, manifestRoot] =>
-      Loam.OpenScheduledCli.showOpenScheduled scheduledPath manifestRoot
+  | [scheduledPath, actualRoot] =>
+      Loam.OpenScheduledCli.showOpenScheduled scheduledPath actualRoot
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT"
+        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE ACTUAL_ROOT"
       return 2

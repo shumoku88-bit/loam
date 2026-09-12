@@ -42,7 +42,7 @@ def main (args : List String) : IO Unit := do
     validity := { facts := [], factRefNodup := by simp, corrections := [], correctionIdNodup := by simp }
     descriptions := .empty, relations := [], discharges := []
     locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
-  let .ok _ ← Loam.ActualAuthority.publishWorld? (root / "movement-authority") world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root world
     | throw (IO.userError "publish fixture world")
 
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates? [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]) "zero-origin"
@@ -90,7 +90,7 @@ def main (args : List String) : IO Unit := do
 
   -- Load initial snapshot
   let observedAt := "2026-09-09"
-  let snap0 ← Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") observedAt
+  let snap0 ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
   let .ok cov0 := snap0.coverage | throw (IO.userError "cov0 unavailable")
   let some row0 := cov0.rows.find? (fun r => r.purpose.token == "固定費予定")
     | throw (IO.userError "missing row0")
@@ -218,7 +218,7 @@ def main (args : List String) : IO Unit := do
   expect (beforeHashRouting == afterHashRouting) "Test 19: Scheduled routing unchanged"
 
   -- 16 & 20: Fresh Budget reread reflects updated Capacity and nothing else
-  let snap1 ← Loam.CycleBudgetReview.loadSnapshotAt root (root / "movement-authority") observedAt
+  let snap1 ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
   let .ok cov1 := snap1.coverage | throw (IO.userError "cov1 unavailable")
   let some row1 := cov1.rows.find? (fun r => r.purpose.token == "固定費予定")
     | throw (IO.userError "missing row1")

@@ -192,7 +192,5 @@ def publishReplacement
   withReplacementOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestReplacement := publishReplacement
 
 end Loam.ScheduledReplacementPublisher

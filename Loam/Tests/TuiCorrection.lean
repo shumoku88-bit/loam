@@ -55,16 +55,14 @@ private def nonJpyRecord? : Option Loam.Tui.Main.ReviewRecord := do
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
-  let dataDir := System.FilePath.mk dataPath
-  let root := dataDir / "movement-authority"
-  let correctionFile := dataDir / "corrections.loam"
+  let root := System.FilePath.mk dataPath
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
-  let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
+    | throw (IO.userError "initialize Actual fixture")
+  let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
-  let .ok records ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load initial Actual review")
   let current := Loam.ActualReview.select records (.day "2026-09-07")
   let record ← requireSome current.head? "current Actual fixture disappeared"
@@ -116,10 +114,10 @@ def main (args : List String) : IO Unit := do
   expect (correctionDraft.effects.map (fun effect => effect.quantity.quanta) == [-650, 650])
     "Correction intent lost edited signed postings"
 
-  let .ok receipt ← Loam.CorrectionPublisher.publishManifestCorrection
-      root.toString correctionFile.toString correctionDraft
+  let .ok receipt ← Loam.CorrectionPublisher.publishCorrection
+      root.toString correctionDraft
     | throw (IO.userError "shared CorrectionPublisher refused TUI intent")
-  let .ok freshRecords ← Loam.ActualReview.loadRecordsFromManifest root (some correctionFile.toString)
+  let .ok freshRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review reload")
   let fresh := Loam.ActualReview.select freshRecords (.day "2026-09-07")
   expect (fresh.length == 1) "fresh selected day did not expose exactly one current Actual"
@@ -131,8 +129,7 @@ def main (args : List String) : IO Unit := do
   expect (freshRecords.any fun item => item.event.id == recorded.eventId && !item.isCurrent)
     "Correction TUI path rewrote or lost the original Event"
 
-  let stale ← Loam.CorrectionPublisher.publishManifestCorrection
-    root.toString correctionFile.toString correctionDraft
+  let stale ← Loam.CorrectionPublisher.publishCorrection root.toString correctionDraft
   expect (!stale.isOk) "stale TUI correction intent bypassed shared publisher re-checks"
 
   IO.println "TUI Correction: fixed date, prefill, representability, explicit Reversal independence, shared intent, publication and fresh reload passed."

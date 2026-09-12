@@ -17,7 +17,7 @@ private def conflictMessage : String :=
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
-  let manifestRoot := dataDir
+  let actualRoot := dataDir
   IO.FS.createDirAll dataDir
 
   let missing :=
@@ -48,7 +48,7 @@ def main (args : List String) : IO Unit := do
       "Scheduled lifecycle evidence contains conflicting terminal claims, so LOAM refused to choose one silently.")
     "Scheduled conflict human situation"
 
-  match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir manifestRoot with
+  match ← Loam.OperationalContinuity.diagnoseStartupRead dataDir actualRoot with
   | .ok () => throw (IO.userError "missing actual.loam must fail closed")
   | .error diagnosis =>
       expect (diagnosis.area == "Actual / Movement") "startup diagnosis area"

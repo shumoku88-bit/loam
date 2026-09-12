@@ -185,17 +185,17 @@ Compose existing production readers without adding a new canonical authority.
 `today` is read from the same host-local date adapter already used by the TUI.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (assumedCompleteThrough : String) : IO (Except String Snapshot) := do
   let some today ← Loam.ActualDate.todayIso?
     | return .error "loam: conditional outlook unavailable: could not determine the local date"
   let balances ←
-    match ← Loam.BalanceReview.loadSnapshot dataDir manifestRoot with
+    match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let scheduled ←
-    match ← Loam.ScheduledReview.loadEvidenceFromManifest
-        (dataDir / "scheduled.loam") manifestRoot with
+    match ← Loam.ScheduledReview.loadEvidenceFromActual
+        (dataDir / "scheduled.loam") actualRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   return project balances scheduled today assumedCompleteThrough

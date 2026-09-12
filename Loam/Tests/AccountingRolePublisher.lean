@@ -66,7 +66,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
   let roleFile := dataDir / "accounting-role.loam"
 
@@ -104,7 +104,7 @@ def main (args : List String) : IO Unit := do
     "AccountingRole persistence round-trip lost assignments"
 
   let .ok _ ← Loam.ActualAuthority.publishWorld? root w
-    | throw (IO.userError "publish Movement manifest fixture")
+    | throw (IO.userError "publish Actual authority fixture")
   let lifecycle0 ← lifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "publish Scheduled lifecycle fixture"

@@ -43,9 +43,9 @@ private def emptyScheduledLifecycle : IO Loam.Persistence.ScheduledLifecycleImag
 
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
-  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
-    | throw (IO.userError "load manifest Actual review")
-  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "load Actual review")
+  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
@@ -61,12 +61,12 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initialWorld
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
   let lifecycle ← emptyScheduledLifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
     "initialize explicit Scheduled lifecycle fixture"
@@ -110,7 +110,7 @@ def main (args : List String) : IO Unit := do
     ["paypay", "rent", "food"] previewState .enter
   let intent ← requireSome publishStep.publish
     "new Scheduled preview did not emit shared publisher intent"
-  let .ok receipt ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let .ok receipt ← Loam.ScheduledCreationPublisher.publishCreation
       scheduledFile.toString root.toString intent
     | throw (IO.userError "publish new Scheduled from TUI intent")
 

@@ -53,9 +53,9 @@ private def occurrence (id toLocus : String) (amount : Int) : IO (ScheduledOccur
 
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
-  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
-    | throw (IO.userError "load manifest Actual review")
-  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "load Actual review")
+  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
@@ -77,12 +77,12 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initialWorld
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
   let first ← occurrence "scheduled-1" "rent" 1000
   let second ← occurrence "scheduled-2" "food" 200
   let third ← occurrence "scheduled-3" "rent" 300
@@ -136,7 +136,7 @@ def main (args : List String) : IO Unit := do
     "completion preview did not emit shared publisher intent"
   expect (completionIntent.scheduled.token == "scheduled-1")
     "completion editor lost selected Scheduled identity"
-  let .ok completion ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+  let .ok completion ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString completionIntent
     | throw (IO.userError "publish selected Scheduled completion")
   expect (completion.scheduled.token == "scheduled-1")
@@ -154,7 +154,7 @@ def main (args : List String) : IO Unit := do
   expect (actualDay.any fun record =>
       record.event.id == completion.actual &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1000, 1000])
-    "completion did not publish independent Actual evidence through shared manifest authority"
+    "completion did not publish independent Actual evidence through shared Actual authority"
 
   let afterState := Loam.Tui.SelectedDay.refreshed afterCompletion scheduledState
   let cancelCommand := Loam.Tui.SelectedDay.update afterCompletion afterState .cancelScheduled
@@ -178,7 +178,7 @@ def main (args : List String) : IO Unit := do
   let cancelIntentStep := Loam.Tui.ScheduledCancellation.update armed.state .enter
   let cancelIntent ← requireSome cancelIntentStep.publish
     "explicit cancellation confirmation did not emit publisher intent"
-  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishCancellation
       scheduledFile.toString root.toString cancelIntent
     | throw (IO.userError "publish selected Scheduled cancellation")
   expect (cancelled.scheduled.token == "scheduled-2")
@@ -234,7 +234,7 @@ def main (args : List String) : IO Unit := do
       replacementIntent.scheduledOn == "2026-09-12" &&
       replacementIntent.total == 300)
     "replacement editor lost selected source or edited content"
-  let .ok replacement ← Loam.ScheduledReplacementPublisher.publishManifestReplacement
+  let .ok replacement ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString replacementIntent
     | throw (IO.userError "publish selected Scheduled replacement")
   expect (replacement.source.token == "scheduled-3")

@@ -58,7 +58,7 @@ routing rows. Current admitted Loci with no AccountingRole evidence remain
 visible separately rather than being guessed into or out of the budget surface.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (observedAt : String) : IO (Except String Snapshot) := do
   if !Loam.ActualDate.validIsoDate observedAt then
     return .error "loam: Actual routing review date must be a real YYYY-MM-DD calendar date"
@@ -71,7 +71,7 @@ def loadSnapshot
     return .error "loam: required AccountingRole evidence is missing"
 
   let admission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? manifestRoot with
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? actualRoot with
     | .ok vocabulary => pure vocabulary
     | .error message => return .error message
   let history ←

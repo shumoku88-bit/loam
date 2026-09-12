@@ -52,16 +52,16 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
 
   expect (!(← scheduledFile.pathExists))
     "Scheduled fixture unexpectedly existed before authority initialization"
-  let missingAuthority ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let missingAuthority ← Loam.ScheduledCreationPublisher.publishCreation
     scheduledFile.toString root.toString
     (draft "2026-09-10" "paypay" "rent" 1000)
   expect (!missingAuthority.isOk)
@@ -72,7 +72,7 @@ def main (args : List String) : IO Unit := do
     "initialize explicit empty Scheduled lifecycle authority"
 
   let beforeUnapproved ← IO.FS.readFile scheduledFile
-  let unapproved ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let unapproved ← Loam.ScheduledCreationPublisher.publishCreation
     scheduledFile.toString root.toString
     (draft "2026-09-10" "paypay" "coffee" 1000)
   expect (!unapproved.isOk)
@@ -80,21 +80,21 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile scheduledFile) == beforeUnapproved)
     "refused unapproved-Locus Scheduled creation changed lifecycle authority"
 
-  let .ok first ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let .ok first ← Loam.ScheduledCreationPublisher.publishCreation
       scheduledFile.toString root.toString
       (draft "2026-09-10" "paypay" "rent" 1000)
     | throw (IO.userError "publish first Scheduled creation")
   expect (first.scheduled.token == "scheduled-1")
     "first Scheduled creation did not choose the first fresh identity"
 
-  let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload Scheduled review after first creation")
   let firstDay := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10")
   expect (hasScheduled firstDay first.scheduled)
     "fresh Scheduled creation did not become current-open on its explicit date"
 
-  let invalid ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let invalid ← Loam.ScheduledCreationPublisher.publishCreation
     scheduledFile.toString root.toString
     (draft "2026-02-29" "paypay" "food" 200)
   expect (!invalid.isOk) "impossible Scheduled date was admitted"
@@ -103,7 +103,7 @@ def main (args : List String) : IO Unit := do
   expect (afterInvalid.scheduled.occurrences.length == 1)
     "refused Scheduled creation changed retained occurrence count"
 
-  let .ok second ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let .ok second ← Loam.ScheduledCreationPublisher.publishCreation
       scheduledFile.toString root.toString
       (draft "2026-09-11" "smbc" "food" 300)
     | throw (IO.userError "publish second Scheduled creation")
@@ -119,11 +119,11 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
     "save orphan retirement inside complete lifecycle fixture"
 
-  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
   expect (!brokenRead.isOk)
     "unknown retirement identity did not make Scheduled read fail closed"
 
-  let refused ← Loam.ScheduledCreationPublisher.publishManifestCreation
+  let refused ← Loam.ScheduledCreationPublisher.publishCreation
     scheduledFile.toString root.toString
     (draft "2026-09-12" "paypay" "food" 400)
   expect (!refused.isOk)

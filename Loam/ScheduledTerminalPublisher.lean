@@ -325,10 +325,5 @@ def publishCancellation
   withTerminalOwnership scheduledFile root
     (publishCancellationUnderOwnership scheduledFile root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestCompletion := publishCompletion
-
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestCancellation := publishCancellation
 
 end Loam.ScheduledTerminalPublisher

@@ -42,7 +42,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "usage: CurrentCoverageDogfood DATA_DIR")
   let dataDir := System.FilePath.mk dataPath
   let .ok snapshot ← Loam.CurrentCoverageReview.loadSnapshotAt
-      dataDir (dataDir / "movement-authority")
+      dataDir dataDir
       "2026-08-14" "2026-09-08" "2026-10-15"
     | throw (IO.userError "current real-data coverage projection was unavailable")
 

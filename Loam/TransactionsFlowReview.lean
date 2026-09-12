@@ -219,14 +219,14 @@ def measureResidual (column : Column) (measure : MeasureId) : Quantity :=
       0
 
 /--
-Compose the existing manifest-backed Actual reader with this pure projection.
+Compose the existing Actual-backed Actual reader with this pure projection.
 No canonical interpretation is duplicated here.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let records ←
-    match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+    match ← Loam.ActualReview.loadRecordsFromActual actualRoot with
     | .error message => return .error message
     | .ok records => pure records
   return project records start endExclusive

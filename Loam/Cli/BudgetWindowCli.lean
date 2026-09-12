@@ -15,16 +15,6 @@ private def usage : String :=
   "for every Purpose already represented by Capacity evidence. No Period or\n" ++
   "Remaining state is stored."
 
-private def movementManifestRoot?
-    (root : System.FilePath) : IO (Except String System.FilePath) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some rootPath =>
-      if rootPath.isEmpty then
-        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      return .ok (System.FilePath.mk rootPath)
-  | none =>
-      return .ok (root / "movement-authority")
-
 private def printOne
     (start end_ : String)
     (row : Loam.BudgetWindowReview.Row) : IO Unit := do
@@ -52,9 +42,9 @@ private def printAll
 /--
 Render the shared production Budget Window review through the standalone line CLI.
 
-The CLI owns only argument/env parsing and text presentation. Canonical evidence
-loading, selected Movement authority, ActualValidity resolution, Purpose
-projection, and derived Remaining all belong to `BudgetWindowReview`.
+The CLI owns only argument parsing and text presentation. Canonical evidence
+loading, ActualValidity resolution, Purpose projection, and derived Remaining
+all belong to `BudgetWindowReview`.
 -/
 def report
     (rootPath start end_ purposeToken : String) : IO UInt32 := do
@@ -63,15 +53,8 @@ def report
     return 2
   else
     let root := System.FilePath.mk rootPath
-    let movementRoot ←
-      match ← movementManifestRoot? root with
-      | .error message =>
-          IO.eprintln message
-          return 2
-      | .ok movementRoot => pure movementRoot
-
     if purposeToken = "--all" then
-      match ← Loam.BudgetWindowReview.loadSnapshot root movementRoot start end_ with
+      match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
       | .error message =>
           IO.eprintln message
           return 2
@@ -80,8 +63,7 @@ def report
           return 0
     else
       let purpose : PurposeId := ⟨purposeToken⟩
-      match ← Loam.BudgetWindowReview.loadPurposeRow
-          root movementRoot start end_ purpose with
+      match ← Loam.BudgetWindowReview.loadPurposeRow root root start end_ purpose with
       | .error message =>
           IO.eprintln message
           return 2

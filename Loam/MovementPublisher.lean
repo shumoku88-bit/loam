@@ -121,10 +121,4 @@ def publishDraft
     (draft : Loam.MovementAdmission.Draft) : IO (Except String Receipt) :=
   publishDraftWithPreview rootPath draft (fun _ => pure ())
 
-/-- Transitional source-level alias; does not accept or recover legacy data. -/
-def publishManifestDraftWithPreview := publishDraftWithPreview
-
-/-- Transitional source-level alias; does not accept or recover legacy data. -/
-def publishManifestDraft := publishDraft
-
 end Loam.MovementPublisher

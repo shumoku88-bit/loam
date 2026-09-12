@@ -15,16 +15,6 @@ private def usage : String :=
   "Capacity over the explicit half-open budget window [START, END). The output\n" ++
   "is a read-only derived projection, never canonical household state."
 
-private def movementManifestRoot?
-    (root : System.FilePath) : IO (Except String System.FilePath) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some rootPath =>
-      if rootPath.isEmpty then
-        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      return .ok (System.FilePath.mk rootPath)
-  | none =>
-      return .ok root
-
 private def emitRecord (fields : List String) : IO Unit :=
   IO.println (String.intercalate "\t" ("HOBS1" :: fields))
 
@@ -85,22 +75,16 @@ terminal `meta status complete` record to detect stream truncation.
 -/
 def report (rootPath start end_ : String) : IO UInt32 := do
   let root := System.FilePath.mk rootPath
-  let movementRoot ←
-    match ← movementManifestRoot? root with
-    | .error message =>
-        IO.eprintln message
-        return 2
-    | .ok path => pure path
 
   let balances ←
-    match ← Loam.BalanceReview.loadSnapshot root movementRoot with
+    match ← Loam.BalanceReview.loadSnapshot root root with
     | .error message =>
         IO.eprintln message
         return 2
     | .ok snapshot => pure snapshot
 
   let budget ←
-    match ← Loam.BudgetWindowReview.loadSnapshot root movementRoot start end_ with
+    match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
     | .error message =>
         IO.eprintln message
         return 2

@@ -6,7 +6,7 @@ on:
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
-      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
@@ -23,7 +23,7 @@ on:
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
-      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   lean:
-    name: Build and test manifest-backed Scheduled replacement publisher
+    name: Build and test Actual-backed Scheduled replacement publisher
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -57,5 +57,5 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Verify manifest-backed Scheduled replacement publication
+      - name: Verify Actual-backed Scheduled replacement publication
         run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"

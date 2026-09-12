@@ -23,7 +23,7 @@ private def world : IO Loam.MovementAdmission.World := do
     locusAdmission := vocabulary }
 
 def main (args : List String) : IO Unit := do
-  let [rootPath] := args | throw (IO.userError "supply isolated manifest root")
+  let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let w ← world
 
   let .ok (proposed, receipt) :=
@@ -55,7 +55,7 @@ def main (args : List String) : IO Unit := do
     "local authority did not expose the selected admission policy"
 
   let published ←
-    match ← Loam.LocusAdmissionPublisher.publishManifestAdmission
+    match ← Loam.LocusAdmissionPublisher.publishAdmission
         rootPath { token := "stationery" } with
     | .ok receipt => pure receipt
     | .error message => throw (IO.userError message)
@@ -74,7 +74,7 @@ def main (args : List String) : IO Unit := do
     | .ok world => pure world
     | .error message => throw (IO.userError message)
   expect (loaded.locusAdmission.approved == policyAfter.approved)
-    "manifest-backed representation disagreed with the local policy authority"
+    "Actual world disagreed with the local policy authority"
   expect (loaded.events.events.isEmpty)
     "admission publication changed Event evidence"
   expect (loaded.validity.facts.isEmpty && loaded.validity.corrections.isEmpty)
@@ -86,8 +86,8 @@ def main (args : List String) : IO Unit := do
   expect (loaded.discharges.isEmpty)
     "admission publication changed discharge evidence"
 
-  expect (!(← Loam.LocusAdmissionPublisher.publishManifestAdmission
+  expect (!(← Loam.LocusAdmissionPublisher.publishAdmission
       rootPath { token := "stationery" }).isOk)
-    "duplicate manifest admission was accepted"
+    "duplicate Locus admission was accepted"
 
-  IO.println "Locus admission publisher: local policy authority and manifest isolation passed."
+  IO.println "Locus admission publisher: local policy authority and Actual isolation passed."

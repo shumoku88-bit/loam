@@ -6,7 +6,7 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/MovementAdmission.lean'
-      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -24,7 +24,7 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/MovementAdmission.lean'
-      - 'Loam/MovementManifestAuthority.lean'
+      - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -41,7 +41,7 @@ permissions:
 
 jobs:
   lean:
-    name: Build and test manifest-backed Scheduled terminal publisher
+    name: Build and test Actual-backed Scheduled terminal publisher
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -59,5 +59,5 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Verify manifest-backed Scheduled completion and cancellation
+      - name: Verify Actual-backed Scheduled completion and cancellation
         run: lake env lean --run Loam/Tests/ScheduledTerminalPublisher.lean "$(mktemp -d)/scheduled-terminal-publisher"

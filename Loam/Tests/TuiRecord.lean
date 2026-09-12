@@ -32,7 +32,7 @@ private def readyForm : Form := {
     { locus := "books", amount := "2470" }] }
 
 def main (args : List String) : IO Unit := do
-  let [rootPath] := args | throw (IO.userError "supply isolated manifest root")
+  let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
@@ -122,14 +122,14 @@ def main (args : List String) : IO Unit := do
       { w with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "change fixture policy")
   let before ← IO.FS.readFile (root / "actual.loam")
-  let refused ← Loam.MovementPublisher.publishManifestDraft root.toString draft
+  let refused ← Loam.MovementPublisher.publishDraft root.toString draft
   expect (!refused.isOk) "stale preview bypassed current Locus policy"
   expect ((← IO.FS.readFile (root / "actual.loam")) == before) "refusal changed authority"
   let .ok _ ← Loam.ActualAuthority.publishWorld? root w
     | throw (IO.userError "restore fixture policy")
-  let .ok receipt ← Loam.MovementPublisher.publishManifestDraft root.toString draft
+  let .ok receipt ← Loam.MovementPublisher.publishDraft root.toString draft
     | throw (IO.userError "canonical publish")
-  let .ok records ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "canonical review reload")
   expect (records.length == 1) "reload did not see exactly one record"
   expect (records.any fun record => record.event.id.token == receipt.eventId.token &&

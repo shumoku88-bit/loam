@@ -13,7 +13,7 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk path
   let snapshot ←
     Loam.CycleBudgetReview.loadSnapshotAt
-      dataDir (dataDir / "movement-authority") observedAt
+      dataDir dataDir observedAt
 
   let .ok window := snapshot.window
     | throw (IO.userError s!"window unavailable: {repr snapshot.window}")

@@ -79,7 +79,6 @@ def loadEvidenceFromActual
   | .error message => return .error message
   | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
 
-def loadEvidenceFromManifest := loadEvidenceFromActual
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence

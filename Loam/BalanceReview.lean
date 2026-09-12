@@ -13,7 +13,7 @@ set_option autoImplicit false
 # Shared production balance review
 
 This boundary answers the existing replaceable balance-view question from the
-selected Movement manifest plus independent zero-origin coverage evidence.
+selected Actual authority plus independent zero-origin coverage evidence.
 It does not turn `Locus` into `Account`, infer completeness from presentation,
 or silently fall back to retired Movement sidecars.
 -/
@@ -115,9 +115,9 @@ Load the production balance-view question. Missing zero-origin evidence does not
 invent a zero balance; balance-view.tsv selects display coordinates only.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath) : IO (Except String Snapshot) := do
+    (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
   let evidence ←
-    match ← loadEvidence dataDir manifestRoot with
+    match ← loadEvidence dataDir actualRoot with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←

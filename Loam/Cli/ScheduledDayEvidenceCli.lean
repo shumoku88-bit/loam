@@ -30,18 +30,18 @@ private def printDue
 Print one exact-day open-world Scheduled answer for machine or AI consumers.
 
 Production reads use the same complete Scheduled lifecycle image and selected
-Movement manifest frontier as the TUI. `UNKNOWN` means only that no explicit
+Actual authority frontier as the TUI. `UNKNOWN` means only that no explicit
 current-open Scheduled occurrence is retained for the queried day; it is not
 `NOT_DUE`.
 -/
-def report (scheduledPath manifestRoot day : String) : IO UInt32 := do
+def report (scheduledPath actualRoot day : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate day then
     IO.eprintln "loam: Scheduled day evidence requires a real YYYY-MM-DD calendar date"
     return 2
   else
     let scheduledFile := System.FilePath.mk scheduledPath
-    let root := System.FilePath.mk manifestRoot
-    match ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root with
+    let root := System.FilePath.mk actualRoot
+    match ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root with
     | .error message =>
         IO.eprintln message
         return 2

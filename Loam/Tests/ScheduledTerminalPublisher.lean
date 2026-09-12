@@ -77,12 +77,12 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
   let s2 ← occurrence "scheduled-2" "2026-09-10" "paypay" "food" 200
@@ -95,7 +95,7 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "save complete Scheduled lifecycle fixture"
 
-  let .ok completion ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+  let .ok completion ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-1" "2026-09-08" "paypay" "rent" 1100)
     | throw (IO.userError "publish scheduled completion")
@@ -112,32 +112,32 @@ def main (args : List String) : IO Unit := do
       retainedLifecycle.terminals ⟨"scheduled-1"⟩ == some completion.actual)
     "completion relation lost its Actual endpoint"
 
-  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
-    | throw (IO.userError "load manifest Actual review")
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "load Actual review")
   let actualDay := Loam.ActualReview.select actualRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>
       record.event.id == completion.actual &&
         record.description == "actual-scheduled-1" &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1100, 1100])
-    "completion Actual did not enter fresh manifest review"
+    "completion Actual did not enter fresh Actual review"
 
-  let .ok afterCompletion ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok afterCompletion ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after completion")
   let due10 := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterCompletion "2026-09-10")
   expect (!hasScheduled due10 "scheduled-1") "completed Scheduled stayed current-open"
   expect (hasScheduled due10 "scheduled-2") "unrelated Scheduled disappeared after completion"
 
-  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishCancellation
       scheduledFile.toString root.toString { scheduled := ⟨"scheduled-2"⟩ }
     | throw (IO.userError "publish Scheduled cancellation")
   expect (cancelled.scheduled.token == "scheduled-2") "cancellation receipt changed identity"
-  let .ok afterCancellation ← Loam.ScheduledReview.loadEvidenceFromManifest scheduledFile root
+  let .ok afterCancellation ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after cancellation")
   let due10After := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterCancellation "2026-09-10")
   expect (!hasScheduled due10After "scheduled-2") "cancelled Scheduled stayed current-open"
-  let staleCompletion ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+  let staleCompletion ← Loam.ScheduledTerminalPublisher.publishCompletion
     scheduledFile.toString root.toString
     (completionDraft "scheduled-2" "2026-09-08" "paypay" "food" 200)
   expect (!staleCompletion.isOk) "cancelled Scheduled accepted a stale completion"
@@ -152,7 +152,7 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
       { currentLifecycle with terminals := withInterrupted })
     "save lifecycle with interrupted completion relation"
-  let .ok resumed ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+  let .ok resumed ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-3" "2026-09-09" "smbc" "rent" 3100)
     | throw (IO.userError "resume relation-first completion")
@@ -170,7 +170,7 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
       { recoveryLifecycle with terminals := withInterruptedCancel })
     "save lifecycle with cancellation guard relation"
-  let refusedCancel ← Loam.ScheduledTerminalPublisher.publishManifestCancellation
+  let refusedCancel ← Loam.ScheduledTerminalPublisher.publishCancellation
     scheduledFile.toString root.toString { scheduled := ⟨"scheduled-4"⟩ }
   expect (!refusedCancel.isOk) "cancellation competed with an interrupted completion"
 
@@ -180,7 +180,7 @@ def main (args : List String) : IO Unit := do
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "publish closed Locus policy")
   let beforePolicyRefusal ← IO.FS.readFile (root / "actual.loam")
-  let refusedPolicy ← Loam.ScheduledTerminalPublisher.publishManifestCompletion
+  let refusedPolicy ← Loam.ScheduledTerminalPublisher.publishCompletion
     scheduledFile.toString root.toString
     (completionDraft "scheduled-5" "2026-09-09" "paypay" "rent" 500)
   expect (!refusedPolicy.isOk) "Scheduled completion bypassed current Locus policy"

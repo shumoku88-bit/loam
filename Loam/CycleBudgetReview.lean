@@ -27,7 +27,7 @@ funding use the same loaded balance evidence but independent selections. Coverag
 keeps its existing production reader; this does not promise a cross-file atomic
 snapshot or historical balance replay. No writer or recovery is invoked.
 -/
-def loadSnapshotAt (dataDir manifestRoot : System.FilePath) (observedAt : String) :
+def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) :
     IO Snapshot := do
   let window ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt
   let coverage ← attempt do
@@ -35,8 +35,8 @@ def loadSnapshotAt (dataDir manifestRoot : System.FilePath) (observedAt : String
     | .error message => return .error message
     | .ok window =>
       Loam.CurrentCoverageReview.loadSnapshotAt
-        dataDir manifestRoot window.start observedAt window.endExclusive
-  let evidence ← attempt (Loam.BalanceReview.loadEvidence dataDir manifestRoot)
+        dataDir actualRoot window.start observedAt window.endExclusive
+  let evidence ← attempt (Loam.BalanceReview.loadEvidence dataDir actualRoot)
   let physical ← attempt do
     match evidence with
     | .error message => return .error message
