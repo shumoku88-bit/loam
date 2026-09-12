@@ -11,7 +11,8 @@ on:
       - 'Loam/ActualReview.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -30,7 +31,8 @@ on:
       - 'Loam/ActualReview.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
-      - 'Loam/Persistence/ActualValidityPersistence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -61,5 +63,7 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Verify normalized Actual persistence
+        run: lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
       - name: Verify Actual-backed occurrence-date publication
         run: lake env lean --run Loam/Tests/ActualValidityPublisher.lean "$(mktemp -d)/actual-validity-publisher"
