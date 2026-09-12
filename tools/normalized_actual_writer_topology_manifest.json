@@ -1,0 +1,21 @@
+[
+  {
+    "id": "normalized-actual-writer-topology",
+    "workflow_origin": "normalized-actual-writer-topology.yml",
+    "model": "experiments/normalized_actual_writer_topology.als",
+    "expected": {
+      "unguardedPolicyRace": true,
+      "unguardedScheduledRace": true,
+      "dateRevisionWhilePolicyAdvances": true,
+      "recordWhileScheduledAdvances": true,
+      "duplicateCoordinatePromotion": true,
+      "staleLocatorWitness": true,
+      "GuardedPolicyDependencyCannotRace": false,
+      "GuardedScheduledDependencyCannotRace": false,
+      "GuardedCommitSelectsOneClosedActualGeneration": false,
+      "StaleLocatorCannotResolveAgainstAnotherGeneration": false,
+      "PromotionChangesOnlyChosenEffectIdentity": false,
+      "RelationSourceIsStableAfterPromotion": false
+    }
+  }
+]
