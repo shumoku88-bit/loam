@@ -50,7 +50,7 @@ jobs:
                   text = text.replace(marker, '\nimport Lean.Elab.Tactic.Omega\n' + marker, 1)
               text = text.replace(
                   'balanced := by simp [movementTotalQuanta]',
-                  'balanced := by omega')
+                  'balanced := by\n    simp [movementTotalQuanta]\n    omega')
               path.write_text(text)
           PY
 
