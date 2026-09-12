@@ -99,10 +99,7 @@ private def admit?
   if reversalMentionsEvent evidence.reversals draft.target then
     throw "loam: correction of an Actual participating in Reversal evidence is not yet qualified"
 
-  let currentFacts ←
-    match Loam.Application.admittedActualValidityFacts? evidence.validity with
-    | some facts => pure facts
-    | none => throw "loam: actual-validity corrections do not justify one current date per Event"
+  let currentFacts := Loam.Application.actualValidityFrontierFacts evidence.validity
   let targetFact ←
     match currentFacts.find? fun fact => decide (fact.event = draft.target) with
     | some fact => pure fact
