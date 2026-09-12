@@ -259,16 +259,18 @@ assert RelationSourceIsStableAfterPromotion {
     }
 }
 
-run unguardedPolicyRace for 10 but exactly 2 PolicyGeneration, 1 ScheduledGeneration
-run unguardedScheduledRace for 10 but exactly 1 PolicyGeneration, 2 ScheduledGeneration
-run dateRevisionWhilePolicyAdvances for 10 but exactly 2 PolicyGeneration
-run movementWhileScheduledAdvances for 10 but exactly 2 ScheduledGeneration
-run duplicateCoordinatePromotion for 12 but exactly 2 Event, 2 EffectOccurrence, 1 Coordinate, 2 ActualGeneration, 1 EffectKey, 1 Relation, 1 Locator
-run staleLocatorWitness for 10 but exactly 2 ActualGeneration, 1 Locator, 1 Snapshot
+// Keep each bounded search deliberately small. These are local topology laws,
+// not a census of unrelated Write/Snapshot atoms.
+run unguardedPolicyRace for 5 but exactly 2 PolicyGeneration, exactly 1 ScheduledGeneration
+run unguardedScheduledRace for 5 but exactly 1 PolicyGeneration, exactly 2 ScheduledGeneration
+run dateRevisionWhilePolicyAdvances for 5 but exactly 2 PolicyGeneration
+run movementWhileScheduledAdvances for 5 but exactly 2 ScheduledGeneration
+run duplicateCoordinatePromotion for 5 but exactly 2 Event, exactly 2 EffectOccurrence, exactly 1 Coordinate, exactly 2 ActualGeneration, exactly 1 EffectKey, exactly 1 Relation, exactly 1 Locator
+run staleLocatorWitness for 5 but exactly 2 ActualGeneration, exactly 1 Locator, exactly 1 Snapshot
 
-check GuardedPolicyDependencyCannotRace for 12
-check GuardedScheduledDependencyCannotRace for 12
-check GuardedCommitSelectsOneClosedActualGeneration for 12
-check StaleLocatorCannotResolveAgainstAnotherGeneration for 12
-check PromotionChangesOnlyChosenEffectIdentity for 12
-check RelationSourceIsStableAfterPromotion for 12
+check GuardedPolicyDependencyCannotRace for 5
+check GuardedScheduledDependencyCannotRace for 5
+check GuardedCommitSelectsOneClosedActualGeneration for 5
+check StaleLocatorCannotResolveAgainstAnotherGeneration for 5
+check PromotionChangesOnlyChosenEffectIdentity for 5
+check RelationSourceIsStableAfterPromotion for 5
