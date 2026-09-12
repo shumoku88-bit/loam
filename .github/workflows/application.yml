@@ -5,6 +5,8 @@ on:
     paths:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
@@ -47,3 +51,10 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Qualify sparse Movement publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/sparse-movement"
+          lake env lean --run Loam/Tests/SparseMovementPublication.lean "$fixture"
