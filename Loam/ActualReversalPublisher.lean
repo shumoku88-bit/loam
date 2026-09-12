@@ -1,7 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
-import Loam.Application.ActualValidityFrontier
 import Loam.Core.ActualReversal
 import Loam.Core.BalancedMovement
 import Loam.LocusAdmissionAuthority
@@ -36,7 +35,6 @@ structure Draft where
 structure Receipt where
   target : EventId
   reversal : EventId
-  validOn : String
   deriving Repr
 
 private structure Admitted where
@@ -136,11 +134,6 @@ private def admit?
     match evidence.validity.addFact? (.base relation.reversal draft.validOn) with
     | some history => pure history
     | none => throw "loam: reversal occurrence date could not be appended"
-  let some admittedDates := Loam.Application.admittedActualValidityFacts? validity
-    | throw "loam: reversal date evidence does not justify one current date per Event"
-  if !(admittedDates.any fun fact =>
-      decide (fact.event = relation.reversal ∧ fact.validOn = draft.validOn)) then
-    throw "loam: reversal occurrence date did not become current"
 
   let updatedReversals ←
     match evidence.reversals.add? relation with
@@ -160,7 +153,6 @@ private def admit?
     receipt := {
       target := draft.target
       reversal := relation.reversal
-      validOn := draft.validOn
     }
   }
 
