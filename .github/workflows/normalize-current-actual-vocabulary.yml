@@ -1,4 +1,4 @@
-name: One-shot current Actual vocabulary audit
+name: One-shot residual Actual vocabulary cleanup
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  audit:
+  patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -19,41 +19,44 @@ jobs:
           ref: cleanup/retire-manifest-vocabulary
           fetch-depth: 0
 
-      - name: Audit remaining current manifest vocabulary
+      - name: Remove residual current manifest wording from Lean
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          lines = [
-              '# Residual current manifest vocabulary audit',
-              '',
-              'Historical Loam/Observations sources are intentionally excluded.',
-              ''
-          ]
+          replacements = {
+              'selected Movement manifest plus independent': 'selected Actual authority plus independent',
+              'Movement manifest frontier': 'Actual authority frontier',
+              'MOVEMENT_MANIFEST_ROOT': 'ACTUAL_ROOT',
+              'Older call sites or version-1 manifests that': 'Older call sites or version-1 serialized inputs that',
+              'Movement manifest fixture': 'Actual authority fixture',
+              'initialize manifest fixture': 'initialize Actual fixture',
+              'load manifest Actual review': 'load Actual review',
+              'fresh manifest review': 'fresh Actual review',
+              'missingManifest': 'missingActual',
+          }
 
-          for path in sorted(Path('Loam').rglob('*.lean')):
+          changed = []
+          for path in Path('Loam').rglob('*.lean'):
               if 'Observations' in path.parts:
                   continue
-              for lineno, line in enumerate(path.read_text().splitlines(), 1):
-                  if 'manifest' in line.lower() or 'LOAM_MOVEMENT_MANIFEST_ROOT' in line:
-                      lines.append(f'{path}:{lineno}:{line}')
+              text = path.read_text()
+              original = text
+              for old, new in replacements.items():
+                  text = text.replace(old, new)
+              if text != original:
+                  path.write_text(text)
+                  changed.append(str(path))
 
-          lines.append('')
-          lines.append('## workflows')
-          for path in sorted(Path('.github/workflows').glob('*.yml')):
-              if path.name == 'normalize-current-actual-vocabulary.yml':
-                  continue
-              for lineno, line in enumerate(path.read_text().splitlines(), 1):
-                  if 'manifest' in line.lower() or 'movement-authority' in line:
-                      lines.append(f'{path}:{lineno}:{line}')
-
-          Path('.legacy-manifest-audit.txt').write_text('\n'.join(lines) + '\n')
+          print('changed files:')
+          for path in changed:
+              print(' ', path)
           PY
 
-      - name: Commit audit receipt
+      - name: Commit residual Lean cleanup
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .legacy-manifest-audit.txt
-          git commit -m "docs(audit): refresh residual manifest vocabulary receipt [generated-manifest-audit]"
+          git add Loam
+          git commit -m "cleanup(runtime): remove residual manifest wording [generated-residual-vocab]"
           git push origin HEAD:cleanup/retire-manifest-vocabulary
