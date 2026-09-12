@@ -1,3 +1,5 @@
+import Loam.ActualAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.OperationalContinuity
 
 set_option autoImplicit false
@@ -58,9 +60,27 @@ def main (args : List String) : IO Unit := do
           "LOAM operational diagnosis\nStatus: blocked\n")
         "blocked diagnosis rendering"
 
+  let fallbackParent := dataDir / "fallback-parent"
+  let selectedRoot := fallbackParent / "selected-household"
+  IO.FS.createDirAll selectedRoot
+  match ← Loam.ActualAuthority.publishActual? fallbackParent Loam.ActualEvidence.empty with
+  | .error message => throw (IO.userError message)
+  | .ok () => pure ()
+  match ← Loam.LocusAdmissionAuthority.publishCurrent?
+      fallbackParent Loam.Core.LocusAdmissionVocabulary.empty with
+  | .error message => throw (IO.userError message)
+  | .ok () => pure ()
+  match ← Loam.ActualAuthority.loadSelectedWorld? selectedRoot with
+  | .ok _ =>
+      throw (IO.userError "explicit household root silently fell back to parent authority")
+  | .error message =>
+      expect
+        (message == s!"loam: actual authority not found: {Loam.ActualAuthority.actualPath selectedRoot}")
+        "selected household root did not fail at its own Actual authority"
+
   expect
     (Loam.OperationalContinuity.renderReady.startsWith
       "LOAM operational diagnosis\nStatus: ready\n")
     "ready rendering"
 
-  IO.println "Operational continuity diagnosis: human explanation and fail-closed startup probe passed."
+  IO.println "Operational continuity diagnosis: human explanation and strict fail-closed authority selection passed."
