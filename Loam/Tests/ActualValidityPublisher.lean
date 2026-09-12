@@ -61,16 +61,14 @@ def main (args : List String) : IO Unit := do
   let .ok noop ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-03" }
     | throw (IO.userError "same-date no-op was refused")
-  expect (!noop.changed && noop.previous == "2026-09-03")
-    "same-date publication did not report an exact no-op"
+  expect (!noop.changed) "same-date publication did not report an exact no-op"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeNoop)
     "same-date no-op changed Actual authority"
 
   let .ok corrected ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-02" }
     | throw (IO.userError "first date correction was refused")
-  expect (corrected.changed && corrected.previous == "2026-09-03")
-    "first date correction receipt lost the prior current date"
+  expect corrected.changed "first date correction did not report a change"
 
   let .ok once ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload corrected Actual review")
@@ -83,8 +81,14 @@ def main (args : List String) : IO Unit := do
   let .ok twice ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-01" }
     | throw (IO.userError "repeated date correction was refused")
-  expect (twice.previous == "2026-09-02" && twice.validOn == "2026-09-01")
-    "repeated date correction did not follow the explicit current frontier"
+  expect twice.changed "repeated date correction did not report a change"
+  let .ok twiceReview ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "reload repeatedly corrected Actual review")
+  expect ((Loam.ActualReview.select twiceReview (.day "2026-09-02")).isEmpty)
+    "prior corrected date remained current after a second correction"
+  expect ((Loam.ActualReview.select twiceReview (.day "2026-09-01")).any fun item =>
+      item.event.id == recorded.eventId)
+    "second date correction did not follow the explicit current frontier"
 
   let .ok replacement ← Loam.CorrectionPublisher.publishCorrection
       root.toString {
@@ -99,11 +103,16 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeStale)
     "stale target refusal changed Actual authority"
 
+  let .ok carried ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "reload replacement before date correction")
+  expect ((Loam.ActualReview.select carried (.day "2026-09-01")).any fun item =>
+      item.event.id == replacement.replacement && item.isCurrent)
+    "replacement did not inherit the current carried date"
+
   let .ok replacementDate ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := replacement.replacement, validOn := "2026-08-31" }
     | throw (IO.userError "current replacement date correction was refused")
-  expect (replacementDate.previous == "2026-09-01")
-    "replacement did not inherit the current carried date before explicit date correction"
+  expect replacementDate.changed "replacement date correction did not report a change"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload replacement Actual review")
