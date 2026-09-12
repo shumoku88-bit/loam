@@ -250,10 +250,5 @@ def publishReversal
     Loam.ActualAuthority.withActualOwnership root
       (publishUnderOwnership scheduledFile root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestReversal
-    (scheduledPath rootPath _correctionPath _reversalPath : String)
-    (draft : Draft) : IO (Except String Receipt) :=
-  publishReversal scheduledPath rootPath draft
 
 end Loam.ActualReversalPublisher

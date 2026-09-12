@@ -291,9 +291,5 @@ def publishCorrection
   Loam.ActualAuthority.withActualOwnership root
     (publishUnderOwnership root draft)
 
-/-- Backward-compatible alias for existing call sites. -/
-def publishManifestCorrection
-    (rootPath : String) (_correctionPath : String) (draft : Draft) : IO (Except String Receipt) :=
-  publishCorrection rootPath draft
 
 end Loam.CorrectionPublisher
