@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 || $# -gt 3 ]]; then
-  echo "usage: tools/check-normalized-actual-dogfood DATA_ROOT [START END]" >&2
+if [[ $# -lt 1 || $# -gt 4 ]]; then
+  echo "usage: tools/check-normalized-actual-dogfood DATA_ROOT [START END [OBSERVED_AT]]" >&2
   exit 2
 fi
 
 data_root="$(cd "$1" && pwd)"
 start="${2:-2026-08-17}"
 end="${3:-2026-10-15}"
-cycle_observed_at="${LOAM_NORMALIZED_ACTUAL_OBSERVED_AT:-2026-09-12}"
+cycle_observed_at="${4:-${LOAM_NORMALIZED_ACTUAL_OBSERVED_AT:-2026-09-12}}"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 production_observer="$repo_root/.lake/build/bin/normalizedActualProductionObservation"
 hobs1_observer="$repo_root/.lake/build/bin/loamHouseholdObservation"
@@ -45,8 +45,28 @@ python3 "$normalized_tool" observe "$normalized" >"$work/normalized.obs"
 "$production_observer" "$data_root" >"$work/current.production.obs"
 python3 "$compare_observations" "$work/normalized.obs" "$work/current.production.obs"
 
+printf '%s\n' '== copy canonical support into disposable fixture =='
+python3 - "$data_root" "$rebuilt" "$repo_root" <<'PY'
+from pathlib import Path
+import shutil
+import sys
+
+source = Path(sys.argv[1]).resolve()
+target = Path(sys.argv[2]).resolve()
+repo = Path(sys.argv[3]).resolve()
+
+def ignored(path: str, names: list[str]):
+    parent = Path(path).resolve()
+    ignored_names = {".git", ".lake"}
+    for name in names:
+        if (parent / name).resolve() == repo:
+            ignored_names.add(name)
+    return ignored_names
+
+shutil.copytree(source, target, ignore=ignored)
+PY
+
 printf '%s\n' '== normalized -> test-only current fixture -> production readers =='
-cp -a "$data_root" "$rebuilt"
 python3 "$normalized_to_current" "$normalized" "$rebuilt"
 "$production_observer" "$rebuilt" >"$work/rebuilt.production.obs"
 python3 "$compare_observations" "$work/normalized.obs" "$work/rebuilt.production.obs"
@@ -115,15 +135,15 @@ reduction = 100.0 * saving / current_actual_bytes if current_actual_bytes else 0
 actual = parse(normalized_path.read_bytes())
 effects = [effect for tx in actual.txs for effect in tx.effects]
 keyed = [effect for effect in effects if effect.key is not None]
-date_revisions = [r for tx in actual.txs for r in tx.date_revisions]
-relations = [r for tx in actual.txs for r in tx.relations]
-discharges = [d for tx in actual.txs for d in tx.discharges]
+date_revisions = [revision for tx in actual.txs for revision in tx.date_revisions]
+relations = [relation for tx in actual.txs for relation in tx.relations]
+discharges = [discharge for tx in actual.txs for discharge in tx.discharges]
 corrections = [tx for tx in actual.txs if tx.replaces is not None]
 reversals = [tx for tx in actual.txs if tx.reversal_of is not None]
 duplicate_coordinate_extras = 0
 for tx in actual.txs:
-    counts = Counter((e.locus, e.measure) for e in tx.effects)
-    duplicate_coordinate_extras += sum(n - 1 for n in counts.values() if n > 1)
+    counts = Counter((effect.locus, effect.measure) for effect in tx.effects)
+    duplicate_coordinate_extras += sum(count - 1 for count in counts.values() if count > 1)
 
 payload_match = re.search(
     r"projected\s+(\d+)\s+current semantic sections:\s+(\d+)\s+payload bytes",
