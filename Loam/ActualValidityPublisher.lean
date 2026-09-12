@@ -93,15 +93,6 @@ private def admit?
     })
   else
     let updatedValidity ← appendDateChange? evidence.validity event currentFact draft.validOn
-    let admitted ←
-      match Loam.Application.admittedActualValidityFacts? updatedValidity with
-      | some facts => pure facts
-      | none => throw "loam: proposed date correction does not justify one current date per Event"
-    match currentFactForEvent? admitted draft.target with
-    | some replacement =>
-        if replacement.validOn != draft.validOn then
-          throw "loam: proposed date correction frontier did not select the replacement date"
-    | none => throw "loam: proposed date correction lost the selected Actual date"
     pure ({ evidence with validity := updatedValidity }, {
       target := draft.target
       previous := currentFact.validOn
