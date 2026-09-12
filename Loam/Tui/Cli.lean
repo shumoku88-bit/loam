@@ -24,14 +24,10 @@ import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession
-import Loam.ScheduledRoutingPublisher
-import Loam.ScheduledContinuationRouting
-import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
 import Loam.BoundaryPresetConfig
-import Loam.MovementPublisher
 import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
@@ -105,8 +101,7 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     | .error message => return .error message
     | .ok records => pure records
   let scheduled ←
-    Loam.ScheduledReview.loadEvidenceFromActual
-      (dataDir / "scheduled.loam") dataDir
+    Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
@@ -840,7 +835,7 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
         bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
+      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
@@ -854,7 +849,7 @@ partial def capacityLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityRebalanceSession.run
         bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam"))
+      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
@@ -880,7 +875,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     cycleBudgetLoop bounds dataDir root next nextFrame
   | .rebalance =>
     let notice ←
-      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir with
       | .error message => pure ("Capacity unavailable: " ++ message)
       | .ok capacitySnapshot =>
         let coverage :=
@@ -914,7 +909,7 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     cycleBudgetLoop bounds dataDir root next nextFrame
   | .grant row =>
     let notice ←
-      match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+      match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir with
       | .error message => pure ("Capacity unavailable: " ++ message)
       | .ok capacitySnapshot =>
         let residual :=
@@ -1080,7 +1075,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'e' || key = .input 'E') then
-    match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+    match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir with
     | .error message =>
         let home := { state with notice := unavailableNotice "Capacity" message }
         let nextFrame := compiledFrameFor bounds snapshot home
