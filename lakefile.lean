@@ -50,3 +50,7 @@ lean_exe loamHouseholdObservation where
 
 lean_exe loamTui where
   root := `Loam.Tui.Cli
+
+/-- Research-only native observer used by the normalized Actual differential PR. -/
+lean_exe normalizedActualProductionObservation where
+  root := `Loam.Tests.NormalizedActualProductionObservation
