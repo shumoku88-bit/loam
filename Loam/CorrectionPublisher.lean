@@ -1,7 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
-import Loam.Application.CorrectionFrontier
 import Loam.Core.BalancedMovement
 import Loam.FreshNumberedToken
 import Loam.LocusAdmissionAuthority
@@ -126,14 +125,6 @@ private def admit?
     match evidence.corrections.add? correction with
     | some memory => pure memory
     | none => throw "loam: correction relation could not be appended"
-
-  let frontier ←
-    match Loam.Application.correctionFrontierMemory? updatedEvents updatedCorrections with
-    | some memory => pure memory
-    | none => throw "loam: proposed correction does not justify one current record frontier"
-  if (EventMemory.findById? frontier correction.replacement).isNone ||
-      (EventMemory.findById? frontier correction.target).isSome then
-    throw "loam: proposed correction frontier did not select exactly the replacement"
 
   let updatedValidity ←
     match evidence.validity.addFact? (.base correction.replacement targetFact.validOn) with
