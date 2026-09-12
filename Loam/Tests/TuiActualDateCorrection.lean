@@ -76,7 +76,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok receipt ← Loam.ActualValidityPublisher.publishDate root.toString dateDraft
     | throw (IO.userError "shared date publisher refused TUI intent")
-  expect (receipt.changed && receipt.previous == some "2026-09-07")
+  expect (receipt.changed && receipt.previous == "2026-09-07")
     "shared date publisher receipt lost prior date"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
