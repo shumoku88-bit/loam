@@ -18,9 +18,9 @@ lake build loamTui
 `./tools/loam` opens the production TUI by default.
 
 `LOAM_DATA_DIR` may select the household data directory; otherwise `loamTui` uses
-`../loam-data`. `LOAM_MOVEMENT_MANIFEST_ROOT` may explicitly select the Movement
-manifest root; otherwise the selected authority is resolved below the data directory.
-Movement reads and writes do not fall back to retired steady-state sidecars.
+`../loam-data`. The selected directory is also the production Actual authority root,
+and normalized Actual evidence is retained in `actual.loam`. Actual reads and writes
+do not fall back to retired steady-state sidecars.
 
 ## Home grammar
 
