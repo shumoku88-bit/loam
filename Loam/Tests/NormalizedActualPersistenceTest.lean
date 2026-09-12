@@ -64,6 +64,16 @@ def main : IO Unit := do
   let evidence1 ← requireSome (decodeNormalizedActual? validFixtureWire)
     "valid normalized actual fixture failed to decode"
 
+  -- 1b. Aggregate validity facts must not name Events outside the generation.
+  let orphanValidity ← requireSome
+    (evidence1.validity.addFact? (.base ⟨"orphan-event"⟩ "2026-09-10"))
+    "could not construct orphan validity regression fixture"
+  let orphanEvidence := { evidence1 with validity := orphanValidity }
+  requireNone (admitActualEvidence? orphanEvidence)
+    "admitted a validity fact for an absent Event"
+  requireNone (encodeNormalizedActual? orphanEvidence)
+    "encoded an orphan validity fact by silently dropping it"
+
   -- 2. Verify identity sparsity: anonymous effects are none, keyed is some
   let rootEv ← requireSome (evidence1.events.findById? ⟨"ev-root"⟩)
     "ev-root not found in decoded evidence"
