@@ -17,5 +17,18 @@
       "EventAndSparseKeyIdentifyAtMostOneEffect": false,
       "DischargePairDeterminesAtMostOneQuantity": false
     }
+  },
+  {
+    "id": "minimal-actual-publication",
+    "workflow_origin": "minimal-actual-model.yml",
+    "model": "experiments/minimal_actual_publication.als",
+    "expected": {
+      "correctionPublicationCanDangle": true,
+      "reversalPublicationCanDangle": true,
+      "preparedNewWhileOldSelected": true,
+      "switchedToNew": true,
+      "AtomicSelectedGenerationPreservesClosure": false,
+      "AtomicViewCannotTearFamilies": false
+    }
   }
 ]
