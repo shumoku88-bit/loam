@@ -80,8 +80,15 @@ private def projectPurpose?
     remaining := entitlement - consumption
   }
 
+private def loadActualEvidence
+    (actualRoot : System.FilePath) : IO (Except String Loam.ActualEvidence) :=
+  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then
+    Loam.ActualAuthority.loadActualFile? actualRoot
+  else
+    Loam.ActualAuthority.loadActual? actualRoot
+
 private def loadEvidence
-    (dataDir : System.FilePath) : IO (Except String Evidence) := do
+    (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
   let capacityPath := dataDir / "capacity.loam"
   let routingPath := dataDir / "actual-routing.loam"
 
@@ -94,7 +101,7 @@ private def loadEvidence
   | .ok _ => pure ()
 
   let actualEvidence ←
-    match ← Loam.ActualAuthority.loadActual? dataDir with
+    match ← loadActualEvidence actualRoot with
     | .ok ev => pure ev
     | .error message => return .error message
 
@@ -119,11 +126,11 @@ private def loadEvidence
   }
 
 private def loadWindowEvidence
-    (dataDir : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (start end_ : String) : IO (Except String Evidence) := do
   match validateWindow start end_ with
   | .error message => return .error message
-  | .ok _ => loadEvidence dataDir
+  | .ok _ => loadEvidence dataDir actualRoot
 
 /--
 Load one immutable production evidence snapshot and answer one explicit JPY
@@ -131,11 +138,11 @@ Purpose over `[start, end)`. The Purpose need not already appear in Capacity
 history: complete evidence can therefore justify an exact zero row.
 -/
 def loadPurposeRow
-    (dataDir : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (start end_ : String)
     (purpose : PurposeId) : IO (Except String Row) := do
   let evidence ←
-    match ← loadWindowEvidence dataDir start end_ with
+    match ← loadWindowEvidence dataDir actualRoot start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
   match projectPurpose? evidence start end_ purpose with
@@ -148,10 +155,10 @@ Load one immutable production evidence snapshot and answer an explicit JPY
 `[start, end)` query for every Purpose represented by retained Capacity evidence.
 -/
 def loadSnapshot
-    (dataDir : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (start end_ : String) : IO (Except String Snapshot) := do
   let evidence ←
-    match ← loadWindowEvidence dataDir start end_ with
+    match ← loadWindowEvidence dataDir actualRoot start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
   let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity
