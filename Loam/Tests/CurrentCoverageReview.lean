@@ -83,7 +83,7 @@ private def findRow?
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
-  let manifestRoot := root / "movement-authority"
+  let actualRoot := root
   IO.FS.createDirAll root
 
   let food ← allocation "capacity-food" "food" 100
@@ -113,7 +113,7 @@ def main (args : List String) : IO Unit := do
     "save Actual routing"
 
   let world ← movementWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
 
   let scheduled ← scheduledOccurrence
@@ -147,7 +147,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok snapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAt
-        root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+        root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
     | throw (IO.userError "current coverage review refused valid fixture")
   expect (snapshot.currentWindowStart == "2026-08-15") "current window start changed"
   expect (snapshot.observedAt == "2026-09-08") "observation coordinate changed"
@@ -176,12 +176,12 @@ def main (args : List String) : IO Unit := do
 
   let invalid ←
     Loam.CurrentCoverageReview.loadSnapshotAt
-      root manifestRoot "2026-08-15" "2026-10-15" "2026-10-15"
+      root actualRoot "2026-08-15" "2026-10-15" "2026-10-15"
   expect (!invalid.isOk) "non-future current coverage horizon was admitted"
 
   let reversedCurrentWindow ←
     Loam.CurrentCoverageReview.loadSnapshotAt
-      root manifestRoot "2026-09-09" "2026-09-08" "2026-10-15"
+      root actualRoot "2026-09-09" "2026-09-08" "2026-10-15"
   expect (!reversedCurrentWindow.isOk) "reversed current coverage window was admitted"
 
   let missingManifest ←
@@ -194,18 +194,18 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveCapacityEffectiveMemory?
     (root / "capacity.loam.effective") missingEntry) "save incomplete evidence"
   let incomplete ← Loam.CurrentCoverageReview.loadSnapshotAt
-    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!incomplete.isOk) "missing effective entry did not fail closed"
 
   let emptyCapacity ← requireSome (CapacityMemory.ofMovements? []) "empty capacity"
   expect (← Loam.Persistence.saveCapacityMemory? (root / "capacity.loam") emptyCapacity)
     "save empty capacity"
   let orphan ← Loam.CurrentCoverageReview.loadSnapshotAt
-    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!orphan.isOk) "orphan evidence with no Purpose rows did not fail closed"
   IO.FS.removeFile (root / "capacity.loam.effective")
   let missingFile ← Loam.CurrentCoverageReview.loadSnapshotAt
-    root manifestRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingFile.isOk) "missing effective file did not return a visible error"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."

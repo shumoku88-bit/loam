@@ -25,7 +25,7 @@ private def capacityMovement?
   pure { id := ⟨id⟩, movement := balanced }
 
 private def publishWorld
-    (manifestRoot : System.FilePath)
+    (actualRoot : System.FilePath)
     (tokens : List String) : IO Unit := do
   let events ← requireSome (EventMemory.ofEvents? []) "empty Event memory"
   let loci := tokens.map fun token => (⟨token⟩ : LocusId)
@@ -43,7 +43,7 @@ private def publishWorld
     discharges := []
     locusAdmission := locusAdmission
   }
-  match ← Loam.ActualAuthority.publishWorld? manifestRoot world with
+  match ← Loam.ActualAuthority.publishWorld? actualRoot world with
   | .ok _ => pure ()
   | .error message => throw (IO.userError message)
 
@@ -52,10 +52,10 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated Actual routing review directory")
   let root := System.FilePath.mk rootPath
   let dataDir := root / "data"
-  let manifestRoot := dataDir / "movement-authority"
+  let actualRoot := dataDir
   IO.FS.createDirAll dataDir
 
-  publishWorld manifestRoot ["coffee", "shipping", "cash", "mystery"]
+  publishWorld actualRoot ["coffee", "shipping", "cash", "mystery"]
 
   IO.FS.writeFile (dataDir / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
@@ -86,7 +86,7 @@ def main (args : List String) : IO Unit := do
     "save Capacity authority"
 
   let snapshot ←
-    match ← Loam.ActualRoutingReview.loadSnapshot dataDir manifestRoot "2026-09-09" with
+    match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-09-09" with
     | .ok snapshot => pure snapshot
     | .error message => throw (IO.userError message)
 
@@ -108,7 +108,7 @@ def main (args : List String) : IO Unit := do
     "Purpose candidates come from retained Capacity evidence"
   expect (Loam.ActualRoutingReview.unroutedCount snapshot == 1) "unrouted count"
 
-  match ← Loam.ActualRoutingReview.loadSnapshot dataDir manifestRoot "2026-02-29" with
+  match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-02-29" with
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "impossible review date was silently admitted")
 

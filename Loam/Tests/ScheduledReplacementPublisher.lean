@@ -72,7 +72,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld

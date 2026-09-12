@@ -66,7 +66,7 @@ private def findRow?
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
-  let manifestRoot := root / "movement-authority"
+  let actualRoot := root
   IO.FS.createDirAll root
 
   let food ← allocation "capacity-food" "food" 100
@@ -94,7 +94,7 @@ def main (args : List String) : IO Unit := do
     "save routing"
 
   let world ← movementWorld
-  let .ok _ ← Loam.ActualAuthority.publishWorld? manifestRoot world
+  let .ok _ ← Loam.ActualAuthority.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
 
   -- A frozen/legacy Movement sidecar must not influence this production review.
@@ -102,7 +102,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok snapshot ←
       Loam.BudgetWindowReview.loadSnapshot
-        root manifestRoot "2026-08-17" "2026-10-15"
+        root actualRoot "2026-08-17" "2026-10-15"
     | throw (IO.userError "budget-window review refused valid fixture")
   expect (snapshot.start == "2026-08-17" && snapshot.endExclusive == "2026-10-15")
     "window coordinates changed"
@@ -117,7 +117,7 @@ def main (args : List String) : IO Unit := do
 
   let invalid ←
     Loam.BudgetWindowReview.loadSnapshot
-      root manifestRoot "2026-10-15" "2026-08-17"
+      root actualRoot "2026-10-15" "2026-08-17"
   expect (!invalid.isOk) "reversed explicit window was admitted"
 
   let missingManifest ←
@@ -125,4 +125,4 @@ def main (args : List String) : IO Unit := do
       root (root / "missing-authority") "2026-08-17" "2026-10-15"
   expect (!missingManifest.isOk) "missing selected Movement authority did not fail closed"
 
-  IO.println "Budget Window Review: manifest authority, explicit window and derived Remaining passed."
+  IO.println "Budget Window Review: Actual authority, explicit window and derived Remaining passed."

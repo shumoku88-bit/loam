@@ -9,7 +9,7 @@ open Loam.Tui.Kernel
 def main (args : List String) : IO Unit := do
   let [path] := args | throw (IO.userError "usage: CycleBudgetDogfood DATA_DIR")
   let dataDir := System.FilePath.mk path
-  let snapshot ← Loam.CycleBudgetReview.loadSnapshotAt dataDir (dataDir / "movement-authority") "2026-09-08"
+  let snapshot ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir "2026-09-08"
   let .ok funding := snapshot.funding | throw (IO.userError s!"Funding unavailable: {repr snapshot.funding}")
   unless funding.budgetableBacking.quanta == 76389 && funding.remainingAssigned.quanta == 47068 &&
       funding.residualBeforeUnresolved.quanta == 29321 && funding.unresolvedFuturePressure.quanta == 4810 do
@@ -36,7 +36,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "scheduled routing failed")
   let some roles ← Loam.Persistence.loadAccountingRoleMap? (dataDir / "accounting-role.loam")
     | throw (IO.userError "accounting roles failed")
-  let .ok movement ← Loam.ActualAuthority.loadSelectedWorld? (dataDir / "movement-authority")
+  let .ok movement ← Loam.ActualAuthority.loadSelectedWorld? dataDir
     | throw (IO.userError "movement authority failed")
   let some unresolvedRows :=
     Loam.Application.currentUnresolvedScheduledPressure?

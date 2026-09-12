@@ -77,7 +77,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
@@ -112,7 +112,7 @@ def main (args : List String) : IO Unit := do
       retainedLifecycle.terminals ⟨"scheduled-1"⟩ == some completion.actual)
     "completion relation lost its Actual endpoint"
 
-  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load manifest Actual review")
   let actualDay := Loam.ActualReview.select actualRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>

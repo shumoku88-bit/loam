@@ -53,7 +53,7 @@ private def occurrence (id toLocus : String) (amount : Int) : IO (ScheduledOccur
 
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
-  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load manifest Actual review")
   let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load Scheduled evidence")
@@ -77,7 +77,7 @@ def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
-  let root := dataDir / "movement-authority"
+  let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
@@ -154,7 +154,7 @@ def main (args : List String) : IO Unit := do
   expect (actualDay.any fun record =>
       record.event.id == completion.actual &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1000, 1000])
-    "completion did not publish independent Actual evidence through shared manifest authority"
+    "completion did not publish independent Actual evidence through shared Actual authority"
 
   let afterState := Loam.Tui.SelectedDay.refreshed afterCompletion scheduledState
   let cancelCommand := Loam.Tui.SelectedDay.update afterCompletion afterState .cancelScheduled

@@ -73,15 +73,15 @@ No projection result is retained: success means only that the startup read bound
 is currently coherent enough to open.
 -/
 def diagnoseStartupRead
-    (dataDir manifestRoot : System.FilePath) : IO (Except Diagnosis Unit) := do
+    (dataDir actualRoot : System.FilePath) : IO (Except Diagnosis Unit) := do
   let some _today ← Loam.ActualDate.todayIso?
     | return .error (explainReadFailure "Environment" "loam: could not determine the local date")
-  match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
+  match ← Loam.ActualReview.loadRecordsFromActual actualRoot with
   | .error message =>
       return .error (explainReadFailure "Actual / Movement" message)
   | .ok _ => pure ()
   match ← Loam.ScheduledReview.loadEvidenceFromActual
-      (dataDir / "scheduled.loam") manifestRoot with
+      (dataDir / "scheduled.loam") actualRoot with
   | .error message =>
       return .error (explainReadFailure "Scheduled" message)
   | .ok _ => return .ok ()

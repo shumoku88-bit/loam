@@ -116,7 +116,7 @@ optional Event-correction stream preserves the established absent-as-empty polic
 No fallback to frozen Movement sidecars exists.
 -/
 def loadSnapshotAt
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (currentWindowStart observedAt endExclusive : String) : IO (Except String Snapshot) := do
   if !Loam.ActualDate.validIsoDate currentWindowStart ||
       !Loam.ActualDate.validIsoDate observedAt ||
@@ -155,8 +155,8 @@ def loadSnapshotAt
   if !capacityEffectiveEvidenceComplete capacity effective then
     return .error "loam: incomplete Capacity effective evidence"
   let path :=
-    if manifestRoot.fileName == some Loam.ActualAuthority.actualFileName then manifestRoot
-    else Loam.ActualAuthority.actualPath manifestRoot
+    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+    else Loam.ActualAuthority.actualPath actualRoot
   let actualEvidence ←
     match ← Loam.ActualAuthority.loadActualFile? path with
     | .ok ev => pure ev
@@ -214,10 +214,10 @@ def loadSnapshotAt
 
 /-- Production wrapper resolving only the current local observation date. -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir actualRoot : System.FilePath)
     (currentWindowStart endExclusive : String) : IO (Except String Snapshot) := do
   let some observedAt ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local observation date"
-  loadSnapshotAt dataDir manifestRoot currentWindowStart observedAt endExclusive
+  loadSnapshotAt dataDir actualRoot currentWindowStart observedAt endExclusive
 
 end Loam.CurrentCoverageReview
