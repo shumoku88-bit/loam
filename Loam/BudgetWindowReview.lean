@@ -1,10 +1,9 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CapacityWindowInspection
 import Loam.CapacityAuthority
 import Loam.CapacityReview
-import Loam.MovementManifestAuthority
-import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.ActualRoutingPersistence
 
 namespace Loam.BudgetWindowReview
@@ -52,12 +51,6 @@ private structure Evidence where
   validities : ActualValidityMemory String
   routing : Loam.Persistence.ActualRoutingHistory
 
-private def loadCorrections?
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? path with
-  | some corrections => return .ok corrections
-  | none => return .error "loam: malformed or unsupported Event correction authority"
-
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
   if ← path.pathExists then return .ok ()
   return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
@@ -93,7 +86,6 @@ private def loadEvidence
     (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
   let capacityPath := dataDir / "capacity.loam"
   let routingPath := dataDir / "actual-routing.loam"
-  let correctionPath := dataDir / "corrections.loam"
 
   let capacityImage ←
     match ← Loam.CapacityAuthority.loadRequired capacityPath with
@@ -103,20 +95,23 @@ private def loadEvidence
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let movement ←
-    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
+  let path :=
+    if manifestRoot.fileName == some Loam.ActualAuthority.actualFileName then manifestRoot
+    else Loam.ActualAuthority.actualPath manifestRoot
+  let actualEvidence ←
+    match ← Loam.ActualAuthority.loadActualFile? path with
+    | .ok ev => pure ev
+    | .error message =>
+        match ← Loam.ActualAuthority.loadActual? dataDir with
+        | .ok ev => pure ev
+        | .error _ => return .error message
+
   let validities ←
-    match admittedActualValidityMemory? movement.validity with
+    match admittedActualValidityMemory? actualEvidence.validity with
     | some memory => pure memory
     | none =>
         return .error
           "loam: Actual validity corrections do not justify one current date per Event"
-  let corrections ←
-    match ← loadCorrections? correctionPath with
-    | .ok memory => pure memory
-    | .error message => return .error message
   let routing ←
     match ← Loam.Persistence.loadActualRoutingHistory? routingPath with
     | some history => pure history
@@ -125,8 +120,8 @@ private def loadEvidence
   return .ok {
     capacity := capacityImage.movements
     effective := capacityImage.effective
-    events := movement.events
-    corrections := corrections
+    events := actualEvidence.events
+    corrections := actualEvidence.corrections
     validities := validities
     routing := routing
   }

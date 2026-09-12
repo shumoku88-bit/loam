@@ -1,7 +1,6 @@
+import Loam.ActualAuthority
 import Loam.Application.ZeroOriginQuantity
 import Loam.BalanceViewConfig
-import Loam.MovementManifestAuthority
-import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 namespace Loam.BalanceReview
@@ -73,12 +72,6 @@ def project
     events eventCorrections coverage (normalizeCoordinates coordinates)
   return { rows := rows }
 
-private def loadEventCorrections
-    (path : System.FilePath) : IO (Except String EventCorrectionMemory) := do
-  match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? path with
-  | some memory => return .ok memory
-  | none => return .error "loam: malformed or unsupported correction-memory file"
-
 private def loadCoverage
     (path : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
   if ← path.pathExists then
@@ -94,22 +87,28 @@ structure Evidence where
   corrections : EventCorrectionMemory
   coverage : ZeroOriginCoverage
 
-/-- Load selected manifest Events, corrections and independent zero-origin evidence. -/
+/-- Load authoritative Actual evidence and independent zero-origin evidence. -/
 def loadEvidence
-    (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
-  let movement ←
-    match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
-    | .error message => return .error message
-    | .ok evidence => pure evidence
-  let eventCorrections ←
-    match ← loadEventCorrections (dataDir / "corrections.loam") with
-    | .error message => return .error message
-    | .ok memory => pure memory
+    (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
+  let path :=
+    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+    else Loam.ActualAuthority.actualPath actualRoot
+  let actualEvidence ←
+    match ← Loam.ActualAuthority.loadActualFile? path with
+    | .ok ev => pure ev
+    | .error message =>
+        match ← Loam.ActualAuthority.loadActual? dataDir with
+        | .ok ev => pure ev
+        | .error _ => return .error message
   let coverage ←
     match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
     | .ok evidence => pure evidence
-  return .ok { events := movement.events, corrections := eventCorrections, coverage := coverage }
+  return .ok {
+    events := actualEvidence.events
+    corrections := actualEvidence.corrections
+    coverage := coverage
+  }
 
 /--
 Load the production balance-view question. Missing zero-origin evidence does not

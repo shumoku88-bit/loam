@@ -1,6 +1,6 @@
+import Loam.ActualAuthority
 import Loam.Application.ZeroOriginQuantity
 import Loam.BalanceViewConfig
-import Loam.MovementManifestAuthority
 import Loam.Persistence.EventCorrectionPersistence
 import Loam.Persistence.EventPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -26,7 +26,7 @@ private def loadEventMemoryForView?
   | some rootPath =>
       if rootPath.isEmpty then
         return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      match ← Loam.MovementManifestAuthority.loadSelectedEvidence? (System.FilePath.mk rootPath) with
+      match ← Loam.ActualAuthority.loadActual? (System.FilePath.mk rootPath) with
       | .error message => return .error message
       | .ok evidence => return .ok evidence.events
   | none =>

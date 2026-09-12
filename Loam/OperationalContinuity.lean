@@ -32,7 +32,11 @@ private def readOnlySafety : String :=
 /-- Translate one exact fail-closed read refusal without hiding its technical cause. -/
 def explainReadFailure (area message : String) : Diagnosis :=
   let situation :=
-    if message == "loam: selected Movement manifest CURRENT is missing" then
+    if message.startsWith "loam: actual authority not found:" then
+      "The actual.loam authority file is missing, so LOAM will not guess household actual facts."
+    else if message.startsWith "loam: malformed or unsupported actual file:" then
+      "The actual.loam authority file cannot be verified, so LOAM refused to treat it as current household data."
+    else if message == "loam: selected Movement manifest CURRENT is missing" then
       "The selected Movement authority is unavailable, so LOAM will not guess which household generation is current."
     else if message == "loam: selected Movement manifest CURRENT is malformed or unsupported" then
       "The selected Movement authority cannot be verified, so LOAM refused to treat it as current household data."

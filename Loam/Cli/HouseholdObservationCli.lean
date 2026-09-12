@@ -23,7 +23,7 @@ private def movementManifestRoot?
         return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
       return .ok (System.FilePath.mk rootPath)
   | none =>
-      return .ok (root / "movement-authority")
+      return .ok root
 
 private def emitRecord (fields : List String) : IO Unit :=
   IO.println (String.intercalate "\t" ("HOBS1" :: fields))

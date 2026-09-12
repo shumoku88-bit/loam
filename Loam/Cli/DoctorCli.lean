@@ -31,7 +31,7 @@ private def resolveManifestRoot
   | some path =>
       if path.isEmpty then return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
       return .ok (System.FilePath.mk path)
-  | none => return .ok (dataDir / "movement-authority")
+  | none => return .ok dataDir
 
 private def diagnose (args : List String) : IO UInt32 := do
   let dataDir ←

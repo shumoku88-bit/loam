@@ -1,5 +1,5 @@
 import Loam.Core.LocusAdmission
-import Loam.MovementManifestAuthority
+import Loam.Persistence.LocusAdmissionPersistence
 import Loam.WriterOwnership
 
 namespace Loam.LocusAdmissionAuthority
@@ -12,52 +12,49 @@ set_option autoImplicit false
 # Locus admission authority boundary
 
 LocusAdmission is current new-write policy, not household Event evidence. This
-module hides only the policy's current physical placement and publication anchor.
+module owns its physical placement (`locus-admission.loam`) and publication anchor.
 
-The representation remains Movement-manifest-backed for now. Callers that need
-only the current admission vocabulary therefore no longer depend directly on the
-Movement world layout or the `CURRENT` child path, and a later independently
-persisted policy can be tested without changing those callers.
-
-This is deliberately local rather than a generic authority abstraction.
+Historical Event data is not stored here; policy is maintained independently of
+Actual evidence.
 -/
+
+/-- The standard canonical filename for Locus admission policy authority. -/
+def locusAdmissionFileName : String := "locus-admission.loam"
+
+/-- Resolve the authoritative filepath for locus admission policy. -/
+def locusAdmissionPath (root : System.FilePath) : System.FilePath :=
+  if root.fileName == some locusAdmissionFileName then root
+  else root / locusAdmissionFileName
 
 /-- Load exactly the currently selected new-write Locus policy. -/
 def loadCurrent?
     (root : System.FilePath) : IO (Except String LocusAdmissionVocabulary) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-  | .ok world => return .ok world.locusAdmission
-  | .error message => return .error message
+  let path := locusAdmissionPath root
+  if !(← path.pathExists) then
+    return .error s!"loam: required Locus admission authority not found: {path}"
+  match ← Loam.Persistence.loadLocusAdmissionVocabulary? path with
+  | some vocab => return .ok vocab
+  | none => return .error s!"loam: malformed or unsupported Locus admission authority: {path}"
 
 /--
-Apply one policy-local read/modify/write while preserving the currently selected
-household Movement world.
-
-The callback sees only the policy meaning and returns its replacement plus an
-operation-specific result. Physical publication is intentionally unchanged: this
-implementation still locks Movement `CURRENT` and publishes one complete Movement
-generation. Neither the callback nor its caller knows that placement.
-
-No add-only assumption is encoded here. If future policy semantics earn removal
-or retirement, synchronization can be re-qualified inside this boundary without
-changing policy-only callers.
+Apply one policy-local read/modify/write under exclusive writer ownership.
 -/
 def updateCurrent? {α : Type}
     (root : System.FilePath)
     (propose : LocusAdmissionVocabulary →
-      Except String (LocusAdmissionVocabulary × α)) : IO (Except String α) :=
-  Loam.WriterOwnership.withOwnership (root / "CURRENT") do
-    let world ←
-      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-      | .ok world => pure world
+      Except String (LocusAdmissionVocabulary × α)) : IO (Except String α) := do
+  let path := locusAdmissionPath root
+  Loam.WriterOwnership.withOwnership path do
+    let current ←
+      match ← loadCurrent? root with
+      | .ok vocab => pure vocab
       | .error message => return .error message
     let (updated, result) ←
-      match propose world.locusAdmission with
+      match propose current with
       | .ok value => pure value
       | .error message => return .error message
-    match ← Loam.MovementManifestAuthority.publishWorld? root
-        { world with locusAdmission := updated } with
-    | .error message => return .error message
-    | .ok _ => return .ok result
+    if !(← Loam.Persistence.saveLocusAdmissionVocabulary? path updated) then
+      return .error s!"loam: failed to publish updated Locus admission authority: {path}"
+    return .ok result
 
 end Loam.LocusAdmissionAuthority

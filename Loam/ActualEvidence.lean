@@ -28,4 +28,21 @@ structure ActualEvidence where
   relations : List RelationUnit
   discharges : List RelationDischarge
 
+/-- The empty Actual evidence aggregate. -/
+def ActualEvidence.empty : ActualEvidence := {
+  events := { events := [], idNodup := by simp }
+  validity := {
+    facts := []
+    factRefNodup := by simp
+    corrections := []
+    correctionIdNodup := by simp
+  }
+  descriptions := EventDescriptionMemory.empty
+  corrections := { corrections := [], idNodup := by simp }
+  reversals := ActualReversalMemory.empty
+  relations := []
+  discharges := []
+}
+
 end Loam
+

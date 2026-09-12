@@ -1,6 +1,6 @@
 import Loam.ActualDate
+import Loam.ActualAuthority
 import Loam.MovementAdmission
-import Loam.MovementManifestAuthority
 import Loam.MovementPublisher
 import Loam.Cli.Movement.Entry
 import Loam.Cli.Movement.RelationEntry
@@ -57,7 +57,7 @@ authority under writer ownership after the draft is complete, so human think tim
 does not authorize publication from stale state.
 -/
 private def preflightForDraft (rootPath : String) : IO (Except String Unit) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+  match ← Loam.ActualAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
   | .error message => return .error message
   | .ok _ => return .ok ()
 

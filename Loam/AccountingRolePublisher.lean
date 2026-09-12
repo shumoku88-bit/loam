@@ -1,4 +1,6 @@
-import Loam.MovementManifestAuthority
+import Loam.ActualAuthority
+import Loam.ActualEvidence
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.WriterOwnership
@@ -34,8 +36,8 @@ structure Receipt where
 deriving Repr, DecidableEq
 
 private def actualUsesLocus
-    (world : Loam.MovementAdmission.World) (locus : LocusId) : Bool :=
-  world.events.events.any fun event =>
+    (events : EventMemory) (locus : LocusId) : Bool :=
+  events.events.any fun event =>
     event.effects.any fun effect => decide (effect.coordinate.locus = locus)
 
 private def scheduledUsesLocus
@@ -49,12 +51,13 @@ Scheduled evidence is still empty. Presentation surfaces may use this as a
 candidate projection without reimplementing publisher admission semantics.
 -/
 def eligibleInitialLoci
-    (world : Loam.MovementAdmission.World)
+    (locusAdmission : LocusAdmissionVocabulary)
+    (events : EventMemory)
     (scheduled : ScheduledMemory String)
     (roles : AccountingRoleMap) : List LocusId :=
-  world.locusAdmission.approved.filter fun locus =>
+  locusAdmission.approved.filter fun locus =>
     (roles.roleOf? locus).isNone &&
-      !actualUsesLocus world locus &&
+      !actualUsesLocus events locus &&
       !scheduledUsesLocus scheduled locus
 
 /--
@@ -67,15 +70,16 @@ classification of already-retained household facts while role history semantics
 remain unqualified.
 -/
 def propose?
-    (world : Loam.MovementAdmission.World)
+    (locusAdmission : LocusAdmissionVocabulary)
+    (events : EventMemory)
     (scheduled : ScheduledMemory String)
     (roles : AccountingRoleMap)
     (draft : Draft) : Except String (AccountingRoleMap × Receipt) := do
-  if !world.locusAdmission.allows draft.locus then
+  if !locusAdmission.allows draft.locus then
     throw "loam: AccountingRole assignment requires a currently admitted Locus"
   if (roles.roleOf? draft.locus).isSome then
     throw "loam: AccountingRole is already assigned; role replacement is not qualified"
-  if actualUsesLocus world draft.locus then
+  if actualUsesLocus events draft.locus then
     throw "loam: AccountingRole initial assignment refuses a Locus already used by Actual evidence"
   if scheduledUsesLocus scheduled draft.locus then
     throw "loam: AccountingRole initial assignment refuses a Locus already used by Scheduled evidence"
@@ -92,9 +96,13 @@ def propose?
 private def publishUnderOwnership
     (scheduledFile root roleFile : System.FilePath)
     (draft : Draft) : IO (Except String Receipt) := do
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
     | .error message => return .error message
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
@@ -103,7 +111,7 @@ private def publishUnderOwnership
   let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
     | return .error "loam: AccountingRole authority is malformed or unsupported"
   let (updated, receipt) ←
-    match propose? world lifecycle.scheduled roles draft with
+    match propose? locusAdmission evidence.events lifecycle.scheduled roles draft with
     | .ok value => pure value
     | .error message => return .error message
   if !(← Loam.Persistence.saveAccountingRoleMap? roleFile updated) then
@@ -115,9 +123,8 @@ Publish one first role assertion while excluding concurrent Scheduled creation,
 Movement/Locus publication, and AccountingRole publication from the admission
 check/write interval.
 
-The lock order preserves the existing Scheduled writer order
-`scheduled -> Movement CURRENT`, then adds the AccountingRole image as the final
-owned target.
+The lock order preserves the Scheduled writer order:
+`scheduled -> actual.loam -> roleFile`.
 -/
 def publishInitialRole
     (scheduledPath rootPath rolePath : String)
@@ -125,14 +132,14 @@ def publishInitialRole
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+    return .error "loam: data directory must not be empty"
   if rolePath.isEmpty then
     return .error "loam: AccountingRole path must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
   let roleFile := System.FilePath.mk rolePath
   Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.WriterOwnership.withOwnership (root / "CURRENT") <|
+    Loam.ActualAuthority.withActualOwnership root <|
       Loam.WriterOwnership.withOwnership roleFile
         (publishUnderOwnership scheduledFile root roleFile draft)
 

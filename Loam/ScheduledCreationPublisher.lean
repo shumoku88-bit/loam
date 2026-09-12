@@ -1,6 +1,8 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
+import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
-import Loam.MovementManifestAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledOccurrenceConstruction
@@ -15,17 +17,11 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled creation publication
 
-This module exposes only the surface-independent write boundary needed by
-production TUI and later callers.
-
-Creation re-reads the same lifecycle world used by production Scheduled readers
-before choosing a fresh Scheduled identity. Observation 226 makes that world one
-complete lifecycle image; missing authority no longer means an empty lifecycle.
+This module exposes the surface-independent write boundary for Scheduled creation.
 
 The fixed ownership order matches other Scheduled publishers:
-
 ```text
-Scheduled lifecycle authority -> Movement CURRENT
+Scheduled lifecycle authority -> actual.loam
 ```
 -/
 
@@ -63,10 +59,19 @@ private def lifecycleReadable?
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open _ => .ok ()
 
+/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
+private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
+  match effect.key with
+  | none => true
+  | some key => Loam.Persistence.validToken key.token
+
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
-    throw "loam: Scheduled date must be a real calendar date in YYYY-MM-DD form"
+    throw "loam: Scheduled creation requires a valid ISO calendar date"
+  if draft.effects.isEmpty then
+    throw "loam: Scheduled creation requires at least one Effect"
   if !draft.effects.all (fun effect =>
+      retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
       decide (effect.measure = ⟨"jpy"⟩) &&
       effect.quantity.quanta != 0) then
@@ -88,13 +93,17 @@ private def publishUnderOwnership
     match ← loadLifecycle? scheduledFile with
     | .ok lifecycle => pure lifecycle
     | .error message => return .error message
-  let world ←
-    match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
-    | .ok world => pure world
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
     | .error message => return .error message
-  if !world.locusAdmission.admitsEffects draft.effects then
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  if !locusAdmission.admitsEffects draft.effects then
     return .error "loam: Scheduled creation uses a Locus not approved for new publication"
-  match lifecycleReadable? lifecycle world.events with
+  match lifecycleReadable? lifecycle evidence.events with
   | .error message => return .error message
   | .ok () => pure ()
   let scheduledId ←
@@ -125,27 +134,24 @@ private def withCreationOwnership {α : Type}
     (scheduledFile root : System.FilePath)
     (action : IO (Except String α)) : IO (Except String α) :=
   Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.WriterOwnership.withOwnership (root / "CURRENT") action
+    Loam.ActualAuthority.withActualOwnership root action
 
 /--
 Publish one independent Scheduled occurrence into the complete lifecycle image.
-
-The draft carries only date and expected balanced signed JPY effects. Creation does
-not imply recurrence, continuation, replacement, routing inheritance, or Actual
-evidence. Existing lifecycle evidence must already be readable before a fresh
-identity can be admitted. Every Effect must also use the current explicit Locus
-admission vocabulary; UI completion remains advisory rather than authoritative.
 -/
-def publishManifestCreation
+def publishCreation
     (scheduledPath rootPath : String)
     (draft : Draft) : IO (Except String Receipt) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
-    return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
+    return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
   withCreationOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
+
+/-- Backward-compatible alias for existing call sites. -/
+def publishManifestCreation := publishCreation
 
 end Loam.ScheduledCreationPublisher

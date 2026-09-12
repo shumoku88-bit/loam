@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.LocusCatalog
 import Loam.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
@@ -74,11 +75,7 @@ private def resolveDataDir (args : List String) : IO (Except String System.FileP
 
 private def resolveManifestRoot
     (dataDir : System.FilePath) : IO (Except String System.FilePath) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some path =>
-      if path.isEmpty then return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      return .ok (System.FilePath.mk path)
-  | none => return .ok (dataDir / "movement-authority")
+  return .ok dataDir
 
 private def currentLocusMetadata
     (dataDir : System.FilePath) : IO (List Loam.LocusCatalog.Metadata) := do
@@ -102,18 +99,13 @@ private def currentLocusCatalog
 private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
   let some today ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local date"
-  let manifestRoot ←
-    match ← resolveManifestRoot dataDir with
-    | .error message => return .error message
-    | .ok root => pure root
-  let correctionPath := (dataDir / "corrections.loam").toString
   let actualRecords ←
-    match ← Loam.ActualReview.loadRecordsFromManifest manifestRoot (some correctionPath) with
+    match ← Loam.ActualReview.loadRecordsFromActual dataDir with
     | .error message => return .error message
     | .ok records => pure records
   let scheduled ←
-    Loam.ScheduledReview.loadEvidenceFromManifest
-      (dataDir / "scheduled.loam") manifestRoot
+    Loam.ScheduledReview.loadEvidenceFromActual
+      (dataDir / "scheduled.loam") dataDir
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
@@ -391,7 +383,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .recordNew =>
       let world ←
-        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        match ← Loam.ActualAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -422,7 +414,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .createScheduled =>
       let world ←
-        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        match ← Loam.ActualAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -455,7 +447,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               hraScheduledLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                match ← Loam.ActualAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -538,7 +530,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               hraScheduledLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                match ← Loam.ActualAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -567,7 +559,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .createScheduled =>
       let world ←
-        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        match ← Loam.ActualAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -600,7 +592,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                match ← Loam.ActualAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -683,7 +675,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                match ← Loam.ActualAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -738,7 +730,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+                match ← Loam.ActualAuthority.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -781,7 +773,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
-        match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+        match ← Loam.ActualAuthority.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -1001,7 +993,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root fresh home nextFrame
   else if isHome && (key = .input 'm' || key = .input 'M') then
     let world ←
-      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+      match ← Loam.ActualAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
       | .ok world => pure world
     let catalog ← currentLocusCatalog dataDir world
@@ -1144,7 +1136,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (isHome || isActualBrowse) && (key = .input 'r' || key = .input 'R') then
     let world ←
-      match ← Loam.MovementManifestAuthority.loadSelectedWorld? root with
+      match ← Loam.ActualAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
       | .ok world => pure world
     let known := world.locusAdmission.approved.map (fun locus => locus.token)

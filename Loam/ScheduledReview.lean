@@ -1,6 +1,6 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ScheduledOpenWorldInspection
-import Loam.MovementManifestAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 namespace Loam.ScheduledReview
@@ -70,11 +70,16 @@ private def loadLifecycleSnapshot?
   | .error message => return .error message
   | .ok () => return .ok snapshot
 
-def loadEvidenceFromManifest
-    (scheduledFile manifestRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
-  match ← Loam.MovementManifestAuthority.loadSelectedEvidence? manifestRoot with
+def loadEvidenceFromActual
+    (scheduledFile actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
+  let path :=
+    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+    else Loam.ActualAuthority.actualPath actualRoot
+  match ← Loam.ActualAuthority.loadActualFile? path with
   | .error message => return .error message
   | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
+
+def loadEvidenceFromManifest := loadEvidenceFromActual
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence

@@ -2,6 +2,9 @@ import Loam.Core
 import Loam.Application
 import Loam.Observations
 import Loam.Persistence.EventDescriptionPersistence
+import Loam.ActualEvidence
+import Loam.ActualAuthority
+import Loam.Persistence.NormalizedActualPersistence
 
 /-!
 # LOAM Lean umbrella
