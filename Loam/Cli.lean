@@ -62,7 +62,7 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
             toString quantity.quanta ++ " " ++ coordinate.measure.token)
       return 0
 
-/-- Command dispatcher below the separate movement recording entrance. -/
+/-- Command dispatcher for the New-only normalized Actual runtime. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | [] => do
@@ -75,24 +75,12 @@ def run (args : List String) : IO UInt32 := do
       Loam.ScheduledCli.showScheduled scheduledPath
   | ["review", actualPath] => Loam.ReviewCli.review actualPath ""
   | ["review", actualPath, query] =>
-      if query.endsWith ".loam" || query.endsWith ".corrections" then
-        Loam.ReviewCli.review actualPath query
-      else
-        Loam.ReviewCli.review actualPath "" (some query)
-  | ["review", actualPath, _ignoredCorrection, query] =>
       Loam.ReviewCli.review actualPath "" (some query)
   | ["summary", actualPath] => showRecordedQuantitySummary actualPath
   | ["effective", actualPath] =>
-      Loam.EffectiveCli.showEffectiveQuantities actualPath none
-  | ["effective", actualPath, corrPath] =>
-      Loam.EffectiveCli.showEffectiveQuantities actualPath (some corrPath)
+      Loam.EffectiveCli.showEffectiveQuantities actualPath
   | ["correction-integrity", actualPath] =>
-      Loam.CorrectionIntegrityCli.showCorrectionIntegrity actualPath none
-  | ["correction-integrity", actualPath, corrPath] =>
-      Loam.CorrectionIntegrityCli.showCorrectionIntegrity actualPath (some corrPath)
-  | "event" :: _ | "event-memory" :: _ => do
-      IO.eprintln "loam: low-level raw event persistence commands are retired with normalized Actual single-file authority (actual.loam)"
-      return 2
+      Loam.CorrectionIntegrityCli.showCorrectionIntegrity actualPath
   | _ => do
       IO.eprintln "loam: command not understood"
       IO.eprintln practicalUsage
