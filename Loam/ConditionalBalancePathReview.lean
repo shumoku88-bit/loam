@@ -194,8 +194,7 @@ def loadSnapshot
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let scheduled ←
-    match ← Loam.ScheduledReview.loadEvidenceFromActual
-        (dataDir / "scheduled.loam") actualRoot with
+    match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir actualRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   return project balances scheduled today assumedCompleteThrough
