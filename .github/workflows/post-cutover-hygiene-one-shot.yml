@@ -81,7 +81,7 @@ jobs:
 
           test = Path('tests/test_cycle_budget_tui.py')
           text = test.read_text()
-          old = '    env.pop("LOAM_MOVEMENT_MANIFEST_ROOT", None)\n'
+          old = 'env.pop("LOAM_MOVEMENT_MANIFEST_ROOT", None)\n'
           assert text.count(old) == 1
           test.write_text(text.replace(old, ''))
 
