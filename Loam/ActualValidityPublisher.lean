@@ -11,7 +11,7 @@ open Loam.Core
 
 set_option autoImplicit false
 
-/-- Surface-independent request to attach or replace one current occurrence date. -/
+/-- Surface-independent request to reaffirm or revise one current occurrence date. -/
 structure Draft where
   target : EventId
   validOn : String
@@ -19,10 +19,9 @@ structure Draft where
 /-- Small frontend receipt for one occurrence-date publication. -/
 structure Receipt where
   target : EventId
-  previous : Option String
+  previous : String
   validOn : String
   changed : Bool
-  firstDate : Bool
   deriving Repr
 
 private def freshRevisionId?
@@ -59,31 +58,25 @@ private def targetCurrent?
 private def appendDateChange?
     (history : ActualValidityHistory String)
     (event : Event)
-    (currentFact? : Option (ActualValidityFact String))
+    (currentFact : ActualValidityFact String)
     (validOn : String) : Except String (ActualValidityHistory String) := do
-  match currentFact? with
-  | none =>
-      match history.addFact? (.base event.id validOn) with
-      | some updated => pure updated
-      | none => throw "loam: could not append first occurrence-date evidence"
-  | some currentFact =>
-      let revisionId ←
-        match freshRevisionId? history with
-        | some id => pure id
-        | none => throw "loam: could not generate a fresh occurrence-date revision identity"
-      let replacement : ActualValidityFact String :=
-        .revision revisionId event.id validOn
-      let withFact ←
-        match history.addFact? replacement with
-        | some updated => pure updated
-        | none => throw "loam: could not append occurrence-date revision evidence"
-      let correction : ActualValidityCorrection := {
-        target := currentFact.ref
-        replacement := revisionId
-      }
-      match withFact.addCorrection? correction with
-      | some updated => pure updated
-      | none => throw "loam: could not append occurrence-date correction evidence"
+  let revisionId ←
+    match freshRevisionId? history with
+    | some id => pure id
+    | none => throw "loam: could not generate a fresh occurrence-date revision identity"
+  let replacement : ActualValidityFact String :=
+    .revision revisionId event.id validOn
+  let withFact ←
+    match history.addFact? replacement with
+    | some updated => pure updated
+    | none => throw "loam: could not append occurrence-date revision evidence"
+  let correction : ActualValidityCorrection := {
+    target := currentFact.ref
+    replacement := revisionId
+  }
+  match withFact.addCorrection? correction with
+  | some updated => pure updated
+  | none => throw "loam: could not append occurrence-date correction evidence"
 
 private def admit?
     (evidence : ActualEvidence)
@@ -95,53 +88,34 @@ private def admit?
     match Loam.Application.admittedActualValidityFacts? evidence.validity with
     | some facts => pure facts
     | none => throw "loam: actual-validity corrections do not justify one current date per Event"
-  let currentFact? := currentFactForEvent? currentFacts draft.target
-  match currentFact? with
-  | some currentFact =>
-      if currentFact.validOn = draft.validOn then
-        pure (evidence, {
-          target := draft.target
-          previous := some currentFact.validOn
-          validOn := draft.validOn
-          changed := false
-          firstDate := false
-        })
-      else
-        let updatedValidity ← appendDateChange? evidence.validity event currentFact? draft.validOn
-        let admitted ←
-          match Loam.Application.admittedActualValidityFacts? updatedValidity with
-          | some facts => pure facts
-          | none => throw "loam: proposed date correction does not justify one current date per Event"
-        match currentFactForEvent? admitted draft.target with
-        | some replacement =>
-            if replacement.validOn != draft.validOn then
-              throw "loam: proposed date correction frontier did not select the replacement date"
-        | none => throw "loam: proposed date correction lost the selected Actual date"
-        pure ({ evidence with validity := updatedValidity }, {
-          target := draft.target
-          previous := some currentFact.validOn
-          validOn := draft.validOn
-          changed := true
-          firstDate := false
-        })
-  | none =>
-      let updatedValidity ← appendDateChange? evidence.validity event none draft.validOn
-      let admitted ←
-        match Loam.Application.admittedActualValidityFacts? updatedValidity with
-        | some facts => pure facts
-        | none => throw "loam: proposed first date does not justify one current date per Event"
-      match currentFactForEvent? admitted draft.target with
-      | some replacement =>
-          if replacement.validOn != draft.validOn then
-            throw "loam: proposed first date frontier did not select the supplied date"
-      | none => throw "loam: proposed first date did not become current"
-      pure ({ evidence with validity := updatedValidity }, {
-        target := draft.target
-        previous := none
-        validOn := draft.validOn
-        changed := true
-        firstDate := true
-      })
+  let currentFact ←
+    match currentFactForEvent? currentFacts draft.target with
+    | some fact => pure fact
+    | none => throw "loam: selected Actual has no current occurrence date"
+  if currentFact.validOn = draft.validOn then
+    pure (evidence, {
+      target := draft.target
+      previous := currentFact.validOn
+      validOn := draft.validOn
+      changed := false
+    })
+  else
+    let updatedValidity ← appendDateChange? evidence.validity event currentFact draft.validOn
+    let admitted ←
+      match Loam.Application.admittedActualValidityFacts? updatedValidity with
+      | some facts => pure facts
+      | none => throw "loam: proposed date correction does not justify one current date per Event"
+    match currentFactForEvent? admitted draft.target with
+    | some replacement =>
+        if replacement.validOn != draft.validOn then
+          throw "loam: proposed date correction frontier did not select the replacement date"
+    | none => throw "loam: proposed date correction lost the selected Actual date"
+    pure ({ evidence with validity := updatedValidity }, {
+      target := draft.target
+      previous := currentFact.validOn
+      validOn := draft.validOn
+      changed := true
+    })
 
 private def publishUnderOwnership
     (root : System.FilePath)
@@ -161,7 +135,7 @@ private def publishUnderOwnership
   | .ok () => return .ok receipt
 
 /--
-Publish one occurrence-date attachment/correction against normalized Actual authority.
+Publish one occurrence-date reaffirmation/correction against normalized Actual authority.
 -/
 def publishDate
     (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do

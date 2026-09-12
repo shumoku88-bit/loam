@@ -61,7 +61,7 @@ def main (args : List String) : IO Unit := do
   let .ok noop ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-03" }
     | throw (IO.userError "same-date no-op was refused")
-  expect (!noop.changed && !noop.firstDate && noop.previous == some "2026-09-03")
+  expect (!noop.changed && noop.previous == "2026-09-03")
     "same-date publication did not report an exact no-op"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeNoop)
     "same-date no-op changed Actual authority"
@@ -69,7 +69,7 @@ def main (args : List String) : IO Unit := do
   let .ok corrected ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-02" }
     | throw (IO.userError "first date correction was refused")
-  expect (corrected.changed && !corrected.firstDate && corrected.previous == some "2026-09-03")
+  expect (corrected.changed && corrected.previous == "2026-09-03")
     "first date correction receipt lost the prior current date"
 
   let .ok once ← Loam.ActualReview.loadRecordsFromActual root
@@ -83,7 +83,7 @@ def main (args : List String) : IO Unit := do
   let .ok twice ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-01" }
     | throw (IO.userError "repeated date correction was refused")
-  expect (twice.previous == some "2026-09-02" && twice.validOn == "2026-09-01")
+  expect (twice.previous == "2026-09-02" && twice.validOn == "2026-09-01")
     "repeated date correction did not follow the explicit current frontier"
 
   let .ok replacement ← Loam.CorrectionPublisher.publishCorrection
@@ -102,7 +102,7 @@ def main (args : List String) : IO Unit := do
   let .ok replacementDate ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := replacement.replacement, validOn := "2026-08-31" }
     | throw (IO.userError "current replacement date correction was refused")
-  expect (replacementDate.previous == some "2026-09-01")
+  expect (replacementDate.previous == "2026-09-01")
     "replacement did not inherit the current carried date before explicit date correction"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
