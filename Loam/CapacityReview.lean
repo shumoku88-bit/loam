@@ -69,4 +69,13 @@ def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) := do
       | none => return .error "loam: internal empty Capacity memory refusal"
   return .ok (snapshot memory)
 
+/--
+Load canonical Capacity evidence from one household root. High-level frontends
+use this entrance so canonical physical file selection remains owned by the
+shared review boundary. Explicit-path diagnostic callers keep `loadSnapshot`.
+-/
+def loadSnapshotFromHouseholdRoot
+    (root : System.FilePath) : IO (Except String Snapshot) :=
+  loadSnapshot (root / "capacity.loam")
+
 end Loam.CapacityReview
