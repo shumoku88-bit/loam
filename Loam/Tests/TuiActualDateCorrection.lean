@@ -45,16 +45,14 @@ private def recordDraft : Loam.MovementAdmission.Draft := {
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
-  let dataDir := System.FilePath.mk dataPath
-  let root := dataDir / "movement-authority"
-  let correctionFile := dataDir / "corrections.loam"
+  let root := System.FilePath.mk dataPath
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
-  let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
+    | throw (IO.userError "initialize Actual fixture")
+  let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
-  let .ok records ← Loam.ActualReview.loadRecordsFromManifest root none
+  let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load initial Actual review")
   let record ← requireSome (Loam.ActualReview.select records (.day "2026-09-07")).head?
     "selected Actual fixture disappeared"
@@ -75,13 +73,12 @@ def main (args : List String) : IO Unit := do
   expect (dateDraft.target == recorded.eventId && dateDraft.validOn == "2026-09-06")
     "date editor intent changed target or date"
 
-  let .ok receipt ← Loam.ActualValidityPublisher.publishManifestDate
-      root.toString correctionFile.toString dateDraft
+  let .ok receipt ← Loam.ActualValidityPublisher.publishDate root.toString dateDraft
     | throw (IO.userError "shared date publisher refused TUI intent")
   expect (receipt.changed && receipt.previous == some "2026-09-07")
     "shared date publisher receipt lost prior date"
 
-  let .ok fresh ← Loam.ActualReview.loadRecordsFromManifest root (some correctionFile.toString)
+  let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review reload")
   expect ((Loam.ActualReview.select fresh (.day "2026-09-07")).isEmpty)
     "old selected day still exposed the moved Actual"
@@ -97,17 +94,16 @@ def main (args : List String) : IO Unit := do
   let staleIntent : Loam.ActualValidityPublisher.Draft := {
     target := recorded.eventId
     validOn := "2026-09-05" }
-  let .ok replacement ← Loam.CorrectionPublisher.publishManifestCorrection
-      root.toString correctionFile.toString {
+  let .ok replacement ← Loam.CorrectionPublisher.publishCorrection
+      root.toString {
         target := recorded.eventId
         effects := effects 650
         description := some "corrected coffee" }
     | throw (IO.userError "movement correction fixture")
-  let stale ← Loam.ActualValidityPublisher.publishManifestDate
-    root.toString correctionFile.toString staleIntent
+  let stale ← Loam.ActualValidityPublisher.publishDate root.toString staleIntent
   expect (!stale.isOk) "stale TUI date intent bypassed publisher currentness re-check"
 
-  let .ok replacementRecords ← Loam.ActualReview.loadRecordsFromManifest root (some correctionFile.toString)
+  let .ok replacementRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload replacement review")
   expect (replacementRecords.any fun item =>
       item.event.id == replacement.replacement && item.date == some "2026-09-06" && item.isCurrent)
