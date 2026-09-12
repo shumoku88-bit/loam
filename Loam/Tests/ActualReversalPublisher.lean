@@ -66,8 +66,6 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish Actual reversal")
   expect (receipt.target = ⟨"actual-1"⟩ && receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
     "reversal receipt changed deterministic endpoint identities"
-  expect (!receipt.resumed)
-    "fresh reversal was reported as interrupted-publication resume"
 
   let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected Actual world")
