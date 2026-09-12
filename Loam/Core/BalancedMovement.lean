@@ -83,7 +83,15 @@ def quantityAt {Coordinate : Type} [DecidableEq Coordinate]
   induction changes with
   | nil => rfl
   | cons change rest ih =>
-      simp [movementTotalQuanta, ih, add_comm]
+      change
+        -change.quantity.quanta +
+            movementTotalQuanta
+              (rest.map fun item =>
+                ({ coordinate := item.coordinate, quantity := -item.quantity } :
+                  MovementChange Coordinate)) =
+          -(change.quantity.quanta + movementTotalQuanta rest)
+      rw [ih]
+      exact (Int.neg_add _ _).symm
 
 /-- An empty change list is mathematically balanced for any explicit Measure. -/
 @[simp] theorem ofChanges?_nil {Coordinate : Type} (measure : MeasureId) :
