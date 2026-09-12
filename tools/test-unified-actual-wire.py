@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import sys
 import tempfile
 from pathlib import Path
 
@@ -10,6 +11,7 @@ HERE = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location("unified_actual_wire", HERE / "unified-actual-wire.py")
 assert SPEC and SPEC.loader
 m = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = m
 SPEC.loader.exec_module(m)
 
 
@@ -123,7 +125,6 @@ def main() -> int:
         assert tx["dated"].revisions[1].predecessor_kind == "REVISION"
         assert tx["dated"].revisions[1].predecessor == "rev-1"
 
-        # Relation source keeps durable identity; unrelated Effects lose eager keys.
         keyed = [e for e in tx["rel-src"].effects if e.key is not None]
         assert len(keyed) == 1 and keyed[0].key == "source-key"
         assert all(e.key is None for e in tx["rel-pay"].effects)
@@ -131,11 +132,9 @@ def main() -> int:
         assert tx["rel-src"].relations[0].source_key == "source-key"
         assert tx["rel-pay"].discharges == (m.Discharge("rel-1", 40),)
 
-        # Erasing unreferenced identity must preserve multiplicity, not collapse rows.
         dup_cash = [e for e in tx["dup"].effects if e.locus == "cash" and e.quanta == 10]
         assert len(dup_cash) == 2 and all(e.key is None for e in dup_cash)
 
-        # Split open-reference residue is not admitted canonical Actual.
         (root / "corrections.loam").write_text(
             "LOAM-EVENT-CORRECTION-MEMORY\t2\nCORRECTION\told\tabsent-event\n",
             encoding="utf-8",
