@@ -15,10 +15,8 @@ structure Draft where
   target : EventId
   validOn : String
 
-/-- Small frontend receipt for one occurrence-date publication. -/
+/-- Small frontend result for one occurrence-date publication. -/
 structure Receipt where
-  target : EventId
-  previous : String
   validOn : String
   changed : Bool
   deriving Repr
@@ -86,16 +84,12 @@ private def admit?
     | none => throw "loam: selected Actual has no current occurrence date"
   if currentFact.validOn = draft.validOn then
     pure (evidence, {
-      target := draft.target
-      previous := currentFact.validOn
       validOn := draft.validOn
       changed := false
     })
   else
     let updatedValidity ← appendDateChange? evidence.validity event currentFact draft.validOn
     pure ({ evidence with validity := updatedValidity }, {
-      target := draft.target
-      previous := currentFact.validOn
       validOn := draft.validOn
       changed := true
     })
