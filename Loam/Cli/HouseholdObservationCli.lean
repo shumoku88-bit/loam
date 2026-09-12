@@ -91,7 +91,7 @@ def report (rootPath start end_ : String) : IO UInt32 := do
     | .ok snapshot => pure snapshot
 
   let capacity ←
-    match ← Loam.CapacityReview.loadSnapshot (root / "capacity.loam") with
+    match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot root with
     | .error message =>
         IO.eprintln message
         return 2
