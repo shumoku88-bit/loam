@@ -65,7 +65,7 @@ an in-memory semantic boundary, not a persistence bundle or a claim that the
 families are one meaning. Physical publishers remain responsible for how an
 admitted world becomes authority.
 
-The default is deliberately closed. Older call sites or version-1 manifests that
+The default is deliberately closed. Older call sites or version-1 serialized inputs that
 supply no explicit policy therefore remain readable but cannot authorize a new
 quantity-bearing Movement.
 -/

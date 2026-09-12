@@ -120,9 +120,9 @@ def main (args : List String) : IO Unit := do
       root actualRoot "2026-10-15" "2026-08-17"
   expect (!invalid.isOk) "reversed explicit window was admitted"
 
-  let missingManifest ←
+  let missingActual ←
     Loam.BudgetWindowReview.loadSnapshot
       root (root / "missing-authority") "2026-08-17" "2026-10-15"
-  expect (!missingManifest.isOk) "missing selected Movement authority did not fail closed"
+  expect (!missingActual.isOk) "missing selected Movement authority did not fail closed"
 
   IO.println "Budget Window Review: Actual authority, explicit window and derived Remaining passed."

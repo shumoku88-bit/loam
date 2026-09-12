@@ -30,7 +30,7 @@ private def printDue
 Print one exact-day open-world Scheduled answer for machine or AI consumers.
 
 Production reads use the same complete Scheduled lifecycle image and selected
-Movement manifest frontier as the TUI. `UNKNOWN` means only that no explicit
+Actual authority frontier as the TUI. `UNKNOWN` means only that no explicit
 current-open Scheduled occurrence is retained for the queried day; it is not
 `NOT_DUE`.
 -/

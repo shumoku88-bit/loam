@@ -82,7 +82,7 @@ def main (args : List String) : IO Unit := do
 
   let initial ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
   let s2 ← occurrence "scheduled-2" "2026-09-10" "paypay" "food" 200
@@ -113,13 +113,13 @@ def main (args : List String) : IO Unit := do
     "completion relation lost its Actual endpoint"
 
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
-    | throw (IO.userError "load manifest Actual review")
+    | throw (IO.userError "load Actual review")
   let actualDay := Loam.ActualReview.select actualRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>
       record.event.id == completion.actual &&
         record.description == "actual-scheduled-1" &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1100, 1100])
-    "completion Actual did not enter fresh manifest review"
+    "completion Actual did not enter fresh Actual review"
 
   let .ok afterCompletion ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after completion")

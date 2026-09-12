@@ -76,7 +76,7 @@ private def printOccurrence (occurrence : ScheduledOccurrence String) : IO Unit 
 Show retained Scheduled occurrences whose expectation remains current-open.
 
 This command consumes the same complete Scheduled lifecycle image and selected
-Movement manifest frontier as production TUI readers. It is deliberately
+Actual authority frontier as production TUI readers. It is deliberately
 read-only; mutation is owned by the shared Scheduled publishers.
 -/
 def showOpenScheduled (scheduledPath actualRoot : String) : IO UInt32 := do
@@ -118,5 +118,5 @@ def main (args : List String) : IO UInt32 :=
       Loam.OpenScheduledCli.showOpenScheduled scheduledPath actualRoot
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE MOVEMENT_MANIFEST_ROOT"
+        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE ACTUAL_ROOT"
       return 2

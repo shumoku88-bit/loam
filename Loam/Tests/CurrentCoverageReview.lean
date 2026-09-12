@@ -184,10 +184,10 @@ def main (args : List String) : IO Unit := do
       root actualRoot "2026-09-09" "2026-09-08" "2026-10-15"
   expect (!reversedCurrentWindow.isOk) "reversed current coverage window was admitted"
 
-  let missingManifest ←
+  let missingActual ←
     Loam.CurrentCoverageReview.loadSnapshotAt
       root (root / "missing-authority") "2026-08-15" "2026-09-08" "2026-10-15"
-  expect (!missingManifest.isOk) "missing selected Movement authority did not fail closed"
+  expect (!missingActual.isOk) "missing selected Movement authority did not fail closed"
 
   let missingEntry ← requireSome (CapacityEffectiveMemory.ofEntries?
     [{ movement := food.id, effectiveOn := "2026-09-08" }]) "incomplete evidence"

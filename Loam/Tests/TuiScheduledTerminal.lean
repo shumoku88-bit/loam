@@ -54,7 +54,7 @@ private def occurrence (id toLocus : String) (amount : Int) : IO (ScheduledOccur
 private def loadSnapshot
     (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
-    | throw (IO.userError "load manifest Actual review")
+    | throw (IO.userError "load Actual review")
   let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
@@ -82,7 +82,7 @@ def main (args : List String) : IO Unit := do
 
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.ActualAuthority.publishWorld? root initialWorld
-    | throw (IO.userError "initialize manifest fixture")
+    | throw (IO.userError "initialize Actual fixture")
   let first ← occurrence "scheduled-1" "rent" 1000
   let second ← occurrence "scheduled-2" "food" 200
   let third ← occurrence "scheduled-3" "rent" 300

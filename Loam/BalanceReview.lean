@@ -13,7 +13,7 @@ set_option autoImplicit false
 # Shared production balance review
 
 This boundary answers the existing replaceable balance-view question from the
-selected Movement manifest plus independent zero-origin coverage evidence.
+selected Actual authority plus independent zero-origin coverage evidence.
 It does not turn `Locus` into `Account`, infer completeness from presentation,
 or silently fall back to retired Movement sidecars.
 -/
