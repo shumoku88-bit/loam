@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -55,7 +56,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
 
   expect (!(← scheduledFile.pathExists))

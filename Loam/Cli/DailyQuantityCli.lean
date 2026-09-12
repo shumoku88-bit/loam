@@ -1,8 +1,6 @@
 import Loam.ActualAuthority
 import Loam.Application.ZeroOriginQuantity
 import Loam.BalanceViewConfig
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.Persistence.EventPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 import Std
 
@@ -15,28 +13,21 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM daily quantity\n\n" ++
   "Show balances from explicit zero-origin coverage:\n" ++
-  "  ./tools/loam balances <event-memory> <event-correction-memory> <zero-origin-coverage> [balance-view]\n\n" ++
+  "  ./tools/loam balances <actual-file> <ignored-correction> <zero-origin-coverage> [balance-view]\n\n" ++
   "Show all nonzero current quantities admitted by zero-origin coverage:\n" ++
-  "  ./tools/loam current <event-memory> <event-correction-memory> <zero-origin-coverage>\n\n" ++
+  "  ./tools/loam current <actual-file> <ignored-correction> <zero-origin-coverage>\n\n" ++
   "Starting-quantity writers are retired. Zero-origin coverage is changed only by explicit reconstruction/cutover."
 
-private def loadEventMemoryForView?
-    (path : System.FilePath) : IO (Except String EventMemory) := do
-  match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
-  | some rootPath =>
-      if rootPath.isEmpty then
-        return .error "loam: LOAM_MOVEMENT_MANIFEST_ROOT must not be empty"
-      match ← Loam.ActualAuthority.loadActual? (System.FilePath.mk rootPath) with
-      | .error message => return .error message
-      | .ok evidence => return .ok evidence.events
-  | none =>
-      let memory ← if ← path.pathExists then
-          Loam.Persistence.loadEventMemory? path
-        else
-          pure (EventMemory.ofEvents? [])
-      match memory with
-      | none => return .error "loam: malformed or unsupported event-memory file"
-      | some events => return .ok events
+private def loadEvidenceForView?
+    (path : System.FilePath) : IO (Except String (EventMemory × EventCorrectionMemory)) := do
+  let actualPath :=
+    match ← IO.getEnv "LOAM_MOVEMENT_MANIFEST_ROOT" with
+    | some rootPath =>
+        if rootPath.isEmpty then path else System.FilePath.mk rootPath
+    | none => path
+  match ← Loam.ActualAuthority.loadActual? actualPath with
+  | .ok evidence => return .ok (evidence.events, evidence.corrections)
+  | .error message => return .error message
 
 private def loadCoverageForView?
     (path : System.FilePath) : IO (Option ZeroOriginCoverage) := do
@@ -109,36 +100,30 @@ private def reportCollectionFailure
 
 /-- Show all nonzero current quantities whose retained history is explicitly complete from zero. -/
 def showCurrentQuantities
-    (memoryPath eventCorrectionPath coveragePath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
+    (actualPath _ignoredCorrection coveragePath : String) : IO UInt32 := do
+  let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
-  match ← loadEventMemoryForView? memoryFile with
+  match ← loadEvidenceForView? actualFile with
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok events =>
-      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? eventCorrectionFile with
+  | .ok (events, eventCorrections) =>
+      match ← loadCoverageForView? coverageFile with
       | none =>
-          IO.eprintln "loam: malformed or unsupported correction-memory file"
+          IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
           return 2
-      | some eventCorrections =>
-          match ← loadCoverageForView? coverageFile with
-          | none =>
-              IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
-              return 2
-          | some coverage =>
-              let coordinates := coverage.coordinates
-              match collectCurrentLines events eventCorrections coverage false coordinates with
-              | .lines lines =>
-                  if coordinates.isEmpty then
-                    IO.println "No current quantities are covered from zero."
-                  else
-                    IO.println
-                      "Current quantities (explicit zero-origin coverage + effective recorded changes; zero coordinates omitted):"
-                    for line in lines do IO.println line
-                  return 0
-              | failure => reportCollectionFailure "current quantity" failure
+      | some coverage =>
+          let coordinates := coverage.coordinates
+          match collectCurrentLines events eventCorrections coverage false coordinates with
+          | .lines lines =>
+              if coordinates.isEmpty then
+                IO.println "No current quantities are covered from zero."
+              else
+                IO.println
+                  "Current quantities (explicit zero-origin coverage + effective recorded changes; zero coordinates omitted):"
+                for line in lines do IO.println line
+              return 0
+          | failure => reportCollectionFailure "current quantity" failure
 
 /--
 Show an application-facing balance view. Without an explicit view path, every
@@ -146,22 +131,16 @@ zero-origin-covered coordinate is selected. With a view path, presentation
 selection remains independent and cannot create coverage.
 -/
 def showBalances
-    (memoryPath eventCorrectionPath coveragePath : String)
+    (actualPath _ignoredCorrection coveragePath : String)
     (balanceViewPath? : Option String := none) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let eventCorrectionFile := System.FilePath.mk eventCorrectionPath
+  let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
-  match ← loadEventMemoryForView? memoryFile with
+  match ← loadEvidenceForView? actualFile with
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok events =>
-      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? eventCorrectionFile with
-      | none =>
-          IO.eprintln "loam: malformed or unsupported correction-memory file"
-          return 2
-      | some eventCorrections =>
-          match ← loadCoverageForView? coverageFile with
+  | .ok (events, eventCorrections) =>
+      match ← loadCoverageForView? coverageFile with
           | none =>
               IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
               return 2

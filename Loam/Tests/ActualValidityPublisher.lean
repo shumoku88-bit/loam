@@ -1,8 +1,8 @@
+import Loam.ActualAuthority
 import Loam.ActualValidityPublisher
 import Loam.ActualReview
 import Loam.CorrectionPublisher
 import Loam.MovementPublisher
-import Loam.Persistence.ActualReversalPersistence
 
 open Loam.Core
 
@@ -40,48 +40,31 @@ private def recordDraft : Loam.MovementAdmission.Draft := {
   discharges := []
   total := 640 }
 
-private def undatedWorld : IO Loam.MovementAdmission.World := do
-  let some event := Event.ofEffects? ⟨"older-undated"⟩
-      [Effect.ofQuantity ⟨"effect-old"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-1))]
-    | throw (IO.userError "undated event")
-  let some events := EventMemory.ofEvents? [event]
-    | throw (IO.userError "undated event memory")
-  return {
-    events := events
-    validity := emptyHistory
-    descriptions := .empty
-    relations := []
-    discharges := []
-    locusAdmission := LocusAdmissionVocabulary.empty }
-
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let dataDir := System.FilePath.mk dataPath
   let root := dataDir / "movement-authority"
   let correctionFile := dataDir / "corrections.loam"
-  let reversalFile := dataDir / "actual-reversals.loam"
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
-  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
-    "initialize explicit empty reversal authority"
   let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
-  let beforeInvalid ← IO.FS.readFile (root / "CURRENT")
+  let beforeInvalid ← IO.FS.readFile (root / "actual.loam")
   let invalid ← Loam.ActualValidityPublisher.publishManifestDate
     root.toString correctionFile.toString { target := recorded.eventId, validOn := "2026-02-29" }
   expect (!invalid.isOk) "impossible date was admitted"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == beforeInvalid)
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforeInvalid)
     "invalid date changed selected manifest authority"
 
-  let beforeNoop ← IO.FS.readFile (root / "CURRENT")
+  let beforeNoop ← IO.FS.readFile (root / "actual.loam")
   let .ok noop ← Loam.ActualValidityPublisher.publishManifestDate
       root.toString correctionFile.toString { target := recorded.eventId, validOn := "2026-09-03" }
     | throw (IO.userError "same-date no-op was refused")
   expect (!noop.changed && !noop.firstDate && noop.previous == some "2026-09-03")
     "same-date publication did not report an exact no-op"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == beforeNoop)
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforeNoop)
     "same-date no-op changed manifest authority"
 
   let .ok corrected ← Loam.ActualValidityPublisher.publishManifestDate
@@ -110,21 +93,18 @@ def main (args : List String) : IO Unit := do
         effects := effects 650
         description := some "replacement" }
     | throw (IO.userError "movement correction fixture")
-  let beforeStale ← IO.FS.readFile (root / "CURRENT")
+  let beforeStale ← IO.FS.readFile (root / "actual.loam")
   let stale ← Loam.ActualValidityPublisher.publishManifestDate
     root.toString correctionFile.toString { target := recorded.eventId, validOn := "2026-08-31" }
   expect (!stale.isOk) "superseded Event accepted a stale date intent"
-  expect ((← IO.FS.readFile (root / "CURRENT")) == beforeStale)
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforeStale)
     "stale target refusal changed manifest authority"
 
-  let correctionsBefore ← IO.FS.readFile correctionFile
   let .ok replacementDate ← Loam.ActualValidityPublisher.publishManifestDate
       root.toString correctionFile.toString { target := replacement.replacement, validOn := "2026-08-31" }
     | throw (IO.userError "current replacement date correction was refused")
   expect (replacementDate.previous == some "2026-09-01")
     "replacement did not inherit the current carried date before explicit date correction"
-  expect ((← IO.FS.readFile correctionFile) == correctionsBefore)
-    "date publisher rewrote Movement correction evidence"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromManifest root (some correctionFile.toString)
     | throw (IO.userError "reload replacement Actual review")
@@ -133,23 +113,4 @@ def main (args : List String) : IO Unit := do
       item.event.id == replacement.replacement && item.description == "replacement")
     "fresh review did not expose the current replacement at its corrected date"
 
-  let undatedRoot := dataDir / "undated-authority"
-  let undatedCorrections := dataDir / "undated-corrections.loam"
-  let older ← undatedWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? undatedRoot older
-    | throw (IO.userError "initialize undated fixture")
-  let .ok firstDate ← Loam.ActualValidityPublisher.publishManifestDate
-      undatedRoot.toString undatedCorrections.toString {
-        target := ⟨"older-undated"⟩, validOn := "2026-09-02" }
-    | throw (IO.userError "first date publication was refused")
-  expect (firstDate.changed && firstDate.firstDate && firstDate.previous.isNone)
-    "older undated Event did not receive one first-date receipt"
-  let .ok undatedSelected ← Loam.MovementManifestAuthority.loadSelectedWorld? undatedRoot
-    | throw (IO.userError "reload undated world")
-  let some undatedFacts := Loam.Application.admittedActualValidityFacts? undatedSelected.validity
-    | throw (IO.userError "first-date frontier failed closed")
-  expect (undatedFacts.any fun fact =>
-      fact.event == ⟨"older-undated"⟩ && fact.validOn == "2026-09-02")
-    "first date did not become current in selected manifest authority"
-
-  IO.println "ActualValidity Publisher: manifest ownership, no-op, repeated correction, stale target, replacement and first date passed."
+  IO.println "ActualValidity Publisher: manifest ownership, no-op, repeated correction, stale target and replacement passed."

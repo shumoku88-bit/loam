@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.Tui.CycleBudget
 import Loam.CurrentCoverageReview
 import Loam.Application.ScheduledCommitmentInspection
@@ -35,11 +36,11 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "scheduled routing failed")
   let some roles ← Loam.Persistence.loadAccountingRoleMap? (dataDir / "accounting-role.loam")
     | throw (IO.userError "accounting roles failed")
-  let .ok movement ← Loam.MovementManifestAuthority.loadSelectedWorld? (dataDir / "movement-authority")
+  let .ok movement ← Loam.ActualAuthority.loadSelectedWorld? (dataDir / "movement-authority")
     | throw (IO.userError "movement authority failed")
   let some unresolvedRows :=
-    Loam.Application.currentUnresolvedScheduledPressureWithReplacement?
-      scheduled.scheduled scheduled.completions scheduled.retirements scheduled.replacements
+    Loam.Application.currentUnresolvedScheduledPressure?
+      scheduled.scheduled scheduled.terminals
       movement.events roles scheduledRouting ⟨"jpy"⟩ snapshot.observedAt window.endExclusive
     | throw (IO.userError "unresolved rows failed closed")
   unless unresolvedRows.length == 1 do

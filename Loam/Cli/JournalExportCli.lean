@@ -1,10 +1,7 @@
-import Loam.Persistence.ActualValidityPersistence
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.Persistence.EventDescriptionPersistence
-import Loam.Persistence.EventPersistence
-import Loam.Persistence.SiblingStage
+import Loam.ActualAuthority
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
+import Loam.Persistence.SiblingStage
 import Loam.WriterOwnership
 
 namespace Loam.JournalExportCli
@@ -17,13 +14,6 @@ private structure JournalEntry where
   event : Event
   validOn : String
   description : Option String
-
-private def loadDescriptionMemoryOrEmpty?
-    (path : System.FilePath) : IO (Option EventDescriptionMemory) := do
-  if ← path.pathExists then
-    Loam.Persistence.loadEventDescriptionMemory? path
-  else
-    return some EventDescriptionMemory.empty
 
 private def journalEntry?
     (validities : ActualValidityMemory String)
@@ -62,124 +52,84 @@ private def insertEntry (entry : JournalEntry) : List JournalEntry → List Jour
       | .gt => current :: insertEntry entry rest
       | _ => entry :: current :: rest
 
-private def sortEntries : List JournalEntry → List JournalEntry
-  | [] => []
-  | entry :: rest => insertEntry entry (sortEntries rest)
-
-private def renderHeadingText (entry : JournalEntry) : String :=
-  match entry.description with
-  | some text =>
-      if text.isEmpty then
-        "[" ++ entry.event.id.token ++ "]"
-      else
-        Loam.Persistence.escapeText text
-  | none => "[" ++ entry.event.id.token ++ "]"
+private def sortEntries (entries : List JournalEntry) : List JournalEntry :=
+  entries.foldl (fun acc entry => insertEntry entry acc) []
 
 private def renderEffect (effect : Effect) : String :=
-  "    " ++ effect.locus.token ++ "    " ++
-    toString effect.quantity.quanta ++ " " ++ effect.measure.token
+  "  " ++ effect.coordinate.locus.token ++ "\t" ++
+    toString effect.quantity.quanta ++ "\t" ++ effect.coordinate.measure.token
 
-private def renderEntry (entry : JournalEntry) : String :=
-  let heading := entry.validOn ++ " * " ++ renderHeadingText entry
-  String.intercalate "\n" (heading :: entry.event.effects.map renderEffect)
-
-private def journalHeader : String :=
-  "; GENERATED FROM LOAM CANONICAL DATA\n" ++
-  "; DO NOT EDIT AS AUTHORITY\n" ++
-  "; Full regeneration from the current Event correction frontier, ActualValidity, and EventDescription.\n" ++
-  "; This file is a human-readable projection, not an import surface.\n"
+private def renderEntry (entry : JournalEntry) : List String :=
+  let heading :=
+    entry.validOn ++ "\t" ++ entry.event.id.token ++
+      match entry.description with
+      | some text => "\t" ++ text
+      | none => ""
+  heading :: entry.event.effects.map renderEffect
 
 private def renderJournal (entries : List JournalEntry) : String :=
-  match entries with
-  | [] => journalHeader ++ "\n; No effective Actual events.\n"
-  | _ => journalHeader ++ "\n" ++ String.intercalate "\n\n" (entries.map renderEntry) ++ "\n"
+  let lines := entries.flatMap renderEntry
+  if lines.isEmpty then "" else String.intercalate "\n" lines ++ "\n"
 
 private def conflictsWithCanonicalPath
-    (memoryPath correctionPath outputPath : String) : Bool :=
-  outputPath == memoryPath ||
-    outputPath == correctionPath ||
-    outputPath == memoryPath ++ ".actual-validity" ||
-    outputPath == memoryPath ++ ".descriptions"
+    (actualPath outputPath : String) : Bool :=
+  outputPath == actualPath
 
 /--
-Regenerate one human-readable Actual journal from current canonical evidence.
-
-The export is deliberately one-way. It derives the current Event correction
-frontier, derives one current ActualValidity per Event, joins optional
-EventDescription evidence, sorts by occurrence date with Event identity as a
-stable same-day tie-breaker, and atomically replaces only the requested derived
-output file. Missing correction/description streams mean empty optional evidence;
-malformed streams, ambiguous correction/date frontiers, or an effective Event
-without a current occurrence date fail closed before publication.
+Regenerate one human-readable Actual journal from normalized Actual evidence.
 -/
 def exportJournal
-    (memoryPath correctionPath outputPath : String) : IO UInt32 := do
-  if conflictsWithCanonicalPath memoryPath correctionPath outputPath then
-    IO.eprintln "loam: journal output must not replace a canonical Event evidence stream"
+    (actualPath outputPath : String) : IO UInt32 := do
+  if conflictsWithCanonicalPath actualPath outputPath then
+    IO.eprintln "loam: journal output must not replace a canonical Actual evidence stream"
     return 2
 
-  let memoryFile := System.FilePath.mk memoryPath
-  let correctionFile := System.FilePath.mk correctionPath
-  let validityFile := Loam.Persistence.actualValidityPathForEventMemory memoryFile
-  let descriptionFile := Loam.Persistence.eventDescriptionPathForEventMemory memoryFile
+  let actualFile := System.FilePath.mk actualPath
   let outputFile := System.FilePath.mk outputPath
 
-  if !(← memoryFile.pathExists) then
-    IO.eprintln ("loam: file not found: " ++ memoryPath)
-    return 2
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActualFile? actualFile with
+    | .error message =>
+        IO.eprintln message
+        return 2
+    | .ok ev => pure ev
 
-  match ← Loam.Persistence.loadEventMemory? memoryFile with
+  match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
   | none =>
-      IO.eprintln "loam: malformed or unsupported event-memory file"
+      IO.eprintln "loam: corrections do not justify one current Event frontier"
       return 2
-  | some memory =>
-      match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
+  | some frontier =>
+      match Loam.Application.admittedActualValidityMemory? evidence.validity with
       | none =>
-          IO.eprintln "loam: malformed or unsupported correction-memory file"
+          IO.eprintln
+            "loam: actual-validity corrections do not justify one current date per event"
           return 2
-      | some corrections =>
-          match Loam.Application.correctionFrontierMemory? memory corrections with
-          | none =>
-              IO.eprintln "loam: corrections do not justify one current Event frontier"
+      | some validities =>
+          match journalEntries? validities evidence.descriptions frontier.events with
+          | .error message =>
+              IO.eprintln ("loam: " ++ message)
               return 2
-          | some frontier =>
-              match ← Loam.Persistence.loadActualValidityHistoryOrEmpty? validityFile with
-              | none =>
-                  IO.eprintln "loam: malformed or unsupported actual-validity history"
-                  return 2
-              | some history =>
-                  match Loam.Application.admittedActualValidityMemory? history with
-                  | none =>
-                      IO.eprintln
-                        "loam: actual-validity corrections do not justify one current date per event"
-                      return 2
-                  | some validities =>
-                      match ← loadDescriptionMemoryOrEmpty? descriptionFile with
-                      | none =>
-                          IO.eprintln "loam: malformed or unsupported event-description memory"
-                          return 2
-                      | some descriptions =>
-                          match journalEntries? validities descriptions frontier.events with
-                          | .error message =>
-                              IO.eprintln ("loam: " ++ message)
-                              return 2
-                          | .ok entries =>
-                              Loam.Persistence.replaceTextViaSiblingStage
-                                outputFile (renderJournal (sortEntries entries))
-                              IO.println ("Regenerated readable Actual journal: " ++ outputPath)
-                              return 0
+          | .ok entries =>
+              Loam.Persistence.replaceTextViaSiblingStage
+                outputFile (renderJournal (sortEntries entries))
+              IO.println ("Regenerated readable Actual journal: " ++ outputPath)
+              return 0
 
 end Loam.JournalExportCli
 
 private def journalUsage : String :=
-  "Usage: loamJournalExport MEMORY_FILE CORRECTION_FILE OUTPUT_FILE"
+  "Usage: loamJournalExport ACTUAL_FILE OUTPUT_FILE"
 
 def main (args : List String) : IO UInt32 :=
   match args with
-  | [memoryPath, correctionPath, outputPath] =>
+  | [actualPath, outputPath] =>
       Loam.WriterOwnership.withOwnership
-        (System.FilePath.mk memoryPath)
-        (Loam.JournalExportCli.exportJournal memoryPath correctionPath outputPath)
+        (System.FilePath.mk actualPath)
+        (Loam.JournalExportCli.exportJournal actualPath outputPath)
+  | [actualPath, _ignoredCorrection, outputPath] =>
+      Loam.WriterOwnership.withOwnership
+        (System.FilePath.mk actualPath)
+        (Loam.JournalExportCli.exportJournal actualPath outputPath)
   | _ => do
       IO.eprintln journalUsage
       return 2

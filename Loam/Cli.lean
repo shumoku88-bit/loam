@@ -1,5 +1,4 @@
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.Persistence.EventPersistence
+import Loam.ActualAuthority
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
 import Loam.Cli.EffectiveCli
@@ -13,128 +12,16 @@ set_option autoImplicit false
 
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
-  "Daily recording uses selected Movement manifest authority:\n" ++
-  "  LOAM_MOVEMENT_MANIFEST_ROOT=DIR ./tools/loam movement MEMORY_FILE\n" ++
-  "  MEMORY_FILE is retained as a positional compatibility argument only.\n\n" ++
-  "Scheduled persistence is read-only here; production Scheduled mutation uses loamTui/shared publishers:\n" ++
+  "Open TUI interface (primary entrance):\n" ++
+  "  ./tools/loam\n\n" ++
+  "Operational diagnosis:\n" ++
+  "  ./tools/loam doctor [LOAM_DATA_DIR]\n\n" ++
+  "Scheduled persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
   "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
-  "  ./tools/loam review MEMORY_FILE CORRECTION_FILE [QUERY]\n\n" ++
+  "  ./tools/loam review ACTUAL_FILE [QUERY]\n\n" ++
   "Show recorded quantities:\n" ++
-  "  ./tools/loam summary MEMORY_FILE\n\n" ++
-  "Movement and date correction use the production TUI/shared manifest publishers.\n\n" ++
-  "For lower-level commands:\n" ++
-  "  ./tools/loam help low-level"
-
-private def lowLevelUsage : String :=
-  "Low-level commands\n" ++
-  "Replace each word in <angle brackets> with your own value.\n" ++
-  "Do not type the angle-bracket words literally.\n\n" ++
-  "  ./tools/loam event create <event-file> <event-id> [<effect-key> <locus> <measure> <quanta>]...\n" ++
-  "  ./tools/loam event quantity <event-file> <locus> <measure>\n" ++
-  "  ./tools/loam event-memory get <memory-file> <event-id>\n" ++
-  "  ./tools/loam event-memory review <memory-file>\n" ++
-  "  ./tools/loam event-memory quantity <memory-file> <locus> <measure>\n" ++
-  "  ./tools/loam event-memory add <memory-file> <event-file>"
-
-/-- Parse caller-supplied effect tuples without assigning meaning to their order or sign. -/
-private def parseEffects : List String → Option (List Loam.Core.Effect)
-  | [] => some []
-  | key :: locus :: measure :: quantaText :: rest =>
-      match quantaText.toInt? with
-      | none => none
-      | some quanta =>
-          match parseEffects rest with
-          | none => none
-          | some effects =>
-              some
-                (Loam.Core.Effect.ofQuantity
-                  ⟨key⟩ ⟨locus⟩ ⟨measure⟩
-                  (Loam.Core.Quantity.ofQuanta quanta) :: effects)
-  | _ => none
-
-/-- Create one complete Event from caller-supplied effect tuples. -/
-def createEvent
-    (path : String) (eventToken : String) (effectArgs : List String) : IO UInt32 := do
-  match parseEffects effectArgs with
-  | none =>
-      IO.eprintln "loam: event effects must be KEY LOCUS MEASURE QUANTA tuples"
-      return 2
-  | some effects =>
-      match Loam.Core.Event.ofEffects? ⟨eventToken⟩ effects with
-      | none =>
-        IO.eprintln "loam: duplicate effect key in event"
-        return 2
-      | some event =>
-          let filePath := System.FilePath.mk path
-          if ← filePath.pathExists then
-            IO.eprintln "loam: target event file already exists"
-            return 2
-          else if ← Loam.Persistence.saveEvent? filePath event then
-            return 0
-          else
-            IO.eprintln "loam: event contains an unrepresentable identity token"
-            return 2
-
-/-- Project exact quanta from one persisted Event at an explicit coordinate. -/
-def showEventQuantity
-    (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
-  let filePath := System.FilePath.mk path
-  if ← filePath.pathExists then
-    match ← Loam.Persistence.loadEvent? filePath with
-    | some event =>
-        let quantity := Loam.Core.Event.quantityAt event ⟨locusToken⟩ ⟨measureToken⟩
-        IO.println (toString quantity.quanta)
-        return 0
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event file"
-        return 2
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
-
-/-- Retrieve one remembered Event by stable identity. -/
-def showRememberedEvent (path : String) (eventToken : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk path
-  if ← memoryFile.pathExists then
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
-        return 2
-    | some memory =>
-        match Loam.Core.EventMemory.findById? memory ⟨eventToken⟩ with
-        | none =>
-            IO.eprintln "loam: event not found in memory"
-            return 1
-        | some event =>
-            match Loam.Persistence.encodeEvent? event with
-            | some text =>
-                IO.print text
-                return 0
-            | none =>
-                IO.eprintln "loam: remembered event cannot be represented"
-                return 2
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
-
-/-- Project the exact aggregate of all recorded facts at one coordinate. -/
-def showRememberedQuantity
-    (path : String) (locusToken : String) (measureToken : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk path
-  if ← memoryFile.pathExists then
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | some memory =>
-        let quantity :=
-          Loam.Core.EventMemory.quantityAtRecorded memory ⟨locusToken⟩ ⟨measureToken⟩
-        IO.println (toString quantity.quanta)
-        return 0
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
-        return 2
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
+  "  ./tools/loam summary ACTUAL_FILE"
 
 private def addCoordinateIfAbsent
     (coordinates : List Loam.Core.EffectCoordinate)
@@ -152,67 +39,28 @@ private def recordedCoordinates
 
 /-- Show recorded quantities without adding correction or balance semantics. -/
 def showRecordedQuantitySummary (path : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk path
-  if ← memoryFile.pathExists then
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
+  let actualFile := System.FilePath.mk path
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActualFile? actualFile with
+    | .error message =>
+        IO.eprintln message
         return 2
-    | some memory =>
-        match recordedCoordinates memory with
-        | [] =>
-            IO.println "No recorded quantities."
-            return 0
-        | coordinates =>
-            IO.println "Recorded quantities (all recorded facts; display order has no time meaning):"
-            for coordinate in coordinates do
-              let quantity :=
-                Loam.Core.EventMemory.quantityAtRecorded
-                  memory coordinate.locus coordinate.measure
-              IO.println
-                ("  " ++ coordinate.locus.token ++ ": " ++
-                  toString quantity.quanta ++ " " ++ coordinate.measure.token)
-            return 0
-  else
-    IO.eprintln ("loam: file not found: " ++ path)
-    return 2
-
-/-- Add one already-complete persisted Event under caller-held writer ownership. -/
-def addRememberedEvent (memoryPath eventPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let eventFile := System.FilePath.mk eventPath
-  if !(← memoryFile.pathExists) then
-    IO.eprintln ("loam: file not found: " ++ memoryPath)
-    return 2
-  else if !(← eventFile.pathExists) then
-    IO.eprintln ("loam: file not found: " ++ eventPath)
-    return 2
-  else
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
-        return 2
-    | some memory =>
-        match ← Loam.Persistence.loadEvent? eventFile with
-        | none =>
-            IO.eprintln "loam: malformed or unsupported event file"
-            return 2
-        | some event =>
-            match Loam.Core.EventMemory.add? memory event with
-            | none =>
-                IO.eprintln "loam: event identity already remembered"
-                return 1
-            | some updated =>
-                if ← Loam.Persistence.saveEventMemory? memoryFile updated then
-                  return 0
-                else
-                  IO.eprintln "loam: updated event memory contains an unrepresentable identity token"
-                  return 2
-
-private def withMemoryOwnership
-    (memoryPath : String)
-    (action : IO UInt32) : IO UInt32 :=
-  Loam.WriterOwnership.withOwnership (System.FilePath.mk memoryPath) action
+    | .ok ev => pure ev
+  let memory := evidence.events
+  match recordedCoordinates memory with
+  | [] =>
+      IO.println "No recorded quantities."
+      return 0
+  | coordinates =>
+      IO.println "Recorded quantities (all recorded facts; display order has no time meaning):"
+      for coordinate in coordinates do
+        let quantity :=
+          Loam.Core.EventMemory.quantityAtRecorded
+            memory coordinate.locus coordinate.measure
+        IO.println
+          ("  " ++ coordinate.locus.token ++ ": " ++
+            toString quantity.quanta ++ " " ++ coordinate.measure.token)
+      return 0
 
 /-- Command dispatcher below the separate movement recording entrance. -/
 def run (args : List String) : IO UInt32 := do
@@ -223,31 +71,28 @@ def run (args : List String) : IO UInt32 := do
   | ["help"] => do
       IO.println practicalUsage
       return 0
-  | ["help", "low-level"] => do
-      IO.println lowLevelUsage
-      return 0
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
-  | ["review", memoryPath, correctionPath] => Loam.ReviewCli.review memoryPath correctionPath
-  | ["review", memoryPath, correctionPath, query] =>
-      Loam.ReviewCli.review memoryPath correctionPath (some query)
-  | ["summary", memoryPath] => showRecordedQuantitySummary memoryPath
-  | ["effective", memoryPath, correctionPath] =>
-      Loam.EffectiveCli.showEffectiveQuantities memoryPath correctionPath
-  | ["correction-integrity", memoryPath, correctionPath] =>
-      Loam.CorrectionIntegrityCli.showCorrectionIntegrity memoryPath correctionPath
-  | "event" :: "create" :: path :: eventToken :: effectArgs =>
-      createEvent path eventToken effectArgs
-  | ["event", "quantity", path, locus, measure] =>
-      showEventQuantity path locus measure
-  | ["event-memory", "review", path] => Loam.ReviewCli.reviewRawEvents path
-  | ["event-memory", "get", path, eventToken] =>
-      showRememberedEvent path eventToken
-  | ["event-memory", "quantity", path, locus, measure] =>
-      showRememberedQuantity path locus measure
-  | ["event-memory", "add", memoryPath, eventPath] =>
-      withMemoryOwnership memoryPath
-        (addRememberedEvent memoryPath eventPath)
+  | ["review", actualPath] => Loam.ReviewCli.review actualPath ""
+  | ["review", actualPath, query] =>
+      if query.endsWith ".loam" || query.endsWith ".corrections" then
+        Loam.ReviewCli.review actualPath query
+      else
+        Loam.ReviewCli.review actualPath "" (some query)
+  | ["review", actualPath, _ignoredCorrection, query] =>
+      Loam.ReviewCli.review actualPath "" (some query)
+  | ["summary", actualPath] => showRecordedQuantitySummary actualPath
+  | ["effective", actualPath] =>
+      Loam.EffectiveCli.showEffectiveQuantities actualPath none
+  | ["effective", actualPath, corrPath] =>
+      Loam.EffectiveCli.showEffectiveQuantities actualPath (some corrPath)
+  | ["correction-integrity", actualPath] =>
+      Loam.CorrectionIntegrityCli.showCorrectionIntegrity actualPath none
+  | ["correction-integrity", actualPath, corrPath] =>
+      Loam.CorrectionIntegrityCli.showCorrectionIntegrity actualPath (some corrPath)
+  | "event" :: _ | "event-memory" :: _ => do
+      IO.eprintln "loam: low-level raw event persistence commands are retired with normalized Actual single-file authority (actual.loam)"
+      return 2
   | _ => do
       IO.eprintln "loam: command not understood"
       IO.eprintln practicalUsage

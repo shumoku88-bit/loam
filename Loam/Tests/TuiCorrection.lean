@@ -1,7 +1,7 @@
+import Loam.ActualAuthority
 import Loam.Tui.Correction
 import Loam.MovementPublisher
 import Loam.ActualReview
-import Loam.Persistence.ActualReversalPersistence
 import Lean.Elab.Tactic.Omega
 
 open Loam.Core
@@ -58,12 +58,9 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   let root := dataDir / "movement-authority"
   let correctionFile := dataDir / "corrections.loam"
-  let reversalFile := dataDir / "actual-reversals.loam"
   let initial ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initial
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initial
     | throw (IO.userError "initialize manifest fixture")
-  expect (← Loam.Persistence.saveActualReversalMemory? reversalFile .empty)
-    "initialize explicit empty reversal authority"
   let .ok recorded ← Loam.MovementPublisher.publishManifestDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 
@@ -83,7 +80,7 @@ def main (args : List String) : IO Unit := do
   expect ((Loam.Tui.Correction.initial? nonJpy).isOk == false)
     "JPY editor silently relabelled a non-JPY Actual"
 
-  let .ok world ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
   let known := ["paypay", "coffee"]
   let forcedForm : Loam.Tui.Record.Form := {

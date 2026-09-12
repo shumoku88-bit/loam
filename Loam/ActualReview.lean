@@ -3,7 +3,7 @@ import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
-import Loam.Persistence.EventDescriptionPersistence
+import Loam.Persistence.TextEscape
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.ActualReview

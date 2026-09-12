@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.AttentionMemory
-import Loam.Persistence.EventDescriptionPersistence
 import Loam.Persistence.SiblingStage
+import Loam.Persistence.TextEscape
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
 

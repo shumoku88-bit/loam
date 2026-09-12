@@ -126,14 +126,24 @@ def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.Movemen
     if root.fileName == some actualFileName then root
     else actualPath root
   let dataDir := if root.fileName == some actualFileName then root.parent.getD root else root
-  let evidence ←
+  let (evidence, finalDir) ←
     match ← loadActualFile? path with
-    | .ok ev => pure ev
-    | .error msg => return .error msg
+    | .ok ev => pure (ev, dataDir)
+    | .error msg =>
+        if let some parent := root.parent then
+          match ← loadActualFile? (actualPath parent) with
+          | .ok ev => pure (ev, parent)
+          | .error _ => return .error msg
+        else return .error msg
   let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? finalDir with
     | .ok la => pure la
-    | .error msg => return .error msg
+    | .error msg =>
+        if let some parent := finalDir.parent then
+          match ← Loam.LocusAdmissionAuthority.loadCurrent? parent with
+          | .ok la => pure la
+          | .error _ => return .error msg
+        else return .error msg
   return .ok {
     events := evidence.events
     validity := evidence.validity
@@ -142,5 +152,27 @@ def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.Movemen
     discharges := evidence.discharges
     locusAdmission := locusAdmission
   }
+
+/--
+Publish one complete MovementAdmission.World by atomically writing `actual.loam` and `locus-admission.loam`.
+-/
+def publishWorld? (root : System.FilePath) (world : Loam.MovementAdmission.World) : IO (Except String Unit) := do
+  let evidence : ActualEvidence := {
+    events := world.events
+    validity := world.validity
+    descriptions := world.descriptions
+    corrections := { corrections := [], idNodup := by simp }
+    reversals := ActualReversalMemory.empty
+    relations := world.relations
+    discharges := world.discharges
+  }
+  let path :=
+    if root.fileName == some actualFileName then root
+    else actualPath root
+  let dataDir := if root.fileName == some actualFileName then root.parent.getD root else root
+  match ← publishActualFile? path evidence with
+  | .error err => return .error err
+  | .ok () =>
+      Loam.LocusAdmissionAuthority.publishCurrent? dataDir world.locusAdmission
 
 end Loam.ActualAuthority

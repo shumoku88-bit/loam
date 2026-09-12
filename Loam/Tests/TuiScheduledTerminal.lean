@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledReview
@@ -80,7 +81,7 @@ def main (args : List String) : IO Unit := do
   let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root initialWorld
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root initialWorld
     | throw (IO.userError "initialize manifest fixture")
   let first ← occurrence "scheduled-1" "rent" 1000
   let second ← occurrence "scheduled-2" "food" 200

@@ -36,6 +36,14 @@ def loadCurrent?
   | some vocab => return .ok vocab
   | none => return .error s!"loam: malformed or unsupported Locus admission authority: {path}"
 
+/-- Publish currently selected new-write Locus policy to the standard filepath. -/
+def publishCurrent?
+    (root : System.FilePath) (vocab : LocusAdmissionVocabulary) : IO (Except String Unit) := do
+  let path := locusAdmissionPath root
+  if !(← Loam.Persistence.saveLocusAdmissionVocabulary? path vocab) then
+    return .error s!"loam: failed to publish Locus admission authority: {path}"
+  return .ok ()
+
 /--
 Apply one policy-local read/modify/write under exclusive writer ownership.
 -/

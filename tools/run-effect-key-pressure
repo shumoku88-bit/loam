@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-if [[ $# != 1 ]]; then
-  echo "usage: tools/run-effect-key-pressure DATA_ROOT" >&2
-  exit 2
-fi
-python3 "$(dirname "$0")/effect-key-pressure.py" "$1"

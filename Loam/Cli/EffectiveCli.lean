@@ -1,6 +1,5 @@
 import Loam.Application.QuantityInspection
-import Loam.Persistence.EventCorrectionPersistence
-import Loam.Persistence.EventPersistence
+import Loam.ActualAuthority
 import Std
 
 namespace Loam.EffectiveCli
@@ -81,25 +80,18 @@ uses the same Correction frontier, independent of correction count. Missing
 references retain their specific diagnostic; branching, merging and cyclic
 shapes fail closed as unsupported frontier topology.
 -/
-def showEffectiveQuantities (memoryPath correctionPath : String) : IO UInt32 := do
-  let memoryFile := System.FilePath.mk memoryPath
-  let correctionFile := System.FilePath.mk correctionPath
-  if !(← memoryFile.pathExists) then
-    IO.println "No recorded quantities."
-    return 0
-  else
-    match ← Loam.Persistence.loadEventMemory? memoryFile with
-    | none =>
-        IO.eprintln "loam: malformed or unsupported event-memory file"
+def showEffectiveQuantities (actualPath : String) (_correctionPath : Option String := none) : IO UInt32 := do
+  let actualFile := System.FilePath.mk actualPath
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActualFile? actualFile with
+    | .error message =>
+        IO.eprintln message
         return 2
-    | some memory =>
-        match ← Loam.Persistence.loadEventCorrectionMemoryOrEmpty? correctionFile with
-        | none =>
-            IO.eprintln "loam: malformed or unsupported correction-memory file"
-            return 2
-        | some corrections =>
-            let coordinates := recordedCoordinates memory
-            match corrections.corrections with
+    | .ok ev => pure ev
+  let memory := evidence.events
+  let corrections := evidence.corrections
+  let coordinates := recordedCoordinates memory
+  match corrections.corrections with
             | [] =>
                 IO.println "Effective quantities (zero coordinates omitted):"
                 if ← printRecorded memory corrections coordinates then

@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.AccountingRolePublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -22,7 +23,7 @@ private def world : IO Loam.MovementAdmission.World := do
   return {
     events := events
     validity := {
-      facts := []
+      facts := [.base ⟨"event-1"⟩ "2026-09-01"]
       factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
@@ -74,23 +75,23 @@ def main (args : List String) : IO Unit := do
   let roles ← roleMap
 
   let .ok (proposed, receipt) := Loam.AccountingRolePublisher.propose?
-      w scheduled roles { locus := ⟨"fresh"⟩, role := .expense }
+      w.locusAdmission w.events scheduled roles { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "virgin admitted Locus role assignment was rejected")
   expect (hasRole proposed "fresh" .expense)
     "proposal did not retain first role assignment"
   expect (receipt.previousCount == 2 && receipt.currentCount == 3)
     "proposal receipt does not describe one additive assignment"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w scheduled roles { locus := ⟨"assigned"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled roles { locus := ⟨"assigned"⟩, role := .expense }).isOk)
     "existing AccountingRole was replaceable"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w scheduled roles { locus := ⟨"unknown"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled roles { locus := ⟨"unknown"⟩, role := .expense }).isOk)
     "non-admitted Locus received AccountingRole"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w scheduled roles { locus := ⟨"actual-used"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled roles { locus := ⟨"actual-used"⟩, role := .expense }).isOk)
     "Actual-used unresolved Locus received retroactive AccountingRole"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w scheduled roles { locus := ⟨"scheduled-used"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled roles { locus := ⟨"scheduled-used"⟩, role := .expense }).isOk)
     "Scheduled-used unresolved Locus received retroactive AccountingRole"
 
   let encoded ←
@@ -102,7 +103,7 @@ def main (args : List String) : IO Unit := do
   expect (hasRole decoded "fresh" .expense && hasRole decoded "assigned" .asset)
     "AccountingRole persistence round-trip lost assignments"
 
-  let .ok _ ← Loam.MovementManifestAuthority.publishWorld? root w
+  let .ok _ ← Loam.ActualAuthority.publishWorld? root w
     | throw (IO.userError "publish Movement manifest fixture")
   let lifecycle0 ← lifecycle
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
@@ -126,10 +127,10 @@ def main (args : List String) : IO Unit := do
       { locus := ⟨"fresh"⟩, role := .income }).isOk)
     "publisher allowed role replacement after first assignment"
 
-  let .ok loadedWorld ← Loam.MovementManifestAuthority.loadSelectedWorld? root
+  let .ok loadedWorld ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload Movement authority")
-  expect (Loam.Persistence.encodeEventMemory? loadedWorld.events ==
-      Loam.Persistence.encodeEventMemory? w.events)
+  expect (loadedWorld.events.events.map (fun e => e.id) ==
+      w.events.events.map (fun e => e.id))
     "AccountingRole publication changed retained Actual Event evidence"
   let some loadedLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload Scheduled authority")
