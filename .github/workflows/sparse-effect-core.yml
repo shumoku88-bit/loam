@@ -1,0 +1,36 @@
+name: Sparse Effect Core
+
+on:
+  push:
+    branches:
+      - experiment/sparse-effect-core
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Sparse Effect identity laws
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build production Core dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Check research-only sparse Effect laws
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean Loam/Tests/SparseEffectIdentityModel.lean
