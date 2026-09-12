@@ -47,53 +47,61 @@ private def accountingRoleFile (root : System.FilePath) : System.FilePath :=
 /-- Record one Actual Movement through the normalized Actual publisher. -/
 def record
     (root : System.FilePath)
-    (draft : Loam.MovementAdmission.Draft) :=
+    (draft : Loam.MovementAdmission.Draft) :
+    IO (Except String Loam.MovementPublisher.Receipt) :=
   Loam.MovementPublisher.publishDraft root.toString draft
 
 /-- Correct one retained Actual Movement. -/
 def correctActual
     (root : System.FilePath)
-    (draft : Loam.CorrectionPublisher.Draft) :=
+    (draft : Loam.CorrectionPublisher.Draft) :
+    IO (Except String Loam.CorrectionPublisher.Receipt) :=
   Loam.CorrectionPublisher.publishCorrection root.toString draft
 
 /-- Correct one Actual occurrence date. -/
 def correctActualDate
     (root : System.FilePath)
-    (draft : Loam.ActualValidityPublisher.Draft) :=
+    (draft : Loam.ActualValidityPublisher.Draft) :
+    IO (Except String Loam.ActualValidityPublisher.Receipt) :=
   Loam.ActualValidityPublisher.publishDate root.toString draft
 
 /-- Publish one exact Actual reversal. -/
 def reverseActual
     (root : System.FilePath)
-    (draft : Loam.ActualReversalPublisher.Draft) :=
+    (draft : Loam.ActualReversalPublisher.Draft) :
+    IO (Except String Loam.ActualReversalPublisher.Receipt) :=
   Loam.ActualReversalPublisher.publishReversal
     (scheduledFile root).toString root.toString draft
 
 /-- Create one independent Scheduled occurrence. -/
 def createScheduled
     (root : System.FilePath)
-    (draft : Loam.ScheduledCreationPublisher.Draft) :=
+    (draft : Loam.ScheduledCreationPublisher.Draft) :
+    IO (Except String Loam.ScheduledCreationPublisher.Receipt) :=
   Loam.ScheduledCreationPublisher.publishCreation
     (scheduledFile root).toString root.toString draft
 
 /-- Complete one Scheduled occurrence into Actual. -/
 def completeScheduled
     (root : System.FilePath)
-    (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :=
+    (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :
+    IO (Except String Loam.ScheduledTerminalPublisher.CompletionReceipt) :=
   Loam.ScheduledTerminalPublisher.publishCompletion
     (scheduledFile root).toString root.toString draft
 
 /-- Cancel one current-open Scheduled occurrence. -/
 def cancelScheduled
     (root : System.FilePath)
-    (draft : Loam.ScheduledTerminalPublisher.CancellationDraft) :=
+    (draft : Loam.ScheduledTerminalPublisher.CancellationDraft) :
+    IO (Except String Loam.ScheduledTerminalPublisher.CancellationReceipt) :=
   Loam.ScheduledTerminalPublisher.publishCancellation
     (scheduledFile root).toString root.toString draft
 
 /-- Replace one current-open Scheduled occurrence. -/
 def replaceScheduled
     (root : System.FilePath)
-    (draft : Loam.ScheduledReplacementPublisher.Draft) :=
+    (draft : Loam.ScheduledReplacementPublisher.Draft) :
+    IO (Except String Loam.ScheduledReplacementPublisher.Receipt) :=
   Loam.ScheduledReplacementPublisher.publishReplacement
     (scheduledFile root).toString root.toString draft
 
@@ -101,45 +109,52 @@ def replaceScheduled
 def inheritScheduledRouting
     (root : System.FilePath)
     (predecessor created : Loam.Core.ScheduledId)
-    (effectiveOn : String) :=
+    (effectiveOn : String) :
+    IO (Except String Loam.ScheduledContinuationRouting.Report) :=
   Loam.ScheduledContinuationRouting.inherit
     (scheduledRoutingFile root) (scheduledFile root) predecessor created effectiveOn
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity
     (root : System.FilePath)
-    (draft : Loam.CapacityPublisher.Draft) :=
+    (draft : Loam.CapacityPublisher.Draft) :
+    IO (Except String Loam.CapacityPublisher.Receipt) :=
   Loam.CapacityPublisher.publish (capacityFile root).toString draft
 
 /-- Publish one balanced multi-coordinate Capacity movement. -/
 def rebalanceCapacity
     (root : System.FilePath)
-    (draft : Loam.CapacityPublisher.BalancedDraft) :=
+    (draft : Loam.CapacityPublisher.BalancedDraft) :
+    IO (Except String Loam.CapacityPublisher.BalancedReceipt) :=
   Loam.CapacityPublisher.publishBalanced (capacityFile root).toString draft
 
 /-- Publish one Actual routing assertion. -/
 def routeActual
     (root : System.FilePath)
-    (draft : Loam.ActualRoutingPublisher.Draft) :=
+    (draft : Loam.ActualRoutingPublisher.Draft) :
+    IO (Except String Loam.ActualRoutingPublisher.Receipt) :=
   Loam.ActualRoutingPublisher.publish (actualRoutingFile root).toString draft
 
 /-- Publish one Scheduled routing assertion. -/
 def routeScheduled
     (root : System.FilePath)
-    (draft : Loam.ScheduledRoutingPublisher.Draft) :=
+    (draft : Loam.ScheduledRoutingPublisher.Draft) :
+    IO (Except String Loam.ScheduledRoutingPublisher.Receipt) :=
   Loam.ScheduledRoutingPublisher.publish
     (scheduledRoutingFile root).toString (scheduledFile root).toString draft
 
 /-- Admit one new Locus for future publication. -/
 def admitLocus
     (root : System.FilePath)
-    (draft : Loam.LocusAdmissionPublisher.Draft) :=
+    (draft : Loam.LocusAdmissionPublisher.Draft) :
+    IO (Except String Loam.LocusAdmissionPublisher.Receipt) :=
   Loam.LocusAdmissionPublisher.publishAdmission root.toString draft
 
 /-- Assign one initial AccountingRole to an unused admitted Locus. -/
 def assignInitialAccountingRole
     (root : System.FilePath)
-    (draft : Loam.AccountingRolePublisher.Draft) :=
+    (draft : Loam.AccountingRolePublisher.Draft) :
+    IO (Except String Loam.AccountingRolePublisher.Receipt) :=
   Loam.AccountingRolePublisher.publishInitialRole
     (scheduledFile root).toString root.toString (accountingRoleFile root).toString draft
 
