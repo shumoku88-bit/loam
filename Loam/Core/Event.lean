@@ -32,14 +32,24 @@ def coordinate (effect : Effect) : EffectCoordinate :=
     (ofQuantity key locus measure quantity).coordinate = ⟨locus, measure⟩ :=
   rfl
 
+@[simp] theorem coordinate_ofAnonymousQuantity
+    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
+    (ofAnonymousQuantity locus measure quantity).coordinate = ⟨locus, measure⟩ :=
+  rfl
+
 end Effect
+
+/-- Retained stable Effect keys, excluding ordinary anonymous Effects. -/
+def retainedEffectKeys (effects : List Effect) : List EffectKey :=
+  effects.filterMap Effect.key
 
 /--
 One event identity together with the effects observed for that event.
 
-Effect identity is preserved independently of the `(LocusId, MeasureId)`
-projection. Distinct effects may therefore share the same locus and measure,
-while each `EffectKey` occurs at most once within the event.
+Effect identity is preserved only when independently referenced. Distinct
+ordinary Effects may therefore remain anonymous, including multiple Effects at
+the same locus/measure coordinate. Every retained `EffectKey` occurs at most
+once within the event.
 
 The list is only the current practical representation; its order carries no
 built-in temporal, causal, priority, debit/credit, or posting-order meaning.
@@ -51,16 +61,17 @@ not yet been introduced.
 structure Event where
   id : EventId
   effects : List Effect
-  keyNodup : (effects.map Effect.key).Nodup
+  keyNodup : (retainedEffectKeys effects).Nodup
 
 namespace Event
 
 /--
-Admit a runtime effect collection only when no effect key is repeated within
-the event. Locus/measure coordinates are projections, not effect identity.
+Admit a runtime effect collection only when no retained stable EffectKey is
+repeated within the event. Anonymous Effects do not consume identity slots.
+Locus/measure coordinates remain projections, not effect identity.
 -/
 def ofEffects? (id : EventId) (effects : List Effect) : Option Event :=
-  if h : (effects.map Effect.key).Nodup then
+  if h : (retainedEffectKeys effects).Nodup then
     some { id := id, effects := effects, keyNodup := h }
   else
     none
@@ -127,16 +138,15 @@ theorem quantityAt_perm
 
 /-- An empty effect relation is not rejected at this layer. -/
 @[simp] theorem ofEffects?_nil (id : EventId) :
-    ofEffects? id [] = some { id := id, effects := [], keyNodup := by simp } := by
-  simp [ofEffects?]
+    ofEffects? id [] = some { id := id, effects := [], keyNodup := by simp [retainedEffectKeys] } := by
+  simp [ofEffects?, retainedEffectKeys]
 
-/-- One effect always has a unique key within its event. -/
+/-- One effect is always admissible, whether anonymous or explicitly keyed. -/
 @[simp] theorem ofEffects?_singleton (id : EventId) (effect : Effect) :
-    ofEffects? id [effect] =
-      some { id := id, effects := [effect], keyNodup := by simp } := by
-  simp [ofEffects?]
+    (ofEffects? id [effect]).isSome = true := by
+  cases h : effect.key <;> simp [ofEffects?, retainedEffectKeys, h]
 
-/-- Reusing one effect key is rejected even when the projected coordinates differ. -/
+/-- Reusing one retained effect key is rejected even when coordinates differ. -/
 @[simp] theorem ofEffects?_duplicateKey
     (id : EventId) (key : EffectKey)
     (leftLocus rightLocus : LocusId)
@@ -145,9 +155,9 @@ theorem quantityAt_perm
     ofEffects? id
       [Effect.ofQuantity key leftLocus leftMeasure left,
        Effect.ofQuantity key rightLocus rightMeasure right] = none := by
-  simp [ofEffects?]
+  simp [ofEffects?, retainedEffectKeys]
 
-/-- Distinct effect keys may coexist at the same locus/measure coordinate. -/
+/-- Distinct retained effect keys may coexist at the same locus/measure coordinate. -/
 theorem ofEffects?_sameCoordinate_distinctKeys_isSome
     (id : EventId) (leftKey rightKey : EffectKey)
     (hDifferent : leftKey ≠ rightKey)
@@ -156,12 +166,21 @@ theorem ofEffects?_sameCoordinate_distinctKeys_isSome
     (ofEffects? id
       [Effect.ofQuantity leftKey locus measure left,
        Effect.ofQuantity rightKey locus measure right]).isSome = true := by
-  simp [ofEffects?, hDifferent]
+  simp [ofEffects?, retainedEffectKeys, hDifferent]
+
+/-- Multiple anonymous Effects may coexist at the same coordinate. -/
+theorem ofEffects?_sameCoordinate_anonymous_isSome
+    (id : EventId) (locus : LocusId) (measure : MeasureId)
+    (left right : Quantity) :
+    (ofEffects? id
+      [Effect.ofAnonymousQuantity locus measure left,
+       Effect.ofAnonymousQuantity locus measure right]).isSome = true := by
+  simp [ofEffects?, retainedEffectKeys]
 
 /-- A coordinate with no effects projects to exact zero. -/
 @[simp] theorem quantityAt_empty
     (id : EventId) (locus : LocusId) (measure : MeasureId) :
-    quantityAt { id := id, effects := [], keyNodup := by simp } locus measure = 0 := by
+    quantityAt { id := id, effects := [], keyNodup := by simp [retainedEffectKeys] } locus measure = 0 := by
   rfl
 
 /-- Distinct effects at one coordinate contribute additively to its projection. -/
@@ -175,7 +194,20 @@ theorem quantityAt_sameCoordinate_two
         effects :=
           [Effect.ofQuantity leftKey locus measure left,
            Effect.ofQuantity rightKey locus measure right],
-        keyNodup := by simp [hDifferent] }
+        keyNodup := by simp [retainedEffectKeys, hDifferent] }
+      locus measure = Quantity.ofQuanta (left.quanta + right.quanta) := by
+  simp [quantityAt]
+
+/-- Anonymous effects participate in physical quantity exactly like keyed Effects. -/
+theorem quantityAt_sameCoordinate_anonymous_two
+    (id : EventId) (locus : LocusId) (measure : MeasureId)
+    (left right : Quantity) :
+    quantityAt
+      { id := id,
+        effects :=
+          [Effect.ofAnonymousQuantity locus measure left,
+           Effect.ofAnonymousQuantity locus measure right],
+        keyNodup := by simp [retainedEffectKeys] }
       locus measure = Quantity.ofQuanta (left.quanta + right.quanta) := by
   simp [quantityAt]
 
@@ -188,7 +220,7 @@ theorem quantityAt_otherLocus_zero
     quantityAt
       { id := id,
         effects := [Effect.ofQuantity key effectLocus measure quantity],
-        keyNodup := by simp }
+        keyNodup := by simp [retainedEffectKeys] }
       queryLocus measure = 0 := by
   simp [quantityAt, Effect.coordinate, hDifferent]
   rfl
