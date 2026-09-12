@@ -17,13 +17,11 @@ set_option autoImplicit false
 # Shared Budget Window review
 
 This is the production read boundary for explicit half-open budget-window queries.
-It consumes selected semantic authorities without exposing Capacity companion
-placement:
+It consumes selected semantic authorities without exposing physical placement:
 
-- Event / ActualValidity come from the selected Movement evidence generation;
+- Event / ActualValidity / EventCorrection come through `ActualAuthority`;
 - Capacity / CapacityEffective come through `CapacityAuthority`;
-- ActualRouting remains its independent canonical stream;
-- EventCorrection preserves the existing absent-as-empty read policy.
+- ActualRouting remains its independent canonical stream.
 
 The caller supplies `[start, end)` explicitly. This module does not choose a
 cycle, month, selected-day window, or retained Period identity. Remaining is
@@ -83,7 +81,7 @@ private def projectPurpose?
   }
 
 private def loadEvidence
-    (dataDir manifestRoot : System.FilePath) : IO (Except String Evidence) := do
+    (dataDir : System.FilePath) : IO (Except String Evidence) := do
   let capacityPath := dataDir / "capacity.loam"
   let routingPath := dataDir / "actual-routing.loam"
 
@@ -95,16 +93,10 @@ private def loadEvidence
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let path :=
-    if manifestRoot.fileName == some Loam.ActualAuthority.actualFileName then manifestRoot
-    else Loam.ActualAuthority.actualPath manifestRoot
   let actualEvidence ←
-    match ← Loam.ActualAuthority.loadActualFile? path with
+    match ← Loam.ActualAuthority.loadActual? dataDir with
     | .ok ev => pure ev
-    | .error message =>
-        match ← Loam.ActualAuthority.loadActual? dataDir with
-        | .ok ev => pure ev
-        | .error _ => return .error message
+    | .error message => return .error message
 
   let validities ←
     match admittedActualValidityMemory? actualEvidence.validity with
@@ -127,11 +119,11 @@ private def loadEvidence
   }
 
 private def loadWindowEvidence
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir : System.FilePath)
     (start end_ : String) : IO (Except String Evidence) := do
   match validateWindow start end_ with
   | .error message => return .error message
-  | .ok _ => loadEvidence dataDir manifestRoot
+  | .ok _ => loadEvidence dataDir
 
 /--
 Load one immutable production evidence snapshot and answer one explicit JPY
@@ -139,11 +131,11 @@ Purpose over `[start, end)`. The Purpose need not already appear in Capacity
 history: complete evidence can therefore justify an exact zero row.
 -/
 def loadPurposeRow
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir : System.FilePath)
     (start end_ : String)
     (purpose : PurposeId) : IO (Except String Row) := do
   let evidence ←
-    match ← loadWindowEvidence dataDir manifestRoot start end_ with
+    match ← loadWindowEvidence dataDir start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
   match projectPurpose? evidence start end_ purpose with
@@ -154,13 +146,12 @@ def loadPurposeRow
 /--
 Load one immutable production evidence snapshot and answer an explicit JPY
 `[start, end)` query for every Purpose represented by retained Capacity evidence.
-No fallback to frozen Movement sidecars exists on this path.
 -/
 def loadSnapshot
-    (dataDir manifestRoot : System.FilePath)
+    (dataDir : System.FilePath)
     (start end_ : String) : IO (Except String Snapshot) := do
   let evidence ←
-    match ← loadWindowEvidence dataDir manifestRoot start end_ with
+    match ← loadWindowEvidence dataDir start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
   let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity
