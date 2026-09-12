@@ -16,7 +16,7 @@ construction remain exclusively owned by `ActualReversalPublisher`.
 -/
 partial def run
     (bounds : Bounds)
-    (scheduledFile root correctionFile reversalFile : System.FilePath)
+    (scheduledFile root : System.FilePath)
     (state : Loam.Tui.ActualReversal.State)
     (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ActualReversal.update state (← Loam.Tui.Terminal.readKey)
@@ -24,18 +24,18 @@ partial def run
     return "Actual reversal cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ActualReversalPublisher.publishManifestReversal
-          scheduledFile.toString root.toString correctionFile.toString reversalFile.toString draft with
+      match ← Loam.ActualReversalPublisher.publishReversal
+          scheduledFile.toString root.toString draft with
       | .ok receipt =>
           return "Reversed " ++ receipt.target.token ++ " with " ++ receipt.reversal.token ++ "."
       | .error message =>
           let next := Loam.Tui.ActualReversal.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ActualReversal.view next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          run bounds scheduledFile root correctionFile reversalFile next nextFrame
+          run bounds scheduledFile root next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ActualReversal.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds scheduledFile root correctionFile reversalFile step.state nextFrame
+      run bounds scheduledFile root step.state nextFrame
 
 end Loam.Tui.ActualReversalSession

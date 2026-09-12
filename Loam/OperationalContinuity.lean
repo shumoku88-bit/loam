@@ -88,12 +88,11 @@ def diagnoseStartupRead
     (dataDir manifestRoot : System.FilePath) : IO (Except Diagnosis Unit) := do
   let some _today ← Loam.ActualDate.todayIso?
     | return .error (explainReadFailure "Environment" "loam: could not determine the local date")
-  match ← Loam.ActualReview.loadRecordsFromManifest
-      manifestRoot (some ((dataDir / "corrections.loam").toString)) with
+  match ← Loam.ActualReview.loadRecordsFromActual manifestRoot with
   | .error message =>
       return .error (explainReadFailure "Actual / Movement" message)
   | .ok _ => pure ()
-  match ← Loam.ScheduledReview.loadEvidenceFromManifest
+  match ← Loam.ScheduledReview.loadEvidenceFromActual
       (dataDir / "scheduled.loam") manifestRoot with
   | .error message =>
       return .error (explainReadFailure "Scheduled" message)

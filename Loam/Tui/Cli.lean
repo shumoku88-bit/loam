@@ -256,37 +256,35 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
 
 /-- A Correction session emits one target-bound replacement intent at most.
 Only the shared CorrectionPublisher performs the authoritative re-read and write. -/
-partial def correctionLoop (bounds : Bounds) (root correctionFile : System.FilePath)
+partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.Correction.State) (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.Correction.update world known state (← Loam.Tui.Terminal.readKey)
   if step.cancel then return "Correction cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.CorrectionPublisher.publishManifestCorrection
-          root.toString correctionFile.toString draft with
+      match ← Loam.CorrectionPublisher.publishCorrection root.toString draft with
       | .ok receipt =>
           return "Corrected " ++ receipt.target.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.Correction.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.Correction.view known next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          correctionLoop bounds root correctionFile world known next nextFrame
+          correctionLoop bounds root world known next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.Correction.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      correctionLoop bounds root correctionFile world known step.state nextFrame
+      correctionLoop bounds root world known step.state nextFrame
 
 /-- Date editing stays local; the shared publisher performs every authoritative re-check. -/
 partial def actualDateCorrectionLoop
-    (bounds : Bounds) (root correctionFile : System.FilePath)
+    (bounds : Bounds) (root : System.FilePath)
     (state : Loam.Tui.ActualDateCorrection.State) (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ActualDateCorrection.update state (← Loam.Tui.Terminal.readKey)
   if step.cancel then return "Date correction cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ActualValidityPublisher.publishManifestDate
-          root.toString correctionFile.toString draft with
+      match ← Loam.ActualValidityPublisher.publishDate root.toString draft with
       | .ok receipt =>
           if receipt.changed then
             return "Date corrected to " ++ receipt.validOn ++ "."
@@ -296,11 +294,11 @@ partial def actualDateCorrectionLoop
           let next := Loam.Tui.ActualDateCorrection.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          actualDateCorrectionLoop bounds root correctionFile next nextFrame
+          actualDateCorrectionLoop bounds root next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      actualDateCorrectionLoop bounds root correctionFile step.state nextFrame
+      actualDateCorrectionLoop bounds root step.state nextFrame
 
 /--
 Scheduled completion edits an Actual draft; shared publication re-reads both
@@ -707,7 +705,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.ActualDateCorrection.view editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← actualDateCorrectionLoop
-                bounds root (dataDir / "corrections.loam") editor editorFrame
+                bounds root editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -736,7 +734,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.Correction.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let notice ← correctionLoop bounds root (dataDir / "corrections.loam")
+              let notice ← correctionLoop bounds root
                 world known editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
@@ -763,7 +761,6 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← Loam.Tui.ActualReversalSession.run
                 bounds (dataDir / "scheduled.loam") root
-                  (dataDir / "corrections.loam") (dataDir / "actual-reversals.loam")
                   editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state

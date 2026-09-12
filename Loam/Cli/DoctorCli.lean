@@ -1,5 +1,3 @@
-import Loam.MovementObjectReachability
-import Loam.MovementRecoveryPublisher
 import Loam.OperationalContinuity
 
 namespace Loam.DoctorCli
@@ -8,9 +6,7 @@ set_option autoImplicit false
 
 private def usage : String :=
   "Usage:\n" ++
-  "  ./tools/loam doctor [LOAM_DATA_DIR]\n" ++
-  "  ./tools/loam doctor reachability [LOAM_DATA_DIR]\n" ++
-  "  ./tools/loam doctor restore RECOVERY_DIGEST [LOAM_DATA_DIR]"
+  "  ./tools/loam doctor [LOAM_DATA_DIR]"
 
 private def resolveDataDir (args : List String) : IO (Except String System.FilePath) := do
   match args with
@@ -50,56 +46,19 @@ private def diagnose (args : List String) : IO UInt32 := do
       IO.eprintln (Loam.OperationalContinuity.renderDiagnosis diagnosis)
       return 2
 
-private def reachability (dataArgs : List String) : IO UInt32 := do
-  let dataDir ←
-    match ← resolveDataDir dataArgs with
-    | .error message => IO.eprintln message; return 2
-    | .ok path => pure path
-  let manifestRoot ←
-    match ← resolveManifestRoot dataDir with
-    | .error message => IO.eprintln message; return 2
-    | .ok path => pure path
-  match ← Loam.MovementObjectReachability.inspect manifestRoot with
-  | .error message =>
-      IO.eprintln "LOAM Movement object reachability"
-      IO.eprintln "Status: refused"
-      IO.eprintln ("Technical detail: " ++ message)
-      return 2
-  | .ok snapshot =>
-      IO.println (Loam.MovementObjectReachability.render snapshot)
-      return 0
+private def reachability (_dataArgs : List String) : IO UInt32 := do
+  IO.eprintln "loam: doctor reachability is retired with normalized Actual single-file authority"
+  return 2
 
-private def restore (digest : String) (dataArgs : List String) : IO UInt32 := do
-  let dataDir ←
-    match ← resolveDataDir dataArgs with
-    | .error message => IO.eprintln message; return 2
-    | .ok path => pure path
-  let manifestRoot ←
-    match ← resolveManifestRoot dataDir with
-    | .error message => IO.eprintln message; return 2
-    | .ok path => pure path
-  match ← Loam.MovementRecoveryPublisher.restore manifestRoot.toString digest with
-  | .error message =>
-      IO.eprintln "LOAM recovery"
-      IO.eprintln "Status: refused"
-      IO.eprintln ("Technical detail: " ++ message)
-      return 2
-  | .ok () =>
-      IO.println "LOAM recovery"
-      IO.println "Status: restored"
-      IO.println ("Selected recovery generation: " ++ digest)
-      IO.println "CURRENT now selects an already-retained generation that passed manifest, object-digest, and typed-world validation."
-      IO.println "No household facts were synthesized by recovery."
-      return 0
+private def restore (_dataArgs : List String) : IO UInt32 := do
+  IO.eprintln "loam: doctor restore is retired with normalized Actual single-file authority"
+  return 2
 
-/-- Diagnose startup reads, inspect object reachability, or explicitly restore one retained Movement generation. -/
+/-- Diagnose startup reads on the normalized production boundary. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | "reachability" :: dataArgs => reachability dataArgs
-  | "restore" :: digest :: dataArgs => restore digest dataArgs
-  | "restore" :: [] =>
-      IO.eprintln usage
-      return 2
+  | "restore" :: dataArgs => restore dataArgs
   | _ => diagnose args
 
 end Loam.DoctorCli
