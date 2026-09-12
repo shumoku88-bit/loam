@@ -1,0 +1,154 @@
+name: One-shot TUI household command migration
+
+on:
+  push:
+    branches:
+      - refactor/household-command-boundary
+    paths:
+      - '.github/workflows/migrate-tui-household-command.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refactor/household-command-boundary
+
+      - name: Migrate TUI write wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('Loam/Tui/Cli.lean')
+          text = path.read_text()
+
+          def replace(old, new, expected):
+              global text
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'expected {expected} occurrence(s), found {count}: {old!r}')
+              text = text.replace(old, new)
+
+          replace(
+              'import Loam.ActualAuthority\n',
+              'import Loam.ActualAuthority\nimport Loam.HouseholdCommand\n',
+              1)
+
+          replace(
+              'match ← Loam.MovementPublisher.publishDraft root.toString draft with',
+              'match ← Loam.HouseholdCommand.record root draft with',
+              1)
+          replace(
+              'match ← Loam.CorrectionPublisher.publishCorrection root.toString draft with',
+              'match ← Loam.HouseholdCommand.correctActual root draft with',
+              1)
+          replace(
+              'match ← Loam.ActualValidityPublisher.publishDate root.toString draft with',
+              'match ← Loam.HouseholdCommand.correctActualDate root draft with',
+              1)
+
+          replace(
+              'partial def scheduledCompletionLoop\n    (bounds : Bounds) (scheduledFile root : System.FilePath)',
+              'partial def scheduledCompletionLoop\n    (bounds : Bounds) (root : System.FilePath)',
+              1)
+          replace(
+              'match ← Loam.ScheduledTerminalPublisher.publishCompletion\n          scheduledFile.toString root.toString draft with',
+              'match ← Loam.HouseholdCommand.completeScheduled root draft with',
+              1)
+          replace(
+              'scheduledCompletionLoop bounds scheduledFile root world known',
+              'scheduledCompletionLoop bounds root world known',
+              2)
+
+          replace(
+              'partial def scheduledCancellationLoop\n    (bounds : Bounds) (scheduledFile root : System.FilePath)',
+              'partial def scheduledCancellationLoop\n    (bounds : Bounds) (root : System.FilePath)',
+              1)
+          replace(
+              'match ← Loam.ScheduledTerminalPublisher.publishCancellation\n          scheduledFile.toString root.toString draft with',
+              'match ← Loam.HouseholdCommand.cancelScheduled root draft with',
+              1)
+          replace(
+              'scheduledCancellationLoop bounds scheduledFile root',
+              'scheduledCancellationLoop bounds root',
+              1)
+
+          replace(
+              'partial def scheduledReplacementLoop\n    (bounds : Bounds) (scheduledFile root : System.FilePath)',
+              'partial def scheduledReplacementLoop\n    (bounds : Bounds) (root : System.FilePath)',
+              1)
+          replace(
+              'match ← Loam.ScheduledReplacementPublisher.publishReplacement\n          scheduledFile.toString root.toString draft with',
+              'match ← Loam.HouseholdCommand.replaceScheduled root draft with',
+              1)
+          replace(
+              'scheduledReplacementLoop bounds scheduledFile root known',
+              'scheduledReplacementLoop bounds root known',
+              2)
+
+          replace(
+              'bounds (dataDir / "scheduled.loam") root known',
+              'bounds root known',
+              4)
+          replace(
+              'bounds (dataDir / "scheduled.loam") root world known',
+              'bounds root world known',
+              2)
+          replace(
+              'bounds (dataDir / "scheduled.loam") root confirmation',
+              'bounds root confirmation',
+              2)
+          replace(
+              'bounds (dataDir / "scheduled.loam") root\n                  editor editorFrame',
+              'bounds root\n                  editor editorFrame',
+              1)
+
+          replace(
+              'bounds (dataDir / "capacity.loam") editor editorFrame',
+              'bounds root editor editorFrame',
+              4)
+
+          replace(
+              'let notice ← Loam.Tui.ActualRoutingAdministrationSession.run\n          bounds (dataDir / "actual-routing.loam") administration administrationFrame',
+              'let notice ← Loam.Tui.ActualRoutingAdministrationSession.run\n          bounds root administration administrationFrame',
+              1)
+
+          replace(
+              '        let routingPath := dataDir / "scheduled-routing.loam"\n        let scheduledPath := dataDir / "scheduled.loam"\n        let routingState := Loam.Tui.ScheduledRouting.initial coverage state.snapshot.observedAt\n        let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)\n        Loam.Tui.Terminal.redrawFromBlank bounds routingFrame\n        Loam.Tui.ScheduledRoutingSession.run bounds routingPath scheduledPath routingState routingFrame',
+              '        let routingState := Loam.Tui.ScheduledRouting.initial coverage state.snapshot.observedAt\n        let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)\n        Loam.Tui.Terminal.redrawFromBlank bounds routingFrame\n        Loam.Tui.ScheduledRoutingSession.run bounds root routingState routingFrame',
+              1)
+
+          replace(
+              '                            let routingPath := dataDir / "scheduled-routing.loam"\n                            let scheduledPath := dataDir / "scheduled.loam"\n                            let routeNotice ← match ← Loam.ScheduledContinuationRouting.inherit\n                                routingPath scheduledPath record.id created.scheduled snapshot.actual.today with',
+              '                            let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting\n                                root record.id created.scheduled snapshot.actual.today with',
+              2)
+
+          path.write_text(text)
+          PY
+          git diff --check
+
+      - name: Build production TUI
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamTui
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Commit migrated TUI wiring
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Loam/Tui/Cli.lean
+          git diff --cached --quiet && exit 0
+          git commit -m 'refactor(tui): use household command write boundary'
+          git push origin HEAD:refactor/household-command-boundary
