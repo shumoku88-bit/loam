@@ -1,4 +1,4 @@
-import Loam.ScheduledRoutingPublisher
+import Loam.HouseholdCommand
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
 import Loam.Tui.ScheduledRouting
@@ -15,7 +15,7 @@ set_option autoImplicit false
 # Scheduled routing terminal session
 
 The session owns no routing authority; it drives one presentation-only routing
-editor and emits at most one draft to the shared `ScheduledRoutingPublisher.publish`.
+editor and emits at most one draft to the shared household command boundary.
 
 Publication re-reads authority under writer ownership. On publication or
 cancellation, the session returns to the caller, which reloads the shared
@@ -24,7 +24,7 @@ CycleBudget snapshot from canonical disk evidence.
 
 partial def run
     (bounds : Bounds)
-    (routingFile scheduledFile : System.FilePath)
+    (root : System.FilePath)
     (state : Loam.Tui.ScheduledRouting.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
@@ -33,7 +33,7 @@ partial def run
     return "Scheduled routing cancelled."
   match step.publish with
   | some draft =>
-      match ← Loam.ScheduledRoutingPublisher.publish routingFile.toString scheduledFile.toString draft with
+      match ← Loam.HouseholdCommand.routeScheduled root draft with
       | .ok receipt =>
           let targetDesc :=
             match receipt.target with
@@ -47,6 +47,6 @@ partial def run
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds routingFile scheduledFile step.state nextFrame
+      run bounds root step.state nextFrame
 
 end Loam.Tui.ScheduledRoutingSession
