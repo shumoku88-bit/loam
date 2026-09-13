@@ -27,11 +27,9 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let w ← world
 
-  let .ok (proposed, receipt) :=
+  let .ok proposed :=
       Loam.LocusAdmissionPublisher.propose? w.locusAdmission { token := "stationery" }
     | throw (IO.userError "valid admission proposal was rejected")
-  expect (receipt.previousCount == 2 && receipt.currentCount == 3)
-    "receipt counts do not describe one additive admission"
   expect (proposed.approved.map (fun locus => locus.token) ==
       ["book", "misc", "stationery"])
     "proposal did not preserve existing admission and append one identity"
@@ -54,12 +52,10 @@ def main (args : List String) : IO Unit := do
   expect (currentPolicy.approved.map (fun locus => locus.token) == ["book", "misc"])
     "local authority did not expose the selected admission policy"
 
-  let published ←
-    match ← Loam.LocusAdmissionPublisher.publishAdmission
-        rootPath { token := "stationery" } with
-    | .ok receipt => pure receipt
-    | .error message => throw (IO.userError message)
-  expect (published.currentCount == 3) "publisher receipt count mismatch"
+  match ← Loam.LocusAdmissionPublisher.publishAdmission
+      rootPath { token := "stationery" } with
+  | .ok () => pure ()
+  | .error message => throw (IO.userError message)
 
   let policyAfter ←
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
