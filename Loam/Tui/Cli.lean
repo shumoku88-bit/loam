@@ -509,7 +509,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let next := { step.state with notice := "No current-open Scheduled occurrence is selected for supersede." }
           let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          hraScheduledLoop bounds dataDir root snapshot step.state nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
       | some record =>
           match Loam.Tui.ScheduledReplacement.initial? record with
           | .error message =>
