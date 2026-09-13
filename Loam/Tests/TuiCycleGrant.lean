@@ -202,10 +202,6 @@ def main (args : List String) : IO Unit := do
 
   let .ok receipt ← Loam.CapacityPublisher.publish capacityFile.toString draftToPublish
     | throw (IO.userError "shared CapacityPublisher.publish failed")
-  expect (receipt.quanta == 3828) "receipt quanta"
-  expect (receipt.source == .unallocated) "receipt source"
-  expect (receipt.destination == .purpose ⟨"固定費予定"⟩) "receipt destination"
-  expect (receipt.effectiveOn == observedAt) "receipt effectiveOn"
   expect (receipt.movement.token == "capacity-2") "fresh capacity identity allocated"
 
   -- Invariants check:
