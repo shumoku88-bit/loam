@@ -9,6 +9,8 @@ on:
       - 'Loam/BalanceReview.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/CurrentQuantityAnchorCli.lean'
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Persistence/OpeningSupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
@@ -20,6 +22,8 @@ on:
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
+      - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
+      - 'tools/loam'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -33,6 +37,8 @@ on:
       - 'Loam/BalanceReview.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/CurrentQuantityAnchorCli.lean'
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Persistence/OpeningSupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
@@ -44,6 +50,8 @@ on:
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
+      - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
+      - 'tools/loam'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -70,16 +78,20 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.RoleFlowReview Loam.RoleBalanceReview Loam.CurrentQuantityAnchorPublisher
+          build-args: Loam.RoleFlowReview Loam.RoleBalanceReview Loam.CurrentQuantityAnchorPublisher Loam.Cli
           test: false
           lint: false
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Check practical wrapper syntax
+        run: bash -n tools/loam
       - name: Qualify role-aware flow composition
         run: lake env lean --run Loam/Tests/RoleFlowReview.lean
       - name: Qualify role-aware balance composition
         run: lake env lean --run Loam/Tests/RoleBalanceReview.lean
       - name: Qualify current quantity anchor composition
         run: lake env lean --run Loam/Tests/CurrentQuantityAnchor.lean
+      - name: Qualify current quantity anchor CLI boundary
+        run: lake env lean --run Loam/Tests/CurrentQuantityAnchorCli.lean
