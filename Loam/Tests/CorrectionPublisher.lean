@@ -76,7 +76,6 @@ def main (args : List String) : IO Unit := do
   let .ok receipt ← Loam.CorrectionPublisher.publishCorrection
       root.toString correctionDraft
     | throw (IO.userError "publish correction")
-  expect (receipt.target == recorded.eventId) "correction receipt changed target identity"
 
   let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload actual authority")

@@ -61,14 +61,14 @@ def main (args : List String) : IO Unit := do
   let .ok noop ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-03" }
     | throw (IO.userError "same-date no-op was refused")
-  expect (!noop.changed) "same-date publication did not report an exact no-op"
+  expect (!noop) "same-date publication did not report an exact no-op"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeNoop)
     "same-date no-op changed Actual authority"
 
   let .ok corrected ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-02" }
     | throw (IO.userError "first date correction was refused")
-  expect corrected.changed "first date correction did not report a change"
+  expect corrected "first date correction did not report a change"
 
   let .ok once ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload corrected Actual review")
@@ -81,7 +81,7 @@ def main (args : List String) : IO Unit := do
   let .ok twice ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded.eventId, validOn := "2026-09-01" }
     | throw (IO.userError "repeated date correction was refused")
-  expect twice.changed "repeated date correction did not report a change"
+  expect twice "repeated date correction did not report a change"
   let .ok twiceReview ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload repeatedly corrected Actual review")
   expect ((Loam.ActualReview.select twiceReview (.day "2026-09-02")).isEmpty)
@@ -112,7 +112,7 @@ def main (args : List String) : IO Unit := do
   let .ok replacementDate ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := replacement.replacement, validOn := "2026-08-31" }
     | throw (IO.userError "current replacement date correction was refused")
-  expect replacementDate.changed "replacement date correction did not report a change"
+  expect replacementDate "replacement date correction did not report a change"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload replacement Actual review")

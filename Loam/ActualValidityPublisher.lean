@@ -15,12 +15,6 @@ structure Draft where
   target : EventId
   validOn : String
 
-/-- Small frontend result for one occurrence-date publication. -/
-structure Receipt where
-  validOn : String
-  changed : Bool
-  deriving Repr
-
 private def freshRevisionId?
     (history : ActualValidityHistory String) : Option ActualValidityRevisionId := do
   let token ← Loam.firstUnusedNumberedToken?
@@ -73,7 +67,7 @@ private def appendDateChange?
 
 private def admit?
     (evidence : ActualEvidence)
-    (draft : Draft) : Except String (ActualEvidence × Receipt) := do
+    (draft : Draft) : Except String (ActualEvidence × Bool) := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
   let event ← targetCurrent? evidence.events evidence.corrections draft.target
@@ -83,39 +77,34 @@ private def admit?
     | some fact => pure fact
     | none => throw "loam: selected Actual has no current occurrence date"
   if currentFact.validOn = draft.validOn then
-    pure (evidence, {
-      validOn := draft.validOn
-      changed := false
-    })
+    pure (evidence, false)
   else
     let updatedValidity ← appendDateChange? evidence.validity event currentFact draft.validOn
-    pure ({ evidence with validity := updatedValidity }, {
-      validOn := draft.validOn
-      changed := true
-    })
+    pure ({ evidence with validity := updatedValidity }, true)
 
 private def publishUnderOwnership
     (root : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Bool) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
     | .error message => return .error message
-  let (updated, receipt) ←
+  let (updated, changed) ←
     match admit? evidence draft with
     | .ok value => pure value
     | .error message => return .error message
-  if !receipt.changed then
-    return .ok receipt
+  if !changed then
+    return .ok false
   match ← Loam.ActualAuthority.publishActual? root updated with
   | .error message => return .error message
-  | .ok () => return .ok receipt
+  | .ok () => return .ok true
 
 /--
 Publish one occurrence-date reaffirmation/correction against normalized Actual authority.
+Returns true only when a new date revision was published.
 -/
 def publishDate
-    (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
+    (rootPath : String) (draft : Draft) : IO (Except String Bool) := do
   if rootPath.isEmpty then
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
