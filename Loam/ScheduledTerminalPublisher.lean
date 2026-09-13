@@ -1,6 +1,5 @@
 import Loam.ActualAuthority
 import Loam.ActualEvidence
-import Loam.Application.ActualValidityFrontier
 import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
@@ -121,11 +120,6 @@ private def appendCompletionActual?
             (world.descriptions.entries ++ [{ event := actualId, text := text }]) with
         | some descriptions => pure descriptions
         | none => throw "loam: could not append Scheduled completion description"
-  let some admittedDates := Loam.Application.admittedActualValidityFacts? validity
-    | throw "loam: Scheduled completion date evidence does not justify one current date per Event"
-  if !(admittedDates.any fun admitted =>
-      decide (admitted.event = actualId ∧ admitted.validOn = draft.validOn)) then
-    throw "loam: Scheduled completion occurrence date did not become current"
   pure {
     events := events
     validity := validity
