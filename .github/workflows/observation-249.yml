@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'experiments/249_asset_routing_closure_counterexample.lean'
+      - 'experiments/249_asset_routing_closure_counterexample.md'
       - '.github/workflows/observation-249.yml'
 
 permissions:
