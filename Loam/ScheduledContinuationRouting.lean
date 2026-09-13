@@ -2,7 +2,6 @@ import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
-import Loam.ScheduledCreationPublisher
 import Loam.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledContinuationRouting
@@ -133,13 +132,5 @@ def inherit
                   | .unrouted =>
                       pure ()
               return .ok { outcomes := outcomes }
-
-/-- Convenience helper for callers holding a `ScheduledCreationPublisher.Receipt`. -/
-def inheritFromReceipt
-    (routingPath scheduledPath : System.FilePath)
-    (predecessor : ScheduledId)
-    (receipt : Loam.ScheduledCreationPublisher.Receipt)
-    (effectiveOn : String) : IO (Except String Report) :=
-  inherit routingPath scheduledPath predecessor receipt.scheduled effectiveOn
 
 end Loam.ScheduledContinuationRouting
