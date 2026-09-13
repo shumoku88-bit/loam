@@ -249,11 +249,6 @@ private def publishCancellationUnderOwnership
     | some terminals => pure terminals
     | none => return .error "loam: could not append Scheduled retirement evidence"
   let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
-  match currentOpen? updatedLifecycle evidence.events with
-  | .error message => return .error message
-  | .ok occurrences =>
-      if occurrences.any fun occurrence => decide (occurrence.id = draft.scheduled) then
-        return .error "loam: proposed cancellation did not close the selected Scheduled identity"
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled retirement lifecycle could not be published"
   return .ok { scheduled := draft.scheduled }
