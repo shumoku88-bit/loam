@@ -139,7 +139,7 @@ def routeActual
 def routeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledRoutingPublisher.Draft) :
-    IO (Except String Loam.ScheduledRoutingPublisher.Receipt) :=
+    IO (Except String Unit) :=
   Loam.ScheduledRoutingPublisher.publish
     (scheduledRoutingFile root).toString (scheduledFile root).toString draft
 
