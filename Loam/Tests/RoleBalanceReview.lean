@@ -63,6 +63,7 @@ def main : IO Unit := do
   let openingSupport ← requireSome
     (OpeningSupportMap.ofSupports? [{ coordinate := debt, openingEvent := debtOpening.id }])
     "opening support"
+  let currentAnchor := Loam.CurrentQuantityAnchor.Evidence.empty
 
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments? [
@@ -79,7 +80,7 @@ def main : IO Unit := do
     corrections := corrections
     coverage := coverage
   }
-  let .ok snapshot := Loam.RoleBalanceReview.project evidence openingSupport roles
+  let .ok snapshot := Loam.RoleBalanceReview.project evidence openingSupport currentAnchor roles
     | throw (IO.userError "role balance fixture refused")
 
   let walletRow ← requireSome (findRow? snapshot "wallet") "wallet balance row"
@@ -123,7 +124,7 @@ def main : IO Unit := do
     "opening support leaked into zero-origin BalanceReview"
 
   let .ok withoutOpening :=
-      Loam.RoleBalanceReview.project evidence OpeningSupportMap.empty roles
+      Loam.RoleBalanceReview.project evidence OpeningSupportMap.empty currentAnchor roles
     | throw (IO.userError "empty opening-support fixture refused")
   let debtUnsupported ← requireSome
     (findUnsupported? withoutOpening "debt")
@@ -150,4 +151,4 @@ def main : IO Unit := do
     "unsupported balance frontier changed unexpectedly"
 
   IO.println
-    "Role Balance Review: zero-origin and opening support compose one existing quantity engine."
+    "Role Balance Review: zero-origin, opening and optional current-anchor support compose one current view."
