@@ -1,6 +1,6 @@
 # Observation 248 — Derived Actual unrouted Expense frontier
 
-Status: **ACTIVE PROBE — research-only derived frontier; production semantics unchanged**
+Status: **QUALIFIED — pure derived frontier sufficient in the bounded case; production semantics unchanged**
 
 Baseline:
 
@@ -36,7 +36,7 @@ The row has no independent identity and is not retained state.
 
 Routing is Locus-scoped, so multiple Effects at the same Event/Locus/Measure are aggregated through existing `Event.quantityAt` rather than creating repeated frontier rows or inventing Effect-level routing identity.
 
-## Selection rule under test
+## Qualified selection rule
 
 For the selected current elapsed window and Measure:
 
@@ -50,7 +50,7 @@ For the selected current elapsed window and Measure:
 7. surface only status = unrouted.
 ```
 
-Important omissions:
+Important omissions remain deliberate:
 
 - no positivity requirement: negative Expense refunds remain classification evidence;
 - no Asset/Liability/Income/Equity fallback rule;
@@ -59,23 +59,25 @@ Important omissions:
 - no stored completeness bit;
 - no new authority, persistence or canonical data.
 
-## Executable bounded cases
+## Executed bounded result
 
-The Lean witness checks that the derived frontier:
+The Lean witness qualified all selected cases:
 
-- includes an in-window unrouted positive Expense;
-- includes an in-window unrouted negative Expense refund;
-- includes an Expense whose route becomes managed only after its Event-valid coordinate;
-- applies Event correction first, excluding a superseded target and retaining its replacement;
-- excludes managed Expense;
-- excludes explicitly unmanaged Expense;
-- excludes out-of-window Expense;
-- excludes another Measure;
-- excludes an unrouted Asset payment coordinate;
-- fails closed on an invalid current window;
-- fails closed when a current correction-frontier Event lacks ActualValidity.
+- an in-window unrouted positive Expense is surfaced;
+- an in-window unrouted negative Expense refund is surfaced;
+- an Expense whose route becomes managed only after its Event-valid coordinate remains surfaced;
+- Event correction is applied first, excluding a superseded target and retaining its replacement;
+- managed Expense is excluded;
+- explicitly unmanaged Expense is excluded;
+- out-of-window Expense is excluded;
+- another Measure is excluded;
+- an unrouted Asset payment coordinate is excluded;
+- an invalid current window fails closed;
+- missing ActualValidity for a current correction-frontier Event fails closed.
 
 The correction witness deliberately omits ActualValidity for the superseded target. Success therefore demonstrates that the candidate does not accidentally traverse raw pre-frontier Event history.
+
+The first CI attempt failed only because the fixture variable name `open` collided with Lean syntax. Renaming it to `openActual` left the semantics unchanged; the corrected witness then passed.
 
 ## Why signed quantity is retained
 
@@ -83,21 +85,26 @@ Current Consumption is signed. A refund at an Expense Locus can reduce Consumpti
 
 Therefore the candidate asks whether the coordinate is resolved, not whether its quantity is positive.
 
-## Why this is still research-only
+## Architectural finding
 
-Even if the derived list is mechanically sufficient, that does not prove it deserves:
+The unresolved Actual classification information does **not** require a new retained fact to be reconstructed in the bounded case.
 
-- a production type;
-- a CurrentCoverage field;
-- a Review boundary;
-- TUI presentation;
-- a generalized Answerability abstraction.
+Existing evidence is sufficient:
 
-The experiment first tests whether the unresolved information can be reconstructed cheaply from evidence LOAM already retains.
+```text
+current Event correction frontier
++ ActualValidity
++ partial AccountingRole
++ historical ActualRouting at Event.validOn
++ selected elapsed window / Measure
+    -> derived unrouted Expense frontier
+```
+
+This is an information result, not yet a production API decision.
 
 ## Production gate
 
-If the witness qualifies, the next decision is architectural rather than semantic:
+The next decision is architectural rather than semantic:
 
 > Is this frontier useful enough in real CurrentCoverage dogfood to graduate as one small derived production projection, preferably beside existing Consumption logic, without creating a parallel routing engine?
 
@@ -114,3 +121,9 @@ Do not introduce Effect-level routing identity.
 Do not mutate loam-data from this bounded witness.
 Do not create a generic Answerability framework from one frontier.
 ```
+
+## Verdict
+
+**QUALIFIED for the bounded derived-information shape.**
+
+CurrentCoverage can reconstruct the selected open Actual Expense classification frontier from existing evidence without a new canonical fact, identity, authority, or generic answerability subsystem. Graduation to production remains contingent on real household usefulness and a shared-mechanics implementation that cannot drift from Consumption semantics.
