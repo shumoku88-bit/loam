@@ -140,8 +140,6 @@ def main (args : List String) : IO Unit := do
   let .ok completion ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString completionIntent
     | throw (IO.userError "publish selected Scheduled completion")
-  expect (completion.scheduled.token == "scheduled-1")
-    "shared completion receipt changed selected Scheduled identity"
 
   let afterCompletion ← loadSnapshot scheduledFile root
   let afterCompletionScheduled ← requireScheduled afterCompletion
@@ -179,11 +177,9 @@ def main (args : List String) : IO Unit := do
   let cancelIntentStep := Loam.Tui.ScheduledCancellation.update armed.state .enter
   let cancelIntent ← requireSome cancelIntentStep.publish
     "explicit cancellation confirmation did not emit publisher intent"
-  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishCancellation
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishCancellation
       scheduledFile.toString root.toString cancelIntent
     | throw (IO.userError "publish selected Scheduled cancellation")
-  expect (cancelled.scheduled.token == "scheduled-2")
-    "shared cancellation receipt changed selected Scheduled identity"
 
   let afterCancellation ← loadSnapshot scheduledFile root
   let afterCancellationScheduled ← requireScheduled afterCancellation
@@ -239,8 +235,6 @@ def main (args : List String) : IO Unit := do
   let .ok replacement ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString replacementIntent
     | throw (IO.userError "publish selected Scheduled replacement")
-  expect (replacement.source.token == "scheduled-3")
-    "shared replacement receipt changed selected source identity"
 
   let afterReplacement ← loadSnapshot scheduledFile root
   let afterReplacementScheduled ← requireScheduled afterReplacement

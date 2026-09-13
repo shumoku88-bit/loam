@@ -119,8 +119,6 @@ def main (args : List String) : IO Unit := do
       scheduledFile.toString root.toString
       (replacementDraft "scheduled-1" "2026-09-13" "paypay" "rent" 1100)
     | throw (IO.userError "publish fresh Scheduled replacement")
-  expect (fresh.source.token == "scheduled-1")
-    "fresh replacement receipt changed source identity"
 
   let some retained ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after replacement")

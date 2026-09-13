@@ -333,7 +333,7 @@ partial def scheduledCancellationLoop
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.cancelScheduled root draft with
-      | .ok receipt => return "Cancelled " ++ receipt.scheduled.token ++ "."
+      | .ok () => return "Cancelled " ++ draft.scheduled.token ++ "."
       | .error message => return "Scheduled cancellation refused: " ++ message
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCancellation.view step.state)
@@ -352,7 +352,7 @@ partial def scheduledReplacementLoop
   | some draft =>
       match ← Loam.HouseholdCommand.replaceScheduled root draft with
       | .ok receipt =>
-          return "Superseded " ++ receipt.source.token ++ " -> " ++ receipt.replacement.token ++ "."
+          return "Superseded " ++ draft.source.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)
@@ -451,7 +451,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 | none => pure "Scheduled completion cancelled."
                 | some receipt =>
                     let completedNotice :=
-                      "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+                      "Completed " ++ record.id.token ++ " as " ++ receipt.actual.token ++ "."
                     match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
@@ -594,7 +594,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 | none => pure "Scheduled completion cancelled."
                 | some receipt =>
                     let completedNotice :=
-                      "Completed " ++ receipt.scheduled.token ++ " as " ++ receipt.actual.token ++ "."
+                      "Completed " ++ record.id.token ++ " as " ++ receipt.actual.token ++ "."
                     match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
