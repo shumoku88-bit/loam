@@ -175,7 +175,7 @@ def recordMovement (rootPath : String) : IO UInt32 := do
           rootPath draft fun receipt =>
             showAdmissionPreview
               draft.total draft.validOn draft.description
-              receipt.relationCount receipt.dischargeCount receipt.eventId with
+              draft.relations.length draft.discharges.length receipt.eventId with
       | .error message =>
           IO.eprintln message
           return 2
