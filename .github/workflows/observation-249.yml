@@ -3,35 +3,28 @@ name: Observation 249
 on:
   pull_request:
     paths:
-      - 'experiments/249_current_coverage_frontier_dogfood.lean'
+      - 'experiments/249_asset_routing_closure_counterexample.lean'
       - '.github/workflows/observation-249.yml'
 
 permissions:
   contents: read
 
 jobs:
-  dogfood:
-    name: Dogfood CurrentCoverage with Actual classification frontier
+  qualify:
+    name: Falsify Expense-only CurrentCoverage closure
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
-      - name: Checkout canonical household data
-        uses: actions/checkout@v6
-        with:
-          repository: shumoku88-bit/loam-data
-          ref: 9aca13c98dd8a479b3817478d603976b9aa32ac4
-          path: dogfood-data
-
-      - name: Build reused production review
+      - name: Build reused CurrentCoverage boundary
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
           build: true
-          build-args: Loam.CurrentCoverageReview
+          build-args: Loam.Application.CurrentCoverageInspection
           test: false
           lint: false
           use-mathlib-cache: false
 
-      - name: Run Observation 249 real-data dogfood
-        run: lake env lean --run experiments/249_current_coverage_frontier_dogfood.lean dogfood-data
+      - name: Run Observation 249 witness
+        run: lake env lean --run experiments/249_asset_routing_closure_counterexample.lean
