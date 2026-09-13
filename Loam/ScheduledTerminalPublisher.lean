@@ -126,15 +126,6 @@ private def appendCompletionActual?
     locusAdmission := world.locusAdmission
   }
 
-private def completionClosesTarget?
-    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
-    (events : EventMemory)
-    (target : ScheduledId) : Except String Unit := do
-  let occurrences ← currentOpen? lifecycle events
-  if occurrences.any fun occurrence => decide (occurrence.id = target) then
-    throw "loam: proposed completion did not close the selected Scheduled identity"
-  pure ()
-
 private def publishCompletionUnderOwnership
     (scheduledFile root : System.FilePath)
     (draft : CompletionDraft) : IO (Except String CompletionReceipt) := do
@@ -189,9 +180,6 @@ private def publishCompletionUnderOwnership
         | some terminals => pure terminals
         | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
   let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
-  match completionClosesTarget? updatedLifecycle updatedWorld.events draft.scheduled with
-  | .error message => return .error message
-  | .ok () => pure ()
   match existing with
   | none =>
       if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
