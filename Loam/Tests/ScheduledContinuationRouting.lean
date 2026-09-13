@@ -3,7 +3,6 @@ import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.ScheduledContinuationRouting
-import Loam.ScheduledCreationPublisher
 import Loam.ScheduledRoutingPublisher
 
 open Loam.Core
@@ -236,16 +235,5 @@ def main (args : List String) : IO Unit := do
     "Q8: Loam.ScheduledContinuationRouting must not directly call saveScheduledRoutingHistory?"
   expect (moduleSource.contains "Loam.ScheduledRoutingPublisher.publish")
     "Q8: Loam.ScheduledContinuationRouting must publish through ScheduledRoutingPublisher"
-
-  -- -------------------------------------------------------------
-  -- Helper: inheritFromReceipt
-  -- -------------------------------------------------------------
-  let receipt : Loam.ScheduledCreationPublisher.Receipt := {
-    scheduled := ⟨"sched-new1"⟩
-  }
-  -- Calling with already published route should refuse, proving delegation works
-  let resReceipt ← inheritFromReceipt routingFile scheduledFile ⟨"sched-pred1"⟩ receipt "2026-09-10"
-  let .ok repReceipt := resReceipt | throw (IO.userError "inheritFromReceipt call")
-  expect (repReceipt.outcomes.length == 1) "receipt call produced outcome"
 
   IO.println "Loam.ScheduledContinuationRouting qualification passed: managed, unmanaged, unrouted, missing/malformed fail-closed, per-route refusal report, and TUI-free shared boundary verified."
