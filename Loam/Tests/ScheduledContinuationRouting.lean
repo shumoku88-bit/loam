@@ -242,8 +242,6 @@ def main (args : List String) : IO Unit := do
   -- -------------------------------------------------------------
   let receipt : Loam.ScheduledCreationPublisher.Receipt := {
     scheduled := ⟨"sched-new1"⟩
-    scheduledOn := "2026-10-01"
-    total := 1000
   }
   -- Calling with already published route should refuse, proving delegation works
   let resReceipt ← inheritFromReceipt routingFile scheduledFile ⟨"sched-pred1"⟩ receipt "2026-09-10"
