@@ -1,6 +1,6 @@
 # Observation 249 — Expense-only Actual closure is not a general CurrentCoverage boundary
 
-Status: **ACTIVE COUNTEREXAMPLE — production semantics unchanged**
+Status: **QUALIFIED COUNTEREXAMPLE — production semantics unchanged**
 
 Baseline:
 
@@ -96,6 +96,31 @@ does **not** imply:
 ```text
 CurrentCoverage classification is closed
 ```
+
+## Qualified execution
+
+Exact qualifying head before this documentation-only commit:
+
+```text
+96897d521cad013fb49851aee73dbaab922d9ff4
+```
+
+Dedicated workflow:
+
+```text
+run 34759901673
+Falsify Expense-only CurrentCoverage closure  SUCCESS
+Build reused CurrentCoverage boundary          SUCCESS
+Run Observation 249 witness                    SUCCESS
+```
+
+The executable witness prints:
+
+```text
+Observation 249 witness: an empty Expense-only frontier does not establish CurrentCoverage classification closure.
+```
+
+The earlier real-data workflow failure was unrelated to the hypothesis: public `loam` CI cannot use its repository-scoped `GITHUB_TOKEN` to clone private `loam-data`. No private household data was copied into LOAM to bypass that boundary.
 
 ## Architectural consequence
 
