@@ -18,7 +18,6 @@ structure Draft where
   description : Option String := none
 
 structure Receipt where
-  target : EventId
   replacement : EventId
   deriving Repr
 
@@ -149,10 +148,7 @@ private def admit?
       relations := evidence.relations
       discharges := evidence.discharges
     }
-    receipt := {
-      target := draft.target
-      replacement := correction.replacement
-    }
+    receipt := { replacement := correction.replacement }
   }
 
 private def publishUnderOwnership
