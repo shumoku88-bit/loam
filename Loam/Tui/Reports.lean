@@ -4,6 +4,7 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
+import Loam.RoleFlowReview
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
@@ -55,6 +56,7 @@ structure LiquidityForm where
 inductive Query where
   | stockFlow (start endExclusive : String)
   | transactionsFlow (start endExclusive : String)
+  | accountingFlow (start endExclusive : String)
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
   deriving Repr, DecidableEq
@@ -69,6 +71,7 @@ structure State where
   windowSource : WindowSource := .calendarMonth
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
   transactionsSnapshot : Option Loam.TransactionsFlowReview.Snapshot := none
+  accountingSnapshot : Option Loam.RoleFlowReview.Snapshot := none
   transactionsIndex : Nat := 0
   transactionsDetail : Bool := false
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
@@ -139,6 +142,11 @@ def withTransactionsFlowSnapshot
       scroll := 0 }
 
 
+def withAccountingSnapshot
+    (state : State) (snapshot : Loam.RoleFlowReview.Snapshot) : State :=
+  { state with accountingSnapshot := some snapshot, notice := "", scroll := 0 }
+
+
 def withLiquiditySnapshot
     (state : State) (snapshot : Loam.ConditionalBalancePathReview.Snapshot) : State :=
   { state with liquiditySnapshot := some snapshot, notice := "", scroll := 0 }
@@ -153,6 +161,7 @@ def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
       transactionsSnapshot := none
+      accountingSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -164,6 +173,7 @@ private def clearResults (state : State) : State :=
   { state with
       stockFlowSnapshot := none
       transactionsSnapshot := none
+      accountingSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -344,6 +354,7 @@ private def queryForMode (state : State) : Option Query :=
   match state.mode with
   | .stockFlow => some (.stockFlow state.form.start state.form.endExclusive)
   | .transactionsFlow => some (.transactionsFlow state.form.start state.form.endExclusive)
+  | .accounting => some (.accountingFlow state.form.start state.form.endExclusive)
   | .budgetWindow => some (.budgetWindow state.form.start state.form.endExclusive)
   | _ => none
 
@@ -501,24 +512,13 @@ private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step
           query := some (.conditionalLiquidity state.liquidityForm.assumedCompleteThrough) }
   | _ => { state }
 
-private def updateEvidenceLimit (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  match key with
-  | .escape | .input 'b' | .input 'B' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
-  | .up | .input 'k' | .input 'K' =>
-      { state := { state with scroll := state.scroll - 1 } }
-  | .down | .input 'j' | .input 'J' =>
-      { state := { state with scroll := state.scroll + 1 } }
-  | _ => { state }
-
-
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.mode with
   | .menu => updateMenu state key
   | .stockFlow => updateWindowReport state key
   | .transactionsFlow => updateTransactionsFlow state key
   | .budgetWindow => updateWindowReport state key
-  | .accounting => updateEvidenceLimit state key
+  | .accounting => updateWindowReport state key
   | .liquidity => updateLiquidity state key
 
 private def line (text : String) : Widget := .row [span text]
@@ -567,7 +567,7 @@ private def menuView (state : State) : Widget :=
     , blank
     , menuRow state 0 "Stock–Flow" "state change across an explicit window"
     , menuRow state 1 "Transactions Flow" "where quantity moved, including zero-net circulation"
-    , menuRow state 2 "Accounting" "role projection not justified by current authority"
+    , menuRow state 2 "Accounting" "occurrence-time Income / Expense role flow"
     , menuRow state 3 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 4 "Budget Window" "explicit entitlement / consumption query"
     , blank
@@ -820,18 +820,98 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       , line state.notice
       ]
 
+private def addAccountingMeasureIfAbsent
+    (measures : List Loam.Core.MeasureId) (measure : Loam.Core.MeasureId) :
+    List Loam.Core.MeasureId :=
+  if measure ∈ measures then measures else measures ++ [measure]
+
+private def accountingMeasures
+    (snapshot : Loam.RoleFlowReview.Snapshot) : List Loam.Core.MeasureId :=
+  snapshot.rows.foldl
+    (fun measures row =>
+      match row.role with
+      | .income => addAccountingMeasureIfAbsent measures row.coordinate.measure
+      | .expense => addAccountingMeasureIfAbsent measures row.coordinate.measure
+      | _ => measures)
+    []
+
+private def accountingRoleQuanta
+    (snapshot : Loam.RoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole) : Int :=
+  snapshot.rows.foldl
+    (fun total row =>
+      if decide (row.coordinate.measure = measure ∧ row.role = role) then
+        total + row.quantity.quanta
+      else
+        total)
+    0
+
+private def accountingMeasureLines
+    (snapshot : Loam.RoleFlowReview.Snapshot) (measure : Loam.Core.MeasureId) : List Widget :=
+  let rawIncome := accountingRoleQuanta snapshot measure .income
+  let rawExpense := accountingRoleQuanta snapshot measure .expense
+  let income := -rawIncome
+  let expense := rawExpense
+  let result := income - expense
+  let label := Loam.Tui.Layout.padRight 16
+  [ line (measure.token ++ "  occurrence-time P/L-shaped flow")
+  , line (label "Income:" ++ padNum 12 (toString income) ++ " " ++ measure.token)
+  , line (label "Expense:" ++ padNum 12 (toString expense) ++ " " ++ measure.token)
+  , line (label "Result:" ++ padNum 12 (toString result) ++ " " ++ measure.token)
+  ]
+
+private def unresolvedAccountingLine
+    (entry : Loam.RoleFlowReview.UnresolvedEffect) : Widget :=
+  line
+    ("? " ++ entry.date ++ "  " ++ entry.effect.locus.token ++ "  " ++
+      signedQuanta entry.effect.quantity ++ " " ++ entry.effect.measure.token ++
+      "  [" ++ entry.event.token ++ "]")
+
+private def accountingResultLines (state : State) : List Widget :=
+  match state.accountingSnapshot with
+  | none => [muted "No explicit occurrence-time accounting window has been run yet."]
+  | some snapshot =>
+      let measures := accountingMeasures snapshot
+      let unresolved := snapshot.unresolvedEffects
+      [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
+      , muted "Income display = -raw signed Income; Expense display = raw signed Expense."
+      , muted "Distinct Measures remain separate and are never valued or summed together."
+      , blank
+      ] ++
+      (if measures.isEmpty then
+        [muted "No classified Income or Expense quantity appears in this window."]
+       else
+        measures.flatMap fun measure => accountingMeasureLines snapshot measure ++ [blank]) ++
+      [ line ("Unresolved role Effects: " ++ toString unresolved.length) ] ++
+      (unresolved.take 8).map unresolvedAccountingLine ++
+      (if unresolved.length > 8 then
+        [muted ("... " ++ toString (unresolved.length - 8) ++ " later unresolved Effect(s) omitted")]
+       else
+        []) ++
+      [ muted
+          (if unresolved.isEmpty then
+            "Role classification is complete for selected quantity Effects."
+           else
+            "Totals are partial while unresolved role Effects remain above.")
+      , muted "This is occurrence-time role flow, not accrual recognition or period closing."
+      ]
+
 private def accountingView (state : State) : Widget :=
-  .column
+  .column <|
     [ line "Reports / Accounting"
-    , muted "Where is the accounting-role counterpart structure?"
+    , muted "What Income / Expense role flow occurred inside this explicit window?"
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
     , blank
-    , line "Accounting projection: UNAVAILABLE"
+    , field state 0 "Start" state.form.start
+    , field state 1 "End (exclusive)" state.form.endExclusive
+    , .row [span "[Run]" (if state.form.focus.val = 2 then .selected else .normal)]
     , blank
-    , muted "Current production authority does not justify the role evidence needed"
-    , muted "for this report. The reverted read adapter is not restored here."
-    , muted "Reports will not infer roles from Locus names, signs, Purpose,"
-    , muted "or presentation state merely to make this screen numeric."
-    , blank
+    ] ++
+    accountingResultLines state ++
+    [ blank
+    , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
+    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
     , muted "b / Esc Reports menu   q quit"
     , line state.notice
     ]
@@ -965,7 +1045,7 @@ private def fixedFooterSize : Mode → Nat
   | .menu => 3
   | .stockFlow => 4
   | .transactionsFlow => 4
-  | .accounting => 2
+  | .accounting => 4
   | .liquidity => 3
   | .budgetWindow => 4
 

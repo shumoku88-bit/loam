@@ -188,12 +188,56 @@ def main : IO Unit := do
 
   let accounting := { initial with mode := Loam.Tui.Reports.Mode.accounting }
   let accountingText := widgetText (Loam.Tui.Reports.view accounting)
-  expect (contains "Accounting projection: UNAVAILABLE" accountingText)
-    "Accounting page invented a projection after the read-adapter revert"
-  expect (contains "reverted read adapter is not restored" accountingText)
-    "Accounting page lost the current authority boundary"
-  expect (contains "not infer roles" accountingText)
+  expect (contains "Reports / Accounting" accountingText)
+    "Accounting heading was not rendered"
+  expect (contains "No explicit occurrence-time accounting window has been run yet" accountingText)
+    "Accounting page did not preserve the explicit-run boundary"
+  expect (contains "no role is inferred" accountingText)
     "Accounting page lost its no-inference boundary"
+  match (Loam.Tui.Reports.update accounting .enter).query with
+  | some (.accountingFlow start endExclusive) =>
+      expect (start == "2026-09-01") "Accounting Run changed explicit start"
+      expect (endExclusive == "2026-10-01") "Accounting Run changed explicit end"
+  | _ => throw (IO.userError "Accounting Run did not emit its explicit role-flow query")
+
+  let pensionCoordinate : EffectCoordinate := ⟨⟨"pension"⟩, ⟨"jpy"⟩⟩
+  let foodCoordinate : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
+  let accountingReport := Loam.Tui.Reports.withAccountingSnapshot accounting {
+    start := "2026-09-01"
+    endExclusive := "2026-10-01"
+    rows :=
+      [ { coordinate := pensionCoordinate
+        , role := .income
+        , quantity := Quantity.ofQuanta (-225276) }
+      , { coordinate := foodCoordinate
+        , role := .expense
+        , quantity := Quantity.ofQuanta 50000 }
+      ]
+    unresolvedEffects :=
+      [ { event := ⟨"actual-unresolved"⟩
+        , date := "2026-09-12"
+        , effect := Effect.ofAnonymousQuantity
+            ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
+      ]
+  }
+  let accountingReportText := widgetText (Loam.Tui.Reports.view accountingReport)
+  expect (contains "Income:" accountingReportText && contains "225276 jpy" accountingReportText)
+    "Accounting view did not present credit-normal Income"
+  expect (contains "Expense:" accountingReportText && contains "50000 jpy" accountingReportText)
+    "Accounting view did not present debit-normal Expense"
+  expect (contains "Result:" accountingReportText && contains "175276 jpy" accountingReportText)
+    "Accounting view did not derive the occurrence-time result"
+  expect (contains "Unresolved role Effects: 1" accountingReportText && contains "mystery" accountingReportText)
+    "Accounting view hid unresolved role evidence"
+  expect (contains "not accrual recognition or period closing" accountingReportText)
+    "Accounting view overstated occurrence-time flow as a closed P/L"
+
+  let accountingEditing : Loam.Tui.Reports.State := {
+    accountingReport with form := { accountingReport.form with focus := ⟨0, by decide⟩ }
+  }
+  let accountingEdited := (Loam.Tui.Reports.update accountingEditing .backspace).state
+  expect accountingEdited.accountingSnapshot.isNone
+    "editing Accounting coordinates left a stale role-flow snapshot visible"
 
   let liquidity := { initial with mode := Loam.Tui.Reports.Mode.liquidity }
   expect (isLiquidity liquidity) "Liquidity fixture did not enter the Liquidity surface"
