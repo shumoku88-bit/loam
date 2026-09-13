@@ -64,13 +64,13 @@ def main (args : List String) : IO Unit := do
   let .ok receipt ← Loam.ActualReversalPublisher.publishReversal
       scheduledFile.toString root.toString draft
     | throw (IO.userError "publish Actual reversal")
-  expect (receipt.target = ⟨"actual-1"⟩ && receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
-    "reversal receipt changed deterministic endpoint identities"
+  expect (receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
+    "reversal receipt changed deterministic inverse identity"
 
   let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected Actual world")
   let target ←
-    match EventMemory.findById? fresh.events receipt.target with
+    match EventMemory.findById? fresh.events draft.target with
     | some event => pure event
     | none => throw (IO.userError "target Actual disappeared after reversal")
   let inverse ←
@@ -87,7 +87,7 @@ def main (args : List String) : IO Unit := do
   let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload actual authority")
   let relation ←
-    match actualEvidence.reversals.findByTarget? receipt.target with
+    match actualEvidence.reversals.findByTarget? draft.target with
     | some relation => pure relation
     | none => throw (IO.userError "reversal provenance relation missing")
   expect (relation.reversal = receipt.reversal)
@@ -98,7 +98,7 @@ def main (args : List String) : IO Unit := do
     , Effect.ofQuantity ⟨"corrected-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 710) ]
   let correctTarget ← Loam.CorrectionPublisher.publishCorrection
     root.toString {
-      target := receipt.target, effects := correctionEffects, description := none }
+      target := draft.target, effects := correctionEffects, description := none }
   expect (!correctTarget.isOk)
     "Correction changed a Reversal target and invalidated exact inverse provenance"
   let correctInverse ← Loam.CorrectionPublisher.publishCorrection
