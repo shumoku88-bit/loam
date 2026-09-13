@@ -37,17 +37,12 @@ structure CompletionDraft where
   movement : Loam.MovementAdmission.Draft
 
 structure CompletionReceipt where
-  scheduled : ScheduledId
   actual : EventId
   resumed : Bool
   deriving Repr
 
 structure CancellationDraft where
   scheduled : ScheduledId
-
-structure CancellationReceipt where
-  scheduled : ScheduledId
-  deriving Repr
 
 private def completionEventId (scheduled : ScheduledId) : EventId :=
   ⟨"scheduled-completion:" ++ scheduled.token⟩
@@ -200,14 +195,13 @@ private def publishCompletionUnderOwnership
         ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
   | .ok () =>
       return .ok {
-        scheduled := draft.scheduled
         actual := actualId
         resumed := existing.isSome
       }
 
 private def publishCancellationUnderOwnership
     (scheduledFile root : System.FilePath)
-    (draft : CancellationDraft) : IO (Except String CancellationReceipt) := do
+    (draft : CancellationDraft) : IO (Except String Unit) := do
   let lifecycle ←
     match ← loadLifecycle? scheduledFile with
     | .ok lifecycle => pure lifecycle
@@ -238,7 +232,7 @@ private def publishCancellationUnderOwnership
   let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled retirement lifecycle could not be published"
-  return .ok { scheduled := draft.scheduled }
+  return .ok ()
 
 private def withTerminalOwnership {α : Type}
     (scheduledFile root : System.FilePath)
@@ -266,7 +260,7 @@ Cancel one current-open Scheduled occurrence.
 -/
 def publishCancellation
     (scheduledPath rootPath : String)
-    (draft : CancellationDraft) : IO (Except String CancellationReceipt) := do
+    (draft : CancellationDraft) : IO (Except String Unit) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
