@@ -1,6 +1,6 @@
 # Observation 246 — Shared current-anchor root cut
 
-Status: **PROBE — current household pressure**
+Status: **QUALIFIED — shared cut sufficient for one reconciliation session in the bounded model**
 
 Baseline:
 
@@ -89,9 +89,20 @@ A genuinely post-anchor root remains outside the cut and contributes normally.
 
 This preserves the durable lesson of the retired BasisCut without reviving QuantityBasis identity or correction machinery.
 
-## Selected probes
+## Executed result
 
-Expected Alloy matrix:
+Observation 246 ran on:
+
+```text
+head:     d24175459f4246a6690c7472c15c80cbecc8fd5a
+workflow: Observation 246
+run:      34753442067
+job:      103713722330
+result:   SUCCESS
+Alloy:    6.2.0 / Sat4j
+```
+
+Alloy produced exactly the selected matrix:
 
 ```text
 sharedCutSupportsMultipleCoordinates       SAT
@@ -108,35 +119,51 @@ MissingAssertionRemainsUnsupported         UNSAT counterexample
 CurrentAssertionImpliesOriginCompleteness  SAT counterexample
 ```
 
-### Shared cut for one reconciliation session
+## Findings
 
-Two different coordinates may carry different asserted quantities while using the same reflected-root set. If coordinate-local cuts are merely copies of that same set, the shared representation must produce exactly the same answers.
+### 1. One shared cut is sufficient inside one reconciliation session
 
-This tests whether per-coordinate cut duplication is answer-relevant when the observation boundary is genuinely shared.
+Two different coordinates can carry different asserted quantities against one reflected-root set. When coordinate-local cuts are merely copies of that same set, Alloy found no counterexample to equality between the shared-cut answer and the duplicated-cut answer.
 
-### Root cut is independently necessary
+Therefore per-coordinate cut duplication carries no additional answer information when the observation boundary is genuinely shared.
 
-Two worlds may have identical assertions and identical correction-selected root contributions but different reflected-root sets, producing different current answers.
+### 2. The cut itself is independently necessary
 
-Therefore the cut cannot be derived from the asserted scalar or current Event quantities.
+Alloy found worlds with identical assertions and identical correction-selected root contributions but different reflected-root sets and different current answers.
 
-### Covered corrections remain absorbed
+Therefore the cut cannot be derived from the asserted scalar or the current Event quantities.
 
-If only roots already reflected by the observation change their correction-selected contributions, the anchored current answer must stay fixed. This includes reclassification of an old root across coordinates.
+### 3. Corrections to reflected roots remain absorbed
 
-### Uncovered roots contribute
+The model found a witness where a reflected root changes its effective contribution while the current anchored answer stays fixed. The stronger assertion also had no counterexample: if assertions, the shared cut, and every uncovered-root contribution are fixed, changes confined to reflected roots cannot change the current answer.
 
-A root outside the cut represents post-anchor retained activity for the selected query. A change in its effective quantity can therefore change the derived current balance.
+This includes reclassification of an old root across coordinates.
 
-### Shared cut is not universal
+### 4. Uncovered roots remain genuine deltas
 
-If two coordinates were observed at genuinely different boundaries, their reflected-root sets may differ. Forcing one coordinate's cut onto the other can change its answer.
+Alloy found a witness where a root outside the cut changes its effective contribution and the current answer changes. The candidate therefore does not freeze the balance at the assertion; post-anchor retained activity still composes through the ordinary root contribution.
 
-So a shared cut is justified only for assertions from one reconciliation session. Observation 246 does not collapse all future anchors into one global household cut.
+### 5. A shared cut is session-scoped, not universal
 
-### Current support does not imply origin completeness
+Alloy also found coordinates with genuinely different local cuts where forcing one coordinate's cut to be shared changes the other coordinate's answer.
 
-The model keeps `originComplete` independent. A current assertion can exist while origin history remains unsupported, preserving the distinction established by Observation 243.
+So the compression is bounded:
+
+```text
+same reconciliation boundary
+  -> one shared cut is sufficient
+
+different reconciliation boundaries
+  -> cut distinction may be observable
+```
+
+This prevents one household-global anchor from swallowing future independent observations.
+
+### 6. Current support remains weaker than origin completeness
+
+A supported current assertion can coexist with absent origin-completeness evidence, and the assertion that current support implies origin completeness has a counterexample.
+
+The result therefore preserves the Observation 243 boundary rather than weakening `ZeroOriginCoverage`.
 
 ## Late historical publication boundary
 
@@ -144,18 +171,41 @@ A later-discovered Event root whose real occurrence predates the observation may
 
 Observation 246 does not infer this from occurrence date. Such a root would need explicit admission into the reflected set for the current anchor. This is the same semantic pressure historically handled by BasisCut and is intentionally explicit rather than chronological.
 
-The probe therefore tests the information shape of the cut, not a policy for deciding whether a newly retained root belongs in it.
+The probe therefore qualifies the information shape of the cut, not a policy for deciding whether a newly retained root belongs in it.
+
+## Architectural result
+
+The bounded result supports a conservative extension rather than resurrection of the retired subsystem:
+
+```text
+shared reflected-root cut
++
+per-coordinate asserted quantities
++
+existing correction-root/frontier quantity semantics
+    -> selected current quantities
+```
+
+The following are not required by the selected answer:
+
+```text
+per-coordinate duplicated cuts
+per-anchor stable identities
+anchor correction graph
+synthetic Actual
+arbitrary starting-balance writer
+second quantity engine
+```
+
+The old `QuantityBasis` / `BasisCut` machinery remains correctly retired as a production subsystem. Observation 246 recovers only the independently necessary information that current dogfood has now re-earned.
 
 ## Production gate
 
-Even if the bounded model qualifies, do not immediately revive `QuantityBasis`.
-
-A production candidate should first test whether current household use can remain as small as:
+The next production candidate should test whether current household use can remain as small as one current reconciliation snapshot:
 
 ```text
-one current reconciliation snapshot
-  shared reflected-root cut
-  per-coordinate asserted quantities
+shared reflected-root cut
+per-coordinate asserted quantities
 ```
 
 with no stable snapshot identity or correction family until revision/history pressure actually appears.
@@ -176,10 +226,10 @@ Git history used as runtime semantic order             NO
 shared cut used across different observation sessions NO
 ```
 
-## Decision criterion
+## Verdict
 
-A positive result earns only this bounded claim:
+**QUALIFIED for the bounded information shape.**
 
-> For quantities observed together at one reconciliation boundary, a shared explicit set of already-reflected Event correction roots plus per-coordinate asserted quantities is sufficient for the selected current-balance calculation, while origin-history support remains independent.
+For quantities observed together at one reconciliation boundary, one explicit shared set of already-reflected Event correction roots plus per-coordinate asserted quantities is sufficient for the selected current-balance calculation. The cut is independently necessary, covered-root corrections remain absorbed, uncovered roots remain deltas, and current support does not imply zero-origin historical support.
 
-It does not yet earn persistence, publisher, CLI, TUI, or canonical household-data changes.
+This result does not yet earn persistence, publisher, CLI, TUI, or canonical household-data changes. The next question is the smallest production reuse seam over current correction-root mechanics.
