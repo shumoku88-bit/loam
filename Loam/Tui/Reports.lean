@@ -20,8 +20,8 @@ set_option autoImplicit false
 # Production Reports workspace
 
 Reports is presentation and query state only. Stock–Flow, Transactions Flow,
-occurrence-time Accounting, and Budget Window consume surface-independent shared
-review answers. Accounting composes the explicit RoleFlow boundary without adding a
+Income & Expense, and Budget Window consume surface-independent shared
+review answers. Income & Expense composes the explicit RoleFlow boundary without adding a
 second accounting engine. Liquidity keeps its unconditional UNKNOWN baseline while
 also exposing the read-only conditional selected-balance path earned by
 Observations 229 and 231.
@@ -31,7 +31,7 @@ inductive Mode where
   | menu
   | stockFlow
   | transactionsFlow
-  | accounting
+  | incomeExpense
   | liquidity
   | budgetWindow
   deriving Repr, DecidableEq
@@ -57,7 +57,7 @@ structure LiquidityForm where
 inductive Query where
   | stockFlow (start endExclusive : String)
   | transactionsFlow (start endExclusive : String)
-  | accountingFlow (start endExclusive : String)
+  | incomeExpenseFlow (start endExclusive : String)
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
   deriving Repr, DecidableEq
@@ -72,7 +72,7 @@ structure State where
   windowSource : WindowSource := .calendarMonth
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
   transactionsSnapshot : Option Loam.TransactionsFlowReview.Snapshot := none
-  accountingSnapshot : Option Loam.RoleFlowReview.Snapshot := none
+  incomeExpenseSnapshot : Option Loam.RoleFlowReview.Snapshot := none
   transactionsIndex : Nat := 0
   transactionsDetail : Bool := false
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
@@ -143,9 +143,9 @@ def withTransactionsFlowSnapshot
       scroll := 0 }
 
 
-def withAccountingSnapshot
+def withIncomeExpenseSnapshot
     (state : State) (snapshot : Loam.RoleFlowReview.Snapshot) : State :=
-  { state with accountingSnapshot := some snapshot, notice := "", scroll := 0 }
+  { state with incomeExpenseSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
 def withLiquiditySnapshot
@@ -162,7 +162,7 @@ def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
       transactionsSnapshot := none
-      accountingSnapshot := none
+      incomeExpenseSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -174,7 +174,7 @@ private def clearResults (state : State) : State :=
   { state with
       stockFlowSnapshot := none
       transactionsSnapshot := none
-      accountingSnapshot := none
+      incomeExpenseSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -328,7 +328,7 @@ private def selectMenuMode (state : State) : State :=
     match state.menuIndex.val with
     | 0 => Mode.stockFlow
     | 1 => Mode.transactionsFlow
-    | 2 => Mode.accounting
+    | 2 => Mode.incomeExpense
     | 3 => Mode.liquidity
     | _ => Mode.budgetWindow
   { state with mode := mode, notice := "", scroll := 0 }
@@ -343,8 +343,8 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       { state := { state with mode := .stockFlow, notice := "", scroll := 0 } }
   | .input 't' | .input 'T' =>
       { state := { state with mode := .transactionsFlow, notice := "", scroll := 0 } }
-  | .input 'a' | .input 'A' =>
-      { state := { state with mode := .accounting, notice := "", scroll := 0 } }
+  | .input 'i' | .input 'I' =>
+      { state := { state with mode := .incomeExpense, notice := "", scroll := 0 } }
   | .input 'l' | .input 'L' =>
       { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
   | .input 'w' | .input 'W' =>
@@ -355,7 +355,7 @@ private def queryForMode (state : State) : Option Query :=
   match state.mode with
   | .stockFlow => some (.stockFlow state.form.start state.form.endExclusive)
   | .transactionsFlow => some (.transactionsFlow state.form.start state.form.endExclusive)
-  | .accounting => some (.accountingFlow state.form.start state.form.endExclusive)
+  | .incomeExpense => some (.incomeExpenseFlow state.form.start state.form.endExclusive)
   | .budgetWindow => some (.budgetWindow state.form.start state.form.endExclusive)
   | _ => none
 
@@ -519,7 +519,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .stockFlow => updateWindowReport state key
   | .transactionsFlow => updateTransactionsFlow state key
   | .budgetWindow => updateWindowReport state key
-  | .accounting => updateWindowReport state key
+  | .incomeExpense => updateWindowReport state key
   | .liquidity => updateLiquidity state key
 
 private def line (text : String) : Widget := .row [span text]
@@ -568,11 +568,11 @@ private def menuView (state : State) : Widget :=
     , blank
     , menuRow state 0 "Stock–Flow" "state change across an explicit window"
     , menuRow state 1 "Transactions Flow" "where quantity moved, including zero-net circulation"
-    , menuRow state 2 "Accounting" "occurrence-time Income / Expense role flow"
+    , menuRow state 2 "Income & Expense" "occurrence-time role flow"
     , menuRow state 3 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 4 "Budget Window" "explicit entitlement / consumption query"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/a/l/w direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/l/w direct"
     , muted "b / Esc home   q quit"
     , line state.notice
     ]
@@ -821,22 +821,22 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       , line state.notice
       ]
 
-private def addAccountingMeasureIfAbsent
+private def addIncomeExpenseMeasureIfAbsent
     (measures : List Loam.Core.MeasureId) (measure : Loam.Core.MeasureId) :
     List Loam.Core.MeasureId :=
   if measure ∈ measures then measures else measures ++ [measure]
 
-private def accountingMeasures
+private def incomeExpenseMeasures
     (snapshot : Loam.RoleFlowReview.Snapshot) : List Loam.Core.MeasureId :=
   snapshot.rows.foldl
     (fun measures row =>
       match row.role with
-      | .income => addAccountingMeasureIfAbsent measures row.coordinate.measure
-      | .expense => addAccountingMeasureIfAbsent measures row.coordinate.measure
+      | .income => addIncomeExpenseMeasureIfAbsent measures row.coordinate.measure
+      | .expense => addIncomeExpenseMeasureIfAbsent measures row.coordinate.measure
       | _ => measures)
     []
 
-private def accountingRoleQuanta
+private def incomeExpenseRoleQuanta
     (snapshot : Loam.RoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole) : Int :=
   snapshot.rows.foldl
@@ -847,10 +847,10 @@ private def accountingRoleQuanta
         total)
     0
 
-private def accountingMeasureLines
+private def incomeExpenseMeasureLines
     (snapshot : Loam.RoleFlowReview.Snapshot) (measure : Loam.Core.MeasureId) : List Widget :=
-  let rawIncome := accountingRoleQuanta snapshot measure .income
-  let rawExpense := accountingRoleQuanta snapshot measure .expense
+  let rawIncome := incomeExpenseRoleQuanta snapshot measure .income
+  let rawExpense := incomeExpenseRoleQuanta snapshot measure .expense
   let income := -rawIncome
   let expense := rawExpense
   let result := income - expense
@@ -861,18 +861,18 @@ private def accountingMeasureLines
   , line (label "Result:" ++ padNum 12 (toString result) ++ " " ++ measure.token)
   ]
 
-private def unresolvedAccountingLine
+private def unresolvedIncomeExpenseLine
     (entry : Loam.RoleFlowReview.UnresolvedEffect) : Widget :=
   line
     ("? " ++ entry.date ++ "  " ++ entry.effect.locus.token ++ "  " ++
       signedQuanta entry.effect.quantity ++ " " ++ entry.effect.measure.token ++
       "  [" ++ entry.event.token ++ "]")
 
-private def accountingResultLines (state : State) : List Widget :=
-  match state.accountingSnapshot with
-  | none => [muted "No explicit occurrence-time accounting window has been run yet."]
+private def incomeExpenseResultLines (state : State) : List Widget :=
+  match state.incomeExpenseSnapshot with
+  | none => [muted "No explicit Income & Expense window has been run yet."]
   | some snapshot =>
-      let measures := accountingMeasures snapshot
+      let measures := incomeExpenseMeasures snapshot
       let unresolved := snapshot.unresolvedEffects
       [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
       , muted "Income display = -raw signed Income; Expense display = raw signed Expense."
@@ -882,9 +882,9 @@ private def accountingResultLines (state : State) : List Widget :=
       (if measures.isEmpty then
         [muted "No classified Income or Expense quantity appears in this window."]
        else
-        measures.flatMap fun measure => accountingMeasureLines snapshot measure ++ [blank]) ++
+        measures.flatMap fun measure => incomeExpenseMeasureLines snapshot measure ++ [blank]) ++
       [ line ("Unresolved role Effects: " ++ toString unresolved.length) ] ++
-      (unresolved.take 8).map unresolvedAccountingLine ++
+      (unresolved.take 8).map unresolvedIncomeExpenseLine ++
       (if unresolved.length > 8 then
         [muted ("... " ++ toString (unresolved.length - 8) ++ " later unresolved Effect(s) omitted")]
        else
@@ -897,9 +897,9 @@ private def accountingResultLines (state : State) : List Widget :=
       , muted "This is occurrence-time role flow, not accrual recognition or period closing."
       ]
 
-private def accountingView (state : State) : Widget :=
+private def incomeExpenseView (state : State) : Widget :=
   .column <|
-    [ line "Reports / Accounting"
+    [ line "Reports / Income & Expense"
     , muted "What Income / Expense role flow occurred inside this explicit window?"
     , line ("Window: " ++ windowSourceLabel state)
     , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
@@ -909,7 +909,7 @@ private def accountingView (state : State) : Widget :=
     , .row [span "[Run]" (if state.form.focus.val = 2 then .selected else .normal)]
     , blank
     ] ++
-    accountingResultLines state ++
+    incomeExpenseResultLines state ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
@@ -1037,7 +1037,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .menu => menuView state
   | .stockFlow => stockFlowView state
   | .transactionsFlow => transactionsFlowView state bounds
-  | .accounting => accountingView state
+  | .incomeExpense => incomeExpenseView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
 
@@ -1046,7 +1046,7 @@ private def fixedFooterSize : Mode → Nat
   | .menu => 3
   | .stockFlow => 4
   | .transactionsFlow => 4
-  | .accounting => 4
+  | .incomeExpense => 4
   | .liquidity => 3
   | .budgetWindow => 4
 
