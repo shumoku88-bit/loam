@@ -1,0 +1,105 @@
+import Loam.RoleBalanceReview
+
+open Loam.Core
+
+private def expect (condition : Bool) (message : String) : IO Unit := do
+  unless condition do throw (IO.userError message)
+
+private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
+  match value with
+  | some result => pure result
+  | none => throw (IO.userError message)
+
+private def effect (key locus : String) (quanta : Int) : Effect :=
+  Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
+
+private def findRow?
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (locus : String) : Option Loam.RoleBalanceReview.Row :=
+  snapshot.rows.find? fun row => row.coordinate.locus.token == locus
+
+private def findUnresolved?
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (locus : String) : Option Loam.RoleBalanceReview.UnresolvedRole :=
+  snapshot.unresolvedRoles.find? fun row => row.coordinate.locus.token == locus
+
+private def findUnsupported?
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (locus : String) : Option Loam.RoleBalanceReview.UnsupportedBalance :=
+  snapshot.unsupportedBalances.find? fun row => row.coordinate.locus.token == locus
+
+def main : IO Unit := do
+  let receipt ← requireSome
+    (Event.ofEffects? ⟨"receipt"⟩
+      [effect "wallet-in" "wallet" 100, effect "income-out" "income" (-100)])
+    "receipt event"
+  let purchase ← requireSome
+    (Event.ofEffects? ⟨"purchase"⟩
+      [effect "wallet-out" "wallet" (-30), effect "food-in" "food" 30])
+    "purchase event"
+  let ambiguous ← requireSome
+    (Event.ofEffects? ⟨"ambiguous"⟩
+      [effect "wallet-out-2" "wallet" (-5), effect "mystery-in" "mystery" 5])
+    "ambiguous event"
+
+  let events ← requireSome (EventMemory.ofEvents? [receipt, purchase, ambiguous]) "event memory"
+  let corrections ← requireSome (EventCorrectionMemory.ofCorrections? []) "correction memory"
+
+  let wallet : EffectCoordinate := ⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩
+  let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
+  let mystery : EffectCoordinate := ⟨⟨"mystery"⟩, ⟨"jpy"⟩⟩
+  let coverage ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [wallet, cash, mystery])
+    "zero-origin coverage"
+
+  let roles ← requireSome
+    (AccountingRoleMap.ofAssignments? [
+      { locus := ⟨"wallet"⟩, role := .asset },
+      { locus := ⟨"cash"⟩, role := .asset },
+      { locus := ⟨"income"⟩, role := .income },
+      { locus := ⟨"food"⟩, role := .expense }
+    ])
+    "role map"
+
+  let evidence : Loam.BalanceReview.Evidence := {
+    events := events
+    corrections := corrections
+    coverage := coverage
+  }
+  let .ok snapshot := Loam.RoleBalanceReview.project evidence roles
+    | throw (IO.userError "role balance fixture refused")
+
+  let walletRow ← requireSome (findRow? snapshot "wallet") "wallet balance row"
+  let cashRow ← requireSome (findRow? snapshot "cash") "cash balance row"
+  expect (walletRow.quantity.quanta == 65) "wallet current balance changed"
+  expect (cashRow.quantity.quanta == 0) "covered zero balance disappeared"
+  expect (decide (walletRow.role = AccountingRole.asset)) "wallet role changed"
+  expect (decide (cashRow.role = AccountingRole.asset)) "cash role changed"
+
+  let mysteryRow ← requireSome (findUnresolved? snapshot "mystery") "missing unresolved role row"
+  match mysteryRow.quantity with
+  | some quantity => expect (quantity.quanta == 5) "supported unresolved quantity changed"
+  | none => throw (IO.userError "supported unresolved role lost its quantity")
+
+  let incomeUnsupported ← requireSome (findUnsupported? snapshot "income") "missing income support frontier"
+  let foodUnsupported ← requireSome (findUnsupported? snapshot "food") "missing expense support frontier"
+  expect
+    (match incomeUnsupported.role with | some .income => true | _ => false)
+    "unsupported income classification disappeared"
+  expect
+    (match foodUnsupported.role with | some .expense => true | _ => false)
+    "unsupported expense classification disappeared"
+
+  let .ok physical := Loam.BalanceReview.project events corrections coverage [wallet, cash, mystery]
+    | throw (IO.userError "neighboring BalanceReview refused covered coordinates")
+  let physicalWallet ← requireSome
+    (physical.rows.find? fun row => row.coordinate.locus.token == "wallet")
+    "physical wallet row"
+  expect (physicalWallet.quantity.quanta == walletRow.quantity.quanta)
+    "RoleBalance introduced a second quantity calculation"
+
+  expect (snapshot.unsupportedBalances.length == 2)
+    "unsupported balance frontier changed unexpectedly"
+
+  IO.println
+    "Role Balance Review: BalanceReview composition, explicit roles and independent support frontier passed."
