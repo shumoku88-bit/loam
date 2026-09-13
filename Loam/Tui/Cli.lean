@@ -239,7 +239,7 @@ partial def recordLoop (bounds : Bounds) (root : System.FilePath)
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.record root draft with
-      | .ok receipt => return "Recorded " ++ receipt.eventId.token ++ "."
+      | .ok eventId => return "Recorded " ++ eventId.token ++ "."
       | .error message =>
           let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
           let nextFrame := compileWidget (Loam.Tui.Record.view known next)
@@ -260,8 +260,8 @@ partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.correctActual root draft with
-      | .ok receipt =>
-          return "Corrected " ++ draft.target.token ++ " -> " ++ receipt.replacement.token ++ "."
+      | .ok replacement =>
+          return "Corrected " ++ draft.target.token ++ " -> " ++ replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.Correction.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.Correction.view known next)
@@ -351,8 +351,8 @@ partial def scheduledReplacementLoop
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.replaceScheduled root draft with
-      | .ok receipt =>
-          return "Superseded " ++ draft.source.token ++ " -> " ++ receipt.replacement.token ++ "."
+      | .ok replacement =>
+          return "Superseded " ++ draft.source.token ++ " -> " ++ replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)
@@ -464,7 +464,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
+                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithScheduledId
                           bounds root known nextEditor nextEditorFrame
                         match createdOpt with
                         | none =>
@@ -474,7 +474,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                               pure (completedNotice ++ " " ++ nextNotice)
                         | some created =>
                             let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
-                                root record.id created.scheduled snapshot.actual.today with
+                                root record.id created snapshot.actual.today with
                             | .error err =>
                                 pure s!" (routing inheritance failed: {err})"
                             | .ok report =>
@@ -610,7 +610,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                         let nextEditorFrame :=
                           compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
                         Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithReceipt
+                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithScheduledId
                           bounds root known nextEditor nextEditorFrame
                         match createdOpt with
                         | none =>
@@ -620,7 +620,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                               pure (completedNotice ++ " " ++ nextNotice)
                         | some created =>
                             let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
-                                root record.id created.scheduled snapshot.actual.today with
+                                root record.id created snapshot.actual.today with
                             | .error err =>
                                 pure s!" (routing inheritance failed: {err})"
                             | .ok report =>

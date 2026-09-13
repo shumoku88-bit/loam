@@ -69,7 +69,7 @@ def main (args : List String) : IO Unit := do
   let record ← requireSome current.head? "current Actual fixture disappeared"
   let .ok editor := Loam.Tui.Correction.initial? record
     | throw (IO.userError "Correction editor did not accept current JPY Actual")
-  expect (editor.target == recorded.eventId) "Correction editor lost selected target identity"
+  expect (editor.target == recorded) "Correction editor lost selected target identity"
   expect (editor.editor.form.date == "2026-09-07") "Correction editor lost fixed occurrence date"
   expect (editor.editor.form.description == "before") "Correction editor did not prefill description"
   expect (editor.editor.form.rows.map (fun row => row.amount) == #["-640", "640"])
@@ -110,12 +110,12 @@ def main (args : List String) : IO Unit := do
   let previewState : Loam.Tui.Correction.State := { editor with editor := previewEditor }
   let publishStep := Loam.Tui.Correction.update world known previewState .enter
   let correctionDraft ← requireSome publishStep.publish "Correction preview did not emit publication intent"
-  expect (correctionDraft.target == recorded.eventId) "Correction intent changed the selected target"
+  expect (correctionDraft.target == recorded) "Correction intent changed the selected target"
   expect (correctionDraft.description == some "after") "Correction intent lost explicit replacement description"
   expect (correctionDraft.effects.map (fun effect => effect.quantity.quanta) == [-650, 650])
     "Correction intent lost edited signed postings"
 
-  let .ok receipt ← Loam.CorrectionPublisher.publishCorrection
+  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
       root.toString correctionDraft
     | throw (IO.userError "shared CorrectionPublisher refused TUI intent")
   let .ok freshRecords ← Loam.ActualReview.loadRecordsFromActual root
@@ -123,11 +123,11 @@ def main (args : List String) : IO Unit := do
   let fresh := Loam.ActualReview.select freshRecords (.day "2026-09-07")
   expect (fresh.length == 1) "fresh selected day did not expose exactly one current Actual"
   expect (fresh.any fun item =>
-      item.event.id == receipt.replacement && item.description == "after" &&
+      item.event.id == replacementId && item.description == "after" &&
       item.date == some "2026-09-07" &&
       item.event.effects.map (fun effect => effect.quantity.quanta) == [-650, 650])
     "fresh selected day did not expose the replacement evidence"
-  expect (freshRecords.any fun item => item.event.id == recorded.eventId && !item.isCurrent)
+  expect (freshRecords.any fun item => item.event.id == recorded && !item.isCurrent)
     "Correction TUI path rewrote or lost the original Event"
 
   let stale ← Loam.CorrectionPublisher.publishCorrection root.toString correctionDraft

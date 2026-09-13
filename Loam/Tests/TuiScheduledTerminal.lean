@@ -238,7 +238,7 @@ def main (args : List String) : IO Unit := do
       Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta
         replacementIntent.movement == 300)
     "replacement editor lost selected source or edited content"
-  let .ok replacement ← Loam.ScheduledReplacementPublisher.publishReplacement
+  let .ok replacementId ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString replacementIntent
     | throw (IO.userError "publish selected Scheduled replacement")
 
@@ -252,7 +252,7 @@ def main (args : List String) : IO Unit := do
     "fresh Scheduled read retained completed, cancelled, or superseded sources on the old day"
   expect
     (newDay.length == 1 &&
-      hasScheduled newDay replacement.replacement.token &&
+      hasScheduled newDay replacementId.token &&
       !hasScheduled newDay "scheduled-3")
     "fresh Scheduled read did not expose only the replacement endpoint on its edited day"
   let refreshed := Loam.Tui.SelectedDay.refreshed afterReplacement replacementState

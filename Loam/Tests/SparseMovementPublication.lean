@@ -43,11 +43,11 @@ def main (args : List String) : IO Unit := do
     discharges := []
     total := 100
   }
-  let .ok ordinaryReceipt ← Loam.MovementPublisher.publishDraft root.toString ordinary
+  let .ok ordinaryEventId ← Loam.MovementPublisher.publishDraft root.toString ordinary
     | throw (IO.userError "publish ordinary movement")
   let .ok afterOrdinary ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload ordinary movement")
-  let ordinaryEvent ← requireSome (afterOrdinary.events.findById? ordinaryReceipt.eventId)
+  let ordinaryEvent ← requireSome (afterOrdinary.events.findById? ordinaryEventId)
     "ordinary event missing"
   expect (ordinaryEvent.effects.all fun effect => effect.key.isNone)
     "unreferenced collector key became canonical EffectKey"
@@ -68,11 +68,11 @@ def main (args : List String) : IO Unit := do
     discharges := []
     total := 100
   }
-  let .ok relatedReceipt ← Loam.MovementPublisher.publishDraft root.toString related
+  let .ok relatedEventId ← Loam.MovementPublisher.publishDraft root.toString related
     | throw (IO.userError "publish related movement")
   let .ok afterRelated ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload related movement")
-  let relatedEvent ← requireSome (afterRelated.events.findById? relatedReceipt.eventId)
+  let relatedEvent ← requireSome (afterRelated.events.findById? relatedEventId)
     "related event missing"
   expect (relatedEvent.effects.any fun effect => effect.key == some sourceKey)
     "relation source EffectKey was not retained"

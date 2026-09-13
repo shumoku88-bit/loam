@@ -29,11 +29,6 @@ structure Draft where
   scheduledOn : String
   movement : BalancedMovement LocusId
 
-/-- The fresh Scheduled identity produced by successful creation. -/
-structure Receipt where
-  scheduled : ScheduledId
-  deriving Repr
-
 private def loadLifecycle?
     (scheduledFile : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
@@ -73,7 +68,7 @@ private def validateDraft (draft : Draft) : Except String Unit := do
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String ScheduledId) := do
   match validateDraft draft with
   | .error message => return .error message
   | .ok () => pure ()
@@ -111,7 +106,7 @@ private def publishUnderOwnership
   let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled lifecycle could not be published"
-  return .ok { scheduled := scheduledId }
+  return .ok scheduledId
 
 private def withCreationOwnership {α : Type}
     (scheduledFile root : System.FilePath)
@@ -124,7 +119,7 @@ Publish one independent Scheduled occurrence into the complete lifecycle image.
 -/
 def publishCreation
     (scheduledPath rootPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String ScheduledId) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then

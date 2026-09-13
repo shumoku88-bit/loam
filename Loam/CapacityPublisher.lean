@@ -36,11 +36,6 @@ structure Draft where
   quanta : Int
   deriving Repr, DecidableEq
 
-/-- The one independent result of successful Capacity publication. -/
-structure Receipt where
-  movement : CapacityMovementId
-  deriving Repr, DecidableEq
-
 /--
 A multi-coordinate balanced Capacity draft.
 
@@ -166,7 +161,7 @@ private def publishAdmittedMovement
   return .ok movementId
 
 private def publishUnlocked
-    (capacityFile : System.FilePath) (draft : Draft) : IO (Except String Receipt) := do
+    (capacityFile : System.FilePath) (draft : Draft) : IO (Except String CapacityMovementId) := do
   match validateDraft draft with
   | .error message => return .error message
   | .ok _ => pure ()
@@ -190,7 +185,7 @@ private def publishUnlocked
     | .ok id => pure id
     | .error message => return .error message
 
-  return .ok { movement := movementId }
+  return .ok movementId
 
 /--
 Publish one dated JPY Capacity movement under Capacity writer ownership.
@@ -200,12 +195,12 @@ incomplete evidence, checks named-source entitlement, allocates fresh identity,
 and publishes effective evidence before the Capacity authority image.
 -/
 def publish
-    (capacityPath : String) (draft : Draft) : IO (Except String Receipt) :=
+    (capacityPath : String) (draft : Draft) : IO (Except String CapacityMovementId) :=
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishUnlocked capacityFile draft)
 
 private def publishBalancedUnlocked
-    (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String Receipt) := do
+    (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
   match validateBalancedDraft draft with
   | .error message => return .error message
   | .ok _ => pure ()
@@ -234,7 +229,7 @@ private def publishBalancedUnlocked
     | .ok id => pure id
     | .error message => return .error message
 
-  return .ok { movement := movementId }
+  return .ok movementId
 
 /--
 Publish one dated multi-coordinate JPY Capacity movement under Capacity writer ownership.
@@ -244,7 +239,7 @@ allocates one fresh CapacityMovementId, and publishes effective evidence before
 Capacity authority.
 -/
 def publishBalanced
-    (capacityPath : String) (draft : BalancedDraft) : IO (Except String Receipt) :=
+    (capacityPath : String) (draft : BalancedDraft) : IO (Except String CapacityMovementId) :=
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishBalancedUnlocked capacityFile draft)
 

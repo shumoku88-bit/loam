@@ -115,7 +115,7 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile scheduledFile) == beforeInvalid)
     "refused replacement changed the lifecycle authority"
 
-  let .ok fresh ← Loam.ScheduledReplacementPublisher.publishReplacement
+  let .ok replacementId ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString
       (replacementDraft "scheduled-1" "2026-09-13" "paypay" "rent" 1100)
     | throw (IO.userError "publish fresh Scheduled replacement")
@@ -125,9 +125,9 @@ def main (args : List String) : IO Unit := do
   expect (replacementCount retained.terminals == 1)
     "fresh replacement relation was not retained exactly once"
   expect (ScheduledTerminalMemory.replacementFor?
-      retained.terminals ⟨"scheduled-1"⟩ == some fresh.replacement)
+      retained.terminals ⟨"scheduled-1"⟩ == some replacementId)
     "fresh replacement relation lost its endpoints"
-  expect ((ScheduledMemory.findById? retained.scheduled fresh.replacement).isSome)
+  expect ((ScheduledMemory.findById? retained.scheduled replacementId).isSome)
     "replacement endpoint was not published in the same lifecycle image"
 
   let .ok afterFresh ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
@@ -138,7 +138,7 @@ def main (args : List String) : IO Unit := do
     (Loam.ScheduledReview.dayEvidence afterFresh "2026-09-13")
   expect (!hasScheduled oldDay ⟨"scheduled-1"⟩)
     "replaced source stayed current-open"
-  expect (hasScheduled newDay fresh.replacement)
+  expect (hasScheduled newDay replacementId)
     "replacement occurrence did not become current-open"
   expect ((ScheduledMemory.findById? afterFresh.scheduled ⟨"scheduled-1"⟩).isSome)
     "append-only replacement rewrote the source occurrence"

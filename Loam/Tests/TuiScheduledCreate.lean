@@ -112,7 +112,7 @@ def main (args : List String) : IO Unit := do
     ["paypay", "rent", "food"] previewState .enter
   let intent ← requireSome publishStep.publish
     "new Scheduled preview did not emit shared publisher intent"
-  let .ok receipt ← Loam.ScheduledCreationPublisher.publishCreation
+  let .ok scheduledId ← Loam.ScheduledCreationPublisher.publishCreation
       scheduledFile.toString root.toString intent
     | throw (IO.userError "publish new Scheduled from TUI intent")
 
@@ -123,7 +123,7 @@ def main (args : List String) : IO Unit := do
     | .ok scheduled => pure scheduled
   let due := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence freshScheduled "2026-09-12")
-  expect (hasScheduled due receipt.scheduled)
+  expect (hasScheduled due scheduledId)
     "fresh Scheduled read did not expose the newly created occurrence on its explicit day"
   expect (fresh.actual.allRecords.isEmpty)
     "Scheduled creation also created Actual evidence"

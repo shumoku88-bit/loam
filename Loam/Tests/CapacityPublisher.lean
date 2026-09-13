@@ -38,9 +38,9 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
     destination := .purpose ⟨"food"⟩
     quanta := 5000
   }
-  let .ok grantReceipt ← Loam.CapacityPublisher.publish capacityFile.toString grant
+  let .ok grantId ← Loam.CapacityPublisher.publish capacityFile.toString grant
     | throw (IO.userError "publish initial Capacity grant")
-  expect (grantReceipt.movement.token == "capacity-1")
+  expect (grantId.token == "capacity-1")
     "initial Capacity publication did not allocate capacity-1"
   let first ← loadSnapshot capacityFile
   expect (rowQuanta? first.rows "food" == some 5000)
@@ -52,9 +52,9 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
     destination := .purpose ⟨"rent"⟩
     quanta := 2000
   }
-  let .ok transferReceipt ← Loam.CapacityPublisher.publish capacityFile.toString transfer
+  let .ok transferId ← Loam.CapacityPublisher.publish capacityFile.toString transfer
     | throw (IO.userError "publish Capacity transfer")
-  expect (transferReceipt.movement.token == "capacity-2")
+  expect (transferId.token == "capacity-2")
     "second Capacity publication did not allocate capacity-2"
   let second ← loadSnapshot capacityFile
   expect (rowQuanta? second.rows "food" == some 3000)
@@ -68,9 +68,9 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
     destination := .unallocated
     quanta := 500
   }
-  let .ok releaseReceipt ← Loam.CapacityPublisher.publish capacityFile.toString release
+  let .ok releaseId ← Loam.CapacityPublisher.publish capacityFile.toString release
     | throw (IO.userError "publish Capacity return to unallocated")
-  expect (releaseReceipt.movement.token == "capacity-3")
+  expect (releaseId.token == "capacity-3")
     "third Capacity publication did not allocate capacity-3"
   let third ← loadSnapshot capacityFile
   expect (rowQuanta? third.rows "food" == some 3000)
@@ -201,9 +201,9 @@ private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
       { coordinate := .purpose ⟨"living"⟩, quantity := Quantity.ofQuanta 1820 }
     ]
   }
-  let .ok receipt ← Loam.CapacityPublisher.publishBalanced capacityFile.toString rebalanceDraft
+  let .ok movementId ← Loam.CapacityPublisher.publishBalanced capacityFile.toString rebalanceDraft
     | throw (IO.userError "publish balanced 3-purpose rebalance")
-  expect (receipt.movement.token == "capacity-4") "rebalance movement token"
+  expect (movementId.token == "capacity-4") "rebalance movement token"
 
   -- 6. One atomic published CapacityMovement & 7. Fresh CapacityReview after publish
   let freshSnapshot ← loadSnapshot capacityFile
@@ -214,7 +214,7 @@ private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
   let some memory ← Loam.Persistence.loadCapacityMemory? capacityFile
     | throw (IO.userError "reload memory")
   expect (memory.movements.length == 4) "memory should contain exactly 4 movements (3 seed + 1 rebalance)"
-  let some lastMovement := memory.findById? receipt.movement
+  let some lastMovement := memory.findById? movementId
     | throw (IO.userError "last movement not found")
   expect (lastMovement.movement.changes.length == 3) "atomic movement should contain exactly 3 changes"
 

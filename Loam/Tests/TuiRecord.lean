@@ -128,12 +128,12 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile (root / "actual.loam")) == before) "refusal changed authority"
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root w
     | throw (IO.userError "restore fixture policy")
-  let .ok receipt ← Loam.MovementPublisher.publishDraft root.toString draft
+  let .ok eventId ← Loam.MovementPublisher.publishDraft root.toString draft
     | throw (IO.userError "canonical publish")
   let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "canonical review reload")
   expect (records.length == 1) "reload did not see exactly one record"
-  expect (records.any fun record => record.event.id.token == receipt.eventId.token &&
+  expect (records.any fun record => record.event.id.token == eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
   IO.println "TUI Record: signed postings, canonical catalog selection, admission, stale policy rejection, publication and fresh review passed."

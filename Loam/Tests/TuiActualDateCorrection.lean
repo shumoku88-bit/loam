@@ -59,7 +59,7 @@ def main (args : List String) : IO Unit := do
     "selected Actual fixture disappeared"
   let .ok editor := Loam.Tui.ActualDateCorrection.initial? record
     | throw (IO.userError "date editor did not accept dated current Actual")
-  expect (editor.target == recorded.eventId && editor.input == "2026-09-07")
+  expect (editor.target == recorded && editor.input == "2026-09-07")
     "date editor lost target or visible current date"
 
   let erased := (Loam.Tui.ActualDateCorrection.update editor .backspace).state
@@ -71,7 +71,7 @@ def main (args : List String) : IO Unit := do
     "valid date did not require a separate preview before publication"
   let publish := Loam.Tui.ActualDateCorrection.update preview.state .enter
   let dateDraft ← requireSome publish.publish "date preview did not emit publication intent"
-  expect (dateDraft.target == recorded.eventId && dateDraft.validOn == "2026-09-06")
+  expect (dateDraft.target == recorded && dateDraft.validOn == "2026-09-06")
     "date editor intent changed target or date"
 
   let .ok changed ← Loam.ActualValidityPublisher.publishDate root.toString dateDraft
@@ -83,20 +83,20 @@ def main (args : List String) : IO Unit := do
   expect ((Loam.ActualReview.select fresh (.day "2026-09-07")).isEmpty)
     "old selected day still exposed the moved Actual"
   let moved := Loam.ActualReview.select fresh (.day "2026-09-06")
-  expect (moved.length == 1 && moved.any fun item => item.event.id == recorded.eventId)
+  expect (moved.length == 1 && moved.any fun item => item.event.id == recorded)
     "new date did not expose the moved Actual"
 
   let .ok worldAfterDate ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload world after date correction")
-  expect ((EventMemory.findById? worldAfterDate.events recorded.eventId).isSome)
+  expect ((EventMemory.findById? worldAfterDate.events recorded).isSome)
     "date correction rewrote or removed Event payload"
 
   let staleIntent : Loam.ActualValidityPublisher.Draft := {
-    target := recorded.eventId
+    target := recorded
     validOn := "2026-09-05" }
-  let .ok replacement ← Loam.CorrectionPublisher.publishCorrection
+  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
       root.toString {
-        target := recorded.eventId
+        target := recorded
         effects := effects 650
         description := some "corrected coffee" }
     | throw (IO.userError "movement correction fixture")
@@ -106,7 +106,7 @@ def main (args : List String) : IO Unit := do
   let .ok replacementRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload replacement review")
   expect (replacementRecords.any fun item =>
-      item.event.id == replacement.replacement && item.date == some "2026-09-06" && item.isCurrent)
+      item.event.id == replacementId && item.date == some "2026-09-06" && item.isCurrent)
     "Movement correction stopped carrying the current date after TUI date correction"
 
   IO.println "TUI Actual date: local edit/preview, shared publication, fresh move and stale-intent rejection passed."

@@ -30,10 +30,6 @@ structure Draft where
   scheduledOn : String
   movement : BalancedMovement LocusId
 
-structure Receipt where
-  replacement : ScheduledId
-  deriving Repr
-
 private def loadLifecycle?
     (scheduledFile : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
@@ -78,7 +74,7 @@ private def validateDraft (draft : Draft) : Except String Unit := do
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String ScheduledId) := do
   match validateDraft draft with
   | .error message => return .error message
   | .ok () => pure ()
@@ -135,7 +131,7 @@ private def publishUnderOwnership
   }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled replacement lifecycle could not be published"
-  return .ok { replacement := replacementId }
+  return .ok replacementId
 
 private def withReplacementOwnership {α : Type}
     (scheduledFile root : System.FilePath)
@@ -148,7 +144,7 @@ Publish one Scheduled replacement into the complete lifecycle image.
 -/
 def publishReplacement
     (scheduledPath rootPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String ScheduledId) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then

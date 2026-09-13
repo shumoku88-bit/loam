@@ -71,9 +71,9 @@ def main (args : List String) : IO Unit := do
   let grantStep := Loam.Tui.CapacityTransfer.update grantPreview .enter
   let grantIntent ← requireSome grantStep.publish
     "Capacity Preview/Publish did not emit a shared publisher draft"
-  let .ok grantReceipt ← Loam.CapacityPublisher.publish capacityFile.toString grantIntent
+  let .ok grantId ← Loam.CapacityPublisher.publish capacityFile.toString grantIntent
     | throw (IO.userError "publish TUI Capacity grant")
-  expect (grantReceipt.movement.token == "capacity-1")
+  expect (grantId.token == "capacity-1")
     "TUI Capacity grant did not publish the first fresh identity"
 
   let afterGrant ← loadSnapshot capacityFile
@@ -102,9 +102,9 @@ def main (args : List String) : IO Unit := do
   let transferIntent ← requireSome
     (Loam.Tui.CapacityTransfer.update transferPreview .enter).publish
     "Capacity purpose transfer preview did not emit publication intent"
-  let .ok transferReceipt ← Loam.CapacityPublisher.publish capacityFile.toString transferIntent
+  let .ok transferId ← Loam.CapacityPublisher.publish capacityFile.toString transferIntent
     | throw (IO.userError "publish TUI Capacity purpose transfer")
-  expect (transferReceipt.movement.token == "capacity-2")
+  expect (transferId.token == "capacity-2")
     "TUI Capacity purpose transfer did not allocate the next fresh identity"
 
   let fresh ← loadSnapshot capacityFile

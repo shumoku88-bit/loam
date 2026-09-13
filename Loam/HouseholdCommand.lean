@@ -48,14 +48,14 @@ private def accountingRoleFile (root : System.FilePath) : System.FilePath :=
 def record
     (root : System.FilePath)
     (draft : Loam.MovementAdmission.Draft) :
-    IO (Except String Loam.MovementPublisher.Receipt) :=
+    IO (Except String Loam.Core.EventId) :=
   Loam.MovementPublisher.publishDraft root.toString draft
 
 /-- Correct one retained Actual Movement. -/
 def correctActual
     (root : System.FilePath)
     (draft : Loam.CorrectionPublisher.Draft) :
-    IO (Except String Loam.CorrectionPublisher.Receipt) :=
+    IO (Except String Loam.Core.EventId) :=
   Loam.CorrectionPublisher.publishCorrection root.toString draft
 
 /-- Correct one Actual occurrence date. -/
@@ -77,7 +77,7 @@ def reverseActual
 def createScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledCreationPublisher.Draft) :
-    IO (Except String Loam.ScheduledCreationPublisher.Receipt) :=
+    IO (Except String Loam.Core.ScheduledId) :=
   Loam.ScheduledCreationPublisher.publishCreation
     (scheduledFile root).toString root.toString draft
 
@@ -101,7 +101,7 @@ def cancelScheduled
 def replaceScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledReplacementPublisher.Draft) :
-    IO (Except String Loam.ScheduledReplacementPublisher.Receipt) :=
+    IO (Except String Loam.Core.ScheduledId) :=
   Loam.ScheduledReplacementPublisher.publishReplacement
     (scheduledFile root).toString root.toString draft
 
@@ -118,14 +118,14 @@ def inheritScheduledRouting
 def moveCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.Draft) :
-    IO (Except String Loam.CapacityPublisher.Receipt) :=
+    IO (Except String Loam.Core.CapacityMovementId) :=
   Loam.CapacityPublisher.publish (capacityFile root).toString draft
 
 /-- Publish one balanced multi-coordinate Capacity movement. -/
 def rebalanceCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.BalancedDraft) :
-    IO (Except String Loam.CapacityPublisher.Receipt) :=
+    IO (Except String Loam.Core.CapacityMovementId) :=
   Loam.CapacityPublisher.publishBalanced (capacityFile root).toString draft
 
 /-- Publish one Actual routing assertion. -/

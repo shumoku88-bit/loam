@@ -172,10 +172,10 @@ def recordMovement (rootPath : String) : IO UInt32 := do
       return 2
   | .ok draft =>
       match ← Loam.MovementPublisher.publishDraftWithPreview
-          rootPath draft fun receipt =>
+          rootPath draft fun eventId =>
             showAdmissionPreview
               draft.total draft.validOn draft.description
-              draft.relations.length draft.discharges.length receipt.eventId with
+              draft.relations.length draft.discharges.length eventId with
       | .error message =>
           IO.eprintln message
           return 2

@@ -34,10 +34,10 @@ partial def run
     match step.publish with
     | some draft =>
         match ← Loam.HouseholdCommand.rebalanceCapacity root draft with
-        | .ok receipt =>
+        | .ok movementId =>
             pure
               ("Rebalanced Capacity across " ++ toString draft.changes.length ++
-               " purposes (" ++ receipt.movement.token ++ "). Effective: " ++ draft.effectiveOn ++ ".")
+               " purposes (" ++ movementId.token ++ "). Effective: " ++ draft.effectiveOn ++ ".")
         | .error message =>
             pure ("Capacity rebalance refused: " ++ message)
     | none =>
