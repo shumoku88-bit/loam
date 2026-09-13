@@ -260,8 +260,8 @@ partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.correctActual root draft with
-      | .ok replacement =>
-          return "Corrected " ++ draft.target.token ++ " -> " ++ replacement.token ++ "."
+      | .ok () =>
+          return "Corrected " ++ draft.target.token ++ "."
       | .error message =>
           let next := Loam.Tui.Correction.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.Correction.view known next)
@@ -351,8 +351,8 @@ partial def scheduledReplacementLoop
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.replaceScheduled root draft with
-      | .ok replacement =>
-          return "Superseded " ++ draft.source.token ++ " -> " ++ replacement.token ++ "."
+      | .ok () =>
+          return "Superseded " ++ draft.source.token ++ "."
       | .error message =>
           let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)

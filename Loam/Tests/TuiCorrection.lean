@@ -115,9 +115,15 @@ def main (args : List String) : IO Unit := do
   expect (correctionDraft.effects.map (fun effect => effect.quantity.quanta) == [-650, 650])
     "Correction intent lost edited signed postings"
 
-  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
+  let .ok () ← Loam.CorrectionPublisher.publishCorrection
       root.toString correctionDraft
     | throw (IO.userError "shared CorrectionPublisher refused TUI intent")
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
+  let some correction := actualEvidence.corrections.corrections.find?
+      (fun correction => correction.target == recorded)
+    | throw (IO.userError "find correction relation for target")
+  let replacementId := correction.replacement
   let .ok freshRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review reload")
   let fresh := Loam.ActualReview.select freshRecords (.day "2026-09-07")

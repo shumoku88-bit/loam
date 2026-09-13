@@ -90,12 +90,18 @@ def main (args : List String) : IO Unit := do
       item.event.id == recorded)
     "second date correction did not follow the explicit current frontier"
 
-  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
+  let .ok () ← Loam.CorrectionPublisher.publishCorrection
       root.toString {
         target := recorded
         effects := effects 650
         description := some "replacement" }
     | throw (IO.userError "movement correction fixture")
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
+  let some correction := actualEvidence.corrections.corrections.find?
+      (fun correction => correction.target == recorded)
+    | throw (IO.userError "find correction relation for target")
+  let replacementId := correction.replacement
   let beforeStale ← IO.FS.readFile (root / "actual.loam")
   let stale ← Loam.ActualValidityPublisher.publishDate
     root.toString { target := recorded, validOn := "2026-08-31" }

@@ -94,12 +94,18 @@ def main (args : List String) : IO Unit := do
   let staleIntent : Loam.ActualValidityPublisher.Draft := {
     target := recorded
     validOn := "2026-09-05" }
-  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
+  let .ok () ← Loam.CorrectionPublisher.publishCorrection
       root.toString {
         target := recorded
         effects := effects 650
         description := some "corrected coffee" }
     | throw (IO.userError "movement correction fixture")
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
+  let some correction := actualEvidence.corrections.corrections.find?
+      (fun correction => correction.target == recorded)
+    | throw (IO.userError "find correction relation for target")
+  let replacementId := correction.replacement
   let stale ← Loam.ActualValidityPublisher.publishDate root.toString staleIntent
   expect (!stale.isOk) "stale TUI date intent bypassed publisher currentness re-check"
 
