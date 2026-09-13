@@ -46,13 +46,6 @@ structure Draft where
   target : Target
 deriving Repr, DecidableEq
 
-/-- Evidence receipt returned upon successful routing publication. -/
-structure Receipt where
-  subject : ScheduledRoutingSubject
-  effectiveOn : String
-  target : Target
-deriving Repr, DecidableEq
-
 private def occurrenceHasLocus
     (occurrence : ScheduledOccurrence String)
     (locus : LocusId) : Bool :=
@@ -60,7 +53,7 @@ private def occurrenceHasLocus
 
 private def publishUnlocked
     (routingFile scheduledFile : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   match ← loadScheduledLifecycleImage? scheduledFile with
   | none =>
       return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
@@ -94,11 +87,7 @@ private def publishUnlocked
                         "loam: Scheduled routing already has evidence at this subject/effective coordinate"
                   | some updated =>
                       if ← saveScheduledRoutingHistory? routingFile updated then
-                        return .ok {
-                          subject := draft.subject
-                          effectiveOn := draft.effectiveOn
-                          target := draft.target
-                        }
+                        return .ok ()
                       else
                         return .error "loam: Scheduled routing evidence could not be published"
 
@@ -111,7 +100,7 @@ and rejects duplicate `(subject, effectiveOn)` coordinates fail-closed.
 -/
 def publish
     (routingPath scheduledPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   if !Loam.ActualDate.validIsoDate draft.effectiveOn then
     return .error "loam: Scheduled routing effective date must be a real calendar date in YYYY-MM-DD form"
   if !validToken draft.subject.scheduled.token || !validToken draft.subject.locus.token then
