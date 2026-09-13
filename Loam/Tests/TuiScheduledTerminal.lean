@@ -238,9 +238,16 @@ def main (args : List String) : IO Unit := do
       Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta
         replacementIntent.movement == 300)
     "replacement editor lost selected source or edited content"
-  let .ok replacementId ← Loam.ScheduledReplacementPublisher.publishReplacement
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString replacementIntent
     | throw (IO.userError "publish selected Scheduled replacement")
+
+  let some lifecycle ←
+      Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after replacement")
+  let some replacementId :=
+      ScheduledTerminalMemory.replacementFor? lifecycle.terminals replacementIntent.source
+    | throw (IO.userError "find replacement endpoint from canonical lifecycle relation")
 
   let afterReplacement ← loadSnapshot scheduledFile root
   let afterReplacementScheduled ← requireScheduled afterReplacement

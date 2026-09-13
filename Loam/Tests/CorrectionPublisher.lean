@@ -73,12 +73,17 @@ def main (args : List String) : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root selected
     | throw (IO.userError "restore Locus policy")
 
-  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
+  let .ok () ← Loam.CorrectionPublisher.publishCorrection
       root.toString correctionDraft
     | throw (IO.userError "publish correction")
 
   let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload actual authority")
+  let some correction := actualEvidence.corrections.corrections.find?
+      (fun correction => correction.target == recorded)
+    | throw (IO.userError "find correction relation for target")
+  let replacementId := correction.replacement
+
   expect (actualEvidence.corrections.corrections.length == 1) "correction relation count changed"
   expect (actualEvidence.corrections.corrections.any fun correction =>
       correction.target == recorded && correction.replacement == replacementId)

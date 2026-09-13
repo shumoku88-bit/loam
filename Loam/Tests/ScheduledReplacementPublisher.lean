@@ -115,13 +115,16 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile scheduledFile) == beforeInvalid)
     "refused replacement changed the lifecycle authority"
 
-  let .ok replacementId ← Loam.ScheduledReplacementPublisher.publishReplacement
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
       scheduledFile.toString root.toString
       (replacementDraft "scheduled-1" "2026-09-13" "paypay" "rent" 1100)
     | throw (IO.userError "publish fresh Scheduled replacement")
 
   let some retained ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after replacement")
+  let some replacementId :=
+      ScheduledTerminalMemory.replacementFor? retained.terminals ⟨"scheduled-1"⟩
+    | throw (IO.userError "find replacement endpoint from canonical lifecycle relation")
   expect (replacementCount retained.terminals == 1)
     "fresh replacement relation was not retained exactly once"
   expect (ScheduledTerminalMemory.replacementFor?

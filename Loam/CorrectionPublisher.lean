@@ -17,10 +17,6 @@ structure Draft where
   effects : List Effect
   description : Option String := none
 
-private structure Admitted where
-  evidence : ActualEvidence
-  replacement : EventId
-
 private def reversalMentionsEvent
     (reversals : ActualReversalMemory) (id : EventId) : Bool :=
   (reversals.findByTarget? id).isSome || (reversals.findByReversal? id).isSome
@@ -76,7 +72,7 @@ private def targetCurrent?
 private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
-    (draft : Draft) : Except String Admitted := do
+    (draft : Draft) : Except String ActualEvidence := do
   if !draft.effects.all (fun effect =>
       retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token) ||
@@ -135,21 +131,18 @@ private def admit?
         | none => throw "loam: could not append replacement description"
 
   pure {
-    evidence := {
-      events := updatedEvents
-      validity := updatedValidity
-      descriptions := updatedDescriptions
-      corrections := updatedCorrections
-      reversals := evidence.reversals
-      relations := evidence.relations
-      discharges := evidence.discharges
-    }
-    replacement := correction.replacement
+    events := updatedEvents
+    validity := updatedValidity
+    descriptions := updatedDescriptions
+    corrections := updatedCorrections
+    reversals := evidence.reversals
+    relations := evidence.relations
+    discharges := evidence.discharges
   }
 
 private def publishUnderOwnership
     (root : System.FilePath)
-    (draft : Draft) : IO (Except String EventId) := do
+    (draft : Draft) : IO (Except String Unit) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
@@ -163,15 +156,15 @@ private def publishUnderOwnership
     | .ok admitted => pure admitted
     | .error message => return .error message
 
-  match ← Loam.ActualAuthority.publishActual? root admitted.evidence with
+  match ← Loam.ActualAuthority.publishActual? root admitted with
   | .error message => return .error message
-  | .ok () => return .ok admitted.replacement
+  | .ok () => return .ok ()
 
 /--
 Publish one practical Movement correction against normalized Actual authority.
 -/
 def publishCorrection
-    (rootPath : String) (draft : Draft) : IO (Except String EventId) := do
+    (rootPath : String) (draft : Draft) : IO (Except String Unit) := do
   if rootPath.isEmpty then
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath

@@ -55,7 +55,7 @@ def record
 def correctActual
     (root : System.FilePath)
     (draft : Loam.CorrectionPublisher.Draft) :
-    IO (Except String Loam.Core.EventId) :=
+    IO (Except String Unit) :=
   Loam.CorrectionPublisher.publishCorrection root.toString draft
 
 /-- Correct one Actual occurrence date. -/
@@ -101,7 +101,7 @@ def cancelScheduled
 def replaceScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledReplacementPublisher.Draft) :
-    IO (Except String Loam.Core.ScheduledId) :=
+    IO (Except String Unit) :=
   Loam.ScheduledReplacementPublisher.publishReplacement
     (scheduledFile root).toString root.toString draft
 
