@@ -33,8 +33,6 @@ structure Draft where
 structure Receipt where
   source : ScheduledId
   replacement : ScheduledId
-  scheduledOn : String
-  total : Int
   deriving Repr
 
 private def loadLifecycle?
@@ -155,8 +153,6 @@ private def publishUnderOwnership
   return .ok {
     source := draft.source
     replacement := replacementId
-    scheduledOn := draft.scheduledOn
-    total := Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement
   }
 
 private def withReplacementOwnership {α : Type}
