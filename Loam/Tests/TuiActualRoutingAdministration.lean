@@ -85,10 +85,7 @@ def main (args : List String) : IO Unit := do
        "ROUTE\tcoffee\tINITIAL\tMANAGED\tfood\n")
 
     let result ← Loam.ActualRoutingPublisher.publish routing.toString draft
-    let .ok receipt := result | throw (IO.userError "Actual routing publish failed")
-    expect (receipt.locus.token == "shipping") "receipt locus"
-    expect (receipt.effectiveOn == .dated "2026-09-09") "receipt date"
-    expect (receipt.target == .managed ⟨"general"⟩) "receipt target"
+    let .ok () := result | throw (IO.userError "Actual routing publish failed")
 
     let history ← requireSome (← loadActualRoutingHistory? routing) "reload Actual routing"
     expect (history.entries.length == 2) "history appended"
