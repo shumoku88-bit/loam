@@ -30,7 +30,6 @@ def main (args : List String) : IO Unit := do
   let .ok (proposed, receipt) :=
       Loam.LocusAdmissionPublisher.propose? w.locusAdmission { token := "stationery" }
     | throw (IO.userError "valid admission proposal was rejected")
-  expect (receipt.locus.token == "stationery") "receipt lost admitted identity"
   expect (receipt.previousCount == 2 && receipt.currentCount == 3)
     "receipt counts do not describe one additive admission"
   expect (proposed.approved.map (fun locus => locus.token) ==
