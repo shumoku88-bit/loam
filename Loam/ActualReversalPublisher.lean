@@ -33,7 +33,6 @@ structure Draft where
   validOn : String
 
 structure Receipt where
-  target : EventId
   reversal : EventId
   deriving Repr
 
@@ -151,7 +150,6 @@ private def admit?
       discharges := evidence.discharges
     }
     receipt := {
-      target := draft.target
       reversal := relation.reversal
     }
   }
