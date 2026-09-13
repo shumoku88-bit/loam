@@ -31,7 +31,6 @@ structure Draft where
   movement : BalancedMovement LocusId
 
 structure Receipt where
-  source : ScheduledId
   replacement : ScheduledId
   deriving Repr
 
@@ -136,10 +135,7 @@ private def publishUnderOwnership
   }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled replacement lifecycle could not be published"
-  return .ok {
-    source := draft.source
-    replacement := replacementId
-  }
+  return .ok { replacement := replacementId }
 
 private def withReplacementOwnership {α : Type}
     (scheduledFile root : System.FilePath)
