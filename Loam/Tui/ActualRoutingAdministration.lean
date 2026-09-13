@@ -200,6 +200,7 @@ def update (state : State) (key : Key) : Step :=
           match key with
           | .input 'i' | .input 'I' =>
               { state := { state with effectiveOn := .initial, phase := .preview, notice := "" } }
+          | .escape | .input 'b' | .input 'B' => backFromEffective state
           | .input char =>
               if char.isDigit || char == '-' then
                 { state := { state with phase := .editEffective (buffer.push char), notice := "" } }
@@ -214,7 +215,6 @@ def update (state : State) (key : Key) : Step :=
                 { state := { state with effectiveOn := .dated date, phase := .preview, notice := "" } }
               else
                 { state := { state with notice := "Effective date must be a real YYYY-MM-DD date, or press i for initial." } }
-          | .escape | .input 'b' | .input 'B' => backFromEffective state
           | _ => { state := state }
 
       | .preview =>
