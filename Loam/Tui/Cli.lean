@@ -261,7 +261,7 @@ partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
   | some draft =>
       match ← Loam.HouseholdCommand.correctActual root draft with
       | .ok receipt =>
-          return "Corrected " ++ receipt.target.token ++ " -> " ++ receipt.replacement.token ++ "."
+          return "Corrected " ++ draft.target.token ++ " -> " ++ receipt.replacement.token ++ "."
       | .error message =>
           let next := Loam.Tui.Correction.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.Correction.view known next)
@@ -281,9 +281,9 @@ partial def actualDateCorrectionLoop
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.correctActualDate root draft with
-      | .ok receipt =>
-          if receipt.changed then
-            return "Date corrected to " ++ receipt.validOn ++ "."
+      | .ok changed =>
+          if changed then
+            return "Date corrected to " ++ draft.validOn ++ "."
           else
             return "Date is already current; nothing changed."
       | .error message =>
