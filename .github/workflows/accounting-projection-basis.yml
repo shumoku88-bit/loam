@@ -1,0 +1,71 @@
+name: Accounting Projection Basis
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/RoleFlowReview.lean'
+      - 'Loam/RoleBalanceReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/Tests/RoleFlowReview.lean'
+      - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/accounting-projection-basis.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Loam/RoleFlowReview.lean'
+      - 'Loam/RoleBalanceReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Core/ZeroOriginCoverage.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ZeroOriginQuantity.lean'
+      - 'Loam/Tests/RoleFlowReview.lean'
+      - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/accounting-projection-basis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accounting-projection-basis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: Qualify shared role flow and balance composition
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build accounting projection basis
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.RoleFlowReview Loam.RoleBalanceReview
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Qualify role-aware flow composition
+        run: lake env lean --run Loam/Tests/RoleFlowReview.lean
+      - name: Qualify role-aware balance composition
+        run: lake env lean --run Loam/Tests/RoleBalanceReview.lean
