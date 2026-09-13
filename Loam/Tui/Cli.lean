@@ -41,6 +41,7 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
+import Loam.RoleFlowReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
 import Loam.Tui.HraActual
@@ -948,6 +949,10 @@ partial def reportsLoop (bounds : Bounds)
     | some (.transactionsFlow start endExclusive) =>
         match ← Loam.TransactionsFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withTransactionsFlowSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.accountingFlow start endExclusive) =>
+        match ← Loam.RoleFlowReview.loadSnapshot dataDir root start endExclusive with
+        | .ok snapshot => pure (Loam.Tui.Reports.withAccountingSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.conditionalLiquidity assumedCompleteThrough) =>
         match ← Loam.ConditionalBalancePathReview.loadSnapshot
