@@ -39,8 +39,6 @@ structure CompletionDraft where
 structure CompletionReceipt where
   scheduled : ScheduledId
   actual : EventId
-  validOn : String
-  total : Int
   resumed : Bool
   deriving Repr
 
@@ -217,8 +215,6 @@ private def publishCompletionUnderOwnership
       return .ok {
         scheduled := draft.scheduled
         actual := actualId
-        validOn := draft.movement.validOn
-        total := draft.movement.total
         resumed := existing.isSome
       }
 
