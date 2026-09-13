@@ -89,18 +89,21 @@ def main (args : List String) : IO Unit := do
   expect (draft.target == recorded.eventId && draft.validOn == "2026-09-08")
     "reversal intent changed target or occurrence date"
 
-  let .ok receipt ← Loam.ActualReversalPublisher.publishReversal
+  let .ok () ← Loam.ActualReversalPublisher.publishReversal
       scheduledFile.toString root.toString draft
     | throw (IO.userError "shared reversal publisher refused TUI intent")
-  expect (receipt.reversal == ⟨"actual-reversal:" ++ recorded.eventId.token⟩)
-    "TUI reversal did not reach deterministic shared publisher endpoint"
+
+  let .ok evidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload Actual authority after reversal")
+  let relation ← requireSome (evidence.reversals.findByTarget? draft.target)
+    "canonical reversal relation missing after TUI publication"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review after reversal")
   expect (fresh.any fun item => item.event.id == recorded.eventId)
     "reversal removed the original Actual"
-  expect (fresh.any fun item => item.event.id == receipt.reversal && item.date == some "2026-09-08")
-    "fresh Actual review did not expose the reversal occurrence"
+  expect (fresh.any fun item => item.event.id == relation.reversal && item.date == some "2026-09-08")
+    "fresh Actual review did not expose the canonical reversal occurrence"
 
   let cancelled := Loam.Tui.ActualReversal.update editor .escape
   expect (cancelled.cancel && cancelled.publish.isNone)

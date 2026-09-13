@@ -32,14 +32,6 @@ structure Draft where
   target : EventId
   validOn : String
 
-structure Receipt where
-  reversal : EventId
-  deriving Repr
-
-private structure Admitted where
-  evidence : ActualEvidence
-  receipt : Receipt
-
 private def loadScheduledLifecycle?
     (path : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
   if !(← path.pathExists) then
@@ -95,7 +87,7 @@ private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
-    (draft : Draft) : Except String Admitted := do
+    (draft : Draft) : Except String ActualEvidence := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: reversal occurrence date must be a real YYYY-MM-DD calendar date"
 
@@ -140,23 +132,18 @@ private def admit?
     | none => throw "loam: reversal relation could not be appended"
 
   pure {
-    evidence := {
-      events := events
-      validity := validity
-      descriptions := evidence.descriptions
-      corrections := evidence.corrections
-      reversals := updatedReversals
-      relations := evidence.relations
-      discharges := evidence.discharges
-    }
-    receipt := {
-      reversal := relation.reversal
-    }
+    events := events
+    validity := validity
+    descriptions := evidence.descriptions
+    corrections := evidence.corrections
+    reversals := updatedReversals
+    relations := evidence.relations
+    discharges := evidence.discharges
   }
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
@@ -169,21 +156,19 @@ private def publishUnderOwnership
     match ← loadScheduledLifecycle? scheduledFile with
     | .ok image => pure image
     | .error message => return .error message
-  let admitted ←
+  let updated ←
     match admit? evidence locusAdmission lifecycle draft with
-    | .ok admitted => pure admitted
+    | .ok updated => pure updated
     | .error message => return .error message
 
-  match ← Loam.ActualAuthority.publishActual? root admitted.evidence with
-  | .error message => return .error message
-  | .ok () => return .ok admitted.receipt
+  Loam.ActualAuthority.publishActual? root updated
 
 /--
 Publish one explicit Actual reversal to normalized Actual authority.
 -/
 def publishReversal
     (scheduledPath rootPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
@@ -193,6 +178,5 @@ def publishReversal
   Loam.WriterOwnership.withOwnership scheduledFile <|
     Loam.ActualAuthority.withActualOwnership root
       (publishUnderOwnership scheduledFile root draft)
-
 
 end Loam.ActualReversalPublisher

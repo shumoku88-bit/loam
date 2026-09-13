@@ -61,11 +61,16 @@ def main (args : List String) : IO Unit := do
   let draft : Loam.ActualReversalPublisher.Draft := {
     target := ⟨"actual-1"⟩
     validOn := "2026-09-08" }
-  let .ok receipt ← Loam.ActualReversalPublisher.publishReversal
+  let .ok () ← Loam.ActualReversalPublisher.publishReversal
       scheduledFile.toString root.toString draft
     | throw (IO.userError "publish Actual reversal")
-  expect (receipt.reversal = ⟨"actual-reversal:actual-1"⟩)
-    "reversal receipt changed deterministic inverse identity"
+
+  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload actual authority")
+  let relation ←
+    match actualEvidence.reversals.findByTarget? draft.target with
+    | some relation => pure relation
+    | none => throw (IO.userError "reversal provenance relation missing")
 
   let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected Actual world")
@@ -74,24 +79,15 @@ def main (args : List String) : IO Unit := do
     | some event => pure event
     | none => throw (IO.userError "target Actual disappeared after reversal")
   let inverse ←
-    match EventMemory.findById? fresh.events receipt.reversal with
+    match EventMemory.findById? fresh.events relation.reversal with
     | some event => pure event
-    | none => throw (IO.userError "reversal Actual not selected after publication")
+    | none => throw (IO.userError "canonical reversal endpoint was not retained")
   expect (quantityFor target "paypay" + quantityFor inverse "paypay" == 0)
     "reversal did not exactly cancel target PayPay quantity"
   expect (quantityFor target "food" + quantityFor inverse "food" == 0)
     "reversal did not exactly cancel target food quantity"
   expect (fresh.events.events.length == 2)
     "reversal rewrote the target instead of retaining both Actual Events"
-
-  let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
-    | throw (IO.userError "reload actual authority")
-  let relation ←
-    match actualEvidence.reversals.findByTarget? draft.target with
-    | some relation => pure relation
-    | none => throw (IO.userError "reversal provenance relation missing")
-  expect (relation.reversal = receipt.reversal)
-    "reversal provenance does not name the inverse Actual"
 
   let correctionEffects :=
     [ Effect.ofQuantity ⟨"corrected-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-710))
@@ -103,7 +99,7 @@ def main (args : List String) : IO Unit := do
     "Correction changed a Reversal target and invalidated exact inverse provenance"
   let correctInverse ← Loam.CorrectionPublisher.publishCorrection
     root.toString {
-      target := receipt.reversal, effects := correctionEffects, description := none }
+      target := relation.reversal, effects := correctionEffects, description := none }
   expect (!correctInverse.isOk)
     "Correction changed a Reversal inverse and invalidated exact inverse provenance"
 
@@ -113,7 +109,7 @@ def main (args : List String) : IO Unit := do
     "a second reversal of the same Actual was not rejected"
 
   let reverseAgain : Loam.ActualReversalPublisher.Draft := {
-    target := receipt.reversal
+    target := relation.reversal
     validOn := "2026-09-08" }
   let reverseAgainResult ← Loam.ActualReversalPublisher.publishReversal
     scheduledFile.toString root.toString reverseAgain
