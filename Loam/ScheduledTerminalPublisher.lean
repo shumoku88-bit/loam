@@ -87,7 +87,6 @@ private def findOpen?
 
 private def appendCompletionActual?
     (world : Loam.MovementAdmission.World)
-    (_target : ScheduledId)
     (actualId : EventId)
     (draft : Loam.MovementAdmission.Draft) :
     Except String Loam.MovementAdmission.World := do
@@ -175,7 +174,7 @@ private def publishCompletionUnderOwnership
         return .error "loam: Scheduled completion Actual identity belongs to another Scheduled occurrence"
   | none => pure ()
   let updatedWorld ←
-    match appendCompletionActual? world draft.scheduled actualId draft.movement with
+    match appendCompletionActual? world actualId draft.movement with
     | .ok updated => pure updated
     | .error message => return .error message
   let relation : ScheduledTerminal := {
