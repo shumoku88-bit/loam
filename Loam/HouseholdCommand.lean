@@ -125,7 +125,7 @@ def moveCapacity
 def rebalanceCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.BalancedDraft) :
-    IO (Except String Loam.CapacityPublisher.BalancedReceipt) :=
+    IO (Except String Loam.CapacityPublisher.Receipt) :=
   Loam.CapacityPublisher.publishBalanced (capacityFile root).toString draft
 
 /-- Publish one Actual routing assertion. -/
