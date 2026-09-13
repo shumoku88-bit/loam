@@ -204,7 +204,6 @@ private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
   let .ok receipt ← Loam.CapacityPublisher.publishBalanced capacityFile.toString rebalanceDraft
     | throw (IO.userError "publish balanced 3-purpose rebalance")
   expect (receipt.movement.token == "capacity-4") "rebalance movement token"
-  expect (receipt.changes.length == 3) "receipt changes count"
 
   -- 6. One atomic published CapacityMovement & 7. Fresh CapacityReview after publish
   let freshSnapshot ← loadSnapshot capacityFile

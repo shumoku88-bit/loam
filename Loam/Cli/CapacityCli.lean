@@ -110,10 +110,10 @@ def recordCapacity (capacityPath : String) : IO UInt32 := do
                   | .error message =>
                       IO.eprintln ("loam: " ++ message)
                       return 2
-                  | .ok receipt =>
+                  | .ok _ =>
                       IO.println
                         ("Recorded capacity movement: " ++ fromText ++ " -> " ++ toText ++
-                          " = " ++ toString receipt.quanta ++ " jpy. Effective: " ++ receipt.effectiveOn ++ ".")
+                          " = " ++ toString draft.quanta ++ " jpy. Effective: " ++ draft.effectiveOn ++ ".")
                       return 0
 
 /--

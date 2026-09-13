@@ -37,12 +37,12 @@ partial def run
     match step.publish with
     | some draft =>
         match ← Loam.HouseholdCommand.moveCapacity root draft with
-        | .ok receipt =>
+        | .ok _ =>
             pure
-              ("Moved " ++ toString receipt.quanta ++ " jpy Capacity: " ++
-                Loam.CapacityPublisher.coordinateToken receipt.source ++ " -> " ++
-                Loam.CapacityPublisher.coordinateToken receipt.destination ++
-                ". Effective: " ++ receipt.effectiveOn ++ ".")
+              ("Moved " ++ toString draft.quanta ++ " jpy Capacity: " ++
+                Loam.CapacityPublisher.coordinateToken draft.source ++ " -> " ++
+                Loam.CapacityPublisher.coordinateToken draft.destination ++
+                ". Effective: " ++ draft.effectiveOn ++ ".")
         | .error message =>
             pure ("Capacity transfer refused: " ++ message)
     | none =>
