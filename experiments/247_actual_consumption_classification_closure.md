@@ -1,6 +1,6 @@
 # Observation 247 — Actual Consumption value vs classification closure
 
-Status: **ACTIVE PROBE — executable Lean witness added; production semantics unchanged**
+Status: **QUALIFIED — selected CurrentCoverage value and Actual classification closure are distinct in the executable witness**
 
 Baseline:
 
@@ -72,7 +72,7 @@ C  expense -> unmanaged  visible before Event.validOn
 D  no routing evidence visible at Event.validOn
 ```
 
-Expected CurrentCoverage answers for queried Purpose `food`:
+Observed CurrentCoverage answers for queried Purpose `food`:
 
 ```text
 A  Consumption 30   Remaining 70   Headroom 70
@@ -104,7 +104,7 @@ expense -> food @ dated 3
 Event.validOn = 2
 ```
 
-The route is visible at coordinate 3 but not at the Event's own valid coordinate. Observation 111 already established that current routing must not be applied backward. The Lean witness therefore requires this late-routed world to produce the same CurrentCoverage answer as the unrouted world.
+The route is visible at coordinate 3 but not at the Event's own valid coordinate. Observation 111 already established that current routing must not be applied backward. The Lean witness confirms that this late-routed world produces the same CurrentCoverage answer as the unrouted world.
 
 ## Information witness
 
@@ -131,6 +131,26 @@ Headroom   100 -> 70
 ```
 
 So an unrouted Actual can be numerically silent in the current selected answer while later qualifying evidence can change downstream CurrentCoverage arithmetic.
+
+## Executed witness
+
+The dedicated Observation 247 workflow completed successfully on the first executable witness head:
+
+```text
+head:     700e793cb7ef7fa2b91be3fb9df2f77197bf67d6
+run:      34758303830
+job:      103726462276
+result:   SUCCESS
+Lean:     4.33.1
+```
+
+The current CurrentCoverage boundary built successfully, and the witness printed:
+
+```text
+Observation 247 witness: selected value and Actual classification closure are distinct.
+```
+
+No production module was changed to obtain this result.
 
 ## Real household witness
 
@@ -166,7 +186,7 @@ The existing 2026-09-08 real-data CurrentCoverage checkpoint predates the 2026-0
 
 ## Candidate interpretation
 
-The observation is testing a distinction between two questions, not proposing two stored facts:
+The observation qualifies a distinction between two questions, not two stored facts:
 
 ```text
 value answerability
@@ -177,7 +197,7 @@ classification closure
   managed-somewhere or explicitly unmanaged at its own valid coordinate?
 ```
 
-A numeric CurrentCoverage row may answer the first while leaving the second open.
+A numeric CurrentCoverage row can answer the first while leaving the second open.
 
 ## Why AccountingRole matters only as a candidate boundary
 
@@ -185,11 +205,11 @@ Not every unrouted Actual Locus should block a Purpose-completeness question. As
 
 The smallest candidate frontier therefore begins only with Actual coordinates that are already explicitly classified as `AccountingRole.expense` and fall inside the selected window/Measure.
 
-Observation 247 does not yet prove that this is the final production frontier. It only prevents the stronger claim that the existing managed numeric value alone establishes complete classification.
+Observation 247 does not yet prove that this is the final production frontier. It only rejects the stronger claim that the existing managed numeric value alone establishes complete classification.
 
-## Expected executable witness
+## Qualified executable properties
 
-`experiments/247_actual_consumption_classification_closure.lean` checks:
+`experiments/247_actual_consumption_classification_closure.lean` establishes the bounded witnesses that:
 
 1. managed-other, explicitly unmanaged and unrouted worlds can return identical selected CurrentCoverage values;
 2. those worlds retain distinct historical routing status at the Event-valid coordinate;
@@ -209,14 +229,14 @@ Do not replace the existing managed Consumption projection.
 
 ## Production gate
 
-If the witness qualifies, the next question is narrower than a new answerability subsystem:
+The next question is narrower than a new answerability subsystem:
 
 > Can CurrentCoverage expose a pure derived list of in-window Expense Actual coordinates that were `unrouted` at their own valid coordinate, reusing the same correction frontier, validity selection and historical routing semantics as Consumption?
 
 Only after that derived frontier demonstrates practical value should a Review/TUI answerability surface be considered.
 
-## Current verdict
+## Verdict
 
-**Research pressure is real; production change is not yet earned.**
+**QUALIFIED for the bounded distinction; production change is not yet earned.**
 
-The selected managed numeric answer and the completeness of its underlying Actual classification are observably different questions. Observation 247 exists to qualify that distinction using the current production composition path before any new production vocabulary is introduced.
+The selected managed numeric answer and the completeness of its underlying Actual classification are observably different questions. Observation 247 qualifies that distinction using the current production composition path without adding new production vocabulary.
