@@ -378,25 +378,32 @@ private def trialBalanceLines (snapshot : Loam.RoleBalanceReview.Snapshot) : Lis
       unsupported.map unsupportedLine)
 
 /--
-Render an answerability summary and three named accounting views from one shared
-RoleBalance snapshot. Unsupported and unresolved frontiers remain visible instead
-of being coerced to zero. The view deliberately makes no retained-earnings,
-closing, valuation, recognition, or historical-as-of claim.
+Render the human-facing balance answer first, then progressively expose why it
+is or is not qualified and finally the evidence-oriented accounting frontier.
+Unsupported and unresolved frontiers remain visible instead of being coerced to
+zero. The view deliberately makes no retained-earnings, closing, valuation,
+recognition, or historical-as-of claim.
 -/
 def lines (snapshot : Loam.RoleBalanceReview.Snapshot) : List Widget :=
   let measures := balanceMeasures snapshot
-  [ muted "One RoleBalance answer; three presentation projections."
-  , muted "Supported current quantity is not the same claim as zero-origin history."
+  [ line "Current Balances"
+  , muted "What do I have and owe now?"
   , blank
   ] ++
-  answerabilityMapLines snapshot ++
-  [ blank ] ++
   (if measures.isEmpty then
     [muted "No Balance-Sheet-relevant or unresolved current coordinates are visible."]
    else
     measures.flatMap fun measure => measureBalanceLines snapshot measure ++ [blank]) ++
+  [ line "Evidence details"
+  , muted "Why these balance answers are or are not justified."
+  , blank
+  ] ++
+  answerabilityMapLines snapshot ++
+  [ blank ] ++
   trialBalanceLines snapshot ++
   [ blank
+  , muted "One RoleBalance answer; three presentation projections."
+  , muted "Supported current quantity is not the same claim as zero-origin history."
   , muted "No retained earnings, period closing, valuation, recognition, or historical as-of semantics are added here."
   ]
 
