@@ -5,6 +5,8 @@ import Loam.ConditionalBalancePathReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.RoleFlowReview
+import Loam.RoleBalanceReview
+import Loam.Tui.RoleBalances
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
@@ -20,9 +22,10 @@ set_option autoImplicit false
 # Production Reports workspace
 
 Reports is presentation and query state only. Stock–Flow, Transactions Flow,
-Income & Expense, and Budget Window consume surface-independent shared
-review answers. Income & Expense composes the explicit RoleFlow boundary without adding a
-second accounting engine. Liquidity keeps its unconditional UNKNOWN baseline while
+Income & Expense, Balances, and Budget Window consume surface-independent shared
+review answers. Income & Expense composes the explicit RoleFlow boundary and Balances
+projects the explicit RoleBalance boundary without adding named accounting engines.
+Liquidity keeps its unconditional UNKNOWN baseline while
 also exposing the read-only conditional selected-balance path earned by
 Observations 229 and 231.
 -/
@@ -32,6 +35,7 @@ inductive Mode where
   | stockFlow
   | transactionsFlow
   | incomeExpense
+  | balances
   | liquidity
   | budgetWindow
   deriving Repr, DecidableEq
@@ -58,13 +62,14 @@ inductive Query where
   | stockFlow (start endExclusive : String)
   | transactionsFlow (start endExclusive : String)
   | incomeExpenseFlow (start endExclusive : String)
+  | roleBalances
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
   deriving Repr, DecidableEq
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 5 := ⟨0, by decide⟩
+  menuIndex : Fin 6 := ⟨0, by decide⟩
   form : Form := {}
   liquidityForm : LiquidityForm := {}
   calendarAnchor : String := ""
@@ -73,6 +78,7 @@ structure State where
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
   transactionsSnapshot : Option Loam.TransactionsFlowReview.Snapshot := none
   incomeExpenseSnapshot : Option Loam.RoleFlowReview.Snapshot := none
+  roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   transactionsIndex : Nat := 0
   transactionsDetail : Bool := false
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
@@ -148,6 +154,11 @@ def withIncomeExpenseSnapshot
   { state with incomeExpenseSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
+def withRoleBalanceSnapshot
+    (state : State) (snapshot : Loam.RoleBalanceReview.Snapshot) : State :=
+  { state with roleBalanceSnapshot := some snapshot, notice := "", scroll := 0 }
+
+
 def withLiquiditySnapshot
     (state : State) (snapshot : Loam.ConditionalBalancePathReview.Snapshot) : State :=
   { state with liquiditySnapshot := some snapshot, notice := "", scroll := 0 }
@@ -163,6 +174,7 @@ def withError (state : State) (message : String) : State :=
       stockFlowSnapshot := none
       transactionsSnapshot := none
       incomeExpenseSnapshot := none
+      roleBalanceSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -175,6 +187,7 @@ private def clearResults (state : State) : State :=
       stockFlowSnapshot := none
       transactionsSnapshot := none
       incomeExpenseSnapshot := none
+      roleBalanceSnapshot := none
       transactionsIndex := 0
       transactionsDetail := false
       liquiditySnapshot := none
@@ -195,7 +208,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 4) % 5 else (state.menuIndex.val + 1) % 5
+  let next := if back then (state.menuIndex.val + 5) % 6 else (state.menuIndex.val + 1) % 6
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -329,22 +342,32 @@ private def selectMenuMode (state : State) : State :=
     | 0 => Mode.stockFlow
     | 1 => Mode.transactionsFlow
     | 2 => Mode.incomeExpense
-    | 3 => Mode.liquidity
+    | 3 => Mode.balances
+    | 4 => Mode.liquidity
     | _ => Mode.budgetWindow
   { state with mode := mode, notice := "", scroll := 0 }
+
+private def selectMenuStep (state : State) : Step :=
+  let next := selectMenuMode state
+  match next.mode with
+  | .balances => { state := next, query := some .roleBalances }
+  | _ => { state := next }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'b' | .input 'B' => { state, back := true }
   | .up | .input 'k' | .input 'K' => { state := moveMenu state true }
   | .down | .input 'j' | .input 'J' => { state := moveMenu state false }
-  | .enter => { state := selectMenuMode state }
+  | .enter => selectMenuStep state
   | .input 's' | .input 'S' =>
       { state := { state with mode := .stockFlow, notice := "", scroll := 0 } }
   | .input 't' | .input 'T' =>
       { state := { state with mode := .transactionsFlow, notice := "", scroll := 0 } }
   | .input 'i' | .input 'I' =>
       { state := { state with mode := .incomeExpense, notice := "", scroll := 0 } }
+  | .input 'r' | .input 'R' =>
+      { state := { state with mode := .balances, notice := "", scroll := 0 },
+        query := some .roleBalances }
   | .input 'l' | .input 'L' =>
       { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
   | .input 'w' | .input 'W' =>
@@ -481,6 +504,17 @@ private def updateTransactionsFlow
               { state := { state with transactionsDetail := true, scroll := 0, notice := "" } }
         | _ => { state }
 
+private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  match key with
+  | .escape | .input 'b' | .input 'B' =>
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
+  | .enter => { state, query := some .roleBalances }
+  | _ => { state }
+
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'b' | .input 'B' =>
@@ -520,6 +554,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .transactionsFlow => updateTransactionsFlow state key
   | .budgetWindow => updateWindowReport state key
   | .incomeExpense => updateWindowReport state key
+  | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
 
 private def line (text : String) : Widget := .row [span text]
@@ -569,10 +604,11 @@ private def menuView (state : State) : Widget :=
     , menuRow state 0 "Stock–Flow" "state change across an explicit window"
     , menuRow state 1 "Transactions Flow" "where quantity moved, including zero-net circulation"
     , menuRow state 2 "Income & Expense" "occurrence-time role flow"
-    , menuRow state 3 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
-    , menuRow state 4 "Budget Window" "explicit entitlement / consumption query"
+    , menuRow state 3 "Balances" "evidence-aware current accounting projections"
+    , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
+    , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/l/w direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w direct"
     , muted "b / Esc home   q quit"
     , line state.notice
     ]
@@ -947,6 +983,25 @@ private def incomeExpenseView (state : State) : Widget :=
     , line state.notice
     ]
 
+private def balancesResultLines (state : State) : List Widget :=
+  match state.roleBalanceSnapshot with
+  | none => [muted "Current RoleBalance answer unavailable; press Enter to retry."]
+  | some snapshot => Loam.Tui.RoleBalances.lines snapshot
+
+private def balancesView (state : State) : Widget :=
+  .column <|
+    [ line "Reports / Balances"
+    , muted "Current evidence-aware accounting projections from shared RoleBalance."
+    , muted "Balance Sheet / Net Worth / Trial Balance are presentations, not separate engines."
+    , blank
+    ] ++
+    balancesResultLines state ++
+    [ blank
+    , muted "Enter refresh   ↑/↓ or j/k scroll"
+    , muted "b / Esc Reports menu   q quit"
+    , line state.notice
+    ]
+
 private def liquidityPointLine
     (measure : Loam.Core.MeasureId)
     (point : Loam.ConditionalBalancePathReview.Point) : Widget :=
@@ -1068,6 +1123,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .stockFlow => stockFlowView state
   | .transactionsFlow => transactionsFlowView state bounds
   | .incomeExpense => incomeExpenseView state
+  | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
 
@@ -1077,6 +1133,7 @@ private def fixedFooterSize : Mode → Nat
   | .stockFlow => 4
   | .transactionsFlow => 4
   | .incomeExpense => 4
+  | .balances => 4
   | .liquidity => 3
   | .budgetWindow => 4
 
@@ -1107,7 +1164,7 @@ private def scrollPositionLine
 private def requestedOffset (state : State) (page : Nat) : Nat :=
   match state.mode with
   | .menu =>
-      -- The five menu rows follow four heading/context rows in `menuView`.
+      -- The six menu rows follow four heading/context rows in `menuView`.
       (4 + state.menuIndex.val + 1) - page
   | .transactionsFlow =>
       if state.transactionsDetail then

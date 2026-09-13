@@ -34,6 +34,7 @@ def main : IO Unit := do
   expect (contains "Reports" menuText) "Reports menu heading was not rendered"
   expect (contains "Stock–Flow" menuText) "Reports menu lost Stock–Flow"
   expect (contains "Income & Expense" menuText) "Reports menu lost Income & Expense"
+  expect (contains "Balances" menuText) "Reports menu lost evidence-aware Balances"
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (initial.form.start == "2026-09-01")
@@ -45,6 +46,38 @@ def main : IO Unit := do
     "conditional outlook did not prefill the selected-day calendar month end"
   expect (initial.liquidityForm.focus.val == 1)
     "conditional outlook prefill did not focus explicit Run"
+
+  let balancesStep := Loam.Tui.Reports.update initial (.input 'r')
+  expect (match balancesStep.state.mode with | .balances => true | _ => false)
+    "Reports direct Balances key did not enter the shared RoleBalance surface"
+  match balancesStep.query with
+  | some .roleBalances => pure ()
+  | _ => throw (IO.userError "Reports Balances surface did not request the shared RoleBalance answer")
+
+  let cashCoordinate : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
+  let unsupportedDebt : EffectCoordinate := ⟨⟨"debt-mother-wifi"⟩, ⟨"jpy"⟩⟩
+  let balancesReport := Loam.Tui.Reports.withRoleBalanceSnapshot balancesStep.state {
+    rows :=
+      [ { coordinate := cashCoordinate
+        , role := .asset
+        , quantity := Quantity.ofQuanta 12000 } ]
+    unresolvedRoles := []
+    unsupportedBalances :=
+      [ { coordinate := unsupportedDebt, role := some .liability } ]
+  }
+  let balancesText := widgetText (Loam.Tui.Reports.view balancesReport)
+  expect (contains "One RoleBalance answer; three presentation projections" balancesText)
+    "Balances surface introduced or hid the shared projection boundary"
+  expect (contains "Balance Sheet support: INCOMPLETE" balancesText)
+    "Balances surface hid missing stock-role support"
+  expect (contains "Known Net Worth subtotal: 12000 jpy" balancesText)
+    "Balances surface lost the supported Asset subtotal"
+  expect (contains "Qualified Net Worth: UNKNOWN" balancesText)
+    "Balances surface promoted an incomplete Net Worth to knowledge"
+  expect (contains "debt-mother-wifi" balancesText && contains "balance unsupported" balancesText)
+    "Balances surface hid the unsupported liability witness"
+  expect (contains "Trial Balance-shaped frontier" balancesText)
+    "Balances surface did not preserve the coordinate-wide Trial Balance projection"
 
   let pension : Loam.BoundaryPresetConfig.Preset := {
     name := "Pension"
@@ -336,7 +369,7 @@ def main : IO Unit := do
     "Budget Window lost the derived Remaining boundary"
 
   let small : Bounds := { width := 80, height := 9 }
-  let lastMenuItem := (List.range 4).foldl
+  let lastMenuItem := (List.range 5).foldl
     (fun state _ => (Loam.Tui.Reports.updateForBounds small state .down).state)
     initial
   let smallMenuText := widgetText (Loam.Tui.Reports.viewForBounds small lastMenuItem)
