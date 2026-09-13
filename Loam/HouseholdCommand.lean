@@ -81,11 +81,11 @@ def createScheduled
   Loam.ScheduledCreationPublisher.publishCreation
     (scheduledFile root).toString root.toString draft
 
-/-- Complete one Scheduled occurrence into Actual. -/
+/-- Complete one Scheduled occurrence into Actual; true means interrupted completion recovery. -/
 def completeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :
-    IO (Except String Loam.ScheduledTerminalPublisher.CompletionReceipt) :=
+    IO (Except String Bool) :=
   Loam.ScheduledTerminalPublisher.publishCompletion
     (scheduledFile root).toString root.toString draft
 

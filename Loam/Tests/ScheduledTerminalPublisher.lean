@@ -96,28 +96,27 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "save complete Scheduled lifecycle fixture"
 
-  let .ok completion ← Loam.ScheduledTerminalPublisher.publishCompletion
+  let .ok resumedFresh ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-1" "2026-09-08" "paypay" "rent" 1100)
     | throw (IO.userError "publish scheduled completion")
-  expect (completion.actual.token == "scheduled-completion:scheduled-1")
-    "completion endpoint identity changed"
-  expect (!completion.resumed) "fresh completion reported recovery"
+  expect (!resumedFresh) "fresh completion reported recovery"
 
   let some retainedLifecycle ←
       Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after completion")
   expect (completionCount retainedLifecycle.terminals == 1)
     "completion relation was not retained exactly once"
-  expect (ScheduledTerminalMemory.completionActualFor?
-      retainedLifecycle.terminals ⟨"scheduled-1"⟩ == some completion.actual)
-    "completion relation lost its Actual endpoint"
+  let completionActual ←
+    match retainedLifecycle.terminals.completionActualFor? ⟨"scheduled-1"⟩ with
+    | some actual => pure actual
+    | none => throw (IO.userError "canonical completion relation lost its Actual endpoint")
 
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Actual review")
   let actualDay := Loam.ActualReview.select actualRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>
-      record.event.id == completion.actual &&
+      record.event.id == completionActual &&
         record.description == "actual-scheduled-1" &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1100, 1100])
     "completion Actual did not enter fresh Actual review"
@@ -144,9 +143,10 @@ def main (args : List String) : IO Unit := do
 
   let some currentLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle for recovery fixture")
+  let recoveredEndpoint : EventId := ⟨"recovered-actual-3"⟩
   let interrupted : ScheduledTerminal := {
     source := ⟨"scheduled-3"⟩
-    target := some (.actual ⟨"scheduled-completion:scheduled-3"⟩) }
+    target := some (.actual recoveredEndpoint) }
   let some withInterrupted := currentLifecycle.terminals.add? interrupted
     | throw (IO.userError "append interrupted completion relation")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
@@ -156,9 +156,11 @@ def main (args : List String) : IO Unit := do
       scheduledFile.toString root.toString
       (completionDraft "scheduled-3" "2026-09-09" "smbc" "rent" 3100)
     | throw (IO.userError "resume relation-first completion")
-  expect resumed.resumed "retained inert completion relation was not recovered"
-  expect (resumed.actual == ⟨"scheduled-completion:scheduled-3"⟩)
-    "recovery changed retained Actual endpoint"
+  expect resumed "retained inert completion relation was not recovered"
+  let .ok recoveredEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload Actual authority after recovery")
+  expect ((EventMemory.findById? recoveredEvidence.events recoveredEndpoint).isSome)
+    "recovery did not honor the canonical retained Actual endpoint"
 
   let some recoveryLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle for cancellation guard")
@@ -192,4 +194,4 @@ def main (args : List String) : IO Unit := do
       afterPolicyLifecycle.terminals ⟨"scheduled-5"⟩).isNone)
     "Locus-policy refusal retained a completion relation"
 
-  IO.println "Scheduled Terminal Publisher: lifecycle completion, cancellation, relation-first cross-authority recovery, stale refusal and current Locus policy passed."
+  IO.println "Scheduled Terminal Publisher: canonical completion endpoint, cancellation, relation-first cross-authority recovery, stale refusal and current Locus policy passed."

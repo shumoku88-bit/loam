@@ -137,9 +137,15 @@ def main (args : List String) : IO Unit := do
     "completion preview did not emit shared publisher intent"
   expect (completionIntent.scheduled.token == "scheduled-1")
     "completion editor lost selected Scheduled identity"
-  let .ok completion ← Loam.ScheduledTerminalPublisher.publishCompletion
+  let .ok resumedFresh ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString completionIntent
     | throw (IO.userError "publish selected Scheduled completion")
+  expect (!resumedFresh) "fresh TUI completion reported interrupted recovery"
+  let some completionLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload canonical Scheduled lifecycle after completion")
+  let completionActual ← requireSome
+    (completionLifecycle.terminals.completionActualFor? completionIntent.scheduled)
+    "canonical Scheduled completion relation lost its Actual endpoint"
 
   let afterCompletion ← loadSnapshot scheduledFile root
   let afterCompletionScheduled ← requireScheduled afterCompletion
@@ -151,9 +157,9 @@ def main (args : List String) : IO Unit := do
     "fresh Scheduled read did not close only the completed occurrence"
   let actualDay := Loam.ActualReview.select afterCompletion.actual.allRecords (.day "2026-09-08")
   expect (actualDay.any fun record =>
-      record.event.id == completion.actual &&
+      record.event.id == completionActual &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-1000, 1000])
-    "completion did not publish independent Actual evidence through shared Actual authority"
+    "completion did not publish canonical Actual evidence through shared Actual authority"
 
   let afterState := Loam.Tui.SelectedDay.refreshed afterCompletion scheduledState
   let cancelCommand := Loam.Tui.SelectedDay.update afterCompletion afterState .cancelScheduled
@@ -253,4 +259,4 @@ def main (args : List String) : IO Unit := do
   expect (refreshed.focusDate == "2026-09-10" && refreshed.scheduledRow == 0)
     "Scheduled write moved the selected-day coordinate instead of only clamping local selection"
 
-  IO.println "TUI Scheduled terminal: completion, safe cancellation, editable supersede, shared publication and fresh reads passed."
+  IO.println "TUI Scheduled terminal: canonical completion endpoint, safe cancellation, editable supersede, shared publication and fresh reads passed."
