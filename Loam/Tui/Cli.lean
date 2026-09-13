@@ -22,6 +22,7 @@ import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
+import Loam.Tui.CurrentQuantityAnchor
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.ActualRoutingAdministration
@@ -807,6 +808,28 @@ partial def balancesLoop (bounds : Bounds)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       balancesLoop bounds next nextFrame
 
+/-- Current quantity observations stay presentation-local until one complete image is published. -/
+partial def currentQuantityAnchorLoop
+    (bounds : Bounds) (root : System.FilePath)
+    (state : Loam.Tui.CurrentQuantityAnchor.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.CurrentQuantityAnchor.update state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Current quantity observation cancelled."
+  match step.publish with
+  | some assertions =>
+      match ← Loam.HouseholdCommand.observeCurrentQuantities root assertions with
+      | .ok () =>
+          return "Published current quantity anchor for " ++
+            toString assertions.length ++ " observed coordinate(s)."
+      | .error message =>
+          let next := Loam.Tui.CurrentQuantityAnchor.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          currentQuantityAnchorLoop bounds root next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      currentQuantityAnchorLoop bounds root step.state nextFrame
+
 /-- All-retained Capacity session with shared current coverage and a local transfer entrance. -/
 partial def capacityLoop
     (bounds : Bounds) (dataDir root : System.FilePath)
@@ -1102,6 +1125,15 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
+  else if isHome && (key = .input 'o' || key = .input 'O') then
+    let editor := Loam.Tui.CurrentQuantityAnchor.initial
+    let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+    let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
+    let home := { state with surface := .home none, notice := notice }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+    loop bounds dataDir root snapshot home nextFrame
   else if isHome && (key = .input 'v' || key = .input 'V') then
     let reports ←
       match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
