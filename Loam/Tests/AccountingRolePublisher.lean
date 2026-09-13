@@ -75,13 +75,11 @@ def main (args : List String) : IO Unit := do
   let scheduled ← scheduledMemory
   let roles ← roleMap
 
-  let .ok (proposed, receipt) := Loam.AccountingRolePublisher.propose?
+  let .ok proposed := Loam.AccountingRolePublisher.propose?
       w.locusAdmission w.events scheduled roles { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "virgin admitted Locus role assignment was rejected")
   expect (hasRole proposed "fresh" .expense)
     "proposal did not retain first role assignment"
-  expect (receipt.previousCount == 2 && receipt.currentCount == 3)
-    "proposal receipt does not describe one additive assignment"
   expect (!(Loam.AccountingRolePublisher.propose?
       w.locusAdmission w.events scheduled roles { locus := ⟨"assigned"⟩, role := .expense }).isOk)
     "existing AccountingRole was replaceable"
@@ -112,12 +110,10 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveAccountingRoleMap? roleFile roles)
     "publish AccountingRole fixture"
 
-  let .ok published ← Loam.AccountingRolePublisher.publishInitialRole
+  let .ok () ← Loam.AccountingRolePublisher.publishInitialRole
       scheduledFile.toString root.toString roleFile.toString
       { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "publish virgin Locus AccountingRole")
-  expect (published.currentCount == 3)
-    "publisher receipt count mismatch"
 
   let some loadedRoles ← Loam.Persistence.loadAccountingRoleMap? roleFile
     | throw (IO.userError "reload AccountingRole authority")
