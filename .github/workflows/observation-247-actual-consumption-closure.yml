@@ -1,0 +1,67 @@
+name: Observation 247
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/247_actual_consumption_classification_closure.lean'
+      - 'experiments/247_actual_consumption_classification_closure.md'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - '.github/workflows/observation-247-actual-consumption-closure.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - 'experiment/actual-consumption-closure'
+    paths:
+      - 'experiments/247_actual_consumption_classification_closure.lean'
+      - 'experiments/247_actual_consumption_classification_closure.md'
+      - 'Loam/Application/CurrentCoverageInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/ActualValidity.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - '.github/workflows/observation-247-actual-consumption-closure.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: observation-247-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Qualify selected value vs Actual classification closure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build current coverage boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Application.CurrentCoverageInspection
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run Observation 247 witness
+        shell: bash
+        run: lake env lean --run experiments/247_actual_consumption_classification_closure.lean
