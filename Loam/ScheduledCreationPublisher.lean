@@ -29,10 +29,9 @@ structure Draft where
   scheduledOn : String
   movement : BalancedMovement LocusId
 
+/-- The fresh Scheduled identity produced by successful creation. -/
 structure Receipt where
   scheduled : ScheduledId
-  scheduledOn : String
-  total : Int
   deriving Repr
 
 private def loadLifecycle?
@@ -112,11 +111,7 @@ private def publishUnderOwnership
   let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled lifecycle could not be published"
-  return .ok {
-    scheduled := scheduledId
-    scheduledOn := draft.scheduledOn
-    total := Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement
-  }
+  return .ok { scheduled := scheduledId }
 
 private def withCreationOwnership {α : Type}
     (scheduledFile root : System.FilePath)
