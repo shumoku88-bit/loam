@@ -16,25 +16,32 @@ set_option autoImplicit false
 /-!
 # Current Actual routing administration review
 
-This read boundary answers the practical administration question:
+This read boundary keeps the existing default administration question:
 
 > For every currently admitted Locus explicitly classified as an Expense, what
-> Purpose routing is visible now, and which expense Loci are still unrouted?
+> Purpose routing is visible now, and which Expense Loci are still unrouted?
 
-The review does not infer Expense from spelling or sign. It requires explicit
-AccountingRole evidence, the current LocusAdmission policy, and the existing
-historical Actual-routing authority. Purpose candidates come only from retained
-Capacity evidence.
+It also exposes a separate optional list of currently admitted Loci with a known
+non-Expense AccountingRole. Those rows are not routing obligations and do not
+contribute to the default Expense unrouted count; they exist only so a human can
+deliberately route an Asset/Income/Liability/Equity Locus when a generic Purpose
+such as savings or investment contribution requires it.
+
+The review does not infer routing relevance from spelling or sign. Unknown-role
+Loci remain separately visible, historical-only routes remain separate, and
+Purpose candidates come only from retained Capacity evidence.
 -/
 
 structure Row where
   locus : LocusId
+  role : AccountingRole
   status : RoutingStatus
   deriving Repr, DecidableEq
 
 structure Snapshot where
   observedAt : String
   rows : List Row
+  otherRows : List Row
   purposes : List PurposeId
   unresolvedRoleLoci : List LocusId
   historicalOnlyRouteLoci : List LocusId
@@ -46,16 +53,20 @@ private def isApproved (approved : List LocusId) (locus : LocusId) : Bool :=
 private def distinctSubjects (history : ActualRoutingHistory) : List LocusId :=
   history.entries.map (fun entry => entry.subject) |>.eraseDups
 
-/-- Count current explicitly-Expense Loci with no routing evidence visible now. -/
+/-- Count only default explicitly-Expense Loci with no routing evidence visible now. -/
 def unroutedCount (snapshot : Snapshot) : Nat :=
   (snapshot.rows.filter fun row => row.status == .unrouted).length
 
 /--
 Load the current administration snapshot from production authority boundaries.
 
-Only currently admitted Loci with explicit `AccountingRole.expense` become
-routing rows. Current admitted Loci with no AccountingRole evidence remain
-visible separately rather than being guessed into or out of the budget surface.
+`rows` preserves the existing default Expense-only administration surface.
+`otherRows` contains only currently admitted Loci with an explicit known
+non-Expense AccountingRole. Merely appearing there does not mean the Locus must
+be routed; optional rows are a deliberate human-selection surface only.
+
+Current admitted Loci with no AccountingRole evidence remain visible separately
+rather than being guessed into either candidate list.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
@@ -91,8 +102,15 @@ def loadSnapshot
   let approved := admission.approved
   let rows := approved.filterMap fun locus =>
     match roles.roleOf? locus with
-    | some .expense => some { locus := locus, status := history.statusAt locus effective }
+    | some .expense =>
+        some { locus := locus, role := .expense, status := history.statusAt locus effective }
     | _ => none
+  let otherRows := approved.filterMap fun locus =>
+    match roles.roleOf? locus with
+    | some .expense => none
+    | some role =>
+        some { locus := locus, role := role, status := history.statusAt locus effective }
+    | none => none
   let unresolvedRoleLoci := approved.filter fun locus => (roles.roleOf? locus).isNone
   let historicalOnlyRouteLoci :=
     (distinctSubjects history).filter fun locus => !isApproved approved locus
@@ -101,6 +119,7 @@ def loadSnapshot
   return .ok {
     observedAt := observedAt
     rows := rows
+    otherRows := otherRows
     purposes := purposes
     unresolvedRoleLoci := unresolvedRoleLoci
     historicalOnlyRouteLoci := historicalOnlyRouteLoci
