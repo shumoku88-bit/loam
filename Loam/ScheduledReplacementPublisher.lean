@@ -150,8 +150,6 @@ private def publishUnderOwnership
       updatedLifecycle evidence.events draft.source replacementId with
   | .error message => return .error message
   | .ok () => pure ()
-  if (Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle).isNone then
-    return .error "loam: Scheduled replacement lifecycle could not be encoded"
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled replacement lifecycle could not be published"
   return .ok {
