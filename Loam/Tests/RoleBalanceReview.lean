@@ -41,21 +41,34 @@ def main : IO Unit := do
     (Event.ofEffects? ⟨"ambiguous"⟩
       [effect "wallet-out-2" "wallet" (-5), effect "mystery-in" "mystery" 5])
     "ambiguous event"
+  let debtOpening ← requireSome
+    (Event.ofEffects? ⟨"debt-opening"⟩ [effect "debt-opening-effect" "debt" (-100)])
+    "debt opening event"
+  let debtRepayment ← requireSome
+    (Event.ofEffects? ⟨"debt-repayment"⟩ [effect "debt-repayment-effect" "debt" 20])
+    "debt repayment event"
 
-  let events ← requireSome (EventMemory.ofEvents? [receipt, purchase, ambiguous]) "event memory"
+  let events ← requireSome
+    (EventMemory.ofEvents? [receipt, purchase, ambiguous, debtOpening, debtRepayment])
+    "event memory"
   let corrections ← requireSome (EventCorrectionMemory.ofCorrections? []) "correction memory"
 
   let wallet : EffectCoordinate := ⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩
   let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
   let mystery : EffectCoordinate := ⟨⟨"mystery"⟩, ⟨"jpy"⟩⟩
+  let debt : EffectCoordinate := ⟨⟨"debt"⟩, ⟨"jpy"⟩⟩
   let coverage ← requireSome
     (ZeroOriginCoverage.ofCoordinates? [wallet, cash, mystery])
     "zero-origin coverage"
+  let openingSupport ← requireSome
+    (OpeningSupportMap.ofSupports? [{ coordinate := debt, openingEvent := debtOpening.id }])
+    "opening support"
 
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments? [
       { locus := ⟨"wallet"⟩, role := .asset },
       { locus := ⟨"cash"⟩, role := .asset },
+      { locus := ⟨"debt"⟩, role := .liability },
       { locus := ⟨"income"⟩, role := .income },
       { locus := ⟨"food"⟩, role := .expense }
     ])
@@ -66,15 +79,18 @@ def main : IO Unit := do
     corrections := corrections
     coverage := coverage
   }
-  let .ok snapshot := Loam.RoleBalanceReview.project evidence roles
+  let .ok snapshot := Loam.RoleBalanceReview.project evidence openingSupport roles
     | throw (IO.userError "role balance fixture refused")
 
   let walletRow ← requireSome (findRow? snapshot "wallet") "wallet balance row"
   let cashRow ← requireSome (findRow? snapshot "cash") "cash balance row"
+  let debtRow ← requireSome (findRow? snapshot "debt") "opening-supported debt row"
   expect (walletRow.quantity.quanta == 65) "wallet current balance changed"
   expect (cashRow.quantity.quanta == 0) "covered zero balance disappeared"
+  expect (debtRow.quantity.quanta == -80) "opening-supported debt balance changed"
   expect (decide (walletRow.role = AccountingRole.asset)) "wallet role changed"
   expect (decide (cashRow.role = AccountingRole.asset)) "cash role changed"
+  expect (decide (debtRow.role = AccountingRole.liability)) "debt role changed"
 
   let mysteryRow ← requireSome (findUnresolved? snapshot "mystery") "missing unresolved role row"
   match mysteryRow.quantity with
@@ -89,6 +105,8 @@ def main : IO Unit := do
   expect
     (match foodUnsupported.role with | some .expense => true | _ => false)
     "unsupported expense classification disappeared"
+  expect (findUnsupported? snapshot "debt").isNone
+    "opening-supported debt remained in unsupported frontier"
 
   let .ok physical := Loam.BalanceReview.project events corrections coverage [wallet, cash, mystery]
     | throw (IO.userError "neighboring BalanceReview refused covered coordinates")
@@ -98,8 +116,38 @@ def main : IO Unit := do
   expect (physicalWallet.quantity.quanta == walletRow.quantity.quanta)
     "RoleBalance introduced a second quantity calculation"
 
+  expect
+    (match Loam.BalanceReview.project events corrections coverage [debt] with
+      | .error _ => true
+      | .ok _ => false)
+    "opening support leaked into zero-origin BalanceReview"
+
+  let .ok withoutOpening :=
+      Loam.RoleBalanceReview.project evidence OpeningSupportMap.empty roles
+    | throw (IO.userError "empty opening-support fixture refused")
+  let debtUnsupported ← requireSome
+    (findUnsupported? withoutOpening "debt")
+    "missing debt frontier without opening support"
+  expect
+    (match debtUnsupported.role with | some .liability => true | _ => false)
+    "unsupported debt role disappeared"
+
+  let encoded ← requireSome
+    (Loam.Persistence.encodeOpeningSupportMap? openingSupport)
+    "opening support encoding"
+  let decoded ← requireSome
+    (Loam.Persistence.decodeOpeningSupportMap? encoded)
+    "opening support decoding"
+  expect (decide (decoded = openingSupport)) "opening support persistence roundtrip changed"
+  expect
+    (OpeningSupportMap.ofSupports? [
+      { coordinate := debt, openingEvent := debtOpening.id },
+      { coordinate := debt, openingEvent := debtRepayment.id }
+    ]).isNone
+    "duplicate opening support coordinate was admitted"
+
   expect (snapshot.unsupportedBalances.length == 2)
     "unsupported balance frontier changed unexpectedly"
 
   IO.println
-    "Role Balance Review: BalanceReview composition, explicit roles and independent support frontier passed."
+    "Role Balance Review: zero-origin and opening support compose one existing quantity engine."
