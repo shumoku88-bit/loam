@@ -132,7 +132,7 @@ def rebalanceCapacity
 def routeActual
     (root : System.FilePath)
     (draft : Loam.ActualRoutingPublisher.Draft) :
-    IO (Except String Loam.ActualRoutingPublisher.Receipt) :=
+    IO (Except String Unit) :=
   Loam.ActualRoutingPublisher.publish (actualRoutingFile root).toString draft
 
 /-- Publish one Scheduled routing assertion. -/
