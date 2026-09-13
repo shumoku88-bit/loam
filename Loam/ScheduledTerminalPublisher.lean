@@ -118,7 +118,7 @@ private def appendCompletionActual?
 
 private def publishCompletionUnderOwnership
     (scheduledFile root : System.FilePath)
-    (draft : CompletionDraft) : IO (Except String Bool) := do
+    (draft : CompletionDraft) : IO (Except String Unit) := do
   let lifecycle ←
     match ← loadLifecycle? scheduledFile with
     | .ok lifecycle => pure lifecycle
@@ -189,7 +189,7 @@ private def publishCompletionUnderOwnership
       return .error
         ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
   | .ok () =>
-      return .ok existing.isSome
+      return .ok ()
 
 private def publishCancellationUnderOwnership
     (scheduledFile root : System.FilePath)
@@ -234,11 +234,12 @@ private def withTerminalOwnership {α : Type}
 
 /--
 Publish one Scheduled realization as an Actual Event in normalized Actual authority.
-Returns true only when publication resumes a retained inert completion relation.
+Both fresh completions and resumed interrupted completions produce the same canonical
+completion result.
 -/
 def publishCompletion
     (scheduledPath rootPath : String)
-    (draft : CompletionDraft) : IO (Except String Bool) := do
+    (draft : CompletionDraft) : IO (Except String Unit) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
