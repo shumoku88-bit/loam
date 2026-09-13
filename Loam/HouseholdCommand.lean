@@ -11,6 +11,7 @@ import Loam.ActualRoutingPublisher
 import Loam.ScheduledRoutingPublisher
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRolePublisher
+import Loam.CurrentQuantityAnchorPublisher
 
 namespace Loam.HouseholdCommand
 
@@ -157,5 +158,12 @@ def assignInitialAccountingRole
     IO (Except String Unit) :=
   Loam.AccountingRolePublisher.publishInitialRole
     (scheduledFile root).toString root.toString (accountingRoleFile root).toString draft
+
+/-- Publish one complete set of current quantities observed together. -/
+def observeCurrentQuantities
+    (root : System.FilePath)
+    (assertions : List Loam.CurrentQuantityAnchor.Assertion) :
+    IO (Except String Unit) :=
+  Loam.CurrentQuantityAnchorPublisher.publish root.toString assertions
 
 end Loam.HouseholdCommand
