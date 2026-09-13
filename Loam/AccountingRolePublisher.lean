@@ -28,12 +28,6 @@ structure Draft where
   role : AccountingRole
 deriving Repr, DecidableEq
 
-/-- Authority transition counts for one successful initial role assignment. -/
-structure Receipt where
-  previousCount : Nat
-  currentCount : Nat
-deriving Repr, DecidableEq
-
 private def actualUsesLocus
     (events : EventMemory) (locus : LocusId) : Bool :=
   events.events.any fun event =>
@@ -73,7 +67,7 @@ def propose?
     (events : EventMemory)
     (scheduled : ScheduledMemory String)
     (roles : AccountingRoleMap)
-    (draft : Draft) : Except String (AccountingRoleMap × Receipt) := do
+    (draft : Draft) : Except String AccountingRoleMap := do
   if !locusAdmission.allows draft.locus then
     throw "loam: AccountingRole assignment requires a currently admitted Locus"
   if (roles.roleOf? draft.locus).isSome then
@@ -85,14 +79,11 @@ def propose?
   let assignments := roles.assignments ++ [{ locus := draft.locus, role := draft.role }]
   let some updated := AccountingRoleMap.ofAssignments? assignments
     | throw "loam: AccountingRole proposal would violate unique Locus assignment"
-  return (updated, {
-    previousCount := roles.assignments.length
-    currentCount := updated.assignments.length
-  })
+  return updated
 
 private def publishUnderOwnership
     (scheduledFile root roleFile : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
@@ -107,13 +98,13 @@ private def publishUnderOwnership
     return .error "loam: AccountingRole authority file is missing"
   let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
     | return .error "loam: AccountingRole authority is malformed or unsupported"
-  let (updated, receipt) ←
+  let updated ←
     match propose? locusAdmission evidence.events lifecycle.scheduled roles draft with
     | .ok value => pure value
     | .error message => return .error message
   if !(← Loam.Persistence.saveAccountingRoleMap? roleFile updated) then
     return .error "loam: AccountingRole authority could not be published"
-  return .ok receipt
+  return .ok ()
 
 /--
 Publish one first role assertion while excluding concurrent Scheduled creation,
@@ -125,7 +116,7 @@ The lock order preserves the Scheduled writer order:
 -/
 def publishInitialRole
     (scheduledPath rootPath rolePath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   if scheduledPath.isEmpty then
     return .error "loam: scheduled path must not be empty"
   if rootPath.isEmpty then
