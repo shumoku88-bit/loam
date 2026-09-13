@@ -27,7 +27,7 @@ partial def run
   | some draft =>
       match ← Loam.HouseholdCommand.reverseActual root draft with
       | .ok receipt =>
-          return "Reversed " ++ receipt.target.token ++ " with " ++ receipt.reversal.token ++ "."
+          return "Reversed " ++ draft.target.token ++ " with " ++ receipt.reversal.token ++ "."
       | .error message =>
           let next := Loam.Tui.ActualReversal.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ActualReversal.view next)
