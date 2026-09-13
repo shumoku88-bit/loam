@@ -44,12 +44,8 @@ def main (args : List String) : IO Unit := do
   let resManaged ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjGroceries, effectiveOn := "2026-09-06", target := .managed ⟨"food"⟩ }
-  match resManaged with
-  | .ok receipt =>
-      expect (receipt.subject == subjGroceries) "managed receipt subject mismatch"
-      expect (receipt.effectiveOn == "2026-09-06") "managed receipt date mismatch"
-      expect (receipt.target == .managed ⟨"food"⟩) "managed receipt target mismatch"
-  | .error err => throw (IO.userError s!"managed publish failed: {err}")
+  let .ok () := resManaged
+    | throw (IO.userError s!"managed publish failed: {resManaged}")
 
   let afterManaged ← IO.FS.readFile routingFile
   expect (afterManaged.contains "ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-06\tMANAGED\tfood")
@@ -58,12 +54,8 @@ def main (args : List String) : IO Unit := do
   let resUnmanaged ← Loam.ScheduledRoutingPublisher.publish
     routingFile.toString scheduledFile.toString
     { subject := subjCoffee, effectiveOn := "2026-09-06", target := .unmanaged }
-  match resUnmanaged with
-  | .ok receipt =>
-      expect (receipt.subject == subjCoffee) "unmanaged receipt subject mismatch"
-      expect (receipt.effectiveOn == "2026-09-06") "unmanaged receipt date mismatch"
-      expect (receipt.target == .unmanaged) "unmanaged receipt target mismatch"
-  | .error err => throw (IO.userError s!"unmanaged publish failed: {err}")
+  let .ok () := resUnmanaged
+    | throw (IO.userError s!"unmanaged publish failed: {resUnmanaged}")
 
   let afterUnmanaged ← IO.FS.readFile routingFile
   expect (afterUnmanaged.contains "ROUTE\tscheduled-1\tcoffee\tFROM\t2026-09-06\tUNMANAGED")
@@ -130,7 +122,7 @@ def main (args : List String) : IO Unit := do
   | .error "loam: Scheduled routing already has evidence at this subject/effective coordinate" => pure ()
   | other => throw (IO.userError s!"expected duplicate refusal, got {repr other}")
 
-  let .ok _ ← Loam.ScheduledRoutingPublisher.publish
+  let .ok () ← Loam.ScheduledRoutingPublisher.publish
       routingFile.toString scheduledFile.toString
       { subject := subjGroceries, effectiveOn := "2026-09-10", target := .managed ⟨"special"⟩ }
     | throw (IO.userError "publish later route")
