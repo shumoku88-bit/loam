@@ -93,7 +93,7 @@ def completeScheduled
 def cancelScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledTerminalPublisher.CancellationDraft) :
-    IO (Except String Loam.ScheduledTerminalPublisher.CancellationReceipt) :=
+    IO (Except String Unit) :=
   Loam.ScheduledTerminalPublisher.publishCancellation
     (scheduledFile root).toString root.toString draft
 

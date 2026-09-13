@@ -129,10 +129,9 @@ def main (args : List String) : IO Unit := do
   expect (!hasScheduled due10 "scheduled-1") "completed Scheduled stayed current-open"
   expect (hasScheduled due10 "scheduled-2") "unrelated Scheduled disappeared after completion"
 
-  let .ok cancelled ← Loam.ScheduledTerminalPublisher.publishCancellation
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishCancellation
       scheduledFile.toString root.toString { scheduled := ⟨"scheduled-2"⟩ }
     | throw (IO.userError "publish Scheduled cancellation")
-  expect (cancelled.scheduled.token == "scheduled-2") "cancellation receipt changed identity"
   let .ok afterCancellation ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after cancellation")
   let due10After := Loam.ScheduledReview.explicitDueRecords
