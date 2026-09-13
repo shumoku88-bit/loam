@@ -37,12 +37,6 @@ structure Draft where
   target : Target
 deriving Repr, DecidableEq
 
-structure Receipt where
-  locus : LocusId
-  effectiveOn : RoutingEffective String
-  target : Target
-deriving Repr, DecidableEq
-
 private def loadHistoryOrEmpty?
     (path : System.FilePath) : IO (Option ActualRoutingHistory) := do
   if ← path.pathExists then
@@ -56,7 +50,7 @@ private def validateEffective : RoutingEffective String → Bool
 
 private def publishUnlocked
     (routingFile : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   let history ←
     match ← loadHistoryOrEmpty? routingFile with
     | some history => pure history
@@ -75,18 +69,14 @@ private def publishUnlocked
       return .error "loam: Actual routing already has evidence at this locus/effective coordinate"
   | some updated =>
       if ← saveActualRoutingHistory? routingFile updated then
-        return .ok {
-          locus := draft.locus
-          effectiveOn := draft.effectiveOn
-          target := draft.target
-        }
+        return .ok ()
       else
         return .error "loam: Actual routing evidence could not be published"
 
 /-- Publish one explicit Actual routing assertion under routing-authority ownership. -/
 def publish
     (routingPath : String)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String Unit) := do
   if routingPath.isEmpty then
     return .error "loam: routing path must not be empty"
   if !validToken draft.locus.token then
