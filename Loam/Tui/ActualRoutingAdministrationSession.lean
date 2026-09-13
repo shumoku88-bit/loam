@@ -36,13 +36,13 @@ partial def run
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.routeActual root draft with
-      | .ok receipt =>
+      | .ok () =>
           let target :=
-            match receipt.target with
+            match draft.target with
             | .managed purpose => "managed " ++ purpose.token
             | .unmanaged => "unmanaged"
-          return "Routed " ++ receipt.locus.token ++ " -> " ++ target ++
-            ". Effective: " ++ effectiveText receipt.effectiveOn ++ "."
+          return "Routed " ++ draft.locus.token ++ " -> " ++ target ++
+            ". Effective: " ++ effectiveText draft.effectiveOn ++ "."
       | .error message => return "Actual routing refused: " ++ message
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds step.state)
