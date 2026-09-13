@@ -70,7 +70,7 @@ def main (args : List String) : IO Unit := do
     "selected Actual fixture disappeared"
   let .ok editor := Loam.Tui.ActualReversal.initial? record "2026-09-08"
     | throw (IO.userError "reversal editor rejected practical Actual")
-  expect (editor.target == recorded.eventId && editor.inputDate == "2026-09-08")
+  expect (editor.target == recorded && editor.inputDate == "2026-09-08")
     "reversal editor did not keep selected target and today as independent coordinates"
 
   let inverse := Loam.Tui.ActualReversal.inversePreview editor
@@ -86,7 +86,7 @@ def main (args : List String) : IO Unit := do
     "reversal did not require explicit preview before publication"
   let publish := Loam.Tui.ActualReversal.update preview.state .enter
   let draft ← requireSome publish.publish "reversal preview did not emit publication intent"
-  expect (draft.target == recorded.eventId && draft.validOn == "2026-09-08")
+  expect (draft.target == recorded && draft.validOn == "2026-09-08")
     "reversal intent changed target or occurrence date"
 
   let .ok () ← Loam.ActualReversalPublisher.publishReversal
@@ -100,7 +100,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review after reversal")
-  expect (fresh.any fun item => item.event.id == recorded.eventId)
+  expect (fresh.any fun item => item.event.id == recorded)
     "reversal removed the original Actual"
   expect (fresh.any fun item => item.event.id == relation.reversal && item.date == some "2026-09-08")
     "fresh Actual review did not expose the canonical reversal occurrence"

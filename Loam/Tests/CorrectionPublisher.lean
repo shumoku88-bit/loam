@@ -49,7 +49,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "record target fixture")
 
   let correctionDraft : Loam.CorrectionPublisher.Draft := {
-    target := recorded.eventId
+    target := recorded
     effects := effects "paypay" "coffee" 650
     description := some "after" }
 
@@ -73,7 +73,7 @@ def main (args : List String) : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root selected
     | throw (IO.userError "restore Locus policy")
 
-  let .ok receipt ← Loam.CorrectionPublisher.publishCorrection
+  let .ok replacementId ← Loam.CorrectionPublisher.publishCorrection
       root.toString correctionDraft
     | throw (IO.userError "publish correction")
 
@@ -81,14 +81,14 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reload actual authority")
   expect (actualEvidence.corrections.corrections.length == 1) "correction relation count changed"
   expect (actualEvidence.corrections.corrections.any fun correction =>
-      correction.target == recorded.eventId && correction.replacement == receipt.replacement)
+      correction.target == recorded && correction.replacement == replacementId)
     "published correction relation lost its endpoints"
 
   let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload corrected Actual")
-  expect ((EventMemory.findById? world.events recorded.eventId).isSome)
+  expect ((EventMemory.findById? world.events recorded).isSome)
     "append-only correction rewrote the original Event"
-  expect ((EventMemory.findById? world.events receipt.replacement).isSome)
+  expect ((EventMemory.findById? world.events replacementId).isSome)
     "replacement Event is absent from Actual authority"
 
   let .ok records ← Loam.ActualReview.loadRecordsFromActual root
@@ -96,11 +96,11 @@ def main (args : List String) : IO Unit := do
   let current := Loam.ActualReview.select records (.day "2026-09-07")
   expect (current.length == 1) "corrected day did not have exactly one current Actual"
   expect (current.any fun record =>
-      record.event.id == receipt.replacement && record.description == "after" &&
+      record.event.id == replacementId && record.description == "after" &&
         record.date == some "2026-09-07" &&
         record.event.effects.map (fun effect => effect.quantity.quanta) == [-650, 650])
     "current Actual did not expose replacement quantity/date/description evidence"
-  expect (records.any fun record => record.event.id == recorded.eventId && !record.isCurrent)
+  expect (records.any fun record => record.event.id == recorded && !record.isCurrent)
     "original Event disappeared instead of remaining retained and non-current"
 
   let staleRetry ← Loam.CorrectionPublisher.publishCorrection

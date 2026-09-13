@@ -94,14 +94,14 @@ def main (args : List String) : IO Unit := do
       scheduledFile.toString root.toString
       (draft "2026-09-10" "paypay" "rent" 1000)
     | throw (IO.userError "publish first Scheduled creation")
-  expect (first.scheduled.token == "scheduled-1")
+  expect (first.token == "scheduled-1")
     "first Scheduled creation did not choose the first fresh identity"
 
   let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload Scheduled review after first creation")
   let firstDay := Loam.ScheduledReview.explicitDueRecords
     (Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10")
-  expect (hasScheduled firstDay first.scheduled)
+  expect (hasScheduled firstDay first)
     "fresh Scheduled creation did not become current-open on its explicit date"
 
   let invalid ← Loam.ScheduledCreationPublisher.publishCreation
@@ -117,7 +117,7 @@ def main (args : List String) : IO Unit := do
       scheduledFile.toString root.toString
       (draft "2026-09-11" "smbc" "food" 300)
     | throw (IO.userError "publish second Scheduled creation")
-  expect (second.scheduled.token == "scheduled-2")
+  expect (second.token == "scheduled-2")
     "second Scheduled creation did not advance fresh identity"
 
   let some current ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile

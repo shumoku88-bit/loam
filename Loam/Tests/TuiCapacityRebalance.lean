@@ -210,9 +210,9 @@ def main (args : List String) : IO Unit := do
   let some draft := stepPublish.publish | throw (IO.userError "publish draft missing")
   expect (draft.changes.length == 3) "draft must have 3 changes"
 
-  let .ok receipt ← Loam.CapacityPublisher.publishBalanced capacityFile.toString draft
+  let .ok movementId ← Loam.CapacityPublisher.publishBalanced capacityFile.toString draft
     | throw (IO.userError "failed to publish balanced draft")
-  expect (receipt.movement.token == "capacity-4") "movement token"
+  expect (movementId.token == "capacity-4") "movement token"
 
   -- Fresh Capacity review reload
   let freshSnapshot ← loadSnapshot capacityFile

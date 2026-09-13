@@ -7,36 +7,37 @@ import Loam.Tui.Terminal
 
 namespace Loam.Tui.ScheduledCreationSession
 
+open Loam.Core
 open Loam.Tui.Kernel
 open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
 /--
-Run one presentation-only Scheduled creation editor session, returning the creation receipt if published.
+Run one presentation-only Scheduled creation editor session, returning the created Scheduled identity if published.
 -/
-partial def runWithReceipt
+partial def runWithScheduledId
     (bounds : Bounds) (root : System.FilePath)
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
-    IO (Option Loam.ScheduledCreationPublisher.Receipt × String) := do
+    IO (Option ScheduledId × String) := do
   let step := Loam.Tui.ScheduledCreation.update known state
     (← Loam.Tui.Terminal.readKey)
   if step.cancel then return (none, "Scheduled creation cancelled.")
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.createScheduled root draft with
-      | .ok receipt =>
-          return (some receipt, "Scheduled " ++ receipt.scheduled.token ++ " for " ++ draft.scheduledOn ++ ".")
+      | .ok scheduledId =>
+          return (some scheduledId, "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ ".")
       | .error message =>
           let next := Loam.Tui.ScheduledCreation.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          runWithReceipt bounds root known next nextFrame
+          runWithScheduledId bounds root known next nextFrame
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      runWithReceipt bounds root known step.state nextFrame
+      runWithScheduledId bounds root known step.state nextFrame
 
 /--
 Run one presentation-only Scheduled creation editor session.
@@ -48,7 +49,7 @@ def run
     (bounds : Bounds) (root : System.FilePath)
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) : IO String := do
-  let (_, notice) ← runWithReceipt bounds root known state frame
+  let (_, notice) ← runWithScheduledId bounds root known state frame
   return notice
 
 end Loam.Tui.ScheduledCreationSession

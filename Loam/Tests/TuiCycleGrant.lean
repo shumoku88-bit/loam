@@ -200,9 +200,9 @@ def main (args : List String) : IO Unit := do
   let some draftToPublish := stepPublish.publish | throw (IO.userError "publish draft missing")
   expect (draftToPublish.quanta == 3828) "publish quanta 3828"
 
-  let .ok receipt ← Loam.CapacityPublisher.publish capacityFile.toString draftToPublish
+  let .ok movementId ← Loam.CapacityPublisher.publish capacityFile.toString draftToPublish
     | throw (IO.userError "shared CapacityPublisher.publish failed")
-  expect (receipt.movement.token == "capacity-2") "fresh capacity identity allocated"
+  expect (movementId.token == "capacity-2") "fresh capacity identity allocated"
 
   -- Invariants check:
   -- 17. Physical balances unchanged (movement authority untouched)

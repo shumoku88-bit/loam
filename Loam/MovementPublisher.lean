@@ -22,23 +22,13 @@ writer ownership on actual.loam
 -> load current new-write policy from locus-admission.loam
 -> construct typed MovementAdmission.World
 -> MovementAdmission.admit?
--> optional surface observation of the admitted receipt
+-> optional surface observation of the admitted Event identity
 -> atomic publish to actual.loam
 ```
 
 Historical Event evidence in `actual.loam` is strictly separated from
 new-write policy in `locus-admission.loam`.
 -/
-
-/--
-Small surface-independent receipt for one admitted Movement publication.
-
-It exposes only the generated Event identity. The canonical world and
-persistence representation remain private to the publisher boundary.
--/
-structure Receipt where
-  eventId : Loam.Core.EventId
-  deriving Repr
 
 /--
 Keep a durable EffectKey only when this Movement actually publishes a Relation
@@ -59,7 +49,7 @@ private def retainReferencedEffectKeys
 private def publishUnderOwnership
     (root : System.FilePath)
     (draft : Loam.MovementAdmission.Draft)
-    (beforePublish : Receipt → IO Unit) : IO (Except String Receipt) := do
+    (beforePublish : Loam.Core.EventId → IO Unit) : IO (Except String Loam.Core.EventId) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | Except.error message => return Except.error message
@@ -80,10 +70,8 @@ private def publishUnderOwnership
   match Loam.MovementAdmission.admit? world canonicalDraft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
-      let receipt : Receipt := {
-        eventId := admitted.event.id
-      }
-      beforePublish receipt
+      let eventId := admitted.event.id
+      beforePublish eventId
       let updatedEvidence : ActualEvidence := {
         events := admitted.world.events
         validity := admitted.world.validity
@@ -95,7 +83,7 @@ private def publishUnderOwnership
       }
       match ← Loam.ActualAuthority.publishActual? root updatedEvidence with
       | Except.error message => return Except.error message
-      | Except.ok () => return Except.ok receipt
+      | Except.ok () => return Except.ok eventId
 
 /--
 Publish one already-collected Movement draft to normalized Actual authority.
@@ -103,7 +91,7 @@ Publish one already-collected Movement draft to normalized Actual authority.
 def publishDraftWithPreview
     (rootPath : String)
     (draft : Loam.MovementAdmission.Draft)
-    (beforePublish : Receipt → IO Unit) : IO (Except String Receipt) := do
+    (beforePublish : Loam.Core.EventId → IO Unit) : IO (Except String Loam.Core.EventId) := do
   if rootPath.isEmpty then
     return Except.error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
@@ -113,7 +101,7 @@ def publishDraftWithPreview
 /-- Publish without a frontend-specific pre-publication rendering callback. -/
 def publishDraft
     (rootPath : String)
-    (draft : Loam.MovementAdmission.Draft) : IO (Except String Receipt) :=
+    (draft : Loam.MovementAdmission.Draft) : IO (Except String Loam.Core.EventId) :=
   publishDraftWithPreview rootPath draft (fun _ => pure ())
 
 end Loam.MovementPublisher

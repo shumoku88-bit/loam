@@ -17,13 +17,9 @@ structure Draft where
   effects : List Effect
   description : Option String := none
 
-structure Receipt where
-  replacement : EventId
-  deriving Repr
-
 private structure Admitted where
   evidence : ActualEvidence
-  receipt : Receipt
+  replacement : EventId
 
 private def reversalMentionsEvent
     (reversals : ActualReversalMemory) (id : EventId) : Bool :=
@@ -148,12 +144,12 @@ private def admit?
       relations := evidence.relations
       discharges := evidence.discharges
     }
-    receipt := { replacement := correction.replacement }
+    replacement := correction.replacement
   }
 
 private def publishUnderOwnership
     (root : System.FilePath)
-    (draft : Draft) : IO (Except String Receipt) := do
+    (draft : Draft) : IO (Except String EventId) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
@@ -169,13 +165,13 @@ private def publishUnderOwnership
 
   match ← Loam.ActualAuthority.publishActual? root admitted.evidence with
   | .error message => return .error message
-  | .ok () => return .ok admitted.receipt
+  | .ok () => return .ok admitted.replacement
 
 /--
 Publish one practical Movement correction against normalized Actual authority.
 -/
 def publishCorrection
-    (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
+    (rootPath : String) (draft : Draft) : IO (Except String EventId) := do
   if rootPath.isEmpty then
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
