@@ -27,7 +27,7 @@ partial def runWithReceipt
   | some draft =>
       match ← Loam.HouseholdCommand.createScheduled root draft with
       | .ok receipt =>
-          return (some receipt, "Scheduled " ++ receipt.scheduled.token ++ " for " ++ receipt.scheduledOn ++ ".")
+          return (some receipt, "Scheduled " ++ receipt.scheduled.token ++ " for " ++ draft.scheduledOn ++ ".")
       | .error message =>
           let next := Loam.Tui.ScheduledCreation.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known next)
