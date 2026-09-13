@@ -41,10 +41,10 @@ private def publishDraft
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok receipt =>
+  | .ok () =>
       IO.println
-        ("Recorded Actual route: " ++ receipt.locus.token ++ " @ " ++
-          effectiveText receipt.effectiveOn ++ " = " ++ targetText receipt.target ++ ".")
+        ("Recorded Actual route: " ++ draft.locus.token ++ " @ " ++
+          effectiveText draft.effectiveOn ++ " = " ++ targetText draft.target ++ ".")
       return 0
 
 private def recordInitial
