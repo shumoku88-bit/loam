@@ -227,6 +227,8 @@ def main : IO Unit := do
     "Income & Expense view did not present debit-normal Expense"
   expect (contains "Result:" incomeExpenseReportText && contains "175276 jpy" incomeExpenseReportText)
     "Income & Expense view did not derive the occurrence-time result"
+  expect (contains "Income breakdown" incomeExpenseReportText && contains "pension" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Income detail"
+  expect (contains "Expense breakdown" incomeExpenseReportText && contains "food" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Expense detail"
   expect (contains "Unresolved role Effects: 1" incomeExpenseReportText && contains "mystery" incomeExpenseReportText)
     "Income & Expense view hid unresolved role evidence"
   expect (contains "not accrual recognition or period closing" incomeExpenseReportText)

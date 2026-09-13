@@ -847,6 +847,32 @@ private def incomeExpenseRoleQuanta
         total)
     0
 
+private def incomeExpenseBreakdownRows
+    (snapshot : Loam.RoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole) :
+    List Loam.RoleFlowReview.Row :=
+  (snapshot.rows.filter fun row =>
+    decide (row.coordinate.measure = measure ∧ row.role = role)).mergeSort fun a b =>
+      a.coordinate.locus.token <= b.coordinate.locus.token
+
+private def incomeExpenseDisplayQuanta
+    (role : Loam.Core.AccountingRole) (quantity : Loam.Core.Quantity) : Int :=
+  if role = .income then -quantity.quanta else quantity.quanta
+
+private def incomeExpenseBreakdownLines
+    (snapshot : Loam.RoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole)
+    (heading : String) : List Widget :=
+  let rows := incomeExpenseBreakdownRows snapshot measure role
+  if rows.isEmpty then
+    [muted (heading ++ ": (none)")]
+  else
+    [muted heading] ++ rows.map fun row =>
+      line
+        ("  " ++ Loam.Tui.Layout.padRight 24 row.coordinate.locus.token ++
+          padNum 12 (toString (incomeExpenseDisplayQuanta role row.quantity)) ++
+          " " ++ measure.token)
+
 private def incomeExpenseMeasureLines
     (snapshot : Loam.RoleFlowReview.Snapshot) (measure : Loam.Core.MeasureId) : List Widget :=
   let rawIncome := incomeExpenseRoleQuanta snapshot measure .income
@@ -859,7 +885,11 @@ private def incomeExpenseMeasureLines
   , line (label "Income:" ++ padNum 12 (toString income) ++ " " ++ measure.token)
   , line (label "Expense:" ++ padNum 12 (toString expense) ++ " " ++ measure.token)
   , line (label "Result:" ++ padNum 12 (toString result) ++ " " ++ measure.token)
-  ]
+  , blank
+  ] ++
+  incomeExpenseBreakdownLines snapshot measure .income "Income breakdown" ++
+  [blank] ++
+  incomeExpenseBreakdownLines snapshot measure .expense "Expense breakdown"
 
 private def unresolvedIncomeExpenseLine
     (entry : Loam.RoleFlowReview.UnresolvedEffect) : Widget :=
