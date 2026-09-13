@@ -32,6 +32,10 @@ Diagnose whether the New-only production startup read boundary is coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
   This command is read-only and never repairs or rewrites household facts.
 
+Print the evidence-aware Balances report as plain text:
+  ./tools/loam report balances [LOAM_DATA_DIR]
+  The output is the same shared RoleBalance presentation without TUI paging.
+
 Record one balanced JPY movement into actual.loam:
   ./tools/loam movement [LOAM_DATA_DIR]
 
