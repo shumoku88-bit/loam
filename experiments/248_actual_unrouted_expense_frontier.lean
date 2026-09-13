@@ -118,7 +118,7 @@ private def hasRow
     row.event == event && row.coordinate == ⟨locus, yen⟩ && row.quantity.quanta == quanta
 
 def main : IO Unit := do
-  let open ← requireSome (actual? "open" openExpense yen 30) "open Actual"
+  let openActual ← requireSome (actual? "open" openExpense yen 30) "open Actual"
   let refund ← requireSome (actual? "refund" refundExpense yen (-5)) "refund Actual"
   let managed ← requireSome (actual? "managed" managedExpense yen 20) "managed Actual"
   let unmanaged ← requireSome (actual? "unmanaged" unmanagedExpense yen 10) "unmanaged Actual"
@@ -132,7 +132,7 @@ def main : IO Unit := do
 
   let events ← requireSome
     (EventMemory.ofEvents?
-      [open, refund, managed, unmanaged, late, outside, otherMeasure, old, replacement])
+      [openActual, refund, managed, unmanaged, late, outside, otherMeasure, old, replacement])
     "Event memory"
   let corrections ← requireSome
     (EventCorrectionMemory.ofCorrections?
@@ -143,7 +143,7 @@ def main : IO Unit := do
   -- correction frontier first must therefore avoid inventing a dependency on it.
   let validities ← requireSome
     (ActualValidityMemory.ofEntries?
-      [{ event := open.id, validOn := (2 : Nat) },
+      [{ event := openActual.id, validOn := (2 : Nat) },
        { event := refund.id, validOn := (2 : Nat) },
        { event := managed.id, validOn := (2 : Nat) },
        { event := unmanaged.id, validOn := (2 : Nat) },
@@ -187,7 +187,7 @@ def main : IO Unit := do
 
   expect (rows.length == 4)
     s!"expected four unresolved rows, got {rows.length}: {repr rows}"
-  expect (hasRow rows open.id openExpense 30)
+  expect (hasRow rows openActual.id openExpense 30)
     "in-window unrouted Expense was not surfaced"
   expect (hasRow rows refund.id refundExpense (-5))
     "signed Expense refund was incorrectly dropped"
@@ -215,7 +215,7 @@ def main : IO Unit := do
 
   let missingReplacementValidity ← requireSome
     (ActualValidityMemory.ofEntries?
-      [{ event := open.id, validOn := (2 : Nat) },
+      [{ event := openActual.id, validOn := (2 : Nat) },
        { event := refund.id, validOn := (2 : Nat) },
        { event := managed.id, validOn := (2 : Nat) },
        { event := unmanaged.id, validOn := (2 : Nat) },
