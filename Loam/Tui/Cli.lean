@@ -950,9 +950,9 @@ partial def reportsLoop (bounds : Bounds)
         match ← Loam.TransactionsFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withTransactionsFlowSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.accountingFlow start endExclusive) =>
+    | some (.incomeExpenseFlow start endExclusive) =>
         match ← Loam.RoleFlowReview.loadSnapshot dataDir root start endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withAccountingSnapshot step.state snapshot)
+        | .ok snapshot => pure (Loam.Tui.Reports.withIncomeExpenseSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.conditionalLiquidity assumedCompleteThrough) =>
         match ← Loam.ConditionalBalancePathReview.loadSnapshot

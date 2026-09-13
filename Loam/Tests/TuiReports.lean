@@ -33,7 +33,7 @@ def main : IO Unit := do
   let menuText := widgetText (Loam.Tui.Reports.view initial)
   expect (contains "Reports" menuText) "Reports menu heading was not rendered"
   expect (contains "Stock–Flow" menuText) "Reports menu lost Stock–Flow"
-  expect (contains "Accounting" menuText) "Reports menu lost Accounting"
+  expect (contains "Income & Expense" menuText) "Reports menu lost Income & Expense"
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (initial.form.start == "2026-09-01")
@@ -186,23 +186,23 @@ def main : IO Unit := do
   | { back := true, .. } => pure ()
   | _ => throw (IO.userError "Reports menu escape did not return Home intent")
 
-  let accounting := { initial with mode := Loam.Tui.Reports.Mode.accounting }
-  let accountingText := widgetText (Loam.Tui.Reports.view accounting)
-  expect (contains "Reports / Accounting" accountingText)
-    "Accounting heading was not rendered"
-  expect (contains "No explicit occurrence-time accounting window has been run yet" accountingText)
-    "Accounting page did not preserve the explicit-run boundary"
-  expect (contains "no role is inferred" accountingText)
-    "Accounting page lost its no-inference boundary"
-  match (Loam.Tui.Reports.update accounting .enter).query with
-  | some (.accountingFlow start endExclusive) =>
-      expect (start == "2026-09-01") "Accounting Run changed explicit start"
-      expect (endExclusive == "2026-10-01") "Accounting Run changed explicit end"
-  | _ => throw (IO.userError "Accounting Run did not emit its explicit role-flow query")
+  let incomeExpense := { initial with mode := Loam.Tui.Reports.Mode.incomeExpense }
+  let incomeExpenseText := widgetText (Loam.Tui.Reports.view incomeExpense)
+  expect (contains "Reports / Income & Expense" incomeExpenseText)
+    "Income & Expense heading was not rendered"
+  expect (contains "No explicit Income & Expense window has been run yet" incomeExpenseText)
+    "Income & Expense page did not preserve the explicit-run boundary"
+  expect (contains "no role is inferred" incomeExpenseText)
+    "Income & Expense page lost its no-inference boundary"
+  match (Loam.Tui.Reports.update incomeExpense .enter).query with
+  | some (.incomeExpenseFlow start endExclusive) =>
+      expect (start == "2026-09-01") "Income & Expense Run changed explicit start"
+      expect (endExclusive == "2026-10-01") "Income & Expense Run changed explicit end"
+  | _ => throw (IO.userError "Income & Expense Run did not emit its explicit role-flow query")
 
   let pensionCoordinate : EffectCoordinate := ⟨⟨"pension"⟩, ⟨"jpy"⟩⟩
   let foodCoordinate : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
-  let accountingReport := Loam.Tui.Reports.withAccountingSnapshot accounting {
+  let incomeExpenseReport := Loam.Tui.Reports.withIncomeExpenseSnapshot incomeExpense {
     start := "2026-09-01"
     endExclusive := "2026-10-01"
     rows :=
@@ -220,24 +220,24 @@ def main : IO Unit := do
             ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
       ]
   }
-  let accountingReportText := widgetText (Loam.Tui.Reports.view accountingReport)
-  expect (contains "Income:" accountingReportText && contains "225276 jpy" accountingReportText)
-    "Accounting view did not present credit-normal Income"
-  expect (contains "Expense:" accountingReportText && contains "50000 jpy" accountingReportText)
-    "Accounting view did not present debit-normal Expense"
-  expect (contains "Result:" accountingReportText && contains "175276 jpy" accountingReportText)
-    "Accounting view did not derive the occurrence-time result"
-  expect (contains "Unresolved role Effects: 1" accountingReportText && contains "mystery" accountingReportText)
-    "Accounting view hid unresolved role evidence"
-  expect (contains "not accrual recognition or period closing" accountingReportText)
-    "Accounting view overstated occurrence-time flow as a closed P/L"
+  let incomeExpenseReportText := widgetText (Loam.Tui.Reports.view incomeExpenseReport)
+  expect (contains "Income:" incomeExpenseReportText && contains "225276 jpy" incomeExpenseReportText)
+    "Income & Expense view did not present credit-normal Income"
+  expect (contains "Expense:" incomeExpenseReportText && contains "50000 jpy" incomeExpenseReportText)
+    "Income & Expense view did not present debit-normal Expense"
+  expect (contains "Result:" incomeExpenseReportText && contains "175276 jpy" incomeExpenseReportText)
+    "Income & Expense view did not derive the occurrence-time result"
+  expect (contains "Unresolved role Effects: 1" incomeExpenseReportText && contains "mystery" incomeExpenseReportText)
+    "Income & Expense view hid unresolved role evidence"
+  expect (contains "not accrual recognition or period closing" incomeExpenseReportText)
+    "Income & Expense view overstated occurrence-time flow as a closed P/L"
 
-  let accountingEditing : Loam.Tui.Reports.State := {
-    accountingReport with form := { accountingReport.form with focus := ⟨0, by decide⟩ }
+  let incomeExpenseEditing : Loam.Tui.Reports.State := {
+    incomeExpenseReport with form := { incomeExpenseReport.form with focus := ⟨0, by decide⟩ }
   }
-  let accountingEdited := (Loam.Tui.Reports.update accountingEditing .backspace).state
-  expect accountingEdited.accountingSnapshot.isNone
-    "editing Accounting coordinates left a stale role-flow snapshot visible"
+  let incomeExpenseEdited := (Loam.Tui.Reports.update incomeExpenseEditing .backspace).state
+  expect incomeExpenseEdited.incomeExpenseSnapshot.isNone
+    "editing Income & Expense coordinates left a stale role-flow snapshot visible"
 
   let liquidity := { initial with mode := Loam.Tui.Reports.Mode.liquidity }
   expect (isLiquidity liquidity) "Liquidity fixture did not enter the Liquidity surface"
@@ -389,7 +389,7 @@ def main : IO Unit := do
 
   for heightIndex in List.range 8 do
     let tiny : Bounds := { width := 80, height := heightIndex + 1 }
-    for report in [initial, stockReport, accounting, liquidityReport, budgetReport] do
+    for report in [initial, stockReport, incomeExpense, liquidityReport, budgetReport] do
       let rendered := Loam.Tui.Reports.viewForBounds tiny report
       expect (rendered.lines.length <= tiny.height)
         ("Reports exceeded tiny terminal height " ++ toString tiny.height)
@@ -397,4 +397,4 @@ def main : IO Unit := do
         ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
   IO.println
-    "TUI Reports: menu, Stock–Flow, evidence-gated Accounting, conditional Liquidity, Budget Window and navigation passed."
+    "TUI Reports: menu, Stock–Flow, Income & Expense, conditional Liquidity, Budget Window and navigation passed."
