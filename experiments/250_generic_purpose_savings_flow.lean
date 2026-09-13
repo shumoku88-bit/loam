@@ -110,7 +110,7 @@ def main : IO Unit := do
     (project? withdrawalEvents withdrawalValidities 3)
     "withdrawal CurrentCoverage failed closed"
 
-  expect (oldBalance.quantityAt savingsAsset yen |>.quanta == 10000)
+  expect ((oldBalance.quantityAt savingsAsset yen).quanta == 10000)
     "old savings fixture lost its positive Asset position"
   expect (oldOnly.entitlement.quanta == 5000)
     "old-balance world changed Capacity Entitlement"
