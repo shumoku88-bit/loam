@@ -26,6 +26,30 @@ private def targetsEvent : List EventCorrection → EventId → Bool
       else
         targetsEvent rest id
 
+private def replacesEvent : List EventCorrection → EventId → Bool
+  | [], _ => false
+  | correction :: rest, id =>
+      if correction.replacement = id then
+        true
+      else
+        replacesEvent rest id
+
+private def replacementOf? : List EventCorrection → EventId → Option EventId
+  | [], _ => none
+  | correction :: rest, id =>
+      if correction.target = id then
+        some correction.replacement
+      else
+        replacementOf? rest id
+
+private def terminalFrom
+    (corrections : List EventCorrection) : Nat → EventId → EventId
+  | 0, id => id
+  | fuel + 1, id =>
+      match replacementOf? corrections id with
+      | none => id
+      | some replacement => terminalFrom corrections fuel replacement
+
 private def correctionEdges
     (corrections : EventCorrectionMemory) :
     List (ReplacementFrontier.Edge EventId) :=
@@ -119,6 +143,57 @@ def correctionFrontierMemory?
     EventMemory.ofEvents? (frontierEvents events corrections)
   else
     none
+
+/--
+Return the stable correction root together with its current terminal Event for
+all admitted correction paths and untouched Events.
+
+The root relation is derived only after the same correction-frontier admission
+used by ordinary quantity inspection. Event representation order, occurrence
+date, EventId spelling, and Git history remain irrelevant. Untouched Events are
+their own roots.
+-/
+def correctionRootTerminalEvents?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Option (List (EventId × Event)) := do
+  if !correctionFrontierAdmissible events corrections then
+    none
+  let roots := events.events.filter fun event =>
+    !(replacesEvent corrections.corrections event.id)
+  roots.mapM fun root => do
+    let terminalId :=
+      terminalFrom corrections.corrections (corrections.corrections.length + 1) root.id
+    let terminal ← EventMemory.findById? events terminalId
+    pure (root.id, terminal)
+
+/--
+Derive the explicit stable roots represented by the admitted current Event world.
+This is the smallest root vocabulary needed by current-anchor evidence; it does
+not assign chronology or introduce another Event identity family.
+-/
+def correctionRootIds?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Option (List EventId) := do
+  let rooted ← correctionRootTerminalEvents? events corrections
+  pure (rooted.map Prod.fst)
+
+/--
+Derive the current correction frontier after excluding complete correction roots
+that an external current-quantity observation already reflects.
+
+Filtering occurs by stable root, so later correction or reclassification of a
+covered occurrence remains covered. Quantity arithmetic is intentionally not
+performed here; callers continue to use `EventMemory.quantityAtRecorded` on the
+returned admitted frontier.
+-/
+def correctionFrontierExcludingRoots?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (reflectedRoots : List EventId) : Option EventMemory := do
+  let rooted ← correctionRootTerminalEvents? events corrections
+  let unreflected := rooted.filterMap fun rootedEvent =>
+    if reflectedRoots.contains rootedEvent.1 then none else some rootedEvent.2
+  EventMemory.ofEvents? unreflected
 
 /--
 A successful correction frontier retains exactly the remembered Events that are
