@@ -195,6 +195,41 @@ Likely counterexamples include transfers between selected/unselected backing coo
 
 This is interesting only if the surviving law says something useful about household funding without inventing a new safe-to-spend authority.
 
+## Broad sketch results
+
+The first pass across C1-C5 is recorded in:
+
+- `LOAM_COUNTERPOINT_C1_REALIZATION_2026-09.md`
+- `LOAM_COUNTERPOINT_SKETCHBOOK_2026-09.md`
+- `LOAM_COUNTERPOINT_FIVE_WORLDS_2026-09.md`
+
+The five-world score narrows the most interesting current cluster to C1 + C3 + C4. It constructs:
+
+1. consonant Scheduled -> Actual realization;
+2. equal quantity with Purpose-routing drift;
+3. ordinary correction propagation before a later current observation;
+4. correction inside a root already reflected by a current-quantity anchor;
+5. correction of an Event still named as an OpeningSupport witness.
+
+The combined observation is stronger than a generic conservation story. LOAM already distinguishes at least four voices that may move independently:
+
+```text
+expectation       Scheduled + Scheduled routing
+occurrence        Actual + validity + correction frontier
+interpretation    Purpose / AccountingRole relations
+observed present  current quantity anchor + reflected correction-root cut
+```
+
+The current design can therefore express cases where:
+
+- expectation becomes occurrence while Headroom stays invariant;
+- quantity realizes exactly but Purpose interpretation diverges;
+- corrected history changes many derived flows;
+- a later observed current quantity stays fixed while the history explaining it changes;
+- retaining additional correction evidence invalidates a stale OpeningSupport answer instead of silently retargeting it.
+
+This is a candidate for LOAM's own expressive material. Do not turn the four lines above into a new generic Core ontology. First falsify the concrete worlds using current production functions.
+
 ## What counts as "LOAM's sound"
 
 A promising result has most of these properties:
@@ -212,8 +247,14 @@ The strongest sign is not novelty of terminology. It is the experience:
 
 ## Immediate next step
 
-Begin with **C1: Scheduled realization counterpoint**.
+The broad listening pass is now complete enough that the next work may become executable again, but still should not modify production behavior.
 
-First reconstruct Observation 113 against current production types and identify every condition that the old bounded model abstracted away. Do not modify production behavior yet. The initial artifact should be a counterexample map or a minimal executable/formal probe showing which variants preserve or break the headroom-delta law.
+Falsify the five concrete worlds against current production functions, starting with the smallest probes for:
 
-Only after that should we decide whether LOAM has earned a new theorem, review projection, or user-facing answer.
+- exact Scheduled realization Headroom preservation;
+- equal-quantity Purpose drift;
+- correction delta propagation;
+- reflected-root current-anchor stability;
+- stale OpeningSupport refusal after correcting its witness.
+
+Only after those probes should we decide whether LOAM has earned a local theorem, bounded Alloy model, read-only explanation, or no new production artifact at all.
