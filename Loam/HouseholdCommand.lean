@@ -62,7 +62,7 @@ def correctActual
 def correctActualDate
     (root : System.FilePath)
     (draft : Loam.ActualValidityPublisher.Draft) :
-    IO (Except String Loam.ActualValidityPublisher.Receipt) :=
+    IO (Except String Bool) :=
   Loam.ActualValidityPublisher.publishDate root.toString draft
 
 /-- Publish one exact Actual reversal. -/
