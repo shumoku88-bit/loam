@@ -69,7 +69,7 @@ def correctActualDate
 def reverseActual
     (root : System.FilePath)
     (draft : Loam.ActualReversalPublisher.Draft) :
-    IO (Except String Loam.ActualReversalPublisher.Receipt) :=
+    IO (Except String Unit) :=
   Loam.ActualReversalPublisher.publishReversal
     (scheduledFile root).toString root.toString draft
 
