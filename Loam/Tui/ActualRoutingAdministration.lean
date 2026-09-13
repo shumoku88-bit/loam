@@ -1,3 +1,4 @@
+import Loam.ActualDate
 import Loam.ActualRoutingPublisher
 import Loam.ActualRoutingReview
 import Loam.Tui.Kernel
@@ -18,12 +19,21 @@ set_option autoImplicit false
 
 Presentation-only workspace over `ActualRoutingReview.Snapshot`.
 
-The surface shows every currently admitted Locus that explicit AccountingRole
-evidence classifies as Expense, including managed, unmanaged, and unrouted rows.
-It can append one explicit dated routing assertion through the shared
-`ActualRoutingPublisher`; it does not infer Purpose from spelling and it does not
-rename Purpose identity.
+The default surface preserves the established Expense-routing administration
+contract. A separate explicitly-entered `Other admitted loci` surface exposes
+known non-Expense Loci without treating them as routing obligations. This makes
+Asset/Income/Liability/Equity routing available for generic Purpose questions
+such as savings or investment contribution while keeping default unrouted audits
+Expense-scoped.
+
+Publication still delegates to `ActualRoutingPublisher`. The user explicitly
+chooses the routing effective coordinate; no route is silently backdated.
 -/
+
+inductive LocusScope where
+  | expense
+  | other
+  deriving Repr, DecidableEq
 
 inductive TargetChoice where
   | managed
@@ -34,15 +44,18 @@ inductive Phase where
   | selectLocus
   | selectTarget
   | selectPurpose
+  | editEffective (inputBuffer : String)
   | preview
   deriving Repr, DecidableEq
 
 structure State where
   snapshot : Loam.ActualRoutingReview.Snapshot
+  scope : LocusScope := .expense
   phase : Phase := .selectLocus
   locusIndex : Nat := 0
   targetChoice : TargetChoice := .managed
   purposeIndex : Nat := 0
+  effectiveOn : RoutingEffective String
   notice : String := ""
   deriving Repr
 
@@ -52,13 +65,31 @@ structure Step where
   publish : Option Loam.ActualRoutingPublisher.Draft := none
   deriving Repr
 
+private def effectiveText : RoutingEffective String → String
+  | .initial => "initial"
+  | .dated date => date
+
+private def roleText : AccountingRole → String
+  | .asset => "Asset"
+  | .liability => "Liability"
+  | .equity => "Equity"
+  | .income => "Income"
+  | .expense => "Expense"
+
 
 def initial (snapshot : Loam.ActualRoutingReview.Snapshot) : State :=
-  { snapshot := snapshot }
+  { snapshot := snapshot
+    effectiveOn := .dated snapshot.observedAt }
+
+
+def activeRows (state : State) : List Loam.ActualRoutingReview.Row :=
+  match state.scope with
+  | .expense => state.snapshot.rows
+  | .other => state.snapshot.otherRows
 
 
 def selectedRow? (state : State) : Option Loam.ActualRoutingReview.Row :=
-  state.snapshot.rows[state.locusIndex]?
+  (activeRows state)[state.locusIndex]?
 
 
 def selectedPurpose? (state : State) : Option PurposeId :=
@@ -75,9 +106,24 @@ def draft? (state : State) : Option Loam.ActualRoutingPublisher.Draft := do
         some (Loam.ActualRoutingPublisher.Target.managed purpose)
   return {
     locus := row.locus
-    effectiveOn := .dated state.snapshot.observedAt
+    effectiveOn := state.effectiveOn
     target := target
   }
+
+private def startEffectiveEdit (state : State) : Step :=
+  { state := { state with phase := .editEffective "", notice := "" } }
+
+private def backFromEffective (state : State) : Step :=
+  match state.targetChoice with
+  | .managed => { state := { state with phase := .selectPurpose, notice := "" } }
+  | .unmanaged => { state := { state with phase := .selectTarget, notice := "" } }
+
+private def toggleScope (state : State) : State :=
+  let next :=
+    match state.scope with
+    | .expense => LocusScope.other
+    | .other => LocusScope.expense
+  { state with scope := next, locusIndex := 0, notice := "" }
 
 
 def update (state : State) (key : Key) : Step :=
@@ -91,13 +137,20 @@ def update (state : State) (key : Key) : Step :=
               let next := if state.locusIndex == 0 then 0 else state.locusIndex - 1
               { state := { state with locusIndex := next, notice := "" } }
           | .down | .input 'j' | .input 'J' =>
+              let rows := activeRows state
               let next :=
-                if state.locusIndex + 1 < state.snapshot.rows.length then state.locusIndex + 1
+                if state.locusIndex + 1 < rows.length then state.locusIndex + 1
                 else state.locusIndex
               { state := { state with locusIndex := next, notice := "" } }
+          | .input 'a' | .input 'A' =>
+              { state := toggleScope state }
           | .enter =>
-              if state.snapshot.rows.isEmpty then
-                { state := { state with notice := "No current Expense Locus is available for routing." } }
+              if (activeRows state).isEmpty then
+                let label :=
+                  match state.scope with
+                  | .expense => "No current Expense Locus is available for routing."
+                  | .other => "No admitted non-Expense Locus with a known AccountingRole is available."
+                { state := { state with notice := label } }
               else
                 { state := { state with phase := .selectTarget, notice := "" } }
           | .escape | .input 'b' | .input 'B' => { state := state, cancel := true }
@@ -114,7 +167,7 @@ def update (state : State) (key : Key) : Step :=
               { state := { state with targetChoice := next, notice := "" } }
           | .enter =>
               match state.targetChoice with
-              | .unmanaged => { state := { state with phase := .preview, notice := "" } }
+              | .unmanaged => startEffectiveEdit state
               | .managed =>
                   if state.snapshot.purposes.isEmpty then
                     { state := { state with notice := "No retained Capacity Purpose is available." } }
@@ -136,11 +189,32 @@ def update (state : State) (key : Key) : Step :=
               { state := { state with purposeIndex := next, notice := "" } }
           | .enter =>
               if state.purposeIndex < state.snapshot.purposes.length then
-                { state := { state with phase := .preview, notice := "" } }
+                startEffectiveEdit state
               else
                 { state := { state with notice := "Invalid Purpose selection." } }
           | .escape | .input 'b' | .input 'B' =>
               { state := { state with phase := .selectTarget, notice := "" } }
+          | _ => { state := state }
+
+      | .editEffective buffer =>
+          match key with
+          | .input 'i' | .input 'I' =>
+              { state := { state with effectiveOn := .initial, phase := .preview, notice := "" } }
+          | .input char =>
+              if char.isDigit || char == '-' then
+                { state := { state with phase := .editEffective (buffer.push char), notice := "" } }
+              else
+                { state := state }
+          | .backspace =>
+              let next := String.ofList buffer.toList.dropLast
+              { state := { state with phase := .editEffective next, notice := "" } }
+          | .enter =>
+              let date := if buffer.isEmpty then state.snapshot.observedAt else buffer
+              if Loam.ActualDate.validIsoDate date then
+                { state := { state with effectiveOn := .dated date, phase := .preview, notice := "" } }
+              else
+                { state := { state with notice := "Effective date must be a real YYYY-MM-DD date, or press i for initial." } }
+          | .escape | .input 'b' | .input 'B' => backFromEffective state
           | _ => { state := state }
 
       | .preview =>
@@ -149,6 +223,8 @@ def update (state : State) (key : Key) : Step :=
               match draft? state with
               | some draft => { state := state, publish := some draft }
               | none => { state := { state with notice := "Incomplete Actual routing draft." } }
+          | .input 'd' | .input 'D' =>
+              { state := { state with phase := .editEffective "", notice := "" } }
           | .input 'e' | .input 'E' =>
               { state := { state with phase := .selectTarget, notice := "" } }
           | .escape | .input 'b' | .input 'B' =>
@@ -168,39 +244,56 @@ private def statusText : RoutingStatus → String
 
 private def rowWidget (selected : Bool) (row : Loam.ActualRoutingReview.Row) : Widget :=
   let marker := if selected then "▶  " else "   "
-  let locus := padRight 28 row.locus.token
+  let locus := padRight 24 row.locus.token
+  let role := padRight 12 (roleText row.role)
   let status := statusText row.status
-  .row [span (marker ++ locus ++ status) (if selected then .selected else .normal)]
+  .row [span (marker ++ locus ++ role ++ status) (if selected then .selected else .normal)]
 
 
 def view (bounds : Bounds) (state : State) : Widget :=
   let maxVisible := if bounds.height > 12 then bounds.height - 10 else 6
   match state.phase with
   | .selectLocus =>
-      let visible := centeredListWindow state.snapshot.rows state.locusIndex maxVisible
+      let active := activeRows state
+      let visible := centeredListWindow active state.locusIndex maxVisible
       let rows :=
-        if state.snapshot.rows.isEmpty then [line "   No current Expense Locus is available."]
+        if active.isEmpty then
+          match state.scope with
+          | .expense => [line "   No current Expense Locus is available."]
+          | .other => [line "   No admitted known-role non-Expense Locus is available."]
         else visible.map fun (idx, row) => rowWidget (idx == state.locusIndex) row
+      let scopeSummary :=
+        match state.scope with
+        | .expense =>
+            "Expense Loci: " ++ toString state.snapshot.rows.length ++
+              " | unrouted: " ++ toString (Loam.ActualRoutingReview.unroutedCount state.snapshot)
+        | .other =>
+            "Other admitted loci: " ++ toString state.snapshot.otherRows.length ++
+              " | optional routing only"
+      let toggleHelp :=
+        match state.scope with
+        | .expense => "a show other admitted loci"
+        | .other => "a return to Expense loci"
       .column <|
         [ line "Purpose Administration / Actual Routing"
         , muted "Capacity > Purpose Administration"
         , muted ("Observed: " ++ state.snapshot.observedAt)
         , blank
-        , muted ("Expense Loci: " ++ toString state.snapshot.rows.length ++
-            " | unrouted: " ++ toString (Loam.ActualRoutingReview.unroutedCount state.snapshot))
+        , muted scopeSummary
         , muted ("Unresolved AccountingRole: " ++ toString state.snapshot.unresolvedRoleLoci.length ++
             " | historical-only routes: " ++ toString state.snapshot.historicalOnlyRouteLoci.length)
         , blank
-        , muted ("   " ++ padRight 28 "Locus" ++ "Current route")
+        , muted ("   " ++ padRight 24 "Locus" ++ padRight 12 "Role" ++ "Current route")
         ] ++ rows ++
         [ blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter edit selected route   ↑/↓ (j/k) select   Esc/b/q back"
-        , muted "Only explicit AccountingRole=Expense Loci appear; no name/sign inference."
+        , muted ("Enter edit selected route   ↑/↓ (j/k) select   " ++ toggleHelp)
+        , muted "Esc/b/q back   Other admitted loci are optional; UNROUTED there is not a warning."
         ]
 
   | .selectTarget =>
       let locus := match selectedRow? state with | some row => row.locus.token | none => "none"
+      let role := match selectedRow? state with | some row => roleText row.role | none => "none"
       let current := match selectedRow? state with | some row => statusText row.status | none => "none"
       let managed := state.targetChoice == .managed
       let unmanaged := state.targetChoice == .unmanaged
@@ -208,7 +301,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ line "Purpose Administration / Route Type"
         , muted "Capacity > Purpose Administration > Actual Routing"
         , blank
-        , line ("Locus: " ++ locus)
+        , line ("Locus: " ++ locus ++ " [" ++ role ++ "]")
         , line ("Current route: " ++ current)
         , blank
         , .row [span (if managed then "▶  [x] managed -> Purpose" else "   [ ] managed -> Purpose")
@@ -232,16 +325,34 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ line "Purpose Administration / Select Purpose"
         , muted "Capacity > Purpose Administration > Actual Routing"
         , blank
-        , line "Route selected Expense Locus to:"
+        , line "Route selected Locus to:"
         ] ++ purposes ++
         [ blank
         , muted "Purpose candidates come from retained Capacity evidence."
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ (j/k) select   Enter preview   Esc/b back   q cancel"
+        , muted "↑/↓ (j/k) select   Enter continue   Esc/b back   q cancel"
+        ]
+
+  | .editEffective buffer =>
+      let shown := if buffer.isEmpty then "(blank = observed date)" else buffer
+      .column
+        [ line "Purpose Administration / Effective Coordinate"
+        , muted "Capacity > Purpose Administration > Actual Routing"
+        , blank
+        , line ("Observed date: " ++ state.snapshot.observedAt)
+        , line ("Effective from: " ++ shown)
+        , blank
+        , muted "Type YYYY-MM-DD and press Enter, or press Enter blank to use observed date."
+        , muted "Press i for initial only when the routing policy truly applies from the retained origin."
+        , muted "No historical route is inferred from today's choice."
+        , blank
+        , if state.notice.isEmpty then blank else line state.notice
+        , muted "digits/- edit   Backspace delete   i initial   Enter continue   Esc/b back   q cancel"
         ]
 
   | .preview =>
       let locus := match selectedRow? state with | some row => row.locus.token | none => "none"
+      let role := match selectedRow? state with | some row => roleText row.role | none => "none"
       let target :=
         match state.targetChoice with
         | .unmanaged => "unmanaged"
@@ -253,16 +364,16 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ line "Purpose Administration / Preview"
         , muted "Capacity > Purpose Administration > Actual Routing"
         , blank
-        , line ("Locus:        " ++ locus)
-        , line ("Effective On: " ++ state.snapshot.observedAt)
+        , line ("Locus:        " ++ locus ++ " [" ++ role ++ "]")
+        , line ("Effective On: " ++ effectiveText state.effectiveOn)
         , line ("Route Target: " ++ target)
         , blank
         , muted "This appends historical routing evidence; earlier assertions remain retained."
-        , muted "A duplicate Locus/date coordinate is refused rather than silently overwritten."
-        , muted "Purpose identity is stable; display-name/identity migration is not performed here."
+        , muted "A duplicate Locus/effective coordinate is refused rather than silently overwritten."
+        , muted "Purpose identity is stable; no account-name, sign, or AccountingRole inference is performed."
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter publish   e edit   Esc/b back   q cancel"
+        , muted "Enter publish   d edit date   e edit target   Esc/b back   q cancel"
         ]
 
 end Loam.Tui.ActualRoutingAdministration
