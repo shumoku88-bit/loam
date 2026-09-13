@@ -77,16 +77,6 @@ private def validateDraft (draft : Draft) : Except String Unit := do
   if Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement <= 0 then
     throw "loam: Scheduled replacement requires a positive balanced total"
 
-private def transitionAdmissible?
-    (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
-    (events : EventMemory)
-    (source replacement : ScheduledId) : Except String Unit := do
-  let occurrences ← currentOpen? lifecycle events
-  if containsScheduled occurrences source then
-    throw "loam: proposed Scheduled replacement did not close its source"
-  if !containsScheduled occurrences replacement then
-    throw "loam: proposed Scheduled replacement did not expose its replacement as current-open"
-
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
     (draft : Draft) : IO (Except String Receipt) := do
@@ -144,10 +134,6 @@ private def publishUnderOwnership
     scheduled := updatedScheduled
     terminals := updatedTerminals
   }
-  match transitionAdmissible?
-      updatedLifecycle evidence.events draft.source replacementId with
-  | .error message => return .error message
-  | .ok () => pure ()
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled replacement lifecycle could not be published"
   return .ok {
