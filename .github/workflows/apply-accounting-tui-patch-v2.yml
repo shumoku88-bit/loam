@@ -1,0 +1,28 @@
+name: Apply Accounting TUI Patch V2
+
+on:
+  push:
+    branches: [feat/accounting-pl-report]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, '[apply-accounting-tui-patch-v2]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/accounting-pl-report
+          fetch-depth: 0
+      - name: Apply guarded source edits
+        run: python3 .github/scripts/apply_accounting_tui_patch_v2.py
+      - name: Commit patched production surface
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Loam/Tui/Reports.lean Loam/Tui/Cli.lean Loam/Tests/TuiReports.lean
+          git diff --cached --check
+          git commit -m "feat(reports): connect occurrence-time accounting flow"
+          git push origin HEAD:feat/accounting-pl-report
