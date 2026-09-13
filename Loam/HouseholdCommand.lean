@@ -147,14 +147,14 @@ def routeScheduled
 def admitLocus
     (root : System.FilePath)
     (draft : Loam.LocusAdmissionPublisher.Draft) :
-    IO (Except String Loam.LocusAdmissionPublisher.Receipt) :=
+    IO (Except String Unit) :=
   Loam.LocusAdmissionPublisher.publishAdmission root.toString draft
 
 /-- Assign one initial AccountingRole to an unused admitted Locus. -/
 def assignInitialAccountingRole
     (root : System.FilePath)
     (draft : Loam.AccountingRolePublisher.Draft) :
-    IO (Except String Loam.AccountingRolePublisher.Receipt) :=
+    IO (Except String Unit) :=
   Loam.AccountingRolePublisher.publishInitialRole
     (scheduledFile root).toString root.toString (accountingRoleFile root).toString draft
 

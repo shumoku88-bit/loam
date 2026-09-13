@@ -21,12 +21,6 @@ structure Draft where
   token : String
   deriving Repr, DecidableEq
 
-/-- Authority transition counts for one successful admission-policy change. -/
-structure Receipt where
-  previousCount : Nat
-  currentCount : Nat
-  deriving Repr, DecidableEq
-
 /--
 Pure proposal against one already-loaded current admission vocabulary.
 
@@ -35,7 +29,7 @@ Events and display metadata are never consulted while deciding admission.
 -/
 def propose?
     (vocabulary : LocusAdmissionVocabulary) (draft : Draft) :
-    Except String (LocusAdmissionVocabulary × Receipt) := do
+    Except String LocusAdmissionVocabulary := do
   if !Loam.Persistence.validToken draft.token then
     throw "loam: new Locus must be one valid stable token"
   let locus : LocusId := ⟨draft.token⟩
@@ -46,10 +40,7 @@ def propose?
     match LocusAdmissionVocabulary.ofLoci? approved with
     | some updated => pure updated
     | none => throw "loam: proposed Locus admission vocabulary is not unique"
-  pure (updated, {
-    previousCount := vocabulary.approved.length
-    currentCount := updated.approved.length
-  })
+  pure updated
 
 /--
 Admit one new Locus against the current admission-policy authority.
@@ -59,11 +50,12 @@ read/modify/publish protocol. This publisher contributes only the policy-local
 proposal semantics and therefore does not depend on household Actual evidence.
 -/
 def publishAdmission
-    (rootPath : String) (draft : Draft) : IO (Except String Receipt) := do
+    (rootPath : String) (draft : Draft) : IO (Except String Unit) := do
   if rootPath.isEmpty then
     return .error "loam: data root must not be empty"
   let root := System.FilePath.mk rootPath
-  Loam.LocusAdmissionAuthority.updateCurrent? root
-    (fun vocabulary => propose? vocabulary draft)
+  Loam.LocusAdmissionAuthority.updateCurrent? root fun vocabulary => do
+    let updated ← propose? vocabulary draft
+    pure (updated, ())
 
 end Loam.LocusAdmissionPublisher

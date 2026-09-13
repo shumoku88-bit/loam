@@ -39,9 +39,8 @@ private partial def runInitialRoleEditor
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.assignInitialAccountingRole root draft with
-      | .ok receipt =>
-          return "Assigned initial AccountingRole to " ++ draft.locus.token ++ ". Roles: " ++
-            toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
+      | .ok () =>
+          return "Assigned initial AccountingRole to " ++ draft.locus.token ++ "."
       | .error message => return "AccountingRole assignment refused: " ++ message
   | none =>
       let nextFrame := compileWidget (Loam.Tui.AccountingRoleAdministration.view bounds step.state)
@@ -86,9 +85,8 @@ partial def run
     match step.publish with
     | some draft =>
         match ← Loam.HouseholdCommand.admitLocus root draft with
-        | .ok receipt =>
-            return "Admitted Locus " ++ draft.token ++ " for new writes. Vocabulary: " ++
-              toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
+        | .ok () =>
+            return "Admitted Locus " ++ draft.token ++ " for new writes."
         | .error message => return "Locus admission refused: " ++ message
     | none =>
         let nextFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds step.state)
