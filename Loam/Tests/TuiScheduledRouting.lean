@@ -213,11 +213,7 @@ def main (args : List String) : IO Unit := do
 
     -- Publish through shared ScheduledRoutingPublisher
     let res ← Loam.ScheduledRoutingPublisher.publish routingPath.toString scheduledPath.toString draftManaged
-    let .ok receipt := res | throw (IO.userError "publication failed")
-    expect (receipt.subject.scheduled.token == "scheduled-1") "published receipt scheduled"
-    expect (receipt.subject.locus.token == "wifi") "published receipt locus"
-    expect (receipt.effectiveOn == "2026-09-08") "published receipt effectiveOn"
-    expect (receipt.target == .managed ⟨"fixed-cost"⟩) "published receipt target"
+    let .ok () := res | throw (IO.userError "publication failed")
 
     -- Re-read from disk verifies persistence
     let some history ← Loam.Persistence.loadScheduledRoutingHistory? routingPath

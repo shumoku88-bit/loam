@@ -34,14 +34,14 @@ partial def run
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.routeScheduled root draft with
-      | .ok receipt =>
+      | .ok () =>
           let targetDesc :=
-            match receipt.target with
+            match draft.target with
             | .managed p => "managed " ++ p.token
             | .unmanaged => "unmanaged"
-          return "Routed " ++ receipt.subject.scheduled.token ++ " / " ++
-            receipt.subject.locus.token ++ " -> " ++ targetDesc ++
-            ". Effective: " ++ receipt.effectiveOn ++ "."
+          return "Routed " ++ draft.subject.scheduled.token ++ " / " ++
+            draft.subject.locus.token ++ " -> " ++ targetDesc ++
+            ". Effective: " ++ draft.effectiveOn ++ "."
       | .error message =>
           return "Scheduled routing refused: " ++ message
   | none =>
