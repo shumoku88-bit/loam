@@ -96,11 +96,10 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "save complete Scheduled lifecycle fixture"
 
-  let .ok resumedFresh ← Loam.ScheduledTerminalPublisher.publishCompletion
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-1" "2026-09-08" "paypay" "rent" 1100)
     | throw (IO.userError "publish scheduled completion")
-  expect (!resumedFresh) "fresh completion reported recovery"
 
   let some retainedLifecycle ←
       Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
@@ -152,15 +151,21 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile
       { currentLifecycle with terminals := withInterrupted })
     "save lifecycle with interrupted completion relation"
-  let .ok resumed ← Loam.ScheduledTerminalPublisher.publishCompletion
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString
       (completionDraft "scheduled-3" "2026-09-09" "smbc" "rent" 3100)
     | throw (IO.userError "resume relation-first completion")
-  expect resumed "retained inert completion relation was not recovered"
   let .ok recoveredEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload Actual authority after recovery")
   expect ((EventMemory.findById? recoveredEvidence.events recoveredEndpoint).isSome)
     "recovery did not honor the canonical retained Actual endpoint"
+  let some afterRecoveryLifecycle ←
+      Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after recovery")
+  expect (afterRecoveryLifecycle.terminals.completionActualFor? ⟨"scheduled-3"⟩ == some recoveredEndpoint)
+    "recovery lost the canonical retained completion Actual endpoint"
+  expect (completionCount afterRecoveryLifecycle.terminals == 2)
+    "recovery duplicated or lost completion relations"
 
   let some recoveryLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle for cancellation guard")

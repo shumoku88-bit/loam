@@ -74,9 +74,8 @@ def main (args : List String) : IO Unit := do
   expect (dateDraft.target == recorded && dateDraft.validOn == "2026-09-06")
     "date editor intent changed target or date"
 
-  let .ok changed ← Loam.ActualValidityPublisher.publishDate root.toString dateDraft
+  let .ok () ← Loam.ActualValidityPublisher.publishDate root.toString dateDraft
     | throw (IO.userError "shared date publisher refused TUI intent")
-  expect changed "shared date publisher did not report a change"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "fresh Actual review reload")

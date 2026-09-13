@@ -58,17 +58,20 @@ def main (args : List String) : IO Unit := do
     "invalid date changed Actual authority"
 
   let beforeNoop ← IO.FS.readFile (root / "actual.loam")
-  let .ok noop ← Loam.ActualValidityPublisher.publishDate
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded, validOn := "2026-09-03" }
     | throw (IO.userError "same-date no-op was refused")
-  expect (!noop) "same-date publication did not report an exact no-op"
   expect ((← IO.FS.readFile (root / "actual.loam")) == beforeNoop)
     "same-date no-op changed Actual authority"
+  let .ok currentNoop ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "reload after same-date no-op")
+  let noopRecords := Loam.ActualReview.select currentNoop (.day "2026-09-03")
+  expect (noopRecords.length == 1 && noopRecords.any fun item => item.event.id == recorded)
+    "same-date no-op lost the current occurrence date"
 
-  let .ok corrected ← Loam.ActualValidityPublisher.publishDate
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded, validOn := "2026-09-02" }
     | throw (IO.userError "first date correction was refused")
-  expect corrected "first date correction did not report a change"
 
   let .ok once ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload corrected Actual review")
@@ -78,10 +81,9 @@ def main (args : List String) : IO Unit := do
   expect (currentOnce.length == 1 && currentOnce.any fun item => item.event.id == recorded)
     "fresh Actual review did not expose the corrected date"
 
-  let .ok twice ← Loam.ActualValidityPublisher.publishDate
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := recorded, validOn := "2026-09-01" }
     | throw (IO.userError "repeated date correction was refused")
-  expect twice "repeated date correction did not report a change"
   let .ok twiceReview ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload repeatedly corrected Actual review")
   expect ((Loam.ActualReview.select twiceReview (.day "2026-09-02")).isEmpty)
@@ -115,10 +117,9 @@ def main (args : List String) : IO Unit := do
       item.event.id == replacementId && item.isCurrent)
     "replacement did not inherit the current carried date"
 
-  let .ok replacementDate ← Loam.ActualValidityPublisher.publishDate
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
       root.toString { target := replacementId, validOn := "2026-08-31" }
     | throw (IO.userError "current replacement date correction was refused")
-  expect replacementDate "replacement date correction did not report a change"
 
   let .ok fresh ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload replacement Actual review")

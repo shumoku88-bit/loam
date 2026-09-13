@@ -137,10 +137,9 @@ def main (args : List String) : IO Unit := do
     "completion preview did not emit shared publisher intent"
   expect (completionIntent.scheduled.token == "scheduled-1")
     "completion editor lost selected Scheduled identity"
-  let .ok resumedFresh ← Loam.ScheduledTerminalPublisher.publishCompletion
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishCompletion
       scheduledFile.toString root.toString completionIntent
     | throw (IO.userError "publish selected Scheduled completion")
-  expect (!resumedFresh) "fresh TUI completion reported interrupted recovery"
   let some completionLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload canonical Scheduled lifecycle after completion")
   let completionActual ← requireSome

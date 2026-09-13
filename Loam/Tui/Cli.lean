@@ -281,11 +281,8 @@ partial def actualDateCorrectionLoop
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.correctActualDate root draft with
-      | .ok changed =>
-          if changed then
-            return "Date corrected to " ++ draft.validOn ++ "."
-          else
-            return "Date is already current; nothing changed."
+      | .ok () =>
+          return "Date set to " ++ draft.validOn ++ "."
       | .error message =>
           let next := Loam.Tui.ActualDateCorrection.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view next)
@@ -298,22 +295,22 @@ partial def actualDateCorrectionLoop
 
 /--
 Scheduled completion edits an Actual draft; shared publication re-reads both
-authorities. A successful result reports whether publication resumed an
-interrupted relation-first completion. Continuation creation remains a
-separate operation.
+authorities. Returns true when completion was published successfully, or false
+when the editor was cancelled. Continuation creation remains a separate
+operation.
 -/
 partial def scheduledCompletionLoop
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) :
-    IO (Option Bool) := do
+    IO Bool := do
   let step := Loam.Tui.ScheduledCompletion.update world known state
     (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return none
+  if step.cancel then return false
   match step.publish with
   | some draft =>
       match ← Loam.HouseholdCommand.completeScheduled root draft with
-      | .ok resumed => return some resumed
+      | .ok () => return true
       | .error message =>
           let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
@@ -444,18 +441,15 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let completion ← scheduledCompletionLoop
+              let completed ← scheduledCompletionLoop
                 bounds root world known editor editorFrame
               let notice ←
-                match completion with
-                | none => pure "Scheduled completion cancelled."
-                | some resumed =>
-                    let completedNotice :=
-                      if resumed then
-                        "Completed " ++ record.id.token ++ " (recovered interrupted completion)."
-                      else
-                        "Completed " ++ record.id.token ++ "."
-                    match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
+                if !completed then
+                  pure "Scheduled completion cancelled."
+                else
+                  let completedNotice :=
+                    "Completed " ++ record.id.token ++ "."
+                  match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
                     | .ok nextEditor =>
@@ -590,18 +584,15 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let completion ← scheduledCompletionLoop
+              let completed ← scheduledCompletionLoop
                 bounds root world known editor editorFrame
               let notice ←
-                match completion with
-                | none => pure "Scheduled completion cancelled."
-                | some resumed =>
-                    let completedNotice :=
-                      if resumed then
-                        "Completed " ++ record.id.token ++ " (recovered interrupted completion)."
-                      else
-                        "Completed " ++ record.id.token ++ "."
-                    match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
+                if !completed then
+                  pure "Scheduled completion cancelled."
+                else
+                  let completedNotice :=
+                    "Completed " ++ record.id.token ++ "."
+                  match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
                     | .error message =>
                         pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
                     | .ok nextEditor =>

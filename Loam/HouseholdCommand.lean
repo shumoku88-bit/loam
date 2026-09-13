@@ -62,7 +62,7 @@ def correctActual
 def correctActualDate
     (root : System.FilePath)
     (draft : Loam.ActualValidityPublisher.Draft) :
-    IO (Except String Bool) :=
+    IO (Except String Unit) :=
   Loam.ActualValidityPublisher.publishDate root.toString draft
 
 /-- Publish one exact Actual reversal. -/
@@ -81,11 +81,11 @@ def createScheduled
   Loam.ScheduledCreationPublisher.publishCreation
     (scheduledFile root).toString root.toString draft
 
-/-- Complete one Scheduled occurrence into Actual; true means interrupted completion recovery. -/
+/-- Complete one Scheduled occurrence into Actual. -/
 def completeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :
-    IO (Except String Bool) :=
+    IO (Except String Unit) :=
   Loam.ScheduledTerminalPublisher.publishCompletion
     (scheduledFile root).toString root.toString draft
 
