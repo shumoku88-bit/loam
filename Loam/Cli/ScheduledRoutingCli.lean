@@ -45,14 +45,14 @@ def record
         IO.eprintln "loam: route must be 'managed PURPOSE' or 'unmanaged'"
         return 2
   match ← Loam.ScheduledRoutingPublisher.publish routingPath scheduledPath draft with
-  | .ok receipt =>
+  | .ok () =>
       let routeText :=
-        match receipt.target with
+        match draft.target with
         | .managed p => "managed -> " ++ p.token
         | .unmanaged => "unmanaged"
       IO.println
-        ("Recorded Scheduled route: " ++ receipt.subject.scheduled.token ++ " / " ++
-          receipt.subject.locus.token ++ " @ " ++ receipt.effectiveOn ++ " = " ++ routeText ++ ".")
+        ("Recorded Scheduled route: " ++ draft.subject.scheduled.token ++ " / " ++
+          draft.subject.locus.token ++ " @ " ++ draft.effectiveOn ++ " = " ++ routeText ++ ".")
       return 0
   | .error message =>
       IO.eprintln message
