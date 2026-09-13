@@ -56,21 +56,26 @@ def main (args : List String) : IO Unit := do
   let actualRoot := dataDir
   IO.FS.createDirAll dataDir
 
-  publishWorld actualRoot ["coffee", "shipping", "cash", "mystery"]
+  publishWorld actualRoot ["coffee", "shipping", "cash", "yucho", "pension", "debt", "mystery"]
 
   IO.FS.writeFile (dataDir / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
      "ROLE\tcoffee\tEXPENSE\n" ++
      "ROLE\tshipping\tEXPENSE\n" ++
-     "ROLE\tcash\tASSET\n")
+     "ROLE\tcash\tASSET\n" ++
+     "ROLE\tyucho\tASSET\n" ++
+     "ROLE\tpension\tINCOME\n" ++
+     "ROLE\tdebt\tLIABILITY\n")
 
   IO.FS.writeFile (dataDir / "actual-routing.loam")
     ("LOAM-ACTUAL-ROUTING\t1\n" ++
      "ROUTE\tcoffee\tINITIAL\tMANAGED\tfood\n" ++
+     "ROUTE\tyucho\tINITIAL\tMANAGED\tsavings\n" ++
      "ROUTE\told-expense\tINITIAL\tMANAGED\tfood\n")
 
   let food : PurposeId := ⟨"food"⟩
   let general : PurposeId := ⟨"general"⟩
+  let savings : PurposeId := ⟨"savings"⟩
   let allocation1 ← requireSome
     (capacityMovement? "capacity-1"
       [ change .unallocated (-100)
@@ -81,8 +86,13 @@ def main (args : List String) : IO Unit := do
       [ change .unallocated (-50)
       , change (.purpose general) 50 ])
     "general capacity allocation"
+  let allocation3 ← requireSome
+    (capacityMovement? "capacity-3"
+      [ change .unallocated (-25)
+      , change (.purpose savings) 25 ])
+    "savings capacity allocation"
   let capacity ← requireSome
-    (CapacityMemory.ofMovements? [allocation1, allocation2]) "Capacity memory"
+    (CapacityMemory.ofMovements? [allocation1, allocation2, allocation3]) "Capacity memory"
   expect (← Loam.Persistence.saveCapacityMemory? (dataDir / "capacity.loam") capacity)
     "save Capacity authority"
 
@@ -92,25 +102,48 @@ def main (args : List String) : IO Unit := do
     | .error message => throw (IO.userError message)
 
   expect (snapshot.observedAt == "2026-09-09") "observed date"
-  expect (snapshot.rows.length == 2) "only explicit current Expense Loci become rows"
+  expect (snapshot.rows.length == 2) "default rows remain explicit current Expense Loci"
   let coffee ← requireSome
     (snapshot.rows.find? fun row => row.locus.token == "coffee") "coffee row"
   let shipping ← requireSome
     (snapshot.rows.find? fun row => row.locus.token == "shipping") "shipping row"
-  expect (coffee.status == .managed food) "coffee current managed route"
-  expect (shipping.status == .unrouted) "shipping remains visibly unrouted"
+  expect (coffee.role == .expense && coffee.status == .managed food)
+    "coffee current managed Expense route"
+  expect (shipping.role == .expense && shipping.status == .unrouted)
+    "shipping remains visibly unrouted Expense"
+
+  expect (snapshot.otherRows.length == 4)
+    "known admitted non-Expense Loci become optional rows"
+  let cash ← requireSome
+    (snapshot.otherRows.find? fun row => row.locus.token == "cash") "cash optional row"
+  let yucho ← requireSome
+    (snapshot.otherRows.find? fun row => row.locus.token == "yucho") "yucho optional row"
+  let pension ← requireSome
+    (snapshot.otherRows.find? fun row => row.locus.token == "pension") "pension optional row"
+  let debt ← requireSome
+    (snapshot.otherRows.find? fun row => row.locus.token == "debt") "debt optional row"
+  expect (cash.role == .asset && cash.status == .unrouted)
+    "unrouted Asset remains an ordinary optional row"
+  expect (yucho.role == .asset && yucho.status == .managed savings)
+    "managed savings Asset route visible in optional rows"
+  expect (pension.role == .income && pension.status == .unrouted)
+    "Income route candidate remains optional"
+  expect (debt.role == .liability && debt.status == .unrouted)
+    "Liability route candidate remains optional"
   expect (!(snapshot.rows.any fun row => row.locus.token == "cash"))
-    "Asset Locus must not be inferred into Purpose routing administration"
+    "Asset Locus must not become a default routing obligation"
+  expect (Loam.ActualRoutingReview.unroutedCount snapshot == 1)
+    "optional unrouted rows must not change the default Expense warning count"
+
   expect (snapshot.unresolvedRoleLoci.map (fun locus => locus.token) == ["mystery"])
     "missing AccountingRole stays separately visible"
   expect (snapshot.historicalOnlyRouteLoci.map (fun locus => locus.token) == ["old-expense"])
     "historical route outside current admission stays separately visible"
-  expect (snapshot.purposes.map (fun purpose => purpose.token) == ["food", "general"])
+  expect (snapshot.purposes.map (fun purpose => purpose.token) == ["food", "general", "savings"])
     "Purpose candidates come from retained Capacity evidence"
-  expect (Loam.ActualRoutingReview.unroutedCount snapshot == 1) "unrouted count"
 
   match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-02-29" with
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "impossible review date was silently admitted")
 
-  IO.println "Actual routing review: explicit Expense scope, current status, unresolved-role and historical-only audits passed."
+  IO.println "Actual routing review: default Expense rows, optional non-Expense rows and independent audits passed."
