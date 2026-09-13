@@ -64,7 +64,8 @@ def main : IO Unit := do
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
     "[a] actual", "[p] scheduled", "[i] attention", "[c] budget",
-    "[e] capacity", "[u] purpose routes", "[m] loci", "[v] reports", "[q] quit"
+    "[e] capacity", "[u] purpose routes", "[m] loci", "[o] observe qty",
+    "[v] reports", "[q] quit"
   ]
 
   -- 2a. Wide terminal (190 cols): fits on a single line
