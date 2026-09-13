@@ -19,9 +19,10 @@ set_option autoImplicit false
 /-!
 # Production Reports workspace
 
-Reports is presentation and query state only. Stock–Flow and Budget Window consume
-surface-independent shared review answers. Accounting remains an explicit
-evidence-limit surface. Liquidity keeps its unconditional UNKNOWN baseline while
+Reports is presentation and query state only. Stock–Flow, Transactions Flow,
+occurrence-time Accounting, and Budget Window consume surface-independent shared
+review answers. Accounting composes the explicit RoleFlow boundary without adding a
+second accounting engine. Liquidity keeps its unconditional UNKNOWN baseline while
 also exposing the read-only conditional selected-balance path earned by
 Observations 229 and 231.
 -/
