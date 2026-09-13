@@ -110,8 +110,6 @@ private def publishUnderOwnership
     | some scheduled => pure scheduled
     | none => return .error "loam: generated Scheduled identity already retained"
   let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
-  if (Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle).isNone then
-    return .error "loam: Scheduled lifecycle could not be encoded"
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled lifecycle could not be published"
   return .ok {
