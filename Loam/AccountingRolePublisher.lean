@@ -28,9 +28,8 @@ structure Draft where
   role : AccountingRole
 deriving Repr, DecidableEq
 
+/-- Authority transition counts for one successful initial role assignment. -/
 structure Receipt where
-  locus : LocusId
-  role : AccountingRole
   previousCount : Nat
   currentCount : Nat
 deriving Repr, DecidableEq
@@ -87,8 +86,6 @@ def propose?
   let some updated := AccountingRoleMap.ofAssignments? assignments
     | throw "loam: AccountingRole proposal would violate unique Locus assignment"
   return (updated, {
-    locus := draft.locus
-    role := draft.role
     previousCount := roles.assignments.length
     currentCount := updated.assignments.length
   })

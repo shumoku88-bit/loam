@@ -40,7 +40,7 @@ private partial def runInitialRoleEditor
   | some draft =>
       match ← Loam.HouseholdCommand.assignInitialAccountingRole root draft with
       | .ok receipt =>
-          return "Assigned initial AccountingRole to " ++ receipt.locus.token ++ ". Roles: " ++
+          return "Assigned initial AccountingRole to " ++ draft.locus.token ++ ". Roles: " ++
             toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
       | .error message => return "AccountingRole assignment refused: " ++ message
   | none =>
@@ -87,7 +87,7 @@ partial def run
     | some draft =>
         match ← Loam.HouseholdCommand.admitLocus root draft with
         | .ok receipt =>
-            return "Admitted Locus " ++ receipt.locus.token ++ " for new writes. Vocabulary: " ++
+            return "Admitted Locus " ++ draft.token ++ " for new writes. Vocabulary: " ++
               toString receipt.previousCount ++ " -> " ++ toString receipt.currentCount ++ "."
         | .error message => return "Locus admission refused: " ++ message
     | none =>
