@@ -33,14 +33,11 @@ new-write policy in `locus-admission.loam`.
 /--
 Small surface-independent receipt for one admitted Movement publication.
 
-It exposes only identities/counts that a frontend may render after admission.
-The canonical world and persistence representation remain private to the
-publisher boundary.
+It exposes only the generated Event identity. The canonical world and
+persistence representation remain private to the publisher boundary.
 -/
 structure Receipt where
   eventId : Loam.Core.EventId
-  relationCount : Nat
-  dischargeCount : Nat
   deriving Repr
 
 /--
@@ -85,8 +82,6 @@ private def publishUnderOwnership
   | Except.ok admitted =>
       let receipt : Receipt := {
         eventId := admitted.event.id
-        relationCount := admitted.newRelations.length
-        dischargeCount := admitted.newDischarges.length
       }
       beforePublish receipt
       let updatedEvidence : ActualEvidence := {
