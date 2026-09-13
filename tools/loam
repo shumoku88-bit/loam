@@ -36,6 +36,10 @@ Print the evidence-aware Balances report as plain text:
   ./tools/loam report balances [LOAM_DATA_DIR]
   The output is the same shared RoleBalance presentation without TUI paging.
 
+Publish one complete current quantity observation image:
+  ./tools/loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]
+  LOAM_DATA_DIR selects the household data root; otherwise ../loam-data is used.
+
 Record one balanced JPY movement into actual.loam:
   ./tools/loam movement [LOAM_DATA_DIR]
 

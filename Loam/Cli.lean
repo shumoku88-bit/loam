@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.Cli.CurrentQuantityAnchorCli
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership
 import Loam.Cli.EffectiveCli
@@ -21,6 +22,8 @@ private def practicalUsage : String :=
   "  ./tools/loam doctor [LOAM_DATA_DIR]\n\n" ++
   "Print the evidence-aware Balances report as plain text:\n" ++
   "  ./tools/loam report balances [LOAM_DATA_DIR]\n\n" ++
+  "Publish one complete current quantity observation image:\n" ++
+  "  ./tools/loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
   "Scheduled persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
   "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
@@ -121,6 +124,8 @@ def run (args : List String) : IO UInt32 := do
       return 0
   | ["report", "balances"] => showRoleBalanceReport
   | ["report", "balances", dataDir] => showRoleBalanceReport (some dataDir)
+  | "current-quantity-anchor" :: observationArgs =>
+      Loam.CurrentQuantityAnchorCli.run observationArgs
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
   | ["review", actualPath] => Loam.ReviewCli.review actualPath
