@@ -31,6 +31,7 @@ on:
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/CounterpointFiveWorlds.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV2.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -70,6 +71,7 @@ on:
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/CounterpointFiveWorlds.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV2.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -118,6 +120,10 @@ jobs:
       - name: Run four-voice V1 compatibility story
         shell: bash
         run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV1.lean
+
+      - name: Run four-voice V2 interpretation story
+        shell: bash
+        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV2.lean
 
       - name: Run production Current Capacity Coverage reader story
         shell: bash
