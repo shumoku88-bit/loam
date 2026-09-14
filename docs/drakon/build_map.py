@@ -98,7 +98,7 @@ SIMPLE_DIAGRAMS = [
     ("04.4 Allocation", ["Routing Effective", "Capacity", "Capacity Effective", "Capacity Memory"], ""),
     ("04.5 Knowledge", ["Attention", "Attention Memory", "Open Relation", "Zero-Origin Coverage", "Opening Support"], ""),
     ("05 Evidence & History", ["Event Memory", "Correction Memory", "Validity History", "Capacity Memory", "Attention Memory", "Coverage / Opening Support"], ""),
-    ("06 Authority & Persistence", ["Household authority root", "actual.loam", "Decode", "Validate", "Publish", "Configuration"], ""),
+    ("06 Authority & Persistence", ["Household authority root", "actual.loam", "scheduled.loam", "Decode", "Validate", "Publish", "Configuration"], ""),
     ("07 Projections & Reports", ["Actual Review", "Balances / Accounting Role Balance", "Income & Expense", "Stock-Flow", "Transactions Flow", "Budget Window", "Other answers remain derived views"], ""),
     ("08 Formal Evidence", ["Lean: retained laws / practical Core", "Alloy: structures / counterexamples", "J: arrays / projection / loss / shape", "TLA+: temporal and operation-order questions", "Historical observations: evidence, not production authority"], ""),
 ]
@@ -122,6 +122,24 @@ FLOW_DIAGRAMS = {
             ("decision", "Locale-specific policy stays at the edge?", "Move concern outward\nJapan-friendly must not become Japan-bound"),
             ("decision", "Extension is additive rather than semantic distortion?", "Add explicit evidence / policy / adapter\ndo not weaken an existing law"),
             ("action", "MACRO GATE PASSED\ncontinue local proof / tests / review"),
+        ],
+    },
+    "09 Write Path Comparison": {
+        "description": "Cross-path comparison before promoting repeated write mechanics inward.",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
+        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Record and Correction share one-Actual publication topology; Scheduled Completion has two authorities and a distinct retry law.",
+        "nodes": [
+            ("action", "RECORD MOVEMENT\nActual + current Locus policy"),
+            ("action", "pure Movement admission\nfresh Event identity"),
+            ("action", "publish one complete Actual generation"),
+            ("action", "CORRECTION\nActual + current Locus policy"),
+            ("action", "correction-specific admission\ncurrent target + replacement Event"),
+            ("action", "publish one complete Actual generation"),
+            ("action", "SCHEDULED COMPLETION\nScheduled lifecycle + Actual + Locus policy"),
+            ("action", "completion-specific admission\nstable completion Event identity"),
+            ("action", "publish Scheduled terminal first\nthen publish Actual generation"),
+            ("action", "COMMON MECHANICS CANDIDATES\nownership, authoritative reload, typed complete-image publication"),
+            ("action", "DO NOT MERGE BY SHAPE\nauthority topology, semantic admission, crash / retry law"),
         ],
     },
     "10.0 Record Movement": {
@@ -156,7 +174,7 @@ FLOW_DIAGRAMS = {
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
         "sources": "Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
-        "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The lock covers re-read through atomic publication, not human think time.",
+        "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
             ("insertion", "Acquire writer ownership\nactual.loam writer lock"),
@@ -167,7 +185,6 @@ FLOW_DIAGRAMS = {
             ("action", "ActualAuthority.movementWorld\nevidence + current policy"),
             ("insertion", "MovementAdmission.admit?\nagainst authoritative world"),
             ("decision", "Draft admitted?", "Refuse\nsemantic admission failed"),
-            ("action", "Optional beforePublish callback\nsurface observes admitted EventId"),
             ("action", "Build updated ActualEvidence\npreserve correction / reversal evidence"),
             ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
             ("decision", "Atomic publication succeeded?", "Refuse\nexisting authority remains intact"),
@@ -177,7 +194,7 @@ FLOW_DIAGRAMS = {
     "10.3 Movement Admission": {
         "description": "Pure semantic admission of one Movement draft against one typed world.",
         "sources": "Loam/MovementAdmission.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
-        "audit": "Collector-local Effect identity is canonicalized here. Only Relation-referenced EffectKeys earn durable identity; preview and publication now share the same draft semantics.",
+        "audit": "Collector-local Effect identity is canonicalized here. Only Relation-referenced EffectKeys earn durable identity; preview and publication share the same draft semantics.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nretain only Relation sources"),
             ("insertion", "validateDraft\ncalendar date, tokens, nonzero JPY, balanced totals"),
@@ -213,9 +230,9 @@ FLOW_DIAGRAMS = {
         ],
     },
     "10.5 Line CLI Record Entrance": {
-        "description": "Explicit low-level line CLI. It intentionally calls MovementPublisher directly.",
-        "sources": "Loam/Cli/MovementCli.lean; Loam/Cli/Movement/Entry.lean; Loam/Cli/Movement/RelationEntry.lean; Loam/Cli/Movement/DischargeEntry.lean; Loam/MovementPublisher.lean",
-        "audit": "The preflight is observational only. After human think time, MovementPublisher re-reads authoritative state under lock. Direct publisher use is an explicit low-level-CLI policy exception to HouseholdCommand.",
+        "description": "Scriptable Movement entrance sharing the same household command path as the TUI.",
+        "sources": "Loam/Cli/MovementCli.lean; Loam/Cli/Movement/Entry.lean; Loam/Cli/Movement/RelationEntry.lean; Loam/Cli/Movement/DischargeEntry.lean; Loam/HouseholdCommand.lean",
+        "audit": "The preflight is observational only. Human think time owns no lock. Publication goes through HouseholdCommand.record; CLI rendering happens only after authoritative success.",
         "nodes": [
             ("insertion", "Preflight loadSelectedWorld?\nobservational only"),
             ("decision", "Current world readable?", "Refuse before input"),
@@ -225,9 +242,152 @@ FLOW_DIAGRAMS = {
             ("insertion", "Collect optional Relation drafts"),
             ("insertion", "Collect optional Discharge drafts"),
             ("action", "Build MovementAdmission.Draft"),
-            ("insertion", "MovementPublisher.publishDraftWithPreview\nDIRECT low-level CLI path"),
+            ("insertion", "HouseholdCommand.record\nshared household-root write path"),
             ("decision", "Authoritative publication succeeded?", "Print refusal\nexit 2"),
-            ("action", "Print recorded movement\nexit 0"),
+            ("action", "Render admission details and result\nexit 0"),
+        ],
+    },
+    "11.0 Correct Actual": {
+        "description": "End-to-end replacement correction of one selected current Actual Event.",
+        "sources": "Loam/Tui/Correction.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/CorrectionPublisher.lean; Loam/ActualAuthority.lean",
+        "audit": "The original Event stays retained. Correction appends a replacement Event plus explicit EventCorrection and reuses the target's current occurrence date.",
+        "nodes": [
+            ("action", "Select one visible current Actual"),
+            ("insertion", "Seed correction editor\nfrom selected Actual"),
+            ("action", "Edit replacement description / postings\ndate remains fixed in this editor"),
+            ("action", "Preview replacement using Record mechanics"),
+            ("decision", "User chose Publish?", "Edit or Cancel\nno write"),
+            ("insertion", "HouseholdCommand.correctActual\nsurface-neutral command port"),
+            ("insertion", "CorrectionPublisher\nre-read Actual + Locus policy"),
+            ("insertion", "Correction admission\nappend replacement evidence"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
+            ("action", "Reload canonical Actual view"),
+        ],
+    },
+    "11.1 Authoritative Correction Publish": {
+        "description": "Writer-owned publication seam for one correction replacement draft.",
+        "sources": "Loam/HouseholdCommand.lean; Loam/CorrectionPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
+        "audit": "This path shares one-Actual publication mechanics with Record but keeps correction currentness, target restrictions, and replacement identity local.",
+        "nodes": [
+            ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
+            ("insertion", "Acquire writer ownership\nactual.loam writer lock"),
+            ("insertion", "Load authoritative ActualEvidence"),
+            ("decision", "Actual authority decoded?", "Refuse\nmissing or malformed Actual"),
+            ("insertion", "Load current Locus admission policy"),
+            ("decision", "Locus policy decoded?", "Refuse\nmissing or malformed policy"),
+            ("insertion", "CorrectionPublisher.admit?\nagainst evidence + current policy"),
+            ("decision", "Correction admitted?", "Refuse\ncorrection semantic guard failed"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
+            ("decision", "Atomic publication succeeded?", "Refuse\nexisting authority remains intact"),
+            ("action", "Return success"),
+        ],
+    },
+    "11.2 Correction Admission": {
+        "description": "Correction-specific semantic admission before one replacement generation is published.",
+        "sources": "Loam/CorrectionPublisher.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "audit": "Correction is not generic Movement admission: it must prove the target is current and practical, unreferenced by relation/discharge and reversal evidence, then append replacement lineage without rewriting history.",
+        "nodes": [
+            ("decision", "Replacement is balanced nonzero JPY and tokens persistable?", "Refuse\nreplacement outside practical entrance"),
+            ("decision", "Every replacement Locus currently admitted?", "Refuse\nLocus not approved for new write"),
+            ("insertion", "Resolve targetCurrent?\nretained and not already corrected"),
+            ("decision", "Target is current?", "Refuse\nmissing or superseded target"),
+            ("decision", "Target itself is practical balanced JPY?", "Refuse\ntarget outside correction entrance"),
+            ("decision", "Relation / discharge evidence ignores target?", "Refuse\nreferenced target not yet qualified"),
+            ("decision", "Reversal evidence ignores target?", "Refuse\nreversal participant not yet qualified"),
+            ("insertion", "Find target current occurrence date"),
+            ("decision", "Current date exists?", "Refuse\nno current occurrence coordinate"),
+            ("action", "Allocate fresh replacement EventId"),
+            ("decision", "Replacement identity available?", "Refuse\nidentity allocation failed"),
+            ("action", "Create EventCorrection\ntarget -> replacement"),
+            ("insertion", "Event.ofEffects?\nconstruct replacement Event"),
+            ("decision", "Replacement Event structurally valid?", "Refuse\nduplicate retained Effect identity"),
+            ("action", "Append Event + Correction + base date\n+ optional description"),
+            ("decision", "All typed histories accept append?", "Refuse\nhistory append failed"),
+            ("action", "Return complete updated ActualEvidence"),
+        ],
+    },
+    "12.0 Complete Scheduled": {
+        "description": "End-to-end realization of one current-open Scheduled occurrence into independent Actual evidence.",
+        "sources": "Loam/Tui/ScheduledCompletion.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/ScheduledTerminalPublisher.lean",
+        "audit": "Expected Scheduled postings seed the editor but are not Actual truth. Publication re-reads both authorities and binds Scheduled to a separately admitted Actual Event.",
+        "nodes": [
+            ("action", "Select one visible current-open Scheduled occurrence"),
+            ("insertion", "Seed editable Actual form\nfrom expected Scheduled movement"),
+            ("action", "Edit Actual date / description / postings"),
+            ("action", "Preview candidate Actual using Record mechanics"),
+            ("decision", "User chose Publish?", "Edit or Cancel\nno write"),
+            ("insertion", "HouseholdCommand.completeScheduled\nsurface-neutral command port"),
+            ("insertion", "ScheduledTerminalPublisher\nacquire Scheduled then Actual ownership"),
+            ("insertion", "Re-read lifecycle + Actual + Locus policy"),
+            ("insertion", "Completion-specific Actual admission"),
+            ("action", "Publish Scheduled terminal claim first"),
+            ("action", "Publish Actual generation second"),
+            ("action", "Reload canonical Scheduled + Actual views"),
+        ],
+    },
+    "12.1 Dual-Authority Completion Publish": {
+        "description": "Writer-owned two-authority protocol for fresh or resumed Scheduled completion.",
+        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "audit": "Lock order is Scheduled then Actual. Scheduled terminal evidence is published first; if Actual publication fails, the retained terminal remains inert and a later retry reuses the same Actual identity.",
+        "nodes": [
+            ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
+            ("insertion", "Acquire Scheduled ownership"),
+            ("insertion", "Acquire Actual ownership\nfixed lock order"),
+            ("insertion", "Load Scheduled lifecycle image"),
+            ("decision", "Lifecycle decoded?", "Refuse\nmissing / malformed Scheduled authority"),
+            ("insertion", "Load authoritative ActualEvidence"),
+            ("decision", "Actual authority decoded?", "Refuse\nmissing / malformed Actual"),
+            ("insertion", "Load current Locus admission policy"),
+            ("decision", "Locus policy decoded?", "Refuse\nmissing / malformed policy"),
+            ("action", "Construct Movement world\nfrom Actual + current policy"),
+            ("insertion", "findOpen?\nresolve current-open Scheduled target"),
+            ("decision", "Scheduled target current-open?", "Refuse\nclosed / unknown / conflicting lifecycle"),
+            ("action", "Choose Actual identity\nreuse retained endpoint or deterministic completion id"),
+            ("decision", "Actual id unoccupied and endpoint ownership consistent?", "Refuse\nalready completed or identity conflict"),
+            ("insertion", "appendCompletionActual?\nconstruct candidate Actual world"),
+            ("decision", "Candidate Actual admitted?", "Refuse\ncompletion Actual invalid"),
+            ("action", "Build ScheduledTerminal\nScheduled -> Actual"),
+            ("decision", "Terminal endpoint ownership valid?", "Refuse\none-to-one ownership violated"),
+            ("insertion", "Publish complete Scheduled lifecycle image\nonly when terminal is fresh"),
+            ("decision", "Lifecycle publication succeeded?", "Refuse\nActual remains untouched"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete Actual generation"),
+            ("decision", "Actual publication succeeded?", "Return retryable refusal\nretained terminal remains inert"),
+            ("action", "Completion authoritative in both views"),
+        ],
+    },
+    "12.2 Completion Actual Admission": {
+        "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
+        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean",
+        "audit": "This resembles Movement admission but intentionally differs: EventId is chosen by Scheduled completion, Relation/Discharge drafts are refused, and no fresh Event identity is allocated here.",
+        "nodes": [
+            ("insertion", "MovementAdmission.validateDraft\nvalidate practical Movement draft"),
+            ("decision", "Draft valid?", "Refuse\ninvalid practical Movement"),
+            ("decision", "Relation / Discharge drafts absent?", "Refuse\ncompletion admits plain effects only"),
+            ("decision", "Every Effect Locus currently admitted?", "Refuse\nLocus not approved for new write"),
+            ("insertion", "Event.ofEffects?\nuse completion-selected EventId"),
+            ("decision", "Completion Event structurally valid?", "Refuse\nEvent construction failed"),
+            ("action", "Append Event + base ActualValidity fact"),
+            ("decision", "Event / validity append accepted?", "Refuse\nhistory append failed"),
+            ("action", "Append optional description"),
+            ("decision", "Description memory accepted?", "Refuse\ndescription append failed"),
+            ("action", "Preserve existing relations / discharges"),
+            ("action", "Return updated Movement world"),
+        ],
+    },
+    "12.3 Interrupted Completion Recovery": {
+        "description": "Why Scheduled-first publication remains fail-closed across interruption.",
+        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/Application/ScheduledInspection.lean",
+        "audit": "A terminal relation whose Actual target is absent is intentionally inert to Scheduled readers. Retry reuses that target identity; cancellation refuses to compete with an interrupted completion.",
+        "nodes": [
+            ("decision", "Completion terminal already retained?", "Fresh completion path\ncreate stable endpoint"),
+            ("action", "Reuse retained completion Actual EventId"),
+            ("decision", "Actual Event already exists?", "Refuse\nalready completed"),
+            ("decision", "Retained endpoint belongs to this Scheduled source?", "Refuse\nendpoint ownership conflict"),
+            ("action", "Rebuild candidate Actual with same EventId"),
+            ("action", "Skip duplicate Scheduled lifecycle publication"),
+            ("insertion", "Publish missing Actual generation"),
+            ("decision", "Actual publication succeeds?", "Remain retryable\nterminal stays inert"),
+            ("action", "Scheduled completion becomes visible as complete"),
         ],
     },
 }
@@ -323,6 +483,15 @@ def add_tree_node(db, node_id, parent, kind, name="", diagram_id=None):
     return node_id + 1
 
 
+def add_flow_folder(db, node_id, parent, folder_name, prefix, diagram_ids):
+    folder = node_id
+    node_id = add_tree_node(db, node_id, parent, "folder", folder_name)
+    for name in FLOW_DIAGRAMS:
+        if name.startswith(prefix):
+            node_id = add_tree_node(db, node_id, folder, "item", diagram_id=diagram_ids[name])
+    return node_id
+
+
 def build():
     if OUTPUT.exists():
         OUTPUT.unlink()
@@ -337,13 +506,11 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.4 — macro architecture gate + Record Movement write path",))
+                   ("LOAM System Map v0.5 — macro gate + cross-path write atlas",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
-            item_id = add_simple_diagram(
-                db, item_id, diagram_ids[name], name, entries, description
-            )
+            item_id = add_simple_diagram(db, item_id, diagram_ids[name], name, entries, description)
         for name, spec in FLOW_DIAGRAMS.items():
             item_id = add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
 
@@ -367,14 +534,13 @@ def build():
                      "07 Projections & Reports", "08 Formal Evidence"]:
             node_id = add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 
-        write_folder = node_id
-        node_id = add_tree_node(db, node_id, root, "folder", "10 Write Path")
-        movement_folder = node_id
-        node_id = add_tree_node(db, node_id, write_folder, "folder", "Record Movement")
-        for name in FLOW_DIAGRAMS:
-            if name.startswith("10."):
-                node_id = add_tree_node(db, node_id, movement_folder, "item",
-                                        diagram_id=diagram_ids[name])
+        atlas_folder = node_id
+        node_id = add_tree_node(db, node_id, root, "folder", "09 Write Path Atlas")
+        node_id = add_tree_node(db, node_id, atlas_folder, "item",
+                                diagram_id=diagram_ids["09 Write Path Comparison"])
+        node_id = add_flow_folder(db, node_id, atlas_folder, "10 Record Movement", "10.", diagram_ids)
+        node_id = add_flow_folder(db, node_id, atlas_folder, "11 Correct Actual", "11.", diagram_ids)
+        node_id = add_flow_folder(db, node_id, atlas_folder, "12 Complete Scheduled", "12.", diagram_ids)
 
         db.commit()
         db.execute("pragma page_size=512")
@@ -385,10 +551,15 @@ def build():
 
         if db.execute("select count(*) from diagrams").fetchone()[0] != len(all_names):
             raise SystemExit("diagram count mismatch")
-        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 20:
+        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 45:
             raise SystemExit("expected detailed decision icons")
         if db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] != len(FLOW_DIAGRAMS):
             raise SystemExit("missing source traceability metadata")
+        if db.execute(
+            "select count(*) from tree_nodes where type='folder' and name in "
+            "('10 Record Movement','11 Correct Actual','12 Complete Scheduled')"
+        ).fetchone()[0] != 3:
+            raise SystemExit("write-path atlas folder mismatch")
 
     print(OUTPUT)
 
