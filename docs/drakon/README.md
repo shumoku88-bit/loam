@@ -1,8 +1,8 @@
-# LOAM System Map v0.2
+# LOAM System Map v0.3
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
-The map now has two levels:
+The map has two levels:
 
 - a small human-scale repository/system tree;
 - detailed DRAKON-shaped flow diagrams for concrete production paths.
@@ -52,7 +52,9 @@ docs/drakon/loam-system-map.drn
 
 Open that file in DRAKON Editor. The generated `.drn` is intentionally ignored by Git; `build_map.py` is the deterministic, reviewable source for the map.
 
-The detailed Record Movement diagrams use real DRAKON icon kinds such as `if`, `insertion`, `action`, `beginend`, and refusal exits. The current diagrams are architecture observations: their English icon text is not yet Ada source and the `.drn` is not yet a code-generation authority.
+The detailed Record Movement diagrams use real DRAKON icon kinds such as `if`, `insertion`, `action`, `beginend`, and refusal exits. Audit-note text is explicitly wrapped by the builder so the yellow note boxes remain readable in DRAKON Editor.
+
+The current diagrams are architecture observations: their English icon text is not yet Ada source and the `.drn` is not yet a code-generation authority.
 
 ## Inspect without a screenshot
 
@@ -90,19 +92,28 @@ human editing / preview
 
 Preview does not grant write authority. Publication re-reads current Actual evidence and current Locus new-write policy under writer ownership before admission.
 
+Collector-local Effect identity is now canonicalized inside `MovementAdmission.admit?`. Temporary EffectKeys disappear unless explicit Relation evidence references them, so preview and authoritative publication ask the same semantic admission boundary about the same canonical draft shape.
+
 The line CLI remains visibly separate because it is an explicit low-level entrance that calls the Movement publisher directly. The high-level TUI path goes through `HouseholdCommand`.
 
-## First audit seams, not conclusions
+## First map-driven refactoring result
 
-The first detailed map already exposes three useful seams to inspect before changing production code.
+The first detailed map produced concrete compression, not only documentation.
 
-1. `Loam.Tui.Record.draft?` validates a draft, then TUI preview calls `MovementAdmission.admit?`, whose first step validates the draft again. This may be redundant in the preview path, or it may be the correct cost of keeping `draft?` useful as an independently validated constructor. Do not remove either check until caller pressure is examined.
+Resolved from the first `10.2` / `10.3` audit:
 
-2. `ActualAuthority.loadSelectedWorld?` and `MovementPublisher` both combine Actual evidence with current Locus admission policy into a `MovementAdmission.World`. The publisher also needs the complete original `ActualEvidence` so corrections and reversals survive generation replacement. A shared world-construction helper may be possible, but replacing the publisher load with `loadSelectedWorld?` directly would lose information it still needs.
+1. Sparse Effect identity moved from `MovementPublisher` into pure `MovementAdmission`. The publisher no longer owns one semantic draft transformation that preview skipped.
+2. `MovementAdmission.Admitted` was reduced to `world + eventId`; relation/discharge deltas and a duplicate Event value were not independent result information in the normalized single-file publisher.
+3. `ActualAuthority.movementWorld` now owns the pure `ActualEvidence + current Locus policy -> MovementAdmission.World` representation boundary, removing duplicated world assembly while preserving separate authorities.
+4. A regression qualifies the counterexample that revealed the seam: two ordinary Effects may share one collector-local temporary key when no Relation earns that identity, and admission must erase the key before Event construction.
 
-3. TUI publication goes through `HouseholdCommand.record`; the explicit line CLI calls `MovementPublisher.publishDraftWithPreview` directly. That asymmetry is currently documented policy, not automatically a bug. Keeping both routes visible makes it possible to revisit whether the distinction still earns its cost.
+Still-open audit questions:
 
-These are map-generated audit questions. They are not refactoring decisions.
+1. `Loam.Tui.Record.draft?` validates a draft, then TUI preview calls `MovementAdmission.admit?`, whose first step validates the canonical draft again. Existing callers/tests use `draft?` as an independently validated constructor, so the duplicate check is retained until that contract is deliberately redesigned.
+2. TUI publication goes through `HouseholdCommand.record`; the explicit line CLI calls `MovementPublisher.publishDraftWithPreview` directly. That asymmetry is currently documented policy, not automatically a bug.
+3. `publishDraftWithPreview` still carries a frontend callback inside the publisher even though the current line CLI does not offer a user decision after that callback. This remains a candidate for a later entrance-boundary audit.
+
+The map is expected to change when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
 
 ## Audit rule
 
