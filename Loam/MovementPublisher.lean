@@ -22,18 +22,21 @@ writer ownership on actual.loam
 -> load current new-write policy from locus-admission.loam
 -> construct typed MovementAdmission.World
 -> MovementAdmission.admit?
--> optional surface observation of the admitted Event identity
 -> atomic publish to actual.loam
 ```
 
 Historical Event evidence in `actual.loam` is strictly separated from
 new-write policy in `locus-admission.loam`.
+
+Presentation belongs outside this boundary. The publisher returns the admitted
+Event identity only after authoritative publication succeeds; TUI, CLI, GUI, or
+AI surfaces may render that result without injecting callbacks into the write
+protocol.
 -/
 
 private def publishUnderOwnership
     (root : System.FilePath)
-    (draft : Loam.MovementAdmission.Draft)
-    (beforePublish : Loam.Core.EventId → IO Unit) : IO (Except String Loam.Core.EventId) := do
+    (draft : Loam.MovementAdmission.Draft) : IO (Except String Loam.Core.EventId) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | Except.error message => return Except.error message
@@ -46,7 +49,6 @@ private def publishUnderOwnership
   match Loam.MovementAdmission.admit? world draft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
-      beforePublish admitted.eventId
       let updatedEvidence : ActualEvidence := {
         events := admitted.world.events
         validity := admitted.world.validity
@@ -63,20 +65,13 @@ private def publishUnderOwnership
 /--
 Publish one already-collected Movement draft to normalized Actual authority.
 -/
-def publishDraftWithPreview
+def publishDraft
     (rootPath : String)
-    (draft : Loam.MovementAdmission.Draft)
-    (beforePublish : Loam.Core.EventId → IO Unit) : IO (Except String Loam.Core.EventId) := do
+    (draft : Loam.MovementAdmission.Draft) : IO (Except String Loam.Core.EventId) := do
   if rootPath.isEmpty then
     return Except.error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
   Loam.ActualAuthority.withActualOwnership root
-    (publishUnderOwnership root draft beforePublish)
-
-/-- Publish without a frontend-specific pre-publication rendering callback. -/
-def publishDraft
-    (rootPath : String)
-    (draft : Loam.MovementAdmission.Draft) : IO (Except String Loam.Core.EventId) :=
-  publishDraftWithPreview rootPath draft (fun _ => pure ())
+    (publishUnderOwnership root draft)
 
 end Loam.MovementPublisher
