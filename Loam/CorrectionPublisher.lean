@@ -119,8 +119,8 @@ private def admit?
     match draft.description with
     | none => pure evidence.descriptions
     | some text =>
-        match EventDescriptionMemory.ofEntries?
-            (evidence.descriptions.entries ++ [{ event := correction.replacement, text := text }]) with
+        match evidence.descriptions.add?
+            { event := correction.replacement, text := text } with
         | some descriptions => pure descriptions
         | none => throw "loam: could not append replacement description"
 
