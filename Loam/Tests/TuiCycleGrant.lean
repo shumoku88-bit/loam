@@ -154,7 +154,19 @@ def main (args : List String) : IO Unit := do
   | .preview _ _ => throw (IO.userError "e must enter editing mode")
   let editText := text (Loam.Tui.CapacityTransfer.view stepEdit.state)
   expect (contains "Capacity / Cycle Grant / Edit" editText) "Edit header"
+  expect (contains "Purpose: 固定費予定" editText) "Edit purpose context"
+  expect (contains "Current Now: 17108 jpy" editText) "Edit current now context"
+  expect (contains "Known future: 20936 jpy" editText) "Edit known future context"
+  expect (contains "After-known: -3828 jpy" editText) "Edit after-known context"
   expect (contains "Suggested to reach After-known 0: 3828 jpy" editText) "Suggested display"
+  let residualText :=
+    match residual0 with
+    | some residual => toString residual.quanta ++ " jpy"
+    | none => "unavailable"
+  expect (contains ("Funding residual before unresolved: " ++ residualText) editText)
+    "Edit funding residual context"
+  expect (contains "Funding residual is advisory current evidence, not an allocation ceiling." editText)
+    "Edit residual semantics"
 
   -- Edit amount: backspace 4 times, type 4000
   let mut editState := stepEdit.state
