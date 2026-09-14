@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.ActualAuthority
 import Loam.MovementAdmission
-import Loam.MovementPublisher
+import Loam.HouseholdCommand
 import Loam.Cli.Movement.Entry
 import Loam.Cli.Movement.RelationEntry
 import Loam.Cli.Movement.DischargeEntry
@@ -56,9 +56,9 @@ private def resolveDataDir (args : List String) : IO (Except String String) := d
 /--
 Verify the current normalized Actual authority before human input.
 
-This is observational only. `MovementPublisher` re-reads current authority under
-writer ownership after the draft is complete, so human think time does not
-authorize publication from stale state.
+This is observational only. The canonical command path re-reads current
+authority under writer ownership after the draft is complete, so human think
+time does not authorize publication from stale state.
 -/
 private def preflightForDraft (rootPath : String) : IO (Except String Unit) := do
   match ← Loam.ActualAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
@@ -127,11 +127,11 @@ private def collectMovementDraft
                       }
 
 /--
-Expose only admission boundaries crossed before publication. Relation and
-discharge evidence are reported separately from signed Movement Effects; no
+Render the semantic admission result after authoritative publication succeeds.
+Relation and discharge evidence remain separate from signed Movement Effects; no
 sign-based or automatic settlement interpretation is introduced.
 -/
-private def showAdmissionPreview
+private def showAdmissionResult
     (total : Int)
     (validOn : String)
     (description : Option String)
@@ -139,7 +139,7 @@ private def showAdmissionPreview
     (dischargeCount : Nat)
     (eventId : Loam.Core.EventId) : IO Unit := do
   IO.println ""
-  IO.println "Admission preview"
+  IO.println "Admission result"
   IO.println ("  movement: " ++ toString total ++ " jpy")
   IO.println ("  date: " ++ validOn)
   match description with
@@ -148,7 +148,7 @@ private def showAdmissionPreview
   IO.println ("  event: " ++ eventId.token)
   IO.println "  [ok] movement totals agree"
   IO.println "  [ok] effect identities admitted"
-  IO.println "  [ok] Event identity admitted in memory"
+  IO.println "  [ok] Event identity admitted"
   IO.println "  [ok] occurrence-date evidence admitted"
   if relationCount = 0 then
     IO.println "  [ok] open relation decision: none"
@@ -158,7 +158,7 @@ private def showAdmissionPreview
     IO.println "  [ok] relation discharge decision: none"
   else
     IO.println ("  [ok] relation discharge evidence admitted: " ++ toString dischargeCount)
-  IO.println "  ready to publish"
+  IO.println "  [ok] authoritative Actual publication complete"
 
 /--
 Record one balanced human-facing JPY movement with one occurrence date, optional
@@ -171,15 +171,14 @@ def recordMovement (rootPath : String) : IO UInt32 := do
       IO.eprintln message
       return 2
   | .ok draft =>
-      match ← Loam.MovementPublisher.publishDraftWithPreview
-          rootPath draft fun eventId =>
-            showAdmissionPreview
-              draft.total draft.validOn draft.description
-              draft.relations.length draft.discharges.length eventId with
+      match ← Loam.HouseholdCommand.record (System.FilePath.mk rootPath) draft with
       | .error message =>
           IO.eprintln message
           return 2
-      | .ok _ =>
+      | .ok eventId =>
+          showAdmissionResult
+            draft.total draft.validOn draft.description
+            draft.relations.length draft.discharges.length eventId
           IO.println
             ("Recorded movement: " ++ toString draft.total ++
               " jpy. Date: " ++ draft.validOn ++ ".")
