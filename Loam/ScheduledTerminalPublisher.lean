@@ -4,8 +4,8 @@ import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.ScheduledActualOwnership
 import Loam.SparseEffectIdentity
-import Loam.WriterOwnership
 
 namespace Loam.ScheduledTerminalPublisher
 
@@ -223,12 +223,6 @@ private def publishCancellationUnderOwnership
     return .error "loam: Scheduled retirement lifecycle could not be published"
   return .ok ()
 
-private def withTerminalOwnership {α : Type}
-    (scheduledFile root : System.FilePath)
-    (action : IO (Except String α)) : IO (Except String α) :=
-  Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.ActualAuthority.withActualOwnership root action
-
 /--
 Publish one Scheduled realization as an Actual Event in normalized Actual authority.
 Both fresh completions and resumed interrupted completions produce the same canonical
@@ -243,7 +237,7 @@ def publishCompletion
     return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
-  withTerminalOwnership scheduledFile root
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
     (publishCompletionUnderOwnership scheduledFile root draft)
 
 /--
@@ -258,7 +252,7 @@ def publishCancellation
     return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
-  withTerminalOwnership scheduledFile root
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
     (publishCancellationUnderOwnership scheduledFile root draft)
 
 
