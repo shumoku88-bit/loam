@@ -53,6 +53,48 @@ Question:
 
 Try to falsify with split Loci, unrelated coordinates, and correction history.
 
+#### V1 result — `exact realization` was too strong a name
+
+The executable probe `Loam/Tests/FourVoiceCompatibilityV1.lean` passed four counterexample worlds against current production semantics.
+
+1. **Split physical shape still preserves local Headroom.**
+   Scheduled pressure may be split across two Loci while the completed Actual contribution lands on a third Locus. If the selected Purpose/Measure contribution is equal, Headroom can remain unchanged even though the physical shape is not the same.
+2. **Extra movement in another Purpose still preserves local Headroom.**
+   The completed Actual may contain an additional physical movement routed to another Purpose. The queried Purpose can still preserve Headroom even though the whole Actual movement is not equal to the Scheduled movement.
+3. **Raw quantity equality is insufficient when time coordinates disagree.**
+   A completion can remove current-open Scheduled pressure while its equal Actual contribution lies after `observedAt`; Commitment disappears before elapsed Consumption appears, so current Headroom changes.
+4. **Raw completion equality is insufficient after correction.**
+   A Scheduled occurrence may complete into an Actual Event whose raw contribution matches exactly, yet a current correction replacement may change the correction-frontier contribution. Current Headroom follows the correction frontier, not the raw completion endpoint.
+
+The earned arithmetic is query-local:
+
+```text
+Headroom = Entitlement - Consumption - Commitment
+```
+
+For a transition where Entitlement and all other selected contributions are stable:
+
+```text
+Headroom_after = Headroom_before
+iff
+removed managed Scheduled commitment contribution
+  = added correction-frontier Actual consumption contribution
+```
+
+This does **not** justify whole-event equivalence or the broad human statement `realized as expected`.
+
+The explicit Scheduled terminal relation already earns the narrower statement `realized` by linking one Scheduled identity to one Actual Event identity. Headroom invariance adds only a selected coverage fact. A safe descriptive wording is therefore closer to:
+
+> this transition was coverage-neutral for Purpose P / Measure M at the queried coordinates
+
+or, when the transition is isolated enough to attribute the deltas:
+
+> equal Purpose/Measure pressure moved from open Commitment into elapsed Consumption
+
+Do not retain either phrase as a new fact. They are descriptions of existing relations and projections.
+
+The important negative result is that **physical compatibility, time compatibility, and current correction-frontier compatibility remain independent of Headroom invariance**.
+
 ### V2 — Same quantity, different interpretation
 
 Hold quantity and Measure equal while Purpose differs.
@@ -147,4 +189,6 @@ The desired result is a small set of discovered laws and counterexamples, not an
 
 LOAM's latent expressive core may be the ability to keep **expectation, occurrence, interpretation, and observed present distinct long enough for their agreements and disagreements to become informative**.
 
-The next observations should try to break that hypothesis before promoting it into a design law.
+V1 strengthens that hypothesis: even an explicit realization relation plus local Headroom invariance does not collapse physical shape, temporal membership, correction status, or unrelated interpretation into one notion of sameness.
+
+The next observations should continue trying to break that hypothesis before promoting it into a design law.
