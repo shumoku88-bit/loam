@@ -33,6 +33,7 @@ on:
       - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV2.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV3.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV4.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -74,6 +75,7 @@ on:
       - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV2.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV3.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV4.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -130,6 +132,10 @@ jobs:
       - name: Run four-voice V3 quantity divergence story
         shell: bash
         run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV3.lean
+
+      - name: Run four-voice V4 observed-present story
+        shell: bash
+        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV4.lean
 
       - name: Run production Current Capacity Coverage reader story
         shell: bash
