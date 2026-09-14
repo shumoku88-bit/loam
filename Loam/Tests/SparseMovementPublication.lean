@@ -34,6 +34,28 @@ def main (args : List String) : IO Unit := do
   let .ok () ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "initialize Actual authority")
 
+  -- Admission itself owns collector-local Effect-key canonicalization. Two ordinary
+  -- Effects may reuse one temporary collector handle when no Relation earns that
+  -- identity; preview and production therefore see the same canonical draft shape.
+  let duplicateTemporaryKey : EffectKey := ⟨"temp-shared"⟩
+  let duplicateTemporary : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-12"
+    description := some "preview canonicalization"
+    effects := [
+      Effect.ofQuantity duplicateTemporaryKey ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100)),
+      Effect.ofQuantity duplicateTemporaryKey ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)]
+    relations := []
+    discharges := []
+    total := 100
+  }
+  let .ok previewAdmitted ← Loam.MovementAdmission.admit? world duplicateTemporary
+    | throw (IO.userError "admission did not canonicalize duplicate temporary EffectKeys")
+  let previewEvent ← requireSome
+    (previewAdmitted.world.events.findById? previewAdmitted.eventId)
+    "admitted preview event missing"
+  expect (previewEvent.effects.all fun effect => effect.key.isNone)
+    "admission retained collector-local EffectKey without Relation evidence"
+
   -- Collector-local keys on an ordinary movement must not become canonical identity.
   let ordinary : Loam.MovementAdmission.Draft := {
     validOn := "2026-09-12"
@@ -81,4 +103,4 @@ def main (args : List String) : IO Unit := do
   expect (relatedEvent.effects.filterMap (fun effect => effect.key) == [sourceKey])
     "publication retained more EffectKeys than Relation semantics require"
 
-  IO.println "Sparse Movement publication: anonymous ordinary Effects and relation-only key promotion passed."
+  IO.println "Sparse Movement publication: admission canonicalization, anonymous ordinary Effects and relation-only key promotion passed."
