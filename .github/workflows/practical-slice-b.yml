@@ -14,6 +14,7 @@ on:
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
       - 'Loam/RoleBalanceReview.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
@@ -56,6 +57,7 @@ on:
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
       - 'Loam/RoleBalanceReview.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/Scheduled.lean'
@@ -101,7 +103,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Core Loam.Application Loam.CurrentCoverageReview Loam.CurrentQuantityAnchor Loam.RoleBalanceReview Loam.Tests.ActualWorldFixture
+          build-args: Loam.Core Loam.Application Loam.CurrentCoverageReview Loam.CurrentQuantityAnchor Loam.CurrentQuantityAnchorPublisher Loam.RoleBalanceReview Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
