@@ -1,14 +1,15 @@
-# LOAM System Map v0.4
+# LOAM System Map v0.5
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
-The map has three roles:
+The map has four roles:
 
 - a macro architecture audit gate that every structural refactor should survive;
 - a small human-scale repository/system tree;
-- detailed DRAKON-shaped flow diagrams for concrete production paths.
+- detailed DRAKON-shaped flow diagrams for concrete production paths;
+- a cross-path write atlas for deciding what is truly shared and what only looks similar.
 
-It is deliberately not a mirror of every Lean file. A diagram should expose a meaningful path, decision, authority boundary, refusal, or macro design law rather than reproduce file structure mechanically.
+It is deliberately not a mirror of every Lean file. A diagram should expose a meaningful path, decision, authority boundary, refusal, recovery law, or macro design law rather than reproduce file structure mechanically.
 
 ```text
 LOAM System Map
@@ -28,21 +29,31 @@ LOAM System Map
 +-- 06 Authority & Persistence
 +-- 07 Projections & Reports
 +-- 08 Formal Evidence
-`-- 10 Write Path
-    `-- Record Movement
-        +-- 10.0 Record Movement
-        +-- 10.1 TUI Record Session
-        +-- 10.2 Authoritative Movement Publish
-        +-- 10.3 Movement Admission
-        +-- 10.4 Atomic Actual Publish
-        `-- 10.5 Line CLI Record Entrance
+`-- 09 Write Path Atlas
+    +-- 09 Write Path Comparison
+    +-- 10 Record Movement
+    |   +-- 10.0 Record Movement
+    |   +-- 10.1 TUI Record Session
+    |   +-- 10.2 Authoritative Movement Publish
+    |   +-- 10.3 Movement Admission
+    |   +-- 10.4 Atomic Actual Publish
+    |   `-- 10.5 Line CLI Record Entrance
+    +-- 11 Correct Actual
+    |   +-- 11.0 Correct Actual
+    |   +-- 11.1 Authoritative Correction Publish
+    |   `-- 11.2 Correction Admission
+    `-- 12 Complete Scheduled
+        +-- 12.0 Complete Scheduled
+        +-- 12.1 Dual-Authority Completion Publish
+        +-- 12.2 Completion Actual Admission
+        `-- 12.3 Interrupted Completion Recovery
 ```
 
 ## Architecture laws
 
 The textual source for the macro guardrails is [`ARCHITECTURE_LAWS.md`](ARCHITECTURE_LAWS.md).
 
-The `00 Architecture Audit Gate` diagram turns those rules into an executable review path. Before accepting a local compression, ask whether it still preserves:
+The `00 Architecture Audit Gate` diagram turns those rules into a review path. Before accepting a local compression, ask whether it still preserves:
 
 - minimal independent canonical evidence;
 - explicit Measure separation and no implicit valuation;
@@ -57,7 +68,7 @@ The `00 Architecture Audit Gate` diagram turns those rules into an executable re
 - locale policy at the edge rather than in neutral Core;
 - additive extension instead of distortion of an existing law.
 
-This gate is deliberately macro-level. Passing it does not prove a refactor correct; it prevents a local simplification from silently buying fewer lines by spending capabilities that make LOAM usable outside the current UI, locale, or household shape.
+Passing the macro gate does not prove a refactor correct. It prevents a local simplification from buying fewer lines by silently spending capabilities that make LOAM usable outside the current UI, locale, or household shape.
 
 ### Core promotion rule
 
@@ -78,8 +89,6 @@ same semantic primitive + independent reason to exist
 ```
 
 The threshold is evidential, not numerical. Two callers are a signal to investigate, not an automatic promotion rule.
-
-This matters for future GUI, AI, Web, import, foreign-currency, and user-specific extensions: preserve the neutral capability, but do not pre-build generic frameworks before a concrete second pressure exists.
 
 ## Build and open
 
@@ -108,20 +117,13 @@ The `.drn` file is SQLite, so its semantic contents can also be inspected as tex
 ```sh
 python3 docs/drakon/inspect_map.py
 python3 docs/drakon/inspect_map.py --diagram "00 Architecture Audit Gate"
-python3 docs/drakon/inspect_map.py --diagram "10.2 Authoritative Movement Publish"
-python3 docs/drakon/inspect_map.py --diagram "10.2" --geometry
+python3 docs/drakon/inspect_map.py --diagram "09 Write Path Comparison"
+python3 docs/drakon/inspect_map.py --diagram "11.1 Authoritative Correction Publish"
+python3 docs/drakon/inspect_map.py --diagram "12.1 Dual-Authority Completion Publish"
 python3 docs/drakon/inspect_map.py --all --json > /tmp/loam-map.json
 ```
 
-The inspector exposes:
-
-- the DRAKON tree;
-- icon type and text;
-- YES/NO orientation for decisions;
-- source-file and audit metadata;
-- optional item geometry.
-
-This is the screenshot-light bridge for human/AI collaboration. Use the inspector for structural questions. Use an actual DRAKON Editor screenshot when spatial density, visual symmetry, alignment, or an unexpectedly awkward route is itself the evidence. An AI reviewer can then ask for one exact diagram or comparison screenshot instead of requiring screenshots after every edit.
+Use the inspector for structural questions. Use an actual DRAKON Editor screenshot when spatial density, symmetry, alignment, or an unexpectedly awkward route is itself the evidence.
 
 ## Multi-Measure reading rule
 
@@ -138,45 +140,75 @@ A future base-Measure answer such as JPY net worth across JPY and USD holdings m
 
 High-level TUI, future GUI, Web, and AI adapters should operate on presentation-neutral commands / queries and one household root. They should not need canonical `.loam` filenames, writer-lock mechanics, durable identity allocation, serialization, or recovery policy.
 
-A low-level diagnostic CLI may deliberately expose physical paths when explicit physical control is part of its independent purpose.
+The scriptable Movement CLI now follows the same `HouseholdCommand.record` path as the TUI. Presentation is rendered after authoritative publication succeeds; the Movement publisher no longer carries a frontend callback.
 
-## Record Movement reading rule
+A low-level diagnostic CLI may still deliberately expose physical paths when explicit physical control is part of its independent purpose.
 
-The production path deliberately separates three timescales:
+## Write-path comparison rule
+
+The atlas exists to stop two opposite mistakes:
 
 ```text
-human editing / preview
-        -> canonical command selection
-        -> writer-owned authoritative re-read
-        -> pure Movement admission
-        -> staged typed publication
-        -> atomic authority switch
+similar shape
+    -> prematurely merge different semantic authorities
+
+different feature names
+    -> miss genuinely repeated mechanics
 ```
 
-Preview does not grant write authority. Publication re-reads current Actual evidence and current Locus new-write policy under writer ownership before admission.
+The first three mapped write paths currently show:
 
-Collector-local Effect identity is now canonicalized inside `MovementAdmission.admit?`. Temporary EffectKeys disappear unless explicit Relation evidence references them, so preview and authoritative publication ask the same semantic admission boundary about the same canonical draft shape.
+```text
+Record Movement
+    Actual + current Locus policy
+    -> Movement admission
+    -> one complete Actual generation
 
-The line CLI remains visibly separate because it is an explicit low-level entrance that calls the Movement publisher directly. The high-level TUI path goes through `HouseholdCommand`.
+Correction
+    Actual + current Locus policy
+    -> correction-specific target/replacement admission
+    -> one complete Actual generation
 
-## First map-driven refactoring result
+Scheduled Completion
+    Scheduled lifecycle + Actual + current Locus policy
+    -> completion-specific Actual admission
+    -> Scheduled terminal generation first
+    -> Actual generation second
+```
 
-The first detailed map produced concrete compression, not only documentation.
+Record and Correction therefore share a **one-Actual publication topology**. That is evidence for shared mechanics, not evidence that Movement admission and correction admission are one semantic operation.
 
-Resolved from the first `10.2` / `10.3` audit:
+Scheduled Completion has a different authority topology and crash-recovery law. Its `Scheduled -> Actual` terminal claim is published first. If Actual publication is interrupted, that retained terminal remains inert to readers until the target Actual Event appears; retry reuses the same target identity. This distinction must not be erased merely because both files use staging and rename.
 
-1. Sparse Effect identity moved from `MovementPublisher` into pure `MovementAdmission`. The publisher no longer owns one semantic draft transformation that preview skipped.
-2. `MovementAdmission.Admitted` was reduced to `world + eventId`; relation/discharge deltas and a duplicate Event value were not independent result information in the normalized single-file publisher.
-3. `ActualAuthority.movementWorld` now owns the pure `ActualEvidence + current Locus policy -> MovementAdmission.World` representation boundary, removing duplicated world assembly while preserving separate authorities.
-4. A regression qualifies the counterexample that revealed the seam: two ordinary Effects may share one collector-local temporary key when no Relation earns that identity, and admission must erase the key before Event construction.
+## Map-driven refactoring results
 
-Still-open audit questions:
+The first Record Movement audit produced concrete compression:
 
-1. `Loam.Tui.Record.draft?` validates a draft, then TUI preview calls `MovementAdmission.admit?`, whose first step validates the canonical draft again. Existing callers/tests use `draft?` as an independently validated constructor, so the duplicate check is retained until that contract is deliberately redesigned.
-2. TUI publication goes through `HouseholdCommand.record`; the explicit line CLI calls `MovementPublisher.publishDraftWithPreview` directly. That asymmetry is currently documented policy, not automatically a bug.
-3. `publishDraftWithPreview` still carries a frontend callback inside the publisher even though the current line CLI does not offer a user decision after that callback. This remains a candidate for the next entrance-boundary audit.
+1. sparse Effect identity moved from `MovementPublisher` into pure `MovementAdmission`;
+2. `MovementAdmission.Admitted` shrank to `world + eventId`;
+3. `ActualAuthority.movementWorld` became the shared pure representation boundary from Actual evidence plus current Locus policy;
+4. a regression fixed the counterexample that revealed preview/publication draft-shape divergence.
 
-The map is expected to change when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
+The second audit applied the macro gate to the publisher/frontend boundary:
+
+1. `MovementPublisher.publishDraftWithPreview` retired;
+2. the writer-owned publication corridor became presentation-neutral;
+3. the scriptable Movement CLI remained, but now writes through `HouseholdCommand.record`;
+4. CLI admission detail renders after successful authoritative publication instead of through a publisher callback.
+
+The map is expected to get shorter when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
+
+## New cross-path audit seams, not conclusions
+
+The v0.5 atlas exposes several candidates for the next audit. None is yet a refactoring decision.
+
+1. `ScheduledTerminalPublisher` manually assembles `MovementAdmission.World` from Actual evidence plus current Locus policy even though `ActualAuthority.movementWorld` now owns that representation boundary for Record. This looks like a mechanics-sharing candidate, but must not merge Scheduled and Actual authority ownership.
+
+2. `CorrectionPublisher.practicalMovementValid` and `MovementAdmission.validateDraft` both express parts of the practical balanced-JPY entrance. Correction lacks a normal Movement `total` field and also validates the retained target, so an apparently similar check may still have a different operation contract.
+
+3. `ScheduledTerminalPublisher.appendCompletionActual?` shares Event / ActualValidity / description append mechanics with Movement admission, but its EventId is selected by Scheduled completion, Relation/Discharge drafts are refused, and retry depends on identity stability. Do not introduce a generic admission abstraction until the independently varying coordinates are explicit.
+
+These are exactly the kind of seams the atlas is meant to reveal: compare first, then use Lean / Alloy / tests only where a concrete ambiguity or counterexample needs to be fixed.
 
 ## Local audit rule
 
