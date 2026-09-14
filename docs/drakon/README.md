@@ -1,4 +1,4 @@
-# LOAM System Map v0.5
+# LOAM System Map v0.6
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
@@ -13,9 +13,9 @@ It is deliberately not a mirror of every Lean file. A diagram should expose a me
 
 ## Pinned audit checkpoint
 
-The current cross-path audit conclusions are frozen in [`DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md`](../research/DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md).
+The first cross-path audit conclusions are frozen in [`DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md`](../research/DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md).
 
-That checkpoint records the evidence and non-conclusions reached after the first Record / Correction / Scheduled Completion comparison, including the current sparse Effect identity finding. Future work should preserve it as historical audit evidence and create a later checkpoint when the verdict materially changes rather than silently rewriting this point in the investigation.
+That checkpoint records the evidence and non-conclusions reached after the first Record / Correction / Scheduled Completion comparison. It intentionally still says that sparse Effect identity divergence was the next target. v0.6 resolves that target instead of rewriting the historical checkpoint.
 
 ```text
 LOAM System Map
@@ -124,8 +124,8 @@ The `.drn` file is SQLite, so its semantic contents can also be inspected as tex
 python3 docs/drakon/inspect_map.py
 python3 docs/drakon/inspect_map.py --diagram "00 Architecture Audit Gate"
 python3 docs/drakon/inspect_map.py --diagram "09 Write Path Comparison"
-python3 docs/drakon/inspect_map.py --diagram "11.1 Authoritative Correction Publish"
-python3 docs/drakon/inspect_map.py --diagram "12.1 Dual-Authority Completion Publish"
+python3 docs/drakon/inspect_map.py --diagram "11.2 Correction Admission"
+python3 docs/drakon/inspect_map.py --diagram "12.2 Completion Actual Admission"
 python3 docs/drakon/inspect_map.py --all --json > /tmp/loam-map.json
 ```
 
@@ -146,7 +146,7 @@ A future base-Measure answer such as JPY net worth across JPY and USD holdings m
 
 High-level TUI, future GUI, Web, and AI adapters should operate on presentation-neutral commands / queries and one household root. They should not need canonical `.loam` filenames, writer-lock mechanics, durable identity allocation, serialization, or recovery policy.
 
-The scriptable Movement CLI now follows the same `HouseholdCommand.record` path as the TUI. Presentation is rendered after authoritative publication succeeds; the Movement publisher no longer carries a frontend callback.
+The scriptable Movement CLI follows the same `HouseholdCommand.record` path as the TUI. Presentation is rendered after authoritative publication succeeds; the Movement publisher carries no frontend callback.
 
 A low-level diagnostic CLI may still deliberately expose physical paths when explicit physical control is part of its independent purpose.
 
@@ -186,6 +186,24 @@ Record and Correction therefore share a **one-Actual publication topology**. Tha
 
 Scheduled Completion has a different authority topology and crash-recovery law. Its `Scheduled -> Actual` terminal claim is published first. If Actual publication is interrupted, that retained terminal remains inert to readers until the target Actual Event appears; retry reuses the same target identity. This distinction must not be erased merely because both files use staging and rename.
 
+v0.6 also records one confirmed cross-path semantic law:
+
+```text
+collector-local EffectKey
+    -> anonymous unless independent evidence earns addressability
+
+Record
+    Relation source may earn the key
+
+Correction
+    current replacement contract earns no new Effect key
+
+Scheduled Completion
+    current plain-Actual completion contract earns no new Effect key
+```
+
+This law is shared through `Loam.SparseEffectIdentity`, but it remains outside neutral Core. `Core.Event` owns the structural law that Effect identity is optional and retained keys are unique; operation-level evidence decides whether a collector key deserves durability.
+
 ## Map-driven refactoring results
 
 The first Record Movement audit produced concrete compression:
@@ -202,19 +220,32 @@ The second audit applied the macro gate to the publisher/frontend boundary:
 3. the scriptable Movement CLI remained, but now writes through `HouseholdCommand.record`;
 4. CLI admission detail renders after successful authoritative publication instead of through a publisher callback.
 
-The map is expected to get shorter when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
+The third audit came from comparing Record, Correction, and Scheduled Completion at the same DRAKON scale:
 
-## New cross-path audit seams, not conclusions
+1. `Loam.SparseEffectIdentity.canonicalizeEffects` now owns the small shared law that only independently earned EffectKeys remain durable;
+2. Record derives earned identity from Relation sources;
+3. Correction and current Scheduled Completion erase collector-local EffectKeys because their admitted replacement/plain-Actual paths create no new Relation source;
+4. production-path regressions deliberately reuse one temporary EffectKey across two postings and require successful keyless publication;
+5. interrupted Scheduled completion recovery preserves the stable EventId while still erasing collector-local Effect identity;
+6. Scheduled Completion now reuses `ActualAuthority.movementWorld` instead of hand-assembling the same Actual-plus-policy representation boundary.
 
-The v0.5 atlas exposes several candidates for the next audit. None is yet a refactoring decision.
+The important result is not a generic publisher. One small law and one representation mechanism became shared while correction semantics and the two-authority Scheduled recovery protocol stayed independent.
 
-1. `ScheduledTerminalPublisher` manually assembles `MovementAdmission.World` from Actual evidence plus current Locus policy even though `ActualAuthority.movementWorld` now owns that representation boundary for Record. This looks like a mechanics-sharing candidate, but must not merge Scheduled and Actual authority ownership.
+The map is expected to get shorter or more regular when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
 
-2. `CorrectionPublisher.practicalMovementValid` and `MovementAdmission.validateDraft` both express parts of the practical balanced-JPY entrance. Correction lacks a normal Movement `total` field and also validates the retained target, so an apparently similar check may still have a different operation contract.
+## Remaining cross-path audit seams, not conclusions
 
-3. `ScheduledTerminalPublisher.appendCompletionActual?` shares Event / ActualValidity / description append mechanics with Movement admission, but its EventId is selected by Scheduled completion, Relation/Discharge drafts are refused, and retry depends on identity stability. Do not introduce a generic admission abstraction until the independently varying coordinates are explicit.
+v0.6 leaves narrower questions for later work.
 
-These are exactly the kind of seams the atlas is meant to reveal: compare first, then use Lean / Alloy / tests only where a concrete ambiguity or counterexample needs to be fixed.
+1. `CorrectionPublisher.practicalMovementValid` and `MovementAdmission.validateDraft` both express parts of the practical balanced-JPY entrance. Correction lacks a normal Movement `total` field and also validates the retained target, so similar checks do not yet prove one shared validator.
+
+2. Movement admission, Correction, Scheduled Completion, and at least part of Actual Reversal repeatedly perform Event append plus base ActualValidity append, with several paths also appending optional EventDescription. This is now strong independent pressure to investigate a small typed append primitive. It is not evidence for a generic publisher or generic admission engine.
+
+3. `EventDescriptionMemory` owns the one-description-per-Event invariant but callers repeatedly rebuild `entries ++ [new]` through `ofEntries?`. A local `add?` operation may be a smaller first step than abstracting the entire Event / validity / description sequence.
+
+4. Scheduled Completion must keep its stable externally selected EventId and Scheduled-first / Actual-second retry law even if some inner Actual append mechanics become shared.
+
+These are exactly the kind of seams the atlas is meant to reveal: compare first, then use Lean, Alloy, tests, or DRAKON only where a concrete ambiguity or counterexample needs to be fixed.
 
 ## Local audit rule
 
