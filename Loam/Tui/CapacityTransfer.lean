@@ -252,7 +252,19 @@ def view (state : State) : Widget :=
         | none => "Capacity / Transfer / Edit"
       let grantWidgets :=
         match state.grantContext with
-        | some ctx => [line s!"Suggested to reach After-known 0: {ctx.suggested} jpy"]
+        | some ctx =>
+            let residualText :=
+              match ctx.residual with
+              | some r => toString r.quanta ++ " jpy"
+              | none => "unavailable"
+            [ line ("Purpose: " ++ ctx.row.purpose.token)
+            , line ("Current Now: " ++ toString ctx.row.remaining.quanta ++ " jpy")
+            , line ("Known future: " ++ toString ctx.row.commitment.quanta ++ " jpy")
+            , line ("After-known: " ++ toString ctx.row.headroom.quanta ++ " jpy")
+            , line s!"Suggested to reach After-known 0: {ctx.suggested} jpy"
+            , line ("Funding residual before unresolved: " ++ residualText)
+            , line "Funding residual is advisory current evidence, not an allocation ceiling."
+            ]
         | none => []
       .column <|
         [ line header
