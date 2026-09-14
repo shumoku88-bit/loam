@@ -104,6 +104,26 @@ SIMPLE_DIAGRAMS = [
 ]
 
 FLOW_DIAGRAMS = {
+    "00 Architecture Audit Gate": {
+        "description": "Macro guardrail for every structural refactor before local compression is accepted.",
+        "sources": "docs/drakon/ARCHITECTURE_LAWS.md; DESIGN_PHILOSOPHY.md; docs/research/ACCOUNTING_CAPABILITY_AUDIT_CHECKPOINT_2026-09.md; Loam/HouseholdCommand.lean",
+        "audit": "Local simplification is accepted only when it does not spend LOAM's multi-Measure, frontend-neutral, authority-preserving, open-world, locale-neutral, additive-extension capabilities.",
+        "nodes": [
+            ("decision", "Minimal independent evidence preserved?", "Redesign\ndo not retain derivable state or erase needed evidence"),
+            ("decision", "Measure separation preserved?", "Redesign\nno implicit cross-Measure arithmetic or valuation"),
+            ("decision", "Semantics remain presentation-neutral?", "Move concern outward\nTUI / GUI / AI must not define Core truth"),
+            ("decision", "Frontends remain authority-neutral?", "Move authority inward\nno canonical paths / locks / identity in frontend"),
+            ("decision", "Independent semantic authorities remain distinct?", "Redesign\nshare mechanics without merging authority"),
+            ("decision", "Unknown / incomplete remains explicit?", "Redesign\ndo not collapse uncertainty to zero / empty / false"),
+            ("decision", "Writes fail closed and continuity is qualified?", "Redesign\nprotect current authority and operational facts"),
+            ("decision", "Derived answers remain projections?", "Redesign\ndo not canonicalize a report convenience"),
+            ("decision", "Any new shared primitive earned by independent pressure?", "Keep it local\nrepeated independent use must precede promotion"),
+            ("decision", "Future capability preserved without speculative framework?", "Redesign\nkeep room without inventing hypothetical abstraction"),
+            ("decision", "Locale-specific policy stays at the edge?", "Move concern outward\nJapan-friendly must not become Japan-bound"),
+            ("decision", "Extension is additive rather than semantic distortion?", "Add explicit evidence / policy / adapter\ndo not weaken an existing law"),
+            ("action", "MACRO GATE PASSED\ncontinue local proof / tests / review"),
+        ],
+    },
     "10.0 Record Movement": {
         "description": "End-to-end production path. Detailed diagrams split collection, pure admission, and atomic publication.",
         "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/ActualAuthority.lean",
@@ -289,7 +309,7 @@ def add_flow_diagram(db, item_id, diagram_id, name, spec):
             fail_end_y = y + 72
             insert_item(db, item_id, diagram_id, "vertical", "", side_x, y, 0, fail_end_y - y - 24)
             item_id += 1
-            insert_item(db, item_id, diagram_id, "beginend", failure, side_x, fail_end_y, 170, 24, 60)
+            insert_item(db, item_id, diagram_id, "beginend", failure, side_x, fail_end_y, 190, 30, 60)
             item_id += 1
         else:
             raise ValueError(f"unknown node kind: {kind}")
@@ -317,7 +337,7 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.3 — architecture observation + Record Movement write path",))
+                   ("LOAM System Map v0.4 — macro architecture gate + Record Movement write path",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
@@ -331,6 +351,8 @@ def build():
         root = node_id
         node_id = add_tree_node(db, node_id, 0, "folder", "LOAM System Map")
 
+        node_id = add_tree_node(db, node_id, root, "item",
+                                diagram_id=diagram_ids["00 Architecture Audit Gate"])
         node_id = add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids["00 Overview"])
         for name in ["01 Human Entrances", "02 Commands & Questions", "03 Application"]:
             node_id = add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
@@ -350,8 +372,9 @@ def build():
         movement_folder = node_id
         node_id = add_tree_node(db, node_id, write_folder, "folder", "Record Movement")
         for name in FLOW_DIAGRAMS:
-            node_id = add_tree_node(db, node_id, movement_folder, "item",
-                                    diagram_id=diagram_ids[name])
+            if name.startswith("10."):
+                node_id = add_tree_node(db, node_id, movement_folder, "item",
+                                        diagram_id=diagram_ids[name])
 
         db.commit()
         db.execute("pragma page_size=512")
@@ -362,7 +385,7 @@ def build():
 
         if db.execute("select count(*) from diagrams").fetchone()[0] != len(all_names):
             raise SystemExit("diagram count mismatch")
-        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 10:
+        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 20:
             raise SystemExit("expected detailed decision icons")
         if db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] != len(FLOW_DIAGRAMS):
             raise SystemExit("missing source traceability metadata")
