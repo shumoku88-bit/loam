@@ -1,16 +1,18 @@
-# LOAM System Map v0.3
+# LOAM System Map v0.4
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
-The map has two levels:
+The map has three roles:
 
+- a macro architecture audit gate that every structural refactor should survive;
 - a small human-scale repository/system tree;
 - detailed DRAKON-shaped flow diagrams for concrete production paths.
 
-It is deliberately not a mirror of every Lean file. A diagram should expose a meaningful path, decision, authority boundary, or refusal rather than reproduce file structure mechanically.
+It is deliberately not a mirror of every Lean file. A diagram should expose a meaningful path, decision, authority boundary, refusal, or macro design law rather than reproduce file structure mechanically.
 
 ```text
 LOAM System Map
++-- 00 Architecture Audit Gate
 +-- 00 Overview
 +-- 01 Human Entrances
 +-- 02 Commands & Questions
@@ -36,6 +38,49 @@ LOAM System Map
         `-- 10.5 Line CLI Record Entrance
 ```
 
+## Architecture laws
+
+The textual source for the macro guardrails is [`ARCHITECTURE_LAWS.md`](ARCHITECTURE_LAWS.md).
+
+The `00 Architecture Audit Gate` diagram turns those rules into an executable review path. Before accepting a local compression, ask whether it still preserves:
+
+- minimal independent canonical evidence;
+- explicit Measure separation and no implicit valuation;
+- presentation-neutral semantics;
+- authority-neutral high-level frontends;
+- independent semantic authorities even when mechanics are shared;
+- explicit unknown / incomplete state;
+- fail-closed writes and qualified operational continuity;
+- derived reports as projections rather than duplicate state;
+- conservative primitive promotion after repeated independent semantic pressure;
+- future capability without speculative framework-building;
+- locale policy at the edge rather than in neutral Core;
+- additive extension instead of distortion of an existing law.
+
+This gate is deliberately macro-level. Passing it does not prove a refactor correct; it prevents a local simplification from silently buying fewer lines by spending capabilities that make LOAM usable outside the current UI, locale, or household shape.
+
+### Core promotion rule
+
+A feature-specific helper starts local. Reuse alone does not earn Core status.
+
+```text
+one feature needs it
+    -> keep local
+
+multiple independent uses need the same semantic thing
+    -> shared-boundary candidate
+
+same shape but different authority / meaning
+    -> share mechanics only
+
+same semantic primitive + independent reason to exist
+    -> only then consider moving inward
+```
+
+The threshold is evidential, not numerical. Two callers are a signal to investigate, not an automatic promotion rule.
+
+This matters for future GUI, AI, Web, import, foreign-currency, and user-specific extensions: preserve the neutral capability, but do not pre-build generic frameworks before a concrete second pressure exists.
+
 ## Build and open
 
 From the repository root:
@@ -52,7 +97,7 @@ docs/drakon/loam-system-map.drn
 
 Open that file in DRAKON Editor. The generated `.drn` is intentionally ignored by Git; `build_map.py` is the deterministic, reviewable source for the map.
 
-The detailed Record Movement diagrams use real DRAKON icon kinds such as `if`, `insertion`, `action`, `beginend`, and refusal exits. Audit-note text is explicitly wrapped by the builder so the yellow note boxes remain readable in DRAKON Editor.
+The detailed diagrams use real DRAKON icon kinds such as `if`, `insertion`, `action`, `beginend`, and refusal exits. Audit-note text is explicitly wrapped by the builder so the yellow note boxes remain readable in DRAKON Editor.
 
 The current diagrams are architecture observations: their English icon text is not yet Ada source and the `.drn` is not yet a code-generation authority.
 
@@ -62,6 +107,7 @@ The `.drn` file is SQLite, so its semantic contents can also be inspected as tex
 
 ```sh
 python3 docs/drakon/inspect_map.py
+python3 docs/drakon/inspect_map.py --diagram "00 Architecture Audit Gate"
 python3 docs/drakon/inspect_map.py --diagram "10.2 Authoritative Movement Publish"
 python3 docs/drakon/inspect_map.py --diagram "10.2" --geometry
 python3 docs/drakon/inspect_map.py --all --json > /tmp/loam-map.json
@@ -76,6 +122,23 @@ The inspector exposes:
 - optional item geometry.
 
 This is the screenshot-light bridge for human/AI collaboration. Use the inspector for structural questions. Use an actual DRAKON Editor screenshot when spatial density, visual symmetry, alignment, or an unexpectedly awkward route is itself the evidence. An AI reviewer can then ask for one exact diagram or comparison screenshot instead of requiring screenshots after every edit.
+
+## Multi-Measure reading rule
+
+LOAM should remain **multi-Measure native**, not be described as a complete FX accounting subsystem.
+
+A current practical entrance may deliberately require JPY. That does not make JPY a global Event law. Neutral Core keeps explicit Measure identity and must not silently add or convert distinct Measures.
+
+A future base-Measure answer such as JPY net worth across JPY and USD holdings must earn the independent valuation evidence and policy it actually needs. The architecture gate should reject both extremes:
+
+- collapsing Measures because the current household mostly uses JPY;
+- adding a speculative FX framework before a real valuation question requires it.
+
+## Frontend reading rule
+
+High-level TUI, future GUI, Web, and AI adapters should operate on presentation-neutral commands / queries and one household root. They should not need canonical `.loam` filenames, writer-lock mechanics, durable identity allocation, serialization, or recovery policy.
+
+A low-level diagnostic CLI may deliberately expose physical paths when explicit physical control is part of its independent purpose.
 
 ## Record Movement reading rule
 
@@ -111,11 +174,11 @@ Still-open audit questions:
 
 1. `Loam.Tui.Record.draft?` validates a draft, then TUI preview calls `MovementAdmission.admit?`, whose first step validates the canonical draft again. Existing callers/tests use `draft?` as an independently validated constructor, so the duplicate check is retained until that contract is deliberately redesigned.
 2. TUI publication goes through `HouseholdCommand.record`; the explicit line CLI calls `MovementPublisher.publishDraftWithPreview` directly. That asymmetry is currently documented policy, not automatically a bug.
-3. `publishDraftWithPreview` still carries a frontend callback inside the publisher even though the current line CLI does not offer a user decision after that callback. This remains a candidate for a later entrance-boundary audit.
+3. `publishDraftWithPreview` still carries a frontend callback inside the publisher even though the current line CLI does not offer a user decision after that callback. This remains a candidate for the next entrance-boundary audit.
 
 The map is expected to change when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
 
-## Audit rule
+## Local audit rule
 
 When the map feels wrong, do not immediately redraw it to match the code. Ask:
 
@@ -124,6 +187,8 @@ When the map feels wrong, do not immediately redraw it to match the code. Ask:
 3. Is a retained fact actually derivable?
 4. Are two equal-shaped things being merged even though their authority differs?
 5. Does an Ada package boundary correspond to an independent reason to change?
+
+Then run the proposed change through `00 Architecture Audit Gate` before accepting the local simplification.
 
 The tension between code and map is useful evidence.
 
