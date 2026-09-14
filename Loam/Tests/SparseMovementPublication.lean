@@ -56,6 +56,33 @@ def main (args : List String) : IO Unit := do
   expect (previewEvent.effects.all fun effect => effect.key.isNone)
     "admission retained collector-local EffectKey without Relation evidence"
 
+  -- Conversely, explicit Relation evidence earns stable source identity inside the
+  -- same pure admission boundary; canonicalization must not erase that source key.
+  let earnedKey : EffectKey := ⟨"temp-earned"⟩
+  let earnedIdentity : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-12"
+    description := some "earned identity"
+    effects := [
+      Effect.ofQuantity earnedKey ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100),
+      keyedEffect "temp-unearned" "cash" (-100)]
+    relations := [{
+      sourceEffect := earnedKey
+      debtor := .external ⟨"friend-preview"⟩
+      creditor := .household
+      quantity := Quantity.ofQuanta 50 }]
+    discharges := []
+    total := 100
+  }
+  let .ok earnedAdmitted := Loam.MovementAdmission.admit? world earnedIdentity
+    | throw (IO.userError "admission erased relation-earned Effect identity")
+  let earnedEvent ← requireSome
+    (earnedAdmitted.world.events.findById? earnedAdmitted.eventId)
+    "relation-earned preview event missing"
+  expect (earnedEvent.effects.any fun effect => effect.key == some earnedKey)
+    "admission did not retain Relation source EffectKey"
+  expect (earnedEvent.effects.filterMap (fun effect => effect.key) == [earnedKey])
+    "admission retained more EffectKeys than Relation semantics require"
+
   -- Collector-local keys on an ordinary movement must not become canonical identity.
   let ordinary : Loam.MovementAdmission.Draft := {
     validOn := "2026-09-12"
@@ -103,4 +130,4 @@ def main (args : List String) : IO Unit := do
   expect (relatedEvent.effects.filterMap (fun effect => effect.key) == [sourceKey])
     "publication retained more EffectKeys than Relation semantics require"
 
-  IO.println "Sparse Movement publication: admission canonicalization, anonymous ordinary Effects and relation-only key promotion passed."
+  IO.println "Sparse Movement publication: admission canonicalization, relation-earned identity, anonymous ordinary Effects and relation-only key promotion passed."
