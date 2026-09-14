@@ -108,8 +108,7 @@ private def appendCompletionActual?
     match draft.description with
     | none => pure world.descriptions
     | some text =>
-        match EventDescriptionMemory.ofEntries?
-            (world.descriptions.entries ++ [{ event := actualId, text := text }]) with
+        match world.descriptions.add? { event := actualId, text := text } with
         | some descriptions => pure descriptions
         | none => throw "loam: could not append Scheduled completion description"
   pure {

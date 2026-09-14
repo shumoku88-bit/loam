@@ -64,6 +64,15 @@ def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory
 def empty : EventDescriptionMemory :=
   { entries := [], eventNodup := by simp }
 
+/--
+Append one Event-scoped description while preserving the one-description-per-Event
+invariant. Representation order remains persistence shape only.
+-/
+def add?
+    (memory : EventDescriptionMemory)
+    (entry : EventDescription) : Option EventDescriptionMemory :=
+  ofEntries? (memory.entries ++ [entry])
+
 /-- Lookup the description text associated with one EventId, if present. -/
 def findText? (memory : EventDescriptionMemory) (target : EventId) : Option String :=
   (FiniteKeyed.findBy? EventDescription.event memory.entries target).map EventDescription.text

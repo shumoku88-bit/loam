@@ -316,8 +316,7 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   let updatedDescriptions ← match draft.description with
     | none => pure world.descriptions
     | some text =>
-        match Loam.Core.EventDescriptionMemory.ofEntries?
-            (world.descriptions.entries ++ [{ event := eventId, text := text }]) with
+        match world.descriptions.add? { event := eventId, text := text } with
         | some descriptions => pure descriptions
         | none =>
             throw "loam: could not append movement, occurrence-date, and description evidence"
