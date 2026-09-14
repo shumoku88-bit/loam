@@ -126,8 +126,8 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison before promoting repeated write mechanics inward.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
-        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Sparse Effect identity is now one shared admission law, while Record, Correction, and Scheduled Completion retain distinct semantic and authority topologies.",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
+        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Reversal adds a fourth topology: Scheduled lifecycle is locked and read as provenance evidence while only Actual is published. Fixed Scheduled-then-Actual ownership now appears across four paths and is a mechanics candidate, not yet one semantic operation.",
         "nodes": [
             ("action", "RECORD MOVEMENT\nActual + current Locus policy"),
             ("action", "pure Movement admission\nfresh Event identity"),
@@ -138,8 +138,11 @@ FLOW_DIAGRAMS = {
             ("action", "SCHEDULED COMPLETION\nScheduled lifecycle + Actual + Locus policy"),
             ("action", "completion-specific admission\nstable completion Event identity"),
             ("action", "publish Scheduled terminal first\nthen publish Actual generation"),
+            ("action", "ACTUAL REVERSAL\nScheduled lifecycle + Actual + Locus policy"),
+            ("action", "exact-inverse admission\nScheduled provenance is read-only guard evidence"),
+            ("action", "publish one complete Actual generation\nScheduled authority remains unchanged"),
             ("action", "SHARED ADMISSION LAW\nunearned collector EffectKeys remain anonymous"),
-            ("action", "COMMON MECHANICS CANDIDATES\nownership, authoritative reload, typed complete-image publication"),
+            ("action", "COMMON MECHANICS CANDIDATES\nauthoritative reload, typed complete-image publication, fixed lock order"),
             ("action", "DO NOT MERGE BY SHAPE\nauthority topology, semantic admission, crash / retry law"),
         ],
     },
@@ -285,11 +288,11 @@ FLOW_DIAGRAMS = {
     },
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
-        "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
-        "audit": "Correction keeps its own target and lineage law, but shares sparse Effect identity: because this replacement creates no new Relation source, collector-local EffectKeys are erased before Event construction.",
+        "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "audit": "Correction keeps its own target and lineage law, but shares sparse Effect identity and measure-parametric practical Movement qualification. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
-            ("decision", "Replacement has valid Locus tokens\nand balanced nonzero JPY?", "Refuse\nreplacement outside practical entrance"),
+            ("decision", "Replacement is practical balanced JPY?", "Refuse\nreplacement outside practical entrance"),
             ("decision", "Every replacement Locus currently admitted?", "Refuse\nLocus not approved for new write"),
             ("insertion", "Resolve targetCurrent?\nretained and not already corrected"),
             ("decision", "Target is current?", "Refuse\nmissing or superseded target"),
@@ -391,6 +394,69 @@ FLOW_DIAGRAMS = {
             ("insertion", "Publish missing Actual generation"),
             ("decision", "Actual publication succeeds?", "Remain retryable\nterminal stays inert"),
             ("action", "Scheduled completion becomes visible as complete"),
+        ],
+    },
+    "13.0 Reverse Actual": {
+        "description": "End-to-end exact reversal of one selected current Actual while retaining target and inverse as independent evidence.",
+        "sources": "Loam/Tui/ActualReversal.lean; Loam/Tui/ActualReversalSession.lean; Loam/HouseholdCommand.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean",
+        "audit": "The TUI inverse is preview-only. Publication re-reads the target and derives the authoritative exact inverse under Scheduled-then-Actual ownership; only Actual is written.",
+        "nodes": [
+            ("action", "Select one visible current Actual"),
+            ("insertion", "Seed reversal confirmation\nfrom selected Actual"),
+            ("action", "Derive exact inverse postings for preview only"),
+            ("decision", "User chose Publish?", "Edit date or Cancel\nno write"),
+            ("insertion", "HouseholdCommand.reverseActual\nsurface-neutral command port"),
+            ("insertion", "ActualReversalPublisher\nacquire Scheduled then Actual ownership"),
+            ("insertion", "Re-read Actual + Locus policy + Scheduled lifecycle"),
+            ("insertion", "Reversal admission\nre-derive exact inverse from authority"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
+            ("action", "Reload canonical Actual view"),
+        ],
+    },
+    "13.1 Authoritative Reversal Publish": {
+        "description": "Writer-owned publication seam for one exact Actual reversal with a read-only Scheduled provenance dependency.",
+        "sources": "Loam/HouseholdCommand.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "audit": "Scheduled is locked and read, not written. Ownership prevents completion provenance from changing across the reversal-independence check. Actual is the only authority published; lock order remains Scheduled then Actual.",
+        "nodes": [
+            ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
+            ("insertion", "Acquire Scheduled ownership\nread-only provenance dependency"),
+            ("insertion", "Acquire Actual ownership\nfixed lock order"),
+            ("insertion", "Load authoritative ActualEvidence"),
+            ("decision", "Actual authority decoded?", "Refuse\nmissing / malformed Actual"),
+            ("insertion", "Load current Locus admission policy"),
+            ("decision", "Locus policy decoded?", "Refuse\nmissing / malformed policy"),
+            ("insertion", "Load Scheduled lifecycle image"),
+            ("decision", "Lifecycle decoded?", "Refuse\nmissing / malformed Scheduled authority"),
+            ("insertion", "ActualReversalPublisher.admit?\nagainst all three authoritative views"),
+            ("decision", "Reversal admitted?", "Refuse\nreversal semantic guard failed"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete Actual generation only"),
+            ("decision", "Atomic publication succeeded?", "Refuse\nScheduled and existing Actual remain intact"),
+            ("action", "Return success"),
+        ],
+    },
+    "13.2 Reversal Admission": {
+        "description": "Pure reversal-specific admission that derives one anonymous exact inverse and one explicit provenance relation.",
+        "sources": "Loam/ActualReversalPublisher.lean; Loam/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
+        "audit": "The target must be current and independent of retained Relation/Discharge and Scheduled-completion provenance. Exact inverse balance is not revalidated at runtime: BalancedMovement.totalQuanta_negated is the retained Lean law that makes quantity negation preserve zero total.",
+        "nodes": [
+            ("decision", "Reversal occurrence date valid?", "Refuse\ninvalid calendar date"),
+            ("insertion", "Resolve targetCurrent?\nretained and not already corrected"),
+            ("decision", "Target is current?", "Refuse\nmissing or superseded target"),
+            ("decision", "Target is not itself a reversal endpoint?", "Refuse\nreversal-of-reversal not qualified"),
+            ("decision", "Target has not already been reversed?", "Refuse\nalready reversed"),
+            ("decision", "Relation / Discharge evidence ignores target?", "Refuse\nreferenced target not yet qualified"),
+            ("decision", "Scheduled completion does not claim target?", "Refuse\nScheduled-completion Actual not yet qualified"),
+            ("decision", "Target is practical balanced JPY?", "Refuse\ntarget outside reversal entrance"),
+            ("action", "Choose deterministic reversal EventId\nactual-reversal:<target>"),
+            ("decision", "Reversal identity available?", "Refuse\nidentity collision"),
+            ("action", "Derive anonymous exact inverse Effects"),
+            ("decision", "Every inverse Locus currently admitted?", "Refuse\nLocus not approved for new write"),
+            ("insertion", "Event.ofEffects?\nconstruct inverse Event"),
+            ("decision", "Inverse Event structurally valid?", "Refuse\nEvent construction failed"),
+            ("action", "Append inverse Event + base ActualValidity"),
+            ("action", "Append ActualReversal\ntarget -> inverse Event"),
+            ("decision", "Typed histories accept all appends?", "Refuse\nhistory / relation append failed"),
+            ("action", "Return complete updated ActualEvidence"),
         ],
     },
 }
@@ -509,7 +575,7 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.6 - shared sparse Effect identity across write paths",))
+                   ("LOAM System Map v0.7 - Actual Reversal and cross-path ownership observation",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
@@ -544,6 +610,7 @@ def build():
         node_id = add_flow_folder(db, node_id, atlas_folder, "10 Record Movement", "10.", diagram_ids)
         node_id = add_flow_folder(db, node_id, atlas_folder, "11 Correct Actual", "11.", diagram_ids)
         node_id = add_flow_folder(db, node_id, atlas_folder, "12 Complete Scheduled", "12.", diagram_ids)
+        node_id = add_flow_folder(db, node_id, atlas_folder, "13 Reverse Actual", "13.", diagram_ids)
 
         db.commit()
         db.execute("pragma page_size=512")
@@ -554,14 +621,14 @@ def build():
 
         if db.execute("select count(*) from diagrams").fetchone()[0] != len(all_names):
             raise SystemExit("diagram count mismatch")
-        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 45:
+        if db.execute("select count(*) from items where type='if'").fetchone()[0] < 60:
             raise SystemExit("expected detailed decision icons")
         if db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] != len(FLOW_DIAGRAMS):
             raise SystemExit("missing source traceability metadata")
         if db.execute(
             "select count(*) from tree_nodes where type='folder' and name in "
-            "('10 Record Movement','11 Correct Actual','12 Complete Scheduled')"
-        ).fetchone()[0] != 3:
+            "('10 Record Movement','11 Correct Actual','12 Complete Scheduled','13 Reverse Actual')"
+        ).fetchone()[0] != 4:
             raise SystemExit("write-path atlas folder mismatch")
 
     print(OUTPUT)
