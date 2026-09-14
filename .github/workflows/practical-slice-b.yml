@@ -30,6 +30,7 @@ on:
       - 'Loam/Tests/CurrentCoverageInspection.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/CounterpointFiveWorlds.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -68,6 +69,7 @@ on:
       - 'Loam/Tests/CurrentCoverageInspection.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/CounterpointFiveWorlds.lean'
+      - 'Loam/Tests/FourVoiceCompatibilityV1.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -112,6 +114,10 @@ jobs:
       - name: Run counterpoint five-world research story
         shell: bash
         run: lake env lean --run Loam/Tests/CounterpointFiveWorlds.lean
+
+      - name: Run four-voice V1 compatibility story
+        shell: bash
+        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV1.lean
 
       - name: Run production Current Capacity Coverage reader story
         shell: bash
