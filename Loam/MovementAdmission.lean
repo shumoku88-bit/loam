@@ -81,15 +81,13 @@ structure World where
 /--
 One successfully admitted Movement plus the updated typed world.
 
-`newRelations` and `newDischarges` remain explicit so a physical publisher can
-retain current conditional-write behavior without re-deriving semantic change
-from byte differences or Effect signs.
+The operation result exposes only the updated semantic world and the newly
+allocated Event identity. Relation and discharge deltas are already represented
+in `world` and are not a second publication contract.
 -/
 structure Admitted where
   world : World
-  event : Loam.Core.Event
-  newRelations : List Loam.Core.RelationUnit
-  newDischarges : List Loam.Core.RelationDischarge
+  eventId : Loam.Core.EventId
 
 private def historyMentionsEvent
     (history : Loam.Core.ActualValidityHistory String)
@@ -246,6 +244,23 @@ private def retainedEffectKeyPersistable (effect : Loam.Core.Effect) : Bool :=
   | none => true
   | some key => Loam.Persistence.validToken key.token
 
+/--
+Erase collector-local Effect keys unless relation evidence independently earns
+stable identity for that exact key.
+
+This normalization is part of Movement admission rather than physical
+publication. Preview, diagnostic callers, and production publishers therefore
+ask admission about the same canonical draft shape.
+-/
+def canonicalizeDraft (draft : Draft) : Draft :=
+  let referenced := draft.relations.map (fun relation => relation.sourceEffect)
+  let effects := draft.effects.map fun effect =>
+    match effect.key with
+    | none => effect
+    | some key =>
+        if key ∈ referenced then effect else { effect with key := none }
+  { draft with effects := effects }
+
 /-- Shared practical draft validation. Balanced JPY is an entrance contract,
 not a global law imposed on neutral Core Events. All publishers call admit?. -/
 def validateDraft (draft : Draft) : Except String Unit := do
@@ -269,9 +284,11 @@ def validateDraft (draft : Draft) : Except String Unit := do
 /--
 Admit one already-collected Movement against one current typed world.
 
-The first world-dependent rule is the explicit Observation-212 Locus vocabulary:
-every proposed Effect must use a currently approved Locus. Event history and UI
-completion hints are not consulted for this decision.
+Collector-local Effect identity is first reduced to the stable identity actually
+earned by explicit relation references. The first world-dependent rule is then
+the explicit Observation-212 Locus vocabulary: every proposed Effect must use a
+currently approved Locus. Event history and UI completion hints are not consulted
+for this decision.
 
 This function also owns the current practical identity allocation and
 relation/discharge admission rules, but performs no IO, persistence, authority
@@ -279,7 +296,8 @@ switch, terminal rendering, or writer locking. A caller either receives one
 fully admitted typed world or the same error boundary used by the current
 practical writer.
 -/
-def admit? (world : World) (draft : Draft) : Except String Admitted := do
+def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
+  let draft := canonicalizeDraft rawDraft
   validateDraft draft
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
@@ -330,9 +348,7 @@ def admit? (world : World) (draft : Draft) : Except String Admitted := do
       discharges := updatedDischarges
       locusAdmission := world.locusAdmission
     }
-    event := event
-    newRelations := newRelations
-    newDischarges := newDischarges
+    eventId := eventId
   }
 
 end Loam.MovementAdmission
