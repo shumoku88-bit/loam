@@ -57,14 +57,10 @@ Try to falsify with split Loci, unrelated coordinates, and correction history.
 
 The executable probe `Loam/Tests/FourVoiceCompatibilityV1.lean` passed four counterexample worlds against current production semantics.
 
-1. **Split physical shape still preserves local Headroom.**
-   Scheduled pressure may be split across two Loci while the completed Actual contribution lands on a third Locus. If the selected Purpose/Measure contribution is equal, Headroom can remain unchanged even though the physical shape is not the same.
-2. **Extra movement in another Purpose still preserves local Headroom.**
-   The completed Actual may contain an additional physical movement routed to another Purpose. The queried Purpose can still preserve Headroom even though the whole Actual movement is not equal to the Scheduled movement.
-3. **Raw quantity equality is insufficient when time coordinates disagree.**
-   A completion can remove current-open Scheduled pressure while its equal Actual contribution lies after `observedAt`; Commitment disappears before elapsed Consumption appears, so current Headroom changes.
-4. **Raw completion equality is insufficient after correction.**
-   A Scheduled occurrence may complete into an Actual Event whose raw contribution matches exactly, yet a current correction replacement may change the correction-frontier contribution. Current Headroom follows the correction frontier, not the raw completion endpoint.
+1. **Split physical shape still preserves local Headroom.** Scheduled pressure may be split across two Loci while the completed Actual contribution lands on a third Locus. If the selected Purpose/Measure contribution is equal, Headroom can remain unchanged even though the physical shape is not the same.
+2. **Extra movement in another Purpose still preserves local Headroom.** The completed Actual may contain an additional physical movement routed to another Purpose. The queried Purpose can still preserve Headroom even though the whole Actual movement is not equal to the Scheduled movement.
+3. **Raw quantity equality is insufficient when time coordinates disagree.** A completion can remove current-open Scheduled pressure while its equal Actual contribution lies after `observedAt`; Commitment disappears before elapsed Consumption appears, so current Headroom changes.
+4. **Raw completion equality is insufficient after correction.** A Scheduled occurrence may complete into an Actual Event whose raw contribution matches exactly, yet a current correction replacement may change the correction-frontier contribution. Current Headroom follows the correction frontier, not the raw completion endpoint.
 
 The earned arithmetic is query-local:
 
@@ -99,17 +95,48 @@ The important negative result is that **physical compatibility, time compatibili
 
 Hold quantity and Measure equal while Purpose differs.
 
-Expected observation:
-
-- realization relation remains valid;
-- Purpose-local Headroom does not remain invariant;
-- equal and opposite Purpose deltas may appear across the compared Purposes.
-
 Question:
 
 > Which wording is justified by existing evidence: `same amount`, `realized`, `reclassified`, or only a conjunction of separate facts?
 
 Do not create a retained classification-difference fact.
+
+#### V2 result — `reclassified` is not earned by cross-voice divergence
+
+The executable probe `Loam/Tests/FourVoiceCompatibilityV2.lean` passed three worlds using only current production semantics.
+
+1. **Same physical Locus, same quantity, different Purpose.** The Scheduled occurrence and completed Actual may have the same positive quantity at the same physical Locus while Scheduled routing selects `food` and Actual routing selects `books`. Food Headroom rises by the released Commitment and books Headroom falls by the new Consumption. The completion relation remains valid.
+2. **Aggregate Purpose deltas do not provide provenance correspondence.** A Scheduled occurrence can split 10 units to `food` and 20 to `books`, while the completed Actual contains one 30-unit coordinate routed to `books`. The resulting Headroom deltas are +10 for food and -10 for books, but no retained relation says which Scheduled coordinate maps onto which Actual Effect. The numerical transfer does not establish a 10-unit reclassification event.
+3. **A comparable Actual Purpose may be absent entirely.** Completion and exact physical quantity can both hold while the Actual Locus is still `.unrouted`. The Scheduled side may have an explicit Purpose and the Actual side none. This is missing interpretation evidence, not evidence that classification changed.
+
+The reason is structural:
+
+```text
+Scheduled routing subject = ScheduledId × LocusId
+Actual routing subject    = LocusId
+completion relation       = ScheduledId → Actual EventId
+```
+
+The completion relation connects occurrence identities. It does not retain a mapping between Scheduled routing assertions and Actual routing assertions, nor between Scheduled positive coordinates and Actual Effects.
+
+Therefore the following claims have different support:
+
+- **`realized`** — earned by the explicit Scheduled terminal relation when its target is an Actual Event;
+- **`same amount`** — derivable only for an explicitly selected quantity comparison;
+- **`different Purpose`** — derivable when both routing projections are defined and disagree;
+- **`reclassified`** — generally too strong because it asserts a classification transition/provenance relation that current evidence need not contain.
+
+Safer derived descriptions are compositional:
+
+> this Scheduled occurrence realized as Actual; the selected expected contribution routed to food, while the selected Actual contribution routes to books
+
+or, for an aggregate view:
+
+> food pressure released by 10; books pressure increased by 10
+
+The latter does not justify inferring that a particular 10 units were reclassified from food to books unless a future independent relation earns that correspondence.
+
+No new canonical fact is needed for the useful observation. The disagreement is already visible by composing existing routing and completion evidence.
 
 ### V3 — Same interpretation, different quantity
 
@@ -189,6 +216,8 @@ The desired result is a small set of discovered laws and counterexamples, not an
 
 LOAM's latent expressive core may be the ability to keep **expectation, occurrence, interpretation, and observed present distinct long enough for their agreements and disagreements to become informative**.
 
-V1 strengthens that hypothesis: even an explicit realization relation plus local Headroom invariance does not collapse physical shape, temporal membership, correction status, or unrelated interpretation into one notion of sameness.
+V1 showed that realization plus local coverage invariance does not collapse physical shape, temporal membership, correction status, or unrelated interpretation into one notion of sameness.
+
+V2 strengthens the same hypothesis from the interpretation side: even exact quantity and physical equality plus an explicit realization relation do not collapse Scheduled and Actual Purpose assertions into one classification history. Their disagreement is informative precisely because the two routing authorities remain distinct.
 
 The next observations should continue trying to break that hypothesis before promoting it into a design law.
