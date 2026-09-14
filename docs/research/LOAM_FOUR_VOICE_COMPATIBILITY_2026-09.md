@@ -154,6 +154,41 @@ Question:
 
 > Does this remain exact under split Loci, corrections, and current routing history?
 
+#### V3 result — quantity mismatch is an exact query-local residual
+
+The executable probe `Loam/Tests/FourVoiceCompatibilityV3.lean` passed five worlds against current production semantics.
+
+1. **Under-realization.** Scheduled managed Commitment 30 completed into correction-frontier Actual Consumption 27 for the same Purpose/Measure. Headroom moved from 70 to 73: the unmatched 3 units were released.
+2. **Over-realization.** Scheduled Commitment 30 completed into Consumption 35. Headroom moved from 70 to 65: the excess 5 units consumed additional coverage.
+3. **Split physical shape.** Scheduled 10 + 20 across two Loci completed into one 27-unit Actual coordinate. The physical shape differed, but the same +3 Headroom residual remained because the selected managed Commitment and Consumption contributions were still 30 and 27.
+4. **Correction changes the realized contribution.** A Scheduled 30 completed into raw Actual 27, but the current correction replacement contributed 24. Current Headroom moved by +6, not +3. The law follows current correction-frontier Consumption rather than the raw completion target.
+5. **Later routing does not rewrite valid-time interpretation.** An Actual valid at time 2 routed to `food` at time 2 even though the same Locus changed to `books` at time 3. The later routing assertion did not retroactively alter the earlier Consumption contribution, and the +3 residual remained.
+
+For a fixed Purpose/Measure query context, with Entitlement and unrelated selected contributions unchanged, the observed law is:
+
+```text
+ΔHeadroom
+  = removed managed Scheduled Commitment
+  - added correction-frontier Actual Consumption
+```
+
+This is stronger than an informal expected-minus-actual comparison because both terms are already qualified by the current production semantics:
+
+- the Scheduled term is current-open, horizon-selected, Measure-selected, positive, and managed to the queried Purpose;
+- the Actual term is validity-selected, historical-routing-selected at each Event's valid coordinate, and correction-frontier-selected.
+
+Therefore `expected 30 / actual 27 / difference 3` is only safe when those two values name these selected contributions. Raw Event quantity, current routing state, or whole-movement totals are not interchangeable substitutes.
+
+Useful derived wording can remain narrow:
+
+> this realization released 3 units of coverage for Purpose P / Measure M
+
+or:
+
+> this realization exceeded its previously managed pressure by 5 units
+
+Neither wording needs retained comparison state. Both are arithmetic descriptions of existing projections under a stated query context.
+
 ### V4 — Corrected history versus observed present
 
 Start from a current quantity anchor that reflects one stable correction root, then change the terminal Event behind that root.
@@ -218,6 +253,8 @@ LOAM's latent expressive core may be the ability to keep **expectation, occurren
 
 V1 showed that realization plus local coverage invariance does not collapse physical shape, temporal membership, correction status, or unrelated interpretation into one notion of sameness.
 
-V2 strengthens the same hypothesis from the interpretation side: even exact quantity and physical equality plus an explicit realization relation do not collapse Scheduled and Actual Purpose assertions into one classification history. Their disagreement is informative precisely because the two routing authorities remain distinct.
+V2 strengthened the same hypothesis from the interpretation side: even exact quantity and physical equality plus an explicit realization relation do not collapse Scheduled and Actual Purpose assertions into one classification history. Their disagreement is informative precisely because the two routing authorities remain distinct.
+
+V3 adds the complementary positive law: once Purpose/Measure/query selection is fixed, quantity divergence becomes an exact residual without requiring whole-event identity. The residual is stable across split physical shape, but only after correction-frontier selection and valid-time routing have chosen the Actual contribution that is semantically current for the query.
 
 The next observations should continue trying to break that hypothesis before promoting it into a design law.
