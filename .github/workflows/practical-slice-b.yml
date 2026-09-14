@@ -27,6 +27,7 @@ on:
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'Loam/Tests/CurrentCoverageInspection.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CounterpointFiveWorlds.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -62,6 +63,7 @@ on:
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
       - 'Loam/Tests/CurrentCoverageInspection.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/Tests/CounterpointFiveWorlds.lean'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -102,6 +104,10 @@ jobs:
       - name: Run Current Capacity Coverage practical story
         shell: bash
         run: lake env lean --run Loam/Tests/CurrentCoverageInspection.lean
+
+      - name: Run counterpoint five-world research story
+        shell: bash
+        run: lake env lean --run Loam/Tests/CounterpointFiveWorlds.lean
 
       - name: Run production Current Capacity Coverage reader story
         shell: bash
