@@ -11,6 +11,12 @@ The map has four roles:
 
 It is deliberately not a mirror of every Lean file. A diagram should expose a meaningful path, decision, authority boundary, refusal, recovery law, or macro design law rather than reproduce file structure mechanically.
 
+## Pinned audit checkpoint
+
+The current cross-path audit conclusions are frozen in [`DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md`](../research/DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md).
+
+That checkpoint records the evidence and non-conclusions reached after the first Record / Correction / Scheduled Completion comparison, including the current sparse Effect identity finding. Future work should preserve it as historical audit evidence and create a later checkpoint when the verdict materially changes rather than silently rewriting this point in the investigation.
+
 ```text
 LOAM System Map
 +-- 00 Architecture Audit Gate
