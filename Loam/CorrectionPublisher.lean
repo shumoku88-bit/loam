@@ -1,10 +1,10 @@
 import Loam.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
-import Loam.Core.BalancedMovement
 import Loam.FreshNumberedToken
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
+import Loam.PracticalMovement
 import Loam.SparseEffectIdentity
 
 namespace Loam.CorrectionPublisher
@@ -37,21 +37,6 @@ private def freshReplacementId?
     (evidence.events.events.length + 1)
   pure ⟨token⟩
 
-/--
-Operation-level qualification shared by a new replacement and an Event already
-admitted by normalized Actual persistence. Persistence syntax is checked only at
-the boundary where new Effects enter; this helper owns practical Movement meaning.
--/
-private def practicalMovementValid (effects : List Effect) : Bool :=
-  if effects.isEmpty then false
-  else if !effects.all (fun effect =>
-      decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
-    false
-  else
-    let changes := effects.map fun effect =>
-      ({ coordinate := effect.locus, quantity := effect.quantity } : MovementChange LocusId)
-    (BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isSome
-
 private def targetCurrent?
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
@@ -70,13 +55,13 @@ private def admit?
     (draft : Draft) : Except String ActualEvidence := do
   let effects := Loam.SparseEffectIdentity.canonicalizeEffects [] draft.effects
   if !effects.all (fun effect => Loam.Persistence.validToken effect.locus.token) ||
-      !practicalMovementValid effects then
+      (Loam.PracticalMovement.ofEffects? ⟨"jpy"⟩ effects).isNone then
     throw "loam: correction replacement must be one balanced nonzero JPY Movement"
   if !locusAdmission.admitsEffects effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
 
   let target ← targetCurrent? evidence.events evidence.corrections draft.target
-  if !practicalMovementValid target.effects then
+  if (Loam.PracticalMovement.ofEffects? ⟨"jpy"⟩ target.effects).isNone then
     throw "loam: selected Actual is outside the practical balanced-JPY correction entrance"
   if relationsMentionEvent evidence draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"

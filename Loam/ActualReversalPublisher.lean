@@ -2,9 +2,9 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Core.ActualReversal
-import Loam.Core.BalancedMovement
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.PracticalMovement
 import Loam.WriterOwnership
 
 namespace Loam.ActualReversalPublisher
@@ -39,21 +39,6 @@ private def loadScheduledLifecycle?
   match ← Loam.Persistence.loadScheduledLifecycleImage? path with
   | some image => return .ok image
   | none => return .error "loam: Scheduled lifecycle authority is malformed or unsupported"
-
-/--
-Operation-level qualification for an Event already admitted by normalized Actual
-persistence. Token syntax is trusted from canonical decoding; reversal still
-requires one nonempty balanced Movement of nonzero JPY Effects.
--/
-private def practicalTargetMovementValid (effects : List Effect) : Bool :=
-  if effects.isEmpty then false
-  else if !effects.all (fun effect =>
-      decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
-    false
-  else
-    let changes := effects.map fun effect =>
-      ({ coordinate := effect.locus, quantity := effect.quantity } : MovementChange LocusId)
-    (BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isSome
 
 private def targetCurrent?
     (events : EventMemory)
@@ -100,7 +85,7 @@ private def admit?
     throw "loam: reversal of an Actual referenced by retained relation/discharge evidence is not yet qualified"
   if scheduledCompletionMentionsEvent lifecycle draft.target then
     throw "loam: reversal of a Scheduled-completion Actual is not yet qualified"
-  if !practicalTargetMovementValid target.effects then
+  if (Loam.PracticalMovement.ofEffects? ⟨"jpy"⟩ target.effects).isNone then
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
   let reversal := deterministicReversalId draft.target
