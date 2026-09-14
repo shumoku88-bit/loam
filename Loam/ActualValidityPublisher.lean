@@ -38,7 +38,7 @@ private def targetCurrent?
     match EventMemory.findById? events target with
     | some event => pure event
     | none => throw "loam: selected date-correction target is not retained"
-  if corrections.corrections.any (fun correction => decide (correction.target = target)) then
+  if corrections.targetsEvent target then
     throw "loam: selected Actual is no longer current"
   pure targetEvent
 
