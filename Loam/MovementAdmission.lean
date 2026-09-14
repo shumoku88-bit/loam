@@ -8,6 +8,7 @@ import Loam.Core.EventDescription
 import Loam.Core.LocusAdmission
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
+import Loam.SparseEffectIdentity
 
 namespace Loam.MovementAdmission
 
@@ -248,18 +249,14 @@ private def retainedEffectKeyPersistable (effect : Loam.Core.Effect) : Bool :=
 Erase collector-local Effect keys unless relation evidence independently earns
 stable identity for that exact key.
 
-This normalization is part of Movement admission rather than physical
-publication. Preview, diagnostic callers, and production publishers therefore
-ask admission about the same canonical draft shape.
+This normalization is shared with other Actual-producing admissions through
+`SparseEffectIdentity`; Movement admission supplies Relation source keys as the
+independent evidence that earns durable Effect identity.
 -/
 def canonicalizeDraft (draft : Draft) : Draft :=
   let referenced := draft.relations.map (fun relation => relation.sourceEffect)
-  let effects := draft.effects.map fun effect =>
-    match effect.key with
-    | none => effect
-    | some key =>
-        if key ∈ referenced then effect else { effect with key := none }
-  { draft with effects := effects }
+  { draft with
+    effects := Loam.SparseEffectIdentity.canonicalizeEffects referenced draft.effects }
 
 /-- Shared practical draft validation. Balanced JPY is an entrance contract,
 not a global law imposed on neutral Core Events. All publishers call admit?. -/

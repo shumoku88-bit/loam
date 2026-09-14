@@ -47,8 +47,8 @@ private def lifecycleFromScheduled
   return { scheduled, terminals }
 
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
-  [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
-  , Effect.ofQuantity ⟨"effect-2"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
+  [ Effect.ofQuantity ⟨"collector-temp"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
+  , Effect.ofQuantity ⟨"collector-temp"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
   ]
 
 private def completionDraft
@@ -110,6 +110,12 @@ def main (args : List String) : IO Unit := do
     match retainedLifecycle.terminals.completionActualFor? ⟨"scheduled-1"⟩ with
     | some actual => pure actual
     | none => throw (IO.userError "canonical completion relation lost its Actual endpoint")
+  let .ok completedEvidence ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload Actual authority after completion")
+  let some completionEvent := EventMemory.findById? completedEvidence.events completionActual
+    | throw (IO.userError "completion Actual Event is missing")
+  expect (completionEvent.effects.all fun effect => effect.key.isNone)
+    "Scheduled completion retained collector-local Effect identity"
 
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Actual review")
@@ -157,8 +163,10 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "resume relation-first completion")
   let .ok recoveredEvidence ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload Actual authority after recovery")
-  expect ((EventMemory.findById? recoveredEvidence.events recoveredEndpoint).isSome)
-    "recovery did not honor the canonical retained Actual endpoint"
+  let some recoveredEvent := EventMemory.findById? recoveredEvidence.events recoveredEndpoint
+    | throw (IO.userError "recovery did not honor the canonical retained Actual endpoint")
+  expect (recoveredEvent.effects.all fun effect => effect.key.isNone)
+    "Scheduled completion recovery retained collector-local Effect identity"
   let some afterRecoveryLifecycle ←
       Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle after recovery")
@@ -199,4 +207,4 @@ def main (args : List String) : IO Unit := do
       afterPolicyLifecycle.terminals ⟨"scheduled-5"⟩).isNone)
     "Locus-policy refusal retained a completion relation"
 
-  IO.println "Scheduled Terminal Publisher: canonical completion endpoint, cancellation, relation-first cross-authority recovery, stale refusal and current Locus policy passed."
+  IO.println "Scheduled Terminal Publisher: sparse completion identity, canonical endpoint, cancellation, relation-first recovery, stale refusal and current Locus policy passed."

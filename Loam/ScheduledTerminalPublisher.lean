@@ -4,6 +4,7 @@ import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.SparseEffectIdentity
 import Loam.WriterOwnership
 
 namespace Loam.ScheduledTerminalPublisher
@@ -78,8 +79,12 @@ private def findOpen?
 private def appendCompletionActual?
     (world : Loam.MovementAdmission.World)
     (actualId : EventId)
-    (draft : Loam.MovementAdmission.Draft) :
+    (rawDraft : Loam.MovementAdmission.Draft) :
     Except String Loam.MovementAdmission.World := do
+  let draft := {
+    rawDraft with
+    effects := Loam.SparseEffectIdentity.canonicalizeEffects [] rawDraft.effects
+  }
   Loam.MovementAdmission.validateDraft draft
   if !draft.relations.isEmpty || !draft.discharges.isEmpty then
     throw "loam: Scheduled completion currently admits plain Actual Movement effects only"
@@ -131,14 +136,7 @@ private def publishCompletionUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | .ok la => pure la
     | .error message => return .error message
-  let world : Loam.MovementAdmission.World := {
-    events := evidence.events
-    validity := evidence.validity
-    descriptions := evidence.descriptions
-    relations := evidence.relations
-    discharges := evidence.discharges
-    locusAdmission := locusAdmission
-  }
+  let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
   let _ ←
     match findOpen? lifecycle world.events draft.scheduled with
     | .ok occurrence => pure occurrence

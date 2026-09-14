@@ -31,6 +31,12 @@ private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   , Effect.ofQuantity ⟨"effect-2"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
   ]
 
+private def collectorLocalEffects
+    (fromLocus toLocus : String) (amount : Int) : List Effect :=
+  [ Effect.ofQuantity ⟨"collector-temp"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
+  , Effect.ofQuantity ⟨"collector-temp"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
+  ]
+
 private def recordDraft : Loam.MovementAdmission.Draft := {
   validOn := "2026-09-07"
   description := some "before"
@@ -50,7 +56,7 @@ def main (args : List String) : IO Unit := do
 
   let correctionDraft : Loam.CorrectionPublisher.Draft := {
     target := recorded
-    effects := effects "paypay" "coffee" 650
+    effects := collectorLocalEffects "paypay" "coffee" 650
     description := some "after" }
 
   let unbalanced : Loam.CorrectionPublisher.Draft := {
@@ -93,8 +99,10 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reload corrected Actual")
   expect ((EventMemory.findById? world.events recorded).isSome)
     "append-only correction rewrote the original Event"
-  expect ((EventMemory.findById? world.events replacementId).isSome)
-    "replacement Event is absent from Actual authority"
+  let some replacementEvent := EventMemory.findById? world.events replacementId
+    | throw (IO.userError "replacement Event is absent from Actual authority")
+  expect (replacementEvent.effects.all fun effect => effect.key.isNone)
+    "correction retained collector-local Effect identity without relation evidence"
 
   let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload correction-aware Actual review")
@@ -112,4 +120,4 @@ def main (args : List String) : IO Unit := do
     root.toString correctionDraft
   expect (!staleRetry.isOk) "already-completed correction target was accepted again"
 
-  IO.println "Correction Publisher: Actual re-read, explicit Reversal independence, fail-closed policy, append-only relation, replacement and fresh review passed."
+  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, append-only relation, replacement and fresh review passed."

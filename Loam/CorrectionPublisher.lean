@@ -5,6 +5,7 @@ import Loam.Core.BalancedMovement
 import Loam.FreshNumberedToken
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
+import Loam.SparseEffectIdentity
 
 namespace Loam.CorrectionPublisher
 
@@ -35,12 +36,6 @@ private def freshReplacementId?
     1
     (evidence.events.events.length + 1)
   pure ⟨token⟩
-
-/-- Anonymous Effects need no persisted identity token; retained keys still do. -/
-private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
-  match effect.key with
-  | none => true
-  | some key => Loam.Persistence.validToken key.token
 
 /--
 Operation-level qualification shared by a new replacement and an Event already
@@ -73,12 +68,11 @@ private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
     (draft : Draft) : Except String ActualEvidence := do
-  if !draft.effects.all (fun effect =>
-      retainedEffectKeyPersistable effect &&
-      Loam.Persistence.validToken effect.locus.token) ||
-      !practicalMovementValid draft.effects then
+  let effects := Loam.SparseEffectIdentity.canonicalizeEffects [] draft.effects
+  if !effects.all (fun effect => Loam.Persistence.validToken effect.locus.token) ||
+      !practicalMovementValid effects then
     throw "loam: correction replacement must be one balanced nonzero JPY Movement"
-  if !locusAdmission.admitsEffects draft.effects then
+  if !locusAdmission.admitsEffects effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
 
   let target ← targetCurrent? evidence.events evidence.corrections draft.target
@@ -105,7 +99,7 @@ private def admit?
   }
 
   let replacement ←
-    match Event.ofEffects? correction.replacement draft.effects with
+    match Event.ofEffects? correction.replacement effects with
     | some event => pure event
     | none => throw "loam: replacement Effect identities are not unique"
   let updatedEvents ←

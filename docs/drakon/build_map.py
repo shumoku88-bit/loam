@@ -126,8 +126,8 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison before promoting repeated write mechanics inward.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
-        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Record and Correction share one-Actual publication topology; Scheduled Completion has two authorities and a distinct retry law.",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
+        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Sparse Effect identity is now one shared admission law, while Record, Correction, and Scheduled Completion retain distinct semantic and authority topologies.",
         "nodes": [
             ("action", "RECORD MOVEMENT\nActual + current Locus policy"),
             ("action", "pure Movement admission\nfresh Event identity"),
@@ -138,6 +138,7 @@ FLOW_DIAGRAMS = {
             ("action", "SCHEDULED COMPLETION\nScheduled lifecycle + Actual + Locus policy"),
             ("action", "completion-specific admission\nstable completion Event identity"),
             ("action", "publish Scheduled terminal first\nthen publish Actual generation"),
+            ("action", "SHARED ADMISSION LAW\nunearned collector EffectKeys remain anonymous"),
             ("action", "COMMON MECHANICS CANDIDATES\nownership, authoritative reload, typed complete-image publication"),
             ("action", "DO NOT MERGE BY SHAPE\nauthority topology, semantic admission, crash / retry law"),
         ],
@@ -193,8 +194,8 @@ FLOW_DIAGRAMS = {
     },
     "10.3 Movement Admission": {
         "description": "Pure semantic admission of one Movement draft against one typed world.",
-        "sources": "Loam/MovementAdmission.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
-        "audit": "Collector-local Effect identity is canonicalized here. Only Relation-referenced EffectKeys earn durable identity; preview and publication share the same draft semantics.",
+        "sources": "Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
+        "audit": "Collector-local Effect identity is canonicalized here through the shared sparse-identity law. Only Relation-referenced EffectKeys earn durable identity; preview and publication share the same draft semantics.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nretain only Relation sources"),
             ("insertion", "validateDraft\ncalendar date, tokens, nonzero JPY, balanced totals"),
@@ -284,10 +285,11 @@ FLOW_DIAGRAMS = {
     },
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
-        "sources": "Loam/CorrectionPublisher.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
-        "audit": "Correction is not generic Movement admission: it must prove the target is current and practical, unreferenced by relation/discharge and reversal evidence, then append replacement lineage without rewriting history.",
+        "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "audit": "Correction keeps its own target and lineage law, but shares sparse Effect identity: because this replacement creates no new Relation source, collector-local EffectKeys are erased before Event construction.",
         "nodes": [
-            ("decision", "Replacement is balanced nonzero JPY and tokens persistable?", "Refuse\nreplacement outside practical entrance"),
+            ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
+            ("decision", "Replacement has valid Locus tokens\nand balanced nonzero JPY?", "Refuse\nreplacement outside practical entrance"),
             ("decision", "Every replacement Locus currently admitted?", "Refuse\nLocus not approved for new write"),
             ("insertion", "Resolve targetCurrent?\nretained and not already corrected"),
             ("decision", "Target is current?", "Refuse\nmissing or superseded target"),
@@ -300,7 +302,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Replacement identity available?", "Refuse\nidentity allocation failed"),
             ("action", "Create EventCorrection\ntarget -> replacement"),
             ("insertion", "Event.ofEffects?\nconstruct replacement Event"),
-            ("decision", "Replacement Event structurally valid?", "Refuse\nduplicate retained Effect identity"),
+            ("decision", "Replacement Event structurally valid?", "Refuse\nEvent construction failed"),
             ("action", "Append Event + Correction + base date\n+ optional description"),
             ("decision", "All typed histories accept append?", "Refuse\nhistory append failed"),
             ("action", "Return complete updated ActualEvidence"),
@@ -339,7 +341,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Actual authority decoded?", "Refuse\nmissing / malformed Actual"),
             ("insertion", "Load current Locus admission policy"),
             ("decision", "Locus policy decoded?", "Refuse\nmissing / malformed policy"),
-            ("action", "Construct Movement world\nfrom Actual + current policy"),
+            ("action", "ActualAuthority.movementWorld\nActual evidence + current policy"),
             ("insertion", "findOpen?\nresolve current-open Scheduled target"),
             ("decision", "Scheduled target current-open?", "Refuse\nclosed / unknown / conflicting lifecycle"),
             ("action", "Choose Actual identity\nreuse retained endpoint or deterministic completion id"),
@@ -357,9 +359,10 @@ FLOW_DIAGRAMS = {
     },
     "12.2 Completion Actual Admission": {
         "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
-        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean",
-        "audit": "This resembles Movement admission but intentionally differs: EventId is chosen by Scheduled completion, Relation/Discharge drafts are refused, and no fresh Event identity is allocated here.",
+        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean",
+        "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here; stable EventId selection and the two-authority retry law remain completion-specific.",
         "nodes": [
+            ("action", "Canonicalize collector-local EffectKeys\nplain completion earns no Effect identity"),
             ("insertion", "MovementAdmission.validateDraft\nvalidate practical Movement draft"),
             ("decision", "Draft valid?", "Refuse\ninvalid practical Movement"),
             ("decision", "Relation / Discharge drafts absent?", "Refuse\ncompletion admits plain effects only"),
@@ -506,7 +509,7 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.5 — macro gate + cross-path write atlas",))
+                   ("LOAM System Map v0.6 - shared sparse Effect identity across write paths",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
