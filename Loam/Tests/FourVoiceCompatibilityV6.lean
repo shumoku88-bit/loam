@@ -223,6 +223,33 @@ private def unresolvedCorrectionTopologyRemovesAnswer : IO Unit := do
       | .ok _ => false)
     "V6e unresolved branching corrections still produced a current answer"
 
+/--
+V6f: the same non-overlap rule also applies between zero-origin and OpeningSupport.
+The reader must not silently choose zero-origin simply because its projection is
+listed first. Observation of this seam during V6 tightened the implementation to
+match the already documented support-separation rule.
+-/
+private def zeroOriginOpeningOverlapFailsClosed : IO Unit := do
+  let opening ← requireSome (event? "v6f-opening" (-100)) "V6f opening"
+  let events ← requireSome (EventMemory.ofEvents? [opening]) "V6f events"
+  let corrections ← emptyCorrections
+  let coverage ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [debt]) "V6f zero-origin coverage"
+  let support ← requireSome
+    (OpeningSupportMap.ofSupports?
+      [{ coordinate := debt, openingEvent := opening.id }])
+    "V6f opening support"
+  let roles ← debtRoles
+  let evidence : Loam.BalanceReview.Evidence :=
+    { events := events, corrections := corrections, coverage := coverage }
+
+  expect
+    (match Loam.RoleBalanceReview.project evidence support
+      Loam.CurrentQuantityAnchor.Evidence.empty roles with
+      | .error _ => true
+      | .ok _ => false)
+    "V6f reader silently preferred zero-origin over opening support"
+
 
 def main : IO Unit := do
   compatibleSupportAddsAnswer
@@ -230,5 +257,6 @@ def main : IO Unit := do
   explicitResupportRestoresAnswer
   overlappingSupportRemovesAnswer
   unresolvedCorrectionTopologyRemovesAnswer
+  zeroOriginOpeningOverlapFailsClosed
   IO.println
-    "Four-voice V6: answerability grows under compatible support, can shrink when retained evidence invalidates a witness or creates incompatible/undecidable support, and is restored only by new evidence that explicitly re-qualifies the claim."
+    "Four-voice V6: answerability grows under compatible support, can shrink when retained evidence invalidates a witness or creates incompatible/undecidable support, and is restored only by new evidence that explicitly re-qualifies the claim; all current support-family overlaps fail closed rather than inventing precedence."
