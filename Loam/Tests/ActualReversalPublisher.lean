@@ -1,6 +1,8 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReversalPublisher
+import Loam.ActualValidityPublisher
+import Loam.Application.ActualValidityFrontier
 import Loam.CorrectionPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -106,6 +108,38 @@ def main (args : List String) : IO Unit := do
   expect (fresh.events.events.length == 2)
     "reversal rewrote the target instead of retaining both Actual Events"
 
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
+      root.toString { target := draft.target, validOn := "2026-09-06" }
+    | throw (IO.userError "date correction of reversal target was refused")
+  let .ok () ← Loam.ActualValidityPublisher.publishDate
+      root.toString { target := relation.reversal, validOn := "2026-09-09" }
+    | throw (IO.userError "date correction of reversal endpoint was refused")
+  let .ok afterDateCorrection ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload Actual after reversal date corrections")
+  let relationAfterDate ←
+    match afterDateCorrection.reversals.findByTarget? draft.target with
+    | some retained => pure retained
+    | none => throw (IO.userError "date correction removed reversal provenance")
+  expect (relationAfterDate == relation)
+    "date correction changed reversal provenance endpoints"
+  let targetAfterDate ←
+    match EventMemory.findById? afterDateCorrection.events draft.target with
+    | some event => pure event
+    | none => throw (IO.userError "date correction removed reversal target")
+  let inverseAfterDate ←
+    match EventMemory.findById? afterDateCorrection.events relation.reversal with
+    | some event => pure event
+    | none => throw (IO.userError "date correction removed reversal endpoint")
+  expect (ActualReversal.exactPhysicalInverse? targetAfterDate.effects inverseAfterDate.effects)
+    "date correction invalidated exact physical inverse provenance"
+  let currentDates := Loam.Application.actualValidityFrontierFacts afterDateCorrection.validity
+  let targetDate := currentDates.find? fun fact => decide (fact.event = draft.target)
+  let inverseDate := currentDates.find? fun fact => decide (fact.event = relation.reversal)
+  expect (targetDate.any fun fact => fact.validOn == "2026-09-06")
+    "date correction did not move the reversal target occurrence date"
+  expect (inverseDate.any fun fact => fact.validOn == "2026-09-09")
+    "date correction did not move the reversal endpoint occurrence date"
+
   let correctionEffects :=
     [ Effect.ofQuantity ⟨"corrected-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-710))
     , Effect.ofQuantity ⟨"corrected-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 710) ]
@@ -154,4 +188,4 @@ def main (args : List String) : IO Unit := do
   expect ((afterBlocked.reversals.findByTarget? draft.target).isNone)
     "refused Scheduled-completion reversal retained a reversal relation"
 
-  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + cross-writer Correction refusal + Scheduled-completion refusal + fail-closed repeat passed."
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + date-correction independence + cross-writer Correction refusal + Scheduled-completion refusal + fail-closed repeat passed."
