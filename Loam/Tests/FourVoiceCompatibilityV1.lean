@@ -299,7 +299,7 @@ private def correctionWorld : IO Unit := do
   expect (before.headroom != after.headroom)
     "raw equality incorrectly overrode the current correction frontier"
 
-private def main : IO Unit := do
+def main : IO Unit := do
   splitLocusWorld
   extraPhysicalWorld
   timeMismatchWorld
