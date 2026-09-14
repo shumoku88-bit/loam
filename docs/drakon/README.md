@@ -23,6 +23,22 @@ LOAM System Map
 `-- 08 Formal Evidence
 ```
 
+## Build and open
+
+From the repository root:
+
+```sh
+python3 docs/drakon/build_map.py
+```
+
+This creates:
+
+```text
+docs/drakon/loam-system-map.drn
+```
+
+Open that file in DRAKON Editor. The generated `.drn` is intentionally ignored by Git; `build_map.py` is the deterministic, reviewable source for the map.
+
 ## Reading rule
 
 The top-level production path is:
@@ -50,6 +66,6 @@ When the map feels wrong, do not immediately redraw it to match the code. Ask:
 
 That tension is the useful part of the map.
 
-## DRAKON source
+## Scope
 
-`loam-system-map.drn` is the editable DRAKON Editor source for this map. It is a design/navigation artifact, not a canonical household-data authority and not generated production code.
+This is a design/navigation artifact. It is not a canonical household-data authority and does not replace the production Lean model. Its job is to keep the whole machine visible while the Ada/SPARK implementation is explored.
