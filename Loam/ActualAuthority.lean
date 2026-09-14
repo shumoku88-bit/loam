@@ -53,6 +53,24 @@ def loadActual? (root : System.FilePath) : IO (Except String ActualEvidence) :=
   loadActualFile? (actualPath root)
 
 /--
+Construct the Movement admission view from retained Actual evidence and the
+independent current new-write Locus policy.
+
+This is a pure representation boundary. It does not merge the two authorities
+or grant persistence ownership to the semantic `World` type.
+-/
+def movementWorld
+    (evidence : ActualEvidence)
+    (locusAdmission : LocusAdmissionVocabulary) : Loam.MovementAdmission.World := {
+  events := evidence.events
+  validity := evidence.validity
+  descriptions := evidence.descriptions
+  relations := evidence.relations
+  discharges := evidence.discharges
+  locusAdmission := locusAdmission
+}
+
+/--
 Publish one complete generation of Actual evidence to an explicit file path.
 Fails closed without altering existing authority if encoding or staged re-decoding fails.
 -/
@@ -136,13 +154,6 @@ def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.Movemen
     match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
     | .ok la => pure la
     | .error msg => return .error msg
-  return .ok {
-    events := evidence.events
-    validity := evidence.validity
-    descriptions := evidence.descriptions
-    relations := evidence.relations
-    discharges := evidence.discharges
-    locusAdmission := locusAdmission
-  }
+  return .ok (movementWorld evidence locusAdmission)
 
 end Loam.ActualAuthority
