@@ -16,6 +16,23 @@ private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
     | throw (IO.userError "empty Scheduled terminal memory")
   return { scheduled, terminals }
 
+private def completedLifecycle
+    (actual : EventId) : IO Loam.Persistence.ScheduledLifecycleImage := do
+  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩
+      [ { coordinate := ⟨"paypay"⟩, quantity := Quantity.ofQuanta (-700) }
+      , { coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 700 } ]
+    | throw (IO.userError "Scheduled completion movement")
+  let occurrence : ScheduledOccurrence String := {
+    id := ⟨"scheduled-completed"⟩
+    scheduledOn := "2026-09-07"
+    movement := movement }
+  let some scheduled := ScheduledMemory.ofOccurrences? [occurrence]
+    | throw (IO.userError "Scheduled completion memory")
+  let some terminals := ScheduledTerminalMemory.ofTerminals?
+      [{ source := occurrence.id, target := some (.actual actual) }]
+    | throw (IO.userError "Scheduled completion terminal")
+  return { scheduled, terminals }
+
 private def initialWorld : IO Loam.MovementAdmission.World := do
   let effects :=
     [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
@@ -116,4 +133,25 @@ def main (args : List String) : IO Unit := do
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
-  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + cross-writer Correction refusal + fail-closed repeat passed."
+  let completionRoot := dataDir / "scheduled-completion-guard"
+  IO.FS.createDirAll completionRoot
+  let completionScheduledFile := completionRoot / "scheduled.loam"
+  let completionWorld ← initialWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? completionRoot completionWorld
+    | throw (IO.userError "publish Scheduled-completion Actual world")
+  let completionLifecycle ← completedLifecycle ⟨"actual-1"⟩
+  expect (← Loam.Persistence.saveScheduledLifecycleImage?
+      completionScheduledFile completionLifecycle)
+    "publish Scheduled completion provenance"
+  let blocked ← Loam.ActualReversalPublisher.publishReversal
+    completionScheduledFile.toString completionRoot.toString draft
+  expect (!blocked.isOk)
+    "Scheduled-completion Actual was accepted by the reversal entrance"
+  let .ok afterBlocked ← Loam.ActualAuthority.loadActual? completionRoot
+    | throw (IO.userError "reload Actual after refused Scheduled-completion reversal")
+  expect (afterBlocked.events.events.length == 1)
+    "refused Scheduled-completion reversal mutated Actual Event memory"
+  expect ((afterBlocked.reversals.findByTarget? draft.target).isNone)
+    "refused Scheduled-completion reversal retained a reversal relation"
+
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + cross-writer Correction refusal + Scheduled-completion refusal + fail-closed repeat passed."
