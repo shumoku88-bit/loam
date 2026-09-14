@@ -3,6 +3,7 @@ import Loam.ActualEvidence
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.ScheduledActualOwnership
 import Loam.WriterOwnership
 
 namespace Loam.AccountingRolePublisher
@@ -126,9 +127,8 @@ def publishInitialRole
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
   let roleFile := System.FilePath.mk rolePath
-  Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.ActualAuthority.withActualOwnership root <|
-      Loam.WriterOwnership.withOwnership roleFile
-        (publishUnderOwnership scheduledFile root roleFile draft)
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root <|
+    Loam.WriterOwnership.withOwnership roleFile
+      (publishUnderOwnership scheduledFile root roleFile draft)
 
 end Loam.AccountingRolePublisher

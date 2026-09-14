@@ -5,7 +5,7 @@ import Loam.Core.ActualReversal
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.PracticalMovement
-import Loam.WriterOwnership
+import Loam.ScheduledActualOwnership
 
 namespace Loam.ActualReversalPublisher
 
@@ -160,8 +160,7 @@ def publishReversal
     return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
-  Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.ActualAuthority.withActualOwnership root
-      (publishUnderOwnership scheduledFile root draft)
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
+    (publishUnderOwnership scheduledFile root draft)
 
 end Loam.ActualReversalPublisher

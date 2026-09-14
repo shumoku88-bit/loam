@@ -5,8 +5,8 @@ import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.ScheduledActualOwnership
 import Loam.ScheduledOccurrenceConstruction
-import Loam.WriterOwnership
 
 namespace Loam.ScheduledReplacementPublisher
 
@@ -133,12 +133,6 @@ private def publishUnderOwnership
     return .error "loam: Scheduled replacement lifecycle could not be published"
   return .ok ()
 
-private def withReplacementOwnership {α : Type}
-    (scheduledFile root : System.FilePath)
-    (action : IO (Except String α)) : IO (Except String α) :=
-  Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.ActualAuthority.withActualOwnership root action
-
 /--
 Publish one Scheduled replacement into the complete lifecycle image.
 -/
@@ -151,7 +145,7 @@ def publishReplacement
     return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
-  withReplacementOwnership scheduledFile root
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
 
 
