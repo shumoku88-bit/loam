@@ -138,6 +138,11 @@ private def validateSupportSeparation
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
     (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) : Except String Unit := do
+  for support in openingSupport.supports do
+    if coverage.covers support.coordinate then
+      throw
+        ("loam: role balances unavailable: opening support overlaps zero-origin support for " ++
+          support.coordinate.locus.token ++ " / " ++ support.coordinate.measure.token)
   for assertion in currentAnchor.assertions do
     if coverage.covers assertion.coordinate || hasOpeningSupport openingSupport assertion.coordinate then
       throw
