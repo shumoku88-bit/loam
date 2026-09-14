@@ -48,7 +48,7 @@ def main (args : List String) : IO Unit := do
     discharges := []
     total := 100
   }
-  let .ok previewAdmitted ← Loam.MovementAdmission.admit? world duplicateTemporary
+  let .ok previewAdmitted := Loam.MovementAdmission.admit? world duplicateTemporary
     | throw (IO.userError "admission did not canonicalize duplicate temporary EffectKeys")
   let previewEvent ← requireSome
     (previewAdmitted.world.events.findById? previewAdmitted.eventId)
