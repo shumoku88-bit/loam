@@ -1,4 +1,4 @@
-# LOAM System Map v0.6
+# LOAM System Map v0.7
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
@@ -15,7 +15,7 @@ It is deliberately not a mirror of every Lean file. A diagram should expose a me
 
 The first cross-path audit conclusions are frozen in [`DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md`](../research/DRAKON_WRITE_PATH_AUDIT_CHECKPOINT_2026-09-14.md).
 
-That checkpoint records the evidence and non-conclusions reached after the first Record / Correction / Scheduled Completion comparison. It intentionally still says that sparse Effect identity divergence was the next target. v0.6 resolves that target instead of rewriting the historical checkpoint.
+That checkpoint records the evidence and non-conclusions reached after the first Record / Correction / Scheduled Completion comparison. Later map versions resolve some of those seams without rewriting the historical checkpoint.
 
 ```text
 LOAM System Map
@@ -48,11 +48,15 @@ LOAM System Map
     |   +-- 11.0 Correct Actual
     |   +-- 11.1 Authoritative Correction Publish
     |   `-- 11.2 Correction Admission
-    `-- 12 Complete Scheduled
-        +-- 12.0 Complete Scheduled
-        +-- 12.1 Dual-Authority Completion Publish
-        +-- 12.2 Completion Actual Admission
-        `-- 12.3 Interrupted Completion Recovery
+    +-- 12 Complete Scheduled
+    |   +-- 12.0 Complete Scheduled
+    |   +-- 12.1 Dual-Authority Completion Publish
+    |   +-- 12.2 Completion Actual Admission
+    |   `-- 12.3 Interrupted Completion Recovery
+    `-- 13 Reverse Actual
+        +-- 13.0 Reverse Actual
+        +-- 13.1 Authoritative Reversal Publish
+        `-- 13.2 Reversal Admission
 ```
 
 ## Architecture laws
@@ -126,6 +130,8 @@ python3 docs/drakon/inspect_map.py --diagram "00 Architecture Audit Gate"
 python3 docs/drakon/inspect_map.py --diagram "09 Write Path Comparison"
 python3 docs/drakon/inspect_map.py --diagram "11.2 Correction Admission"
 python3 docs/drakon/inspect_map.py --diagram "12.2 Completion Actual Admission"
+python3 docs/drakon/inspect_map.py --diagram "13.1 Authoritative Reversal Publish"
+python3 docs/drakon/inspect_map.py --diagram "13.2 Reversal Admission"
 python3 docs/drakon/inspect_map.py --all --json > /tmp/loam-map.json
 ```
 
@@ -137,6 +143,8 @@ LOAM should remain **multi-Measure native**, not be described as a complete FX a
 
 A current practical entrance may deliberately require JPY. That does not make JPY a global Event law. Neutral Core keeps explicit Measure identity and must not silently add or convert distinct Measures.
 
+The practical Movement qualification now takes the expected `MeasureId` explicitly. Current Correction and Reversal callers pass JPY as product policy; the shared mechanic itself does not encode JPY. This keeps a future USD or other-Measure entrance possible without rewriting `BalancedMovement`, `Event`, or persistence.
+
 A future base-Measure answer such as JPY net worth across JPY and USD holdings must earn the independent valuation evidence and policy it actually needs. The architecture gate should reject both extremes:
 
 - collapsing Measures because the current household mostly uses JPY;
@@ -147,6 +155,8 @@ A future base-Measure answer such as JPY net worth across JPY and USD holdings m
 High-level TUI, future GUI, Web, and AI adapters should operate on presentation-neutral commands / queries and one household root. They should not need canonical `.loam` filenames, writer-lock mechanics, durable identity allocation, serialization, or recovery policy.
 
 The scriptable Movement CLI follows the same `HouseholdCommand.record` path as the TUI. Presentation is rendered after authoritative publication succeeds; the Movement publisher carries no frontend callback.
+
+Actual Reversal follows the same rule. The TUI may derive inverse postings for preview, but `ActualReversalPublisher` re-reads the canonical target and re-derives the authoritative exact inverse under writer ownership.
 
 A low-level diagnostic CLI may still deliberately expose physical paths when explicit physical control is part of its independent purpose.
 
@@ -162,7 +172,7 @@ different feature names
     -> miss genuinely repeated mechanics
 ```
 
-The first three mapped write paths currently show:
+The first four mapped write paths now show:
 
 ```text
 Record Movement
@@ -180,13 +190,23 @@ Scheduled Completion
     -> completion-specific Actual admission
     -> Scheduled terminal generation first
     -> Actual generation second
+
+Actual Reversal
+    Scheduled lifecycle + Actual + current Locus policy
+    -> exact-inverse admission
+    -> one complete Actual generation
+    -> Scheduled lifecycle remains unchanged
 ```
 
-Record and Correction therefore share a **one-Actual publication topology**. That is evidence for shared mechanics, not evidence that Movement admission and correction admission are one semantic operation.
+Record, Correction, and Reversal all end by publishing one complete Actual generation, but that does not make their admissions one semantic operation.
 
 Scheduled Completion has a different authority topology and crash-recovery law. Its `Scheduled -> Actual` terminal claim is published first. If Actual publication is interrupted, that retained terminal remains inert to readers until the target Actual Event appears; retry reuses the same target identity. This distinction must not be erased merely because both files use staging and rename.
 
-v0.6 also records one confirmed cross-path semantic law:
+Reversal adds a different use of the same two authorities. It locks Scheduled first and Actual second, but Scheduled is a **read-only semantic dependency**. The lock prevents completion provenance from changing while the publisher proves that the selected Actual is independent of Scheduled completion. Only `actual.loam` is published.
+
+This makes the repeated `Scheduled -> Actual` ownership order worth investigating as mechanics. It is not evidence that Scheduled Creation, Replacement, Completion, and Actual Reversal share one authority meaning.
+
+The atlas also records one confirmed cross-path semantic law:
 
 ```text
 collector-local EffectKey
@@ -203,6 +223,14 @@ Scheduled Completion
 ```
 
 This law is shared through `Loam.SparseEffectIdentity`, but it remains outside neutral Core. `Core.Event` owns the structural law that Effect identity is optional and retained keys are unique; operation-level evidence decides whether a collector key deserves durability.
+
+## Lean proof and DRAKON observation
+
+DRAKON should not invent runtime checks that Lean has already justified away.
+
+Actual Reversal is the clearest example. The target is qualified as one balanced practical Movement. The reversal then negates every retained quantity exactly. `BalancedMovement.totalQuanta_negated` proves that exact quantity negation negates the total, so a zero target total remains zero.
+
+Therefore `13.2 Reversal Admission` deliberately has no second `inverse balanced?` decision. The yellow audit note records the retained Lean law instead. Lean removes an unnecessary runtime box; DRAKON makes the absence of that box inspectable.
 
 ## Map-driven refactoring results
 
@@ -229,21 +257,30 @@ The third audit came from comparing Record, Correction, and Scheduled Completion
 5. interrupted Scheduled completion recovery preserves the stable EventId while still erasing collector-local Effect identity;
 6. Scheduled Completion now reuses `ActualAuthority.movementWorld` instead of hand-assembling the same Actual-plus-policy representation boundary.
 
-The important result is not a generic publisher. One small law and one representation mechanism became shared while correction semantics and the two-authority Scheduled recovery protocol stayed independent.
+The fourth audit tightened small local ownership before introducing another large abstraction:
+
+1. `EventDescriptionMemory.add?` now owns its own append invariant instead of callers rebuilding `entries ++ [new]` through `ofEntries?`;
+2. Correction and Actual Reversal now share `Loam.PracticalMovement.ofEffects?`, which is Measure-parametric while current production callers explicitly pass JPY;
+3. the larger Event + base ActualValidity + optional description sequence was deliberately **not** generalized because the surrounding carriers and operation-specific failure meanings still differ;
+4. DRAKON review of Reversal exposed an existing but unpinned rule: Scheduled-completion Actuals are not yet reversible;
+5. a production regression now proves that such a reversal is refused without appending either an Event or an `ActualReversal` relation;
+6. v0.7 maps Reversal so its read-only Scheduled dependency and exact-inverse law can be compared at the same scale as the other write paths.
+
+The important result is still not a generic publisher. Small laws and representation mechanics become shared only when the evidence earns them, while authority topology and operation-specific meaning stay explicit.
 
 The map is expected to get shorter or more regular when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
 
 ## Remaining cross-path audit seams, not conclusions
 
-v0.6 leaves narrower questions for later work.
+v0.7 leaves narrower questions for later work.
 
-1. `CorrectionPublisher.practicalMovementValid` and `MovementAdmission.validateDraft` both express parts of the practical balanced-JPY entrance. Correction lacks a normal Movement `total` field and also validates the retained target, so similar checks do not yet prove one shared validator.
+1. Correction, Actual Reversal, and ActualValidity publication each contain a local `targetCurrent?` shape: find a retained Event and reject a target already superseded by Correction. Their user-facing refusal meanings and later operation guards differ, so this is evidence to investigate a small selection mechanic, not evidence for one shared publisher or one shared error type.
 
-2. Movement admission, Correction, Scheduled Completion, and at least part of Actual Reversal repeatedly perform Event append plus base ActualValidity append, with several paths also appending optional EventDescription. This is now strong independent pressure to investigate a small typed append primitive. It is not evidence for a generic publisher or generic admission engine.
+2. Scheduled Creation, Scheduled Replacement, Scheduled Completion, and Actual Reversal all acquire ownership in the same `Scheduled -> Actual` order. Reversal only reads Scheduled while the Scheduled writers may mutate it. The repeated order is a strong mechanics candidate, but any shared helper must preserve those distinct authority meanings rather than imply that both authorities are always written.
 
-3. `EventDescriptionMemory` owns the one-description-per-Event invariant but callers repeatedly rebuild `entries ++ [new]` through `ofEntries?`. A local `add?` operation may be a smaller first step than abstracting the entire Event / validity / description sequence.
+3. Movement admission, Correction, Scheduled Completion, and Actual Reversal all append some combination of Event and base ActualValidity evidence. Their surrounding carriers, identity rules, additional relations, and refusal surfaces still differ. A generic Actual append engine is not yet justified.
 
-4. Scheduled Completion must keep its stable externally selected EventId and Scheduled-first / Actual-second retry law even if some inner Actual append mechanics become shared.
+4. Current practical write entrances remain intentionally JPY-limited even though Core algebra and important persistence paths are Measure-generic. Multi-Measure expansion should begin from a real user-facing requirement, not by speculatively turning every entrance into an FX subsystem.
 
 These are exactly the kind of seams the atlas is meant to reveal: compare first, then use Lean, Alloy, tests, or DRAKON only where a concrete ambiguity or counterexample needs to be fixed.
 
