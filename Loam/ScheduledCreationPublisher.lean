@@ -5,8 +5,8 @@ import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.ScheduledActualOwnership
 import Loam.ScheduledOccurrenceConstruction
-import Loam.WriterOwnership
 
 namespace Loam.ScheduledCreationPublisher
 
@@ -108,12 +108,6 @@ private def publishUnderOwnership
     return .error "loam: Scheduled lifecycle could not be published"
   return .ok scheduledId
 
-private def withCreationOwnership {α : Type}
-    (scheduledFile root : System.FilePath)
-    (action : IO (Except String α)) : IO (Except String α) :=
-  Loam.WriterOwnership.withOwnership scheduledFile <|
-    Loam.ActualAuthority.withActualOwnership root action
-
 /--
 Publish one independent Scheduled occurrence into the complete lifecycle image.
 -/
@@ -126,7 +120,7 @@ def publishCreation
     return .error "loam: data directory must not be empty"
   let scheduledFile := System.FilePath.mk scheduledPath
   let root := System.FilePath.mk rootPath
-  withCreationOwnership scheduledFile root
+  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
     (publishUnderOwnership scheduledFile root draft)
 
 end Loam.ScheduledCreationPublisher
