@@ -30,6 +30,20 @@ def ofCorrections? (corrections : List EventCorrection) : Option EventCorrection
   else
     none
 
+/-- Whether any retained raw correction explicitly targets this Event identity. -/
+def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
+  memory.corrections.any fun correction => decide (correction.target = event)
+
+@[simp] theorem targetsEvent_empty (event : EventId) :
+    targetsEvent { corrections := [], idNodup := by simp } event = false := by
+  simp [targetsEvent]
+
+@[simp] theorem targetsEvent_singleton
+    (correction : EventCorrection) (event : EventId) :
+    targetsEvent { corrections := [correction], idNodup := by simp } event =
+      decide (correction.target = event) := by
+  simp [targetsEvent]
+
 /-- Empty correction memory is valid. -/
 @[simp] theorem ofCorrections?_nil :
     ofCorrections? [] = some { corrections := [], idNodup := by simp } := by
