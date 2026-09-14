@@ -30,22 +30,6 @@ Historical Event evidence in `actual.loam` is strictly separated from
 new-write policy in `locus-admission.loam`.
 -/
 
-/--
-Keep a durable EffectKey only when this Movement actually publishes a Relation
-that names it. Frontends may use temporary keys while collecting one draft, but
-ordinary quantity Effects must not acquire canonical identity merely because a
-collector needed a local handle during human input.
--/
-private def retainReferencedEffectKeys
-    (draft : Loam.MovementAdmission.Draft) : Loam.MovementAdmission.Draft :=
-  let referenced := draft.relations.map (fun relation => relation.sourceEffect)
-  let effects := draft.effects.map fun effect =>
-    match effect.key with
-    | none => effect
-    | some key =>
-        if key ∈ referenced then effect else { effect with key := none }
-  { draft with effects := effects }
-
 private def publishUnderOwnership
     (root : System.FilePath)
     (draft : Loam.MovementAdmission.Draft)
@@ -58,20 +42,11 @@ private def publishUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | Except.error message => return Except.error message
     | Except.ok la => pure la
-  let world : Loam.MovementAdmission.World := {
-    events := evidence.events
-    validity := evidence.validity
-    descriptions := evidence.descriptions
-    relations := evidence.relations
-    discharges := evidence.discharges
-    locusAdmission := locusAdmission
-  }
-  let canonicalDraft := retainReferencedEffectKeys draft
-  match Loam.MovementAdmission.admit? world canonicalDraft with
+  let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
+  match Loam.MovementAdmission.admit? world draft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
-      let eventId := admitted.event.id
-      beforePublish eventId
+      beforePublish admitted.eventId
       let updatedEvidence : ActualEvidence := {
         events := admitted.world.events
         validity := admitted.world.validity
@@ -83,7 +58,7 @@ private def publishUnderOwnership
       }
       match ← Loam.ActualAuthority.publishActual? root updatedEvidence with
       | Except.error message => return Except.error message
-      | Except.ok () => return Except.ok eventId
+      | Except.ok () => return Except.ok admitted.eventId
 
 /--
 Publish one already-collected Movement draft to normalized Actual authority.
