@@ -8,6 +8,7 @@ and not yet a code-generation source.
 
 from pathlib import Path
 import sqlite3
+import textwrap
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "loam-system-map.drn"
@@ -143,8 +144,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Actual authority decoded?", "Refuse\nmissing or malformed Actual"),
             ("insertion", "Load current Locus admission policy\nfrom locus-admission.loam"),
             ("decision", "Locus policy decoded?", "Refuse\nmissing or malformed policy"),
-            ("action", "Construct MovementAdmission.World\nfrom evidence + current policy"),
-            ("action", "Drop temporary EffectKeys\nunless a Relation references them"),
+            ("action", "ActualAuthority.movementWorld\nevidence + current policy"),
             ("insertion", "MovementAdmission.admit?\nagainst authoritative world"),
             ("decision", "Draft admitted?", "Refuse\nsemantic admission failed"),
             ("action", "Optional beforePublish callback\nsurface observes admitted EventId"),
@@ -157,8 +157,9 @@ FLOW_DIAGRAMS = {
     "10.3 Movement Admission": {
         "description": "Pure semantic admission of one Movement draft against one typed world.",
         "sources": "Loam/MovementAdmission.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
-        "audit": "Balanced JPY is an entrance contract, not a global Event law. Identity allocation and relation/discharge currentness live here, not in UI or persistence.",
+        "audit": "Collector-local Effect identity is canonicalized here. Only Relation-referenced EffectKeys earn durable identity; preview and publication now share the same draft semantics.",
         "nodes": [
+            ("action", "Canonicalize collector-local EffectKeys\nretain only Relation sources"),
             ("insertion", "validateDraft\ncalendar date, tokens, nonzero JPY, balanced totals"),
             ("decision", "Draft valid?", "Refuse\ninvalid practical draft"),
             ("decision", "Every Effect Locus currently admitted?", "Refuse\nLocus not approved for new write"),
@@ -171,7 +172,7 @@ FLOW_DIAGRAMS = {
             ("action", "Extend relations and discharges"),
             ("decision", "Open relation frontier justified?", "Refuse\nsource-local frontier not justified"),
             ("decision", "Discharge target frontier justified?", "Refuse\ncurrent target frontier not justified"),
-            ("action", "Return Admitted\nupdated world + Event + new relation evidence"),
+            ("action", "Return Admitted\nupdated world + EventId"),
         ],
     },
     "10.4 Atomic Actual Publish": {
@@ -262,8 +263,11 @@ def add_flow_diagram(db, item_id, diagram_id, name, spec):
     insert_item(db, item_id, diagram_id, "vertical", "", x, start_y + 24, 0, end_y - (start_y + 24))
     item_id += 1
 
+    wrapped_audit = textwrap.wrap(spec["audit"], width=56)
+    audit_text = "AUDIT NOTE\n" + "\n".join(wrapped_audit)
+    audit_h = max(58, 11 * (len(wrapped_audit) + 1))
     insert_item(db, item_id, diagram_id, "commentout",
-                "AUDIT NOTE\n" + spec["audit"], 1210, 90, 220, 58, 20, 0)
+                audit_text, 1210, 100, 250, audit_h, 20, 0)
     item_id += 1
 
     for index, node in enumerate(nodes):
@@ -313,7 +317,7 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.2 — architecture observation + Record Movement write path",))
+                   ("LOAM System Map v0.3 — architecture observation + Record Movement write path",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
