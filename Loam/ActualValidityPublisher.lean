@@ -15,24 +15,19 @@ structure Draft where
   target : EventId
   validOn : String
 
-private def freshRevisionId?
-    (history : ActualValidityHistory String) : Option ActualValidityRevisionId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "validity-"
-    (fun token =>
-      (history.findFactByRef? (.revision (⟨token⟩ : ActualValidityRevisionId))).isSome)
-    1
-    (history.facts.length + 1)
-  pure ⟨token⟩
+private def freshRevisionId
+    (history : ActualValidityHistory String) : ActualValidityRevisionId :=
+  let used := history.facts.filterMap fun fact =>
+    match fact with
+    | .base _ _ => none
+    | .revision id _ _ => some id.token
+  ⟨Loam.firstUnusedNumberedToken "validity-" used 1⟩
 
 private def appendDateChange?
     (history : ActualValidityHistory String)
     (currentFact : ActualValidityFact String)
     (validOn : String) : Except String (ActualValidityHistory String) := do
-  let revisionId ←
-    match freshRevisionId? history with
-    | some id => pure id
-    | none => throw "loam: could not generate a fresh occurrence-date revision identity"
+  let revisionId := freshRevisionId history
   let replacement : ActualValidityFact String :=
     .revision revisionId currentFact.event validOn
   let withFact ←
