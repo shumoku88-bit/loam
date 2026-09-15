@@ -367,6 +367,38 @@ private def addSelectedCoordinate
       { total with
           unresolvedEligibility := total.unresolvedEligibility + coordinate.quantity.quanta }
 
+private theorem fold_unmanaged_independent
+    (coordinates : List (SelectedCoordinate Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (leftPurpose rightPurpose : PurposeId)
+    (observedAt : Time)
+    (leftInit rightInit : CommitmentQuanta)
+    (hinit : leftInit.unmanaged = rightInit.unmanaged) :
+    (coordinates.foldl
+        (addSelectedCoordinate roles routing leftPurpose observedAt) leftInit).unmanaged
+      =
+    (coordinates.foldl
+        (addSelectedCoordinate roles routing rightPurpose observedAt) rightInit).unmanaged := by
+  induction coordinates generalizing leftInit rightInit with
+  | nil => simpa using hinit
+  | cons coordinate rest ih =>
+      simp only [List.foldl_cons]
+      apply ih
+      cases hclass : classifyScheduledPressure roles routing observedAt coordinate.subject with
+      | managed routedPurpose =>
+          by_cases hleft : routedPurpose = leftPurpose <;>
+          by_cases hright : routedPurpose = rightPurpose <;>
+          simp [addSelectedCoordinate, hclass, hleft, hright, hinit]
+      | unmanaged =>
+          simp [addSelectedCoordinate, hclass, hinit]
+      | unroutedPressure =>
+          simp [addSelectedCoordinate, hclass, hinit]
+      | resolvedNonPressure =>
+          simp [addSelectedCoordinate, hclass, hinit]
+      | unresolvedEligibility =>
+          simp [addSelectedCoordinate, hclass, hinit]
+
 /-- Keep exactly the unresolved-eligibility coordinates as actionable rows. -/
 private def unresolvedRow?
     (roles : AccountingRoleMap)
@@ -401,6 +433,25 @@ private def commitmentFromOpenOccurrences
     unrouted := Quantity.ofQuanta total.unrouted
     unresolvedEligibility := Quantity.ofQuanta total.unresolvedEligibility
   }
+
+private theorem commitmentFromOpenOccurrences_unmanaged_independent
+    (occurrences : List (ScheduledOccurrence Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (leftPurpose rightPurpose : PurposeId)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) :
+    (commitmentFromOpenOccurrences
+        occurrences roles routing leftPurpose measure observedAt endExclusive).unmanaged
+      =
+    (commitmentFromOpenOccurrences
+        occurrences roles routing rightPurpose measure observedAt endExclusive).unmanaged := by
+  unfold commitmentFromOpenOccurrences
+  simp only
+  apply congrArg Quantity.ofQuanta
+  exact fold_unmanaged_independent
+    (occurrences.flatMap (selectedCoordinates measure observedAt endExclusive))
+    roles routing leftPurpose rightPurpose observedAt {} {} rfl
 
 /--
 Project the actionable unresolved-pressure subjects behind one current-open
@@ -489,6 +540,40 @@ def currentScheduledCommitment?
       some <| commitmentFromOpenOccurrences
         occurrences roles routing purpose measure observedAt endExclusive
   | _ => none
+
+/--
+The query-global unmanaged frontier of the compatibility Commitment view is
+independent of the queried Purpose. This pins the legacy surface to the same
+semantic distinction made explicit by `ScheduledPressurePartition.unmanaged`.
+-/
+theorem currentScheduledCommitment?_unmanaged_independent
+    (scheduled : ScheduledMemory Time)
+    (terminals : ScheduledTerminalMemory)
+    (events : EventMemory)
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (leftPurpose rightPurpose : PurposeId)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) :
+    (currentScheduledCommitment?
+        scheduled terminals events roles routing leftPurpose
+        measure observedAt endExclusive).map (fun view => view.unmanaged)
+      =
+    (currentScheduledCommitment?
+        scheduled terminals events roles routing rightPurpose
+        measure observedAt endExclusive).map (fun view => view.unmanaged) := by
+  unfold currentScheduledCommitment?
+  cases currentOpenScheduled scheduled terminals events
+  · rename_i occurrences
+    simp only [Option.map_some]
+    apply congrArg
+    exact commitmentFromOpenOccurrences_unmanaged_independent
+      occurrences roles routing leftPurpose rightPurpose measure observedAt endExclusive
+  · rfl
+  · rfl
+  · rfl
+  · rfl
+  · rfl
 
 /--
 Project the actionable unresolved-pressure subjects behind the current-open
