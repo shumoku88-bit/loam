@@ -30,6 +30,24 @@ READ_FLOW_DIAGRAMS = {
             ("action", "AUDIT TARGET\nseparate production lanes from compatibility lanes"),
         ],
     },
+    "07.1.1 Actual Review Read Boundary": {
+        "description": "Production ActualReview.loadRecordsFromActual / recordsFromActualEvidence? from one normalized ActualEvidence image.",
+        "sources": "Loam/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Core/EventCorrectionMemory.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ReplacementFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
+        "audit": "One loaded ActualEvidence image feeds both admissions and the final transient Record projection. Successful correction-frontier admission is also the obligation that makes later target-based replacement lookup deterministic: raw EventCorrectionMemory rejects duplicate exact edges but does not itself forbid sibling replacements for one target. No second correction model or read-specific replacement authority is justified.",
+        "nodes": [
+            ("insertion", "Load normalized ActualEvidence ONCE\nactual.loam"),
+            ("decision", "Actual authority decodes?", "Refuse\nmalformed or unsupported Actual evidence"),
+            ("insertion", "correctionFrontierMemory?\nclosed + source/successor unique + acyclic"),
+            ("decision", "One admitted current Event frontier?", "Refuse\ncorrection topology not justified"),
+            ("insertion", "admittedActualValidityMemory?\ncurrent date frontier"),
+            ("decision", "One admitted current date per Event?", "Refuse\nActual validity frontier not justified"),
+            ("action", "For each remembered Event\nproject transient review Record"),
+            ("action", "date := admitted validity\nisCurrent := frontier membership"),
+            ("action", "replacement := target lookup\ndeterministic under admitted correction frontier"),
+            ("action", "description := loaded Actual description evidence"),
+            ("action", "Return Records\nno new report authority retained"),
+        ],
+    },
     "07.7.1 Current Coverage Read Boundary": {
         "description": "Production CurrentCoverageReview.loadSnapshotAt after the Scheduled-pressure single-partition refactor.",
         "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
@@ -177,7 +195,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.5 - Current Coverage and Cycle Budget",),
+            ("LOAM Read Path Atlas v0.6 - Actual Review, Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
@@ -191,6 +209,15 @@ def build() -> None:
         node_id = base.add_tree_node(db, node_id, 0, "folder", "LOAM Read Path Atlas")
         node_id = base.add_tree_node(
             db, node_id, root, "item", diagram_id=diagram_ids["07.0 Read Path Comparison"]
+        )
+
+        actual_review = node_id
+        node_id = base.add_tree_node(
+            db, node_id, root, "folder", "07.1 Actual Review"
+        )
+        node_id = base.add_tree_node(
+            db, node_id, actual_review, "item",
+            diagram_id=diagram_ids["07.1.1 Actual Review Read Boundary"]
         )
 
         current_coverage = node_id
@@ -233,6 +260,10 @@ def build() -> None:
             "select count(*) from diagram_info where name='sources'"
         ).fetchone()[0] != len(names):
             raise SystemExit("missing read-path source traceability metadata")
+        if db.execute(
+            "select count(*) from tree_nodes where type='folder' and name='07.1 Actual Review'"
+        ).fetchone()[0] != 1:
+            raise SystemExit("Actual Review read-path folder missing")
         if db.execute(
             "select count(*) from tree_nodes where type='folder' and name='07.7 Current Coverage'"
         ).fetchone()[0] != 1:
