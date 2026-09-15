@@ -21,6 +21,7 @@ on:
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'Loam/Tests/RoleBalanceProofDag.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
       - 'tools/loam'
@@ -49,6 +50,7 @@ on:
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'Loam/Tests/RoleBalanceProofDag.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
       - 'tools/loam'
@@ -91,6 +93,8 @@ jobs:
         run: lake env lean --run Loam/Tests/RoleFlowReview.lean
       - name: Qualify role-aware balance composition
         run: lake env lean --run Loam/Tests/RoleBalanceReview.lean
+      - name: Qualify role-balance proof DAG
+        run: lake env lean Loam/Tests/RoleBalanceProofDag.lean
       - name: Qualify current quantity anchor composition
         run: lake env lean --run Loam/Tests/CurrentQuantityAnchor.lean
       - name: Qualify current quantity anchor CLI boundary
