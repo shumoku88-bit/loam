@@ -25,11 +25,6 @@ private def freshRevisionId?
     (history.facts.length + 1)
   pure ⟨token⟩
 
-private def currentFactForEvent?
-    (facts : List (ActualValidityFact String)) (event : EventId) :
-    Option (ActualValidityFact String) :=
-  facts.find? fun fact => decide (fact.event = event)
-
 private def requireCurrentTarget
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
@@ -70,7 +65,7 @@ private def admit?
   requireCurrentTarget evidence.events evidence.corrections draft.target
   let currentFacts := Loam.Application.actualValidityFrontierFacts evidence.validity
   let currentFact ←
-    match currentFactForEvent? currentFacts draft.target with
+    match currentFacts.find? fun fact => decide (fact.event = draft.target) with
     | some fact => pure fact
     | none => throw "loam: selected Actual has no current occurrence date"
   if currentFact.validOn = draft.validOn then
