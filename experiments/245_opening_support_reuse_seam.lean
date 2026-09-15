@@ -117,8 +117,7 @@ private def openingCorrection : EventCorrectionMemory :=
     idNodup := by simp }
 
 private def answerQuanta? : QuantityInspectionAnswer → Option Int
-  | .recorded quantity => some quantity.quanta
-  | .frontierEffective quantity => some quantity.quanta
+  | .quantity quantity => some quantity.quanta
   | .missingCorrectionEndpoint => none
   | .frontierRequired => none
 
