@@ -68,14 +68,18 @@ private theorem findRevision_isSome_eq_usedByList
       | base event validOn =>
           simp [FiniteKeyed.findBy?, ActualValidityFact.ref, revisionTokens, ih,
             Observation242.usedByList]
+          rfl
       | revision id event validOn =>
           rcases id with ⟨idToken⟩
           by_cases hEq : idToken = token
           · subst token
             simp [FiniteKeyed.findBy?, ActualValidityFact.ref, revisionTokens,
               Observation242.usedByList]
-          · simp [FiniteKeyed.findBy?, ActualValidityFact.ref, revisionTokens, hEq, ih,
-              Observation242.usedByList]
+          · have hEqSymm : token ≠ idToken := by
+              intro h
+              exact hEq h.symm
+            simp [FiniteKeyed.findBy?, ActualValidityFact.ref, revisionTokens, hEq,
+              hEqSymm, ih, Observation242.usedByList]
 
 /-- The publisher's collision predicate has the finite witness above. -/
 theorem revisionUsed_eq_usedByList
