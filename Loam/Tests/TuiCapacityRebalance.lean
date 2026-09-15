@@ -76,11 +76,11 @@ def main (args : List String) : IO Unit := do
     endExclusive := "2026-10-01"
     rows := [
       { purpose := ⟨"food"⟩, entitlement := Quantity.ofQuanta 39000, consumption := Quantity.ofQuanta 18672,
-        remaining := Quantity.ofQuanta 20328, commitment := Quantity.ofQuanta 0, headroom := Quantity.ofQuanta 20328 },
+        commitment := Quantity.ofQuanta 0 },
       { purpose := ⟨"stock"⟩, entitlement := Quantity.ofQuanta 7000, consumption := Quantity.ofQuanta 8180,
-        remaining := Quantity.ofQuanta (-1180), commitment := Quantity.ofQuanta 0, headroom := Quantity.ofQuanta (-1180) },
+        commitment := Quantity.ofQuanta 0 },
       { purpose := ⟨"living"⟩, entitlement := Quantity.ofQuanta 22346, consumption := Quantity.ofQuanta 27892,
-        remaining := Quantity.ofQuanta (-5546), commitment := Quantity.ofQuanta 0, headroom := Quantity.ofQuanta (-5546) }
+        commitment := Quantity.ofQuanta 0 }
     ]
     scheduledFrontier := some {
       unmanaged := Quantity.ofQuanta 0

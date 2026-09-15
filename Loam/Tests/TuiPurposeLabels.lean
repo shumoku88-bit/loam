@@ -37,9 +37,7 @@ def main : IO Unit := do
     { purpose := ⟨"general-living"⟩
       entitlement := q 20000
       consumption := q 5000
-      remaining := q 15000
-      commitment := q 3000
-      headroom := q 12000 }
+      commitment := q 3000 }
   let budgetText := text (Loam.Tui.CycleBudget.coverageRow metadata coverageRow)
   expect (contains "一般生活" budgetText) "Budget row did not render Purpose label"
   expect (!(contains "general-living" budgetText)) "Budget row leaked stable token despite configured label"

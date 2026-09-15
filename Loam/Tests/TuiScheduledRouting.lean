@@ -31,15 +31,11 @@ private def sampleCoverage : Loam.CurrentCoverageReview.Snapshot :=
       [ { purpose := ⟨"food"⟩
           entitlement := Quantity.ofQuanta 30000
           consumption := Quantity.ofQuanta 10000
-          remaining := Quantity.ofQuanta 20000
-          commitment := Quantity.ofQuanta 0
-          headroom := Quantity.ofQuanta 20000 }
+          commitment := Quantity.ofQuanta 0 }
       , { purpose := ⟨"fixed-cost"⟩
           entitlement := Quantity.ofQuanta 15000
           consumption := Quantity.ofQuanta 5000
-          remaining := Quantity.ofQuanta 10000
-          commitment := Quantity.ofQuanta 0
-          headroom := Quantity.ofQuanta 10000 }
+          commitment := Quantity.ofQuanta 0 }
       ]
     scheduledFrontier := some
       { unmanaged := Quantity.ofQuanta 0
