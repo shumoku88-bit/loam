@@ -58,19 +58,11 @@ inductive RelationSourceState where
   | knownNone
   | knownPositive (relations : List AdmittedRelationUnit)
 
-private def findEffectByKey? : List Effect → EffectKey → Option Effect
-  | [], _ => none
-  | effect :: rest, key =>
-      if effect.key = key then
-        some effect
-      else
-        findEffectByKey? rest key
-
 /-- Resolve the exact source Effect named by one raw relation unit. -/
 def relationSourceEffect?
     (events : EventMemory) (relation : RelationUnit) : Option Effect := do
   let event ← EventMemory.findById? events relation.sourceEvent
-  findEffectByKey? event.effects relation.sourceEffect
+  event.effects.find? fun effect => effect.key = some relation.sourceEffect
 
 /-- Event-memory representation order cannot change source-Effect resolution. -/
 theorem relationSourceEffect?_eventMemory_perm
@@ -316,7 +308,7 @@ def currentRelationState?
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Option RelationSourceState := do
   let event ← EventMemory.findById? events sourceEvent
-  let _source ← findEffectByKey? event.effects sourceEffect
+  let _source ← event.effects.find? fun effect => effect.key = some sourceEffect
   let current ← admittedRelationSourceFrontier?
     events relations sourceEvent sourceEffect
   if current.isEmpty then
