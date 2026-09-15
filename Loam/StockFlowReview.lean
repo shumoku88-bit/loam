@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.BalanceReview
@@ -13,8 +14,8 @@ set_option autoImplicit false
 
 This report boundary derives one explicit half-open window over the same
 correction-aware Actual records and selected current balances already used by
-production surfaces. It does not read a second Event world, infer accounting
-roles, or retain opening/closing report state.
+production surfaces. It does not infer accounting roles or retain opening/closing
+report state.
 
 Because selected balances are admitted only through `BalanceReview`, every
 selected coordinate already carries explicit zero-origin evidence. Historical
@@ -161,11 +162,11 @@ def project
     currentTracked := Quantity.ofQuanta (currentTrackedQuanta balances)
   }
 
-/--
-Load the two existing production read answers and compose them. Canonical file
-interpretation remains owned by `BalanceReview` and `ActualReview`.
--/
-def loadSnapshot
+private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
+  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+  else Loam.ActualAuthority.actualPath actualRoot
+
+private def loadWithinActualObservation
     (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let balances ←
@@ -177,5 +178,21 @@ def loadSnapshot
     | .error message => return .error message
     | .ok records => pure records
   return project balances records start endExclusive
+
+/--
+Load the two existing production read answers and compose them.
+
+Balance Review and Actual Review both observe normalized `actual.loam`. Their two
+reads therefore run inside one short Actual ownership interval so one Stock–Flow
+answer cannot mix balances from one Actual generation with records from another.
+Canonical interpretation remains owned by the existing readers; this boundary
+adds no second Event decoder or report authority.
+-/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath)
+    (start endExclusive : String) : IO (Except String Snapshot) := do
+  let actualPath := actualPathForObservation actualRoot
+  Loam.ActualAuthority.withActualFileOwnership actualPath
+    (loadWithinActualObservation dataDir actualRoot start endExclusive)
 
 end Loam.StockFlowReview
