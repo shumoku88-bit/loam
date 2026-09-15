@@ -33,6 +33,10 @@ being discarded. Scheduled lifecycle state is current-open only; it is not
 replayed into the past. Capacity movement and effective-coordinate meanings are
 loaded through one local `CapacityAuthority` handle so this review does not know
 their physical companion topology.
+
+Scheduled selection and routing/role classification are performed once for the
+whole query. Purpose rows project only their managed Commitment from that shared
+partition; query-global pressure frontiers are projected once beside the rows.
 -/
 
 structure Row where
@@ -73,11 +77,6 @@ structure Snapshot where
   unresolvedScheduled : List (UnresolvedScheduledPressureRow String) := []
   deriving Repr, DecidableEq
 
-private structure ProjectedRow where
-  row : Row
-  frontier : ScheduledFrontier
-
-
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
   if ← path.pathExists then return .ok ()
   return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
@@ -89,35 +88,21 @@ private def projectPurpose?
     (corrections : EventCorrectionMemory)
     (validities : ActualValidityMemory String)
     (actualRouting : Loam.Persistence.ActualRoutingHistory)
-    (scheduled : Loam.Persistence.ScheduledLifecycleImage)
-    (roles : AccountingRoleMap)
-    (scheduledRouting : ScheduledRoutingHistory String)
-    (currentWindowStart observedAt endExclusive : String)
-    (purpose : PurposeId) : Option ProjectedRow := do
+    (pressure : ScheduledPressurePartition String)
+    (currentWindowStart observedAt : String)
+    (purpose : PurposeId) : Option Row := do
   let yen : MeasureId := ⟨"jpy"⟩
+  let commitment := ScheduledPressurePartition.managedFor pressure purpose
   let view ←
-    currentCoverageAtCorrectionFrontierEffectiveRouting?
+    currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
       capacity effective events corrections validities actualRouting
-      scheduled.scheduled scheduled.terminals roles scheduledRouting
-      purpose yen currentWindowStart observedAt endExclusive
+      purpose yen currentWindowStart observedAt commitment
   return {
-    row := {
-      purpose := purpose
-      entitlement := view.entitlement
-      consumption := view.consumption
-      commitment := view.commitment
-    }
-    frontier := {
-      unmanaged := view.unmanagedCommitment
-      unrouted := view.unroutedCommitment
-      unresolvedEligibility := view.unresolvedEligibility
-    }
+    purpose := purpose
+    entitlement := view.entitlement
+    consumption := view.consumption
+    commitment := view.commitment
   }
-
-private def consistentFrontier (rows : List ProjectedRow) : Bool :=
-  match rows with
-  | [] => true
-  | first :: rest => rest.all (fun row => row.frontier == first.frontier)
 
 /--
 Load one immutable production evidence snapshot for an explicit current
@@ -196,28 +181,35 @@ def loadSnapshotAt
     | some roleMap => pure roleMap
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
-  let unresolvedScheduled ←
-    match currentActionableScheduledPressure?
+  let pressure ←
+    match currentScheduledPressurePartition?
         scheduled.scheduled scheduled.terminals actualEvidence.events roles scheduledRouting
         ⟨"jpy"⟩ observedAt endExclusive with
-    | some rows => pure rows
+    | some partition => pure partition
     | none => return .error "loam: canonical evidence does not justify actionable Scheduled pressure"
 
+  let unresolvedScheduled := ScheduledPressurePartition.actionableRows pressure
+  let frontier : ScheduledFrontier := {
+    unmanaged := ScheduledPressurePartition.unmanaged pressure
+    unrouted := ScheduledPressurePartition.unrouted pressure
+    unresolvedEligibility := ScheduledPressurePartition.unresolvedEligibility pressure
+  }
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
   match purposes.mapM (projectPurpose?
       capacity effective actualEvidence.events actualEvidence.corrections validities actualRouting
-      scheduled roles scheduledRouting currentWindowStart observedAt endExclusive) with
+      pressure currentWindowStart observedAt) with
   | none =>
       return .error "loam: canonical evidence does not justify this current coverage projection"
-  | some projected =>
-      if !consistentFrontier projected then
-        return .error "loam: Scheduled pressure frontier changed across Purpose projections"
+  | some rows =>
       return .ok {
         currentWindowStart := currentWindowStart
         observedAt := observedAt
         endExclusive := endExclusive
-        rows := projected.map (fun projectedRow => projectedRow.row)
-        scheduledFrontier := projected.head?.map (fun projectedRow => projectedRow.frontier)
+        rows := rows
+        scheduledFrontier :=
+          match purposes with
+          | [] => none
+          | _ => some frontier
         unresolvedScheduled := unresolvedScheduled
       }
 
