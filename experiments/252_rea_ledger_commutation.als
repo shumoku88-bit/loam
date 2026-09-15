@@ -151,15 +151,17 @@ pred misalignedAccountingViewBreaksCommutation {
   some e: Effect | mediatedCoordinate[Left, e] != directCoordinate[e]
 }
 
--- Agent participation and duality can vary while the balance-level accounting
--- image remains unchanged when Resource interpretation and accounting view stay
--- fixed. This witnesses information forgotten by the Ledger projection.
+-- Agent participation or duality of the observed Payment can vary while the
+-- balance-level accounting image remains unchanged when Resource interpretation
+-- and accounting view stay fixed. This witnesses information forgotten by the
+-- Ledger projection rather than a difference on an irrelevant Event.
 pred differentReaSemanticsSameLedgerImage {
   reaCandidate[Left]
   reaCandidate[Right]
   Left.resourceOf = Right.resourceOf
   Left.ledgerCoordinateOfResource = Right.ledgerCoordinateOfResource
-  (Left.participant != Right.participant or Left.duality != Right.duality)
+  (Payment.(Left.participant) != Payment.(Right.participant) or
+   Payment.(Left.duality) != Payment.(Right.duality))
   all e: Effect | mediatedCoordinate[Left, e] = mediatedCoordinate[Right, e]
 }
 
