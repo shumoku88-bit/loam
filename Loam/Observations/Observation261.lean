@@ -92,6 +92,7 @@ theorem endpoint_nonzero_mem_chainStepChangedCoordinates
           Loam.Observation257.quantityDeltaQuanta]
       exact False.elim (hEndpoint hZero)
   | cons next tail ih =>
+      simp only [chainLast] at hEndpoint
       by_cases hHead :
           Loam.Observation258.quantityDeltaQuantaAt first next coordinate = 0
       · have hTail : Loam.Observation258.quantityDeltaQuantaAt
