@@ -1,6 +1,6 @@
 # AccountingRole / ActualRouting obligation DAG — G2-008
 
-Status: **Generation-2 audit evidence, qualification pending CI**
+Status: **Generation-2 audit evidence — QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG**.
 
@@ -59,7 +59,7 @@ The production factorization therefore uses one private `partitionApproved` trav
 
 For known roles, `history.statusAt locus observedAt` is still calculated only for the row actually emitted. The factorization does not broaden routing obligations and does not infer role from sign, spelling, route presence, or Purpose.
 
-Verdict: **SIMPLIFY CANDIDATE**, subject to production qualification.
+Verdict: **SIMPLIFY QUALIFIED**.
 
 ## 3. Order is part of the observable projection
 
@@ -125,16 +125,23 @@ Verdict: **KEEP SEPARATE**.
 
 The simplification is only about repeated evaluation of one already-loaded AccountingRole map over one already-loaded admitted-Locus list.
 
-## 6. Qualification targets
+## 6. Qualification result
 
-The change is qualified only if relevant production tests and CI remain green, especially:
+PR #924 qualified the factorization with all relevant workflows green:
 
-- `Loam/Tests/ActualRoutingReview.lean`;
-- production routing-administration interaction;
-- Production TUI;
-- compression and selected Lean qualification.
+- Compression Audit;
+- Selected Lean Observations;
+- Production TUI.
 
-Expected final verdict after CI:
+Production TUI specifically passed the routing-facing steps:
+
+- shared Actual Purpose routing administration boundary build;
+- current Expense Locus routing audit;
+- Actual Purpose routing administration interaction.
+
+The downstream Budget Window, Stock-Flow, Transactions-Flow, conditional Liquidity, Reports, Cycle Budget, and Scheduled routing checks also remained green.
+
+Final verdict:
 
 ```text
 AccountingRoleReview: KEEP
