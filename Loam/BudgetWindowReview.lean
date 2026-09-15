@@ -82,6 +82,29 @@ private def projectPurpose?
     consumption := consumption
   }
 
+/--
+Project one Purpose after the query-global correction frontier has already been
+admitted. Entitlement remains Purpose-local and keeps its existing Capacity
+completeness/window checks; only the correction world is shared.
+-/
+private def projectPurposeFromFrontier?
+    (evidence : Evidence)
+    (frontier : EventMemory)
+    (start end_ : String)
+    (purpose : PurposeId) : Option Row := do
+  let yen : MeasureId := ⟨"jpy"⟩
+  let entitlement ←
+    entitlementAtEffectiveWindow?
+      evidence.capacity evidence.effective start end_ purpose yen
+  let consumption ←
+    consumptionAtRecordedEffectiveRoutingWindow?
+      frontier evidence.validities evidence.routing start end_ purpose yen
+  some {
+    purpose := purpose
+    entitlement := entitlement
+    consumption := consumption
+  }
+
 private def loadActualEvidence
     (actualRoot : System.FilePath) : IO (Except String Loam.ActualEvidence) :=
   if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then
@@ -155,6 +178,12 @@ def loadPurposeRow
 /--
 Load one immutable production evidence snapshot and answer an explicit JPY
 `[start, end)` query for every Purpose represented by retained Capacity evidence.
+
+An empty Purpose set remains an empty successful answer without forcing an
+otherwise irrelevant correction-world obligation. For a non-empty set, the
+first Purpose keeps the existing Entitlement-before-Consumption refusal order;
+after that gate succeeds, one correction frontier is admitted and shared by all
+Purpose-local Consumption projections.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
@@ -164,10 +193,30 @@ def loadSnapshot
     | .ok evidence => pure evidence
     | .error message => return .error message
   let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity
-  match purposes.mapM (projectPurpose? evidence start end_) with
-  | none =>
-      return .error "loam: canonical evidence does not justify this budget-window projection"
-  | some rows =>
-      return .ok { start := start, endExclusive := end_, rows := rows }
+  match purposes with
+  | [] =>
+      return .ok { start := start, endExclusive := end_, rows := [] }
+  | first :: rest =>
+      let yen : MeasureId := ⟨"jpy"⟩
+      let some firstEntitlement :=
+          entitlementAtEffectiveWindow?
+            evidence.capacity evidence.effective start end_ first yen
+        | return .error "loam: canonical evidence does not justify this budget-window projection"
+      let some frontier := correctionFrontierMemory? evidence.events evidence.corrections
+        | return .error "loam: canonical evidence does not justify this budget-window projection"
+      let some firstConsumption :=
+          consumptionAtRecordedEffectiveRoutingWindow?
+            frontier evidence.validities evidence.routing start end_ first yen
+        | return .error "loam: canonical evidence does not justify this budget-window projection"
+      let firstRow : Row := {
+        purpose := first
+        entitlement := firstEntitlement
+        consumption := firstConsumption
+      }
+      match rest.mapM (projectPurposeFromFrontier? evidence frontier start end_) with
+      | none =>
+          return .error "loam: canonical evidence does not justify this budget-window projection"
+      | some later =>
+          return .ok { start := start, endExclusive := end_, rows := firstRow :: later }
 
 end Loam.BudgetWindowReview
