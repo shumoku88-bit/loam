@@ -1,6 +1,6 @@
 # Observation 260 — compositional correction quantity diffs
 
-Status: **EXPERIMENT — Lean qualification pending**
+Status: **QUALIFIED by Lean 4.33.1**
 
 Baseline:
 
@@ -9,6 +9,23 @@ shumoku88-bit/loam
 main: b6c19ce7750849a51bcb350aa3457018c630e6fb
 Observation 259 / PR #934 merged
 open PR: 0
+```
+
+Qualification:
+
+```text
+Selected Lean Observations
+run:    34996972655
+result: SUCCESS
+Lean:   4.33.1
+
+Compression Audit
+run:    34996972485
+result: SUCCESS
+
+Purpose Catalog Boundary
+run:    34996972446
+result: SUCCESS
 ```
 
 ## Trigger
@@ -21,7 +38,7 @@ Observations 257–259 established one-step correction explanation:
 259  safe added / removed / changed human labels
 ```
 
-The next question is whether two successive quantity diffs compose:
+Observation 260 asks whether two successive quantity diffs compose:
 
 ```text
 A -> B -> C
@@ -29,7 +46,7 @@ A -> B -> C
 
 Can the endpoint quantity diff `A -> C` be reconstructed from the two step diffs without retaining a new chain-diff authority?
 
-## Obligation DAG
+## Qualified obligation DAG
 
 ```text
 pointwise delta composition
@@ -49,30 +66,27 @@ human labels remain endpoint-derived, not additive
 
 ## O260-1 — pointwise telescoping
 
-For every `LocusId × MeasureId` coordinate:
+Lean qualifies, for every `LocusId × MeasureId` coordinate:
 
 ```text
 delta(A,C) = delta(A,B) + delta(B,C)
 ```
 
-This is an integer quantity law. It requires no Effect pairing or cross-Event lineage.
+This is an exact integer quantity law. It requires no Effect pairing or cross-Event lineage.
+
+The proof uses only core integer algebra; no Mathlib or extra tactic dependency is introduced.
 
 ## O260-2 — direct changes cannot appear from nowhere
 
-If:
+Lean qualifies:
 
 ```text
 delta(A,C) != 0
+->
+delta(A,B) != 0 or delta(B,C) != 0
 ```
 
-then at least one of:
-
-```text
-delta(A,B) != 0
-delta(B,C) != 0
-```
-
-must hold. Therefore every direct changed coordinate appears in at least one step `changedCoordinates` list.
+Therefore every direct changed coordinate appears in at least one step `changedCoordinates` list.
 
 ## O260-3 — exact composed support
 
@@ -87,7 +101,7 @@ composedChangedCoordinates
       |> filter (delta(A,B) + delta(B,C) != 0)
 ```
 
-Target law:
+Lean qualifies the exact semantic support law:
 
 ```text
 coordinate in composedChangedCoordinates A B C
@@ -97,9 +111,9 @@ coordinate in changedCoordinates A C
 
 List order is intentionally not part of this claim. Membership is the semantic read-side support.
 
-This matters because the raw union of step supports is only an over-approximation: intermediate changes can cancel.
+The raw union of step supports is only an over-approximation because intermediate changes can cancel. The nonzero-total filter removes exactly those cancelled coordinates.
 
-## Cancellation witness
+## Qualified cancellation witness
 
 Selected fixture:
 
@@ -114,20 +128,17 @@ C
   coordinate absent
 ```
 
-Step interpretation:
+Lean qualifies:
 
 ```text
 A -> B   delta +100   label added
 B -> C   delta -100   label removed
+A -> C   delta    0   no changed-coordinate row
 ```
 
-Endpoint interpretation:
+The coordinate is present in both step changed supports, but absent from both the composed endpoint support and the direct O258 endpoint support.
 
-```text
-A -> C   delta 0      no changed-coordinate row
-```
-
-This deliberately falsifies two overly strong ideas:
+This falsifies two overly strong ideas:
 
 ```text
 changedCoordinates(A,C)
@@ -138,9 +149,9 @@ human labels form a simple additive algebra
 
 They do not. Quantity deltas compose algebraically; supports require zero-sum filtering; human labels are recomputed from endpoint presence.
 
-## Intended boundary
+## Qualified boundary
 
-If qualified:
+Observation 260 establishes:
 
 ```text
 complete endpoint quantity diff
@@ -155,7 +166,23 @@ But:
 added / removed / changed
 ```
 
-remain narrow endpoint descriptions. For example, `added` followed by `removed` can compose to no final row at all.
+remain narrow endpoint descriptions. `added` followed by `removed` can compose to no final row at all.
+
+Combined with Observations 257–260:
+
+```text
+one-step quantity delta
+    exact and lineage-free
+
+one-step changed support
+    finite and complete
+
+human one-step label
+    safely derived from coordinate presence
+
+multi-step endpoint quantity diff
+    compositional by telescoping and cancellation
+```
 
 Nothing here reconstructs Effect lineage, cause, capture chronology, accounting interpretation, or user intent.
 
