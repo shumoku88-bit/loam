@@ -161,21 +161,24 @@ def runTests : IO Unit := do
   IO.println "Case D passed: malformed publish fails closed, old unchanged."
 
   -- Case E: Process retry after rename uses New
-  -- An update operation acquires lock, reads New (2 events), and commits Evidence 3 (3 events)
-  let updateResult ← Loam.ActualAuthority.updateActual? testRoot fun current =>
+  -- Reacquire ownership, re-read New (2 events), then commit Evidence 3 (3 events).
+  let retryResult ← Loam.ActualAuthority.withActualOwnership testRoot do
+    let current ←
+      match ← Loam.ActualAuthority.loadActual? testRoot with
+      | .ok evidence => pure evidence
+      | .error message => return .error message
     if current.events.events.length != 2 then
-      .error "Expected 2 events"
-    else
-      .ok (evidence3, ())
-  match updateResult with
-  | .error e => throw <| IO.userError s!"Case E update failed: {e}"
+      return .error "Expected 2 events"
+    Loam.ActualAuthority.publishActual? testRoot evidence3
+  match retryResult with
+  | .error e => throw <| IO.userError s!"Case E retry failed: {e}"
   | .ok () => pure ()
 
   let loadedAfterE ← match ← Loam.ActualAuthority.loadActual? testRoot with
     | .error e => throw <| IO.userError s!"Load after E failed: {e}"
     | .ok ev => pure ev
   if loadedAfterE.events.events.length != 3 then
-    throw <| IO.userError "Case E failed: update did not reach 3 events"
+    throw <| IO.userError "Case E failed: retry did not reach 3 events"
   IO.println "Case E passed: process retry after rename uses New."
 
   cleanupDir testRoot
