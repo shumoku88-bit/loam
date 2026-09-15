@@ -18,21 +18,15 @@ private def fixture : Loam.CycleBudgetReview.Snapshot :=
       observedAt := "2026-09-08"
       endExclusive := "2026-10-15"
       rows := [{ purpose := ⟨"食費:ストック"⟩, entitlement := q 111, consumption := q 222, commitment := q 333 }]
-      scheduledFrontier := some { unmanaged := q 10, unrouted := q 20, unresolvedEligibility := q 4810 } }
+      scheduledFrontier := some { unmanaged := q 1234, unrouted := q 2345, unresolvedEligibility := q 4810 } }
     physical := .ok { rows := [
       { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, quantity := q 909 },
       { coordinate := ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩, quantity := q 555 }] }
     selection := .ok [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]
-    -- Coverage stores only independent components; Remaining/Headroom are derived.
-    -- Funding remains an independent supplied summary and keeps distinct sentinels.
+    -- Coverage owns query-global future pressure; funding keeps only independent quantities.
     funding := .ok {
-      measure := ⟨"jpy"⟩
       budgetableBacking := q 76389
-      remainingAssigned := q 47068
-      residualBeforeUnresolved := q 29321
-      unmanagedFuturePressure := q 1234
-      unroutedFuturePressure := q 2345
-      unresolvedFuturePressure := q 4810 } }
+      remainingAssigned := q 47068 } }
 
 def main : IO Unit := do
   let bounds : Bounds := { width := 100, height := 40 }
@@ -221,4 +215,4 @@ def main : IO Unit := do
       "current preset was redefined by Home focus"
   expect (!(Loam.BoundaryPresetConfig.currentWindowFor? (presets ++ presets) "2026-09-08").isOk)
     "ambiguous preset accepted"
-  IO.println "Cycle Budget: supplied mappings, direct actions, retired detour, scrolling and dates passed."
+  IO.println "Cycle Budget: derived funding summary, CurrentCoverage-owned future pressure, direct actions, scrolling and dates passed."

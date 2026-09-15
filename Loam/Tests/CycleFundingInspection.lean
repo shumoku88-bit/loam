@@ -51,9 +51,6 @@ private def assertAmounts (label : String) (summary : Summary)
   expect (summary.budgetableBacking.quanta == backing) s!"{label}: signed backing"
   expect (summary.remainingAssigned.quanta == assigned) s!"{label}: remaining assigned"
   expect (summary.residualBeforeUnresolved.quanta == residual) s!"{label}: residual"
-  expect (summary.unmanagedFuturePressure.quanta == 3) s!"{label}: unmanaged frontier"
-  expect (summary.unroutedFuturePressure.quanta == 5) s!"{label}: unrouted frontier"
-  expect (summary.unresolvedFuturePressure.quanta == 4810) s!"{label}: unresolved frontier"
 
 def main : IO Unit := do
   let opening ← requireSome (event? "opening" wallet 100) "opening"
@@ -67,7 +64,7 @@ def main : IO Unit := do
     project events corrections coverage selection yen snapshot
   let inspectRows := fun rows => requireOk (inspect [wallet] (current rows))
 
-  -- A, I: unrelated assets and all three global pressures do not inflate or
+  -- A, I: unrelated assets and global future pressure do not inflate or
   -- silently reduce the explicitly selected backing/residual.
   let basic ← inspectRows [row "food" 70]
   assertAmounts "A/I basic and separate frontier" basic 100 70 30
@@ -113,11 +110,11 @@ def main : IO Unit := do
   expect (!(project events corrections mixedCoverage [dollars] usd (current [])).isOk)
     "H JPY current coverage was coerced to another measure"
 
-  -- J: global frontier copied once, regardless of Purpose count or row order.
+  -- J: CurrentCoverage frontier is required once, but is no longer copied into Summary.
   let rows := [row "food" 70, row "general" 0, row "fixed" 0]
   let multi ← inspectRows rows
   assertAmounts "J multiple Purposes" multi 100 70 30
-  expect (multi == basic) "J global frontier multiplied by Purpose count"
+  expect (multi == basic) "J Purpose count changed independent funding quantities"
   expect ((← inspectRows rows.reverse) == multi) "row order changed funding"
   expect (!(inspect [wallet] { current [] with scheduledFrontier := none }).isOk)
     "missing Scheduled frontier became zero"
@@ -142,4 +139,4 @@ def main : IO Unit := do
   expect (!(project events corrected coverage [wallet] yen (current [])).isOk)
     "missing correction endpoint bypassed BalanceReview refusal"
 
-  IO.println "Cycle Funding: A-J arithmetic, explicit selection, global frontier and correction-aware physical evidence passed."
+  IO.println "Cycle Funding: A-J arithmetic, explicit selection, CurrentCoverage-owned frontier and correction-aware physical evidence passed."
