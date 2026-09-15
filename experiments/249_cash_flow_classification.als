@@ -6,12 +6,12 @@ one sig AssetRole, LiabilityRole, EquityRole, IncomeRole, ExpenseRole extends Ac
 abstract sig CashFlowClass {}
 one sig Operating, Investing, Financing extends CashFlowClass {}
 
-/--
+/*
 Two exact incidence quantities are enough for this distinguishability probe.
 Their arithmetic is deliberately outside the model: both worlds receive the same
 cash-outflow / counterpart-inflow shape, so quantity arithmetic cannot explain a
 difference in cash-flow classification.
--/
+*/
 abstract sig SignedQuantity {}
 one sig CashOut, CounterpartIn extends SignedQuantity {}
 
