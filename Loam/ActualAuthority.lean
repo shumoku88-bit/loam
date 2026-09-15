@@ -109,33 +109,6 @@ def withActualOwnership {α : Type} (root : System.FilePath) (action : IO α) : 
   withActualFileOwnership (actualPath root) action
 
 /--
-Execute a read-modify-write operation under cross-process writer ownership on an explicit file path.
--/
-def updateActualFile? {α : Type}
-    (path : System.FilePath)
-    (propose : ActualEvidence → Except String (ActualEvidence × α)) : IO (Except String α) :=
-  withActualFileOwnership path do
-    let evidence ←
-      match ← loadActualFile? path with
-      | .ok ev => pure ev
-      | .error msg => return .error msg
-    let (updated, result) ←
-      match propose evidence with
-      | .ok val => pure val
-      | .error msg => return .error msg
-    match ← publishActualFile? path updated with
-    | .ok () => return .ok result
-    | .error msg => return .error msg
-
-/--
-Execute a read-modify-write operation under cross-process writer ownership on the repository root.
--/
-def updateActual? {α : Type}
-    (root : System.FilePath)
-    (propose : ActualEvidence → Except String (ActualEvidence × α)) : IO (Except String α) :=
-  updateActualFile? (actualPath root) propose
-
-/--
 Load the full typed MovementAdmission.World by combining authoritative ActualEvidence
 from `actual.loam` and current new-write policy from `locus-admission.loam`.
 The caller-selected root is exact: missing or malformed authority fails closed
