@@ -56,13 +56,10 @@ structure Row where
   quantity : Quantity
   deriving Repr, DecidableEq
 
-/--
-A coordinate whose current quantity is supported but whose AccountingRole is
-unresolved, or whose quantity is itself unsupported and therefore absent.
--/
+/-- One quantity-supported coordinate whose AccountingRole is unresolved. -/
 structure UnresolvedRole where
   coordinate : EffectCoordinate
-  quantity : Option Quantity
+  quantity : Quantity
   deriving Repr, DecidableEq
 
 /-- One coordinate whose current quantity support is absent. -/
@@ -71,7 +68,15 @@ structure UnsupportedBalance where
   role : Option AccountingRole
   deriving Repr, DecidableEq
 
-/-- Shared role-aware current balance answer. -/
+/--
+Shared role-aware current balance answer.
+
+The three lists are a disjoint partition of represented coordinates:
+classified supported, role-unresolved supported, and quantity-unsupported.
+A coordinate with neither quantity nor role support lives only in
+`unsupportedBalances` with `role = none`; presentation may project that one
+record into both quantity and role blocker views without duplicating the answer.
+-/
 structure Snapshot where
   rows : List Row
   unresolvedRoles : List UnresolvedRole
@@ -185,21 +190,13 @@ private def unresolvedSupported
   balances.rows.filterMap fun row =>
     match roles.roleOf? row.coordinate.locus with
     | some _ => none
-    | none => some { coordinate := row.coordinate, quantity := some row.quantity }
+    | none => some { coordinate := row.coordinate, quantity := row.quantity }
 
 private def unsupportedRows
     (coordinates : List EffectCoordinate)
     (roles : AccountingRoleMap) : List UnsupportedBalance :=
   coordinates.map fun coordinate =>
     { coordinate := coordinate, role := roles.roleOf? coordinate.locus }
-
-private def unresolvedUnsupported
-    (coordinates : List EffectCoordinate)
-    (roles : AccountingRoleMap) : List UnresolvedRole :=
-  coordinates.filterMap fun coordinate =>
-    match roles.roleOf? coordinate.locus with
-    | some _ => none
-    | none => some { coordinate := coordinate, quantity := none }
 
 /--
 Compose the current correction frontier, independent zero-origin, opening and
@@ -241,7 +238,7 @@ def project
 
   return {
     rows := classifiedRows balances roles
-    unresolvedRoles := unresolvedSupported balances roles ++ unresolvedUnsupported unsupported roles
+    unresolvedRoles := unresolvedSupported balances roles
     unsupportedBalances := unsupportedRows unsupported roles
   }
 
