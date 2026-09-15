@@ -33,6 +33,8 @@ Using every tool is not a goal. If two tools answer the same question in the sam
 
 Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
 
+For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
+
 ## Local practical entrance
 
 LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then run the wrapper from the repository root:
