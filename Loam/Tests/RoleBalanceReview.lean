@@ -41,6 +41,10 @@ def main : IO Unit := do
     (Event.ofEffects? ⟨"ambiguous"⟩
       [effect "wallet-out-2" "wallet" (-5), effect "mystery-in" "mystery" 5])
     "ambiguous event"
+  let opaque ← requireSome
+    (Event.ofEffects? ⟨"opaque"⟩
+      [effect "ghost-a-in" "ghost-a" 7, effect "ghost-b-out" "ghost-b" (-7)])
+    "opaque event"
   let debtOpening ← requireSome
     (Event.ofEffects? ⟨"debt-opening"⟩ [effect "debt-opening-effect" "debt" (-100)])
     "debt opening event"
@@ -49,7 +53,7 @@ def main : IO Unit := do
     "debt repayment event"
 
   let events ← requireSome
-    (EventMemory.ofEvents? [receipt, purchase, ambiguous, debtOpening, debtRepayment])
+    (EventMemory.ofEvents? [receipt, purchase, ambiguous, opaque, debtOpening, debtRepayment])
     "event memory"
   let corrections ← requireSome (EventCorrectionMemory.ofCorrections? []) "correction memory"
 
@@ -94,9 +98,7 @@ def main : IO Unit := do
   expect (decide (debtRow.role = AccountingRole.liability)) "debt role changed"
 
   let mysteryRow ← requireSome (findUnresolved? snapshot "mystery") "missing unresolved role row"
-  match mysteryRow.quantity with
-  | some quantity => expect (quantity.quanta == 5) "supported unresolved quantity changed"
-  | none => throw (IO.userError "supported unresolved role lost its quantity")
+  expect (mysteryRow.quantity.quanta == 5) "supported unresolved quantity changed"
 
   let incomeUnsupported ← requireSome (findUnsupported? snapshot "income") "missing income support frontier"
   let foodUnsupported ← requireSome (findUnsupported? snapshot "food") "missing expense support frontier"
@@ -108,6 +110,14 @@ def main : IO Unit := do
     "unsupported expense classification disappeared"
   expect (findUnsupported? snapshot "debt").isNone
     "opening-supported debt remained in unsupported frontier"
+
+  let ghostUnsupported ← requireSome
+    (findUnsupported? snapshot "ghost-a")
+    "missing quantity-and-role unsupported coordinate"
+  expect ghostUnsupported.role.isNone
+    "quantity-unsupported coordinate unexpectedly gained a role"
+  expect (findUnresolved? snapshot "ghost-a").isNone
+    "quantity-and-role unsupported coordinate was duplicated across frontiers"
 
   let .ok physical := Loam.BalanceReview.project events corrections coverage [wallet, cash, mystery]
     | throw (IO.userError "neighboring BalanceReview refused covered coordinates")
@@ -147,7 +157,7 @@ def main : IO Unit := do
     ]).isNone
     "duplicate opening support coordinate was admitted"
 
-  expect (snapshot.unsupportedBalances.length == 2)
+  expect (snapshot.unsupportedBalances.length == 4)
     "unsupported balance frontier changed unexpectedly"
 
   IO.println
