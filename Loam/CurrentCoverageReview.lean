@@ -39,10 +39,24 @@ structure Row where
   purpose : PurposeId
   entitlement : Quantity
   consumption : Quantity
-  remaining : Quantity
   commitment : Quantity
-  headroom : Quantity
   deriving Repr, DecidableEq
+
+/-- Current Remaining is uniquely derived from Entitlement and Consumption. -/
+def Row.remaining (row : Row) : Quantity :=
+  row.entitlement - row.consumption
+
+/-- Current Headroom is uniquely derived from Remaining and managed Commitment. -/
+def Row.headroom (row : Row) : Quantity :=
+  row.remaining - row.commitment
+
+@[simp] theorem Row.remaining_eq_components (row : Row) :
+    row.remaining = row.entitlement - row.consumption :=
+  rfl
+
+@[simp] theorem Row.headroom_eq_components (row : Row) :
+    row.headroom = (row.entitlement - row.consumption) - row.commitment :=
+  rfl
 
 structure ScheduledFrontier where
   unmanaged : Quantity
@@ -91,9 +105,7 @@ private def projectPurpose?
       purpose := purpose
       entitlement := view.entitlement
       consumption := view.consumption
-      remaining := view.remaining
       commitment := view.commitment
-      headroom := view.headroom
     }
     frontier := {
       unmanaged := view.unmanagedCommitment
