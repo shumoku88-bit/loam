@@ -83,10 +83,14 @@ retains independent components and derives commitment/headroom aliases instead
 of storing contradictory copies.
 
 Cycle Budget keeps window, CurrentCoverage, physical display balances, funding
-selection, and funding summary as independently visible read results. Physical
-balance display and funding share one loaded Balance evidence image, while
-CurrentCoverage deliberately keeps its existing production reader; the composed
-snapshot does not promise a cross-file atomic read.
+selection, and funding summary as independently visible read results. The
+CurrentCoverage read and Balance evidence read now run inside one short
+`actual.loam` ownership interval, so one Cycle Budget answer cannot mix two
+normalized Actual generations if a writer publishes concurrently. Physical
+balance display and funding still share one loaded Balance evidence image.
+Capacity, routing, Scheduled, AccountingRole, zero-origin coverage, and configs
+retain their existing independent reads and failure boundaries, so the composed
+snapshot still does not claim cross-authority atomicity.
 
 `CycleFundingInspection.Summary` now retains only the two independent funding
 quantities: budgetable backing and remaining assigned. JPY is fixed by admission,
