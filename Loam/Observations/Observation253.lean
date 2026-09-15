@@ -30,14 +30,9 @@ resourceOf : LocusId -> Resource
 accountView : Resource -> MeasureId -> LedgerAccountShadow
 ```
 
-and one compatibility obligation at the queried Measure:
-
-```
-accountView (resourceOf locus) measure = Observation250.accountOf locus measure
-```
-
-Under that obligation, the REA-mediated route and Observation 250's direct
-Ledger-shaped route have exactly the same flow at every Ledger coordinate.
+and a compatibility obligation saying that the mediated route selects the same
+Ledger coordinate as Observation 250's direct route. The strongest theorem only
+requires this agreement for changes actually present in the queried movement.
 -/
 
 /--
@@ -81,12 +76,8 @@ def mediatedFlowAt {Resource : Type u}
       resourceOf accountView movement.measure movement.changes account)
 
 /--
-The accounting view is compatible with Observation 250's direct coordinate
-selection at one queried Measure.
-
-The hypothesis is intentionally silent about other Measures. Observation 253 is
-a commuting theorem for the selected single-Measure movement slice, not a global
-ontology alignment claim.
+A convenient stronger compatibility form: every Locus agrees at one selected
+Measure. This remains silent about other Measures.
 -/
 def CompatibleAtMeasure {Resource : Type u}
     (resourceOf : LocusId → Resource)
@@ -97,24 +88,49 @@ def CompatibleAtMeasure {Resource : Type u}
       accountOf locus measure
 
 /--
-Generic commuting theorem at the exact integer-quanta level.
-
-Once the mediated accounting view agrees with the direct Observation-250
-coordinate for the selected Measure, both routes return the same flow at every
-Ledger-shaped account coordinate.
+The minimal compatibility condition for one concrete projection: only changes
+actually present in the movement must select the same Ledger coordinate through
+both routes.
 -/
-theorem mediatedFlowQuanta_eq_direct_of_compatible {Resource : Type u}
+def CompatibleOnChanges {Resource : Type u}
+    (resourceOf : LocusId → Resource)
+    (accountView : Resource → MeasureId → LedgerAccountShadow)
+    (measure : MeasureId)
+    (changes : List (MovementChange LocusId)) : Prop :=
+  ∀ change ∈ changes,
+    mediatedAccountOf resourceOf accountView change.coordinate measure =
+      accountOf change.coordinate measure
+
+/--
+Strongest commuting theorem at the exact integer-quanta level.
+
+Agreement only on the retained changes being projected is enough to force equal
+flow at every Ledger-shaped account coordinate. Unobserved Loci and all other
+Measures are irrelevant to this selected query.
+-/
+theorem mediatedFlowQuanta_eq_direct_of_observed_compatible {Resource : Type u}
     (resourceOf : LocusId → Resource)
     (accountView : Resource → MeasureId → LedgerAccountShadow)
     (measure : MeasureId)
     (changes : List (MovementChange LocusId))
-    (hCompatible : CompatibleAtMeasure resourceOf accountView measure)
+    (hCompatible : CompatibleOnChanges resourceOf accountView measure changes)
     (account : LedgerAccountShadow) :
     mediatedFlowQuantaAtChanges resourceOf accountView measure changes account =
       ledgerFlowQuantaAtChanges measure changes account := by
+  revert hCompatible account
   induction changes with
-  | nil => rfl
+  | nil =>
+      intro _ _
+      rfl
   | cons change rest ih =>
+      intro hCompatible account
+      have hHead :
+          mediatedAccountOf resourceOf accountView change.coordinate measure =
+            accountOf change.coordinate measure :=
+        hCompatible change (by simp)
+      have hRest : CompatibleOnChanges resourceOf accountView measure rest := by
+        intro restChange hMem
+        exact hCompatible restChange (by simp [hMem])
       change
         (if mediatedAccountOf resourceOf accountView change.coordinate measure = account then
             change.quantity.quanta +
@@ -126,10 +142,29 @@ theorem mediatedFlowQuanta_eq_direct_of_compatible {Resource : Type u}
                 ledgerFlowQuantaAtChanges measure rest account
             else
               ledgerFlowQuantaAtChanges measure rest account)
-      rw [hCompatible change.coordinate]
+      rw [hHead]
       by_cases hAccount : accountOf change.coordinate measure = account
-      · simp [hAccount, ih]
-      · simp [hAccount, ih]
+      · simp [hAccount, ih hRest account]
+      · simp [hAccount, ih hRest account]
+
+/--
+Global-at-one-Measure compatibility is a simple corollary of the observed-only
+commuting theorem.
+-/
+theorem mediatedFlowQuanta_eq_direct_of_compatible {Resource : Type u}
+    (resourceOf : LocusId → Resource)
+    (accountView : Resource → MeasureId → LedgerAccountShadow)
+    (measure : MeasureId)
+    (changes : List (MovementChange LocusId))
+    (hCompatible : CompatibleAtMeasure resourceOf accountView measure)
+    (account : LedgerAccountShadow) :
+    mediatedFlowQuantaAtChanges resourceOf accountView measure changes account =
+      ledgerFlowQuantaAtChanges measure changes account := by
+  apply mediatedFlowQuanta_eq_direct_of_observed_compatible
+    resourceOf accountView measure changes
+  · intro change _
+    exact hCompatible change.coordinate
+  · exact account
 
 /-- Quantity-valued commuting theorem for one admitted `BalancedMovement`. -/
 theorem mediatedFlow_eq_direct_of_compatible {Resource : Type u}
