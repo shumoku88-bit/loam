@@ -84,6 +84,11 @@ This is a coverage inventory, not a mandatory order of work.
 
 Deeply mapped:
 
+- Actual Review
+  - normalized Actual read boundary
+  - correction-frontier admission
+  - Actual-validity admission
+  - transient record projection
 - Current Coverage
   - read boundary
   - per-Purpose projection
@@ -97,7 +102,6 @@ Deeply mapped:
 The rest of `07 Projections & Reports` is still largely an index rather than a
 same-scale read atlas. Candidate surfaces for future observation include:
 
-- ActualReview
 - BalanceReview
 - StockFlowReview
 - TransactionsFlowReview
@@ -186,11 +190,48 @@ The purpose of Generation 2 is not to make LOAM smaller at any cost. It is to
 make the justified structure easier to see, and to expose unjustified structure
 that source-local inspection can miss.
 
+## Generation-2 observations
+
+### G2-001 — Actual Review read boundary
+
+Instrument: source inspection plus read-path DRAKON mapping.
+
+`ActualReview.loadRecordsFromActual` loads one normalized `ActualEvidence` image.
+`recordsFromActualEvidence?` then refuses unless both of these independent
+admission boundaries succeed:
+
+- `correctionFrontierMemory?`, establishing one current Event frontier from a
+  closed, acyclic, source/successor-unique correction relation;
+- `admittedActualValidityMemory?`, establishing one admitted current occurrence
+  date per Event.
+
+Only after both admissions does the read boundary project transient `Record`
+values. `isCurrent` is derived from frontier membership; `date` is derived from
+the admitted validity memory; description and replacement labels are projected
+from the same already-loaded Actual evidence.
+
+The visual audit exposed one non-local proof obligation. Raw
+`EventCorrectionMemory` guarantees only that an exact target/replacement edge is
+not duplicated. It does **not** by itself prohibit two different replacement
+edges from sharing one target. The later `replacement` lookup in Actual Review is
+nevertheless deterministic because record projection is control-dependent on a
+successful `correctionFrontierMemory?`, whose generic `ReplacementFrontier`
+admission requires source uniqueness before the projection can run.
+
+Verdict: **KEEP**.
+
+No second correction model, read-specific replacement index, public Evidence API,
+or proof-only routing layer is justified. The existing frontier admission already
+owns the required uniqueness obligation and the read path consumes it in the same
+function before projection. Revisit only if target-based replacement lookup is
+later moved outside an admitted correction-frontier boundary, or if production
+semantics begin admitting branching correction relations.
+
 ## Initial direction
 
 The read atlas currently has the largest coverage gap. Extending visual pressure
-beyond Current Coverage and Cycle Budget into the other production reports is a
-natural next place to observe.
+beyond Actual Review, Current Coverage, and Cycle Budget into the other production
+reports is a natural next place to observe.
 
 The write atlas also remains incomplete and can be expanded when a sibling path
 or product change makes comparison valuable.
