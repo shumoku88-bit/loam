@@ -41,7 +41,7 @@ def main : IO Unit := do
     (Event.ofEffects? ⟨"ambiguous"⟩
       [effect "wallet-out-2" "wallet" (-5), effect "mystery-in" "mystery" 5])
     "ambiguous event"
-  let opaque ← requireSome
+  let ghostEvent ← requireSome
     (Event.ofEffects? ⟨"opaque"⟩
       [effect "ghost-a-in" "ghost-a" 7, effect "ghost-b-out" "ghost-b" (-7)])
     "opaque event"
@@ -53,7 +53,7 @@ def main : IO Unit := do
     "debt repayment event"
 
   let events ← requireSome
-    (EventMemory.ofEvents? [receipt, purchase, ambiguous, opaque, debtOpening, debtRepayment])
+    (EventMemory.ofEvents? [receipt, purchase, ambiguous, ghostEvent, debtOpening, debtRepayment])
     "event memory"
   let corrections ← requireSome (EventCorrectionMemory.ofCorrections? []) "correction memory"
 
