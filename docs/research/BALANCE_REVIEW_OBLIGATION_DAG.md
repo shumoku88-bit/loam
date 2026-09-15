@@ -1,6 +1,6 @@
-# Balance Review obligation DAG — G2-002
+# Balance Review obligation DAG — G2-002 / G2-003
 
-Status: **Generation-2 audit evidence**
+Status: **Generation-2 audit evidence, production simplification qualified**
 
 This document decomposes the production `BalanceReview.project` claim into the
 smallest obligations exposed by the DRAKONview pass. It is an audit instrument,
@@ -67,9 +67,9 @@ The two routes into `Shared correction world` are semantic alternatives:
 - with correction facts, endpoint closure and one admitted correction frontier
   are required before the frontier `EventMemory` becomes the quantity basis.
 
-## Current control-flow realization
+## G2-002 control-flow realization
 
-Production currently reaches that DAG through this row-local shape:
+At the G2-002 baseline production reached that DAG through this row-local shape:
 
 ```text
 for each coordinate c
@@ -82,14 +82,12 @@ for each coordinate c
             frontier quantity(c)
 ```
 
-Therefore every covered row re-evaluates the same correction-world obligation.
-The coordinate changes, but the inputs to closure/frontier admission do not.
+Therefore every covered row re-evaluated the same correction-world obligation.
+The coordinate changed, but the inputs to closure/frontier admission did not.
 
-That is the G2-002 structural pressure:
+That was the G2-002 structural pressure:
 
 ```text
-current control flow
-
 row A -> correction world A
 row B -> correction world B
 row C -> correction world C
@@ -111,10 +109,10 @@ while the obligation DAG is:
 
 ## Refusal-order constraint
 
-The repeated work cannot simply be hoisted eagerly to the top of
+The repeated work could not simply be hoisted eagerly to the top of
 `BalanceReview.project` without changing observable refusal ordering.
 
-Today coordinates are inspected left-to-right. For example:
+For example:
 
 ```text
 coordinate A: uncovered
@@ -122,7 +120,7 @@ coordinate B: covered
 corrections: invalid
 ```
 
-returns the zero-origin error for A before correction topology is inspected.
+must return the zero-origin error for A before correction topology is inspected.
 Conversely:
 
 ```text
@@ -131,26 +129,84 @@ coordinate B: uncovered
 corrections: invalid
 ```
 
-may return the correction error while processing A before B is reached.
+must expose the correction error while processing A before B is reached.
 
-So the DAG licenses sharing of the correction-world obligation, but it does not
-license arbitrary reordering of the coordinate-local gates.
+So the DAG licensed sharing of the correction-world obligation, but did not
+license arbitrary reordering of coordinate-local gates.
 
-The smallest behavior-preserving candidate is therefore **lazy sharing**:
-resolve the correction quantity basis on the first covered row that needs it,
-then reuse that already-resolved basis for later covered rows. Earlier uncovered
-rows still fail before the shared obligation is forced.
+## G2-003 qualification
+
+The key simplification is stronger than the original lazy-cache sketch.
+
+An uncovered coordinate terminates the whole Balance Review immediately. As a
+result, a non-empty projection can only reach any later row if the **first**
+coordinate is covered. This means no Option cache or thunk needs to be threaded
+through recursion.
+
+The qualified control flow is:
+
+```text
+eraseDups coordinates
+
+empty?
+    yes -> return empty Snapshot
+
+first coordinate covered?
+    no  -> return first zero-origin diagnostic
+    yes -> resolve quantity basis ONCE
+
+quantity basis admitted?
+    no  -> return correction diagnostic
+    yes -> project first row
+
+for each remaining coordinate left-to-right
+    covered?
+        no  -> return that zero-origin diagnostic
+        yes -> project quantity from SAME basis
+
+return Snapshot
+```
+
+This preserves every relevant refusal boundary:
+
+- empty selection still does not force correction admission;
+- an uncovered first row still wins over malformed correction evidence;
+- once the first row is covered, correction admission still precedes every later
+  row gate, exactly as in the former row-local implementation;
+- later uncovered rows remain left-to-right failures after one admitted basis.
+
+The production change stays local to `BalanceReview`. It introduces no public
+Evidence object, no inspection context, and no second quantity arithmetic engine.
+The existing `correctionReferencesClosed`, `correctionFrontierMemory?`, and
+`EventMemory.quantityAtRecorded` primitives remain the semantic owners.
+
+## Qualification cases
+
+`Loam/Tests/BalanceReview.lean` now pins these cases:
+
+```text
+1. valid correction + multiple covered coordinates
+   -> one shared frontier basis produces both rows
+
+2. empty selection + broken correction endpoint
+   -> success with empty Snapshot; unused correction obligation stays lazy
+
+3. [uncovered, covered] + broken correction endpoint
+   -> zero-origin diagnostic for the first coordinate
+
+4. [covered, uncovered] + broken correction endpoint
+   -> correction-reference diagnostic before the later coverage failure
+```
+
+These are the observable cases that distinguish a safe shared basis from an
+unsafe eager hoist.
 
 ## Verdict
 
-**SIMPLIFY CANDIDATE CONFIRMED; production change deferred to qualification.**
+**G2-003: SIMPLIFY QUALIFIED.**
 
-DRAKONview exposed repeated query-global work inside a row-local loop. The DAG
-shows that one correction-world node is sufficient for all rows. The remaining
-obligation before changing production is behavioral equivalence around refusal
-ordering and diagnostics.
-
-A follow-up implementation should stay local to the Balance Review boundary
-unless a second production consumer independently exhibits the same prepared
-quantity-basis need. Do not create a general public Evidence or inspection
-context merely to satisfy this one observation.
+DRAKONview exposed query-global correction work inside a row-local loop. The DAG
+showed one shared correction-world node and, crucially, the refusal-order edge
+that constrained the refactor. Production can now resolve that node once per
+non-empty admitted Balance Review and fan the resulting Event basis out to all
+rows without adding a new public abstraction.
