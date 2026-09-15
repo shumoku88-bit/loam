@@ -99,14 +99,8 @@ private def admit?
     throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
 
   let reversal := deterministicReversalId draft.target
-  if (EventMemory.findById? evidence.events reversal).isSome then
-    throw "loam: deterministic reversal Event identity collides with retained Movement evidence"
   let relation : ActualReversal := { target := draft.target, reversal := reversal }
-
   let effects := inverseEffects target
-  if !locusAdmission.admitsEffects effects then
-    throw "loam: reversal uses a Locus not approved for new publication"
-
   let event : Event := {
     id := relation.reversal
     effects := effects
@@ -120,7 +114,10 @@ private def admit?
   let events ←
     match EventMemory.add? evidence.events event with
     | some events => pure events
-    | none => throw "loam: reversal Event could not be appended"
+    | none => throw "loam: deterministic reversal Event identity collides with retained Movement evidence"
+
+  if !locusAdmission.admitsEffects effects then
+    throw "loam: reversal uses a Locus not approved for new publication"
 
   let validity ←
     match evidence.validity.addFact? (.base relation.reversal draft.validOn) with
