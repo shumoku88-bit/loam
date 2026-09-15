@@ -6,22 +6,10 @@ namespace Loam.EffectiveCli
 
 set_option autoImplicit false
 
-private def addCoordinateIfAbsent
-    (coordinates : List Loam.Core.EffectCoordinate)
-    (coordinate : Loam.Core.EffectCoordinate) : List Loam.Core.EffectCoordinate :=
-  if coordinate ∈ coordinates then
-    coordinates
-  else
-    coordinates ++ [coordinate]
-
 private def recordedCoordinates
     (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=
-  memory.events.foldl
-    (fun coordinates event =>
-      event.effects.foldl
-        (fun current effect => addCoordinateIfAbsent current effect.coordinate)
-        coordinates)
-    []
+  (memory.events.flatMap fun event =>
+    event.effects.map fun effect => effect.coordinate).eraseDups
 
 private def quantityLine
     (coordinate : Loam.Core.EffectCoordinate)
