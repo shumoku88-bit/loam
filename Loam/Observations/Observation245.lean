@@ -119,7 +119,16 @@ theorem capacityUsed_eq_usedByList
   funext token
   have hMovement := findMovement_isSome_eq_usedByList memory.movements token
   have hEffective := effectiveMentions_eq_usedByList effective.entries token
-  rw [CapacityMemory.findById?, hMovement, hEffective]
+  change
+    (FiniteKeyed.findBy?
+        CapacityMovement.id
+        memory.movements
+        (⟨token⟩ : CapacityMovementId)).isSome ||
+      effective.entries.any
+        (fun entry =>
+          decide (entry.movement = (⟨token⟩ : CapacityMovementId))) =
+      Observation242.usedByList (capacityTokens memory effective) token
+  rw [hMovement, hEffective]
   simp [Observation242.usedByList, capacityTokens, movementTokens, effectiveTokens]
 
 /--
@@ -141,7 +150,8 @@ theorem capacitySearch_is_total
         (memory.movements.length + effective.entries.length + 1) = some token := by
   rw [capacityUsed_eq_usedByList memory effective]
   apply Observation242.search_succeeds_when_window_outnumbers_used
-  simp [capacityTokens]
+  rw [capacityTokens_length]
+  omega
 
 /-!
 Observation 245 earns the structurally different third result:
