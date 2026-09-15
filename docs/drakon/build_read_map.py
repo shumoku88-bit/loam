@@ -117,15 +117,17 @@ READ_FLOW_DIAGRAMS = {
         ],
     },
     "07.8.1 Cycle Budget Read Boundary": {
-        "description": "CycleBudgetReview.loadSnapshotAt composition of independently visible current-cycle read surfaces.",
-        "sources": "Loam/CycleBudgetReview.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
-        "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. Balance evidence is loaded once and shared by physical and funding. Coverage keeps its own production reader and therefore reads its required Actual evidence independently; the snapshot deliberately does not promise a cross-file atomic read.",
+        "description": "CycleBudgetReview.loadSnapshotAt composition after the one-Actual-observation refactor.",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. CurrentCoverage and Balance evidence reads now share one short Actual ownership interval, pinning one normalized Actual generation across both branches without adding a second evidence API. Balance evidence remains shared by physical and funding. Other authorities keep their existing independent reads and failure semantics; no cross-authority atomic snapshot is claimed.",
         "nodes": [
             ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
             ("action", "Retain window Except\nvisible boundary status"),
+            ("insertion", "Enter Actual observation interval\nlock selected actual.loam"),
             ("insertion", "Coverage attempt\nwindow -> CurrentCoverageReview.loadSnapshotAt"),
             ("action", "Retain coverage Except\nCurrentCoverage visible independently"),
-            ("insertion", "BalanceReview.loadEvidence ONCE\nActual + zero-origin coverage"),
+            ("insertion", "BalanceReview.loadEvidence ONCE\nsame Actual interval + zero-origin coverage"),
+            ("action", "Leave Actual observation interval\nwriter may proceed"),
             ("action", "Share loaded balance evidence\nphysical + funding branches"),
             ("insertion", "Physical attempt\nbalance-view selection -> BalanceReview.project"),
             ("action", "Retain physical Except\noptional display balances"),
@@ -139,7 +141,7 @@ READ_FLOW_DIAGRAMS = {
     "07.8.2 Cycle Funding Composition": {
         "description": "Pure CycleFundingInspection.project composition after derived-summary compression.",
         "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
-        "audit": "Summary retains only budgetable backing and remaining assigned. JPY is fixed by admission and residualBeforeUnresolved is derived from the retained pair. CurrentCoverage keeps ownership of the three query-global Scheduled frontier quantities; CycleBudget reads them from the sibling coverage snapshot instead of a funding copy. The remaining visible question is whether Cycle Budget's independent CurrentCoverage and Balance evidence reads are semantically necessary or merely repeated evidence loading.",
+        "audit": "Summary retains only budgetable backing and remaining assigned. JPY is fixed by admission and residualBeforeUnresolved is derived from the retained pair. CurrentCoverage keeps ownership of the three query-global Scheduled frontier quantities; CycleBudget reads them from the sibling coverage snapshot instead of a funding copy. Parent CycleBudget composition now pins the CurrentCoverage and Balance Actual reads to one normalized Actual generation before this pure funding projection runs.",
         "nodes": [
             ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),
             ("decision", "JPY / selection / Purpose uniqueness valid?", "No funding answer"),
@@ -175,7 +177,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.4 - Current Coverage and Cycle Budget",),
+            ("LOAM Read Path Atlas v0.5 - Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
