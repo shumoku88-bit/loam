@@ -38,24 +38,35 @@ Scheduled replay and is not the historical Budget Window report.
 structure CurrentCoverageView where
   entitlement : Quantity
   consumption : Quantity
-  remaining : Quantity
   commitment : Quantity
-  headroom : Quantity
   unmanagedCommitment : Quantity
   unroutedCommitment : Quantity
   unresolvedEligibility : Quantity
   deriving Repr, DecidableEq
 
+/-- Current Remaining is uniquely derived from Entitlement and Consumption. -/
+def CurrentCoverageView.remaining (view : CurrentCoverageView) : Quantity :=
+  view.entitlement - view.consumption
+
+/-- Current Headroom is uniquely derived from Remaining and managed Commitment. -/
+def CurrentCoverageView.headroom (view : CurrentCoverageView) : Quantity :=
+  view.remaining - view.commitment
+
+@[simp] theorem CurrentCoverageView.remaining_eq_components (view : CurrentCoverageView) :
+    view.remaining = view.entitlement - view.consumption :=
+  rfl
+
+@[simp] theorem CurrentCoverageView.headroom_eq_components (view : CurrentCoverageView) :
+    view.headroom = (view.entitlement - view.consumption) - view.commitment :=
+  rfl
+
 private def assembleCurrentCoverage
     (entitlement consumption : Quantity)
     (commitment : ScheduledCommitmentView) : CurrentCoverageView :=
-  let remaining := Quantity.ofQuanta (entitlement.quanta - consumption.quanta)
   {
     entitlement := entitlement
     consumption := consumption
-    remaining := remaining
     commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
     unmanagedCommitment := commitment.unmanaged
     unroutedCommitment := commitment.unrouted
     unresolvedEligibility := commitment.unresolvedEligibility
