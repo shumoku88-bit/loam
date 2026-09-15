@@ -115,6 +115,8 @@ def main (args : List String) : IO Unit := do
   let stateFood := stepUp2.state
   let stepEditFood := Loam.Tui.CapacityRebalance.update stateFood (.input 'e')
   expect (match stepEditFood.state.mode with | .editingDelta _ => true | _ => false) "e did not enter editingDelta"
+
+  -- Type "-3000" and enter
   let sFDone := applyKeys stepEditFood.state [.input '-', .input '3', .input '0', .input '0', .input '0', .enter]
   expect (sFDone.proposal.delta ⟨"food"⟩ == -3000) "food delta was not set to -3000"
   expect (!sFDone.proposal.isBalanced) "single edit should be unbalanced"
@@ -158,8 +160,10 @@ def main (args : List String) : IO Unit := do
   expect (stepClearAll.state.proposal.isBalanced) "cleared proposal is balanced"
 
   -- 7. Negative proposed entitlement refusal
+  -- Re-enter proposal with stock overdraft (-8000 when stock entitlement is 7000)
   let sStockAgain := (Loam.Tui.CapacityRebalance.update state0 .down).state
   let sStockOverdraft := applyKeys sStockAgain [.input 'e', .input '-', .input '8', .input '0', .input '0', .input '0', .enter]
+  -- Balance it with food +8000
   let sFoodAgain := (Loam.Tui.CapacityRebalance.update sStockOverdraft .up).state
   let sOverdraftBalanced := applyKeys sFoodAgain [.input 'e', .input '8', .input '0', .input '0', .input '0', .enter]
 
