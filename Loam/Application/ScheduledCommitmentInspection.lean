@@ -481,7 +481,7 @@ theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
   | none => rfl
   | some partition =>
       simp only [Option.map_some]
-      exact (unresolvedRows_sum_eq partition).symm
+      exact congrArg some (unresolvedRows_sum_eq partition).symm
 
 /--
 Project all actionable unrouted and unresolved Scheduled pressure subjects from
@@ -541,7 +541,7 @@ theorem currentScheduledCommitment?_actionablePressure_eq_rows_sum
   | none => rfl
   | some partition =>
       simp only [Option.map_some]
-      exact (actionableRows_sum_eq partition).symm
+      exact congrArg some (actionableRows_sum_eq partition).symm
 
 /--
 Compose correction-aware Actual Remaining with current-open Scheduled pressure.
