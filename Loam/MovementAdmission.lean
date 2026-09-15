@@ -90,36 +90,14 @@ structure Admitted where
   world : World
   eventId : Loam.Core.EventId
 
-private def historyMentionsEvent
-    (history : Loam.Core.ActualValidityHistory String)
-    (id : Loam.Core.EventId) : Bool :=
-  history.facts.any fun fact => decide (fact.event = id)
-
-private def relationsMentionEvent
-    (relations : List Loam.Core.RelationUnit)
-    (id : Loam.Core.EventId) : Bool :=
-  relations.any fun relation => decide (relation.sourceEvent = id)
-
-private def dischargesMentionEvent
-    (discharges : List Loam.Core.RelationDischarge)
-    (id : Loam.Core.EventId) : Bool :=
-  discharges.any fun discharge => decide (discharge.event = id)
-
-private def freshRecordEventId? (world : World) : Option Loam.Core.EventId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "record-"
-    (fun token =>
-      let candidate : Loam.Core.EventId := ⟨token⟩
-      (Loam.Core.EventMemory.findById? world.events candidate).isSome ||
-        historyMentionsEvent world.validity candidate ||
-        (Loam.Core.EventDescriptionMemory.findText? world.descriptions candidate).isSome ||
-        relationsMentionEvent world.relations candidate ||
-        dischargesMentionEvent world.discharges candidate)
-    1
-    (world.events.events.length + world.validity.facts.length +
-      world.descriptions.entries.length + world.relations.length +
-      world.discharges.length + 1)
-  pure ⟨token⟩
+private def freshRecordEventId (world : World) : Loam.Core.EventId :=
+  let used :=
+    world.events.events.map (fun event => event.id.token) ++
+      world.validity.facts.map (fun fact => fact.event.token) ++
+      world.descriptions.entries.map (fun entry => entry.event.token) ++
+      world.relations.map (fun relation => relation.sourceEvent.token) ++
+      world.discharges.map (fun discharge => discharge.event.token)
+  ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
 
 private def relationIdUsed
     (used : List Loam.Core.RelationUnitId)
@@ -298,9 +276,7 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   validateDraft draft
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
-  let eventId ← match freshRecordEventId? world with
-    | some id => pure id
-    | none => throw "loam: could not generate fresh recording identities"
+  let eventId := freshRecordEventId world
   let relationIds ← match freshRelationUnitIds? world draft.relations.length with
     | some ids => pure ids
     | none => throw "loam: could not generate fresh recording identities"
