@@ -50,6 +50,9 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Build production quantity inspection dependency
+        run: lake build Loam.Application.QuantityInspection
+
       - name: Compile Observation 245
         run: lake env lean experiments/245_opening_support_reuse_seam.lean
 
