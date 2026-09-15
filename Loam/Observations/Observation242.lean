@@ -35,10 +35,10 @@ def numberedWindow (stem : String) (index fuel : Nat) : List String :=
 /-- Observation-local cancellation for equal list prefixes. -/
 private theorem listAppendLeftCancel
     {α : Type}
-    (prefix left right : List α)
-    (h : prefix ++ left = prefix ++ right) :
-    left = right := by
-  induction prefix with
+    (xs ys zs : List α)
+    (h : xs ++ ys = xs ++ zs) :
+    ys = zs := by
+  induction xs with
   | nil =>
       simpa using h
   | cons head tail ih =>
@@ -66,7 +66,8 @@ theorem numberedWindow_nodup (stem : String) (index fuel : Nat) :
     (numberedWindow stem index fuel).Nodup := by
   unfold numberedWindow
   exact (List.nodup_range' (s := index) (n := fuel) (step := 1)).map
-    (fun n => stem ++ toString n) (numberedToken_injective stem)
+    (fun n => stem ++ toString n)
+    (fun a b hNe hEq => hNe ((numberedToken_injective stem) hEq))
 
 /-- If the search exhausts, every candidate in its numeric window was marked used. -/
 private theorem none_implies_used_in_window
@@ -85,13 +86,17 @@ private theorem none_implies_used_in_window
       have hHead : stem ++ toString index ∈ used := by
         by_cases hUsed : stem ++ toString index ∈ used
         · exact hUsed
-        · simp [Loam.firstUnusedNumberedToken?, usedByList, hUsed] at hNone
+        · have hUsedRepr : stem ++ index.repr ∉ used := by
+            simpa only [Nat.toString_eq_repr] using hUsed
+          simp [Loam.firstUnusedNumberedToken?, usedByList, hUsedRepr] at hNone
       by_cases hEq : i = index
       · simpa [hEq] using hHead
-      · have hTailNone :
+      · have hHeadRepr : stem ++ index.repr ∈ used := by
+          simpa only [Nat.toString_eq_repr] using hHead
+        have hTailNone :
           Loam.firstUnusedNumberedToken?
               stem (usedByList used) (index + 1) fuel = none := by
-            simpa [Loam.firstUnusedNumberedToken?, usedByList, hHead] using hNone
+            simpa [Loam.firstUnusedNumberedToken?, usedByList, hHeadRepr] using hNone
         exact ih (index := index + 1) (i := i) hTailNone (by omega) (by omega)
 
 /-- Exhaustion would force the entire candidate window into the used-token list. -/
