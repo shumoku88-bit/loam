@@ -1,6 +1,6 @@
 # Observation 256 — concrete register/history query granularity
 
-Status: **EXPERIMENT — Lean qualification pending**
+Status: **QUALIFIED by Lean 4.33.1**
 
 Baseline:
 
@@ -10,11 +10,28 @@ main: 7f8bc9bed426a2e80c20b19c79d298b9c626ff43
 Observation 255 / PR #929 merged
 ```
 
+Qualification:
+
+```text
+Selected Lean Observations
+run:    34991911600
+result: SUCCESS
+Lean:   4.33.1
+
+Compression Audit
+run:    34991911606
+result: SUCCESS
+
+Purpose Catalog Boundary
+run:    34991911619
+result: SUCCESS
+```
+
 ## Trigger
 
 Observation 254 showed that balance and Event-indexed aggregate views are lossy projections of retained history. Observation 255 then proved directly against current Lean Core that optional `EffectKey` can be erased while preserving Event identity, Effect multiplicity, and all physical `LocusId × MeasureId` quantity projections.
 
-The next question should therefore be asked in terms of concrete household queries rather than a predesigned Register ontology:
+The next question was therefore asked in terms of concrete household queries rather than a predesigned Register ontology:
 
 ```text
 Q1  Show every physical Effect of this Event.
@@ -27,9 +44,7 @@ Observation 256 measures the minimum retained evidence for those questions.
 
 ## Existing production surfaces
 
-The current repository already contains two important read boundaries.
-
-`ActualReview.Record` exposes:
+`ActualReview.Record` already exposes:
 
 ```text
 Event
@@ -39,7 +54,7 @@ replacement : Option EventId
 isCurrent
 ```
 
-and retains the Event's complete Effect list. `ActualReview` is explicitly correction-aware and occurrence-date-aware. Its review ordering is derived from retained occurrence date and Event identity, not from EventMemory storage position.
+and retains the Event's complete Effect list. `ActualReview` is correction-aware and occurrence-date-aware. Its review ordering is derived from retained occurrence date and Event identity, not from EventMemory storage position.
 
 `OpenRelationFrontier.relationSourceEffect?` resolves one RelationUnit source through exactly:
 
@@ -50,7 +65,7 @@ sourceEffect : EffectKey
 
 No new lookup vocabulary is needed for Q2.
 
-## O256-1 — physical Event/register rows should not require EffectKey
+## O256-1 — physical Event/register rows do not require EffectKey
 
 The Lean observation defines a research-only `RegisterRow` projected from `ActualReview.Record`:
 
@@ -63,39 +78,30 @@ currentness
 List (LocusId, MeasureId, Quantity)
 ```
 
-Expected theorem:
+Qualified theorem:
 
 ```text
 registerRow (erase EffectKeys record) = registerRow record
 ```
 
-This is stronger than saying balances survive. It asks whether a useful per-Event physical register row, including Effect multiplicity, remains identical.
+The existing textual Effect rendering is also invariant under EffectKey erasure.
 
-Expected: **PROVED**.
+Therefore Q1 and the physical part of Q4 sit below the Effect identity boundary. Anonymous Effect does not prevent a complete per-Event physical review row.
 
-If qualified, Q1 and the physical part of Q4 sit below the Effect identity boundary.
+## O256-2 — Relation source inspection requires EffectKey
 
-## O256-2 — Relation source inspection should require EffectKey
+A concrete keyed source Event and RelationUnit were constructed.
 
-A concrete keyed source Event and RelationUnit are constructed.
-
-Expected:
+Qualified:
 
 ```text
 relationSourceEffect? keyedMemory relation = some exactSource
-```
-
-After erasing only optional Effect identity from the source Event:
-
-```text
 relationSourceEffect? erasedMemory relation = none
 ```
 
-Expected: **PROVED**.
+The only change between those memories is removal of optional Effect identity. This is therefore a concrete production query class that pays for `(EventId, EffectKey)`.
 
-This is the concrete query class that pays for `(EventId, EffectKey)`.
-
-## O256-3 — EventCorrection must not be mistaken for Effect continuity
+## O256-3 — EventCorrection does not define cross-Event Effect continuity
 
 Current `EventCorrection` retains only:
 
@@ -130,7 +136,7 @@ rightKey -> cash
 leftKey  -> goods
 ```
 
-Expected Lean witnesses:
+Lean qualified all selected witnesses:
 
 ```text
 same physical cash quantity
@@ -140,11 +146,11 @@ leftKey names cash in Aligned
 leftKey names goods in Swapped
 ```
 
-If qualified, the answer to Q3 is:
+Therefore:
 
 > EventCorrection plus Event-local EffectKey reuse does not define cross-Event Effect continuity.
 
-A future query that genuinely needs "this exact Effect became that exact Effect" would need independently retained correspondence evidence. It would not justify pretending that equal local keys already carry that meaning.
+A future query that genuinely needs "this exact Effect became that exact Effect" would need independently retained correspondence evidence. Equal local keys must not be silently promoted into that meaning.
 
 ## O256-4 — what kind of register is already reconstructible?
 
@@ -158,7 +164,7 @@ description
 correction replacement/currentness
 ```
 
-This does **not** imply that LOAM retains capture/arrival chronology. `EventMemory` explicitly states that list position is representation only and carries no temporal or posting-order semantics.
+This does **not** imply that LOAM retains capture/arrival chronology. `EventMemory` explicitly treats list position as representation only and gives it no temporal or posting-order semantics.
 
 So Q4 splits cleanly:
 
@@ -172,9 +178,9 @@ exact capture/entry order
 
 No new chronology field is earned by this observation.
 
-## Intended query matrix
+## Qualified query matrix
 
-| Query | Minimum retained evidence | EffectKey needed? | Expected verdict |
+| Query | Minimum retained evidence | EffectKey needed? | Verdict |
 | --- | --- | --- | --- |
 | Q1 Event physical Effects | Event + Effect physical data | no | closes now |
 | Q2 Relation source Effect | EventId + EffectKey | yes | closes now |
@@ -186,7 +192,7 @@ No new chronology field is earned by this observation.
 
 Do not add a production `Register`, global `EffectId`, mandatory Effect keys, cross-correction Effect lineage, or posting-order timestamp merely because such queries can be imagined.
 
-The important result is the boundary itself:
+The qualified boundary is:
 
 ```text
 physical review               existing evidence
