@@ -17,13 +17,14 @@ private def fixture : Loam.CycleBudgetReview.Snapshot :=
       currentWindowStart := "2026-08-14"
       observedAt := "2026-09-08"
       endExclusive := "2026-10-15"
-      rows := [{ purpose := ⟨"食費:ストック"⟩, entitlement := q 111, consumption := q 222, remaining := q (-1180), commitment := q 333, headroom := q (-444) }]
+      rows := [{ purpose := ⟨"食費:ストック"⟩, entitlement := q 111, consumption := q 222, commitment := q 333 }]
       scheduledFrontier := some { unmanaged := q 10, unrouted := q 20, unresolvedEligibility := q 4810 } }
     physical := .ok { rows := [
       { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, quantity := q 909 },
       { coordinate := ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩, quantity := q 555 }] }
     selection := .ok [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]
-    -- Deliberately inconsistent sentinels: rendering must not rederive supplied answers.
+    -- Coverage stores only independent components; Remaining/Headroom are derived.
+    -- Funding remains an independent supplied summary and keeps distinct sentinels.
     funding := .ok {
       measure := ⟨"jpy"⟩
       budgetableBacking := q 76389
@@ -38,7 +39,7 @@ def main : IO Unit := do
   let state : Loam.Tui.CycleBudget.State := { snapshot := fixture }
   let rendered := text (Loam.Tui.CycleBudget.view bounds state)
   for value in ["Budget / Pension Cycle", "2026-08-14 -> 2026-10-15", "Observed 2026-09-08",
-      "37 days to next boundary", "111", "222", "-1180", "333", "-444", "食費:ストック",
+      "37 days to next boundary", "111", "222", "-111", "333", "-444", "食費:ストック",
       "76389", "47068", "29321", "4810", "1234", "2345", "Residual before unresolved",
       "Unresolved future pressure", "Unrouted future pressure", "Unmanaged future pressure",
       "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]"] do
@@ -50,7 +51,7 @@ def main : IO Unit := do
   let missing : Loam.Tui.CycleBudget.State := { snapshot := { fixture with
     selection := .error "not configured", funding := .error "not configured" } }
   let missingText := text (Loam.Tui.CycleBudget.view bounds missing)
-  for value in ["Funding unavailable: not configured", "-1180", "cash: 909 jpy",
+  for value in ["Funding unavailable: not configured", "-111", "cash: 909 jpy",
       "backing selection unavailable", "4810"] do
     expect (contains value missingText) ("optional failure hid evidence: " ++ value)
   expect (!(contains "[outside budget backing]" missingText)) "missing selection inferred outside"
@@ -106,7 +107,7 @@ def main : IO Unit := do
     currentWindowStart := "2026-08-14"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
-    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 200, remaining := q 800, commitment := q 300, headroom := q 500 }]
+    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 200, commitment := q 300 }]
     scheduledFrontier := none
   }
   let stateNoShortages : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok noShortagesCoverage } }
@@ -119,7 +120,7 @@ def main : IO Unit := do
     currentWindowStart := "2026-08-14"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
-    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 1500, remaining := q (-500), commitment := q (-700), headroom := q 200 }]
+    rows := [{ purpose := ⟨"食費"⟩, entitlement := q 1000, consumption := q 1500, commitment := q (-700) }]
     scheduledFrontier := none
   }
   let stateNowNeg : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok nowNegHeadroomPosCoverage } }
@@ -132,7 +133,7 @@ def main : IO Unit := do
     currentWindowStart := "2026-08-14"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
-    rows := [{ purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, remaining := q 8730, commitment := q 12558, headroom := q (-3828) }]
+    rows := [{ purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, commitment := q 12558 }]
     scheduledFrontier := none
   }
   let stateNowPos : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok nowPosHeadroomNegCoverage } }
@@ -149,9 +150,9 @@ def main : IO Unit := do
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
     rows :=
-      [ { purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, remaining := q 8730, commitment := q 12558, headroom := q (-3828) }
-      , { purpose := ⟨"タバコ"⟩, entitlement := q 10000, consumption := q 8000, remaining := q 2000, commitment := q 5000, headroom := q (-3000) }
-      , { purpose := ⟨"食費"⟩, entitlement := q 30000, consumption := q 10000, remaining := q 20000, commitment := q 0, headroom := q 20000 }
+      [ { purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, commitment := q 12558 }
+      , { purpose := ⟨"タバコ"⟩, entitlement := q 10000, consumption := q 8000, commitment := q 5000 }
+      , { purpose := ⟨"食費"⟩, entitlement := q 30000, consumption := q 10000, commitment := q 0 }
       ]
     scheduledFrontier := none
   }
@@ -201,7 +202,7 @@ def main : IO Unit := do
   expect (down.scroll == 1) "small terminal cannot scroll"
   expect ((Loam.Tui.CycleBudget.view small down).lines.length < small.height) "footer overflow"
   let last := text (Loam.Tui.CycleBudget.view small { state with scroll := 999 })
-  expect (contains "-1180" last && contains "b Home" last) "scrolled rows/help inaccessible"
+  expect (contains "-111" last && contains "b Home" last) "scrolled rows/help inaccessible"
   expect (Loam.ActualDate.daysBetween? "2026-09-08" "2026-10-15" == some 37) "distance 37"
   expect (Loam.ActualDate.daysBetween? "2024-02-28" "2024-03-01" == some 2) "leap distance"
   expect (Loam.ActualDate.daysBetween? "2026-12-31" "2027-01-01" == some 1) "year distance"
