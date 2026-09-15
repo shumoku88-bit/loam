@@ -78,15 +78,6 @@ structure Snapshot where
   unsupportedBalances : List UnsupportedBalance
   deriving Repr, DecidableEq
 
-private def addCoordinateIfAbsent
-    (coordinates : List EffectCoordinate)
-    (coordinate : EffectCoordinate) : List EffectCoordinate :=
-  if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
-
-private def normalizeCoordinates
-    (coordinates : List EffectCoordinate) : List EffectCoordinate :=
-  coordinates.foldl addCoordinateIfAbsent []
-
 private def eventCoordinates (events : EventMemory) : List EffectCoordinate :=
   events.events.flatMap fun event => event.effects.map fun effect => effect.coordinate
 
@@ -95,9 +86,8 @@ private def candidateCoordinates
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
     (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) : List EffectCoordinate :=
-  normalizeCoordinates
-    (eventCoordinates frontier ++ coverage.coordinates ++ openingSupport.coordinates ++
-      currentAnchor.coordinates)
+  (eventCoordinates frontier ++ coverage.coordinates ++ openingSupport.coordinates ++
+      currentAnchor.coordinates).eraseDups
 
 private def eventContainsCoordinate
     (event : Event) (coordinate : EffectCoordinate) : Bool :=

@@ -36,15 +36,6 @@ private def loadCoverageForView?
   else
     return some ZeroOriginCoverage.empty
 
-private def addCoordinateIfAbsent
-    (coordinates : List EffectCoordinate)
-    (coordinate : EffectCoordinate) : List EffectCoordinate :=
-  if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
-
-private def normalizeCoordinates
-    (coordinates : List EffectCoordinate) : List EffectCoordinate :=
-  coordinates.foldl addCoordinateIfAbsent []
-
 private def quantityLine (coordinate : EffectCoordinate) (quantity : Quantity) : String :=
   "  " ++ coordinate.locus.token ++ ": " ++
     toString quantity.quanta ++ " " ++ coordinate.measure.token
@@ -151,7 +142,7 @@ def showBalances
                 | some pathText =>
                     match ← Loam.BalanceViewConfig.load? (System.FilePath.mk pathText) with
                     | none => pure none
-                    | some selected => pure (some (normalizeCoordinates selected))
+                    | some selected => pure (some selected.eraseDups)
               match coordinates? with
               | none =>
                   IO.eprintln "loam: malformed or unsupported balance-view config"

@@ -27,15 +27,6 @@ structure Snapshot where
   rows : List Row
   deriving Repr, DecidableEq
 
-private def addCoordinateIfAbsent
-    (coordinates : List EffectCoordinate)
-    (coordinate : EffectCoordinate) : List EffectCoordinate :=
-  if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
-
-private def normalizeCoordinates
-    (coordinates : List EffectCoordinate) : List EffectCoordinate :=
-  coordinates.foldl addCoordinateIfAbsent []
-
 private def collectRows
     (events : EventMemory)
     (eventCorrections : EventCorrectionMemory)
@@ -69,7 +60,7 @@ def project
     (coverage : ZeroOriginCoverage)
     (coordinates : List EffectCoordinate) : Except String Snapshot := do
   let rows ← collectRows
-    events eventCorrections coverage (normalizeCoordinates coordinates)
+    events eventCorrections coverage coordinates.eraseDups
   return { rows := rows }
 
 private def loadCoverage
