@@ -83,6 +83,13 @@ def main (args : List String) : IO Unit := do
   let cashRow ← requireSome (findRow? snapshot "cash") "missing cash row"
   expect (cashRow.quantity.quanta == 0) "explicit covered zero disappeared"
 
+  -- Caller-selected Actual authority is exact; a missing selected root must not
+  -- silently fall back to the valid Actual authority under dataDir.
+  let missingSelectedRoot := root / "missing-selected-actual"
+  let selectedAuthorityMissing ← Loam.BalanceReview.loadSnapshot root missingSelectedRoot
+  expect (!selectedAuthorityMissing.isOk)
+    "Balance Review silently fell back from the selected Actual authority"
+
   -- Event activity and presentation selection do not create origin completeness.
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "food\tjpy\n"
   let missingCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
@@ -109,4 +116,4 @@ def main (args : List String) : IO Unit := do
   expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
 
   IO.println
-    "Balance Review: Actual authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
+    "Balance Review: exact Actual authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
