@@ -72,6 +72,17 @@ private def coverageHeader : Widget :=
     padded 14 "Known future" ++
     padded 14 "After-known" ++ "  Purpose")
 
+private def futurePressureLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
+  match snapshot.coverage with
+  | .error _ => [muted "Future pressure unavailable: CurrentCoverage unavailable"]
+  | .ok coverage =>
+    match coverage.scheduledFrontier with
+    | none => [muted "Future pressure unavailable: Scheduled frontier missing"]
+    | some frontier =>
+      [ amount "Unresolved future pressure" frontier.unresolvedEligibility
+      , amount "Unrouted future pressure" frontier.unrouted
+      , amount "Unmanaged future pressure" frontier.unmanaged ]
+
 private def fundingLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
   [line "Funding"] ++
   (match snapshot.selection with
@@ -85,22 +96,8 @@ private def fundingLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Wid
      [ amount "Budgetable backing" summary.budgetableBacking
      , amount "Remaining assigned" summary.remainingAssigned
      , amount "Residual before unresolved" summary.residualBeforeUnresolved ]) ++
-  -- Frontier stays visible even when the optional funding configuration fails.
-  (match snapshot.funding with
-   | .ok summary =>
-     [ amount "Unresolved future pressure" summary.unresolvedFuturePressure
-     , amount "Unrouted future pressure" summary.unroutedFuturePressure
-     , amount "Unmanaged future pressure" summary.unmanagedFuturePressure ]
-   | .error _ =>
-     match snapshot.coverage with
-     | .error _ => [muted "Future pressure unavailable: CurrentCoverage unavailable"]
-     | .ok coverage =>
-       match coverage.scheduledFrontier with
-       | none => [muted "Future pressure unavailable: Scheduled frontier missing"]
-       | some frontier =>
-         [ amount "Unresolved future pressure" frontier.unresolvedEligibility
-         , amount "Unrouted future pressure" frontier.unrouted
-         , amount "Unmanaged future pressure" frontier.unmanaged ])
+  -- Query-global future pressure is owned by CurrentCoverage regardless of funding configuration.
+  futurePressureLines snapshot
 
 def body (state : State) : List Widget :=
   let snapshot := state.snapshot
