@@ -44,9 +44,11 @@ private theorem findEvent_isSome_eq_usedByList
   | cons event rest ih =>
       by_cases hEq : event.id.token = token
       · have hId : event.id = (⟨token⟩ : EventId) := by
-          cases event.id
-          simp_all
-        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList, hEq, hId]
+          cases event.id with
+          | mk eventToken =>
+              cases hEq
+              rfl
+        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList, hId]
       · have hEqSymm : token ≠ event.id.token := by
           intro h
           exact hEq h.symm
@@ -54,7 +56,7 @@ private theorem findEvent_isSome_eq_usedByList
           intro h
           apply hEq
           exact congrArg EventId.token h
-        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList, hEq,
+        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList,
           hEqSymm, hId, ih]
 
 /-- Correction's concrete Event collision predicate has the finite witness above. -/
