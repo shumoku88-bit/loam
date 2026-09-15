@@ -86,18 +86,19 @@ READ_FLOW_DIAGRAMS = {
         ],
     },
     "07.7.4 Current Coverage Compatibility Entrances": {
-        "description": "Application compatibility wrappers that still accept raw Scheduled evidence for one Purpose at a time.",
+        "description": "The remaining ordinary-routing compatibility entrance that accepts raw Scheduled evidence for one Purpose.",
         "sources": "Loam/Application/CurrentCoverageInspection.lean; Loam/Tests/CurrentCoverageInspection.lean; Loam/Tests/CounterpointFiveWorlds.lean; Loam/Tests/FourVoiceCompatibilityV1.lean; Loam/Tests/FourVoiceCompatibilityV2.lean; Loam/Tests/FourVoiceCompatibilityV3.lean",
-        "audit": "Production CurrentCoverageReview no longer uses these wrappers. The generic currentCoverageAtCorrectionFrontier? remains exercised by compatibility and regression tests; the EffectiveRouting wrapper currently appears isolated from production. Audit whether these entrances are still earned contracts or historical composition shells before deleting anything.",
+        "audit": "Production CurrentCoverageReview uses the narrower EffectiveRouting WithCommitment boundary after Scheduled pressure is partitioned once. The raw-Scheduled EffectiveRouting shell had no current caller and is retired. The ordinary currentCoverageAtCorrectionFrontier? entrance remains exercised by compatibility, counterpoint, and regression stories; its visibility here does not by itself imply another subtraction.",
         "nodes": [
-            ("action", "Caller already asks ONE Purpose\nand supplies raw Scheduled evidence"),
+            ("action", "Compatibility caller asks ONE Purpose\nwith ordinary-time Actual routing"),
+            ("action", "Caller supplies raw Scheduled evidence\nfor the compatibility story"),
             ("insertion", "currentScheduledCommitment?\nresolve + select + classify for this call"),
             ("decision", "Scheduled Commitment justified?", "No compatibility answer"),
             ("action", "Take commitment.managed\ndiscard global frontiers here"),
             ("insertion", "WithCommitment helper\nCapacity + Actual + managed Commitment"),
             ("decision", "Capacity / Actual projection justified?", "No compatibility answer"),
             ("action", "Return CurrentCoverageView\nPurpose-local answer"),
-            ("action", "AUDIT QUESTION\nis this raw-Scheduled entrance still an earned public contract?"),
+            ("action", "CURRENT STATUS\nexercised compatibility / regression contract"),
         ],
     },
     "07.7.5 Headroom Compatibility Composition": {

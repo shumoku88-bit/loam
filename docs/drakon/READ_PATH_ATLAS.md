@@ -24,7 +24,7 @@ docs/drakon/loam-read-path-map.drn
 
 Open it in DRAKON Editor.
 
-The first atlas contains:
+The current atlas contains:
 
 ```text
 LOAM Read Path Atlas
@@ -32,7 +32,9 @@ LOAM Read Path Atlas
 `-- 07.7 Current Coverage
     +-- 07.7.1 Current Coverage Read Boundary
     +-- 07.7.2 Per-Purpose Coverage Projection
-    `-- 07.7.3 Scheduled Pressure Partition
+    +-- 07.7.3 Scheduled Pressure Partition
+    +-- 07.7.4 Current Coverage Compatibility Entrances
+    `-- 07.7.5 Headroom Compatibility Composition
 ```
 
 ## Inspect as text
@@ -52,22 +54,31 @@ Use the text form to compare icon semantics and source traceability. Use an
 actual DRAKON Editor screenshot when spatial density, symmetry, branch length,
 or an awkward route is itself the evidence.
 
-## Current audit question
+## Current observed topology
 
-`CurrentCoverageReview.loadSnapshotAt` derives actionable unresolved Scheduled
-rows once at the snapshot level. It also maps every remembered Purpose through
-`projectPurpose?`; that function returns both one Purpose-local row and a
-`ScheduledFrontier`. The resulting frontier copies are checked by
-`consistentFrontier`, then only the first copy is retained in the final
-Snapshot.
+`CurrentCoverageReview.loadSnapshotAt` now resolves and classifies current-open
+Scheduled pressure once at the snapshot level. Query-global pressure frontiers
+and actionable rows are projected once from that shared partition. Each Purpose
+projection receives only its managed Commitment, then composes it with current
+Capacity and correction-aware Actual Consumption.
 
-The Application path underneath explains why this is worth drawing. For a fixed
-Measure and horizon, Scheduled pressure selection and classification are shared.
-Only managed Commitment asks whether a routed Purpose equals the queried
-Purpose. The unmanaged, unrouted, and unresolved-eligibility totals are not
-selected by queried Purpose.
+The old per-Purpose Scheduled-frontier copies and their consistency repair are
+gone. `CurrentCoverageView` also retains only Entitlement, Consumption, and
+managed Commitment; Remaining and Headroom are derived when read.
 
-The atlas records that topology as an observation only. It does **not** yet claim
-that the implementation should be changed. The next step is to inspect the
-actual DRAKON geometry and decide whether the local/global coupling is a useful
-semantic boundary or accidental repeated projection work.
+One ordinary-routing raw-Scheduled compatibility entrance remains in
+`CurrentCoverageInspection`. It is not used by production
+`CurrentCoverageReview`, but it is still exercised by CurrentCoverage,
+Counterpoint, and FourVoice regression stories. The parallel EffectiveRouting
+raw-Scheduled shell had no current caller and has been retired; production
+EffectiveRouting composition uses the narrower already-qualified
+`...EffectiveRoutingWithCommitment?` boundary.
+
+The legacy all-current Headroom composition remains separate because it asks a
+different coordinate question from windowed Current Coverage. Its result now
+retains independent components and derives commitment/headroom aliases instead
+of storing contradictory copies.
+
+These are observations of the current read topology, not instructions to keep
+compressing it. A remaining compatibility or projection boundary is not a
+problem merely because it is visible in the atlas.
