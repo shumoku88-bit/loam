@@ -48,6 +48,7 @@ theorem relationUsed_eq_usedByList (used : List RelationUnitId) :
       · have hEqSymm : token ≠ idToken := by
           intro h
           exact hEq h.symm
+        rw [relationUsedBy] at ih
         simp [relationUsedBy, relationTokens, Observation242.usedByList,
           hEq, hEqSymm, ih]
 
