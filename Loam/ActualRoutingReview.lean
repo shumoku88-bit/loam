@@ -53,6 +53,41 @@ private def isApproved (approved : List LocusId) (locus : LocusId) : Bool :=
 private def distinctSubjects (history : ActualRoutingHistory) : List LocusId :=
   history.entries.map (fun entry => entry.subject) |>.eraseDups
 
+private structure RolePartitions where
+  rows : List Row
+  otherRows : List Row
+  unresolvedRoleLoci : List LocusId
+
+/--
+Classify each currently admitted Locus exactly once by retained AccountingRole.
+The partition preserves admission order while keeping Expense obligations,
+known optional non-Expense rows, and unresolved-role diagnostics distinct.
+-/
+private def partitionApproved
+    (approved : List LocusId)
+    (roles : AccountingRoleMap)
+    (history : ActualRoutingHistory)
+    (effective : RoutingEffective String) : RolePartitions :=
+  approved.foldr
+    (fun locus partitions =>
+      match roles.roleOf? locus with
+      | some .expense =>
+          { partitions with
+            rows :=
+              { locus := locus
+                role := .expense
+                status := history.statusAt locus effective } :: partitions.rows }
+      | some role =>
+          { partitions with
+            otherRows :=
+              { locus := locus
+                role := role
+                status := history.statusAt locus effective } :: partitions.otherRows }
+      | none =>
+          { partitions with
+            unresolvedRoleLoci := locus :: partitions.unresolvedRoleLoci })
+    { rows := [], otherRows := [], unresolvedRoleLoci := [] }
+
 /-- Count only default explicitly-Expense Loci with no routing evidence visible now. -/
 def unroutedCount (snapshot : Snapshot) : Nat :=
   (snapshot.rows.filter fun row => row.status == .unrouted).length
@@ -100,28 +135,17 @@ def loadSnapshot
 
   let effective := RoutingEffective.dated observedAt
   let approved := admission.approved
-  let rows := approved.filterMap fun locus =>
-    match roles.roleOf? locus with
-    | some .expense =>
-        some { locus := locus, role := .expense, status := history.statusAt locus effective }
-    | _ => none
-  let otherRows := approved.filterMap fun locus =>
-    match roles.roleOf? locus with
-    | some .expense => none
-    | some role =>
-        some { locus := locus, role := role, status := history.statusAt locus effective }
-    | none => none
-  let unresolvedRoleLoci := approved.filter fun locus => (roles.roleOf? locus).isNone
+  let partitions := partitionApproved approved roles history effective
   let historicalOnlyRouteLoci :=
     (distinctSubjects history).filter fun locus => !isApproved approved locus
   let purposes := capacity.rows.map (fun row => row.purpose) |>.eraseDups
 
   return .ok {
     observedAt := observedAt
-    rows := rows
-    otherRows := otherRows
+    rows := partitions.rows
+    otherRows := partitions.otherRows
     purposes := purposes
-    unresolvedRoleLoci := unresolvedRoleLoci
+    unresolvedRoleLoci := partitions.unresolvedRoleLoci
     historicalOnlyRouteLoci := historicalOnlyRouteLoci
   }
 
