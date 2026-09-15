@@ -51,6 +51,11 @@ private def registerEffect (effect : Effect) : RegisterEffect :=
     measure := effect.measure
     quantity := effect.quantity }
 
+@[simp] private theorem registerEffect_eraseEffectIdentity (effect : Effect) :
+    registerEffect (Loam.Observation255.eraseEffectIdentity effect) =
+      registerEffect effect := by
+  rfl
+
 /-- Build one register-shaped row from the existing correction-aware review answer. -/
 def registerRow (record : Loam.ActualReview.Record) : RegisterRow :=
   { event := record.event.id
@@ -76,9 +81,8 @@ theorem registerRow_eraseEffectIdentity
     registerRow (eraseRecordEffectIdentity record) = registerRow record := by
   cases record with
   | mk event date description replacement isCurrent =>
-      simp [registerRow, eraseRecordEffectIdentity, registerEffect,
-        Loam.Observation255.eraseEventEffectIdentity,
-        Loam.Observation255.eraseEffectIdentity]
+      simp [registerRow, eraseRecordEffectIdentity,
+        Loam.Observation255.eraseEventEffectIdentity, List.map_map]
 
 /-- The existing textual Effect rendering also ignores optional durable identity. -/
 theorem effectText_eraseEffectIdentity (effect : Effect) :
