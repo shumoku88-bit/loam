@@ -17,11 +17,13 @@ the Core.
 Correction count carries no semantic authority. With no corrections the recorded
 projection is exposed directly. With one or more corrections, all effective
 quantity calculation goes through the same fail-closed Correction frontier.
+The successful answer carries only the resulting Quantity; whether that Quantity
+came from the recorded or correction-frontier path is already derivable from the
+supplied correction evidence.
 -/
 
 inductive QuantityInspectionAnswer where
-  | recorded (quantity : Quantity)
-  | frontierEffective (quantity : Quantity)
+  | quantity (quantity : Quantity)
   | missingCorrectionEndpoint
   | frontierRequired
 deriving Repr, DecidableEq
@@ -41,11 +43,11 @@ def inspectQuantity
     (measure : MeasureId) : QuantityInspectionAnswer :=
   match corrections.corrections with
   | [] =>
-      .recorded (EventMemory.quantityAtRecorded events locus measure)
+      .quantity (EventMemory.quantityAtRecorded events locus measure)
   | _ =>
       if correctionReferencesClosed events corrections then
         match quantityAtCorrectionFrontier? events corrections locus measure with
-        | some quantity => .frontierEffective quantity
+        | some quantity => .quantity quantity
         | none => .frontierRequired
       else
         .missingCorrectionEndpoint
@@ -58,7 +60,7 @@ theorem inspectQuantity_noCorrections
     (measure : MeasureId)
     (hCorrections : corrections.corrections = []) :
     inspectQuantity events corrections locus measure =
-      .recorded (EventMemory.quantityAtRecorded events locus measure) := by
+      .quantity (EventMemory.quantityAtRecorded events locus measure) := by
   simp [inspectQuantity, hCorrections]
 
 end Loam.Application

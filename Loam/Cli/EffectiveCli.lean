@@ -18,9 +18,9 @@ private def quantityLine
     toString quantity.quanta ++ " " ++ coordinate.measure.token
 
 /--
-Print the recorded-mode answers supplied by the production Application boundary.
-The caller has already selected the no-correction presentation heading; this
-helper does not recompute quantity semantics directly from Core.
+Print answers under the already-selected no-correction presentation heading.
+Presentation provenance comes from the supplied correction evidence rather than
+being repeated in the Application success constructor.
 -/
 private def printRecorded
     (memory : Loam.Core.EventMemory)
@@ -29,7 +29,7 @@ private def printRecorded
   for coordinate in coordinates do
     match Loam.Application.inspectQuantity
         memory corrections coordinate.locus coordinate.measure with
-    | .recorded quantity =>
+    | .quantity quantity =>
         if quantity.quanta ≠ 0 then
           IO.println (quantityLine coordinate quantity)
     | _ => return false
@@ -38,7 +38,7 @@ private def printRecorded
 /--
 Collect correction-frontier answers before printing anything. The frontier
 admission decision is coordinate-independent, but collecting first keeps the CLI
-from producing a partial human-facing view if an unexpected disagreement is ever
+from producing a partial human-facing view if an unexpected refusal is ever
 introduced between the inspection and frontier boundaries.
 -/
 private def frontierLines?
@@ -49,7 +49,7 @@ private def frontierLines?
   | coordinate :: rest => do
       match Loam.Application.inspectQuantity
           memory corrections coordinate.locus coordinate.measure with
-      | .frontierEffective quantity =>
+      | .quantity quantity =>
           let later ← frontierLines? memory corrections rest
           if quantity.quanta ≠ 0 then
             return quantityLine coordinate quantity :: later
@@ -85,7 +85,7 @@ def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
                 if ← printRecorded memory corrections coordinates then
                   return 0
                 else
-                  IO.eprintln "loam: application quantity inspection disagreed with recorded mode"
+                  IO.eprintln "loam: application quantity inspection refused recorded mode"
                   return 2
             | _ =>
                 if !Loam.Application.correctionReferencesClosed memory corrections then
@@ -98,7 +98,7 @@ def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
                 else
                   match frontierLines? memory corrections coordinates with
                   | none =>
-                      IO.eprintln "loam: application quantity inspection disagreed with admitted frontier"
+                      IO.eprintln "loam: application quantity inspection refused admitted frontier"
                       return 2
                   | some lines =>
                       IO.println

@@ -184,9 +184,9 @@ private def printEvidence (evidence : ParseEvidence) : IO Unit := do
   IO.println ("  include directives not projected: " ++ toString evidence.includeDirectives)
 
 /--
-Run the production quantity-inspection Application boundary in its recorded
-mode. Returning `false` is a fail-closed guard against an unexpected mismatch
-between this entrance's empty-correction premise and the Application answer.
+Run the production quantity-inspection Application boundary under this entrance's
+explicit empty-correction premise. Returning `false` preserves fail-closed behavior
+if the Application boundary unexpectedly refuses that admitted query.
 -/
 private def printQuantities (memory : EventMemory) : IO Bool := do
   IO.println "Recorded quantity projection (stateless shadow; run-local identity discarded on exit):"
@@ -197,7 +197,7 @@ private def printQuantities (memory : EventMemory) : IO Bool := do
       for coordinate in coordinates do
         match Loam.Application.inspectQuantity
             memory emptyCorrectionMemory coordinate.locus coordinate.measure with
-        | .recorded quantity =>
+        | .quantity quantity =>
             IO.println
               ("  " ++ coordinate.locus.token ++ ": " ++
                 toString quantity.quanta ++ " " ++ coordinate.measure.token)
@@ -240,7 +240,7 @@ def shadowQuantity (path : String) : IO UInt32 := do
       if inspected then
         return 0
       else
-        IO.eprintln "loam: application quantity inspection disagreed with stateless recorded mode"
+        IO.eprintln "loam: application quantity inspection refused stateless recorded mode"
         IO.eprintln "loam: no LOAM persistence was written"
         return 2
 

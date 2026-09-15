@@ -23,8 +23,7 @@ inductive ZeroOriginQuantityAnswer where
 deriving Repr, DecidableEq
 
 private def liftInspection : QuantityInspectionAnswer → ZeroOriginQuantityAnswer
-  | .recorded quantity => .current quantity
-  | .frontierEffective quantity => .current quantity
+  | .quantity quantity => .current quantity
   | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
   | .frontierRequired => .eventFrontierRequired
 
@@ -56,8 +55,7 @@ theorem inspectZeroOriginQuantity_covered
     (hCovered : coverage.covers coordinate = true) :
     inspectZeroOriginQuantity coverage events eventCorrections coordinate =
       (match inspectQuantity events eventCorrections coordinate.locus coordinate.measure with
-       | .recorded quantity => .current quantity
-       | .frontierEffective quantity => .current quantity
+       | .quantity quantity => .current quantity
        | .missingCorrectionEndpoint => .missingEventCorrectionEndpoint
        | .frontierRequired => .eventFrontierRequired) := by
   simp [inspectZeroOriginQuantity, hCovered, liftInspection]

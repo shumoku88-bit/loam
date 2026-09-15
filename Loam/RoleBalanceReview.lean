@@ -255,8 +255,7 @@ private def inspectCurrentQuantity
     (coordinate : EffectCoordinate) : Except String Quantity :=
   match Loam.Application.inspectQuantity
       events corrections coordinate.locus coordinate.measure with
-  | .recorded quantity => .ok quantity
-  | .frontierEffective quantity => .ok quantity
+  | .quantity quantity => .ok quantity
   | .missingCorrectionEndpoint =>
       .error "loam: role balances unavailable: correction references are not closed"
   | .frontierRequired =>
