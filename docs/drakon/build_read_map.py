@@ -137,22 +137,19 @@ READ_FLOW_DIAGRAMS = {
         ],
     },
     "07.8.2 Cycle Funding Composition": {
-        "description": "Pure CycleFundingInspection.project composition from selected physical balances and CurrentCoverage.",
+        "description": "Pure CycleFundingInspection.project composition after derived-summary compression.",
         "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
-        "audit": "Budgetable backing and remaining assigned are independently computed. residualBeforeUnresolved is exactly backing minus assigned. The three future-pressure fields are copied from CurrentCoverage.scheduledFrontier, while CycleBudgetReview retains that same coverage snapshot beside the funding summary. Audit whether the residual and copied frontier values are independent funding state or derived echoes.",
+        "audit": "Summary retains only budgetable backing and remaining assigned. JPY is fixed by admission and residualBeforeUnresolved is derived from the retained pair. CurrentCoverage keeps ownership of the three query-global Scheduled frontier quantities; CycleBudget reads them from the sibling coverage snapshot instead of a funding copy. The remaining visible question is whether Cycle Budget's independent CurrentCoverage and Balance evidence reads are semantically necessary or merely repeated evidence loading.",
         "nodes": [
             ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),
             ("decision", "JPY / selection / Purpose uniqueness valid?", "No funding answer"),
-            ("insertion", "Read CurrentCoverage.scheduledFrontier", "No funding answer\nfrontier unavailable"),
+            ("insertion", "Require CurrentCoverage.scheduledFrontier", "No funding answer\nfrontier unavailable"),
             ("insertion", "BalanceReview.project\nselected budgetable coordinates"),
             ("action", "Fold budgetableBacking\nselected signed balances"),
             ("action", "Fold remainingAssigned\nsum max(row.remaining, 0)"),
-            ("action", "Materialize residualBeforeUnresolved\nbacking - assigned"),
-            ("action", "COPY unmanagedFuturePressure\nfrom coverage frontier"),
-            ("action", "COPY unroutedFuturePressure\nfrom coverage frontier"),
-            ("action", "COPY unresolvedFuturePressure\nfrom coverage frontier"),
-            ("action", "Return Summary\nmeasure + 2 computed + 4 derived/copied values"),
-            ("action", "AUDIT QUESTION\ncan Summary retain only independent funding quantities?"),
+            ("action", "Retain Summary\nbacking + assigned only"),
+            ("action", "Derive residualBeforeUnresolved\nbacking - assigned"),
+            ("action", "Read future pressure beside Summary\nfrom CurrentCoverage frontier"),
         ],
     },
 }
@@ -178,7 +175,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.3 - Current Coverage and Cycle Budget",),
+            ("LOAM Read Path Atlas v0.4 - Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
