@@ -19,15 +19,15 @@ READ_FLOW_DIAGRAMS = {
     "07.0 Read Path Comparison": {
         "description": "Read-side atlas: compare how production answers are derived without introducing report authority.",
         "sources": "Loam/ActualReview.lean; Loam/BalanceReview.lean; Loam/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/TransactionsFlowReview.lean; Loam/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
-        "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage remains the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
+        "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage and Cycle Budget are detailed because they compose several independently justified read surfaces.",
         "nodes": [
             ("action", "ACTUAL REVIEW\ncorrection-aware current records"),
             ("action", "BALANCE / ROLE BALANCE\nquantity support + role evidence"),
             ("action", "STOCK-FLOW / TRANSACTIONS FLOW\ncompose admitted read answers"),
             ("action", "BUDGET WINDOW\nhistorical bounded projection"),
             ("action", "CURRENT COVERAGE\nCapacity + Actual + Scheduled"),
-            ("action", "CYCLE BUDGET\nindependent visible read failures"),
-            ("action", "AUDIT TARGET\nseparate production lanes from compatibility lanes"),
+            ("action", "CYCLE BUDGET\nwindow + coverage + balance + funding"),
+            ("action", "AUDIT TARGET\nseparate independent answers from copied echoes"),
         ],
     },
     "07.7.1 Current Coverage Read Boundary": {
@@ -54,7 +54,7 @@ READ_FLOW_DIAGRAMS = {
     "07.7.2 Per-Purpose Coverage Projection": {
         "description": "One CurrentCoverageReview.projectPurpose? call after Scheduled partitioning has already completed.",
         "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/CapacityWindowInspection.lean; Loam/Application/ConsumptionInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean",
-        "audit": "The Purpose-local projection now receives only one managed Commitment derived from the shared Scheduled partition. Entitlement, Consumption, and managed Commitment are independent inputs; Remaining and Headroom are derived accessors. No query-global Scheduled frontier is carried through this lane.",
+        "audit": "The Purpose-local projection receives only one managed Commitment derived from the shared Scheduled partition. Entitlement, Consumption, and managed Commitment are independent inputs; Remaining and Headroom are derived accessors. No query-global Scheduled frontier is carried through this lane.",
         "nodes": [
             ("action", "Select one Purpose + JPY\ninside explicit current elapsed window"),
             ("insertion", "managedFor shared Scheduled partition\nPurpose-local Commitment only"),
@@ -86,18 +86,18 @@ READ_FLOW_DIAGRAMS = {
         ],
     },
     "07.7.4 Current Coverage Compatibility Entrances": {
-        "description": "Application compatibility wrappers that still accept raw Scheduled evidence for one Purpose at a time.",
+        "description": "The retained generic Application query that accepts raw Scheduled evidence for one Purpose at a time.",
         "sources": "Loam/Application/CurrentCoverageInspection.lean; Loam/Tests/CurrentCoverageInspection.lean; Loam/Tests/CounterpointFiveWorlds.lean; Loam/Tests/FourVoiceCompatibilityV1.lean; Loam/Tests/FourVoiceCompatibilityV2.lean; Loam/Tests/FourVoiceCompatibilityV3.lean",
-        "audit": "Production CurrentCoverageReview no longer uses these wrappers. The generic currentCoverageAtCorrectionFrontier? remains exercised by compatibility and regression tests; the EffectiveRouting wrapper currently appears isolated from production. Audit whether these entrances are still earned contracts or historical composition shells before deleting anything.",
+        "audit": "The unused raw-Scheduled EffectiveRouting wrapper was retired in #902. The generic currentCoverageAtCorrectionFrontier? remains an earned Application query: it answers one Purpose from raw evidence and is exercised by CurrentCoverage, counterpoint, and compatibility worlds. Production CurrentCoverageReview still uses the narrower shared-partition path.",
         "nodes": [
-            ("action", "Caller already asks ONE Purpose\nand supplies raw Scheduled evidence"),
-            ("insertion", "currentScheduledCommitment?\nresolve + select + classify for this call"),
-            ("decision", "Scheduled Commitment justified?", "No compatibility answer"),
-            ("action", "Take commitment.managed\ndiscard global frontiers here"),
+            ("action", "Caller asks ONE Purpose\nand supplies raw Scheduled evidence"),
+            ("insertion", "currentScheduledCommitment?\nresolve + select + classify for this query"),
+            ("decision", "Scheduled Commitment justified?", "No query answer"),
+            ("action", "Take commitment.managed\nlocal CurrentCoverage needs only managed pressure"),
             ("insertion", "WithCommitment helper\nCapacity + Actual + managed Commitment"),
-            ("decision", "Capacity / Actual projection justified?", "No compatibility answer"),
+            ("decision", "Capacity / Actual projection justified?", "No query answer"),
             ("action", "Return CurrentCoverageView\nPurpose-local answer"),
-            ("action", "AUDIT QUESTION\nis this raw-Scheduled entrance still an earned public contract?"),
+            ("action", "KEEP QUERY\nindependent one-Purpose Application contract"),
         ],
     },
     "07.7.5 Headroom Compatibility Composition": {
@@ -113,6 +113,45 @@ READ_FLOW_DIAGRAMS = {
             ("action", "Derive commitment\nfrom scheduled.managed"),
             ("action", "Derive headroom\nremaining - commitment"),
             ("action", "Derive global pressure aliases\nfrom retained Scheduled answer"),
+        ],
+    },
+    "07.8.1 Cycle Budget Read Boundary": {
+        "description": "CycleBudgetReview.loadSnapshotAt composition of independently visible current-cycle read surfaces.",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. Balance evidence is loaded once and shared by physical and funding. Coverage keeps its own production reader and therefore reads its required Actual evidence independently; the snapshot deliberately does not promise a cross-file atomic read.",
+        "nodes": [
+            ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
+            ("action", "Retain window Except\nvisible boundary status"),
+            ("insertion", "Coverage attempt\nwindow -> CurrentCoverageReview.loadSnapshotAt"),
+            ("action", "Retain coverage Except\nCurrentCoverage visible independently"),
+            ("insertion", "BalanceReview.loadEvidence ONCE\nActual + zero-origin coverage"),
+            ("action", "Share loaded balance evidence\nphysical + funding branches"),
+            ("insertion", "Physical attempt\nbalance-view selection -> BalanceReview.project"),
+            ("action", "Retain physical Except\noptional display balances"),
+            ("insertion", "CycleFundingConfig.load\nexplicit backing selection"),
+            ("action", "Retain selection Except\noptional funding configuration"),
+            ("insertion", "CycleFundingInspection.project\ncoverage + selection + shared balance evidence"),
+            ("action", "Retain funding Except\nfunding arithmetic answer"),
+            ("action", "Return Snapshot\nall failure boundaries stay visible"),
+        ],
+    },
+    "07.8.2 Cycle Funding Composition": {
+        "description": "Pure CycleFundingInspection.project composition from selected physical balances and CurrentCoverage.",
+        "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
+        "audit": "Budgetable backing and remaining assigned are independently computed. residualBeforeUnresolved is exactly backing minus assigned. The three future-pressure fields are copied from CurrentCoverage.scheduledFrontier, while CycleBudgetReview retains that same coverage snapshot beside the funding summary. Audit whether the residual and copied frontier values are independent funding state or derived echoes.",
+        "nodes": [
+            ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),
+            ("decision", "JPY / selection / Purpose uniqueness valid?", "No funding answer"),
+            ("insertion", "Read CurrentCoverage.scheduledFrontier", "No funding answer\nfrontier unavailable"),
+            ("insertion", "BalanceReview.project\nselected budgetable coordinates"),
+            ("action", "Fold budgetableBacking\nselected signed balances"),
+            ("action", "Fold remainingAssigned\nsum max(row.remaining, 0)"),
+            ("action", "Materialize residualBeforeUnresolved\nbacking - assigned"),
+            ("action", "COPY unmanagedFuturePressure\nfrom coverage frontier"),
+            ("action", "COPY unroutedFuturePressure\nfrom coverage frontier"),
+            ("action", "COPY unresolvedFuturePressure\nfrom coverage frontier"),
+            ("action", "Return Summary\n3 independent-looking + 4 derived/copied values"),
+            ("action", "AUDIT QUESTION\ncan Summary retain only independent funding quantities?"),
         ],
     },
 }
@@ -138,7 +177,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.2 - production and compatibility lanes",),
+            ("LOAM Read Path Atlas v0.3 - Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
@@ -169,6 +208,18 @@ def build() -> None:
                 db, node_id, current_coverage, "item", diagram_id=diagram_ids[name]
             )
 
+        cycle_budget = node_id
+        node_id = base.add_tree_node(
+            db, node_id, root, "folder", "07.8 Cycle Budget"
+        )
+        for name in [
+            "07.8.1 Cycle Budget Read Boundary",
+            "07.8.2 Cycle Funding Composition",
+        ]:
+            node_id = base.add_tree_node(
+                db, node_id, cycle_budget, "item", diagram_id=diagram_ids[name]
+            )
+
         db.commit()
         db.execute("pragma page_size=512")
         db.execute("vacuum")
@@ -186,6 +237,10 @@ def build() -> None:
             "select count(*) from tree_nodes where type='folder' and name='07.7 Current Coverage'"
         ).fetchone()[0] != 1:
             raise SystemExit("Current Coverage read-path folder missing")
+        if db.execute(
+            "select count(*) from tree_nodes where type='folder' and name='07.8 Cycle Budget'"
+        ).fetchone()[0] != 1:
+            raise SystemExit("Cycle Budget read-path folder missing")
 
     print(OUTPUT)
 
