@@ -99,44 +99,35 @@ private def freshRecordEventId (world : World) : Loam.Core.EventId :=
       world.discharges.map (fun discharge => discharge.event.token)
   ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
 
-private def freshRelationUnitIdsFrom
-    (used : List String) : Nat → Nat → List Loam.Core.RelationUnitId
-  | 0, _ => []
-  | remaining + 1, index =>
+private def materializeRelationUnitsFrom
+    (eventId : Loam.Core.EventId)
+    (used : List String) : Nat → List RelationDraft → List Loam.Core.RelationUnit
+  | _, [] => []
+  | index, draft :: drafts =>
       let token := Loam.firstUnusedNumberedToken "relation-" used index
-      let id : Loam.Core.RelationUnitId := ⟨token⟩
-      id :: freshRelationUnitIdsFrom (token :: used) remaining (index + 1)
-
-/--
-Allocate fresh practical RelationUnit identities without rebinding retained raw
-provenance. Raw discharge targets reserve the same operational namespace as
-retained RelationUnit ids, matching the currently qualified Movement behavior.
--/
-private def freshRelationUnitIds
-    (world : World)
-    (count : Nat) : List Loam.Core.RelationUnitId :=
-  let used :=
-    world.relations.map (fun relation => relation.id.token) ++
-      world.discharges.map (fun discharge => discharge.target.token)
-  freshRelationUnitIdsFrom used count 1
-
-private def materializeRelationUnits? :
-    Loam.Core.EventId →
-    List Loam.Core.RelationUnitId →
-    List RelationDraft →
-    Option (List Loam.Core.RelationUnit)
-  | _, [], [] => some []
-  | eventId, id :: ids, draft :: drafts => do
-      let rest ← materializeRelationUnits? eventId ids drafts
-      some ({
-        id := id
+      let relation : Loam.Core.RelationUnit := {
+        id := ⟨token⟩
         sourceEvent := eventId
         sourceEffect := draft.sourceEffect
         debtor := draft.debtor
         creditor := draft.creditor
         quantity := draft.quantity
-      } :: rest)
-  | _, _, _ => none
+      }
+      relation :: materializeRelationUnitsFrom eventId (token :: used) (index + 1) drafts
+
+/--
+Materialize each RelationDraft with one fresh practical RelationUnit identity.
+Raw discharge targets reserve the same operational namespace as retained
+RelationUnit ids, matching the currently qualified Movement behavior.
+-/
+private def materializeRelationUnits
+    (world : World)
+    (eventId : Loam.Core.EventId)
+    (drafts : List RelationDraft) : List Loam.Core.RelationUnit :=
+  let used :=
+    world.relations.map (fun relation => relation.id.token) ++
+      world.discharges.map (fun discharge => discharge.target.token)
+  materializeRelationUnitsFrom eventId used 1 drafts
 
 private def materializeRelationDischarges
     (eventId : Loam.Core.EventId)
@@ -263,13 +254,10 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
   let eventId := freshRecordEventId world
-  let relationIds := freshRelationUnitIds world draft.relations.length
   let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
     | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
-  let newRelations ← match materializeRelationUnits? eventId relationIds draft.relations with
-    | some admitted => pure admitted
-    | none => throw "loam: could not admit generated movement or relation evidence"
+  let newRelations := materializeRelationUnits world eventId draft.relations
   let newDischarges := materializeRelationDischarges eventId draft.discharges
   let fact : Loam.Core.ActualValidityFact String :=
     .base eventId draft.validOn
