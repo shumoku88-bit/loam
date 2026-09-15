@@ -289,21 +289,30 @@ def unmanaged (partition : ScheduledPressurePartition Time) : Quantity :=
 
 /-- Query-global unrouted pressure justified by AccountingRole. -/
 def unrouted (partition : ScheduledPressurePartition Time) : Quantity :=
-  Quantity.ofQuanta <| partition.foldl
-    (fun total row =>
+  Quantity.ofQuanta <|
+    (partition.filterMap fun row =>
       match row.pressure with
-      | .unroutedPressure => total + row.quantity.quanta
-      | _ => total)
-    0
+      | .unroutedPressure => some row.quantity.quanta
+      | _ => none).sum
+
+/-- Keep exactly the unresolved-eligibility subjects, preserving partition order. -/
+def unresolvedRows
+    (partition : ScheduledPressurePartition Time) :
+    List (UnresolvedScheduledPressureRow Time) :=
+  partition.filterMap fun row =>
+    match row.pressure with
+    | .unresolvedEligibility =>
+        some {
+          subject := row.subject
+          scheduledOn := row.scheduledOn
+          measure := row.measure
+          quantity := row.quantity }
+    | _ => none
 
 /-- Query-global unrouted pressure whose AccountingRole is still unknown. -/
 def unresolvedEligibility (partition : ScheduledPressurePartition Time) : Quantity :=
-  Quantity.ofQuanta <| partition.foldl
-    (fun total row =>
-      match row.pressure with
-      | .unresolvedEligibility => total + row.quantity.quanta
-      | _ => total)
-    0
+  Quantity.ofQuanta <|
+    (partition.unresolvedRows.map (fun row => row.quantity.quanta)).sum
 
 /-- Actionable unrouted or unresolved subjects derived from the same partition. -/
 def actionableRows
@@ -322,79 +331,6 @@ def actionableRows
 
 end ScheduledPressurePartition
 
-/-- Keep exactly the unresolved-eligibility subjects from one classified partition. -/
-private def unresolvedRows
-    (partition : ScheduledPressurePartition Time) :
-    List (UnresolvedScheduledPressureRow Time) :=
-  partition.filterMap fun row =>
-    match row.pressure with
-    | .unresolvedEligibility =>
-        some {
-          subject := row.subject
-          scheduledOn := row.scheduledOn
-          measure := row.measure
-          quantity := row.quantity }
-    | _ => none
-
-private theorem fold_unresolvedRows_eq
-    (partition : ScheduledPressurePartition Time)
-    (init : Int) :
-    partition.foldl
-        (fun total row =>
-          match row.pressure with
-          | .unresolvedEligibility => total + row.quantity.quanta
-          | _ => total)
-        init
-      =
-    init + ((unresolvedRows partition).map (fun row => row.quantity.quanta)).sum := by
-  induction partition generalizing init with
-  | nil => simp [unresolvedRows]
-  | cons row rest ih =>
-      simp only [List.foldl_cons]
-      rw [ih]
-      cases hpressure : row.pressure <;>
-        simp [unresolvedRows, hpressure, List.map_cons, List.sum_cons] <;> omega
-
-private theorem unresolvedRows_sum_eq
-    (partition : ScheduledPressurePartition Time) :
-    ((unresolvedRows partition).map (fun row => row.quantity.quanta)).sum
-      =
-    (ScheduledPressurePartition.unresolvedEligibility partition).quanta := by
-  simp only [
-    ScheduledPressurePartition.unresolvedEligibility,
-    Loam.Core.Quantity.quanta_ofQuanta]
-  rw [fold_unresolvedRows_eq]
-  simp
-
-private theorem fold_actionableRows_eq
-    (partition : ScheduledPressurePartition Time)
-    (unroutedInit unresolvedInit : Int) :
-    partition.foldl
-        (fun total row =>
-          match row.pressure with
-          | .unroutedPressure => total + row.quantity.quanta
-          | _ => total)
-        unroutedInit
-      +
-    partition.foldl
-        (fun total row =>
-          match row.pressure with
-          | .unresolvedEligibility => total + row.quantity.quanta
-          | _ => total)
-        unresolvedInit
-      =
-    unroutedInit + unresolvedInit +
-      ((ScheduledPressurePartition.actionableRows partition).map
-        (fun row => row.quantity.quanta)).sum := by
-  induction partition generalizing unroutedInit unresolvedInit with
-  | nil => simp [ScheduledPressurePartition.actionableRows]
-  | cons row rest ih =>
-      simp only [List.foldl_cons]
-      rw [ih]
-      cases hpressure : row.pressure <;>
-        simp [ScheduledPressurePartition.actionableRows, hpressure,
-          List.map_cons, List.sum_cons] <;> omega
-
 private theorem actionableRows_sum_eq
     (partition : ScheduledPressurePartition Time) :
     ((ScheduledPressurePartition.actionableRows partition).map
@@ -402,12 +338,23 @@ private theorem actionableRows_sum_eq
       =
     (ScheduledPressurePartition.unrouted partition).quanta +
       (ScheduledPressurePartition.unresolvedEligibility partition).quanta := by
-  simp only [
-    ScheduledPressurePartition.unrouted,
-    ScheduledPressurePartition.unresolvedEligibility,
-    Loam.Core.Quantity.quanta_ofQuanta]
-  rw [fold_actionableRows_eq]
-  simp
+  induction partition with
+  | nil =>
+      simp [ScheduledPressurePartition.unrouted,
+        ScheduledPressurePartition.unresolvedEligibility,
+        ScheduledPressurePartition.unresolvedRows,
+        ScheduledPressurePartition.actionableRows]
+  | cons row rest ih =>
+      simp [ScheduledPressurePartition.unrouted,
+        ScheduledPressurePartition.unresolvedEligibility,
+        ScheduledPressurePartition.unresolvedRows,
+        ScheduledPressurePartition.actionableRows] at ih
+      cases hpressure : row.pressure <;>
+        simp [ScheduledPressurePartition.unrouted,
+          ScheduledPressurePartition.unresolvedEligibility,
+          ScheduledPressurePartition.unresolvedRows,
+          ScheduledPressurePartition.actionableRows, hpressure, ih] <;>
+        omega
 
 /-- Resolve current-open lifecycle once, then select and classify its pressure once. -/
 def currentScheduledPressurePartition?
@@ -485,7 +432,7 @@ def unresolvedScheduledPressureRowsFromOpen
     (routing : RoutingHistory ScheduledRoutingSubject Time)
     (measure : MeasureId)
     (observedAt endExclusive : Time) : List (UnresolvedScheduledPressureRow Time) :=
-  unresolvedRows <|
+  ScheduledPressurePartition.unresolvedRows <|
     scheduledPressurePartitionFromOpen
       occurrences roles routing measure observedAt endExclusive
 
@@ -506,7 +453,7 @@ def currentUnresolvedScheduledPressure?
     Option (List (UnresolvedScheduledPressureRow Time)) :=
   (currentScheduledPressurePartition?
       scheduled terminals events roles routing measure observedAt endExclusive).map
-    unresolvedRows
+    ScheduledPressurePartition.unresolvedRows
 
 /--
 The retained invariant tying both granularities to the same semantics: the
@@ -534,8 +481,7 @@ theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
       scheduled terminals events roles routing measure observedAt endExclusive with
   | none => rfl
   | some partition =>
-      simp only [Option.map_some]
-      exact congrArg some (unresolvedRows_sum_eq partition).symm
+      simp [ScheduledPressurePartition.unresolvedEligibility]
 
 /--
 Project all actionable unrouted and unresolved Scheduled pressure subjects behind
