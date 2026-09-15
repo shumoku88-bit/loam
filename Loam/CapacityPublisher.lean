@@ -106,22 +106,13 @@ private def effectiveEvidenceComplete
     effective.entries.all
       (fun entry => (memory.findById? entry.movement).isSome)
 
-private def effectiveMentionsMovement
-    (effective : CapacityEffectiveMemory String)
-    (id : CapacityMovementId) : Bool :=
-  effective.entries.any fun entry => decide (entry.movement = id)
-
-private def freshCapacityId?
+private def freshCapacityId
     (memory : CapacityMemory)
-    (effective : CapacityEffectiveMemory String) : Option CapacityMovementId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "capacity-"
-    (fun token =>
-      let candidate : CapacityMovementId := ⟨token⟩
-      (memory.findById? candidate).isSome || effectiveMentionsMovement effective candidate)
-    1
-    (memory.movements.length + effective.entries.length + 1)
-  pure ⟨token⟩
+    (effective : CapacityEffectiveMemory String) : CapacityMovementId :=
+  let used :=
+    memory.movements.map (fun movement => movement.id.token) ++
+      effective.entries.map (fun entry => entry.movement.token)
+  ⟨Loam.firstUnusedNumberedToken "capacity-" used 1⟩
 
 private def movementForBalancedDraft?
     (id : CapacityMovementId) (draft : BalancedDraft) : Option CapacityMovement := do
@@ -142,8 +133,7 @@ private def publishAdmittedMovement
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String)
     (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
-  let some movementId := freshCapacityId? memory effective
-    | return .error "Could not generate a fresh Capacity movement identity."
+  let movementId := freshCapacityId memory effective
   let some movement := movementForBalancedDraft? movementId draft
     | return .error "Capacity movement could not be represented as a balanced JPY movement."
   let some updated := memory.add? movement
