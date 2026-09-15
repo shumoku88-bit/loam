@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.Application.ZeroOriginQuantity
+import Loam.Application.CorrectionFrontier
 import Loam.BalanceViewConfig
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
@@ -27,41 +27,80 @@ structure Snapshot where
   rows : List Row
   deriving Repr, DecidableEq
 
-private def collectRows
+private def coverageError (coordinate : EffectCoordinate) : String :=
+  "loam: balances unavailable: zero-origin coverage missing for " ++
+    coordinate.locus.token ++ " / " ++ coordinate.measure.token
+
+/--
+Resolve the one correction-aware Event world shared by every selected balance row.
+The caller controls when this obligation is forced so zero-origin refusal ordering
+stays identical to the row-local inspection path.
+-/
+private def quantityBasis
     (events : EventMemory)
-    (eventCorrections : EventCorrectionMemory)
+    (eventCorrections : EventCorrectionMemory) : Except String EventMemory :=
+  match eventCorrections.corrections with
+  | [] => .ok events
+  | _ =>
+      if Loam.Application.correctionReferencesClosed events eventCorrections then
+        match Loam.Application.correctionFrontierMemory? events eventCorrections with
+        | some frontier => .ok frontier
+        | none =>
+            .error
+              "loam: balances unavailable: event corrections do not justify one frontier"
+      else
+        .error "loam: balances unavailable: correction references are not closed"
+
+/--
+Project rows after one correction-aware quantity basis has been admitted.
+Coverage remains coordinate-local and is still checked left-to-right.
+-/
+private def collectRowsFromBasis
+    (basis : EventMemory)
     (coverage : ZeroOriginCoverage) :
     List EffectCoordinate → Except String (List Row)
   | [] => .ok []
   | coordinate :: rest =>
-      match Loam.Application.inspectZeroOriginQuantity
-          coverage events eventCorrections coordinate with
-      | .current quantity =>
-          match collectRows events eventCorrections coverage rest with
-          | .error message => .error message
-          | .ok later => .ok ({ coordinate := coordinate, quantity := quantity } :: later)
-      | .coverageMissing =>
-          .error
-            ("loam: balances unavailable: zero-origin coverage missing for " ++
-              coordinate.locus.token ++ " / " ++ coordinate.measure.token)
-      | .missingEventCorrectionEndpoint =>
-          .error "loam: balances unavailable: correction references are not closed"
-      | .eventFrontierRequired =>
-          .error
-            "loam: balances unavailable: event corrections do not justify one frontier"
+      if coverage.covers coordinate then
+        let quantity :=
+          EventMemory.quantityAtRecorded basis coordinate.locus coordinate.measure
+        match collectRowsFromBasis basis coverage rest with
+        | .error message => .error message
+        | .ok later => .ok ({ coordinate := coordinate, quantity := quantity } :: later)
+      else
+        .error (coverageError coordinate)
 
 /--
 Project one already-loaded balance view. Presentation duplicates are normalized,
 but zero-origin membership remains an independent evidence requirement.
+
+For a non-empty selection, the first coordinate's coverage gate remains ahead of
+correction admission. Once that gate succeeds, one correction-aware Event basis
+is shared by every row. This preserves the former refusal order while avoiding
+per-coordinate reconstruction of the same correction frontier.
 -/
 def project
     (events : EventMemory)
     (eventCorrections : EventCorrectionMemory)
     (coverage : ZeroOriginCoverage)
-    (coordinates : List EffectCoordinate) : Except String Snapshot := do
-  let rows ← collectRows
-    events eventCorrections coverage coordinates.eraseDups
-  return { rows := rows }
+    (coordinates : List EffectCoordinate) : Except String Snapshot :=
+  match coordinates.eraseDups with
+  | [] => .ok { rows := [] }
+  | first :: rest =>
+      if coverage.covers first then
+        match quantityBasis events eventCorrections with
+        | .error message => .error message
+        | .ok basis =>
+            let firstQuantity :=
+              EventMemory.quantityAtRecorded basis first.locus first.measure
+            match collectRowsFromBasis basis coverage rest with
+            | .error message => .error message
+            | .ok later =>
+                .ok {
+                  rows := { coordinate := first, quantity := firstQuantity } :: later
+                }
+      else
+        .error (coverageError first)
 
 private def loadCoverage
     (path : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
