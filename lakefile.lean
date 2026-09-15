@@ -50,3 +50,6 @@ lean_exe loamHouseholdObservation where
 
 lean_exe loamTui where
   root := `Loam.Tui.Cli
+
+lean_exe loamAttention where
+  root := `Loam.Tui.AttentionMain

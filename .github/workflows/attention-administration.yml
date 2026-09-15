@@ -1,0 +1,53 @@
+name: Attention Administration
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/AttentionPublisher.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Persistence/AttentionPersistence.lean'
+      - 'Loam/Tui/AttentionAdministration.lean'
+      - 'Loam/Tui/AttentionAdministrationSession.lean'
+      - 'Loam/Tui/AttentionCli.lean'
+      - 'Loam/Tui/AttentionMain.lean'
+      - 'Loam/Tests/AttentionPersistence.lean'
+      - 'Loam/Tests/TuiAttentionAdministration.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/attention-administration.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: attention-administration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Qualify practical Attention writer
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build Attention administration executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamAttention
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify Attention publisher and canonical review
+        run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-administration"
+
+      - name: Verify Attention administration interaction
+        run: lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
