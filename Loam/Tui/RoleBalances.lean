@@ -70,6 +70,19 @@ private def addMeasureIfAbsent
     (measures : List MeasureId) (measure : MeasureId) : List MeasureId :=
   if measure ∈ measures then measures else measures ++ [measure]
 
+/-- Presentation projection of every coordinate whose AccountingRole is unresolved. -/
+private structure RoleGap where
+  coordinate : EffectCoordinate
+  quantity : Option Quantity
+
+private def roleGaps (snapshot : Loam.RoleBalanceReview.Snapshot) : List RoleGap :=
+  snapshot.unresolvedRoles.map (fun row =>
+    { coordinate := row.coordinate, quantity := some row.quantity }) ++
+  snapshot.unsupportedBalances.filterMap fun row =>
+    match row.role with
+    | some _ => none
+    | none => some { coordinate := row.coordinate, quantity := none }
+
 private def balanceMeasures (snapshot : Loam.RoleBalanceReview.Snapshot) : List MeasureId :=
   let supported := snapshot.rows.foldl
     (fun measures row =>
@@ -88,7 +101,7 @@ private def balanceMeasures (snapshot : Loam.RoleBalanceReview.Snapshot) : List 
             measures
       | none => measures)
     supported
-  snapshot.unresolvedRoles.foldl
+  (roleGaps snapshot).foldl
     (fun measures row => addMeasureIfAbsent measures row.coordinate.measure)
     unsupported
 
@@ -153,8 +166,8 @@ private def netWorthUnsupportedFor
 
 private def unresolvedFor
     (snapshot : Loam.RoleBalanceReview.Snapshot)
-    (measure : MeasureId) : List Loam.RoleBalanceReview.UnresolvedRole :=
-  snapshot.unresolvedRoles.filter fun row => decide (row.coordinate.measure = measure)
+    (measure : MeasureId) : List RoleGap :=
+  (roleGaps snapshot).filter fun row => decide (row.coordinate.measure = measure)
 
 private def knownNetWorth
     (snapshot : Loam.RoleBalanceReview.Snapshot)
@@ -176,8 +189,7 @@ private def unsupportedLine
     ("  ? " ++ Loam.Tui.Layout.padRight 28 row.coordinate.locus.token ++
       " balance unsupported  " ++ row.coordinate.measure.token ++ "  " ++ role)
 
-private def unresolvedLine
-    (row : Loam.RoleBalanceReview.UnresolvedRole) : Widget :=
+private def unresolvedLine (row : RoleGap) : Widget :=
   let quantity := match row.quantity with
     | some value => signedQuanta value
     | none => "?"
@@ -186,13 +198,9 @@ private def unresolvedLine
       Loam.Tui.Layout.padLeft 12 quantity ++ " " ++ row.coordinate.measure.token ++
       "  role unresolved")
 
-private def supportedUnresolvedCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  (snapshot.unresolvedRoles.filter fun row => row.quantity.isSome).length
-
 private def quantitySupportedCount
     (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  snapshot.rows.length + supportedUnresolvedCount snapshot
+  snapshot.rows.length + snapshot.unresolvedRoles.length
 
 private def totalCoordinateCount
     (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
@@ -243,8 +251,7 @@ private def answerabilitySupportGapLine
     ("  [quantity] " ++ row.coordinate.locus.token ++ " / " ++
       row.coordinate.measure.token ++ "  " ++ role)
 
-private def answerabilityRoleGapLine
-    (row : Loam.RoleBalanceReview.UnresolvedRole) : Widget :=
+private def answerabilityRoleGapLine (row : RoleGap) : Widget :=
   let quantityState := if row.quantity.isSome then "quantity known" else "quantity also unsupported"
   line
     ("  [role] " ++ row.coordinate.locus.token ++ " / " ++
@@ -257,7 +264,8 @@ private def answerabilityMapLines
   let roleClassified := roleClassifiedCount snapshot
   let stockBlockers := balanceSheetUnsupported snapshot
   let netWorthBlockers := netWorthUnsupported snapshot
-  let roleBlockers := snapshot.unresolvedRoles.length
+  let unresolved := roleGaps snapshot
+  let roleBlockers := unresolved.length
   let flowGaps := flowUnsupported snapshot
   [ line "Answerability Map"
   , muted "Which current accounting questions are justified by existing evidence?"
@@ -290,10 +298,10 @@ private def answerabilityMapLines
     [muted "  No classified stock-role quantity blockers."]
    else
     stockBlockers.map answerabilitySupportGapLine) ++
-  (if snapshot.unresolvedRoles.isEmpty then
+  (if unresolved.isEmpty then
     [muted "  No unresolved AccountingRole blockers."]
    else
-    snapshot.unresolvedRoles.map answerabilityRoleGapLine) ++
+    unresolved.map answerabilityRoleGapLine) ++
   [ muted "For a quantity blocker, explicit support can be zero-origin or an opening witness."
   , muted "Add zero-origin only when retained history really begins at zero; never add it just to erase '?'."
   , muted "Flow-role gaps remain visible in the Trial Balance frontier but are lower priority for stock reports."
@@ -351,7 +359,7 @@ private def classifiedUnsupported
 
 private def trialBalanceLines (snapshot : Loam.RoleBalanceReview.Snapshot) : List Widget :=
   let supported := snapshot.rows.mergeSort rowLe
-  let unresolved := snapshot.unresolvedRoles
+  let unresolved := roleGaps snapshot
   let unsupported := classifiedUnsupported snapshot
   [ line "Trial Balance-shaped frontier"
   , muted "Every current coordinate belongs to this support question; role totals are not substituted for rows."
