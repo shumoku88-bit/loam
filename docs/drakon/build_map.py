@@ -294,7 +294,7 @@ FLOW_DIAGRAMS = {
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
         "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
-        "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Current production still passes JPY explicitly at this edge.",
+        "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Empty-earned canonicalization proves the replacement Event keyless, so construction is direct. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
             ("decision", "Replacement is practical balanced JPY?", "Refuse\nreplacement outside practical entrance"),
@@ -308,8 +308,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Current date exists?", "Refuse\nno current occurrence coordinate"),
             ("action", "Allocate total fresh replacement EventId"),
             ("action", "Create EventCorrection\ntarget -> replacement"),
-            ("insertion", "Event.ofEffects?\nconstruct replacement Event"),
-            ("decision", "Replacement Event structurally valid?", "Refuse\nEvent construction failed"),
+            ("action", "Construct keyless replacement Event\nretained EffectKeys proved empty"),
             ("action", "Append Event + Correction + base date\n+ optional description"),
             ("decision", "All typed histories accept append?", "Refuse\nhistory append failed"),
             ("action", "Return complete updated ActualEvidence"),
@@ -367,15 +366,14 @@ FLOW_DIAGRAMS = {
     "12.2 Completion Actual Admission": {
         "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
         "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean",
-        "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here; stable EventId selection and the two-authority retry law remain completion-specific.",
+        "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here and the keyless Event is constructed directly; stable EventId selection and the two-authority retry law remain completion-specific.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nplain completion earns no Effect identity"),
             ("insertion", "MovementAdmission.validateDraft\nvalidate practical Movement draft"),
             ("decision", "Draft valid?", "Refuse\ninvalid practical Movement"),
             ("decision", "Relation / Discharge drafts absent?", "Refuse\ncompletion admits plain effects only"),
             ("decision", "Every Effect Locus currently admitted?", "Refuse\nLocus not approved for new write"),
-            ("insertion", "Event.ofEffects?\nuse completion-selected EventId"),
-            ("decision", "Completion Event structurally valid?", "Refuse\nEvent construction failed"),
+            ("action", "Construct keyless completion Event\nuse completion-selected EventId"),
             ("action", "Append Event + base ActualValidity fact"),
             ("decision", "Event / validity append accepted?", "Refuse\nhistory append failed"),
             ("action", "Append optional description"),
@@ -441,7 +439,7 @@ FLOW_DIAGRAMS = {
     "13.2 Reversal Admission": {
         "description": "Pure reversal-specific admission that derives one anonymous exact inverse and one explicit provenance relation.",
         "sources": "Loam/ActualReversalPublisher.lean; Loam/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
-        "audit": "The target must be current and independent of retained Relation/Discharge and Scheduled-completion provenance. Exact inverse balance is not revalidated at runtime: BalancedMovement.totalQuanta_negated is the retained Lean law that makes quantity negation preserve zero total.",
+        "audit": "The target must be current and independent of retained Relation/Discharge and Scheduled-completion provenance. Exact inverse balance is not revalidated at runtime: BalancedMovement.totalQuanta_negated is the retained Lean law that makes quantity negation preserve zero total. Anonymous inverse construction also proves retained EffectKeys empty, so inverse Event construction is direct.",
         "nodes": [
             ("decision", "Reversal occurrence date valid?", "Refuse\ninvalid calendar date"),
             ("insertion", "Resolve targetCurrent?\nretained and not already corrected"),
@@ -455,8 +453,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Reversal identity available?", "Refuse\nidentity collision"),
             ("action", "Derive anonymous exact inverse Effects"),
             ("decision", "Every inverse Locus currently admitted?", "Refuse\nLocus not approved for new write"),
-            ("insertion", "Event.ofEffects?\nconstruct inverse Event"),
-            ("decision", "Inverse Event structurally valid?", "Refuse\nEvent construction failed"),
+            ("action", "Construct keyless inverse Event\nanonymous Effects retain no keys"),
             ("action", "Append inverse Event + base ActualValidity"),
             ("action", "Append ActualReversal\ntarget -> inverse Event"),
             ("decision", "Typed histories accept all appends?", "Refuse\nhistory / relation append failed"),
