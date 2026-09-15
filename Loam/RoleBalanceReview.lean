@@ -234,6 +234,31 @@ private theorem support_partition_root
   | true =>
       exact Or.inl (zero_leaf coverage openingSupport currentAnchor coordinate hzero)
 
+private structure SupportBuckets where
+  zeroOrigin : List EffectCoordinate := []
+  opening : List EffectCoordinate := []
+  currentAnchor : List EffectCoordinate := []
+  unsupported : List EffectCoordinate := []
+
+/--
+Apply the proved production routing decision exactly once per candidate coordinate.
+The recursive shape preserves candidate order inside each support family while
+making the runtime partition match the one-root/four-leaf obligation DAG.
+-/
+private def routeCandidates
+    (coverage : ZeroOriginCoverage)
+    (openingSupport : OpeningSupportMap)
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) :
+    List EffectCoordinate → SupportBuckets
+  | [] => {}
+  | coordinate :: rest =>
+      let later := routeCandidates coverage openingSupport currentAnchor rest
+      match supportRoute coverage openingSupport currentAnchor coordinate with
+      | .zeroOrigin => { later with zeroOrigin := coordinate :: later.zeroOrigin }
+      | .opening => { later with opening := coordinate :: later.opening }
+      | .currentAnchor => { later with currentAnchor := coordinate :: later.currentAnchor }
+      | .unsupported => { later with unsupported := coordinate :: later.unsupported }
+
 private def validateSupportSeparation
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
@@ -320,24 +345,20 @@ def project
   validateSupportSeparation evidence.coverage openingSupport currentAnchor
 
   let candidates := candidateCoordinates frontier evidence.coverage openingSupport currentAnchor
-  let route := supportRoute evidence.coverage openingSupport currentAnchor
-  let zeroSupported := candidates.filter fun coordinate => decide (route coordinate = .zeroOrigin)
-  let openingSupported := candidates.filter fun coordinate => decide (route coordinate = .opening)
-  let anchorSupported := candidates.filter fun coordinate => decide (route coordinate = .currentAnchor)
-  let unsupported := candidates.filter fun coordinate => decide (route coordinate = .unsupported)
+  let buckets := routeCandidates evidence.coverage openingSupport currentAnchor candidates
 
   let zeroBalances ← Loam.BalanceReview.project
-    evidence.events evidence.corrections evidence.coverage zeroSupported
-  let openingRows ← openingBalanceRows evidence.events evidence.corrections openingSupported
+    evidence.events evidence.corrections evidence.coverage buckets.zeroOrigin
+  let openingRows ← openingBalanceRows evidence.events evidence.corrections buckets.opening
   let anchorRows ← currentAnchorRows
-    evidence.events evidence.corrections currentAnchor anchorSupported
+    evidence.events evidence.corrections currentAnchor buckets.currentAnchor
   let balances : Loam.BalanceReview.Snapshot :=
     { rows := zeroBalances.rows ++ openingRows ++ anchorRows }
 
   return {
     rows := classifiedRows balances roles
     unresolvedRoles := unresolvedSupported balances roles
-    unsupportedBalances := unsupportedRows unsupported roles
+    unsupportedBalances := unsupportedRows buckets.unsupported roles
   }
 
 private def loadOpeningSupport
