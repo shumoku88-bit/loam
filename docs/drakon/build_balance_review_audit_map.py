@@ -2,8 +2,8 @@
 """Build the Generation-2 Balance Review DRAKON audit map.
 
 This map is an audit instrument only. It visualizes the production BalanceReview
-path and the obligation topology exposed by ZeroOriginQuantity / QuantityInspection.
-It is not production authority and is not a code-generation source.
+path and the obligation topology exposed by the G2-002/G2-003 audit. It is not
+production authority and is not a code-generation source.
 """
 
 from pathlib import Path
@@ -16,9 +16,9 @@ OUTPUT = HERE / "loam-balance-review-audit.drn"
 
 DIAGRAMS = {
     "G2.002.1 Balance Review Read Boundary": {
-        "description": "Production BalanceReview load/project path at one semantic scale.",
+        "description": "G2-002 production BalanceReview load/project path before shared-basis qualification.",
         "sources": "Loam/BalanceReview.lean; Loam/ActualAuthority.lean; Loam/Application/ZeroOriginQuantity.lean; Loam/Application/QuantityInspection.lean; Loam/Application/CorrectionFrontier.lean; Loam/Persistence/ZeroOriginCoveragePersistence.lean; Loam/BalanceViewConfig.lean",
-        "audit": "Actual and zero-origin evidence are loaded once, but correction-world admission is currently reached from inside the per-coordinate row loop. The map separates coordinate-local coverage from query-global correction topology.",
+        "audit": "At the G2-002 baseline, Actual and zero-origin evidence were loaded once, but correction-world admission was reached from inside the per-coordinate row loop. The map separated coordinate-local coverage from query-global correction topology.",
         "nodes": [
             ("insertion", "Load normalized Actual evidence ONCE\nevents + corrections"),
             ("decision", "Actual authority decodes?", "Refuse\nActual evidence unavailable"),
@@ -35,7 +35,7 @@ DIAGRAMS = {
         ],
     },
     "G2.002.2 One Coordinate Quantity Obligation": {
-        "description": "One BalanceReview row obligation as implemented through inspectZeroOriginQuantity and inspectQuantity.",
+        "description": "One G2-002 BalanceReview row obligation through zero-origin and correction-aware quantity inspection.",
         "sources": "Loam/Application/ZeroOriginQuantity.lean; Loam/Application/QuantityInspection.lean; Loam/Application/CorrectionFrontier.lean",
         "audit": "Zero-origin is coordinate-local. Correction references and frontier shape depend only on the shared Event/correction world, not on the selected coordinate. Quantity projection is coordinate-local only after that world is resolved.",
         "nodes": [
@@ -49,19 +49,37 @@ DIAGRAMS = {
         ],
     },
     "G2.002.3 Cross-Row Shared Obligation Pressure": {
-        "description": "Visual comparison of row-local and query-global work inside BalanceReview.project.",
+        "description": "G2-002 visual comparison of row-local and query-global work inside BalanceReview.project.",
         "sources": "Loam/BalanceReview.lean; Loam/Application/ZeroOriginQuantity.lean; Loam/Application/QuantityInspection.lean",
-        "audit": "Each row has its own zero-origin gate and quantity coordinate, but every covered row evaluates the same correction-world admission from identical events/corrections. The proof-obligation DAG therefore has one shared correction-world node even though the current control flow revisits it per row. Any future sharing must preserve the existing left-to-right refusal order.",
+        "audit": "At the G2-002 baseline, each row had its own zero-origin gate and quantity coordinate while every covered row evaluated the same correction-world admission. The DAG therefore exposed one shared correction-world node and a refusal-order constraint on any future sharing.",
         "nodes": [
             ("action", "ROW A\nzero-origin(A)"),
             ("insertion", "correction world\nevents + corrections"),
             ("action", "quantity(A)"),
             ("action", "ROW B\nzero-origin(B)"),
-            ("insertion", "SAME correction world\nre-evaluated today"),
+            ("insertion", "SAME correction world\nre-evaluated at G2.002 baseline"),
             ("action", "quantity(B)"),
             ("action", "ROW C ...\nrepeat same global obligation"),
             ("action", "DAG PRESSURE\none shared correction-world node\nfan-out to covered rows"),
-            ("action", "CAUTION\ndo not resolve eagerly before earlier row gates\nif refusal ordering is to remain unchanged"),
+            ("action", "CAUTION\ndo not resolve before first row coverage\nif refusal ordering is to remain unchanged"),
+        ],
+    },
+    "G2.003 Qualified Shared Quantity Basis": {
+        "description": "Qualified production shape after sharing one correction-aware Event basis across Balance Review rows.",
+        "sources": "Loam/BalanceReview.lean; Loam/Tests/BalanceReview.lean; Loam/Application/CorrectionFrontier.lean; docs/research/BALANCE_REVIEW_OBLIGATION_DAG.md",
+        "audit": "An uncovered row terminates the whole projection immediately, so a non-empty answer needs only the first coordinate coverage gate before the query-global correction world may be resolved once. After that admission, later coordinates keep their left-to-right coverage gates while all quantities read the same admitted Event basis. Empty selection never forces correction admission.",
+        "nodes": [
+            ("action", "eraseDups\nselected coordinates"),
+            ("decision", "Any selected coordinate?", "Return empty Snapshot\nno correction obligation"),
+            ("decision", "FIRST coordinate covered?", "Refuse FIRST\nzero-origin diagnostic"),
+            ("insertion", "quantityBasis ONCE\nno corrections => original EventMemory\notherwise closure + correction frontier"),
+            ("decision", "Shared quantity basis admitted?", "Refuse\ncorrection diagnostic"),
+            ("action", "Project FIRST row\nquantityAtRecorded(shared basis)"),
+            ("action", "For each remaining coordinate\nleft-to-right"),
+            ("decision", "Coordinate covered?", "Refuse\nzero-origin diagnostic"),
+            ("action", "Project quantity\nfrom SAME shared basis"),
+            ("action", "Return Snapshot\nno public context / Evidence API added"),
+            ("action", "QUALIFICATION\nvalid multi-row correction + empty selection\n+ both refusal-order cases pinned"),
         ],
     },
 }
@@ -87,7 +105,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM G2.002 - Balance Review obligation topology",),
+            ("LOAM G2.002/G2.003 - Balance Review obligation topology",),
         )
 
         item_id = 1
@@ -98,7 +116,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "G2.002 Balance Review")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "G2 Balance Review")
         for name in names:
             node_id = base.add_tree_node(
                 db, node_id, root, "item", diagram_id=diagram_ids[name]
