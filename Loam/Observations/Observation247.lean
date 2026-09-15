@@ -45,7 +45,12 @@ def recordEventTokens (world : Loam.MovementAdmission.World) : List String :=
       world.events.events.length + world.validity.facts.length +
         world.descriptions.entries.length + world.relations.length +
         world.discharges.length := by
-  simp [recordEventTokens, eventIdTokens, Observation244.eventTokens]
+  simp [recordEventTokens, eventIdTokens, Observation244.eventTokens] <;> omega
+
+/-- Left-associated production OR and right-associated list membership agree. -/
+private theorem boolOr5_reassociate (a b c d e : Bool) :
+    a || b || c || d || e = a || (b || (c || (d || e))) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> rfl
 
 /-- Keyed finite lookup is equivalent to an explicit any over the same key. -/
 private theorem findBy_isSome_eq_any {Item : Type}
@@ -77,21 +82,11 @@ private theorem anyEventId_eq_usedByList {Item : Type}
       cases hKey : keyOf item with
       | mk itemToken =>
           by_cases hEq : itemToken = token
-          · have hId : keyOf item = (⟨token⟩ : EventId) := by
-              rw [hKey]
-              cases hEq
-              rfl
-            simp [eventIdTokens, Observation242.usedByList, hKey, hEq, hId, ih]
-          · have hId : keyOf item ≠ (⟨token⟩ : EventId) := by
-              intro h
-              apply hEq
-              have hToken := congrArg EventId.token h
-              simpa [hKey] using hToken
-            have hEqSymm : token ≠ itemToken := by
+          · simp [eventIdTokens, Observation242.usedByList, hKey, hEq, ih]
+          · have hEqSymm : token ≠ itemToken := by
               intro h
               exact hEq h.symm
-            simp [eventIdTokens, Observation242.usedByList, hKey, hEq, hEqSymm,
-              hId, ih]
+            simp [eventIdTokens, Observation242.usedByList, hKey, hEq, hEqSymm, ih]
 
 /-- Description lookup reserves exactly the EventIds represented by description entries. -/
 private theorem descriptionUsed_eq_usedByList
@@ -138,6 +133,7 @@ theorem recordEventUsed_eq_usedByList
   rw [hEvents, hValidity, hDescriptions, hRelations, hDischarges]
   simp [Observation242.usedByList, recordEventTokens, eventIdTokens,
     Observation244.eventTokens]
+  exact boolOr5_reassociate _ _ _ _ _
 
 /-- The exact Movement record EventId search cannot exhaust its current fuel. -/
 theorem movementRecordSearch_is_total
