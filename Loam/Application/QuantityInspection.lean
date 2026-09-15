@@ -61,4 +61,26 @@ theorem inspectQuantity_noCorrections
       .recorded (EventMemory.quantityAtRecorded events locus measure) := by
   simp [inspectQuantity, hCorrections]
 
+/--
+The `recorded` success tag carries no information beyond the supplied correction
+evidence: a nonempty correction memory can never produce it.
+-/
+theorem inspectQuantity_nonempty_not_recorded
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (locus : LocusId)
+    (measure : MeasureId)
+    (quantity : Quantity)
+    (hNonempty : corrections.corrections ≠ []) :
+    inspectQuantity events corrections locus measure ≠ .recorded quantity := by
+  intro hRecorded
+  cases hCorrections : corrections.corrections with
+  | nil =>
+      exact hNonempty hCorrections
+  | cons correction rest =>
+      by_cases hClosed : correctionReferencesClosed events corrections
+      · cases hFrontier : quantityAtCorrectionFrontier? events corrections locus measure <;>
+          simp [inspectQuantity, hCorrections, hClosed, hFrontier] at hRecorded
+      · simp [inspectQuantity, hCorrections, hClosed] at hRecorded
+
 end Loam.Application
