@@ -28,12 +28,25 @@ structure Snapshot where
   start : String
   endExclusive : String
   reconstructedStart : Quantity
-  reconstructedEnd : Quantity
   increasesAcrossEvents : Quantity
   decreasesAcrossEvents : Quantity
-  netChange : Quantity
   currentTracked : Quantity
   deriving Repr, DecidableEq
+
+/-- Exact selected-window change derived from its signed Event partitions. -/
+def Snapshot.netChange (snapshot : Snapshot) : Quantity :=
+  snapshot.increasesAcrossEvents + snapshot.decreasesAcrossEvents
+
+/-- Exact reconstructed end boundary derived after the project parity check. -/
+def Snapshot.reconstructedEnd (snapshot : Snapshot) : Quantity :=
+  snapshot.reconstructedStart + snapshot.netChange
+
+/-- The exposed reconstructed end is exactly start plus the two signed partitions. -/
+@[simp] theorem Snapshot.reconstructedEnd_eq_components (snapshot : Snapshot) :
+    snapshot.reconstructedEnd =
+      snapshot.reconstructedStart +
+        (snapshot.increasesAcrossEvents + snapshot.decreasesAcrossEvents) :=
+  rfl
 
 private def selectedCoordinates
     (balances : Loam.BalanceReview.Snapshot) : List EffectCoordinate :=
@@ -143,10 +156,8 @@ def project
     start := start
     endExclusive := endExclusive
     reconstructedStart := Quantity.ofQuanta startQuanta
-    reconstructedEnd := Quantity.ofQuanta endQuanta
     increasesAcrossEvents := Quantity.ofQuanta changes.1
     decreasesAcrossEvents := Quantity.ofQuanta changes.2
-    netChange := Quantity.ofQuanta net
     currentTracked := Quantity.ofQuanta (currentTrackedQuanta balances)
   }
 

@@ -184,10 +184,8 @@ def main : IO Unit := do
     start := "2026-08-17"
     endExclusive := "2026-10-15"
     reconstructedStart := Quantity.ofQuanta 100
-    reconstructedEnd := Quantity.ofQuanta 130
     increasesAcrossEvents := Quantity.ofQuanta 50
     decreasesAcrossEvents := Quantity.ofQuanta (-20)
-    netChange := Quantity.ofQuanta 30
     currentTracked := Quantity.ofQuanta 140
   }
   let stockReportText := widgetText (Loam.Tui.Reports.view stockReport)
