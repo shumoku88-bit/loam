@@ -44,15 +44,6 @@ private def inEndExclusiveHorizon
     (scheduledOn endExclusive : Time) : Bool :=
   decide (scheduledOn ≤ endExclusive ∧ scheduledOn ≠ endExclusive)
 
-private def addCoordinateIfAbsent
-    (coordinates : List EffectCoordinate)
-    (coordinate : EffectCoordinate) : List EffectCoordinate :=
-  if coordinate ∈ coordinates then coordinates else coordinates ++ [coordinate]
-
-private def normalizeCoordinates
-    (coordinates : List EffectCoordinate) : List EffectCoordinate :=
-  coordinates.foldl addCoordinateIfAbsent []
-
 private def occurrenceQuantaAt
     (occurrence : ScheduledOccurrence Time)
     (coordinate : EffectCoordinate) : Int :=
@@ -88,7 +79,7 @@ def scheduledBalanceEffectsBefore
     (occurrences : List (ScheduledOccurrence Time))
     (coordinates : List EffectCoordinate)
     (endExclusive : Time) : List ScheduledBalanceEffect :=
-  (normalizeCoordinates coordinates).map
+  coordinates.eraseDups.map
     (aggregateCoordinate occurrences endExclusive)
 
 /--
