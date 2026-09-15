@@ -174,7 +174,7 @@ def main (args : List String) : IO Unit := do
 
   -- 17. Esc in preview returns to selectTarget (when unmanaged)
   let stepUnmanEsc := Loam.Tui.ScheduledRouting.update bounds stepUnmanagedEnter.state .escape
-  expect (stepUnmanEsc.state.phase == .selectTarget) "Esc returns to selectTarget for unmanaged"
+  expect (stepUnmanEsc.state.phase == .selectTarget) "Esc in preview returns to selectTarget for unmanaged"
 
   -- 18. Enter in preview publishes draft
   let stepPubManaged := Loam.Tui.ScheduledRouting.update bounds sManagedPreview .enter
