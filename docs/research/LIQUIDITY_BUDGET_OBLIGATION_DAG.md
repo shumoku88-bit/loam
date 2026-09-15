@@ -1,6 +1,6 @@
 # Liquidity / Budget Window obligation DAG — G2-007
 
-Status: **Generation-2 audit evidence, qualification pending CI**
+Status: **Generation-2 audit evidence — QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG**.
 
@@ -62,7 +62,7 @@ Actual read             Actual read
 
 The production repair uses the existing `ActualAuthority.withActualFileOwnership` primitive around the two existing readers. No second decoder, combined Evidence type, or retained Liquidity authority is introduced.
 
-Verdict: **REPAIR**.
+Verdict: **REPAIR QUALIFIED**.
 
 ## 2. Budget Window: global frontier, local arithmetic
 
@@ -136,7 +136,7 @@ Consumption(first)
 
 After that first gate, the admitted frontier is shared by later Purpose-local Consumption folds.
 
-Verdict: **SIMPLIFY**, limited to shared correction-world admission.
+Verdict: **SIMPLIFY QUALIFIED**, limited to shared correction-world admission.
 
 ## 3. Why there is no shared Liquidity/Budget abstraction
 
@@ -174,16 +174,23 @@ Each Purpose still needs its own routing-sensitive quantity. Converting the whol
 
 Budget Window still does not claim an atomic transaction spanning Capacity, Actual, and ActualRouting authorities. G2-007 only removes repeated reconstruction from one already-loaded Actual correction relation. No new cross-authority publication semantics are implied.
 
-## 5. Qualification targets
+## 5. Qualification
 
-The production change should be considered qualified only if the existing report tests and relevant CI remain green, especially:
+PR #921 qualified the production changes with all triggered workflows green:
 
-- `Loam/Tests/BudgetWindowReview.lean` with multiple Purposes;
-- `Loam/Tests/ConditionalBalancePathReview.lean`;
-- Production TUI report builds/flows;
-- normal compression and selected Lean qualification.
+- Compression Audit;
+- Selected Lean Observations;
+- Production TUI.
 
-Expected final verdict after CI:
+Production TUI rebuilt and executed the relevant read boundaries, including:
+
+- Actual-backed Budget Window build and multi-Purpose review test;
+- conditional selected-balance path build and refusal test;
+- Stock-Flow and Transactions-Flow neighboring reports;
+- the Reports surface containing Stock-Flow, Transactions-Flow, conditional Liquidity, and Budget Window;
+- downstream Cycle Budget qualification.
+
+Final verdict:
 
 ```text
 Conditional Liquidity: REPAIR QUALIFIED
