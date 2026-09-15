@@ -99,39 +99,25 @@ private def freshRecordEventId (world : World) : Loam.Core.EventId :=
       world.discharges.map (fun discharge => discharge.event.token)
   ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
 
-private def relationIdUsed
-    (used : List Loam.Core.RelationUnitId)
-    (id : Loam.Core.RelationUnitId) : Bool :=
-  used.any fun candidate => decide (candidate = id)
-
-private def freshRelationUnitId?
-    (used : List Loam.Core.RelationUnitId)
-    (index fuel : Nat) : Option Loam.Core.RelationUnitId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "relation-"
-    (fun token => relationIdUsed used (⟨token⟩ : Loam.Core.RelationUnitId))
-    index fuel
-  pure ⟨token⟩
-
 private def freshRelationUnitIdsFrom
-    (used : List Loam.Core.RelationUnitId) : Nat → Nat → Option (List Loam.Core.RelationUnitId)
-  | 0, _ => some []
-  | remaining + 1, index => do
-      let id ← freshRelationUnitId? used index (used.length + 1)
-      let rest ← freshRelationUnitIdsFrom (id :: used) remaining (index + 1)
-      some (id :: rest)
+    (used : List String) : Nat → Nat → List Loam.Core.RelationUnitId
+  | 0, _ => []
+  | remaining + 1, index =>
+      let token := Loam.firstUnusedNumberedToken "relation-" used index
+      let id : Loam.Core.RelationUnitId := ⟨token⟩
+      id :: freshRelationUnitIdsFrom (token :: used) remaining (index + 1)
 
 /--
 Allocate fresh practical RelationUnit identities without rebinding retained raw
 provenance. Raw discharge targets reserve the same operational namespace as
 retained RelationUnit ids, matching the currently qualified Movement behavior.
 -/
-private def freshRelationUnitIds?
+private def freshRelationUnitIds
     (world : World)
-    (count : Nat) : Option (List Loam.Core.RelationUnitId) :=
+    (count : Nat) : List Loam.Core.RelationUnitId :=
   let used :=
-    world.relations.map (fun relation => relation.id) ++
-      world.discharges.map (fun discharge => discharge.target)
+    world.relations.map (fun relation => relation.id.token) ++
+      world.discharges.map (fun discharge => discharge.target.token)
   freshRelationUnitIdsFrom used count 1
 
 private def materializeRelationUnits? :
@@ -277,9 +263,7 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
   let eventId := freshRecordEventId world
-  let relationIds ← match freshRelationUnitIds? world draft.relations.length with
-    | some ids => pure ids
-    | none => throw "loam: could not generate fresh recording identities"
+  let relationIds := freshRelationUnitIds world draft.relations.length
   let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
     | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
