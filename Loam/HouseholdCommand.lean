@@ -6,6 +6,7 @@ import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledContinuationRouting
+import Loam.AttentionPublisher
 import Loam.CapacityPublisher
 import Loam.ActualRoutingPublisher
 import Loam.ScheduledRoutingPublisher
@@ -32,6 +33,9 @@ should not need to know canonical `.loam` filenames.
 
 private def scheduledFile (root : System.FilePath) : System.FilePath :=
   root / "scheduled.loam"
+
+private def attentionFile (root : System.FilePath) : System.FilePath :=
+  root / "attention.loam"
 
 private def capacityFile (root : System.FilePath) : System.FilePath :=
   root / "capacity.loam"
@@ -114,6 +118,20 @@ def inheritScheduledRouting
     IO (Except String Loam.ScheduledContinuationRouting.Report) :=
   Loam.ScheduledContinuationRouting.inherit
     (scheduledRoutingFile root) (scheduledFile root) predecessor created effectiveOn
+
+/-- Add one current-open household Attention item. -/
+def addAttention
+    (root : System.FilePath)
+    (draft : Loam.AttentionPublisher.AddDraft) :
+    IO (Except String Loam.Core.AttentionId) :=
+  Loam.AttentionPublisher.add (attentionFile root).toString draft
+
+/-- Resolve or drop one retained open household Attention item. -/
+def closeAttention
+    (root : System.FilePath)
+    (draft : Loam.AttentionPublisher.CloseDraft) :
+    IO (Except String Unit) :=
+  Loam.AttentionPublisher.close (attentionFile root).toString draft
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity

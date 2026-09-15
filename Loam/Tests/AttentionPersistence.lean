@@ -1,4 +1,5 @@
 import Loam.AttentionReview
+import Loam.HouseholdCommand
 
 open Loam.Core
 
@@ -99,4 +100,88 @@ def main (args : List String) : IO Unit := do
   expect (Loam.AttentionReview.dueLabel (.dueUndetermined : AttentionDue String) == "due unknown")
     "DueUndetermined presentation collapsed"
 
-  IO.println "Attention persistence/review: unavailable, empty, due meaning and fail-closed lifecycle passed."
+  -- Production writer qualification starts with no Attention file at all.
+  let managedRoot := root / "managed"
+  IO.FS.createDirAll managedRoot
+  let managedPath := managedRoot / "attention.loam"
+  expect (!(← managedPath.pathExists)) "managed Attention specimen unexpectedly existed before bootstrap"
+
+  let firstId ←
+    match ← Loam.HouseholdCommand.addAttention managedRoot {
+      context := "cancel streaming subscription"
+      due := .dueOn "2026-10-01"
+    } with
+    | .ok id => pure id
+    | .error message => throw (IO.userError message)
+  expect (firstId.token == "attention-1") "first Attention identity was not allocated deterministically"
+  expect (← managedPath.pathExists) "first Attention publication did not bootstrap canonical storage"
+
+  let secondId ←
+    match ← Loam.HouseholdCommand.addAttention managedRoot {
+      context := "watch card refund"
+      due := .dueUndetermined
+    } with
+    | .ok id => pure id
+    | .error message => throw (IO.userError message)
+  expect (secondId.token == "attention-2") "second Attention identity did not advance"
+
+  match ← Loam.HouseholdCommand.addAttention managedRoot {
+      context := "invalid due specimen"
+      due := .dueOn "2026-02-30"
+    } with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "invalid Attention due date was published")
+
+  match ← Loam.AttentionReview.loadEvidence managedPath with
+  | .ok (.available snapshot) =>
+      expect (snapshot.openItems.map Attention.id == [firstId, secondId])
+        "fresh Attention publications did not appear in canonical open order"
+  | .error message => throw (IO.userError message)
+  | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
+
+  match ← Loam.HouseholdCommand.closeAttention managedRoot {
+      attention := firstId
+      knownOn := "2026-09-16"
+      kind := .resolved
+    } with
+  | .ok () => pure ()
+  | .error message => throw (IO.userError message)
+
+  match ← Loam.HouseholdCommand.closeAttention managedRoot {
+      attention := firstId
+      knownOn := "2026-09-16"
+      kind := .dropped
+    } with
+  | .error _ => pure ()
+  | .ok () => throw (IO.userError "already-closed Attention accepted a second closure")
+
+  match ← Loam.HouseholdCommand.closeAttention managedRoot {
+      attention := ⟨"attention-999"⟩
+      knownOn := "2026-09-16"
+      kind := .resolved
+    } with
+  | .error _ => pure ()
+  | .ok () => throw (IO.userError "unknown Attention accepted closure evidence")
+
+  match ← Loam.AttentionReview.loadEvidence managedPath with
+  | .ok (.available snapshot) =>
+      expect (snapshot.openItems.map Attention.id == [secondId])
+        "resolved Attention remained in the current-open projection"
+  | .error message => throw (IO.userError message)
+  | .ok .unavailable => throw (IO.userError "managed Attention authority disappeared")
+
+  match ← Loam.HouseholdCommand.closeAttention managedRoot {
+      attention := secondId
+      knownOn := "2026-09-16"
+      kind := .dropped
+    } with
+  | .ok () => pure ()
+  | .error message => throw (IO.userError message)
+
+  match ← Loam.AttentionReview.loadEvidence managedPath with
+  | .ok (.available snapshot) =>
+      expect snapshot.openItems.isEmpty "dropped Attention remained current-open"
+  | .error message => throw (IO.userError message)
+  | .ok .unavailable => throw (IO.userError "managed Attention authority disappeared after drop")
+
+  IO.println "Attention persistence/review/publication: bootstrap, due meaning, add, resolve, drop and refusal passed."
