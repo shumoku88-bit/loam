@@ -162,21 +162,9 @@ private def scanLines
               let next := { state with errorLines := lineNo :: state.errorLines }
               scanLines rest (lineNo + 1) next
 
-private def addCoordinateIfAbsent
-    (coordinates : List EffectCoordinate)
-    (coordinate : EffectCoordinate) : List EffectCoordinate :=
-  if coordinate ∈ coordinates then
-    coordinates
-  else
-    coordinates ++ [coordinate]
-
 private def recordedCoordinates (memory : EventMemory) : List EffectCoordinate :=
-  memory.events.foldl
-    (fun coordinates event =>
-      event.effects.foldl
-        (fun current effect => addCoordinateIfAbsent current effect.coordinate)
-        coordinates)
-    []
+  (memory.events.flatMap fun event =>
+    event.effects.map fun effect => effect.coordinate).eraseDups
 
 /--
 The stateless shadow has no retained correction facts. This value is application
