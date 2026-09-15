@@ -25,18 +25,8 @@ private def freshRevisionId?
     (history.facts.length + 1)
   pure ⟨token⟩
 
-private def requireCurrentTarget
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (target : EventId) : Except String Unit := do
-  if (EventMemory.findById? events target).isNone then
-    throw "loam: selected date-correction target is not retained"
-  if corrections.targetsEvent target then
-    throw "loam: selected Actual is no longer current"
-
 private def appendDateChange?
     (history : ActualValidityHistory String)
-    (event : EventId)
     (currentFact : ActualValidityFact String)
     (validOn : String) : Except String (ActualValidityHistory String) := do
   let revisionId ←
@@ -44,7 +34,7 @@ private def appendDateChange?
     | some id => pure id
     | none => throw "loam: could not generate a fresh occurrence-date revision identity"
   let replacement : ActualValidityFact String :=
-    .revision revisionId event validOn
+    .revision revisionId currentFact.event validOn
   let withFact ←
     match history.addFact? replacement with
     | some updated => pure updated
@@ -62,7 +52,10 @@ private def admit?
     (draft : Draft) : Except String (Option ActualEvidence) := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
-  requireCurrentTarget evidence.events evidence.corrections draft.target
+  if (EventMemory.findById? evidence.events draft.target).isNone then
+    throw "loam: selected date-correction target is not retained"
+  if evidence.corrections.targetsEvent draft.target then
+    throw "loam: selected Actual is no longer current"
   let currentFacts := Loam.Application.actualValidityFrontierFacts evidence.validity
   let currentFact ←
     match currentFacts.find? fun fact => decide (fact.event = draft.target) with
@@ -71,7 +64,7 @@ private def admit?
   if currentFact.validOn = draft.validOn then
     pure none
   else
-    let updatedValidity ← appendDateChange? evidence.validity draft.target currentFact draft.validOn
+    let updatedValidity ← appendDateChange? evidence.validity currentFact draft.validOn
     pure (some { evidence with validity := updatedValidity })
 
 private def publishUnderOwnership
