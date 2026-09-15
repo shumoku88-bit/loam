@@ -116,6 +116,45 @@ READ_FLOW_DIAGRAMS = {
             ("action", "Derive global pressure aliases\nfrom retained Scheduled answer"),
         ],
     },
+    "07.8.1 Cycle Budget Read Boundary": {
+        "description": "CycleBudgetReview.loadSnapshotAt composition of independently visible current-cycle read surfaces.",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. Balance evidence is loaded once and shared by physical and funding. Coverage keeps its own production reader and therefore reads its required Actual evidence independently; the snapshot deliberately does not promise a cross-file atomic read.",
+        "nodes": [
+            ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
+            ("action", "Retain window Except\nvisible boundary status"),
+            ("insertion", "Coverage attempt\nwindow -> CurrentCoverageReview.loadSnapshotAt"),
+            ("action", "Retain coverage Except\nCurrentCoverage visible independently"),
+            ("insertion", "BalanceReview.loadEvidence ONCE\nActual + zero-origin coverage"),
+            ("action", "Share loaded balance evidence\nphysical + funding branches"),
+            ("insertion", "Physical attempt\nbalance-view selection -> BalanceReview.project"),
+            ("action", "Retain physical Except\noptional display balances"),
+            ("insertion", "CycleFundingConfig.load\nexplicit backing selection"),
+            ("action", "Retain selection Except\noptional funding configuration"),
+            ("insertion", "CycleFundingInspection.project\ncoverage + selection + shared balance evidence"),
+            ("action", "Retain funding Except\nfunding arithmetic answer"),
+            ("action", "Return Snapshot\nall failure boundaries stay visible"),
+        ],
+    },
+    "07.8.2 Cycle Funding Composition": {
+        "description": "Pure CycleFundingInspection.project composition from selected physical balances and CurrentCoverage.",
+        "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
+        "audit": "Budgetable backing and remaining assigned are independently computed. residualBeforeUnresolved is exactly backing minus assigned. The three future-pressure fields are copied from CurrentCoverage.scheduledFrontier, while CycleBudgetReview retains that same coverage snapshot beside the funding summary. Audit whether the residual and copied frontier values are independent funding state or derived echoes.",
+        "nodes": [
+            ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),
+            ("decision", "JPY / selection / Purpose uniqueness valid?", "No funding answer"),
+            ("insertion", "Read CurrentCoverage.scheduledFrontier", "No funding answer\nfrontier unavailable"),
+            ("insertion", "BalanceReview.project\nselected budgetable coordinates"),
+            ("action", "Fold budgetableBacking\nselected signed balances"),
+            ("action", "Fold remainingAssigned\nsum max(row.remaining, 0)"),
+            ("action", "Materialize residualBeforeUnresolved\nbacking - assigned"),
+            ("action", "COPY unmanagedFuturePressure\nfrom coverage frontier"),
+            ("action", "COPY unroutedFuturePressure\nfrom coverage frontier"),
+            ("action", "COPY unresolvedFuturePressure\nfrom coverage frontier"),
+            ("action", "Return Summary\nmeasure + 2 computed + 4 derived/copied values"),
+            ("action", "AUDIT QUESTION\ncan Summary retain only independent funding quantities?"),
+        ],
+    },
 }
 
 
@@ -139,7 +178,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.2 - production and compatibility lanes",),
+            ("LOAM Read Path Atlas v0.3 - Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
@@ -170,6 +209,18 @@ def build() -> None:
                 db, node_id, current_coverage, "item", diagram_id=diagram_ids[name]
             )
 
+        cycle_budget = node_id
+        node_id = base.add_tree_node(
+            db, node_id, root, "folder", "07.8 Cycle Budget"
+        )
+        for name in [
+            "07.8.1 Cycle Budget Read Boundary",
+            "07.8.2 Cycle Funding Composition",
+        ]:
+            node_id = base.add_tree_node(
+                db, node_id, cycle_budget, "item", diagram_id=diagram_ids[name]
+            )
+
         db.commit()
         db.execute("pragma page_size=512")
         db.execute("vacuum")
@@ -187,6 +238,10 @@ def build() -> None:
             "select count(*) from tree_nodes where type='folder' and name='07.7 Current Coverage'"
         ).fetchone()[0] != 1:
             raise SystemExit("Current Coverage read-path folder missing")
+        if db.execute(
+            "select count(*) from tree_nodes where type='folder' and name='07.8 Cycle Budget'"
+        ).fetchone()[0] != 1:
+            raise SystemExit("Cycle Budget read-path folder missing")
 
     print(OUTPUT)
 
