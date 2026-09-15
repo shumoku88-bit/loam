@@ -294,7 +294,7 @@ FLOW_DIAGRAMS = {
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
         "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
-        "audit": "Correction keeps its own target and lineage law, but shares sparse Effect identity and measure-parametric practical Movement qualification. Current production still passes JPY explicitly at this edge.",
+        "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
             ("decision", "Replacement is practical balanced JPY?", "Refuse\nreplacement outside practical entrance"),
@@ -306,8 +306,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Reversal evidence ignores target?", "Refuse\nreversal participant not yet qualified"),
             ("insertion", "Find target current occurrence date"),
             ("decision", "Current date exists?", "Refuse\nno current occurrence coordinate"),
-            ("action", "Allocate fresh replacement EventId"),
-            ("decision", "Replacement identity available?", "Refuse\nidentity allocation failed"),
+            ("action", "Allocate total fresh replacement EventId"),
             ("action", "Create EventCorrection\ntarget -> replacement"),
             ("insertion", "Event.ofEffects?\nconstruct replacement Event"),
             ("decision", "Replacement Event structurally valid?", "Refuse\nEvent construction failed"),
@@ -504,7 +503,7 @@ FLOW_DIAGRAMS = {
     "14.2 Validity Revision": {
         "description": "Date-only semantic revision for one current EventId inside admitted ActualEvidence.",
         "sources": "Loam/ActualValidityPublisher.lean; Loam/ActualDate.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/ActualValidity.lean; Loam/Core/EventCorrection.lean",
-        "audit": "This operation changes one time coordinate, not the Event. Currentness depends only on retained EventId plus raw Correction-target membership. Reversal provenance is independent because Effects do not change.",
+        "audit": "This operation changes one time coordinate, not the Event. Currentness depends only on retained EventId plus raw Correction-target membership. Revision identity allocation is total; reversal provenance is independent because Effects do not change.",
         "nodes": [
             ("decision", "Requested date is a real YYYY-MM-DD date?", "Refuse\ninvalid calendar date"),
             ("decision", "Target EventId retained?", "Refuse\ntarget not retained"),
@@ -512,8 +511,7 @@ FLOW_DIAGRAMS = {
             ("insertion", "Resolve current validity frontier fact\nfor the same EventId"),
             ("decision", "Current occurrence fact exists?", "Refuse\nno current occurrence date"),
             ("decision", "Requested date differs from current?", "Success / NO WRITE\nsame date reaffirmed"),
-            ("action", "Allocate fresh ActualValidityRevisionId"),
-            ("decision", "Fresh revision identity available?", "Refuse\nidentity allocation failed"),
+            ("action", "Allocate total fresh ActualValidityRevisionId"),
             ("action", "Build revision fact\nsame EventId + requested date"),
             ("insertion", "Append revision fact"),
             ("decision", "Validity history accepts fact?", "Refuse\nrevision fact append failed"),
