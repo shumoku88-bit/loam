@@ -103,6 +103,8 @@ def main (args : List String) : IO Unit := do
 
   expect (snapshot.observedAt == "2026-09-09") "observed date"
   expect (snapshot.rows.length == 2) "default rows remain explicit current Expense Loci"
+  expect (snapshot.rows.map (fun row => row.locus.token) == ["coffee", "shipping"])
+    "Expense partition changed admission order"
   let coffee ← requireSome
     (snapshot.rows.find? fun row => row.locus.token == "coffee") "coffee row"
   let shipping ← requireSome
@@ -114,6 +116,8 @@ def main (args : List String) : IO Unit := do
 
   expect (snapshot.otherRows.length == 4)
     "known admitted non-Expense Loci become optional rows"
+  expect (snapshot.otherRows.map (fun row => row.locus.token) == ["cash", "yucho", "pension", "debt"])
+    "optional non-Expense partition changed admission order"
   let cash ← requireSome
     (snapshot.otherRows.find? fun row => row.locus.token == "cash") "cash optional row"
   let yucho ← requireSome
@@ -146,4 +150,4 @@ def main (args : List String) : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "impossible review date was silently admitted")
 
-  IO.println "Actual routing review: default Expense rows, optional non-Expense rows and independent audits passed."
+  IO.println "Actual routing review: one role partition preserves default, optional and unresolved surfaces."
