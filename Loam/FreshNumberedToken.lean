@@ -28,19 +28,4 @@ decreasing_by
   rw [List.length_erase_of_mem h]
   exact Nat.sub_lt (List.length_pos_of_mem h) (by decide)
 
-/--
-Bounded predicate form retained while existing proof observations and remaining
-production callers migrate to the finite-namespace operation above.
--/
-def firstUnusedNumberedToken?
-    (stem : String)
-    (used? : String → Bool) : Nat → Nat → Option String
-  | _, 0 => none
-  | index, fuel + 1 =>
-      let candidate := stem ++ toString index
-      if used? candidate then
-        firstUnusedNumberedToken? stem used? (index + 1) fuel
-      else
-        some candidate
-
 end Loam
