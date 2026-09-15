@@ -32,8 +32,11 @@ structure Row where
   purpose : PurposeId
   entitlement : Quantity
   consumption : Quantity
-  remaining : Quantity
   deriving Repr, DecidableEq
+
+/-- Exact Remaining derived from the two retained Budget Window components. -/
+def Row.remaining (row : Row) : Quantity :=
+  row.entitlement - row.consumption
 
 structure Snapshot where
   start : String
@@ -77,7 +80,6 @@ private def projectPurpose?
     purpose := purpose
     entitlement := entitlement
     consumption := consumption
-    remaining := entitlement - consumption
   }
 
 private def loadActualEvidence
