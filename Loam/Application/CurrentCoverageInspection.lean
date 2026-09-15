@@ -22,7 +22,11 @@ for one decision-support answer without mixing coordinate systems:
 
 - current elapsed effective Capacity -> Entitlement;
 - correction-frontier Actual + historical Actual routing -> Consumption;
-- current-open Scheduled + routing/role evidence -> Commitment.
+- current-open Scheduled + routing/role evidence -> managed Commitment.
+
+Global Scheduled pressure frontiers are not part of a one-Purpose coverage view.
+They are query-global answers owned by the Scheduled pressure partition and may
+be composed by higher review surfaces without copying them into every Purpose.
 
 Completion, retirement, and replacement are ordinary target forms of one
 Scheduled-terminal relation at this boundary; replacement is no longer a second
@@ -39,9 +43,6 @@ structure CurrentCoverageView where
   entitlement : Quantity
   consumption : Quantity
   commitment : Quantity
-  unmanagedCommitment : Quantity
-  unroutedCommitment : Quantity
-  unresolvedEligibility : Quantity
   deriving Repr, DecidableEq
 
 /-- Current Remaining is uniquely derived from Entitlement and Consumption. -/
@@ -61,16 +62,34 @@ def CurrentCoverageView.headroom (view : CurrentCoverageView) : Quantity :=
   rfl
 
 private def assembleCurrentCoverage
-    (entitlement consumption : Quantity)
-    (commitment : ScheduledCommitmentView) : CurrentCoverageView :=
+    (entitlement consumption commitment : Quantity) : CurrentCoverageView :=
   {
     entitlement := entitlement
     consumption := consumption
-    commitment := commitment.managed
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
+    commitment := commitment
   }
+
+/--
+Compose current elapsed Capacity/Actual evidence with an already-qualified
+managed Scheduled Commitment for one Purpose and Measure.
+-/
+def currentCoverageAtCorrectionFrontierWithCommitment?
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (actualRouting : RoutingHistory LocusId Time)
+    (purpose : PurposeId)
+    (measure : MeasureId)
+    (currentWindowStart observedAt : Time)
+    (commitment : Quantity) : Option CurrentCoverageView := do
+  let consumption ←
+    consumptionAtCorrectionFrontierThrough?
+      events corrections validities actualRouting currentWindowStart observedAt purpose measure
+  let entitlement ← entitlementAtEffectiveThrough?
+    capacity effective currentWindowStart observedAt purpose measure
+  return assembleCurrentCoverage entitlement consumption commitment
 
 /--
 Compose current elapsed Capacity/Actual evidence with current-open Scheduled
@@ -90,13 +109,33 @@ def currentCoverageAtCorrectionFrontier?
     (purpose : PurposeId)
     (measure : MeasureId)
     (currentWindowStart observedAt endExclusive : Time) : Option CurrentCoverageView := do
-  let consumption ←
-    consumptionAtCorrectionFrontierThrough?
-      events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
     currentScheduledCommitment?
       scheduled terminals events roles scheduledRouting
       purpose measure observedAt endExclusive
+  currentCoverageAtCorrectionFrontierWithCommitment?
+    capacity effective events corrections validities actualRouting
+    purpose measure currentWindowStart observedAt commitment.managed
+
+/--
+Production-compatible current coverage using the explicit `initial | dated`
+Actual-routing coordinate retained by `ActualRoutingPersistence` and an
+already-qualified managed Scheduled Commitment.
+-/
+def currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (validities : ActualValidityMemory Time)
+    (actualRouting : RoutingHistory LocusId (RoutingEffective Time))
+    (purpose : PurposeId)
+    (measure : MeasureId)
+    (currentWindowStart observedAt : Time)
+    (commitment : Quantity) : Option CurrentCoverageView := do
+  let consumption ←
+    consumptionAtCorrectionFrontierEffectiveRoutingThrough?
+      events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let entitlement ← entitlementAtEffectiveThrough?
     capacity effective currentWindowStart observedAt purpose measure
   return assembleCurrentCoverage entitlement consumption commitment
@@ -123,15 +162,12 @@ def currentCoverageAtCorrectionFrontierEffectiveRouting?
     (purpose : PurposeId)
     (measure : MeasureId)
     (currentWindowStart observedAt endExclusive : Time) : Option CurrentCoverageView := do
-  let consumption ←
-    consumptionAtCorrectionFrontierEffectiveRoutingThrough?
-      events corrections validities actualRouting currentWindowStart observedAt purpose measure
   let commitment ←
     currentScheduledCommitment?
       scheduled terminals events roles scheduledRouting
       purpose measure observedAt endExclusive
-  let entitlement ← entitlementAtEffectiveThrough?
-    capacity effective currentWindowStart observedAt purpose measure
-  return assembleCurrentCoverage entitlement consumption commitment
+  currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
+    capacity effective events corrections validities actualRouting
+    purpose measure currentWindowStart observedAt commitment.managed
 
 end Loam.Application
