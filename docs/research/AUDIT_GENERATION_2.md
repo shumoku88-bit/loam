@@ -89,6 +89,11 @@ Deeply mapped:
   - correction-frontier admission
   - Actual-validity admission
   - transient record projection
+- Balance Review
+  - evidence/config read boundary
+  - per-coordinate zero-origin gate
+  - correction-world quantity obligation
+  - cross-row shared-obligation pressure
 - Current Coverage
   - read boundary
   - per-Purpose projection
@@ -102,7 +107,6 @@ Deeply mapped:
 The rest of `07 Projections & Reports` is still largely an index rather than a
 same-scale read atlas. Candidate surfaces for future observation include:
 
-- BalanceReview
 - StockFlowReview
 - TransactionsFlowReview
 - RoleFlowReview
@@ -126,6 +130,15 @@ Production-bound obligation DAG:
   - current-anchor leaf
   - unsupported leaf
   - one root partition theorem over the production decision
+
+Audit obligation DAGs:
+
+- Balance Review current quantity
+  - coordinate-local zero-origin coverage
+  - one shared Event/correction quantity world
+  - coordinate-local quantity projection
+  - row justification
+  - refusal-order constraint on any future sharing
 
 Obligation-style decomposition has also been useful during analysis of:
 
@@ -227,11 +240,67 @@ function before projection. Revisit only if target-based replacement lookup is
 later moved outside an admitted correction-frontier boundary, or if production
 semantics begin admitting branching correction relations.
 
+### G2-002 — Balance Review obligation topology
+
+Primary instruments: **DRAKONview + proof-obligation DAG**.
+
+The DRAKON pass separates three scales that are nested in the current source:
+
+- evidence/config work performed once for the answer;
+- the coordinate-local zero-origin gate;
+- correction-world admission reached from inside each covered row.
+
+`BalanceReview.collectRows` calls `inspectZeroOriginQuantity` for each selected
+coordinate. A covered coordinate delegates to `inspectQuantity`. When correction
+facts exist, that in turn checks correction-reference closure and asks
+`correctionFrontierMemory?` for one admitted Event frontier before projecting the
+coordinate quantity.
+
+The DAG exposes an important factorization. For coordinate `c`, row success
+requires:
+
+```text
+zeroOrigin(c)
++
+sharedQuantityWorld(events, corrections)
++
+quantity(c, sharedQuantityWorld)
+```
+
+Only the first and third obligations depend on `c`. The correction world depends
+only on the shared Event/correction memories supplied to the whole
+`BalanceReview.project` call. Therefore the current row loop re-evaluates one
+query-global obligation for every covered coordinate.
+
+This is structurally analogous to earlier Current Coverage pressure where
+query-global Scheduled work had leaked into Purpose-local projection.
+
+The DAG also prevents an unsafe eager refactor. Current rows are inspected
+left-to-right. An uncovered earlier coordinate can refuse before correction
+admission is attempted, while an earlier covered coordinate can expose a
+correction failure before a later uncovered coordinate is reached. Hoisting
+correction admission ahead of every zero-origin gate would therefore change
+observable refusal ordering.
+
+Verdict: **SIMPLIFY CANDIDATE CONFIRMED; production change deferred to
+qualification**.
+
+The smallest behavior-preserving candidate is lazy sharing: resolve the
+correction quantity basis on the first covered row that needs it, then reuse that
+basis for subsequent covered rows. Earlier uncovered rows continue to refuse
+before the shared obligation is forced. Do not create a public inspection context
+or general Evidence abstraction unless a second production consumer independently
+earns the same prepared-basis need.
+
+The detailed DAG and refusal-order examples live in
+`docs/research/BALANCE_REVIEW_OBLIGATION_DAG.md`. The DRAKON audit map is generated
+by `docs/drakon/build_balance_review_audit_map.py`.
+
 ## Initial direction
 
 The read atlas currently has the largest coverage gap. Extending visual pressure
-beyond Actual Review, Current Coverage, and Cycle Budget into the other production
-reports is a natural next place to observe.
+beyond Actual Review, Balance Review, Current Coverage, and Cycle Budget into the
+other production reports is a natural next place to observe.
 
 The write atlas also remains incomplete and can be expanded when a sibling path
 or product change makes comparison valuable.
