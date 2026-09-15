@@ -25,14 +25,12 @@ private def baseRow (purpose : String) (entitlement : Int) : Loam.CapacityReview
 
 private def coverageRow
     (purpose : String)
-    (entitlement consumption remaining commitment headroom : Int) :
+    (entitlement consumption commitment : Int) :
     Loam.CurrentCoverageReview.Row :=
   { purpose := ⟨purpose⟩
     entitlement := Quantity.ofQuanta entitlement
     consumption := Quantity.ofQuanta consumption
-    remaining := Quantity.ofQuanta remaining
-    commitment := Quantity.ofQuanta commitment
-    headroom := Quantity.ofQuanta headroom }
+    commitment := Quantity.ofQuanta commitment }
 
 private def frontier (unmanaged unrouted unresolved : Int) :
     Loam.CurrentCoverageReview.ScheduledFrontier :=
@@ -124,9 +122,9 @@ def main : IO Unit := do
     "Capacity final-row boundary did not fail safely"
 
   -- Coverage labels are presentation-only views over the shared derived quantities.
-  let ok := coverageRow "ok" 100 30 70 35 35
-  let over := coverageRow "over" 20 30 (-10) 35 (-45)
-  let future := coverageRow "future" 60 30 30 35 (-5)
+  let ok := coverageRow "ok" 100 30 35
+  let over := coverageRow "over" 20 30 35
+  let future := coverageRow "future" 60 30 35
   let coverage : Loam.CurrentCoverageReview.Snapshot := {
     currentWindowStart := "2026-08-15"
     observedAt := "2026-09-08"
@@ -155,7 +153,7 @@ def main : IO Unit := do
   expect (contains "not SafeToSpend authority" coverageText)
     "coverage surface lost its non-authority warning"
 
-  let check := coverageRow "check" 100 30 70 35 35
+  let check := coverageRow "check" 100 30 35
   let unresolvedCoverage : Loam.CurrentCoverageReview.Snapshot := {
     currentWindowStart := "2026-08-15"
     observedAt := "2026-09-08"
