@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.CycleFundingConfig
 import Loam.CycleFundingInspection
 import Loam.BoundaryPresetConfig
@@ -21,15 +22,20 @@ structure Snapshot where
 private def attempt {α : Type} (action : IO (Except String α)) : IO (Except String α) := do
   try action catch error => return .error error.toString
 
-/--
-Compose current queries without Home selected-day input. Physical display and
-funding use the same loaded balance evidence but independent selections. Coverage
-keeps its existing production reader; this does not promise a cross-file atomic
-snapshot or historical balance replay. No writer or recovery is invoked.
--/
-def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) :
-    IO Snapshot := do
-  let window ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt
+/-- The two Cycle Budget read branches that observe normalized Actual authority. -/
+private structure ActualObservation where
+  coverage : Except String Loam.CurrentCoverageReview.Snapshot
+  evidence : Except String Loam.BalanceReview.Evidence
+
+private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
+  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+  else Loam.ActualAuthority.actualPath actualRoot
+
+private def loadActualObservation
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String)
+    (window : Except String Loam.BoundaryPresetConfig.CurrentWindow) :
+    IO ActualObservation := do
   let coverage ← attempt do
     match window with
     | .error message => return .error message
@@ -37,6 +43,33 @@ def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) 
       Loam.CurrentCoverageReview.loadSnapshotAt
         dataDir actualRoot window.start observedAt window.endExclusive
   let evidence ← attempt (Loam.BalanceReview.loadEvidence dataDir actualRoot)
+  return { coverage, evidence }
+
+/--
+Compose current queries without Home selected-day input. Physical display and
+funding use the same loaded balance evidence but independent selections.
+CurrentCoverage and Balance evidence reads share one Actual ownership interval,
+so one Cycle Budget answer cannot mix two generations of `actual.loam` if a
+writer publishes concurrently. Other authorities remain independently visible;
+this still does not promise a cross-file atomic snapshot or historical balance
+replay. No writer or recovery is invoked.
+-/
+def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) :
+    IO Snapshot := do
+  let window ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt
+  let actualPath := actualPathForObservation actualRoot
+  let observation ←
+    try
+      Loam.ActualAuthority.withActualFileOwnership actualPath
+        (loadActualObservation dataDir actualRoot observedAt window)
+    catch error =>
+      let message := "loam: Cycle Budget Actual observation unavailable: " ++ error.toString
+      pure {
+        coverage := .error message
+        evidence := .error message
+      }
+  let coverage := observation.coverage
+  let evidence := observation.evidence
   let physical ← attempt do
     match evidence with
     | .error message => return .error message
