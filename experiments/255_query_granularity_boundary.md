@@ -1,6 +1,6 @@
 # Observation 255 — query granularity under sparse Effect identity
 
-Status: **EXPERIMENT — Lean qualification pending**
+Status: **QUALIFIED by Lean 4.33.1**
 
 Baseline:
 
@@ -9,6 +9,17 @@ shumoku88-bit/loam
 main: 9a34157c065a090518a7c58b63ddd99073bd43b4
 Observation 254 / PR #928 merged
 ```
+
+GitHub Actions qualification:
+
+```text
+workflow: Selected Lean Observations
+run:      34990576728
+result:   SUCCESS
+Lean:     4.33.1
+```
+
+Compression Audit run `34990576480` also passed on the qualified head.
 
 ## Trigger
 
@@ -50,7 +61,7 @@ This is not a migration or production transform. It is a semantic probe.
 
 ## O255-1 — anonymous does not mean aggregated away
 
-Expected Lean facts:
+Qualified Lean facts:
 
 ```text
 EventId preserved
@@ -62,7 +73,7 @@ So an anonymous Effect remains a physical Effect in the Event representation. Sp
 
 ## O255-2 — physical quantity queries do not require EffectKey
 
-Expected theorem:
+Qualified theorem:
 
 ```text
 Event.quantityAt (eraseEventEffectIdentity event) locus measure
@@ -72,11 +83,11 @@ Event.quantityAt event locus measure
 
 for every Event, Locus, and Measure.
 
-If qualified, ordinary Event-level quantity projection belongs below the Effect-identity boundary.
+Ordinary Event-level quantity projection therefore belongs below the Effect-identity boundary.
 
 ## O255-3 — durable Effect reference queries do require EffectKey
 
-The observation defines a research-only Event-scoped key lookup. Expected theorem:
+The observation defines a research-only Event-scoped key lookup and qualifies:
 
 ```text
 findInEventByKey? (eraseEventEffectIdentity event) key = none
@@ -94,7 +105,7 @@ Current Core already exposes:
 Effect.identify : Effect -> EffectKey -> Effect
 ```
 
-The observation checks that identification changes addressability while preserving coordinate and exact quantity.
+Lean qualifies that identification changes addressability while preserving coordinate and exact quantity.
 
 This gives the intended sparse-identity pattern:
 
@@ -107,9 +118,9 @@ later query needs durable reference
   -> physical observation unchanged
 ```
 
-## Query-class boundary
+## Qualified query-class boundary
 
-If the Lean obligations hold, the current Core supports this classification:
+The current Core now has a machine-checked classification:
 
 ```text
 Event-level quantity / balance-like query
@@ -127,13 +138,13 @@ Durable reference to one Effect
     intentionally has no answer until identity is earned
 ```
 
-The final line is not data loss relative to the model. It is the absence of an independently retained identity claim.
+The final line is not data loss relative to the retained model. It is the absence of an independently retained identity claim.
 
 ## Relationship to Observation 166
 
 Observation 166 established the reference-coordinate boundary using Alloy pressure from burden/open-relation provenance.
 
-Observation 255 tests the complementary erasure law in actual Lean Core:
+Observation 255 qualifies the complementary erasure law in actual Lean Core:
 
 ```text
 (EventId, EffectKey) is sufficient when exact reference is needed
@@ -145,10 +156,18 @@ does not imply:
 all Effects should always receive EffectKey
 ```
 
-The current sparse design is useful precisely if lower-granularity queries are invariant under key erasure.
+The current sparse design is justified because lower-granularity physical queries are invariant under key erasure.
+
+## Consequence for Observation 254
+
+Observation 254 showed that an Event-indexed aggregate view can still forget finer Effect membership. Observation 255 now explains when that loss matters:
+
+- quantity and multiplicity questions can remain below durable Effect identity;
+- exact later reference to one retained Effect crosses the boundary and needs the already-existing `(EventId, EffectKey)` coordinate;
+- anonymous Effects should not be retroactively treated as if they carried an identity claim that was never retained.
 
 ## Stop condition
 
 Do not add global `EffectId`, mandatory keys, posting-line identity, or a production Register from this observation alone.
 
-A later observation may ask whether a concrete history/register surface needs to expose keyed Effect references. Until then, current optional identity is the smaller model.
+A later observation may ask whether a concrete history/register surface needs to expose keyed Effect references. Until then, current optional identity is the smaller qualified model.
