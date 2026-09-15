@@ -35,4 +35,13 @@ def canonicalizeEffects
     | some key =>
         if key ∈ earned then effect else { effect with key := none }
 
+/-- Canonicalizing with no earned keys leaves no retained Effect identity. -/
+@[simp] theorem retainedEffectKeys_canonicalizeEffects_nil
+    (effects : List Effect) :
+    retainedEffectKeys (canonicalizeEffects [] effects) = [] := by
+  simp only [retainedEffectKeys, canonicalizeEffects, List.filterMap_map]
+  rw [List.filterMap_eq_nil_iff]
+  intro effect _
+  cases h : effect.key <;> simp [h]
+
 end Loam.SparseEffectIdentity
