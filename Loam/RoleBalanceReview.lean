@@ -1,5 +1,4 @@
 import Loam.Application.CorrectionFrontier
-import Loam.Application.QuantityInspection
 import Loam.BalanceReview
 import Loam.CurrentQuantityAnchor
 import Loam.Persistence.AccountingRolePersistence
@@ -27,9 +26,9 @@ The coordinate universe is the union of:
 - coordinates with explicit opening-Event support;
 - coordinates with an explicit current quantity anchor assertion.
 
-Zero-origin coordinates continue to delegate to `BalanceReview.project`.
-Opening-supported coordinates delegate to the existing production
-`inspectQuantity` arithmetic after validating the retained opening witness.
+Zero-origin coordinates continue to delegate to `BalanceReview.project`, which
+remains the semantic owner of zero-origin balance projection. Opening-supported
+coordinates project from the already-admitted ordinary correction frontier.
 Current-anchor coordinates use the shared reflected-root cut qualified by
 Observation 246 and add only correction-aware Event roots outside that cut.
 Coordinates carrying none of these evidence families remain visible as an
@@ -274,34 +273,34 @@ private def validateSupportSeparation
         ("loam: role balances unavailable: current anchor overlaps existing support for " ++
           assertion.coordinate.locus.token ++ " / " ++ assertion.coordinate.measure.token)
 
-private def inspectCurrentQuantity
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (coordinate : EffectCoordinate) : Except String Quantity :=
-  match Loam.Application.inspectQuantity
-      events corrections coordinate.locus coordinate.measure with
-  | .quantity quantity => .ok quantity
-  | .missingCorrectionEndpoint =>
-      .error "loam: role balances unavailable: correction references are not closed"
-  | .frontierRequired =>
-      .error "loam: role balances unavailable: event corrections do not justify one frontier"
-
+/--
+Opening support lives in the same ordinary correction frontier already admitted
+for Role Balance. Reuse that Event world rather than re-admitting it per row.
+-/
 private def openingBalanceRows
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (coordinates : List EffectCoordinate) : Except String (List Loam.BalanceReview.Row) := do
-  coordinates.mapM fun coordinate => do
-    let quantity ← inspectCurrentQuantity events corrections coordinate
-    return { coordinate := coordinate, quantity := quantity }
+    (frontier : EventMemory)
+    (coordinates : List EffectCoordinate) : List Loam.BalanceReview.Row :=
+  coordinates.map fun coordinate =>
+    {
+      coordinate := coordinate
+      quantity := EventMemory.quantityAtRecorded frontier coordinate.locus coordinate.measure
+    }
 
+/--
+All selected anchor coordinates belong to one `CurrentQuantityAnchor.Evidence`
+image, so its reflected-root cut is admitted once and shared across the bucket.
+-/
 private def currentAnchorRows
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
     (coordinates : List EffectCoordinate) : Except String (List Loam.BalanceReview.Row) := do
-  coordinates.mapM fun coordinate => do
-    let some quantity ← Loam.CurrentQuantityAnchor.inspectQuantity
-        events corrections currentAnchor coordinate
+  let quantities ←
+    Loam.CurrentQuantityAnchor.inspectQuantities
+      events corrections currentAnchor coordinates
+  (coordinates.zip quantities).mapM fun item => do
+    let coordinate := item.1
+    let some quantity := item.2
       | throw "loam: role balances unavailable: selected current anchor coordinate has no assertion"
     return { coordinate := coordinate, quantity := quantity }
 
@@ -347,9 +346,11 @@ def project
   let candidates := candidateCoordinates frontier evidence.coverage openingSupport currentAnchor
   let buckets := routeCandidates evidence.coverage openingSupport currentAnchor candidates
 
+  -- Keep zero-origin semantics owned by BalanceReview even though that boundary
+  -- independently re-admits the ordinary correction basis.
   let zeroBalances ← Loam.BalanceReview.project
     evidence.events evidence.corrections evidence.coverage buckets.zeroOrigin
-  let openingRows ← openingBalanceRows evidence.events evidence.corrections buckets.opening
+  let openingRows := openingBalanceRows frontier buckets.opening
   let anchorRows ← currentAnchorRows
     evidence.events evidence.corrections currentAnchor buckets.currentAnchor
   let balances : Loam.BalanceReview.Snapshot :=
