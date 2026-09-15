@@ -125,25 +125,30 @@ FLOW_DIAGRAMS = {
         ],
     },
     "09 Write Path Comparison": {
-        "description": "Cross-path comparison before promoting repeated write mechanics inward.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean",
-        "audit": "Repeated shape is evidence to investigate, not proof of one abstraction. Reversal adds a fourth topology: Scheduled lifecycle is locked and read as provenance evidence while only Actual is published. Fixed Scheduled-then-Actual ownership now appears across four paths and is a mechanics candidate, not yet one semantic operation.",
+        "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
-            ("action", "RECORD MOVEMENT\nActual + current Locus policy"),
-            ("action", "pure Movement admission\nfresh Event identity"),
-            ("action", "publish one complete Actual generation"),
-            ("action", "CORRECTION\nActual + current Locus policy"),
-            ("action", "correction-specific admission\ncurrent target + replacement Event"),
-            ("action", "publish one complete Actual generation"),
-            ("action", "SCHEDULED COMPLETION\nScheduled lifecycle + Actual + Locus policy"),
-            ("action", "completion-specific admission\nstable completion Event identity"),
-            ("action", "publish Scheduled terminal first\nthen publish Actual generation"),
-            ("action", "ACTUAL REVERSAL\nScheduled lifecycle + Actual + Locus policy"),
-            ("action", "exact-inverse admission\nScheduled provenance is read-only guard evidence"),
-            ("action", "publish one complete Actual generation\nScheduled authority remains unchanged"),
-            ("action", "SHARED ADMISSION LAW\nunearned collector EffectKeys remain anonymous"),
-            ("action", "COMMON MECHANICS CANDIDATES\nauthoritative reload, typed complete-image publication, fixed lock order"),
-            ("action", "DO NOT MERGE BY SHAPE\nauthority topology, semantic admission, crash / retry law"),
+            ("action", "CORRECTION\nEvent replacement"),
+            ("action", "retain target Event\nappend fresh replacement Event"),
+            ("action", "append EventCorrection\ntarget -> replacement"),
+            ("action", "Effects may change\ncurrent date is reused"),
+            ("action", "ACTUAL REVERSAL\ninverse Event append + provenance"),
+            ("action", "retain target Event\nappend deterministic inverse Event"),
+            ("action", "append ActualReversal\ntarget -> inverse"),
+            ("action", "Effects are exact physical inverse\ndate is independent"),
+            ("action", "DATE CORRECTION\nvalidity evidence revision"),
+            ("action", "preserve EventId + Event + Effects\npreserve Measure + Description"),
+            ("action", "append ActualValidity revision\nsame EventId, new date coordinate"),
+            ("action", "same date succeeds with NO WRITE"),
+            ("action", "CONFIRMED SHARED MECHANICS\nfixed Scheduled -> Actual ownership order"),
+            ("action", "CONFIRMED SHARED MECHANICS\nsparse Effect identity"),
+            ("action", "CONFIRMED SHARED MECHANICS\nmeasure-parametric practical Movement qualification"),
+            ("action", "CONFIRMED SHARED MECHANICS\nraw Correction-target membership"),
+            ("action", "KEEP LOCAL\nDate validity revision"),
+            ("action", "KEEP LOCAL\ntargetCurrent? operation-specific semantics"),
+            ("action", "DO NOT GLOBALIZE\nauthoritative reload / authority topology"),
+            ("action", "DO NOT GLOBALIZE\npublisher-wide admission / crash-retry law"),
         ],
     },
     "10.0 Record Movement": {
@@ -459,6 +464,65 @@ FLOW_DIAGRAMS = {
             ("action", "Return complete updated ActualEvidence"),
         ],
     },
+
+    "14.0 Correct Actual Date": {
+        "description": "End-to-end occurrence-date correction that preserves the selected Event identity and physical Movement.",
+        "sources": "Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "audit": "The TUI edits one date string only. Preview calendar validation is convenience; publication re-reads admitted ActualEvidence under Actual ownership. Event, Effects, Measure, and Description remain untouched.",
+        "nodes": [
+            ("action", "Select one visible current Actual"),
+            ("insertion", "ActualDateCorrection.initial?\nprefill visible current date"),
+            ("action", "Edit occurrence date only"),
+            ("decision", "Local calendar date valid?", "Keep editing\nshow validation notice"),
+            ("action", "Preview target EventId\ncurrent date -> proposed date"),
+            ("decision", "User chose Publish?", "Edit or Cancel\nno write"),
+            ("insertion", "HouseholdCommand.correctActualDate\nsurface-neutral command port"),
+            ("insertion", "ActualValidityPublisher\nacquire Actual writer ownership"),
+            ("insertion", "Re-read authoritative ActualEvidence"),
+            ("insertion", "Validity revision admission\nEventId remains stable"),
+            ("action", "Publish complete Actual generation\nonly when date changed"),
+            ("action", "Reload canonical Actual view"),
+        ],
+    },
+    "14.1 Authoritative Date Publish": {
+        "description": "Writer-owned publication seam for one Actual occurrence-date reaffirmation or revision.",
+        "sources": "Loam/HouseholdCommand.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "audit": "ActualAuthority.loadActual? already decodes and admits normalized Actual evidence, including validity history. No second publisher-local validity-frontier admission box is needed. Same-date requests are successful no-ops.",
+        "nodes": [
+            ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
+            ("insertion", "Acquire writer ownership\nactual.loam writer lock"),
+            ("insertion", "Load authoritative ActualEvidence"),
+            ("decision", "Actual authority decoded + admitted?", "Refuse\nmissing or malformed Actual"),
+            ("insertion", "ActualValidityPublisher.admit?\nagainst authoritative evidence"),
+            ("decision", "Date request admitted?", "Refuse\ndate-correction semantic guard failed"),
+            ("decision", "Date differs from current?", "Success / NO WRITE\nsame date reaffirmed"),
+            ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
+            ("decision", "Atomic publication succeeded?", "Refuse\nexisting authority remains intact"),
+            ("action", "Return success"),
+        ],
+    },
+    "14.2 Validity Revision": {
+        "description": "Date-only semantic revision for one current EventId inside admitted ActualEvidence.",
+        "sources": "Loam/ActualValidityPublisher.lean; Loam/ActualDate.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/ActualValidity.lean; Loam/Core/EventCorrection.lean",
+        "audit": "This operation changes one time coordinate, not the Event. Currentness depends only on retained EventId plus raw Correction-target membership. Reversal provenance is independent because Effects do not change.",
+        "nodes": [
+            ("decision", "Requested date is a real YYYY-MM-DD date?", "Refuse\ninvalid calendar date"),
+            ("decision", "Target EventId retained?", "Refuse\ntarget not retained"),
+            ("decision", "Target absent from Correction targets?", "Refuse\nselected Actual no longer current"),
+            ("insertion", "Resolve current validity frontier fact\nfor the same EventId"),
+            ("decision", "Current occurrence fact exists?", "Refuse\nno current occurrence date"),
+            ("decision", "Requested date differs from current?", "Success / NO WRITE\nsame date reaffirmed"),
+            ("action", "Allocate fresh ActualValidityRevisionId"),
+            ("decision", "Fresh revision identity available?", "Refuse\nidentity allocation failed"),
+            ("action", "Build revision fact\nsame EventId + requested date"),
+            ("insertion", "Append revision fact"),
+            ("decision", "Validity history accepts fact?", "Refuse\nrevision fact append failed"),
+            ("action", "Build validity correction edge\ncurrent fact -> revision id"),
+            ("insertion", "Append validity correction edge"),
+            ("decision", "Validity history accepts edge?", "Refuse\ncorrection edge append failed"),
+            ("action", "Return updated ActualEvidence\nonly validity field changed"),
+        ],
+    },
 }
 
 
@@ -575,7 +639,7 @@ def build():
             [("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "SPARK")],
         )
         db.execute("insert into state values (1,1,?)",
-                   ("LOAM System Map v0.7 - Actual Reversal and cross-path ownership observation",))
+                   ("LOAM System Map v0.8 - Actual Date Correction and mutation-shape comparison",))
 
         item_id = 1
         for name, entries, description in SIMPLE_DIAGRAMS:
@@ -611,6 +675,7 @@ def build():
         node_id = add_flow_folder(db, node_id, atlas_folder, "11 Correct Actual", "11.", diagram_ids)
         node_id = add_flow_folder(db, node_id, atlas_folder, "12 Complete Scheduled", "12.", diagram_ids)
         node_id = add_flow_folder(db, node_id, atlas_folder, "13 Reverse Actual", "13.", diagram_ids)
+        node_id = add_flow_folder(db, node_id, atlas_folder, "14 Correct Actual Date", "14.", diagram_ids)
 
         db.commit()
         db.execute("pragma page_size=512")
@@ -627,8 +692,9 @@ def build():
             raise SystemExit("missing source traceability metadata")
         if db.execute(
             "select count(*) from tree_nodes where type='folder' and name in "
-            "('10 Record Movement','11 Correct Actual','12 Complete Scheduled','13 Reverse Actual')"
-        ).fetchone()[0] != 4:
+            "('10 Record Movement','11 Correct Actual','12 Complete Scheduled','13 Reverse Actual',"
+            "'14 Correct Actual Date')"
+        ).fetchone()[0] != 5:
             raise SystemExit("write-path atlas folder mismatch")
 
     print(OUTPUT)
