@@ -37,8 +37,11 @@ def main : IO Unit := do
     "correction memory"
 
   let debt : EffectCoordinate := ⟨⟨"debt"⟩, ⟨"jpy"⟩⟩
+  let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
   let assertion : Loam.CurrentQuantityAnchor.Assertion :=
     { coordinate := debt, quantity := Quantity.ofQuanta (-70) }
+  let cashAssertion : Loam.CurrentQuantityAnchor.Assertion :=
+    { coordinate := cash, quantity := Quantity.ofQuanta 25 }
 
   let roots ← requireSome
     (Loam.Application.correctionRootIds? events corrections)
@@ -57,6 +60,21 @@ def main : IO Unit := do
     | throw (IO.userError "anchored assertion disappeared")
   expect (anchored.quanta == -60)
     "covered corrected root was counted again or later delta was lost"
+
+  -- Several assertions from one observation share the same reflected-root cut.
+  let multiAnchor ← requireSome
+    (Loam.CurrentQuantityAnchor.Evidence.ofLists? [old.id] [assertion, cashAssertion])
+    "multi-coordinate anchor"
+  let bulk ← requireOk
+    (Loam.CurrentQuantityAnchor.inspectQuantities events corrections multiAnchor [debt, cash])
+    "shared anchor quantities"
+  match bulk with
+  | [some bulkDebt, some bulkCash] =>
+      expect (bulkDebt.quanta == anchored.quanta)
+        "bulk anchor changed debt quantity"
+      expect (bulkCash.quanta == 25)
+        "bulk anchor changed independent cash assertion"
+  | _ => throw (IO.userError "bulk anchor did not preserve selected coordinates")
 
   -- Without the explicit cut, the same scalar assertion double-counts the corrected old root.
   let noCut ← requireSome
@@ -121,7 +139,10 @@ def main : IO Unit := do
     "publisher invented precedence over zero-origin support"
 
   let roles ← requireSome
-    (AccountingRoleMap.ofAssignments? [{ locus := ⟨"debt"⟩, role := .liability }])
+    (AccountingRoleMap.ofAssignments? [
+      { locus := ⟨"debt"⟩, role := .liability },
+      { locus := ⟨"cash"⟩, role := .asset }
+    ])
     "role map"
   let roleEvidence : Loam.BalanceReview.Evidence := {
     events := events
@@ -139,6 +160,19 @@ def main : IO Unit := do
   expect
     (!(roleSnapshot.unsupportedBalances.any fun row => row.coordinate = debt))
     "anchored debt remained unsupported"
+
+  let multiRoleSnapshot ← requireOk
+    (Loam.RoleBalanceReview.project
+      roleEvidence OpeningSupportMap.empty multiAnchor roles)
+    "role balance shared anchor composition"
+  let some multiDebt := multiRoleSnapshot.rows.find? fun row => row.coordinate = debt
+    | throw (IO.userError "shared anchored debt did not enter RoleBalance")
+  let some multiCash := multiRoleSnapshot.rows.find? fun row => row.coordinate = cash
+    | throw (IO.userError "shared anchored cash did not enter RoleBalance")
+  expect (multiDebt.quantity.quanta == -60)
+    "RoleBalance shared cut changed debt quantity"
+  expect (multiCash.quantity.quanta == 25)
+    "RoleBalance shared cut changed cash quantity"
 
   expect
     (match Loam.RoleBalanceReview.project
