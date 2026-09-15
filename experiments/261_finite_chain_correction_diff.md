@@ -1,6 +1,6 @@
 # Observation 261 — arbitrary finite correction-diff composition
 
-Status: **EXPERIMENT — Lean qualification pending**
+Status: **QUALIFIED by Lean 4.33.1**
 
 Baseline:
 
@@ -9,6 +9,23 @@ shumoku88-bit/loam
 main: aa0f2a441899ff0eac9b0cf3f6bd899a36b3cff1
 Observation 260 / PR #935 merged
 open PR: 0
+```
+
+Qualification:
+
+```text
+Selected Lean Observations
+run:    34998238875
+result: SUCCESS
+Lean:   4.33.1
+
+Compression Audit
+run:    34998238887
+result: SUCCESS
+
+Purpose Catalog Boundary
+run:    34998238873
+result: SUCCESS
 ```
 
 ## Trigger
@@ -37,7 +54,7 @@ The empty list is a zero-step chain. A nonempty list represents a selected finit
 
 This is intentionally **not** a new retained correction-chain authority. O261 studies the algebra of a selected Event sequence only.
 
-## Obligation DAG
+## Qualified obligation DAG
 
 ```text
 O260 two-step telescoping
@@ -73,16 +90,16 @@ chainDeltaSum first (next :: rest)
   + chainDeltaSum next rest
 ```
 
-Target law:
+Lean qualifies, for every finite selected sequence and every coordinate:
 
 ```text
-chainDeltaSum E0 [E1, ..., En]
-  = delta(E0, En)
+chainDeltaSum first rest coordinate
+  = delta(first, chainLast first rest)
 ```
 
-with the zero-step endpoint defined as `E0` itself.
+The zero-step case is included and yields exact zero endpoint delta.
 
-The proof should use O260 as the induction step rather than introduce a new algebra.
+The proof uses O260 as the induction step rather than introducing a new algebra.
 
 ## O261-2 — arbitrary finite step support
 
@@ -97,7 +114,15 @@ chainStepChangedCoordinates first (next :: rest)
       ++ chainStepChangedCoordinates next rest)
 ```
 
-Every nonzero direct endpoint delta should occur in this finite union.
+Lean qualifies:
+
+```text
+endpoint delta != 0
+->
+coordinate appears in chainStepChangedCoordinates
+```
+
+Therefore a nonzero endpoint change cannot arise outside the finite union of adjacent step diffs.
 
 ## O261-3 — exact composed chain support
 
@@ -109,7 +134,7 @@ chainComposedChangedCoordinates
       |> filter (chainDeltaSum != 0)
 ```
 
-Target exact law:
+Lean qualifies the exact support law:
 
 ```text
 coordinate in chainComposedChangedCoordinates first rest
@@ -117,9 +142,9 @@ coordinate in chainComposedChangedCoordinates first rest
 coordinate in changedCoordinates first (chainLast first rest)
 ```
 
-List order is deliberately outside the claim.
+List order is deliberately outside the claim. Semantic membership is exact.
 
-## Selected three-step witness
+## Qualified three-step witness
 
 Two coordinates are used across:
 
@@ -143,7 +168,7 @@ Step deltas:
 sum = 0
 ```
 
-Expected: the coordinate appears in step history but disappears from the endpoint support.
+Lean qualifies that the pulse coordinate appears in step history but disappears from the composed endpoint support.
 
 ### Net coordinate
 
@@ -161,11 +186,11 @@ Step deltas:
 sum = +20
 ```
 
-Expected: the coordinate survives both the composed support and direct endpoint support.
+Lean qualifies that the net coordinate survives both the composed support and the direct endpoint support.
 
-## Intended boundary
+## Qualified boundary
 
-If qualified:
+Observation 261 establishes:
 
 ```text
 arbitrary finite endpoint quantity diff
@@ -174,9 +199,16 @@ arbitrary finite endpoint quantity diff
     + zero-sum cancellation
 ```
 
-No persistent chain-diff state, cross-Event Effect lineage, global EffectId, or label-composition ontology is required.
+No persistent chain-diff state, cross-Event Effect lineage, global EffectId, or label-composition ontology is required merely to calculate the endpoint quantity diff of a selected finite sequence.
 
-However, this does not establish that an arbitrary `List Event` is a valid retained correction chain. It proves only the algebra of a selected sequence.
+Combined with O260:
+
+```text
+local two-step composition law
+    closes under arbitrary finite repetition
+```
+
+However, this does **not** establish that an arbitrary `List Event` is a valid retained correction chain. It proves only the algebra of a selected sequence.
 
 A separate future observation may ask whether `EventCorrection` evidence itself determines a unique safe chain or frontier and what happens under branching, missing targets, or replacement cycles.
 
