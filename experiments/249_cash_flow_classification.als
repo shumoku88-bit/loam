@@ -6,6 +6,15 @@ one sig AssetRole, LiabilityRole, EquityRole, IncomeRole, ExpenseRole extends Ac
 abstract sig CashFlowClass {}
 one sig Operating, Investing, Financing extends CashFlowClass {}
 
+/--
+Two exact incidence quantities are enough for this distinguishability probe.
+Their arithmetic is deliberately outside the model: both worlds receive the same
+cash-outflow / counterpart-inflow shape, so quantity arithmetic cannot explain a
+difference in cash-flow classification.
+-/
+abstract sig SignedQuantity {}
+one sig CashOut, CounterpartIn extends SignedQuantity {}
+
 abstract sig EconomicKind {
   accountingRole: one AccountingRole,
   cashFlowClass: one CashFlowClass
@@ -28,20 +37,17 @@ fact QualifiedExamples {
 
 abstract sig World {
   kind: one EconomicKind,
-  cashDelta: one Int,
-  counterpartDelta: one Int,
+  cashQuantity: one SignedQuantity,
+  counterpartQuantity: one SignedQuantity,
   explicitCashFlowClass: lone CashFlowClass
 }
 
 one sig Left, Right extends World {}
 
-fact BalancedCashOutflow {
+fact SameCashOutflowShape {
   all w: World | {
-    w.cashDelta < 0
-    w.counterpartDelta > 0
-    w.cashDelta = 0 - w.counterpartDelta
-    w.cashDelta >= -6
-    w.counterpartDelta <= 6
+    w.cashQuantity = CashOut
+    w.counterpartQuantity = CounterpartIn
   }
 }
 
@@ -54,8 +60,8 @@ fun requiredCashFlowClass[w: World]: one CashFlowClass {
 }
 
 pred sameCurrentLoamEvidence[a, b: World] {
-  a.cashDelta = b.cashDelta
-  a.counterpartDelta = b.counterpartDelta
+  a.cashQuantity = b.cashQuantity
+  a.counterpartQuantity = b.counterpartQuantity
   counterpartRole[a] = counterpartRole[b]
 }
 
@@ -87,7 +93,7 @@ assert ExplicitCashFlowClassificationDeterminesReportClass {
     requiredCashFlowClass[Left] = requiredCashFlowClass[Right]
 }
 
-run sameAssetRoleEvidenceDifferentCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 4 EconomicKind, 5 Int
-run sameLiabilityRoleEvidenceDifferentCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 4 EconomicKind, 5 Int
-check CurrentLoamEvidenceDeterminesCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 4 EconomicKind, 5 Int
-check ExplicitCashFlowClassificationDeterminesReportClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 4 EconomicKind, 5 Int
+run sameAssetRoleEvidenceDifferentCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 2 SignedQuantity, exactly 4 EconomicKind
+run sameLiabilityRoleEvidenceDifferentCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 2 SignedQuantity, exactly 4 EconomicKind
+check CurrentLoamEvidenceDeterminesCashFlowClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 2 SignedQuantity, exactly 4 EconomicKind
+check ExplicitCashFlowClassificationDeterminesReportClass for exactly 2 World, exactly 5 AccountingRole, exactly 3 CashFlowClass, exactly 2 SignedQuantity, exactly 4 EconomicKind
