@@ -1,4 +1,3 @@
-import Std.Tactic.Omega
 import Loam.Observations.Observation259
 
 namespace Loam.Observation260
@@ -26,6 +25,17 @@ def composedDeltaQuantaAt
   Loam.Observation258.quantityDeltaQuantaAt first middle coordinate +
     Loam.Observation258.quantityDeltaQuantaAt middle last coordinate
 
+/-- Elementary integer telescoping, kept local so O260 needs no extra tactic package. -/
+private theorem int_delta_compose (first middle last : Int) :
+    last - first = (middle - first) + (last - middle) := by
+  calc
+    last - first = (last - middle + middle) - first := by
+      rw [Int.sub_add_cancel]
+    _ = (last - middle) + (middle - first) := by
+      rw [Int.add_sub_assoc]
+    _ = (middle - first) + (last - middle) := by
+      rw [Int.add_comm]
+
 /--
 Pointwise telescoping law: direct endpoint delta equals the sum of step deltas.
 No Effect lineage, identity matching, or chronology beyond the selected
@@ -37,7 +47,10 @@ theorem quantityDeltaQuantaAt_compose
       composedDeltaQuantaAt first middle last coordinate := by
   unfold composedDeltaQuantaAt Loam.Observation258.quantityDeltaQuantaAt
     Loam.Observation257.quantityDeltaQuanta
-  omega
+  exact int_delta_compose
+    (Event.quantityAt first coordinate.locus coordinate.measure).quanta
+    (Event.quantityAt middle coordinate.locus coordinate.measure).quanta
+    (Event.quantityAt last coordinate.locus coordinate.measure).quanta
 
 /-- Finite coordinate support exposed by either step diff. -/
 def stepChangedCoordinates
