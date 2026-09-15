@@ -160,10 +160,7 @@ def loadSnapshotAt
   let actualEvidence ←
     match ← Loam.ActualAuthority.loadActualFile? path with
     | .ok ev => pure ev
-    | .error message =>
-        match ← Loam.ActualAuthority.loadActual? dataDir with
-        | .ok ev => pure ev
-        | .error _ => return .error message
+    | .error message => return .error message
   let validities ←
     match admittedActualValidityMemory? actualEvidence.validity with
     | some memory => pure memory
