@@ -293,8 +293,8 @@ theorem actionablePressure_eq_rows_sum
   | nil =>
       simp [unrouted, unresolvedEligibility, unresolvedRows, actionableRows]
   | cons row rest ih =>
-      cases row.pressure <;>
-        simp [unrouted, unresolvedEligibility, unresolvedRows, actionableRows, ih] <;>
+      cases hpressure : row.pressure <;>
+        simp [unrouted, unresolvedEligibility, unresolvedRows, actionableRows, hpressure, ih] <;>
         omega
 
 end ScheduledPressurePartition
