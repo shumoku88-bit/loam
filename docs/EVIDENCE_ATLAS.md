@@ -200,8 +200,6 @@ LOAM remains an ongoing personal project and research environment.
 
 LOAM is developed in public.
 
-If the work is useful or interesting, sponsorship can help support continued development, experiments, and documentation.
-
 I may also be interested in small, clearly scoped investigations of existing software, such as one read path, write path, authority boundary, or branch-heavy subsystem.
 
 The aim would not be certification or complete formal verification.
