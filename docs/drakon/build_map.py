@@ -429,7 +429,7 @@ FLOW_DIAGRAMS = {
             ("insertion", "Load authoritative ActualEvidence"),
             ("decision", "Actual authority decoded?", "Refuse\nmissing / malformed Actual"),
             ("insertion", "Load current Locus admission policy"),
-            ("decision", "Locus policy decoded?", "Refuse\nmissing or malformed policy"),
+            ("decision", "Locus policy decoded?", "Refuse\nmissing / malformed policy"),
             ("insertion", "Load Scheduled lifecycle image"),
             ("decision", "Lifecycle decoded?", "Refuse\nmissing / malformed Scheduled authority"),
             ("insertion", "ActualReversalPublisher.admit?\nagainst all three authoritative views"),
