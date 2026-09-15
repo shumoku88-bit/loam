@@ -37,14 +37,13 @@ structure Column where
 /--
 One explicit Transactions-Flow window.
 
-Cells are not retained. They are derived from the selected Events with
-`Event.quantityAt`, keeping the review surface small and preventing a second
-stored posting representation.
+Cells and row coordinates are not retained. They are derived from the selected
+Events, keeping the review surface small and preventing a second stored posting
+representation.
 -/
 structure Snapshot where
   start : String
   endExclusive : String
-  rows : List EffectCoordinate
   columns : List Column
 
 /-- Two-sided activity at one exact coordinate across the selected Event columns. -/
@@ -106,6 +105,10 @@ private def rowsFromColumns (columns : List Column) : List EffectCoordinate :=
     |>.eraseDups
     |>.mergeSort coordinateLe
 
+/-- Exact represented row coordinates, derived from the selected Event columns. -/
+def Snapshot.rows (snapshot : Snapshot) : List EffectCoordinate :=
+  rowsFromColumns snapshot.columns
+
 private def columnOfRecord? (record : Loam.ActualReview.Record) : Option Column := do
   let date ← record.date
   some {
@@ -141,7 +144,6 @@ def project
   return {
     start := start
     endExclusive := endExclusive
-    rows := rowsFromColumns columns
     columns := columns
   }
 
