@@ -83,6 +83,60 @@ def main (args : List String) : IO Unit := do
   let cashRow ← requireSome (findRow? snapshot "cash") "missing cash row"
   expect (cashRow.quantity.quanta == 0) "explicit covered zero disappeared"
 
+  let wallet : EffectCoordinate := ⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩
+  let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
+  let food : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
+
+  -- A valid correction world is admitted once and shared by every covered row.
+  let validCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := ⟨"opening"⟩, replacement := ⟨"actual-1"⟩ }])
+    "valid correction memory"
+  let .ok correctedSnapshot :=
+      Loam.BalanceReview.project world.events validCorrections validCoverage [wallet, cash]
+    | throw (IO.userError "shared correction basis refused valid rows")
+  let correctedWallet ← requireSome (findRow? correctedSnapshot "wallet")
+    "missing corrected wallet row"
+  expect (correctedWallet.quantity.quanta == -30)
+    "shared correction basis did not project the admitted Event frontier"
+  let correctedCash ← requireSome (findRow? correctedSnapshot "cash")
+    "missing corrected cash row"
+  expect (correctedCash.quantity.quanta == 0)
+    "shared correction basis lost an explicitly covered zero"
+
+  -- Empty selection remains lazy: malformed correction topology is irrelevant
+  -- when no balance row is requested.
+  let brokenCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := ⟨"opening"⟩, replacement := ⟨"missing"⟩ }])
+    "broken correction memory"
+  expect
+    ((Loam.BalanceReview.project world.events brokenCorrections validCoverage []).isOk)
+    "empty Balance Review forced an unused correction obligation"
+
+  -- Refusal ordering is part of the qualified boundary. An uncovered first row
+  -- refuses before the shared correction world is forced.
+  match Loam.BalanceReview.project
+      world.events brokenCorrections validCoverage [food, wallet] with
+  | .error message =>
+      expect
+        (message ==
+          "loam: balances unavailable: zero-origin coverage missing for food / jpy")
+        "uncovered-first Balance Review changed refusal ordering"
+  | .ok _ =>
+      throw (IO.userError "uncovered-first Balance Review unexpectedly succeeded")
+
+  -- Once the first row is covered, correction admission still precedes all later
+  -- row gates, matching the former row-local inspection path.
+  match Loam.BalanceReview.project
+      world.events brokenCorrections validCoverage [wallet, food] with
+  | .error message =>
+      expect
+        (message == "loam: balances unavailable: correction references are not closed")
+        "covered-first Balance Review changed correction refusal ordering"
+  | .ok _ =>
+      throw (IO.userError "covered-first broken correction unexpectedly succeeded")
+
   -- Caller-selected Actual authority is exact; a missing selected root must not
   -- silently fall back to the valid Actual authority under dataDir.
   let missingSelectedRoot := root / "missing-selected-actual"
@@ -116,4 +170,4 @@ def main (args : List String) : IO Unit := do
   expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
 
   IO.println
-    "Balance Review: exact Actual authority, zero-origin coverage, independent view selection and fail-closed Event corrections passed."
+    "Balance Review: shared correction basis, refusal ordering, exact Actual authority, zero-origin coverage and fail-closed corrections passed."

@@ -94,6 +94,7 @@ Deeply mapped:
   - per-coordinate zero-origin gate
   - correction-world quantity obligation
   - cross-row shared-obligation pressure
+  - qualified shared correction-aware quantity basis
 - Current Coverage
   - read boundary
   - per-Purpose projection
@@ -138,7 +139,8 @@ Audit obligation DAGs:
   - one shared Event/correction quantity world
   - coordinate-local quantity projection
   - row justification
-  - refusal-order constraint on any future sharing
+  - refusal-order constraint on sharing
+  - qualified production factorization in G2-003
 
 Obligation-style decomposition has also been useful during analysis of:
 
@@ -244,19 +246,19 @@ semantics begin admitting branching correction relations.
 
 Primary instruments: **DRAKONview + proof-obligation DAG**.
 
-The DRAKON pass separates three scales that are nested in the current source:
+The DRAKON pass separates three scales that are nested in the G2-002 source:
 
 - evidence/config work performed once for the answer;
 - the coordinate-local zero-origin gate;
 - correction-world admission reached from inside each covered row.
 
-`BalanceReview.collectRows` calls `inspectZeroOriginQuantity` for each selected
-coordinate. A covered coordinate delegates to `inspectQuantity`. When correction
-facts exist, that in turn checks correction-reference closure and asks
+`BalanceReview.collectRows` called `inspectZeroOriginQuantity` for each selected
+coordinate. A covered coordinate delegated to `inspectQuantity`. When correction
+facts existed, that in turn checked correction-reference closure and asked
 `correctionFrontierMemory?` for one admitted Event frontier before projecting the
 coordinate quantity.
 
-The DAG exposes an important factorization. For coordinate `c`, row success
+The DAG exposed an important factorization. For coordinate `c`, row success
 requires:
 
 ```text
@@ -269,32 +271,87 @@ quantity(c, sharedQuantityWorld)
 
 Only the first and third obligations depend on `c`. The correction world depends
 only on the shared Event/correction memories supplied to the whole
-`BalanceReview.project` call. Therefore the current row loop re-evaluates one
+`BalanceReview.project` call. The G2-002 row loop therefore re-evaluated one
 query-global obligation for every covered coordinate.
 
 This is structurally analogous to earlier Current Coverage pressure where
 query-global Scheduled work had leaked into Purpose-local projection.
 
-The DAG also prevents an unsafe eager refactor. Current rows are inspected
-left-to-right. An uncovered earlier coordinate can refuse before correction
-admission is attempted, while an earlier covered coordinate can expose a
-correction failure before a later uncovered coordinate is reached. Hoisting
-correction admission ahead of every zero-origin gate would therefore change
-observable refusal ordering.
+The DAG also prevented an unsafe eager refactor. Rows are inspected left-to-right.
+An uncovered earlier coordinate can refuse before correction admission is
+attempted, while an earlier covered coordinate can expose a correction failure
+before a later uncovered coordinate is reached. Hoisting correction admission
+ahead of every zero-origin gate would therefore change observable refusal
+ordering.
 
-Verdict: **SIMPLIFY CANDIDATE CONFIRMED; production change deferred to
+Verdict at G2-002: **SIMPLIFY CANDIDATE CONFIRMED; production change deferred to
 qualification**.
-
-The smallest behavior-preserving candidate is lazy sharing: resolve the
-correction quantity basis on the first covered row that needs it, then reuse that
-basis for subsequent covered rows. Earlier uncovered rows continue to refuse
-before the shared obligation is forced. Do not create a public inspection context
-or general Evidence abstraction unless a second production consumer independently
-earns the same prepared-basis need.
 
 The detailed DAG and refusal-order examples live in
 `docs/research/BALANCE_REVIEW_OBLIGATION_DAG.md`. The DRAKON audit map is generated
 by `docs/drakon/build_balance_review_audit_map.py`.
+
+### G2-003 — qualify one shared Balance Review correction basis
+
+Primary instruments: **DRAKONview + proof-obligation DAG + Lean production tests**.
+
+The G2-002 lazy-cache sketch can be simplified further. An uncovered coordinate
+terminates `BalanceReview.project` immediately, so a non-empty projection reaches
+any later row only after the **first** coordinate has passed zero-origin coverage.
+There is no need to thread an Option cache, thunk, or new inspection context
+through recursion.
+
+The qualified production shape is:
+
+```text
+eraseDups coordinates
+
+empty?
+    yes -> return empty Snapshot
+
+first coordinate covered?
+    no  -> return its zero-origin diagnostic
+    yes -> resolve one correction-aware Event quantity basis
+
+basis admitted?
+    no  -> return the existing correction diagnostic
+    yes -> project first row
+
+remaining coordinates, left-to-right
+    uncovered -> return that zero-origin diagnostic
+    covered   -> project from the SAME Event basis
+```
+
+`BalanceReview` now keeps this factorization private. It calls the existing
+`correctionReferencesClosed` and `correctionFrontierMemory?` admission primitives
+once per non-empty, first-covered projection and continues to delegate arithmetic
+to `EventMemory.quantityAtRecorded`. No public Evidence API, prepared inspection
+context, or second quantity arithmetic engine was introduced.
+
+The qualification test pins four distinguishing cases:
+
+- valid correction evidence with multiple covered coordinates;
+- empty selection with a broken correction endpoint, which must not force the
+  unused correction obligation;
+- `[uncovered, covered]` with broken correction evidence, which must return the
+  first zero-origin diagnostic;
+- `[covered, uncovered]` with broken correction evidence, which must return the
+  correction diagnostic before the later coverage gate.
+
+CI qualification for PR #916 succeeded across:
+
+- Compression Audit;
+- Selected Lean Observations;
+- Cycle Funding Inspection;
+- Accounting Projection Basis;
+- Production TUI, including the Balance Review build, Balance Review execution
+  test, Balances workspace, and downstream Stock-Flow / Transactions-Flow paths.
+
+Verdict: **SIMPLIFY QUALIFIED**.
+
+This is the first Generation-2 case where the DRAKON/DAG observation directly
+reduced repeated production semantic work while the DAG also supplied the edge
+that constrained the safe implementation order.
 
 ## Initial direction
 
