@@ -56,7 +56,10 @@ def eraseEventEffectIdentity (event : Event) : Event :=
   { id := event.id
     effects := event.effects.map eraseEffectIdentity
     keyNodup := by
-      simp [retainedEffectKeys, eraseEffectIdentity] }
+      induction event.effects with
+      | nil => simp [retainedEffectKeys]
+      | cons effect rest ih =>
+          simp [retainedEffectKeys, eraseEffectIdentity, ih] }
 
 @[simp] theorem eraseEventEffectIdentity_id (event : Event) :
     (eraseEventEffectIdentity event).id = event.id :=
@@ -68,7 +71,10 @@ def eraseEventEffectIdentity (event : Event) : Event :=
 
 @[simp] theorem eraseEventEffectIdentity_retainedKeys (event : Event) :
     retainedEffectKeys (eraseEventEffectIdentity event).effects = [] := by
-  simp [eraseEventEffectIdentity, retainedEffectKeys, eraseEffectIdentity]
+  induction event.effects with
+  | nil => simp [eraseEventEffectIdentity, retainedEffectKeys]
+  | cons effect rest ih =>
+      simp [eraseEventEffectIdentity, retainedEffectKeys, eraseEffectIdentity, ih]
 
 private theorem quantityFold_eraseIdentity
     (effects : List Effect) (locus : LocusId) (measure : MeasureId) :
@@ -173,6 +179,6 @@ theorem identify_changes_reference_not_physical_observation
     (Effect.identify effect key).key = some key ∧
       (Effect.identify effect key).coordinate = effect.coordinate ∧
       (Effect.identify effect key).quantity = effect.quantity := by
-  simp [Effect.identify]
+  exact ⟨rfl, rfl, rfl⟩
 
 end Loam.Observation255
