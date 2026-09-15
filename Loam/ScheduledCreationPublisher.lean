@@ -90,10 +90,8 @@ private def publishUnderOwnership
   match lifecycleReadable? lifecycle evidence.events with
   | .error message => return .error message
   | .ok () => pure ()
-  let scheduledId ←
-    match Loam.ScheduledOccurrenceConstruction.freshId? lifecycle.scheduled with
-    | some id => pure id
-    | none => return .error "loam: could not generate a fresh Scheduled identity"
+  let scheduledId :=
+    Loam.ScheduledOccurrenceConstruction.freshId lifecycle.scheduled
   let occurrence : ScheduledOccurrence String := {
     id := scheduledId
     scheduledOn := draft.scheduledOn
