@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the first LOAM read-path DRAKON atlas.
+"""Build the LOAM read-path DRAKON atlas.
 
 This atlas is deliberately separate from ``loam-system-map.drn`` while the
-read-side visual vocabulary is still being audited.  It reuses the stable DRAKON
+read-side visual vocabulary is still being audited. It reuses the stable DRAKON
 SQLite helpers from ``build_map.py`` but does not change production code or make
 this diagram a semantic authority.
 """
@@ -17,9 +17,9 @@ OUTPUT = HERE / "loam-read-path-map.drn"
 
 READ_FLOW_DIAGRAMS = {
     "07.0 Read Path Comparison": {
-        "description": "First read-side atlas: compare how production answers are derived without introducing report authority.",
+        "description": "Read-side atlas: compare how production answers are derived without introducing report authority.",
         "sources": "Loam/ActualReview.lean; Loam/BalanceReview.lean; Loam/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/TransactionsFlowReview.lean; Loam/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
-        "audit": "Read answers should expose dependency shape, refusal boundaries, and repeated projection work. This first atlas is intentionally incomplete; Current Coverage is the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
+        "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage remains the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
         "nodes": [
             ("action", "ACTUAL REVIEW\ncorrection-aware current records"),
             ("action", "BALANCE / ROLE BALANCE\nquantity support + role evidence"),
@@ -27,13 +27,13 @@ READ_FLOW_DIAGRAMS = {
             ("action", "BUDGET WINDOW\nhistorical bounded projection"),
             ("action", "CURRENT COVERAGE\nCapacity + Actual + Scheduled"),
             ("action", "CYCLE BUDGET\nindependent visible read failures"),
-            ("action", "AUDIT TARGET\nlook for repeated evidence selection and mixed local/global work"),
+            ("action", "AUDIT TARGET\nseparate production lanes from compatibility lanes"),
         ],
     },
     "07.7.1 Current Coverage Read Boundary": {
-        "description": "Production CurrentCoverageReview.loadSnapshotAt path from explicit coordinates to one immutable answer.",
-        "sources": "Loam/CurrentCoverageReview.lean; Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
-        "audit": "The current implementation derives actionable unresolved Scheduled rows once globally, but projectPurpose? also returns the same Scheduled frontier with every Purpose row. The copies are checked by consistentFrontier and only the first is retained. This is an observation, not yet a refactor conclusion.",
+        "description": "Production CurrentCoverageReview.loadSnapshotAt after the Scheduled-pressure single-partition refactor.",
+        "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "audit": "Scheduled lifecycle selection and routing/role classification now happen once per snapshot. Query-global frontiers and actionable rows are projected once from that partition; Purpose rows read only managed Commitment from the shared partition. No per-Purpose frontier copies or consistency repair remain.",
         "nodes": [
             ("decision", "Current window coordinates are valid and ordered?", "Refuse\ninvalid current coverage coordinates"),
             ("insertion", "Load CapacityAuthority\nmovements + effective evidence"),
@@ -42,51 +42,77 @@ READ_FLOW_DIAGRAMS = {
             ("decision", "One current date per Event justified?", "Refuse\ninvalid Actual validity frontier"),
             ("insertion", "Load Actual routing + Scheduled lifecycle\n+ Scheduled routing + AccountingRole"),
             ("decision", "All required read authorities decode?", "Refuse\nmalformed or unsupported evidence"),
-            ("insertion", "currentActionableScheduledPressure?\nGLOBAL unresolved Scheduled rows"),
-            ("decision", "Actionable Scheduled pressure justified?", "Refuse\nScheduled pressure unresolved structurally"),
+            ("insertion", "currentScheduledPressurePartition?\nselect + classify Scheduled ONCE"),
+            ("decision", "One current-open Scheduled partition justified?", "Refuse\nScheduled pressure not justified"),
+            ("action", "Project query-global answers ONCE\nfrontier + actionable rows"),
             ("action", "Recover remembered Purposes\nfrom Capacity memory"),
-            ("insertion", "For each Purpose: projectPurpose?\nrow + Scheduled frontier"),
+            ("insertion", "For each Purpose: managedFor pressure\n+ Capacity/Actual projection"),
             ("decision", "Every Purpose projection succeeds?", "Refuse\ncoverage not justified for one Purpose"),
-            ("decision", "All per-Purpose frontier copies equal?\nconsistentFrontier", "Refuse\nScheduled frontier changed across Purpose projections"),
-            ("action", "Return Snapshot\nrows + first frontier + global unresolved rows"),
+            ("action", "Return Snapshot\nrows + one frontier + actionable rows"),
         ],
     },
     "07.7.2 Per-Purpose Coverage Projection": {
-        "description": "One CurrentCoverageReview.projectPurpose? call and the Application composition beneath it.",
+        "description": "One CurrentCoverageReview.projectPurpose? call after Scheduled partitioning has already completed.",
         "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/CapacityWindowInspection.lean; Loam/Application/ConsumptionInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean",
-        "audit": "Entitlement, Consumption, and managed Commitment are Purpose-local. Remaining and Headroom are derived accessors. The returned Scheduled frontier is bundled beside the Purpose row even though its unmanaged, unrouted, and unresolved-eligibility totals do not depend on the queried Purpose.",
+        "audit": "The Purpose-local projection now receives only one managed Commitment derived from the shared Scheduled partition. Entitlement, Consumption, and managed Commitment are independent inputs; Remaining and Headroom are derived accessors. No query-global Scheduled frontier is carried through this lane.",
         "nodes": [
-            ("action", "Select one Purpose + JPY\ninside explicit current window"),
+            ("action", "Select one Purpose + JPY\ninside explicit current elapsed window"),
+            ("insertion", "managedFor shared Scheduled partition\nPurpose-local Commitment only"),
             ("insertion", "Consumption\ncorrection frontier + historical Actual routing"),
             ("decision", "Consumption justified?", "No per-Purpose projection"),
-            ("insertion", "Scheduled Commitment\ncurrent-open lifecycle + routing + roles"),
-            ("decision", "Scheduled Commitment justified?", "No per-Purpose projection"),
             ("insertion", "Entitlement\neffective Capacity through observedAt"),
             ("decision", "Entitlement justified?", "No per-Purpose projection"),
-            ("action", "Assemble CurrentCoverageView\nentitlement + consumption + managed commitment"),
+            ("action", "Assemble CurrentCoverageView\nentitlement + consumption + commitment"),
             ("action", "Derive Remaining / Headroom on read\nnever retain them"),
-            ("action", "Build Row\nPurpose-local independent quantities"),
-            ("action", "Build ScheduledFrontier\nunmanaged + unrouted + unresolved eligibility"),
-            ("action", "Return ProjectedRow\nlocal Row + global-shaped frontier"),
+            ("action", "Return Row\nPurpose-local quantities only"),
         ],
     },
     "07.7.3 Scheduled Pressure Partition": {
-        "description": "How one current-open Scheduled selection becomes managed Commitment plus visible pressure frontiers.",
+        "description": "One current-open Scheduled selection and classification feeding all pressure projections.",
         "sources": "Loam/Application/ScheduledCommitmentInspection.lean; Loam/Application/ScheduledInspection.lean; Loam/Core/ScheduledRouting.lean; Loam/Core/AccountingRole.lean",
-        "audit": "Selected Scheduled coordinates and their pressure class are query-global for a fixed Measure and horizon. Only the managed total asks whether routedPurpose equals the queried Purpose. Unmanaged, unroutedPressure, and unresolvedEligibility totals are invariant under the queried Purpose; resolved non-pressure contributes nowhere.",
+        "audit": "Selected Scheduled coordinates and pressure classes are query-global for a fixed Measure and horizon. Purpose affects only managedFor. Aggregate unresolved eligibility is derived from unresolved rows, and actionable rows share the same classified partition rather than re-running selection or classification.",
         "nodes": [
             ("insertion", "Resolve currentOpenScheduled\ncurrent lifecycle only"),
-            ("decision", "One current-open Scheduled set justified?", "No Commitment view"),
+            ("decision", "One current-open Scheduled set justified?", "No pressure partition"),
             ("action", "Enumerate selected positive coordinates\nMeasure + horizon + Locus aggregation"),
-            ("insertion", "classifyScheduledPressure\nusing routing status then AccountingRole fallback"),
-            ("action", "managed(routedPurpose)\nadd only when routedPurpose = queried Purpose"),
-            ("action", "unmanaged\nadd to query-global unmanaged total"),
-            ("action", "unroutedPressure\nadd to query-global unrouted total"),
-            ("action", "unresolvedEligibility\nadd to query-global unresolved total"),
-            ("action", "resolvedNonPressure\ncontributes no pressure"),
-            ("action", "Return ScheduledCommitmentView\nmanaged + three visible frontiers"),
-            ("action", "Separate actionable-row projection\nreuses the same selection/classification semantics"),
-            ("action", "Lean law\nunresolved row sum = aggregate unresolved total"),
+            ("insertion", "classifyScheduledPressure ONCE\nrouting status then AccountingRole fallback"),
+            ("action", "ScheduledPressurePartition\none classified row per selected coordinate"),
+            ("action", "managedFor Purpose\nonly Purpose-dependent projection"),
+            ("action", "unmanaged / unrouted\nquery-global aggregates"),
+            ("action", "unresolvedRows\ncanonical unresolved subjects"),
+            ("action", "unresolvedEligibility\nSUM of unresolvedRows"),
+            ("action", "actionableRows\nunrouted + unresolved subjects"),
+            ("action", "Lean laws\nrow sums = aggregate frontiers"),
+        ],
+    },
+    "07.7.4 Current Coverage Compatibility Entrances": {
+        "description": "Application compatibility wrappers that still accept raw Scheduled evidence for one Purpose at a time.",
+        "sources": "Loam/Application/CurrentCoverageInspection.lean; Loam/Tests/CurrentCoverageInspection.lean; Loam/Tests/CounterpointFiveWorlds.lean; Loam/Tests/FourVoiceCompatibilityV1.lean; Loam/Tests/FourVoiceCompatibilityV2.lean; Loam/Tests/FourVoiceCompatibilityV3.lean",
+        "audit": "Production CurrentCoverageReview no longer uses these wrappers. The generic currentCoverageAtCorrectionFrontier? remains exercised by compatibility and regression tests; the EffectiveRouting wrapper currently appears isolated from production. Audit whether these entrances are still earned contracts or historical composition shells before deleting anything.",
+        "nodes": [
+            ("action", "Caller already asks ONE Purpose\nand supplies raw Scheduled evidence"),
+            ("insertion", "currentScheduledCommitment?\nresolve + select + classify for this call"),
+            ("decision", "Scheduled Commitment justified?", "No compatibility answer"),
+            ("action", "Take commitment.managed\ndiscard global frontiers here"),
+            ("insertion", "WithCommitment helper\nCapacity + Actual + managed Commitment"),
+            ("decision", "Capacity / Actual projection justified?", "No compatibility answer"),
+            ("action", "Return CurrentCoverageView\nPurpose-local answer"),
+            ("action", "AUDIT QUESTION\nis this raw-Scheduled entrance still an earned public contract?"),
+        ],
+    },
+    "07.7.5 Headroom Compatibility Composition": {
+        "description": "Legacy all-current Remaining plus current-open Scheduled Headroom composition after derived-field compression.",
+        "sources": "Loam/Application/ScheduledCommitmentInspection.lean; Loam/Application/ConsumptionInspection.lean; Loam/Tests/ScheduledCommitmentHeadroom.lean; Loam/Tests/ScheduledReplacementReaders.lean",
+        "audit": "This boundary uses a different coordinate composition from windowed Current Coverage, so it remains semantically distinct. HeadroomView now retains only independent Remaining plus ScheduledCommitmentView; commitment, headroom, and global pressure aliases are derived and cannot contradict their components.",
+        "nodes": [
+            ("insertion", "remainingAtCorrectionFrontier?\nall-current Actual Remaining"),
+            ("decision", "Remaining justified?", "No Headroom answer"),
+            ("insertion", "currentScheduledCommitment?\ncurrent-open future pressure"),
+            ("decision", "Scheduled pressure justified?", "No Headroom answer"),
+            ("action", "Retain HeadroomView\nremaining + ScheduledCommitmentView"),
+            ("action", "Derive commitment\nfrom scheduled.managed"),
+            ("action", "Derive headroom\nremaining - commitment"),
+            ("action", "Derive global pressure aliases\nfrom retained Scheduled answer"),
         ],
     },
 }
@@ -112,7 +138,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.1 - Current Coverage observation",),
+            ("LOAM Read Path Atlas v0.2 - production and compatibility lanes",),
         )
 
         item_id = 1
@@ -136,6 +162,8 @@ def build() -> None:
             "07.7.1 Current Coverage Read Boundary",
             "07.7.2 Per-Purpose Coverage Projection",
             "07.7.3 Scheduled Pressure Partition",
+            "07.7.4 Current Coverage Compatibility Entrances",
+            "07.7.5 Headroom Compatibility Composition",
         ]:
             node_id = base.add_tree_node(
                 db, node_id, current_coverage, "item", diagram_id=diagram_ids[name]
