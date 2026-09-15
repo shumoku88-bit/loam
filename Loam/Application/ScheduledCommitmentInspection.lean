@@ -231,6 +231,114 @@ private def selectedCoordinates
           measure := occurrence.measure
           quantity := quantity }
 
+/-- One selected coordinate with its pressure classification fixed for this query. -/
+structure ScheduledPressureRow (Time : Type) where
+  subject : ScheduledRoutingSubject
+  scheduledOn : Time
+  measure : MeasureId
+  quantity : Quantity
+  pressure : ScheduledPressureClass
+deriving Repr, DecidableEq
+
+/-- A transient query result: selection and routing/role classification happen once. -/
+abbrev ScheduledPressurePartition (Time : Type) := List (ScheduledPressureRow Time)
+
+private def pressureRow
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (observedAt : Time)
+    (coordinate : SelectedCoordinate Time) : ScheduledPressureRow Time :=
+  {
+    subject := coordinate.subject
+    scheduledOn := coordinate.scheduledOn
+    measure := coordinate.measure
+    quantity := coordinate.quantity
+    pressure := classifyScheduledPressure roles routing observedAt coordinate.subject
+  }
+
+/-- Select and classify one current-open Scheduled set exactly once. -/
+def scheduledPressurePartitionFromOpen
+    (occurrences : List (ScheduledOccurrence Time))
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) : ScheduledPressurePartition Time :=
+  (occurrences.flatMap (selectedCoordinates measure observedAt endExclusive)).map
+    (pressureRow roles routing observedAt)
+
+namespace ScheduledPressurePartition
+
+/-- Managed Commitment belonging to one Purpose. -/
+def managedFor
+    (partition : ScheduledPressurePartition Time)
+    (purpose : PurposeId) : Quantity :=
+  Quantity.ofQuanta <| partition.foldl
+    (fun total row =>
+      match row.pressure with
+      | .managed routedPurpose =>
+          if routedPurpose = purpose then total + row.quantity.quanta else total
+      | _ => total)
+    0
+
+/-- Query-global pressure explicitly marked unmanaged. -/
+def unmanaged (partition : ScheduledPressurePartition Time) : Quantity :=
+  Quantity.ofQuanta <| partition.foldl
+    (fun total row =>
+      match row.pressure with
+      | .unmanaged => total + row.quantity.quanta
+      | _ => total)
+    0
+
+/-- Query-global unrouted pressure justified by AccountingRole. -/
+def unrouted (partition : ScheduledPressurePartition Time) : Quantity :=
+  Quantity.ofQuanta <| partition.foldl
+    (fun total row =>
+      match row.pressure with
+      | .unroutedPressure => total + row.quantity.quanta
+      | _ => total)
+    0
+
+/-- Query-global unrouted pressure whose AccountingRole is still unknown. -/
+def unresolvedEligibility (partition : ScheduledPressurePartition Time) : Quantity :=
+  Quantity.ofQuanta <| partition.foldl
+    (fun total row =>
+      match row.pressure with
+      | .unresolvedEligibility => total + row.quantity.quanta
+      | _ => total)
+    0
+
+/-- Actionable unrouted or unresolved subjects derived from the same partition. -/
+def actionableRows
+    (partition : ScheduledPressurePartition Time) :
+    List (UnresolvedScheduledPressureRow Time) :=
+  partition.filterMap fun row =>
+    match row.pressure with
+    | .unroutedPressure
+    | .unresolvedEligibility =>
+        some {
+          subject := row.subject
+          scheduledOn := row.scheduledOn
+          measure := row.measure
+          quantity := row.quantity }
+    | _ => none
+
+end ScheduledPressurePartition
+
+/-- Resolve current-open lifecycle once, then select and classify its pressure once. -/
+def currentScheduledPressurePartition?
+    (scheduled : ScheduledMemory Time)
+    (terminals : ScheduledTerminalMemory)
+    (events : EventMemory)
+    (roles : AccountingRoleMap)
+    (routing : RoutingHistory ScheduledRoutingSubject Time)
+    (measure : MeasureId)
+    (observedAt endExclusive : Time) : Option (ScheduledPressurePartition Time) :=
+  match currentOpenScheduled scheduled terminals events with
+  | .open occurrences =>
+      some <| scheduledPressurePartitionFromOpen
+        occurrences roles routing measure observedAt endExclusive
+  | _ => none
+
 /--
 Add one selected coordinate to the aggregate partition. Only managed pressure
 routed to the queried Purpose counts as that Purpose's Commitment; every other
