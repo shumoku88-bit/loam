@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.BalanceReview
 import Loam.ScheduledReview
@@ -180,15 +181,13 @@ def project
     lowWater := Quantity.ofQuanta low
   }
 
-/--
-Compose existing production readers without adding a new canonical authority.
-`today` is read from the same host-local date adapter already used by the TUI.
--/
-def loadSnapshot
+private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
+  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+  else Loam.ActualAuthority.actualPath actualRoot
+
+private def loadWithinActualObservation
     (dataDir actualRoot : System.FilePath)
-    (assumedCompleteThrough : String) : IO (Except String Snapshot) := do
-  let some today ← Loam.ActualDate.todayIso?
-    | return .error "loam: conditional outlook unavailable: could not determine the local date"
+    (today assumedCompleteThrough : String) : IO (Except String Snapshot) := do
   let balances ←
     match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
     | .error message => return .error message
@@ -198,5 +197,24 @@ def loadSnapshot
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   return project balances scheduled today assumedCompleteThrough
+
+/--
+Compose existing production readers without adding a new canonical authority.
+`today` is read from the same host-local date adapter already used by the TUI.
+
+Balance Review and Scheduled Review both depend on normalized `actual.loam`:
+current balances use its correction-aware Event world while Scheduled lifecycle
+admission uses its Event identities to validate terminal evidence. Their two
+reads therefore run inside one short Actual ownership interval so one conditional
+path answer cannot mix those obligations across different Actual generations.
+-/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath)
+    (assumedCompleteThrough : String) : IO (Except String Snapshot) := do
+  let some today ← Loam.ActualDate.todayIso?
+    | return .error "loam: conditional outlook unavailable: could not determine the local date"
+  let actualPath := actualPathForObservation actualRoot
+  Loam.ActualAuthority.withActualFileOwnership actualPath
+    (loadWithinActualObservation dataDir actualRoot today assumedCompleteThrough)
 
 end Loam.ConditionalBalancePathReview
