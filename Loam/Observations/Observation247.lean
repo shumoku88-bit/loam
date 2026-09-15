@@ -49,7 +49,8 @@ def recordEventTokens (world : Loam.MovementAdmission.World) : List String :=
 
 /-- Left-associated production OR and right-associated list membership agree. -/
 private theorem boolOr5_reassociate (a b c d e : Bool) :
-    a || b || c || d || e = a || (b || (c || (d || e))) := by
+    ((((a || b) || c) || d) || e) =
+      (a || (b || (c || (d || e)))) := by
   cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> rfl
 
 /-- Keyed finite lookup is equivalent to an explicit any over the same key. -/
