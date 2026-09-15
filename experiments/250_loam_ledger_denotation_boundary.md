@@ -1,6 +1,14 @@
 # Observation 250 — LOAM to Ledger denotation boundary
 
-Status: **EXPERIMENT — compile qualification pending**
+Status: **QUALIFIED by Lean 4.33.1 on PR #919**
+
+Qualification:
+
+```text
+workflow: Selected Lean Observations
+run:      34980860700
+result:   SUCCESS
+```
 
 External reference inspected:
 
@@ -14,7 +22,7 @@ LOAM baseline:
 
 ```text
 shumoku88-bit/loam
-main: 120554c12191d9aca34c1b4cfa0bf5545e6d9406
+main parent: d667fabd9bd2dd557b84648478c4d4b3078eda85
 Lean: 4.33.1
 ```
 
@@ -87,13 +95,13 @@ intrinsically a Ledger Commodity.
 
 The external Ledger carrier uses rational values. LOAM's current exact quantity
 kernel uses integer quanta. Observation 250 checks the integer-quanta subdomain
-before the canonical integer-to-rational embedding. It does not yet add Mathlib
+before the canonical integer-to-rational embedding. It does not add Mathlib
 merely to prove that standard embedding.
 
-## Proof obligations
+## Qualified proof obligations
 
 `Loam.Observations.Observation250` defines the finite bridge presentation and
-proves four laws.
+proves four laws in the selected live Lean observation umbrella.
 
 ### O250-1 — presentation total is preserved
 
@@ -144,12 +152,10 @@ Observation 159 additive vector
 Ledger-shaped balance observation
 ```
 
-## What this would establish
+## Qualified result
 
-If the Lean file compiles, the result is narrower than "LOAM implements
-Ledger" and stronger than a vocabulary analogy.
-
-It establishes a named semantics-preserving bridge at the balance layer:
+The successful Lean qualification establishes a named semantics-preserving
+bridge at the balance layer:
 
 ```text
 LOAM BalancedMovement
@@ -163,6 +169,10 @@ Ledger/Pacioli-shaped net-flow observation
 
 The mapping requires no debit/credit tag, Account role, income/expense role, or
 transaction kind in the neutral LOAM movement algebra.
+
+This is narrower than "LOAM implements Ledger" and stronger than a vocabulary
+analogy: the bridge obligations are executable theorems checked by the current
+LOAM Lean toolchain.
 
 ## What is deliberately not claimed
 
@@ -192,7 +202,7 @@ because Ledger's own balance skeleton intentionally forgets morphism identity,
 and LOAM intentionally retains identity/provenance when another question can
 observe it.
 
-## Connection result sought
+## Connection result
 
 The useful interpretation is therefore not:
 
@@ -208,7 +218,7 @@ LOAM evidence
 Ledger-compatible balance semantics
 ```
 
-This is the first edge in the proposed connection triangle:
+This qualifies the first edge in the proposed connection triangle:
 
 ```text
                LOAM
