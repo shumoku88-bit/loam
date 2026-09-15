@@ -94,11 +94,6 @@ private def recordLe
         leftDate <= rightDate
   | _, _ => false
 
-private def addCoordinateIfAbsent
-    (rows : List EffectCoordinate) (coordinate : EffectCoordinate) :
-    List EffectCoordinate :=
-  if coordinate ∈ rows then rows else rows ++ [coordinate]
-
 private def coordinateLe (left right : EffectCoordinate) : Bool :=
   if left.locus.token == right.locus.token then
     left.measure.token <= right.measure.token
@@ -106,13 +101,10 @@ private def coordinateLe (left right : EffectCoordinate) : Bool :=
     left.locus.token <= right.locus.token
 
 private def rowsFromColumns (columns : List Column) : List EffectCoordinate :=
-  let represented := columns.foldl
-    (fun rows column =>
-      column.event.effects.foldl
-        (fun current effect => addCoordinateIfAbsent current effect.coordinate)
-        rows)
-    []
-  represented.mergeSort coordinateLe
+  (columns.flatMap fun column =>
+    column.event.effects.map fun effect => effect.coordinate)
+    |>.eraseDups
+    |>.mergeSort coordinateLe
 
 private def columnOfRecord? (record : Loam.ActualReview.Record) : Option Column := do
   let date ← record.date
