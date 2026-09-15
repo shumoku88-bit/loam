@@ -32,6 +32,19 @@ def usedByList (used : List String) (token : String) : Bool :=
 def numberedWindow (stem : String) (index fuel : Nat) : List String :=
   (List.range' index fuel).map (fun n => stem ++ toString n)
 
+/-- Observation-local cancellation for equal list prefixes. -/
+private theorem listAppendLeftCancel
+    {α : Type}
+    (prefix left right : List α)
+    (h : prefix ++ left = prefix ++ right) :
+    left = right := by
+  induction prefix with
+  | nil =>
+      simpa using h
+  | cons head tail ih =>
+      apply ih
+      simpa using h
+
 /-- Decimal numbered suffixes make the candidate constructor injective. -/
 private theorem numberedToken_injective (stem : String) :
     Function.Injective (fun n : Nat => stem ++ toString n) := by
@@ -41,7 +54,7 @@ private theorem numberedToken_injective (stem : String) :
         stem.toList ++ (toString b).toList := by
     simpa using congrArg String.toList h
   have hSuffix : (toString a).toList = (toString b).toList :=
-    List.append_left_cancel hLists
+    listAppendLeftCancel stem.toList (toString a).toList (toString b).toList hLists
   have hDigits : Nat.toDigits 10 a = Nat.toDigits 10 b := by
     simpa only [Nat.toString_eq_repr, Nat.toList_repr] using hSuffix
   have hParsed :=
@@ -53,7 +66,7 @@ theorem numberedWindow_nodup (stem : String) (index fuel : Nat) :
     (numberedWindow stem index fuel).Nodup := by
   unfold numberedWindow
   exact (List.nodup_range' (s := index) (n := fuel) (step := 1)).map
-    (numberedToken_injective stem)
+    (fun n => stem ++ toString n) (numberedToken_injective stem)
 
 /-- If the search exhausts, every candidate in its numeric window was marked used. -/
 private theorem none_implies_used_in_window
@@ -70,8 +83,9 @@ private theorem none_implies_used_in_window
       omega
   | succ fuel ih =>
       have hHead : stem ++ toString index ∈ used := by
-        by_contra hNot
-        simp [Loam.firstUnusedNumberedToken?, usedByList, hNot] at hNone
+        by_cases hUsed : stem ++ toString index ∈ used
+        · exact hUsed
+        · simp [Loam.firstUnusedNumberedToken?, usedByList, hUsed] at hNone
       by_cases hEq : i = index
       · simpa [hEq] using hHead
       · have hTailNone :
@@ -108,7 +122,7 @@ theorem search_succeeds_when_window_outnumbers_used
   cases hSearch :
       Loam.firstUnusedNumberedToken? stem (usedByList used) index fuel with
   | some token =>
-      exact ⟨token, hSearch⟩
+      exact ⟨token, rfl⟩
   | none =>
       have hSubset := none_implies_window_subset stem used index fuel hSearch
       have hLengthLe :=
