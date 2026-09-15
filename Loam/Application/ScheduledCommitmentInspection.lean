@@ -47,6 +47,42 @@ answers only the current-open view. `observedAt` selects historical routing; it
 does not pretend to reconstruct when completion, retirement, or replacement
 became known.
 
+## Design Rationale
+
+- **Current semantics**: A query-local projection that partitions positive future Scheduled
+  obligations into `managed` (routed to queried Purpose), `unmanaged`, `unrouted`, and
+  `unresolvedEligibility`. It derives `Headroom = Remaining - Commitment` without storing
+  any persistent budget, reservation, or headroom records.
+
+- **Why this design**: Preserves minimal canonical evidence. Familiar household planning nouns
+  (`Commitment`, `Headroom`, `Remaining`) are transient views computed on-the-fly from
+  underlying facts (Capacity movements, actual events, open scheduled occurrences, routing,
+  and role classification).
+
+- **Prohibited simplifications**:
+  1. *Why not all positive quantities as pressure?*: Scheduled models expected future cashflow,
+     not only expenses. A scheduled pension/support receipt into a bank account is a positive
+     Asset inflow. Treating all positive quantities as Capacity pressure would falsely consume
+     budget headroom for incoming money.
+  2. *Why not Expense only as pressure?*: A scheduled debt or loan repayment is a positive
+     Liability coordinate (reducing liability). It obligates cash outflow and consumes Capacity
+     just as real expenses do. Ignoring Liability drops genuine debt obligations.
+  3. *Why is unresolved accounting role not equivalent to non-pressure?*: If an unrouted
+     scheduled coordinate lacks an `AccountingRole`, assuming non-pressure silently hides
+     unbudgeted cashflow; assuming a default role fabricates accounting evidence. It must
+     remain an explicit, actionable `unresolvedEligibility` frontier.
+  4. *Why not a stored CommitmentEligibility bit?*: Storing an eligibility flag on Scheduled
+     records duplicates intent and creates synchronization hazards. Routing owns explicit
+     pressure intent; partial `AccountingRole` serves as the qualified fallback.
+
+- **Permanent evidence references**:
+  - `theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum`:
+    Proves that the aggregate `unresolvedEligibility` quantity matches the exact sum of
+    actionable subject-level rows (`currentUnresolvedScheduledPressure?`).
+  - Observations 108, 113, 153, 216-217, 227: Formalized the non-retained projection, the
+    `ScheduledId × LocusId` routing subject, partial role classification, and the fail-visible
+    unresolved eligibility frontier.
+
 The production read path has one semantic engine: current-open selection and
 pressure classification produce one transient `ScheduledPressurePartition`.
 Commitment totals and actionable rows are projections of that partition rather
@@ -81,6 +117,10 @@ deriving Repr, DecidableEq
 /--
 Observation 227 classification of one current-open positive Scheduled subject
 coordinate into the shared Capacity-pressure partition.
+
+This is the single classification shared by the aggregate Commitment view and
+the subject-level unresolved-pressure projection; neither answer reimplements
+routing or AccountingRole conditions.
 -/
 inductive ScheduledPressureClass where
   | managed (purpose : PurposeId)
@@ -117,7 +157,10 @@ def classifyScheduledPressure
       | none => .unresolvedEligibility
 
 /--
-One actionable unresolved-pressure coordinate behind the aggregate frontier.
+One actionable unresolved-pressure coordinate behind the aggregate frontier: a
+current-open, positive, unrouted `ScheduledId × LocusId` subject whose
+AccountingRole evidence is missing.
+
 This is a pure derived observation, never retained state.
 -/
 structure UnresolvedScheduledPressureRow (Time : Type) where
@@ -149,8 +192,8 @@ private def addLocusIfAbsent
 
 /--
 Recover each represented Locus once. `BalancedMovement` may retain repeated
-changes at one Locus; the routing subject is the aggregated
-`ScheduledId × LocusId` coordinate, not an individual raw change row.
+changes at one Locus; the routing subject qualified by Observation 153 is the
+aggregated `ScheduledId × LocusId` coordinate, not an individual raw change row.
 -/
 private def scheduledLoci
     (occurrence : ScheduledOccurrence Time) : List LocusId :=
@@ -161,6 +204,10 @@ private def scheduledLoci
 /--
 Enumerate each selected positive aggregated `ScheduledId × LocusId` coordinate
 of one open occurrence exactly once.
+
+Measure selection, the current end-exclusive horizon, positive aggregation, and
+raw-change dedup at one Locus are selected only here. The classified partition
+then serves aggregate Commitment and subject-level row projections alike.
 -/
 private def selectedCoordinates
     (measure : MeasureId)
@@ -425,8 +472,12 @@ theorem currentScheduledCommitment?_unmanaged_independent
       scheduled terminals events roles routing measure observedAt endExclusive <;> rfl
 
 /--
-Project the unresolved-eligibility subjects behind one current-open Scheduled
-set from the same classified partition.
+Project the actionable unresolved-pressure subjects behind one current-open
+Scheduled set.
+
+Each retained row is one aggregated `ScheduledId × LocusId` coordinate selected
+by the shared partition. Occurrence and Locus enumeration order is preserved;
+list position carries no priority meaning.
 -/
 def unresolvedScheduledPressureRowsFromOpen
     (occurrences : List (ScheduledOccurrence Time))
@@ -439,8 +490,10 @@ def unresolvedScheduledPressureRowsFromOpen
       occurrences roles routing measure observedAt endExclusive
 
 /--
-Project unresolved-eligibility subjects behind the current-open Scheduled
-frontier from the same lifecycle and classification result as Commitment.
+Project the actionable unresolved-pressure subjects behind the current-open
+Scheduled frontier. It shares lifecycle, horizon, Measure, positive aggregation,
+routing status, and AccountingRole evidence with `currentScheduledCommitment?`;
+only answer granularity differs.
 -/
 def currentUnresolvedScheduledPressure?
     (scheduled : ScheduledMemory Time)
@@ -456,8 +509,9 @@ def currentUnresolvedScheduledPressure?
     unresolvedRows
 
 /--
-The unresolved subject rows and aggregate unresolved eligibility are projections
-of one classified partition and therefore fail identically.
+The retained invariant tying both granularities to the same semantics: the
+unresolved subject rows and aggregate unresolved eligibility frontier fail
+identically, and when justified the row quantities sum exactly to the aggregate.
 -/
 theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
     (scheduled : ScheduledMemory Time)
@@ -484,8 +538,10 @@ theorem currentScheduledCommitment?_unresolvedEligibility_eq_rows_sum
       exact congrArg some (unresolvedRows_sum_eq partition).symm
 
 /--
-Project all actionable unrouted and unresolved Scheduled pressure subjects from
-one current-open Scheduled set.
+Project all actionable unrouted and unresolved Scheduled pressure subjects behind
+one current-open Scheduled set. Both unrouted Expense/Liability obligations and
+unresolved eligibility lack an explicit route and can be assigned to a Purpose
+or marked unmanaged.
 -/
 def actionableScheduledPressureRowsFromOpen
     (occurrences : List (ScheduledOccurrence Time))
@@ -515,8 +571,8 @@ def currentActionableScheduledPressure?
     ScheduledPressurePartition.actionableRows
 
 /--
-Actionable routing subjects and the unrouted plus unresolved frontier are
-projections of one classified partition.
+The retained invariant tying actionable routing subjects to the unrouted and
+unresolved frontier. Both sides are projections of one classified partition.
 -/
 theorem currentScheduledCommitment?_actionablePressure_eq_rows_sum
     (scheduled : ScheduledMemory Time)
