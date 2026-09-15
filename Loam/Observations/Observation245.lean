@@ -119,15 +119,7 @@ theorem capacityUsed_eq_usedByList
   funext token
   have hMovement := findMovement_isSome_eq_usedByList memory.movements token
   have hEffective := effectiveMentions_eq_usedByList effective.entries token
-  change
-    (FiniteKeyed.findBy?
-        CapacityMovement.id
-        memory.movements
-        (⟨token⟩ : CapacityMovementId)).isSome ||
-      effective.entries.any
-        (fun entry =>
-          decide (entry.movement = (⟨token⟩ : CapacityMovementId))) =
-      Observation242.usedByList (capacityTokens memory effective) token
+  simp only [CapacityMemory.findById?]
   rw [hMovement, hEffective]
   simp [Observation242.usedByList, capacityTokens, movementTokens, effectiveTokens]
 
