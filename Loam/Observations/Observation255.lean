@@ -47,6 +47,13 @@ def eraseEffectIdentity (effect : Effect) : Effect :=
     (eraseEffectIdentity effect).coordinate = effect.coordinate :=
   rfl
 
+private theorem erasedKeyList_empty (effects : List Effect) :
+    List.filterMap Effect.key (effects.map eraseEffectIdentity) = [] := by
+  induction effects with
+  | nil => rfl
+  | cons effect rest ih =>
+      simp [eraseEffectIdentity, ih]
+
 /--
 Erase every optional Effect key while preserving the Event identity and the
 physical Effect list. The Event-local retained-key uniqueness proof becomes
@@ -56,10 +63,9 @@ def eraseEventEffectIdentity (event : Event) : Event :=
   { id := event.id
     effects := event.effects.map eraseEffectIdentity
     keyNodup := by
-      induction event.effects with
-      | nil => simp [retainedEffectKeys]
-      | cons effect rest ih =>
-          simp [retainedEffectKeys, eraseEffectIdentity, ih] }
+      unfold retainedEffectKeys
+      rw [erasedKeyList_empty]
+      simp }
 
 @[simp] theorem eraseEventEffectIdentity_id (event : Event) :
     (eraseEventEffectIdentity event).id = event.id :=
@@ -71,10 +77,9 @@ def eraseEventEffectIdentity (event : Event) : Event :=
 
 @[simp] theorem eraseEventEffectIdentity_retainedKeys (event : Event) :
     retainedEffectKeys (eraseEventEffectIdentity event).effects = [] := by
-  induction event.effects with
-  | nil => simp [eraseEventEffectIdentity, retainedEffectKeys]
-  | cons effect rest ih =>
-      simp [eraseEventEffectIdentity, retainedEffectKeys, eraseEffectIdentity, ih]
+  change retainedEffectKeys (event.effects.map eraseEffectIdentity) = []
+  unfold retainedEffectKeys
+  exact erasedKeyList_empty event.effects
 
 private theorem quantityFold_eraseIdentity
     (effects : List Effect) (locus : LocusId) (measure : MeasureId) :
