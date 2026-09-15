@@ -1,4 +1,4 @@
-# LOAM System Map v0.7
+# LOAM System Map v0.8
 
 Purpose: a shared architecture navigator for reviewing LOAM with DRAKON and for exploring an Ada/SPARK implementation without losing the whole-system shape.
 
@@ -53,10 +53,14 @@ LOAM System Map
     |   +-- 12.1 Dual-Authority Completion Publish
     |   +-- 12.2 Completion Actual Admission
     |   `-- 12.3 Interrupted Completion Recovery
-    `-- 13 Reverse Actual
-        +-- 13.0 Reverse Actual
-        +-- 13.1 Authoritative Reversal Publish
-        `-- 13.2 Reversal Admission
+    +-- 13 Reverse Actual
+    |   +-- 13.0 Reverse Actual
+    |   +-- 13.1 Authoritative Reversal Publish
+    |   `-- 13.2 Reversal Admission
+    `-- 14 Correct Actual Date
+        +-- 14.0 Correct Actual Date
+        +-- 14.1 Authoritative Date Publish
+        `-- 14.2 Validity Revision
 ```
 
 ## Architecture laws
@@ -132,6 +136,8 @@ python3 docs/drakon/inspect_map.py --diagram "11.2 Correction Admission"
 python3 docs/drakon/inspect_map.py --diagram "12.2 Completion Actual Admission"
 python3 docs/drakon/inspect_map.py --diagram "13.1 Authoritative Reversal Publish"
 python3 docs/drakon/inspect_map.py --diagram "13.2 Reversal Admission"
+python3 docs/drakon/inspect_map.py --diagram "14.1 Authoritative Date Publish"
+python3 docs/drakon/inspect_map.py --diagram "14.2 Validity Revision"
 python3 docs/drakon/inspect_map.py --all --json > /tmp/loam-map.json
 ```
 
@@ -158,6 +164,8 @@ The scriptable Movement CLI follows the same `HouseholdCommand.record` path as t
 
 Actual Reversal follows the same rule. The TUI may derive inverse postings for preview, but `ActualReversalPublisher` re-reads the canonical target and re-derives the authoritative exact inverse under writer ownership.
 
+Actual Date Correction is even narrower. The TUI owns only a date string editor and preview. `HouseholdCommand.correctActualDate` selects the canonical path, while `ActualValidityPublisher` re-reads admitted `ActualEvidence` under Actual ownership before deciding whether to reject, perform a successful no-op, or append validity revision evidence.
+
 A low-level diagnostic CLI may still deliberately expose physical paths when explicit physical control is part of its independent purpose.
 
 ## Write-path comparison rule
@@ -172,18 +180,19 @@ different feature names
     -> miss genuinely repeated mechanics
 ```
 
-The first four mapped write paths now show:
+The five mapped write paths now show both authority topology and mutation shape:
 
 ```text
 Record Movement
     Actual + current Locus policy
-    -> Movement admission
+    -> fresh Event identity
     -> one complete Actual generation
 
 Correction
     Actual + current Locus policy
-    -> correction-specific target/replacement admission
-    -> one complete Actual generation
+    -> retain target Event
+    -> append replacement Event + EventCorrection
+    -> replacement Effects may differ
 
 Scheduled Completion
     Scheduled lifecycle + Actual + current Locus policy
@@ -193,36 +202,63 @@ Scheduled Completion
 
 Actual Reversal
     Scheduled lifecycle + Actual + current Locus policy
-    -> exact-inverse admission
-    -> one complete Actual generation
+    -> retain target Event
+    -> append exact inverse Event + ActualReversal provenance
     -> Scheduled lifecycle remains unchanged
+
+Actual Date Correction
+    Actual only
+    -> preserve EventId / Event / Effects / Measure / Description
+    -> append ActualValidity revision + correction edge
+    -> same-date request succeeds with no write
 ```
 
-Record, Correction, and Reversal all end by publishing one complete Actual generation, but that does not make their admissions one semantic operation.
-
-Scheduled Completion has a different authority topology and crash-recovery law. Its `Scheduled -> Actual` terminal claim is published first. If Actual publication is interrupted, that retained terminal remains inert to readers until the target Actual Event appears; retry reuses the same target identity. This distinction must not be erased merely because both files use staging and rename.
-
-Reversal adds a different use of the same two authorities. It locks Scheduled first and Actual second, but Scheduled is a **read-only semantic dependency**. The lock prevents completion provenance from changing while the publisher proves that the selected Actual is independent of Scheduled completion. Only `actual.loam` is published.
-
-This makes the repeated `Scheduled -> Actual` ownership order worth investigating as mechanics. It is not evidence that Scheduled Creation, Replacement, Completion, and Actual Reversal share one authority meaning.
-
-The atlas also records one confirmed cross-path semantic law:
+The most important v0.8 comparison is therefore not "which publishers look alike?" but **what canonical thing changes?**
 
 ```text
-collector-local EffectKey
-    -> anonymous unless independent evidence earns addressability
-
-Record
-    Relation source may earn the key
-
 Correction
-    current replacement contract earns no new Effect key
+    Event identity moves to a replacement
 
-Scheduled Completion
-    current plain-Actual completion contract earns no new Effect key
+Reversal
+    target stays; inverse Event is added
+
+Date Correction
+    Event identity and physical Movement stay;
+    only the time-coordinate evidence is revised
 ```
 
-This law is shared through `Loam.SparseEffectIdentity`, but it remains outside neutral Core. `Core.Event` owns the structural law that Effect identity is optional and retained keys are unique; operation-level evidence decides whether a collector key deserves durability.
+This difference is exactly why publisher-wide admission, one generic target-selection operation, or one giant authoritative snapshot should not be introduced merely because several paths load `actual.loam` and eventually publish a complete image.
+
+### Confirmed shared mechanics
+
+The atlas now treats these as earned shared seams:
+
+- fixed `Scheduled -> Actual` ownership order through `Loam.ScheduledActualOwnership.withOwnership`;
+- sparse Effect identity through `Loam.SparseEffectIdentity`;
+- Measure-parametric practical Movement qualification through `Loam.PracticalMovement`;
+- raw Correction-target membership through `EventCorrectionMemory.targetsEvent`.
+
+Each helper answers a small question. None merges the semantic authorities of its callers.
+
+### Keep local
+
+Two important shapes remain deliberately operation-specific:
+
+- ActualValidity date revision, including its revision identity and validity-correction edge;
+- `targetCurrent?`-style operation semantics, where later guards and refusal meanings differ.
+
+Date Correction now makes that distinction particularly clear. Its currentness check needs only a retained `EventId` plus raw Correction-target membership. It does not need the full target `Event`, and after v0.8 the map should not imply otherwise.
+
+### Do not globalize
+
+The following remain topology or operation laws rather than generic framework candidates:
+
+- authoritative reload;
+- authority topology;
+- publisher-wide admission;
+- crash / retry law.
+
+Complete-image publication is already owned by each concrete authority such as `ActualAuthority`; it is not a new generic abstraction candidate.
 
 ## Lean proof and DRAKON observation
 
@@ -266,23 +302,33 @@ The fourth audit tightened small local ownership before introducing another larg
 5. a production regression now proves that such a reversal is refused without appending either an Event or an `ActualReversal` relation;
 6. v0.7 maps Reversal so its read-only Scheduled dependency and exact-inverse law can be compared at the same scale as the other write paths.
 
+The fifth audit used Reversal plus Date Correction to sharpen mutation-shape boundaries:
+
+1. `Loam.ScheduledActualOwnership.withOwnership` now owns the repeated fixed `Scheduled -> Actual` lock order without merging the semantic authority of its callers;
+2. `EventCorrectionMemory.targetsEvent` now owns only the raw "is this Event a Correction target?" membership query, while operation-specific currentness and failure meaning remain local;
+3. regression coverage fixes Date Correction as independent from Reversal provenance because changing validity evidence does not change physical Effects;
+4. `ActualValidityPublisher` no longer materializes a full target `Event` merely to recover its already-known `EventId`;
+5. v0.8 maps Date Correction as a validity-history revision and places it beside Correction and Reversal so the three mutation shapes can be visually compared.
+
 The important result is still not a generic publisher. Small laws and representation mechanics become shared only when the evidence earns them, while authority topology and operation-specific meaning stay explicit.
 
 The map is expected to get shorter or more regular when an audit is resolved. It should describe the smallest justified production path, not fossilize an older implementation.
 
 ## Remaining cross-path audit seams, not conclusions
 
-v0.7 leaves narrower questions for later work.
+v0.8 resolves two former seams and leaves the larger boundary questions deliberately narrow.
 
-1. Correction, Actual Reversal, and ActualValidity publication each contain a local `targetCurrent?` shape: find a retained Event and reject a target already superseded by Correction. Their user-facing refusal meanings and later operation guards differ, so this is evidence to investigate a small selection mechanic, not evidence for one shared publisher or one shared error type.
+1. Fixed `Scheduled -> Actual` ownership order is no longer merely a candidate. The mechanic is shared, while Scheduled Creation / Replacement / Completion, Actual Reversal, and AccountingRole retain separate semantic authority.
 
-2. Scheduled Creation, Scheduled Replacement, Scheduled Completion, and Actual Reversal all acquire ownership in the same `Scheduled -> Actual` order. Reversal only reads Scheduled while the Scheduled writers may mutate it. The repeated order is a strong mechanics candidate, but any shared helper must preserve those distinct authority meanings rather than imply that both authorities are always written.
+2. Raw Correction-target membership is also shared, but whole `targetCurrent?` operations are not. Correction and Reversal still need operation-specific guards; ActualValidity now only requires retained/current `EventId` evidence and does not load the target `Event` itself.
 
-3. Movement admission, Correction, Scheduled Completion, and Actual Reversal all append some combination of Event and base ActualValidity evidence. Their surrounding carriers, identity rules, additional relations, and refusal surfaces still differ. A generic Actual append engine is not yet justified.
+3. Movement admission, Correction, Scheduled Completion, and Actual Reversal still append different combinations of Event, base ActualValidity, description, and relation evidence. A generic Actual append engine remains unjustified because identity, carrier, additional evidence, and refusal semantics differ.
 
-4. Current practical write entrances remain intentionally JPY-limited even though Core algebra and important persistence paths are Measure-generic. Multi-Measure expansion should begin from a real user-facing requirement, not by speculatively turning every entrance into an FX subsystem.
+4. Date validity revision should stay local unless another genuinely independent feature needs the same revision algebra. Its shape alone is not pressure for a generic history-revision framework.
 
-These are exactly the kind of seams the atlas is meant to reveal: compare first, then use Lean, Alloy, tests, or DRAKON only where a concrete ambiguity or counterexample needs to be fixed.
+5. Current practical write entrances remain intentionally JPY-limited even though Core algebra and important persistence paths are Measure-generic. Multi-Measure expansion should begin from a real user-facing requirement, not from speculative FX infrastructure.
+
+These are exactly the kind of seams the atlas is meant to reveal: compare first, then promote only the smallest semantic question that survives the comparison.
 
 ## Local audit rule
 
