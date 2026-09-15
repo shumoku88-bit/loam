@@ -31,15 +31,11 @@ private def sampleCoverage : Loam.CurrentCoverageReview.Snapshot :=
       [ { purpose := ⟨"food"⟩
           entitlement := Quantity.ofQuanta 30000
           consumption := Quantity.ofQuanta 10000
-          remaining := Quantity.ofQuanta 20000
-          commitment := Quantity.ofQuanta 0
-          headroom := Quantity.ofQuanta 20000 }
+          commitment := Quantity.ofQuanta 0 }
       , { purpose := ⟨"fixed-cost"⟩
           entitlement := Quantity.ofQuanta 15000
           consumption := Quantity.ofQuanta 5000
-          remaining := Quantity.ofQuanta 10000
-          commitment := Quantity.ofQuanta 0
-          headroom := Quantity.ofQuanta 10000 }
+          commitment := Quantity.ofQuanta 0 }
       ]
     scheduledFrontier := some
       { unmanaged := Quantity.ofQuanta 0
@@ -178,7 +174,7 @@ def main (args : List String) : IO Unit := do
 
   -- 17. Esc in preview returns to selectTarget (when unmanaged)
   let stepUnmanEsc := Loam.Tui.ScheduledRouting.update bounds stepUnmanagedEnter.state .escape
-  expect (stepUnmanEsc.state.phase == .selectTarget) "Esc in preview returns to selectTarget for unmanaged"
+  expect (stepUnmanEsc.state.phase == .selectTarget) "Esc returns to selectTarget for unmanaged"
 
   -- 18. Enter in preview publishes draft
   let stepPubManaged := Loam.Tui.ScheduledRouting.update bounds sManagedPreview .enter
