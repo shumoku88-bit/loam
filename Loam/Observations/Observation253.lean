@@ -162,9 +162,8 @@ theorem mediatedFlowQuanta_eq_direct_of_compatible {Resource : Type u}
       ledgerFlowQuantaAtChanges measure changes account := by
   apply mediatedFlowQuanta_eq_direct_of_observed_compatible
     resourceOf accountView measure changes
-  · intro change _
-    exact hCompatible change.coordinate
-  · exact account
+  intro change _
+  exact hCompatible change.coordinate
 
 /-- Quantity-valued commuting theorem for one admitted `BalancedMovement`. -/
 theorem mediatedFlow_eq_direct_of_compatible {Resource : Type u}
