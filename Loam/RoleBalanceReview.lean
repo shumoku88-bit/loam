@@ -202,47 +202,37 @@ private theorem unsupported_leaf
     supportRoute coverage openingSupport currentAnchor coordinate = .unsupported := by
   simp [supportRoute, hzero, hopening, hanchor]
 
-private def supportGuards
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) : List Bool :=
-  let route := supportRoute coverage openingSupport currentAnchor coordinate
-  [ decide (route = .zeroOrigin)
-  , decide (route = .opening)
-  , decide (route = .currentAnchor)
-  , decide (route = .unsupported)
-  ]
-
 /--
-DAG root: the four leaf obligations compose into exactly one production route.
-The root contains no second copy of the routing algebra.
+DAG root: every coordinate reaches one constructor of the same production route.
+Constructor disjointness supplies exclusivity; the root adds no proof-only state.
 -/
 private theorem support_partition_root
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
     (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
     (coordinate : EffectCoordinate) :
-    (supportGuards coverage openingSupport currentAnchor coordinate).count true = 1 := by
+    supportRoute coverage openingSupport currentAnchor coordinate = .zeroOrigin ∨
+      supportRoute coverage openingSupport currentAnchor coordinate = .opening ∨
+      supportRoute coverage openingSupport currentAnchor coordinate = .currentAnchor ∨
+      supportRoute coverage openingSupport currentAnchor coordinate = .unsupported := by
   cases hzero : coverage.covers coordinate with
   | false =>
       cases hopening : hasOpeningSupport openingSupport coordinate with
       | false =>
           cases hanchor : hasCurrentAnchor currentAnchor coordinate with
           | false =>
-              have hroute := unsupported_leaf coverage openingSupport currentAnchor coordinate
-                hzero hopening hanchor
-              simp [supportGuards, hroute]
+              exact Or.inr (Or.inr (Or.inr
+                (unsupported_leaf coverage openingSupport currentAnchor coordinate
+                  hzero hopening hanchor)))
           | true =>
-              have hroute := anchor_leaf coverage openingSupport currentAnchor coordinate
-                hzero hopening hanchor
-              simp [supportGuards, hroute]
+              exact Or.inr (Or.inr (Or.inl
+                (anchor_leaf coverage openingSupport currentAnchor coordinate
+                  hzero hopening hanchor)))
       | true =>
-          have hroute := opening_leaf coverage openingSupport currentAnchor coordinate hzero hopening
-          simp [supportGuards, hroute]
+          exact Or.inr (Or.inl
+            (opening_leaf coverage openingSupport currentAnchor coordinate hzero hopening))
   | true =>
-      have hroute := zero_leaf coverage openingSupport currentAnchor coordinate hzero
-      simp [supportGuards, hroute]
+      exact Or.inl (zero_leaf coverage openingSupport currentAnchor coordinate hzero)
 
 private def validateSupportSeparation
     (coverage : ZeroOriginCoverage)
