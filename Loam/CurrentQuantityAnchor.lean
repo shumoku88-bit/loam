@@ -77,6 +77,34 @@ def coordinates (evidence : Evidence) : List EffectCoordinate :=
 end Evidence
 
 /--
+Admit the one correction-aware delta Event world shared by selected assertions
+from one current reconciliation image.
+-/
+private def deltaFrontier
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (evidence : Evidence) : Except String EventMemory := do
+  if !Loam.Application.correctionReferencesClosed events corrections then
+    throw "loam: current quantity anchor cannot resolve one or more correction endpoints"
+  let some currentRoots := Loam.Application.correctionRootIds? events corrections
+    | throw "loam: current quantity anchor requires one admitted Event correction frontier"
+  if !(evidence.reflectedRoots.all fun root => currentRoots.contains root) then
+    throw "loam: current quantity anchor references an Event that is not a stable correction root"
+  let some frontier :=
+      Loam.Application.correctionFrontierExcludingRoots?
+        events corrections evidence.reflectedRoots
+    | throw "loam: current quantity anchor requires one admitted Event correction frontier"
+  return frontier
+
+private def quantityFromDelta
+    (frontier : EventMemory)
+    (assertion : Assertion) : Quantity :=
+  let delta :=
+    EventMemory.quantityAtRecorded
+      frontier assertion.coordinate.locus assertion.coordinate.measure
+  Quantity.ofQuanta (assertion.quantity.quanta + delta.quanta)
+
+/--
 Inspect one asserted current quantity against the current correction-aware Event
 world.
 
@@ -95,19 +123,28 @@ def inspectQuantity
     (coordinate : EffectCoordinate) : Except String (Option Quantity) := do
   let some assertion := evidence.assertionFor? coordinate
     | return none
-  if !Loam.Application.correctionReferencesClosed events corrections then
-    throw "loam: current quantity anchor cannot resolve one or more correction endpoints"
-  let some currentRoots := Loam.Application.correctionRootIds? events corrections
-    | throw "loam: current quantity anchor requires one admitted Event correction frontier"
-  if !(evidence.reflectedRoots.all fun root => currentRoots.contains root) then
-    throw "loam: current quantity anchor references an Event that is not a stable correction root"
-  let some deltaFrontier :=
-      Loam.Application.correctionFrontierExcludingRoots?
-        events corrections evidence.reflectedRoots
-    | throw "loam: current quantity anchor requires one admitted Event correction frontier"
-  let delta :=
-    EventMemory.quantityAtRecorded
-      deltaFrontier coordinate.locus coordinate.measure
-  return some (Quantity.ofQuanta (assertion.quantity.quanta + delta.quanta))
+  let frontier ← deltaFrontier events corrections evidence
+  return some (quantityFromDelta frontier assertion)
+
+/--
+Inspect several coordinates from one reconciliation image while admitting the
+shared reflected-root cut only once.
+
+Missing assertions remain `none` in their original positions. If none of the
+requested coordinates is asserted, the correction-world obligation is not
+forced, matching the point inspection's absence behavior.
+-/
+def inspectQuantities
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (evidence : Evidence)
+    (coordinates : List EffectCoordinate) : Except String (List (Option Quantity)) := do
+  let assertions := coordinates.map fun coordinate => evidence.assertionFor? coordinate
+  if !(assertions.any fun assertion => assertion.isSome) then
+    return assertions.map fun _ => (none : Option Quantity)
+  let frontier ← deltaFrontier events corrections evidence
+  return assertions.map fun
+    | none => none
+    | some assertion => some (quantityFromDelta frontier assertion)
 
 end Loam.CurrentQuantityAnchor
