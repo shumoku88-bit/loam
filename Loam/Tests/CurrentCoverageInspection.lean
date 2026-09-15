@@ -47,7 +47,7 @@ private def subject (scheduled : String) (locus : LocusId) : ScheduledRoutingSub
 private def assertCoverage
     (label : String)
     (view : CurrentCoverageView)
-    (entitlement consumption remaining commitment headroom unresolved : Int) : IO Unit := do
+    (entitlement consumption remaining commitment headroom : Int) : IO Unit := do
   expect (view.entitlement.quanta == entitlement)
     s!"{label}: expected Entitlement {entitlement}, got {view.entitlement.quanta}"
   expect (view.consumption.quanta == consumption)
@@ -58,12 +58,6 @@ private def assertCoverage
     s!"{label}: expected Commitment {commitment}, got {view.commitment.quanta}"
   expect (view.headroom.quanta == headroom)
     s!"{label}: expected Headroom {headroom}, got {view.headroom.quanta}"
-  expect (view.unresolvedEligibility.quanta == unresolved)
-    s!"{label}: expected unresolved eligibility {unresolved}, got {view.unresolvedEligibility.quanta}"
-  expect (view.unmanagedCommitment.quanta == 0)
-    s!"{label}: fixture unexpectedly retained unmanaged Commitment"
-  expect (view.unroutedCommitment.quanta == 0)
-    s!"{label}: fixture unexpectedly retained role-qualified unrouted Commitment"
 
 def main : IO Unit := do
   let roles ← requireSome
@@ -147,7 +141,7 @@ def main : IO Unit := do
       managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "covered current projection failed closed"
-  assertCoverage "covered" covered 100 30 70 35 35 0
+  assertCoverage "covered" covered 100 30 70 35 35
 
   let overNow ← requireSome
     (currentCoverageAtCorrectionFrontier?
@@ -155,7 +149,7 @@ def main : IO Unit := do
       managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "over-now current projection failed closed"
-  assertCoverage "over-now" overNow 20 30 (-10) 35 (-45) 0
+  assertCoverage "over-now" overNow 20 30 (-10) 35 (-45)
 
   let futureShort ← requireSome
     (currentCoverageAtCorrectionFrontier?
@@ -163,7 +157,7 @@ def main : IO Unit := do
       managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "future-short current projection failed closed"
-  assertCoverage "future-short" futureShort 60 30 30 35 (-5) 0
+  assertCoverage "future-short" futureShort 60 30 30 35 (-5)
 
   let unresolvedView ← requireSome
     (currentCoverageAtCorrectionFrontier?
@@ -171,7 +165,26 @@ def main : IO Unit := do
       mixedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat))
     "unresolved current projection failed closed"
-  assertCoverage "unresolved" unresolvedView 100 30 70 35 35 9
+  assertCoverage "global unresolved pressure stays outside local view"
+    unresolvedView 100 30 70 35 35
+
+  let pressure ← requireSome
+    (currentScheduledPressurePartition?
+      mixedMemory terminals events roles scheduledRouting yen (2 : Nat) (4 : Nat))
+    "Scheduled pressure partition failed closed"
+  expect ((ScheduledPressurePartition.managedFor pressure food).quanta == 35)
+    "partition changed managed Commitment"
+  expect ((ScheduledPressurePartition.unmanaged pressure).quanta == 0)
+    "partition invented unmanaged pressure"
+  expect ((ScheduledPressurePartition.unrouted pressure).quanta == 0)
+    "partition invented role-qualified unrouted pressure"
+  expect ((ScheduledPressurePartition.unresolvedEligibility pressure).quanta == 9)
+    "partition lost unresolved eligibility"
+  let actionableSum :=
+    ((ScheduledPressurePartition.actionableRows pressure).map
+      (fun row => row.quantity.quanta)).sum
+  expect (actionableSum == 9)
+    s!"partition actionable pressure changed to {actionableSum}"
 
   let temporalMemory ← requireSome
     (CapacityMemory.ofMovements? [capacity100, capacity20, capacity60]) "temporal capacity"
@@ -185,7 +198,7 @@ def main : IO Unit := do
       managedMemory terminals roles scheduledRouting
       food yen (1 : Nat) (2 : Nat) (4 : Nat)) "temporal coverage"
   assertCoverage "future and pre-start excluded; observed endpoint included"
-    temporalView 100 30 70 35 35 0
+    temporalView 100 30 70 35 35
   expect ((entitlementAtEffectiveThrough? temporalMemory effective100 1 2 food yen).isNone)
     "missing effective evidence must fail closed"
   expect ((entitlementAtEffectiveThrough? memory100 temporalEffective 1 2 food yen).isNone)
