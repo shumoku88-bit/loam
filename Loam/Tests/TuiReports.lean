@@ -353,7 +353,6 @@ def main : IO Unit := do
     purpose := ⟨"food"⟩
     entitlement := Quantity.ofQuanta 100
     consumption := Quantity.ofQuanta 30
-    remaining := Quantity.ofQuanta 70
   }
   let budgetReport := Loam.Tui.Reports.withBudgetSnapshot budget {
     start := "2026-08-17"
