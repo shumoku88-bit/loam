@@ -1,6 +1,6 @@
 # Observation 251 — LOAM to REA interpretation boundary
 
-Status: **EXPERIMENT — Alloy qualification pending**
+Status: **QUALIFIED by Alloy 6.2.0 / Sat4j**
 
 LOAM baseline:
 
@@ -10,11 +10,40 @@ main: 4eb77b6e7f47c9198261f07f4af0c525dcedcd83
 Observation 250 / PR #919 merged
 ```
 
+Exact pre-qualification branch head:
+
+```text
+52f32c2d9e4df08ff556b136481a96f59293451c
+```
+
+GitHub Actions qualification:
+
+```text
+workflow: Observation 251
+run:      34982479969
+job:      104426031177
+result:   SUCCESS
+solver:   Alloy 6.2.0 / Sat4j
+```
+
+Observed matrix:
+
+```text
+reaInterpretationExists                           SAT
+sameLoamEvidenceDifferentAgent                   SAT
+sameLoamEvidenceDifferentResource                SAT
+sameLoamEvidenceDifferentDuality                 SAT
+LoamEvidenceDeterminesREAInterpretation          SAT counterexample
+LoamPlusResourceDeterminesAgent                  SAT counterexample
+LoamPlusResourceAndAgentDeterminesDuality        SAT counterexample
+FullExplicitOverlayDeterminesSelectedQueries     UNSAT counterexample
+```
+
 ## External semantic reference
 
 REA is used here in its standard Resource–Event–Agent sense: a semantic schema for event-level economic reality rather than a ledger-account capture model. The American Accounting Association describes REA as a semantic schema for elementary business transactions and notes that debit/credit/account judgements can be deferred to derived views. The 2022 AAA monograph summary likewise describes REA as an accounting and economic ontology that questions pervasive ledger-account structures.
 
-This observation does **not** claim to formalize the complete REA ontology or ISO/IEC 15944-4. It selects only three REA-shaped distinctions needed for a derivability test:
+This observation does **not** formalize the complete REA ontology or ISO/IEC 15944-4. It selects only three REA-shaped distinctions needed for a derivability test:
 
 ```text
 Resource interpretation
@@ -35,7 +64,7 @@ LOAM BalancedMovement
 
 without adding Account, Commodity, debit/credit, or transaction-kind vocabulary to LOAM Core.
 
-Observation 251 now probes the other edge:
+Observation 251 probes the other edge:
 
 ```text
 LOAM retained evidence
@@ -43,7 +72,7 @@ LOAM retained evidence
 REA economic interpretation
 ```
 
-The intended test is not whether a useful REA projection can exist. It is whether that projection is **forced** by current LOAM evidence or requires additional independent interpretation evidence.
+The result is that a useful REA interpretation can exist, but the selected interpretation is **not forced** by current neutral LOAM evidence.
 
 ## Fixed LOAM evidence
 
@@ -55,14 +84,7 @@ Payment
   GoodsLocus  JPY  +100
 ```
 
-The identities intentionally carry no built-in:
-
-- Resource meaning;
-- Agent or ownership meaning;
-- buyer/seller role;
-- exchange or duality relation;
-- debit/credit meaning;
-- Account meaning.
+The identities intentionally carry no built-in Resource meaning, Agent or ownership meaning, buyer/seller role, exchange or duality relation, debit/credit meaning, or Account meaning.
 
 This mirrors current LOAM boundaries: Event identity does not encode event kind or accounting role; Locus identity does not encode Account, ownership, custody, or accounting role semantics; Measure identity does not intrinsically mean currency or commodity.
 
@@ -86,65 +108,43 @@ The candidate well-formedness condition is deliberately small:
 
 This is enough to ask distinguishability questions without pretending to reproduce the complete REA exchange ontology.
 
-## Refutation matrix
+## Qualified boundaries
 
-The model asks for three concrete collisions.
+### O251-1 — Agent participation is not derivable
 
-### O251-1 — same LOAM evidence, different Agent
+`sameLoamEvidenceDifferentAgent` is SAT while Resource interpretation and duality are held fixed.
 
-Hold Resource interpretation and duality fixed while changing only `Payment` Agent participation.
+Therefore current neutral Event/Effect/Locus/Measure/Quantity evidence does not determine the selected participating Agent set.
 
-Expected:
+### O251-2 — Resource interpretation is not derivable
 
-```text
-sameLoamEvidenceDifferentAgent = SAT
-```
+`sameLoamEvidenceDifferentResource` is SAT while Agent participation and duality are held fixed.
 
-If SAT, Agent participation is not derivable from current neutral Event/Effect/Locus/Measure/Quantity evidence.
+Therefore a `LocusId` does not intrinsically determine REA Resource identity.
 
-### O251-2 — same LOAM evidence, different Resource
+### O251-3 — Event duality is not derivable
 
-Hold Agent participation and duality fixed while assigning a different REA Resource to `CashLocus`.
+`sameLoamEvidenceDifferentDuality` is SAT while Resource and Agent interpretation are held fixed.
 
-Expected:
+Therefore current Event/effect evidence does not by itself determine which economic event is the selected reciprocal side of an exchange.
 
-```text
-sameLoamEvidenceDifferentResource = SAT
-```
+### O251-4 — the three selected planes are staged independent evidence
 
-If SAT, a `LocusId` does not intrinsically determine REA Resource identity.
-
-### O251-3 — same LOAM evidence, different duality
-
-Hold Resource and Agent interpretation fixed while changing the selected reciprocal economic event for `Payment`.
-
-Expected:
+All three deliberately too-strong derivability assertions have counterexamples:
 
 ```text
-sameLoamEvidenceDifferentDuality = SAT
+LoamEvidenceDeterminesREAInterpretation          SAT counterexample
+LoamPlusResourceDeterminesAgent                  SAT counterexample
+LoamPlusResourceAndAgentDeterminesDuality        SAT counterexample
 ```
 
-If SAT, Event/effect evidence does not by itself determine exchange duality.
-
-## Deliberately too-strong claims
-
-The model then checks increasingly strong derivability claims.
-
-```text
-LoamEvidenceDeterminesREAInterpretation
-LoamPlusResourceDeterminesAgent
-LoamPlusResourceAndAgentDeterminesDuality
-```
-
-All three are expected to have SAT counterexamples.
-
-That would establish a staged boundary:
+So the bounded result is:
 
 ```text
 neutral LOAM evidence
-    -/-> Resource interpretation
-    -/-> Agent participation
-    -/-> Event duality
+    -/-> unique Resource interpretation
+    -/-> unique Agent participation
+    -/-> unique Event duality
 
 LOAM + Resource interpretation
     -/-> Agent participation
@@ -153,19 +153,22 @@ LOAM + Resource + Agent interpretation
     -/-> Event duality
 ```
 
-The final positive control is:
+### O251-5 — explicit overlay is sufficient for the selected queries
+
+`FullExplicitOverlayDeterminesSelectedQueries` has no counterexample in the exact bounded scope.
+
+That is the positive control: once the selected Resource, Agent, and duality relations themselves are explicit, the corresponding selected queries agree.
+
+## Finding
+
+The qualified connection is not:
 
 ```text
-FullExplicitOverlayDeterminesSelectedQueries
+LOAM retained evidence alone
+    -> unique REA world
 ```
 
-Expected result: **UNSAT counterexample**. Once the selected interpretation relations themselves are explicit, the selected REA queries must agree.
-
-## Why a SAT result would be useful
-
-A counterexample does not mean LOAM is incompatible with REA.
-
-It means the connection has the shape:
+It is:
 
 ```text
 LOAM retained evidence
@@ -173,18 +176,9 @@ LOAM retained evidence
     -> REA view
 ```
 
-rather than:
+A SAT collision therefore does **not** mean LOAM is incompatible with REA. It identifies the information boundary of the connection.
 
-```text
-LOAM retained evidence alone
-    -> unique REA world
-```
-
-That distinction is important for the proposed connection triangle. It would make REA a semantic interpretation/projection over LOAM evidence where needed, while Observation 250 already shows that one additive Ledger balance view can be obtained without first imposing those REA distinctions.
-
-## Connection triangle after qualification
-
-If the expected matrix is qualified, the current picture becomes:
+## Connection triangle after Observation 251
 
 ```text
                     LOAM retained evidence
@@ -196,21 +190,15 @@ If the expected matrix is qualified, the current picture becomes:
               REA                   Ledger/Pacioli balance
 ```
 
-The next question would then be whether an REA-mediated accounting projection and the direct Observation-250 Ledger projection commute for the overlap where both are defined.
+Observation 250 qualified the right edge. Observation 251 now qualifies the left edge as interpretation-dependent rather than uniquely derivable.
+
+The next research question is whether, for the overlap where an REA interpretation is supplied, an REA-mediated accounting projection and the direct Observation-250 Ledger projection commute.
 
 ## What is deliberately not claimed
 
-Observation 251 does not establish or reject:
+Observation 251 does not establish or reject complete REA conformance; commitments, contracts, policies, value chains, workflows, complete stock-flow or participation cardinality laws, external/internal Agent taxonomy, ownership or custody semantics, or production Resource/Agent persistence.
 
-- complete REA conformance;
-- REA commitments, contracts, policies, value chains, or workflows;
-- complete stock-flow or participation cardinality laws;
-- external versus internal Agent taxonomy;
-- ownership or custody semantics;
-- production Resource or Agent persistence;
-- any change to LOAM Core;
-- any claim that every LOAM Event should have an REA interpretation;
-- the later REA-to-Ledger commuting theorem.
+It also does not claim that every LOAM Event should have an REA interpretation and does not yet prove an REA-to-Ledger commuting theorem.
 
 ## Stop condition
 
