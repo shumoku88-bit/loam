@@ -104,15 +104,37 @@ structure ScheduledCommitmentView where
   unresolvedEligibility : Quantity
 deriving Repr, DecidableEq
 
-/-- Arithmetic evidence for one current Headroom answer. -/
+/--
+Arithmetic evidence for one current Headroom answer.
+
+Only the independent Remaining and Scheduled pressure answer are retained here.
+Commitment, Headroom, and the global pressure frontiers are uniquely projected
+from those two components.
+-/
 structure HeadroomView where
   remaining : Quantity
-  commitment : Quantity
-  headroom : Quantity
-  unmanagedCommitment : Quantity
-  unroutedCommitment : Quantity
-  unresolvedEligibility : Quantity
+  scheduled : ScheduledCommitmentView
 deriving Repr, DecidableEq
+
+/-- Managed Commitment is projected from the retained Scheduled pressure answer. -/
+def HeadroomView.commitment (view : HeadroomView) : Quantity :=
+  view.scheduled.managed
+
+/-- Headroom is uniquely derived from Remaining and managed Commitment. -/
+def HeadroomView.headroom (view : HeadroomView) : Quantity :=
+  view.remaining - view.commitment
+
+/-- Query-global unmanaged pressure is projected from the retained Scheduled answer. -/
+def HeadroomView.unmanagedCommitment (view : HeadroomView) : Quantity :=
+  view.scheduled.unmanaged
+
+/-- Query-global unrouted pressure is projected from the retained Scheduled answer. -/
+def HeadroomView.unroutedCommitment (view : HeadroomView) : Quantity :=
+  view.scheduled.unrouted
+
+/-- Query-global unresolved eligibility is projected from the retained Scheduled answer. -/
+def HeadroomView.unresolvedEligibility (view : HeadroomView) : Quantity :=
+  view.scheduled.unresolvedEligibility
 
 /--
 Observation 227 classification of one current-open positive Scheduled subject
@@ -572,11 +594,7 @@ def headroomAtCorrectionFrontier?
       observedAt endExclusive
   return {
     remaining := remaining
-    commitment := commitment.managed
-    headroom := Quantity.ofQuanta (remaining.quanta - commitment.managed.quanta)
-    unmanagedCommitment := commitment.unmanaged
-    unroutedCommitment := commitment.unrouted
-    unresolvedEligibility := commitment.unresolvedEligibility
+    scheduled := commitment
   }
 
 end Loam.Application
