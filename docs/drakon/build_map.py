@@ -487,15 +487,15 @@ FLOW_DIAGRAMS = {
     "14.1 Authoritative Date Publish": {
         "description": "Writer-owned publication seam for one Actual occurrence-date reaffirmation or revision.",
         "sources": "Loam/HouseholdCommand.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
-        "audit": "ActualAuthority.loadActual? already decodes and admits normalized Actual evidence, including validity history. No second publisher-local validity-frontier admission box is needed. Same-date requests are successful no-ops.",
+        "audit": "ActualAuthority.loadActual? already decodes and admits normalized Actual evidence, including validity history. ActualValidityPublisher.admit? returns error, no update, or updated evidence; the two decisions below only unpack that one result. Same-date requests are successful no-ops.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
             ("insertion", "Acquire writer ownership\nactual.loam writer lock"),
             ("insertion", "Load authoritative ActualEvidence"),
             ("decision", "Actual authority decoded + admitted?", "Refuse\nmissing or malformed Actual"),
             ("insertion", "ActualValidityPublisher.admit?\nagainst authoritative evidence"),
-            ("decision", "Date request admitted?", "Refuse\ndate-correction semantic guard failed"),
-            ("decision", "Date differs from current?", "Success / NO WRITE\nsame date reaffirmed"),
+            ("decision", "Admission succeeded?", "Refuse\ndate-correction semantic guard failed"),
+            ("decision", "Admission produced updated evidence?", "Success / NO WRITE\nsame date reaffirmed"),
             ("insertion", "ActualAuthority.publishActual?\ncomplete generation"),
             ("decision", "Atomic publication succeeded?", "Refuse\nexisting authority remains intact"),
             ("action", "Return success"),
