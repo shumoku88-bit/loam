@@ -98,7 +98,10 @@ theorem changeKindAt_eq_added_iff
     original replacement coordinate hChanged
   by_cases hOriginal :
       coordinate ∈ Loam.Observation258.eventCoordinates original
-  · simp [changeKindAt, hOriginal]
+  · by_cases hReplacement :
+        coordinate ∈ Loam.Observation258.eventCoordinates replacement
+    · simp [changeKindAt, hOriginal, hReplacement]
+    · simp [changeKindAt, hOriginal, hReplacement]
   · have hReplacement :
         coordinate ∈ Loam.Observation258.eventCoordinates replacement := by
       cases hPresence with
@@ -223,7 +226,7 @@ present. When its replacement quantity changes, the safe explanation is
 `changed`, not `added`.
 -/
 theorem zero_before_does_not_imply_added :
-    Event.quantityAt cancellingOriginal cancellingLocus yen = 0 ∧
+    (Event.quantityAt cancellingOriginal cancellingLocus yen).quanta = 0 ∧
     Loam.Observation258.quantityDeltaQuantaAt
       cancellingOriginal cancellingReplacement ⟨cancellingLocus, yen⟩ = 50 ∧
     changeKindAt cancellingOriginal cancellingReplacement
