@@ -1,15 +1,32 @@
 # Observation 262 — authoritative correction-chain extraction
 
-Status: **EXPERIMENT — Lean qualification pending**
+Status: **QUALIFIED by Lean 4.33.1**
 
 Baseline:
 
 ```text
 shumoku88-bit/loam
-main: 30cf7b1b80d1d8aad3a95a60c2d167218048932c
+initial main: 30cf7b1b80d1d8aad3a95a60c2d167218048932c
 Observation 261 / PR #936 merged
 Evidence Atlas / PR #937 merged
-open PR: #938 docs-only
+parallel docs work remained semantically orthogonal
+```
+
+Qualification:
+
+```text
+Selected Lean Observations
+run:    35001642531 (#1102)
+result: SUCCESS
+Lean:   4.33.1
+
+Compression Audit
+run:    35001642647 (#879)
+result: SUCCESS
+
+Purpose Catalog Boundary
+run:    35001642555 (#300)
+result: SUCCESS
 ```
 
 ## Trigger
@@ -41,7 +58,7 @@ disjoint finite correction paths
 
 Observation 262 asks whether that retained production evidence can safely supply the Event sequence expected by O261 without adding a second chain authority.
 
-## Obligation DAG
+## Qualified obligation DAG
 
 ```text
 production correction-frontier admission
@@ -96,9 +113,9 @@ correction count + 1
 
 Fuel exhaustion returns `none`; it never invents a terminal.
 
-## Justification law
+## Qualified justification law
 
-Target theorem:
+Lean proves:
 
 ```text
 successorId? corrections id = some successor
@@ -110,7 +127,7 @@ exists retained correction,
 
 So every adjacency chosen by the reader originates in retained evidence rather than Event order, EventId spelling, dates, or Git history.
 
-## Production topology matrix
+## Qualified production topology matrix
 
 Selected four-Event world:
 
@@ -121,7 +138,7 @@ C  15
 D  30
 ```
 
-Expected production admission:
+Lean qualifies production admission as:
 
 ```text
 A -> B -> C -> D        true
@@ -138,9 +155,9 @@ B -> A                  false   cycle
 A -> missing            false   missing endpoint
 ```
 
-The reader must expose no chain for every rejected shape.
+The observation-local reader returns `none` for every rejected shape.
 
-## Positive connection witness
+## Qualified positive connection witness
 
 For the admitted linear path:
 
@@ -148,23 +165,23 @@ For the admitted linear path:
 A -> B -> C -> D
 ```
 
-Target derived chain:
+Lean qualifies the derived chain:
 
 ```text
 [A, B, C, D]
 ```
 
-Existing production `correctionRootTerminalEvents?` should report:
+Existing production `correctionRootTerminalEvents?` reports:
 
 ```text
 A -> D
 ```
 
-and the observation-local extracted chain should terminate at the same `D`.
+and the observation-local extracted chain terminates at the same `D`.
 
-A selected permutation of the correction-memory representation is also checked to produce the same path. This is a witness of intended order independence, not a new generic permutation theorem.
+A selected permutation of the correction-memory representation also produces the same path. This is a witness of intended order independence, not a new generic permutation theorem.
 
-## O261 bridge
+## Qualified O261 bridge
 
 The selected quantity coordinate uses:
 
@@ -181,19 +198,19 @@ Adjacent deltas:
 +10, -5, +15
 ```
 
-O261 over the production-derived path should yield:
+O261 over the production-derived path yields:
 
 ```text
 +20
 ```
 
-which equals the direct O258 endpoint delta `A -> D`.
+and the direct O258 endpoint delta `A -> D` is also `+20`.
 
-The adapter performs no second diff arithmetic. It delegates finite-chain quantity composition to O261.
+The adapter performs no second diff arithmetic. The general theorem `chainDeltaQuantaAtFrom?_eq_endpoint_of_extracted` delegates every successfully extracted nonempty chain to O261's endpoint law.
 
-## Intended boundary
+## Qualified boundary
 
-If qualified:
+Observation 262 establishes the selected production connection:
 
 ```text
 retained EventCorrection topology
@@ -213,8 +230,10 @@ chronology field
 winner-by-list-position rule
 ```
 
+Production `CorrectionFrontier` remains the topology authority. The reader is research-only.
+
 This does **not** yet prove generic permutation independence or generic completeness of the observation-local reader for every admitted path. Those are stronger reusable-reader properties and should be earned separately if production needs this adapter.
 
 ## Stop condition
 
-Do not promote the observation-local chain reader into production merely because the selected bridge works. First qualify the semantic boundary. Promote only if a concrete product query needs explicit intermediate correction history rather than the existing root/terminal frontier projections.
+Do not promote the observation-local chain reader into production merely because the selected bridge works. Promote only if a concrete product query needs explicit intermediate correction history rather than the existing root/terminal frontier projections; if promoted, first qualify generic order independence and completeness from production admission.
