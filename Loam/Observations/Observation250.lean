@@ -1,3 +1,4 @@
+import Loam.Core.Effect
 import Loam.Observations.Observation159
 
 namespace Loam.Observation250
@@ -99,8 +100,11 @@ theorem ledgerPresentation_total_eq_movementTotal
   induction changes with
   | nil => rfl
   | cons change rest ih =>
-      simp [ledgerPresentationTotalQuanta, ledgerPresentation, postingOf,
-        movementTotalQuanta, ih]
+      change
+        change.quantity.quanta +
+            ledgerPresentationTotalQuanta (ledgerPresentation measure rest) =
+          change.quantity.quanta + movementTotalQuanta rest
+      rw [ih]
 
 /-- A LOAM balanced movement therefore maps to an exactly zero-total presentation. -/
 theorem balancedMovement_maps_to_zero_total
@@ -120,7 +124,26 @@ theorem ledgerFlowQuanta_accountOf
   induction changes with
   | nil => rfl
   | cons change rest ih =>
-      simp [ledgerFlowQuantaAtChanges, accountOf, Observation159.aggregateAt, ih]
+      change
+        (if accountOf change.coordinate measure = accountOf locus measure then
+            change.quantity.quanta +
+              ledgerFlowQuantaAtChanges measure rest (accountOf locus measure)
+          else
+            ledgerFlowQuantaAtChanges measure rest (accountOf locus measure)) =
+          (if change.coordinate = locus then
+              change.quantity.quanta + (Observation159.aggregateAt rest locus).quanta
+            else
+              (Observation159.aggregateAt rest locus).quanta)
+      by_cases h : change.coordinate = locus
+      · subst locus
+        simp [ih]
+      · have hAccount :
+            accountOf change.coordinate measure ≠ accountOf locus measure := by
+          intro hEqual
+          have hLocus : change.coordinate = locus :=
+            congrArg LedgerAccountShadow.locus hEqual
+          exact h hLocus
+        simp [h, hAccount, ih]
 
 /--
 Every same-Measure Ledger-shaped account observes exactly the quantity that
@@ -133,7 +156,7 @@ theorem ledgerFlowAt_mapped_locus
       movement.quantityAt locus := by
   unfold ledgerFlowAt ledgerFlowAtChanges
   rw [ledgerFlowQuanta_accountOf]
-  rfl
+  simp [Observation159.aggregateAt, BalancedMovement.quantityAt]
 
 /-- A different Measure cannot acquire flow from a single-Measure movement. -/
 theorem ledgerFlowQuanta_other_measure_zero
@@ -145,7 +168,19 @@ theorem ledgerFlowQuanta_other_measure_zero
   induction changes with
   | nil => rfl
   | cons change rest ih =>
-      simp [ledgerFlowQuantaAtChanges, accountOf, hDifferent, hDifferent.symm, ih]
+      change
+        (if accountOf change.coordinate measure = accountOf locus otherMeasure then
+            change.quantity.quanta +
+              ledgerFlowQuantaAtChanges measure rest (accountOf locus otherMeasure)
+          else
+            ledgerFlowQuantaAtChanges measure rest (accountOf locus otherMeasure)) = 0
+      have hAccount :
+          accountOf change.coordinate measure ≠ accountOf locus otherMeasure := by
+        intro hEqual
+        have hMeasure : measure = otherMeasure :=
+          congrArg LedgerAccountShadow.measure hEqual
+        exact hDifferent hMeasure.symm
+      simp [hAccount, ih]
 
 /-- Quantity-valued form of the cross-Measure isolation law. -/
 theorem ledgerFlowAt_other_measure_zero
@@ -172,6 +207,6 @@ theorem ledger_flow_respects_vector_equivalence
       ledgerFlowAtChanges measure right (accountOf locus measure) := by
   unfold ledgerFlowAtChanges
   rw [ledgerFlowQuanta_accountOf, ledgerFlowQuanta_accountOf]
-  exact hEquivalent locus
+  simpa using hEquivalent locus
 
 end Loam.Observation250
