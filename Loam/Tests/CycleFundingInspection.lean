@@ -32,9 +32,7 @@ private def row (purpose : String) (remaining : Int) (commitment : Int := 0) :
   { purpose := ⟨purpose⟩
     entitlement := Quantity.ofQuanta (remaining + 6000)
     consumption := Quantity.ofQuanta 6000
-    remaining := Quantity.ofQuanta remaining
-    commitment := Quantity.ofQuanta commitment
-    headroom := Quantity.ofQuanta (remaining - commitment) }
+    commitment := Quantity.ofQuanta commitment }
 
 private def current (rows : List Loam.CurrentCoverageReview.Row) :
     Loam.CurrentCoverageReview.Snapshot :=
