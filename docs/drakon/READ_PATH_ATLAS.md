@@ -29,6 +29,8 @@ The current atlas contains:
 ```text
 LOAM Read Path Atlas
 +-- 07.0 Read Path Comparison
++-- 07.1 Actual Review
+|   `-- 07.1.1 Actual Review Read Boundary
 +-- 07.7 Current Coverage
 |   +-- 07.7.1 Current Coverage Read Boundary
 |   +-- 07.7.2 Per-Purpose Coverage Projection
@@ -50,7 +52,7 @@ python3 docs/drakon/inspect_map.py \
 
 python3 docs/drakon/inspect_map.py \
   docs/drakon/loam-read-path-map.drn \
-  --diagram "07.7.1 Current Coverage Read Boundary" --geometry
+  --diagram "07.1.1 Actual Review Read Boundary" --geometry
 ```
 
 Use the text form to compare icon semantics and source traceability. Use an
@@ -58,6 +60,22 @@ actual DRAKON Editor screenshot when spatial density, symmetry, branch length,
 or an awkward route is itself the evidence.
 
 ## Current observed topology
+
+`ActualReview.loadRecordsFromActual` reads one normalized `ActualEvidence` image
+and projects review records only after both the Event correction frontier and the
+Actual validity frontier admit. The current flag is derived from the admitted
+correction frontier, while the occurrence date is read from the admitted validity
+memory. Description and correction label stay projections of the same loaded
+Actual evidence rather than becoming separate report authority.
+
+The Actual Review diagram also exposes an important obligation that is easy to
+miss in source-local reading. Raw `EventCorrectionMemory` rejects duplicate exact
+edges, but it does not by itself make correction target lookup functional.
+`correctionFrontierMemory?` admits only closed, acyclic, source/successor-unique
+replacement paths. Because `recordsFromActualEvidence?` refuses before record
+projection when that admission fails, its later `replacement` lookup by target is
+deterministic under the already-admitted frontier. Generation 2 records this as
+a KEEP result: no second correction model or proof-only read API is justified.
 
 `CurrentCoverageReview.loadSnapshotAt` now resolves and classifies current-open
 Scheduled pressure once at the snapshot level. Query-global pressure frontiers
