@@ -29,12 +29,15 @@ The current atlas contains:
 ```text
 LOAM Read Path Atlas
 +-- 07.0 Read Path Comparison
-`-- 07.7 Current Coverage
-    +-- 07.7.1 Current Coverage Read Boundary
-    +-- 07.7.2 Per-Purpose Coverage Projection
-    +-- 07.7.3 Scheduled Pressure Partition
-    +-- 07.7.4 Current Coverage Compatibility Entrances
-    `-- 07.7.5 Headroom Compatibility Composition
++-- 07.7 Current Coverage
+|   +-- 07.7.1 Current Coverage Read Boundary
+|   +-- 07.7.2 Per-Purpose Coverage Projection
+|   +-- 07.7.3 Scheduled Pressure Partition
+|   +-- 07.7.4 Current Coverage Compatibility Entrances
+|   `-- 07.7.5 Headroom Compatibility Composition
+`-- 07.8 Cycle Budget
+    +-- 07.8.1 Cycle Budget Read Boundary
+    `-- 07.8.2 Cycle Funding Composition
 ```
 
 ## Inspect as text
@@ -78,6 +81,19 @@ The legacy all-current Headroom composition remains separate because it asks a
 different coordinate question from windowed Current Coverage. Its result now
 retains independent components and derives commitment/headroom aliases instead
 of storing contradictory copies.
+
+Cycle Budget keeps window, CurrentCoverage, physical display balances, funding
+selection, and funding summary as independently visible read results. Physical
+balance display and funding share one loaded Balance evidence image, while
+CurrentCoverage deliberately keeps its existing production reader; the composed
+snapshot does not promise a cross-file atomic read.
+
+`CycleFundingInspection.Summary` currently computes budgetable backing and
+remaining assigned, materializes `residualBeforeUnresolved` as their difference,
+and copies the three global future-pressure quantities from the supplied
+CurrentCoverage Scheduled frontier. Because `CycleBudgetReview.Snapshot` retains
+that CurrentCoverage snapshot beside the funding summary, `07.8.2` makes those
+copies explicit for visual audit before any representation change is proposed.
 
 These are observations of the current read topology, not instructions to keep
 compressing it. A remaining compatibility or projection boundary is not a
