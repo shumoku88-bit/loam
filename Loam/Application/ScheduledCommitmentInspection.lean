@@ -387,9 +387,7 @@ private theorem fold_unmanaged_independent
       apply ih
       cases hclass : classifyScheduledPressure roles routing observedAt coordinate.subject with
       | managed routedPurpose =>
-          by_cases hleft : routedPurpose = leftPurpose <;>
-          by_cases hright : routedPurpose = rightPurpose <;>
-          simp [addSelectedCoordinate, hclass, hleft, hright, hinit]
+          simp [addSelectedCoordinate, hclass, hinit]
       | unmanaged =>
           simp [addSelectedCoordinate, hclass, hinit]
       | unroutedPressure =>
