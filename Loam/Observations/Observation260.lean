@@ -81,7 +81,7 @@ theorem direct_nonzero_mem_stepChangedCoordinates
         Loam.Observation258.quantityDeltaQuantaAt middle last coordinate ≠ 0 := by
       intro hLastZero
       apply hDirect
-      rw [quantityDeltaQuantaAt_compose]
+      rw [quantityDeltaQuantaAt_compose first middle last coordinate]
       simp [composedDeltaQuantaAt, hFirst, hLastZero]
     apply (mem_stepChangedCoordinates_iff first middle last coordinate).2
     exact Or.inr <|
@@ -176,7 +176,7 @@ theorem second_step_delta :
 /-- Endpoint quantity delta is zero because the two step deltas cancel. -/
 theorem direct_delta_cancels :
     Loam.Observation258.quantityDeltaQuantaAt firstEvent lastEvent coordinate = 0 := by
-  rw [quantityDeltaQuantaAt_compose]
+  rw [quantityDeltaQuantaAt_compose firstEvent middleEvent lastEvent coordinate]
   simp [composedDeltaQuantaAt, first_step_delta, second_step_delta]
 
 /-- The coordinate occurs in both step changed supports. -/
