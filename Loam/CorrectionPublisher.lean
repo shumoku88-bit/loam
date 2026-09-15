@@ -27,15 +27,10 @@ private def relationsMentionEvent
   evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
     evidence.discharges.any (fun discharge => decide (discharge.event = id))
 
-private def freshReplacementId?
-    (evidence : ActualEvidence) : Option EventId := do
-  let token ← Loam.firstUnusedNumberedToken?
-    "replacement-"
-    (fun token =>
-      (EventMemory.findById? evidence.events (⟨token⟩ : EventId)).isSome)
-    1
-    (evidence.events.events.length + 1)
-  pure ⟨token⟩
+private def freshReplacementId
+    (evidence : ActualEvidence) : EventId :=
+  let used := evidence.events.events.map (fun event => event.id.token)
+  ⟨Loam.firstUnusedNumberedToken "replacement-" used 1⟩
 
 private def targetCurrent?
     (events : EventMemory)
@@ -74,10 +69,7 @@ private def admit?
     | some fact => pure fact
     | none => throw "loam: selected Actual has no current occurrence date"
 
-  let replacementId ←
-    match freshReplacementId? evidence with
-    | some id => pure id
-    | none => throw "loam: could not generate a fresh replacement Event identity"
+  let replacementId := freshReplacementId evidence
   let correction : EventCorrection := {
     target := draft.target
     replacement := replacementId
