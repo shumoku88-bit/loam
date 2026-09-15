@@ -87,7 +87,7 @@ structure Evidence where
   corrections : EventCorrectionMemory
   coverage : ZeroOriginCoverage
 
-/-- Load authoritative Actual evidence and independent zero-origin evidence. -/
+/-- Load the exact selected Actual authority and independent zero-origin evidence. -/
 def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
   let path :=
@@ -96,10 +96,7 @@ def loadEvidence
   let actualEvidence ←
     match ← Loam.ActualAuthority.loadActualFile? path with
     | .ok ev => pure ev
-    | .error message =>
-        match ← Loam.ActualAuthority.loadActual? dataDir with
-        | .ok ev => pure ev
-        | .error _ => return .error message
+    | .error message => return .error message
   let coverage ←
     match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
