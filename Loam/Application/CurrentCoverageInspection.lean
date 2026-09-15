@@ -140,34 +140,4 @@ def currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
     capacity effective currentWindowStart observedAt purpose measure
   return assembleCurrentCoverage entitlement consumption commitment
 
-/--
-Production-compatible current coverage using the explicit `initial | dated`
-Actual-routing coordinate retained by `ActualRoutingPersistence`.
-
-This is the same current coverage arithmetic as `currentCoverageAtCorrectionFrontier?`;
-only the Actual routing composition boundary differs. No initial calendar date is
-fabricated.
--/
-def currentCoverageAtCorrectionFrontierEffectiveRouting?
-    (capacity : CapacityMemory)
-    (effective : CapacityEffectiveMemory Time)
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (validities : ActualValidityMemory Time)
-    (actualRouting : RoutingHistory LocusId (RoutingEffective Time))
-    (scheduled : ScheduledMemory Time)
-    (terminals : ScheduledTerminalMemory)
-    (roles : AccountingRoleMap)
-    (scheduledRouting : RoutingHistory ScheduledRoutingSubject Time)
-    (purpose : PurposeId)
-    (measure : MeasureId)
-    (currentWindowStart observedAt endExclusive : Time) : Option CurrentCoverageView := do
-  let commitment ←
-    currentScheduledCommitment?
-      scheduled terminals events roles scheduledRouting
-      purpose measure observedAt endExclusive
-  currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
-    capacity effective events corrections validities actualRouting
-    purpose measure currentWindowStart observedAt commitment.managed
-
 end Loam.Application
