@@ -90,14 +90,125 @@ structure Admitted where
   world : World
   eventId : Loam.Core.EventId
 
+private def recordEventTokens (world : World) : List String :=
+  world.events.events.map (fun event => event.id.token) ++
+    world.validity.facts.map (fun fact => fact.event.token) ++
+    world.descriptions.entries.map (fun entry => entry.event.token) ++
+    world.relations.map (fun relation => relation.sourceEvent.token) ++
+    world.discharges.map (fun discharge => discharge.event.token)
+
 private def freshRecordEventId (world : World) : Loam.Core.EventId :=
-  let used :=
-    world.events.events.map (fun event => event.id.token) ++
-      world.validity.facts.map (fun fact => fact.event.token) ++
-      world.descriptions.entries.map (fun entry => entry.event.token) ++
-      world.relations.map (fun relation => relation.sourceEvent.token) ++
-      world.discharges.map (fun discharge => discharge.event.token)
-  ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
+  ⟨Loam.firstUnusedNumberedToken "record-" (recordEventTokens world) 1⟩
+
+private theorem freshRecordEventToken_not_mem (world : World) :
+    (freshRecordEventId world).token ∉ recordEventTokens world := by
+  exact Loam.firstUnusedNumberedToken_not_mem "record-" (recordEventTokens world) 1
+
+private theorem eventId_not_mem_of_token_not_mem {Item : Type}
+    (keyOf : Item → Loam.Core.EventId)
+    (items : List Item)
+    (id : Loam.Core.EventId)
+    (hFresh : id.token ∉ items.map (fun item => (keyOf item).token)) :
+    id ∉ items.map keyOf := by
+  intro hMem
+  apply hFresh
+  rcases List.mem_map.mp hMem with ⟨item, hItem, hEq⟩
+  exact List.mem_map.mpr ⟨item, hItem, congrArg Loam.Core.EventId.token hEq⟩
+
+private theorem freshRecordEventId_not_mem_events (world : World) :
+    freshRecordEventId world ∉ world.events.events.map Loam.Core.Event.id := by
+  apply eventId_not_mem_of_token_not_mem Loam.Core.Event.id
+  intro hMem
+  exact freshRecordEventToken_not_mem world (by
+    simp [recordEventTokens, hMem])
+
+private theorem freshRecordEventId_not_mem_validityEvents (world : World) :
+    freshRecordEventId world ∉
+      world.validity.facts.map Loam.Core.ActualValidityFact.event := by
+  apply eventId_not_mem_of_token_not_mem Loam.Core.ActualValidityFact.event
+  intro hMem
+  exact freshRecordEventToken_not_mem world (by
+    simp [recordEventTokens, hMem])
+
+private theorem freshRecordEventId_not_mem_descriptions (world : World) :
+    freshRecordEventId world ∉
+      world.descriptions.entries.map Loam.Core.EventDescription.event := by
+  apply eventId_not_mem_of_token_not_mem Loam.Core.EventDescription.event
+  intro hMem
+  exact freshRecordEventToken_not_mem world (by
+    simp [recordEventTokens, hMem])
+
+private theorem rootRef_not_mem_of_event_not_mem
+    (facts : List (Loam.Core.ActualValidityFact String))
+    (id : Loam.Core.EventId)
+    (hFresh : id ∉ facts.map Loam.Core.ActualValidityFact.event) :
+    Loam.Core.ActualValidityRef.root id ∉
+      facts.map Loam.Core.ActualValidityFact.ref := by
+  intro hMem
+  rcases List.mem_map.mp hMem with ⟨fact, hFact, hEq⟩
+  apply hFresh
+  apply List.mem_map.mpr
+  refine ⟨fact, hFact, ?_⟩
+  cases fact with
+  | base event validOn =>
+      simpa [Loam.Core.ActualValidityFact.ref, Loam.Core.ActualValidityFact.event] using hEq
+  | revision revision event validOn =>
+      simp [Loam.Core.ActualValidityFact.ref] at hEq
+
+private theorem freshDescriptionAppend_isSome
+    (world : World) (text : String) :
+    (world.descriptions.add? {
+      event := freshRecordEventId world
+      text := text
+    }).isSome := by
+  have hFresh := freshRecordEventId_not_mem_descriptions world
+  simp [Loam.Core.EventDescriptionMemory.add?, Loam.Core.EventDescriptionMemory.ofEntries?,
+    world.descriptions.eventNodup, hFresh]
+
+private theorem freshValidityAppend_isSome
+    (world : World) (validOn : String) :
+    (world.validity.addFact?
+      (.base (freshRecordEventId world) validOn)).isSome := by
+  have hFreshEvent := freshRecordEventId_not_mem_validityEvents world
+  have hFreshRoot :
+      Loam.Core.ActualValidityRef.root (freshRecordEventId world) ∉
+        world.validity.facts.map Loam.Core.ActualValidityFact.ref :=
+    rootRef_not_mem_of_event_not_mem world.validity.facts
+      (freshRecordEventId world) hFreshEvent
+  simp [Loam.Core.ActualValidityHistory.addFact?, Loam.Core.ActualValidityHistory.ofParts?,
+    world.validity.factRefNodup, world.validity.correctionIdNodup, hFreshRoot]
+
+private theorem eventOfEffects_some_id
+    (id : Loam.Core.EventId)
+    (effects : List Loam.Core.Effect)
+    (event : Loam.Core.Event)
+    (h : Loam.Core.Event.ofEffects? id effects = some event) :
+    event.id = id := by
+  unfold Loam.Core.Event.ofEffects? at h
+  split at h
+  next _ =>
+    cases h
+    rfl
+  next _ =>
+    cases h
+
+private def eventWithRequestedId?
+    (id : Loam.Core.EventId)
+    (effects : List Loam.Core.Effect) :
+    Option { event : Loam.Core.Event // event.id = id } :=
+  match h : Loam.Core.Event.ofEffects? id effects with
+  | none => none
+  | some event => some ⟨event, eventOfEffects_some_id id effects event h⟩
+
+private theorem freshEventAppend_isSome
+    (world : World)
+    (event : Loam.Core.Event)
+    (hId : event.id = freshRecordEventId world) :
+    (Loam.Core.EventMemory.add? world.events event).isSome := by
+  have hFresh : event.id ∉ world.events.events.map Loam.Core.Event.id := by
+    simpa [hId] using freshRecordEventId_not_mem_events world
+  simp [Loam.Core.EventMemory.add?, Loam.Core.EventMemory.ofEvents?,
+    world.events.idNodup, hFresh]
 
 private def materializeRelationUnitsFrom
     (eventId : Loam.Core.EventId)
@@ -254,28 +365,26 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
   let eventId := freshRecordEventId world
-  let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
+  let admittedEvent ← match eventWithRequestedId? eventId draft.effects with
     | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
+  let event := admittedEvent.1
   let newRelations := materializeRelationUnits world eventId draft.relations
   let newDischarges := materializeRelationDischarges eventId draft.discharges
   let fact : Loam.Core.ActualValidityFact String :=
     .base eventId draft.validOn
-  let updatedDescriptions ← match draft.description with
-    | none => pure world.descriptions
+  let updatedDescriptions := match draft.description with
+    | none => world.descriptions
     | some text =>
-        match world.descriptions.add? { event := eventId, text := text } with
-        | some descriptions => pure descriptions
-        | none =>
-            throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedEvents ← match Loam.Core.EventMemory.add? world.events event with
-    | some events => pure events
-    | none =>
-        throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedHistory ← match world.validity.addFact? fact with
-    | some history => pure history
-    | none =>
-        throw "loam: could not append movement, occurrence-date, and description evidence"
+        (world.descriptions.add? { event := eventId, text := text }).get
+          (by simpa [eventId] using freshDescriptionAppend_isSome world text)
+  let updatedEvents :=
+    (Loam.Core.EventMemory.add? world.events event).get
+      (by simpa [event, eventId] using
+        freshEventAppend_isSome world event admittedEvent.2)
+  let updatedHistory :=
+    (world.validity.addFact? fact).get
+      (by simpa [fact, eventId] using freshValidityAppend_isSome world draft.validOn)
   let updatedRelations := world.relations ++ newRelations
   let updatedDischarges := world.discharges ++ newDischarges
   if !relationPublicationAdmissible updatedEvents updatedRelations event newRelations then
