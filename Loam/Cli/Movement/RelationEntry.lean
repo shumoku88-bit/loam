@@ -17,12 +17,6 @@ private def promptLine (prompt : String) : IO String := do
   let stdin ← IO.getStdin
   return (← stdin.getLine).trimAsciiEnd.toString
 
-private def findEffectByKey? :
-    List Loam.Core.Effect → Loam.Core.EffectKey → Option Loam.Core.Effect
-  | [], _ => none
-  | effect :: rest, key =>
-      if effect.key = some key then some effect else findEffectByKey? rest key
-
 private def draftFromFields?
     (effects : List Loam.Core.Effect)
     (effectToken direction externalToken quantityText : String) :
@@ -32,7 +26,7 @@ private def draftFromFields?
   if !Loam.Persistence.validToken externalToken then
     throw "loam: external endpoint id must be a nonempty single-line token"
   let effectKey : Loam.Core.EffectKey := ⟨effectToken⟩
-  if (findEffectByKey? effects effectKey).isNone then
+  if (effects.find? fun effect => effect.key = some effectKey).isNone then
     throw ("loam: relation source EffectKey is not in this movement: " ++ effectToken)
   let quantity ← match quantityText.toInt? with
     | some quantity => pure quantity
