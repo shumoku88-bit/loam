@@ -42,22 +42,24 @@ private theorem findEvent_isSome_eq_usedByList
   | nil =>
       simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList]
   | cons event rest ih =>
-      by_cases hEq : event.id.token = token
-      · have hId : event.id = (⟨token⟩ : EventId) := by
-          cases event.id with
-          | mk eventToken =>
-              cases hEq
-              rfl
-        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList, hId]
-      · have hEqSymm : token ≠ event.id.token := by
-          intro h
-          exact hEq h.symm
-        have hId : event.id ≠ (⟨token⟩ : EventId) := by
-          intro h
-          apply hEq
-          exact congrArg EventId.token h
-        simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList,
-          hEqSymm, hId, ih]
+      cases event with
+      | mk id effects keyNodup =>
+          by_cases hEq : id.token = token
+          · have hId : id = (⟨token⟩ : EventId) := by
+              cases id with
+              | mk idToken =>
+                  cases hEq
+                  rfl
+            simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList, hId]
+          · have hEqSymm : token ≠ id.token := by
+              intro h
+              exact hEq h.symm
+            have hId : id ≠ (⟨token⟩ : EventId) := by
+              intro h
+              apply hEq
+              exact congrArg EventId.token h
+            simp [FiniteKeyed.findBy?, eventTokens, Observation242.usedByList,
+              hEqSymm, hId, ih]
 
 /-- Correction's concrete Event collision predicate has the finite witness above. -/
 theorem eventUsed_eq_usedByList
