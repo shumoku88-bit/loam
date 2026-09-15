@@ -103,10 +103,8 @@ private def publishUnderOwnership
     | .error message => return .error message
   if !containsScheduled openOccurrences draft.source then
     return .error "loam: only a currently open Scheduled identity can be replaced"
-  let replacementId ←
-    match Loam.ScheduledOccurrenceConstruction.freshId? lifecycle.scheduled with
-    | some id => pure id
-    | none => return .error "loam: could not generate a fresh replacement Scheduled identity"
+  let replacementId :=
+    Loam.ScheduledOccurrenceConstruction.freshId lifecycle.scheduled
   let occurrence : ScheduledOccurrence String := {
     id := replacementId
     scheduledOn := draft.scheduledOn
