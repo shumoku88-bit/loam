@@ -63,8 +63,6 @@ private def validateDraft (draft : Draft) : Except String Unit := do
       Loam.Persistence.validToken change.coordinate.token &&
       change.quantity.quanta != 0) then
     throw "loam: Scheduled creation requires valid Locus tokens and nonzero JPY quantities"
-  if Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement <= 0 then
-    throw "loam: Scheduled creation requires a positive balanced total"
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
