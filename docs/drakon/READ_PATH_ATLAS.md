@@ -88,12 +88,13 @@ balance display and funding share one loaded Balance evidence image, while
 CurrentCoverage deliberately keeps its existing production reader; the composed
 snapshot does not promise a cross-file atomic read.
 
-`CycleFundingInspection.Summary` currently computes budgetable backing and
-remaining assigned, materializes `residualBeforeUnresolved` as their difference,
-and copies the three global future-pressure quantities from the supplied
-CurrentCoverage Scheduled frontier. Because `CycleBudgetReview.Snapshot` retains
-that CurrentCoverage snapshot beside the funding summary, `07.8.2` makes those
-copies explicit for visual audit before any representation change is proposed.
+`CycleFundingInspection.Summary` now retains only the two independent funding
+quantities: budgetable backing and remaining assigned. JPY is fixed by admission,
+`residualBeforeUnresolved` is derived from those retained quantities, and the
+three query-global future-pressure values remain owned by the sibling
+CurrentCoverage Scheduled frontier rather than being copied into the funding
+summary. `07.8.2` therefore shows one retained funding pair plus derived/contextual
+reads instead of parallel stored echoes.
 
 These are observations of the current read topology, not instructions to keep
 compressing it. A remaining compatibility or projection boundary is not a
