@@ -1,6 +1,6 @@
 # Observation 252 — REA to Ledger accounting-view commutation
 
-Status: **EXPERIMENT — Alloy qualification pending**
+Status: **QUALIFIED by Alloy 6.2.0 / Sat4j**
 
 LOAM baseline:
 
@@ -9,6 +9,35 @@ shumoku88-bit/loam
 main: 6eaa8adfbfb94224ef3243a307100d66af217f5b
 Observation 250 / PR #919 merged
 Observation 251 / PR #922 merged
+```
+
+Exact pre-qualification branch head:
+
+```text
+9888f9bbae2d4e3e70ac3e12311216a58f2bb2ac
+```
+
+GitHub Actions qualification:
+
+```text
+workflow: Observation 252
+run:      34983842489
+job:      104430749595
+result:   SUCCESS
+solver:   Alloy 6.2.0 / Sat4j
+```
+
+Observed matrix:
+
+```text
+compatibleTriangleExists                               SAT
+sameReaDifferentLedgerView                             SAT
+misalignedAccountingViewBreaksCommutation              SAT
+differentReaSemanticsSameLedgerImage                   SAT
+resourceCollapseBlocksCommutation                      SAT
+ReaInterpretationDeterminesLedgerImage                 SAT counterexample
+CompatibleAccountingViewCommutes                       UNSAT counterexample
+CompatibleViewCannotHideDistinctDirectCoordinates      UNSAT counterexample
 ```
 
 ## Question
@@ -41,6 +70,19 @@ The selected question is:
 > Observation 250, or is an additional accounting-view policy required; and if
 > that policy agrees with the direct LOAM coordinate view, do the two routes
 > commute?
+
+The qualified answer is:
+
+```text
+REA interpretation alone
+    -/-> unique Ledger image
+
+REA interpretation + explicit accounting-view policy
+    -> Ledger image
+
+policy agreement with the direct LOAM view
+    -> commuting coordinate selection
+```
 
 ## Bounded triangle
 
@@ -83,11 +125,11 @@ ledgerCoordinateOfResource : Resource -> LedgerCoordinate
 
 This is the accounting-view policy being tested.
 
-## Expected boundary
+## Qualified boundary
 
 ### O252-1 — a compatible triangle can exist
 
-Expected:
+Observed:
 
 ```text
 compatibleTriangleExists = SAT
@@ -101,52 +143,54 @@ view.
 Hold `resourceOf`, `participant`, and `duality` fixed while changing only
 `ledgerCoordinateOfResource`.
 
-Expected:
+Observed:
 
 ```text
 sameReaDifferentLedgerView = SAT
 ReaInterpretationDeterminesLedgerImage = SAT counterexample
 ```
 
-If qualified, the REA -> Ledger edge needs explicit accounting-view policy.
+Therefore the selected REA interpretation does not determine one Ledger account
+surface. The REA -> Ledger edge needs explicit accounting-view policy.
 
 ### O252-3 — a misaligned view can break commutation
 
-Expected:
+Observed:
 
 ```text
 misalignedAccountingViewBreaksCommutation = SAT
 ```
 
-The triangle is therefore not unconditionally commutative.
+The triangle is not unconditionally commutative.
 
 ### O252-4 — selected REA semantics can be forgotten by the Ledger image
 
 Vary the observed Payment's Agent participation or duality while keeping the
 Resource interpretation and accounting view fixed.
 
-Expected:
+Observed:
 
 ```text
 differentReaSemanticsSameLedgerImage = SAT
 ```
 
-This is the expected lossy direction: equal balance/account images need not
-mean equal economic interpretation.
+Equal balance/account images therefore need not mean equal economic
+interpretation. The Ledger projection is intentionally lossy with respect to
+these selected REA distinctions.
 
 ### O252-5 — Resource granularity matters
 
 Collapse `CashLocus` and `GoodsLocus` to the same REA Resource while the direct
 LOAM route keeps them at distinct Ledger coordinates.
 
-Expected:
+Observed:
 
 ```text
 resourceCollapseBlocksCommutation = SAT
 ```
 
-A Resource-only account view cannot recover distinctions already erased by the
-REA interpretation.
+A Resource-only accounting-view function cannot recover distinctions already
+erased by a coarser Resource interpretation.
 
 ### O252-6 — explicit compatibility is sufficient for commutation
 
@@ -157,15 +201,16 @@ for every observed Locus l:
   accountView(resourceOf(l)) = directLedgerCoordinate(l)
 ```
 
-Expected:
+Observed:
 
 ```text
 CompatibleAccountingViewCommutes = UNSAT counterexample
 ```
 
-Then every Effect reaches the same Ledger coordinate through either route.
+Within the bounded model, every Effect then reaches the same Ledger coordinate
+through either route.
 
-A second positive control is expected:
+The second positive control also qualified:
 
 ```text
 CompatibleViewCannotHideDistinctDirectCoordinates = UNSAT counterexample
@@ -174,9 +219,9 @@ CompatibleViewCannotHideDistinctDirectCoordinates = UNSAT counterexample
 If two direct LOAM coordinates are distinct, a compatible Resource-only bridge
 cannot first collapse their Loci to the same Resource.
 
-## Intended result
+## Qualified connection shape
 
-If the matrix qualifies, the connection triangle is not:
+The connection triangle is not:
 
 ```text
                LOAM
@@ -186,7 +231,7 @@ If the matrix qualifies, the connection triangle is not:
              automatic
 ```
 
-but:
+It is:
 
 ```text
                     LOAM retained evidence
@@ -214,10 +259,12 @@ directLedgerCoordinate(locus)
 
 for every observed Locus in the selected projection.
 
+This means the triangle can commute without making REA or Ledger primitives of
+LOAM, but the REA-mediated route needs a separately explicit view policy.
+
 ## Why this matters
 
-The expected result gives the three systems different jobs rather than ranking
-them:
+The three systems now have distinguishable jobs rather than a ranking:
 
 - LOAM retains neutral evidence and identity/provenance distinctions;
 - REA supplies economic interpretation such as Resource, Agent participation,
@@ -228,6 +275,13 @@ them:
 
 The policy is not evidence that Account must become a LOAM Core noun. It is a
 view boundary.
+
+A further consequence is now visible: REA Resource granularity can be too coarse
+for one selected Ledger surface. If two distinct LOAM coordinates are first
+collapsed to one Resource, a Resource-only account mapping cannot later recreate
+both coordinates. Any future REA bridge must therefore state its information-loss
+boundary explicitly rather than assuming Resource identity is always a lossless
+replacement for Locus identity.
 
 ## Deliberate limits
 
@@ -244,11 +298,22 @@ Observation 252 does not formalize:
 
 The Alloy model asks only whether coordinate selection commutes.
 
+## Next gate
+
+The Alloy result earns one small follow-up question:
+
+> Can the positive commutation condition be stated and proved generically in
+> Lean by reusing Observation 250's `LedgerAccountShadow`, without adding REA or
+> accounting-view nouns to production Core?
+
+That successor should be a theorem about a supplied interpretation/view mapping,
+not a new production ontology.
+
 ## Stop condition
 
 Do not add Account, Resource, Agent, Duality, or accounting-view policy to
 production LOAM merely because this experiment uses them.
 
 A later Lean observation may promote the positive commutation condition into a
-generic theorem if the Alloy boundary qualifies and the theorem can reuse the
-existing Observation-250 bridge without expanding production Core.
+generic theorem only if it reuses the existing Observation-250 bridge without
+expanding production Core.
