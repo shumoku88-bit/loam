@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Build the post-MGA-014 Scheduled TUI session/continuation audit map."""
+
+from pathlib import Path
+import sqlite3
+import build_map as base
+
+HERE = Path(__file__).resolve().parent
+OUTPUT = HERE / "loam-tui-scheduled-session-audit.drn"
+
+DIAGRAMS = {
+    "MGA.014.1 Qualified Scheduled Replacement Session Seam": {
+        "description": "Record the post-#968 Scheduled Replacement split that graduated after production and inventory qualification.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledReplacement.lean; Loam/Tui/ScheduledReplacementSession.lean; Loam/HouseholdCommand.lean; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; PR #971",
+        "audit": "ScheduledReplacement owns editor state, validation, preview, transitions and view. ScheduledReplacementSession owns key reads, dirty redraws, HouseholdCommand.replaceScheduled delegation and retry after refusal. HraScheduled and SelectedDay share the Session while retaining selection, vocabulary loading, canonical reload and destination refresh. PR #971 passed Production TUI 62/62, Compression Audit, module inventory, Selected Lean Observations and Purpose Catalog Boundary; production-like unreachable remained zero.",
+        "nodes": [
+            ("action", "ScheduledReplacement.State / validation / preview / view"),
+            ("insertion", "ScheduledReplacementSession.run"),
+            ("action", "read terminal key + update + dirty redraw"),
+            ("decision", "Step publishes draft?", "YES"),
+            ("insertion", "HouseholdCommand.replaceScheduled"),
+            ("decision", "publication refused?", "YES -> same editor retry"),
+            ("action", "HraScheduled + SelectedDay share Session"),
+            ("action", "callers retain selection + vocabulary + canonical reload + destination refresh"),
+            ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },
+    "MGA.015.1 Scheduled Completion Continuation Seam": {
+        "description": "Re-observe Completion after MGA-014 without copying Replacement's module shape blindly.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCreation.lean; Loam/Tui/ScheduledCreationSession.lean; Loam/HouseholdCommand.lean; PR #642; PR #646; PR #971",
+        "audit": "ScheduledCompletion still has a reusable terminal/effect shell shared by HraScheduled and SelectedDay: key reads, dirty redraws, HouseholdCommand.completeScheduled delegation and refusal retry. That shell returns only Bool. Successful completion then crosses a separate continuation seam owned by callers: seed an optional next Scheduled editor, run ScheduledCreationSession, optionally inherit routing, then reload canonical evidence and refresh the destination workspace. The Bool boundary means continuation semantics do not need to move with the terminal shell. MGA-015 therefore keeps Completion as a narrow SPLIT_CANDIDATE; any continuation deduplication must be audited separately rather than smuggled into the Session extraction.",
+        "nodes": [
+            ("action", "ScheduledCompletion.State wraps Record-shaped Actual editor"),
+            ("action", "shared local completion terminal/effect shell"),
+            ("action", "read key + update + dirty redraw"),
+            ("decision", "completion draft published?", "NO -> continue editor / cancel"),
+            ("insertion", "HouseholdCommand.completeScheduled"),
+            ("decision", "publication refused?", "YES -> same editor retry"),
+            ("action", "shell returns Bool only"),
+            ("decision", "completed successfully?", "NO -> completion cancelled notice"),
+            ("action", "caller seeds optional next Scheduled from completed record"),
+            ("insertion", "ScheduledCreationSession.runWithScheduledId"),
+            ("decision", "next Scheduled created?", "NO -> preserve completed result / no continuation"),
+            ("insertion", "HouseholdCommand.inheritScheduledRouting"),
+            ("action", "caller reloads canonical snapshot + refreshes workspace"),
+            ("decision", "Must continuation move with terminal shell?", "NO - Bool seam already separates it"),
+            ("action", "MGA-015: narrow CompletionSession experiment justified; continuation remains caller-owned"),
+        ],
+    },
+}
+
+
+def build() -> None:
+    if OUTPUT.exists():
+        OUTPUT.unlink()
+    names = list(DIAGRAMS)
+    diagram_ids = {name: index for index, name in enumerate(names, 1)}
+    with sqlite3.connect(OUTPUT) as db:
+        db.executescript(base.SCHEMA)
+        db.executemany("insert into info values (?,?)", [
+            ("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "Lean")])
+        db.execute("insert into state values (1,1,?)", ("LOAM MGA.014-015 - Scheduled session and continuation seams",))
+        item_id = 1
+        for name, spec in DIAGRAMS.items():
+            item_id = base.add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
+        node_id = 1
+        root = node_id
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.014-015 Scheduled session seams")
+        for name in names:
+            node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
+        db.commit()
+        db.execute("pragma page_size=512")
+        db.execute("vacuum")
+        assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+        assert db.execute("select count(*) from diagrams").fetchone()[0] == len(names)
+        assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == len(names)
+    print(OUTPUT)
+
+if __name__ == "__main__":
+    build()
