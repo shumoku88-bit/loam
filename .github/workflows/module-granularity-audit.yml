@@ -10,7 +10,11 @@ on:
       - "docs/research/MODULE_GRANULARITY_FRONTIER_017.md"
       - "docs/research/MODULE_GRANULARITY_REPORT_WINDOW_018.md"
       - "docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_019.md"
+      - "docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_020.md"
       - "docs/research/TRANSACTIONS_FLOW_PANE_OBLIGATION_DAG.md"
+      - "Loam/Tui/Reports.lean"
+      - "Loam/Tui/TransactionsFlowPane.lean"
+      - "Loam/Tests/TuiTransactionsFlow.lean"
       - "docs/drakon/build_map.py"
       - "docs/drakon/build_tui_cli_granularity_audit_map.py"
       - "docs/drakon/build_tui_scheduled_session_audit_map.py"
@@ -103,10 +107,11 @@ jobs:
               assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
               diagram_count = db.execute("select count(*) from diagrams").fetchone()[0]
               source_count = db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0]
-              assert diagram_count == 3
+              assert diagram_count == 4
               assert source_count == diagram_count
               assert db.execute("select count(*) from diagrams where name='MGA.019.2 Candidate TransactionsFlowPane Seam'").fetchone()[0] == 1
               assert db.execute("select count(*) from diagrams where name='MGA.019.3 Qualification Obligation DAG'").fetchone()[0] == 1
+              assert db.execute("select count(*) from diagrams where name='MGA.020.1 Qualified TransactionsFlowPane State Owner'").fetchone()[0] == 1
           PY
           git diff --exit-code -- docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
 
