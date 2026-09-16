@@ -37,9 +37,21 @@ structure Snapshot where
   measure : MeasureId
   currentSelected : Quantity
   points : List Point
-  finalAtHorizon : Quantity
-  lowWater : Quantity
   deriving Repr, DecidableEq
+
+namespace Snapshot
+
+/-- Balance at the inclusive assumption horizon, derived from the retained path. -/
+def finalAtHorizon (snapshot : Snapshot) : Quantity :=
+  snapshot.points.foldl (fun _ point => point.balance) snapshot.currentSelected
+
+/-- Lowest emitted day-boundary balance, including the retained current baseline. -/
+def lowWater (snapshot : Snapshot) : Quantity :=
+  snapshot.points.foldl
+    (fun low point => if point.balance.quanta < low.quanta then point.balance else low)
+    snapshot.currentSelected
+
+end Snapshot
 
 private def selectedCoordinates
     (balances : Loam.BalanceReview.Snapshot) : List EffectCoordinate :=
@@ -130,21 +142,14 @@ private def sortBuckets (buckets : List (String × Int)) : List (String × Int) 
   buckets.mergeSort fun left right => left.1 ≤ right.1
 
 private def buildPoints
-    (current : Int) (buckets : List (String × Int)) : Int × List Point :=
-  buckets.foldl
-    (fun state bucket =>
-      let nextBalance := state.1 + bucket.2
-      (nextBalance,
-        state.2 ++
-          [{ date := bucket.1
-           , scheduledChange := Quantity.ofQuanta bucket.2
-           , balance := Quantity.ofQuanta nextBalance }]))
-    (current, [])
-
-private def lowWaterQuanta (current : Int) (points : List Point) : Int :=
-  points.foldl
-    (fun low point => if point.balance.quanta < low then point.balance.quanta else low)
-    current
+    (current : Int) : List (String × Int) → List Point
+  | [] => []
+  | bucket :: rest =>
+      let nextBalance := current + bucket.2
+      { date := bucket.1
+      , scheduledChange := Quantity.ofQuanta bucket.2
+      , balance := Quantity.ofQuanta nextBalance } ::
+        buildPoints nextBalance rest
 
 /--
 Run one conditional path calculation from already-admitted shared review answers.
@@ -168,17 +173,14 @@ def project
   let changes ← collectSelectedChanges coordinates asOf assumedCompleteThrough occurrences
   let buckets := sortBuckets (bucketChanges changes)
   let current := currentSelectedQuanta balances
-  let built := buildPoints current buckets
-  let low := lowWaterQuanta current built.2
+  let points := buildPoints current buckets
 
   return {
     asOf := asOf
     assumedCompleteThrough := assumedCompleteThrough
     measure := measure
     currentSelected := Quantity.ofQuanta current
-    points := built.2
-    finalAtHorizon := Quantity.ofQuanta built.1
-    lowWater := Quantity.ofQuanta low
+    points := points
   }
 
 private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
