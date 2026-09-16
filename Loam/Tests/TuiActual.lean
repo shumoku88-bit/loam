@@ -61,7 +61,6 @@ private def initialCursor : Loam.Tui.Main.ReviewCursor :=
   let selected : Option (Fin displayed.size) :=
     if h : 0 < displayed.size then some ⟨0, h⟩ else none
   { date := "2026-09-07"
-    totalCount := displayed.size
     displayed := displayed
     selected := selected }
 
@@ -116,7 +115,7 @@ def main : IO Unit := do
   expect (paypayDescRecords.map (·.description) == ["alpha", "beta", "gamma"])
     "HRA Actual paypay records in descending order did not list newest first"
   match Loam.Tui.HraActual.selectedRecord? snapshot paypayDesc with
-  | none => throw (IO.userError "HRA Actual descending paypay record selection disappeared")
+  | none => throw (IO.userError "HRA Actual descending paypay record disappeared")
   | some record =>
       expect (record.description == "alpha")
         "HRA Actual descending paypay record at row 0 was not newest (alpha)"
@@ -154,6 +153,8 @@ def main : IO Unit := do
   let start := initialCursor
   expect (start.displayed.size == 12)
     "Actual cursor still truncated a 12-record day"
+  expect (start.totalCount == start.displayed.size)
+    "Actual cursor total is no longer derived from the retained full-day rows"
 
   let shifted := moveNextN 10 start
   match shifted.selected with
