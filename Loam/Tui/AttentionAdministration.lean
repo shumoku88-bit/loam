@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.AttentionPublisher
 import Loam.AttentionReview
+import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 
@@ -60,7 +61,9 @@ private def moveCursor (state : State) (back : Bool) : State :=
     { state with cursor := 0 }
   else
     let count := items.length
-    let next := if back then (state.cursor + count - 1) % count else (state.cursor + 1) % count
+    let next :=
+      if back then Loam.Tui.CyclicIndex.backward count state.cursor
+      else Loam.Tui.CyclicIndex.forward count state.cursor
     { state with cursor := next, notice := "" }
 
 private def dropLast (text : String) : String :=
