@@ -28,15 +28,21 @@ structure Snapshot where
 
 structure ReviewCursor where
   date : String
-  totalCount : Nat
   displayed : Array ReviewRecord
   selected : Option (Fin displayed.size)
 
 structure ScheduledCursor where
   date : String
-  totalCount : Nat
   displayed : Array ScheduledRecord
   selected : Option (Fin displayed.size)
+
+/-- The browse total is exactly the retained full-day Actual array size. -/
+def ReviewCursor.totalCount (cursor : ReviewCursor) : Nat :=
+  cursor.displayed.size
+
+/-- The Scheduled browse total is exactly the retained full-day occurrence array size. -/
+def ScheduledCursor.totalCount (cursor : ScheduledCursor) : Nat :=
+  cursor.displayed.size
 
 inductive ActualMode where
   | browse
@@ -94,7 +100,7 @@ def cursorForDay (snapshot : Snapshot) (date : String) : ReviewCursor :=
   let displayed := records.toArray
   let selected : Option (Fin displayed.size) :=
     if h : 0 < displayed.size then some ⟨0, h⟩ else none
-  { date := date, totalCount := records.length, displayed := displayed, selected := selected }
+  { date := date, displayed := displayed, selected := selected }
 
 
 def scheduledCursorForDay
@@ -104,7 +110,7 @@ def scheduledCursorForDay
   let displayed := records.toArray
   let selected : Option (Fin displayed.size) :=
     if h : 0 < displayed.size then some ⟨0, h⟩ else none
-  { date := date, totalCount := records.length, displayed := displayed, selected := selected }
+  { date := date, displayed := displayed, selected := selected }
 
 
 def moveDate (state : State) (offset : Int) : State :=
@@ -138,7 +144,7 @@ def moveScheduledPrevious (cursor : ScheduledCursor) : ScheduledCursor × String
   | none => (cursor, "No explicit current-open Scheduled occurrence is available on this day.")
   | some index =>
       if h : index.val = 0 then
-        (cursor, "No previous Scheduled row in this day view.")
+        (cursor, "No previous row in this day view.")
       else
         ({ cursor with selected := some ⟨index.val - 1, by omega⟩ }, "")
 
