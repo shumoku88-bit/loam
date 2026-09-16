@@ -25,7 +25,14 @@ structure Record where
   date : Option String
   description : String
   replacement : Option EventId
-  isCurrent : Bool := true
+
+/--
+A review record is current exactly when no admitted Correction leaves its Event.
+`recordsFromActualEvidence?` first admits the correction frontier, so the retained
+replacement edge is the unique local witness needed for this read-side status.
+-/
+def Record.isCurrent (record : Record) : Bool :=
+  record.replacement.isNone
 
 inductive Query where
   | week (ending : String)
@@ -110,7 +117,7 @@ def recordsFromActualEvidence?
   match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
   | none =>
       .error "loam: movement corrections do not justify one current record frontier"
-  | some frontier =>
+  | some _ =>
       match Loam.Application.admittedActualValidityMemory? evidence.validity with
       | none =>
           .error "loam: actual-validity corrections do not justify one current date per event"
@@ -120,7 +127,6 @@ def recordsFromActualEvidence?
             date := validities.findByEventId? event.id
             description := (evidence.descriptions.findText? event.id).getD ""
             replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
-            isCurrent := (frontier.findById? event.id).isSome
           })
 
 /--
