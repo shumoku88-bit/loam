@@ -65,6 +65,19 @@ def main : IO Unit := do
   expect ((Loam.Tui.HraScheduled.recordsForScope snapshot start).length == 2)
     "HRA Scheduled Focus Day did not return the two scheduled occurrences on 2026-09-07"
 
+  -- Unknown day evidence stays distinct from an empty complete answer.
+  let unknownState := Loam.Tui.HraScheduled.initial "2026-09-09"
+  match Loam.Tui.HraScheduled.scopeEvidence snapshot unknownState with
+  | .ok .unknown => pure ()
+  | _ => throw (IO.userError "HRA Scheduled Focus Day did not preserve Unknown evidence")
+  let unknownText := widgetText
+    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot unknownState)
+  expect (contains "Scheduled [Unknown]" unknownText &&
+    contains "Unknown; no completeness horizon claimed" unknownText)
+    "HRA Scheduled did not render open-world Unknown explicitly"
+  expect (!contains "none due on this day" unknownText)
+    "HRA Scheduled collapsed Unknown into an empty-day claim"
+
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
   expect (start.pane == .occurrences)
     "HRA Scheduled did not open on the Scheduled occurrences pane"
