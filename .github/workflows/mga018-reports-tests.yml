@@ -1,0 +1,50 @@
+name: MGA018 Reports tests
+
+on:
+  push:
+    branches:
+      - audit/mga-018-report-window
+    paths:
+      - .github/workflows/mga018-reports-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-018-report-window
+          fetch-depth: 0
+
+      - name: Migrate Reports fixtures to canonical ReportWindow owner
+        run: python3 tools/mga018_reports_test_migration.py
+
+      - name: Build focused Reports tests
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify sparse Transactions Flow Reports interaction
+        run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
+
+      - name: Verify Reports surfaces and window ownership behavior
+        run: lake env lean --run Loam/Tests/TuiReports.lean
+
+      - name: Commit qualified test migration
+        run: |
+          rm .github/workflows/mga018-reports-tests.yml tools/mga018_reports_test_migration.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tests/TuiReports.lean Loam/Tests/TuiTransactionsFlow.lean .github/workflows/mga018-reports-tests.yml tools/mga018_reports_test_migration.py
+          git commit -m 'test(tui): qualify canonical ReportWindow owner'
+          git push
