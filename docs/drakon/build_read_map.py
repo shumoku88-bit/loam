@@ -33,17 +33,17 @@ READ_FLOW_DIAGRAMS = {
     "07.1.1 Actual Review Read Boundary": {
         "description": "Production ActualReview.loadRecordsFromActual / recordsFromActualEvidence? from one normalized ActualEvidence image.",
         "sources": "Loam/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Core/EventCorrectionMemory.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ReplacementFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
-        "audit": "One loaded ActualEvidence image feeds both admissions and the final transient Record projection. Successful correction-frontier admission makes target-based replacement lookup deterministic and proves currentness is exactly replacement absence. ActualReview retains the successor identity and derives Record.isCurrent from it; no second current-status copy or read-specific replacement authority is justified.",
+        "audit": "One loaded ActualEvidence image feeds correction-topology admission, validity admission and the final transient Record projection. G2-024 made currentness exactly replacement absence; G2-025 therefore admits correction topology directly without materializing a current Event frontier that ActualReview does not consume. Other correction-frontier consumers still materialize the frontier when quantity/effective projection needs it.",
         "nodes": [
             ("insertion", "Load normalized ActualEvidence ONCE\nactual.loam"),
             ("decision", "Actual authority decodes?", "Refuse\nmalformed or unsupported Actual evidence"),
-            ("insertion", "correctionFrontierMemory?\nclosed + source/successor unique + acyclic"),
-            ("decision", "One admitted current Event frontier?", "Refuse\ncorrection topology not justified"),
+            ("insertion", "correctionFrontierAdmissible\nclosed + source/successor unique + acyclic"),
+            ("decision", "Correction topology admitted?", "Refuse\ncorrection topology not justified"),
             ("insertion", "admittedActualValidityMemory?\ncurrent date frontier"),
             ("decision", "One admitted current date per Event?", "Refuse\nActual validity frontier not justified"),
             ("action", "For each remembered Event\nproject transient review Record"),
             ("action", "date := admitted validity\nreplacement := admitted target lookup"),
-            ("action", "derive isCurrent := replacement.isNone\nG2-024"),
+            ("action", "derive isCurrent := replacement.isNone\nG2-024 / no frontier materialization G2-025"),
             ("action", "description := loaded Actual description evidence"),
             ("action", "Return Records\nno new report authority retained"),
         ],
@@ -195,7 +195,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM Read Path Atlas v0.6 - Actual Review, Current Coverage and Cycle Budget",),
+            ("LOAM Read Path Atlas v0.7 - Actual Review, Current Coverage and Cycle Budget",),
         )
 
         item_id = 1
