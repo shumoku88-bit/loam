@@ -18,7 +18,10 @@ abbrev ScheduledAvailability := Except String Loam.ScheduledReview.EvidenceSnaps
 structure ActualSnapshot where
   today : String
   allRecords : List ReviewRecord
-  undatedCount : Nat
+
+/-- Current undated Actuals are an exact consequence of the retained review records. -/
+def ActualSnapshot.undatedCount (snapshot : ActualSnapshot) : Nat :=
+  (Loam.ActualReview.select snapshot.allRecords .undated).length
 
 /-- One admitted household read snapshot. It is process-local evidence, never TUI authority. -/
 structure Snapshot where

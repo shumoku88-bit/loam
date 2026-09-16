@@ -32,7 +32,6 @@ private def buildSnapshot : IO Loam.Tui.Main.Snapshot := do
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-10"
     allRecords := []
-    undatedCount := 0
   }
   let scheduled : Loam.ScheduledReview.EvidenceSnapshot := {
     scheduled := scheduled

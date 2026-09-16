@@ -108,7 +108,6 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
-    undatedCount := (Loam.ActualReview.select actualRecords .undated).length
   }
   return .ok { actual := actual, scheduled := scheduled }
 

@@ -52,7 +52,6 @@ private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-07"
     allRecords := [previous, second, first]
-    undatedCount := 0
   }
   pure { actual, scheduled := .ok scheduled }
 
@@ -72,6 +71,23 @@ private def moveNextN : Nat → Loam.Tui.Main.ReviewCursor → Loam.Tui.Main.Rev
 
 def main : IO Unit := do
   let snapshot ← hraSnapshot
+  let currentUndated := { testRecord 90 with date := none }
+  let supersededUndated :=
+    { testRecord 91 with date := none, replacement := some ⟨"event-92"⟩ }
+  let undatedActual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-07"
+    allRecords := [currentUndated, supersededUndated]
+  }
+  expect (undatedActual.undatedCount == 1)
+    "Actual snapshot undated count did not derive current-only records"
+  let undatedSnapshot : Loam.Tui.Main.Snapshot := {
+    actual := undatedActual
+    scheduled := snapshot.scheduled
+  }
+  let undatedHome := widgetText
+    (Loam.Tui.Main.homeView undatedSnapshot (Loam.Tui.Main.initialState "2026-09-07"))
+  expect (contains "Undated current Actual: 1" undatedHome)
+    "legacy Home did not derive its undated Actual count from retained records"
   let hraStart := Loam.Tui.HraActual.initial "2026-09-07"
   expect ((Loam.Tui.HraActual.visibleRecords snapshot hraStart).length == 2)
     "HRA Actual Focus Day did not use the shared selected-day Actual answer"
