@@ -6,6 +6,9 @@ on:
     paths:
       - "tools/module_granularity_audit.py"
       - "docs/research/MODULE_GRANULARITY_AUDIT.md"
+      - "docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md"
+      - "docs/drakon/build_map.py"
+      - "docs/drakon/build_tui_cli_granularity_audit_map.py"
       - ".github/workflows/module-granularity-audit.yml"
 
 jobs:
@@ -28,6 +31,19 @@ jobs:
           test -s /tmp/loam-module-granularity.md
           head -n 25 /tmp/loam-module-granularity.md
 
+      - name: Build TUI CLI granularity DRAKON map
+        run: |
+          python3 docs/drakon/build_tui_cli_granularity_audit_map.py
+          test -s docs/drakon/loam-tui-cli-granularity-audit.drn
+          python3 - <<'PY'
+          import sqlite3
+          path = "docs/drakon/loam-tui-cli-granularity-audit.drn"
+          with sqlite3.connect(path) as db:
+              assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+              assert db.execute("select count(*) from diagrams").fetchone()[0] == 4
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 4
+          PY
+
       - name: Upload descriptive inventory
         uses: actions/upload-artifact@v4
         with:
@@ -36,3 +52,4 @@ jobs:
             /tmp/loam-module-granularity.tsv
             /tmp/loam-module-imports.dot
             /tmp/loam-module-granularity.md
+            docs/drakon/loam-tui-cli-granularity-audit.drn
