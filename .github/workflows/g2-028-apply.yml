@@ -1,0 +1,136 @@
+name: G2-028 narrow apply
+
+on:
+  push:
+    branches: [audit/g2-028-retire-legacy-home]
+    paths: [.github/workflows/g2-028-apply.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/g2-028-retire-legacy-home
+          fetch-depth: 0
+
+      - name: Retire legacy Home presentation island
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def remove_between(text, start, end):
+              i = text.index(start)
+              j = text.index(end, i)
+              return text[:i] + text[j:]
+
+          path = Path("Loam/Tui/Main.lean")
+          text = path.read_text()
+          text = remove_between(
+              text,
+              "\n/-- Current undated Actuals are an exact consequence of the retained review records. -/\ndef ActualSnapshot.undatedCount",
+              "\n/-- One admitted household read snapshot.",
+          )
+          text = remove_between(text, "\ndef dayText", "\ndef homeActualRecords")
+          text = remove_between(
+              text,
+              "\n/-- Home is a recency surface over the deterministic Actual review ordering. -/",
+              "\ndef homeScheduledEvidence",
+          )
+          text = remove_between(text, "\ndef homeScheduledRecords", "\ndef selectedRecord?")
+          text = remove_between(text, "\ndef view (snapshot : Snapshot)", "\nend Loam.Tui.Main")
+          path.write_text(text)
+
+          path = Path("Loam/Tui/HraHome.lean")
+          text = path.read_text()
+          old = '''def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
+            match state.surface with
+            | .home _ => homeView bounds snapshot state
+            | _ => Loam.Tui.Main.view snapshot state
+          '''
+          new = '''def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
+            match state.surface with
+            | .home _ => homeView bounds snapshot state
+            | .actual cursor .browse => Loam.Tui.Main.actualBrowseView cursor state
+            | .actual cursor .detail => Loam.Tui.Main.actualDetailView snapshot cursor
+            | .scheduled _ cursor mode => Loam.Tui.Main.scheduledView snapshot state cursor mode
+          '''
+          if old not in text:
+              raise SystemExit("HraHome dispatcher shape changed")
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path("Loam/Tests/TuiActual.lean")
+          text = path.read_text()
+          text = remove_between(text, "\n  let currentUndated :=", "\n  let hraStart :=")
+          text = remove_between(text, "\n  let recent :=", "\n  let start :=")
+          path.write_text(text)
+
+          path = Path("Loam/Tests/TuiScheduled.lean")
+          text = path.read_text()
+          old = "Loam.Tui.Main.view snapshot "
+          if text.count(old) != 3:
+              raise SystemExit(f"expected three Main.view test renders, found {text.count(old)}")
+          text = text.replace(old, "Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot ")
+          path.write_text(text)
+
+          path = Path("Loam/Tests/RecordReview.lean")
+          text = path.read_text()
+          marker = '"undated evidence must be discoverable"'
+          i = text.index(marker)
+          line_end = text.index("\n", i) + 1
+          addition = '''  let correctedUnknown : Record := { unknown with replacement := some ⟨"z"⟩ }
+          expect (ids (select [correctedUnknown, z] .undated) == [])
+            "undated review must exclude superseded evidence"
+          '''
+          text = text[:line_end] + addition + text[line_end:]
+          path.write_text(text)
+
+      - name: Guard ownership boundary
+        shell: python
+        run: |
+          from pathlib import Path
+          main = Path("Loam/Tui/Main.lean").read_text()
+          hra = Path("Loam/Tui/HraHome.lean").read_text()
+          actual = Path("Loam/Tests/TuiActual.lean").read_text()
+          scheduled = Path("Loam/Tests/TuiScheduled.lean").read_text()
+          review = Path("Loam/Tests/RecordReview.lean").read_text()
+
+          forbidden_main = [
+              "ActualSnapshot.undatedCount", "def dayText", "def calendarSpans",
+              "recentActualPreview", "homeActualPreview", "homeScheduledRecords",
+              "homeScheduledPreview", "def listAt?", "actualPreviewSpans",
+              "scheduledPreviewSpans", "scheduledHeader", "homeEvidenceSpans",
+              "homeEvidenceRow", "def homeView", "def view (snapshot : Snapshot)",
+              "screenBounds", "screenFor",
+          ]
+          for token in forbidden_main:
+              if token in main:
+                  raise SystemExit(f"legacy Main Home token remains: {token}")
+          for required in ["def selectedMonth", "def calendarSlot", "def homeActualRecords", "def homeScheduledEvidence",
+                           "def actualBrowseView", "def actualDetailView", "def scheduledView"]:
+              if required not in main:
+                  raise SystemExit(f"KEEP boundary disappeared: {required}")
+          if "Loam.Tui.Main.view" in hra:
+              raise SystemExit("HraHome still delegates through Main.view")
+          for token in [".home _ => homeView", ".actual cursor .browse", ".actual cursor .detail", ".scheduled _ cursor mode"]:
+              if token not in hra:
+                  raise SystemExit(f"explicit production dispatch missing: {token}")
+          if "Loam.Tui.Main.homeView" in actual or "recentActualPreview" in actual or ".undatedCount" in actual:
+              raise SystemExit("TuiActual still retains legacy Home-only checks")
+          if "Loam.Tui.Main.view" in scheduled:
+              raise SystemExit("TuiScheduled still bypasses the production dispatcher")
+          if "undated review must exclude superseded evidence" not in review:
+              raise SystemExit("undated semantic regression was not moved to RecordReview")
+
+      - name: Commit narrow retirement and remove helper workflows
+        run: |
+          git rm .github/workflows/g2-028-apply.yml .github/workflows/g2-028-apply2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Loam/Tui/Main.lean Loam/Tui/HraHome.lean Loam/Tests/TuiActual.lean Loam/Tests/TuiScheduled.lean Loam/Tests/RecordReview.lean
+          git diff --cached --name-only
+          git commit -m "refactor(tui): retire legacy G2-028 Home renderer"
+          git push
