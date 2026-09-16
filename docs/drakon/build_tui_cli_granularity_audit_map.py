@@ -13,7 +13,7 @@ DIAGRAMS = {
     "MGA.009.1 TUI CLI Responsibility Fanout": {
         "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after the first focused session extraction.",
         "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean",
-        "audit": "Tui.Cli remains the production terminal composition root. PR #961 removed the Record terminal/effect loop, but key grammars, snapshot/config loading, four local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
+        "audit": "Tui.Cli remains the production terminal composition root. PRs #961 and #964 removed the Record and Correction terminal/effect loops, but key grammars, snapshot/config loading, four local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
         "nodes": [
             ("insertion", "loamTui main / terminal entrance"),
             ("action", "resolve data directory + current authority roots"),
@@ -43,24 +43,40 @@ DIAGRAMS = {
             ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT QUALIFIED"),
         ],
     },
-    "MGA.010.2 Remaining Session Comparison": {
-        "description": "Record the focused Correction extraction while keeping the four other local editor-session loops uncommitted candidates.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Correction.lean; Loam/Tui/ActualDateCorrection.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCancellation.lean; Loam/Tui/ScheduledReplacement.lean",
-        "audit": "Correction is now the focused MGA-011 extraction: its dedicated presentation module keeps state, validation, transitions and view, while CorrectionSession owns key reads, dirty redraws, publication delegation and retry-on-publication-error. Canonical reload plus workspace destination remain in Tui.Cli. ActualDateCorrection is similarly narrow but provides less comparative pressure. ScheduledCompletion is more coupled because its Bool result drives continuation creation and routing inheritance in the caller. Cancellation and Replacement remain scheduled-workflow candidates, but extracting all remaining loops merely for naming symmetry would violate the stop rule.",
+    "MGA.011.1 Qualified Correction Session Seam": {
+        "description": "Record the second focused split and use it to calibrate the next anti-symmetry control.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Correction.lean; Loam/Tui/CorrectionSession.lean; Loam/HouseholdCommand.lean; PR #964",
+        "audit": "Correction owns replacement-editor state, validation, transitions and view. CorrectionSession owns key reads, dirty redraws, publication delegation and retry-on-publication-error. HouseholdCommand.correctActual remains authoritative, while Tui.Cli keeps canonical reload and workspace destination. PR #964 passed Production TUI, Compression Audit, Module granularity inventory, Selected Lean Observations and Purpose Catalog Boundary. The boundary therefore qualifies even though it adds another small one-consumer module.",
         "nodes": [
-            ("action", "CorrectionSession.run\nString result + editor retry + caller reload"),
-            ("decision", "Record-shaped effect seam isolated?", "UNDER QUALIFICATION - MGA-011"),
-            ("action", "ActualDateCorrection loop\nsmall independent editor shell"),
-            ("action", "ScheduledCompletion loop\nBool result feeds continuation workflow"),
-            ("action", "ScheduledCancellation loop\nconfirmation + publication notice"),
-            ("action", "ScheduledReplacement loop\neditor retry + scheduled workflow context"),
-            ("decision", "Batch-extract all five for symmetry?", "NO - test Correction alone"),
+            ("action", "Correction.State / Step / view"),
+            ("insertion", "CorrectionSession.run"),
+            ("action", "read terminal key"),
+            ("action", "Correction.update + dirty redraw"),
+            ("decision", "Step publishes draft?", "YES"),
+            ("insertion", "HouseholdCommand.correctActual"),
+            ("action", "publication refusal returns to same editor"),
+            ("action", "caller reloads canonical evidence + chooses destination"),
+            ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT QUALIFIED"),
+        ],
+    },
+    "MGA.012.1 Actual Date Anti-Symmetry Control": {
+        "description": "Compare keeping the tiny ActualDateCorrection loop in Tui.Cli against extracting another Session module before making a symmetry-driven change.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md",
+        "audit": "ActualDateCorrection already owns date-editor state, validation, transitions and view. Its local Tui.Cli loop owns key reads, dirty redraws, HouseholdCommand.correctActualDate delegation and retry on refusal. That resembles the two qualified session seams, but the shell is especially small. MGA-012 is therefore an anti-symmetry control: compare INLINE versus SESSION and extract only if ownership and navigation improve for an independent reason, not merely because RecordSession and CorrectionSession exist.",
+        "nodes": [
+            ("action", "ActualDateCorrection.State / Step / view"),
+            ("action", "current local loop in Tui.Cli"),
+            ("decision", "Effect shell has independent change reason?", "TO TEST"),
+            ("action", "Shape A: keep loop inline"),
+            ("action", "Shape B: extract ActualDateCorrectionSession"),
+            ("decision", "Only argument is naming symmetry?", "YES -> KEEP INLINE"),
+            ("decision", "Ownership/navigation materially clearer?", "YES -> narrow extraction experiment"),
         ],
     },
     "MGA.010.3 Stop Rule": {
         "description": "Calibrate the coarse-file audit with the Record result and constrain the next experiment.",
         "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; Loam/Tui/Cli.lean; Loam/Tui/RecordSession.lean",
-        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. The current experiment is Correction only; the other local loops remain uncommitted candidates.",
+        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. Record and Correction are qualified; the next test is whether the much smaller ActualDateCorrection shell deserves a boundary at all.",
         "nodes": [
             ("action", "Observe raw granularity metrics"),
             ("decision", "Metrics worsen after a split?", "NOT A VETO"),
@@ -68,7 +84,7 @@ DIAGRAMS = {
             ("action", "try one narrow extraction"),
             ("action", "qualify Production TUI + Compression + inventory"),
             ("decision", "Boundary stays coherent and navigation improves?", "YES -> graduate"),
-            ("action", "Current test: qualify Correction; otherwise return it to Tui.Cli"),
+            ("action", "Next test: compare INLINE vs SESSION for ActualDateCorrection"),
         ],
     },
 }
@@ -94,7 +110,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM MGA.009-011 - TUI CLI module granularity",),
+            ("LOAM MGA.009-012 - TUI CLI module granularity",),
         )
 
         item_id = 1
@@ -103,7 +119,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-011 TUI CLI module granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-012 TUI CLI module granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 

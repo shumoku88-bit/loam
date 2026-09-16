@@ -2,36 +2,37 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-011 IMPLEMENTATION EXPERIMENT — Correction terminal session extraction under qualification**
+Status: **MGA-011 GRADUATED — Correction session split qualified; ActualDateCorrection selected as the next anti-symmetry control**
 
 ## Refreshed inventory
 
-The module-granularity inventory was rerun on the PR #961 head after extracting
-`Loam.Tui.RecordSession`.
+The module-granularity inventory was rerun on the PR #964 merge candidate after extracting
+`Loam.Tui.CorrectionSession`.
 
 ```text
-Lean modules: 331
-Modules <= 80 lines: 88
-Modules with exactly one local consumer: 51
+Lean modules: 332
+Modules <= 80 lines: 89
+Modules with exactly one local consumer: 52
 Declared Lake roots: 17
 Production-like modules unreachable from declared roots: 0
 ```
 
-The raw counts increased by one module, one small module, and one one-consumer
-module. That is expected: MGA-010 intentionally added a physical boundary.
-The important result is that no production-like surface became unreachable and
-that the new dependency direction is explicit:
+The raw counts again increased by one module, one small module, and one
+one-consumer module. MGA-011 deliberately tests whether that apparent metric
+regression can still represent a cleaner ownership boundary. No production-like
+surface became unreachable. The two qualified dependency seams are now explicit:
 
 ```text
-Tui.Cli -> RecordSession -> Record + HouseholdCommand
+Tui.Cli -> RecordSession     -> Record + HouseholdCommand
+Tui.Cli -> CorrectionSession -> Correction + HouseholdCommand
 ```
 
 Current focused metrics:
 
 ```text
-Loam.Tui.Cli           1200 lines / 33 declarations / fan-out 54
-Loam.Tui.RecordSession   48 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.Record          302 lines / 28 declarations / fan-in 7 / fan-out 6
+Loam.Tui.Cli              1179 lines / 32 declarations / fan-out 55
+Loam.Tui.RecordSession      48 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.CorrectionSession  49 lines /  1 declaration  / fan-in 1 / fan-out 5
 ```
 
 This is an important calibration result for the audit: file count, small-module
@@ -213,55 +214,79 @@ Historical independence remains naturally young because the boundary was just
 created. Future co-change history may strengthen or challenge the verdict, but
 there is enough present ownership/effect evidence to keep the boundary.
 
-## MGA-011 — `Loam.Tui.CorrectionSession` candidate
+## MGA-011 — `Loam.Tui.CorrectionSession` focused extraction
 
-Classification: **SPLIT_CANDIDATE — IMPLEMENTATION EXPERIMENT**
+Classification: **KEEP_BOUNDARY / SPLIT_QUALIFIED — CLOSED by PR #964**
 
-This branch moves only the Correction terminal key-read/redraw/publication loop
-into `Loam.Tui.CorrectionSession`. `Correction` keeps replacement-editor state,
-validation, transitions, and view; `HouseholdCommand.correctActual` stays the
-authoritative write entrance; `Tui.Cli` keeps selected-world loading, canonical
-reload, and workspace destination. Graduation remains conditional on focused CI
-and the refreshed module inventory.
+PR #964 moved only the Correction terminal key-read/redraw/publication loop into
+`Loam.Tui.CorrectionSession`:
 
-Five local editor/effect loops remain in `Tui.Cli` after MGA-010:
+- `Loam.Tui.Correction` still owns replacement-editor state, validation,
+  transitions, publication-intent construction, and view;
+- `CorrectionSession` owns terminal reads, dirty redraws, delegation to
+  `HouseholdCommand.correctActual`, and retry-on-publication-error;
+- `HouseholdCommand.correctActual` remains the authoritative production write
+  entrance;
+- `Tui.Cli` still owns selected-world loading, canonical reload, and destination
+  workspace orchestration.
 
-1. `correctionLoop`;
-2. `actualDateCorrectionLoop`;
-3. `scheduledCompletionLoop`;
-4. `scheduledCancellationLoop`;
-5. `scheduledReplacementLoop`.
+The PR head passed all focused qualification gates:
 
-Correction is the best next comparison, but this is not yet a split verdict.
-Its current shape most closely matches the qualified Record seam:
+- Production TUI;
+- Compression Audit;
+- Module granularity inventory;
+- Selected Lean Observations;
+- Purpose Catalog Boundary.
 
-- `Correction` already owns presentation state, validation, transition, and view;
-- the local loop owns terminal reads, dirty redraws, and delegation to
-  `HouseholdCommand.correctActual`;
-- publication refusal re-enters the same editor through `withPublishError`;
+The refreshed inventory reported 332 Lean modules, 89 modules at or below 80
+lines, 52 one-consumer modules, and zero production-like modules unreachable from
+Lake roots. Those first three counts rose by one again, but the semantic result is
+positive: the change isolates one effect/change reason without creating another
+state owner or authority boundary.
+
+MGA-010 and MGA-011 together establish that a small one-consumer `*Session`
+module can be justified when it owns an effect shell that changes for different
+reasons from the pure editor/presentation module.
+
+## MGA-012 — `Loam.Tui.ActualDateCorrection` anti-symmetry control
+
+Classification: **NEEDS_DRAKON / SPLIT_CANDIDATE — DO NOT EXTRACT YET**
+
+Four local editor/effect loops remain in `Tui.Cli`:
+
+1. `actualDateCorrectionLoop`;
+2. `scheduledCompletionLoop`;
+3. `scheduledCancellationLoop`;
+4. `scheduledReplacementLoop`.
+
+`ActualDateCorrection` is the next useful control precisely because it is smaller
+and more special-purpose than Record or Correction. Its current shape is strongly
+session-like:
+
+- `ActualDateCorrection` owns date-editor state, validation, transition, and view;
+- the local loop owns terminal reads, dirty redraws, delegation to
+  `HouseholdCommand.correctActualDate`, and retry after publication refusal;
 - the loop returns only a human-facing notice;
-- the caller remains responsible for canonical reload and destination-surface
-  orchestration.
+- the caller retains canonical reload and workspace destination.
 
-The alternatives are less useful as the immediate control:
+But that similarity is not itself permission to create another file. MGA-012 asks
+a sharper question: **does this tiny effect shell have an independent change
+reason, or would a separate `ActualDateCorrectionSession` merely copy the naming
+pattern established by Record and Correction?**
 
-- `ActualDateCorrection` is also narrow, but tests a smaller special-purpose editor;
-- `ScheduledCompletion` returns `Bool` into a caller that may immediately open
-  continuation creation and routing inheritance, so its session boundary is more
-  coupled to surrounding workflow;
-- Scheduled cancellation and replacement remain legitimate candidates, but doing
-  all remaining loops together would turn one successful experiment into a
-  naming-symmetry refactor.
-
-Next experiment rule:
+This is the anti-symmetry control for the audit. Before any extraction, use the
+DRAKON map to compare the two physical shapes:
 
 ```text
-extract Correction only
--> keep Correction state/validation/view in Correction
--> keep canonical reload + workspace destination in Tui.Cli
--> keep HouseholdCommand.correctActual authoritative
--> run Production TUI + Compression + module inventory
--> graduate only if the boundary remains coherent
+A. keep the tiny terminal loop in Tui.Cli
+B. extract ActualDateCorrectionSession
 ```
 
-Do not create the other `*Session` modules merely for symmetry.
+Prefer B only if it improves ownership/navigation while preserving one semantic
+owner and one authority owner. If the only argument is naming consistency with
+Record/Correction, keep A.
+
+The Scheduled loops remain deliberately deferred. `ScheduledCompletion` is still
+more coupled because its Boolean result feeds continuation creation and routing
+inheritance; cancellation and replacement should be judged from their own
+workflow ownership rather than from `*Session` symmetry.
