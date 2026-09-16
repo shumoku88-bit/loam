@@ -1,0 +1,60 @@
+name: MGA015 stage
+
+on:
+  push:
+    branches:
+      - audit/mga-015-scheduled-completion-session
+    paths:
+      - .github/workflows/mga015-stage.yml
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-015-scheduled-completion-session
+      - name: Delegate completion shell from Cli
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Loam/Tui/Cli.lean')
+          text = p.read_text()
+
+          old_import = 'import Loam.Tui.ScheduledCompletion\n'
+          new_import = old_import + 'import Loam.Tui.ScheduledCompletionSession\n'
+          if new_import not in text:
+              if text.count(old_import) != 1:
+                  raise SystemExit('unexpected ScheduledCompletion import count')
+              text = text.replace(old_import, new_import, 1)
+
+          start = text.index('/--\nScheduled completion edits an Actual draft; shared publication re-reads both\n')
+          end = text.index('/-- Cancellation confirmation is presentation-only;', start)
+          text = text[:start] + text[end:]
+
+          old_call = '''let completed ← scheduledCompletionLoop
+                bounds root world known editor editorFrame'''
+          new_call = '''let completed ← Loam.Tui.ScheduledCompletionSession.run
+                bounds root world known editor editorFrame'''
+          if text.count(old_call) != 2:
+              raise SystemExit(f'unexpected completion call count: {text.count(old_call)}')
+          text = text.replace(old_call, new_call)
+
+          if 'scheduledCompletionLoop' in text:
+              raise SystemExit('legacy completion loop reference remains')
+          if text.count('Loam.Tui.ScheduledCompletionSession.run') != 2:
+              raise SystemExit('completion session delegation count mismatch')
+
+          p.write_text(text)
+          PY
+      - name: Commit staged refactor and retire one-shot workflow
+        run: |
+          rm .github/workflows/mga015-stage.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/Cli.lean .github/workflows/mga015-stage.yml
+          git commit -m 'refactor(tui): delegate Scheduled completion session'
+          git push
