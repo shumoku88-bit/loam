@@ -25,8 +25,7 @@ private def testRecord (index : Nat) : Loam.Tui.Main.ReviewRecord :=
         keyNodup := by simp }
     date := some "2026-09-07"
     description := "row-" ++ toString index
-    replacement := none
-    isCurrent := true }
+    replacement := none }
 
 private def actualRecord?
     (id date description fromLocus toLocus : String) (quanta : Int) : Option Loam.Tui.Main.ReviewRecord := do
@@ -34,7 +33,7 @@ private def actualRecord?
     [ Effect.ofQuantity ⟨id ++ "-from"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-quanta))
     , Effect.ofQuantity ⟨id ++ "-to"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
     ]
-  pure { event, date := some date, description, replacement := none, isCurrent := true }
+  pure { event, date := some date, description, replacement := none }
 
 private def emptyScheduledSnapshot : IO Loam.ScheduledReview.EvidenceSnapshot := do
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "empty Scheduled memory was not admitted"
