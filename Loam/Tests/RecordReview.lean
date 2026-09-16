@@ -48,8 +48,8 @@ def main : IO Unit := do
   expect (ids (select records .undated) == ["unknown"])
     "undated evidence must be discoverable"
   let correctedUnknown : Record := { unknown with replacement := some ⟨"z"⟩ }
-expect (ids (select [correctedUnknown, z] .undated) == [])
-  "undated review must exclude superseded evidence"
+  expect (ids (select [correctedUnknown, z] .undated) == [])
+    "undated review must exclude superseded evidence"
   for term in ["coffee", "COFFEE", "スーパー", "wallet", "jpy", "1200", "-1200"] do
     expect (containsText term a) ("search failed: " ++ term)
   expect (!containsText ".*" a) "search must be literal, not a regex language"
