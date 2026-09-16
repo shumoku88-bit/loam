@@ -1,0 +1,43 @@
+name: TUI Foundation Extractability
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tui/Kernel.lean'
+      - 'Loam/Tui/Layout.lean'
+      - 'Loam/Tui/Runtime.lean'
+      - 'Loam/Tui/Scroll.lean'
+      - 'Loam/Tui/CyclicIndex.lean'
+      - 'Loam/Tui/Terminal.lean'
+      - 'tests/tui_foundation_smoke.lean'
+      - 'tools/check_tui_foundation_extractability.sh'
+      - '.github/workflows/tui-foundation.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extractability:
+    name: Build foundation without LOAM domain
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify isolated TUI foundation package
+        run: bash tools/check_tui_foundation_extractability.sh
