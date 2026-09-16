@@ -2,7 +2,7 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-014 COMPLETE — ScheduledReplacementSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #971 ready for merge**
+Status: **MGA-015 IN QUALIFICATION — ScheduledCompletionSession narrow effect-shell experiment; PR #974**
 
 ## Refreshed inventory
 
@@ -449,3 +449,30 @@ reload policy, or workspace transition moved into the Session. The boundary is
 therefore qualified on ownership, proof locality, navigation cost, reuse, history,
 and reachability evidence. The next Scheduled candidate remains Completion, but it
 must be re-observed as a continuation seam rather than copied from Replacement.
+
+
+## MGA-015 — `Loam.Tui.ScheduledCompletionSession` focused extraction
+
+Classification checkpoint: **SPLIT_CANDIDATE — IMPLEMENTATION UNDER QUALIFICATION (PR #974)**
+
+MGA-015 re-observed completion after MGA-014 and the paired DRAKON continuation map.
+The experiment deliberately extracts only the reusable inner terminal/effect shell:
+
+- `ScheduledCompletion` retains editor state, representability checks, Record-shaped
+  editing/preview transitions, completion-draft construction, refusal restoration,
+  and view;
+- `ScheduledCompletionSession` owns terminal key reads, dirty redraws, delegation to
+  `HouseholdCommand.completeScheduled`, retry after publication refusal, and one
+  Boolean result;
+- both HRA Scheduled and SelectedDay enter the same session;
+- a successful session returns `true`, while cancellation returns `false`;
+- optional next-Scheduled creation, `ScheduledCreationSession.runWithScheduledId`,
+  routing inheritance, canonical reload, and destination-workspace refresh remain
+  caller-owned continuation semantics.
+
+The Boolean return is therefore treated as an explicit stop line rather than an
+invitation to absorb the continuation into the Session. The experiment is qualified
+only if production CI remains green, the module remains reachable with a narrow
+dependency surface, and the refreshed inventory shows no production-like unreachable
+module. Final classification and inventory numbers are intentionally deferred until
+those checks complete.
