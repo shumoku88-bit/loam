@@ -20,8 +20,7 @@ private def record
     event := event
     date := date
     description := description
-    replacement := none
-    isCurrent := isCurrent
+    replacement := if isCurrent then none else some ⟨"fixture-replacement"⟩
   }
 
 private def ids (snapshot : Loam.TransactionsFlowReview.Snapshot) : List String :=
