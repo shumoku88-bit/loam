@@ -3,7 +3,6 @@ import Loam.Observations.Observation159
 namespace Loam.Experiments.CSLibSemanticCorrespondence005
 
 open Loam.Core
-namespace O159 := Loam.Observation159
 
 set_option autoImplicit false
 
@@ -57,14 +56,27 @@ theorem denoteQuanta_zero_of_not_mem
       have hTail : coordinate ∉ representedCoordinates rest := by
         intro hMem
         apply hNotMem
-        simp [representedCoordinates, hMem]
-      simp [denoteQuanta, hHead, ih hTail]
+        unfold representedCoordinates at hMem ⊢
+        simp only [List.map_cons, List.mem_cons]
+        exact Or.inr hMem
+      simpa [denoteQuanta, hHead] using ih hTail
+
+/-- Nonzero denotation can only occur at a coordinate represented by the list. -/
+theorem nonzero_mem_representedCoordinates
+    {Coordinate : Type} [DecidableEq Coordinate]
+    (changes : List (MovementChange Coordinate))
+    (coordinate : Coordinate)
+    (hNonzero : denoteQuanta changes coordinate ≠ 0) :
+    coordinate ∈ representedCoordinates changes := by
+  apply Classical.byContradiction
+  intro hNotMem
+  exact hNonzero (denoteQuanta_zero_of_not_mem changes coordinate hNotMem)
 
 /-- Exact nonzero support, represented as a finite list for the dependency-free probe. -/
 def exactSupport {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate)) : List Coordinate :=
   (representedCoordinates changes).filter
-    (fun coordinate => denoteQuanta changes coordinate ≠ 0)
+    (fun coordinate => decide (denoteQuanta changes coordinate ≠ 0))
 
 /-- The exact support list contains precisely the nonzero coordinates. -/
 theorem mem_exactSupport_iff
@@ -74,12 +86,12 @@ theorem mem_exactSupport_iff
     coordinate ∈ exactSupport changes ↔ denoteQuanta changes coordinate ≠ 0 := by
   constructor
   · intro hMem
-    exact (List.mem_filter.mp hMem).2
+    simp only [exactSupport, List.mem_filter] at hMem
+    exact of_decide_eq_true hMem.2
   · intro hNonzero
-    apply List.mem_filter.mpr
-    refine ⟨?_, hNonzero⟩
-    by_contra hNotMem
-    exact hNonzero (denoteQuanta_zero_of_not_mem changes coordinate hNotMem)
+    have hCandidate :=
+      nonzero_mem_representedCoordinates changes coordinate hNonzero
+    simp [exactSupport, hCandidate, hNonzero]
 
 /--
 Dependency-free shadow of the part of CSLib `FinFun` relevant here: a function
@@ -117,7 +129,7 @@ theorem aggregateAt_eq_denote
     {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate))
     (coordinate : Coordinate) :
-    O159.aggregateAt changes coordinate =
+    Loam.Observation159.aggregateAt changes coordinate =
       Quantity.ofQuanta ((denote changes).fn coordinate) := by
   rfl
 
@@ -128,16 +140,16 @@ the finite-function denotation.
 theorem vectorEquivalent_iff_denotation_extEq
     {Coordinate : Type} [DecidableEq Coordinate]
     (left right : List (MovementChange Coordinate)) :
-    O159.VectorEquivalent left right ↔
+    Loam.Observation159.VectorEquivalent left right ↔
       ProbeFinFun.ExtEq (denote left) (denote right) := by
   constructor
   · intro h coordinate
     have hQuanta := congrArg Quantity.quanta (h coordinate)
-    simpa [O159.aggregateAt, denote, denoteQuanta, ProbeFinFun.ExtEq] using hQuanta
+    simpa [Loam.Observation159.aggregateAt, denoteQuanta] using hQuanta
   · intro h coordinate
     have hQuanta : denoteQuanta left coordinate = denoteQuanta right coordinate := by
       exact h coordinate
-    simpa [O159.aggregateAt, denoteQuanta] using
+    simpa [Loam.Observation159.aggregateAt, denoteQuanta] using
       congrArg Quantity.ofQuanta hQuanta
 
 /-- Existing `BalancedMovement.quantityAt` factors through the same denotation. -/
@@ -152,16 +164,18 @@ theorem quantityAt_eq_denote
 /-- Observation 159's two distinct presentations collapse to one denotation. -/
 theorem compact_split_same_denotation :
     ProbeFinFun.ExtEq
-      (denote O159.compactPresentation)
-      (denote O159.splitPresentation) :=
+      (denote Loam.Observation159.compactPresentation)
+      (denote Loam.Observation159.splitPresentation) :=
   (vectorEquivalent_iff_denotation_extEq
-    O159.compactPresentation O159.splitPresentation).mp
-      O159.split_and_compact_are_vector_equivalent
+    Loam.Observation159.compactPresentation
+    Loam.Observation159.splitPresentation).mp
+      Loam.Observation159.split_and_compact_are_vector_equivalent
 
 /-- The collapse above is semantic, not representational: the evidence lists stay different. -/
 theorem compact_split_still_different_presentations :
-    O159.compactPresentation.length ≠ O159.splitPresentation.length :=
-  O159.equivalent_presentations_can_have_different_shape
+    Loam.Observation159.compactPresentation.length ≠
+      Loam.Observation159.splitPresentation.length :=
+  Loam.Observation159.equivalent_presentations_can_have_different_shape
 
 /-!
 CSA-005 deliberately keeps the direction one-way at the architecture boundary:
