@@ -1,0 +1,23 @@
+name: CSLib Semantic Correspondence 001
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Application/ReplacementFrontier.lean'
+      - 'experiments/cslib_semantic_correspondence_001.lean'
+      - 'docs/research/CSLIB_SEMANTIC_CORRESPONDENCE_AUDIT_001.md'
+      - '.github/workflows/cslib-semantic-correspondence-001.yml'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Build replacement frontier
+        run: lake build Loam.Application.ReplacementFrontier
+      - name: Check CSLib correspondence shadow probe
+        run: lake env lean experiments/cslib_semantic_correspondence_001.lean
