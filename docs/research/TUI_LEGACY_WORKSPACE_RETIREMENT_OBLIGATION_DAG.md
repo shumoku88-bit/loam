@@ -1,6 +1,6 @@
 # G2-030 — legacy Main workspace retirement obligation DAG
 
-Status: **Generation-2 implementation — RETIRED CANDIDATE / QUALIFICATION PENDING**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **production reachability + DRAKONview + interaction-regression DAG**.
 
@@ -28,8 +28,8 @@ a     -> HraActual
 p     -> HraScheduled
 ```
 
-`Cli.loop` intercepts those keys before its fallback into `Main.update`.
-Therefore the normal production paths are:
+The production root loop owns Home interaction only. Object workspaces run in their
+own sessions:
 
 ```text
 Home
@@ -53,12 +53,12 @@ Main.update .enter -> legacy Surface.actual
 Main.update .tab   -> legacy Surface.scheduled
 ```
 
-Production Home `Enter` was intercepted before `Main.update`, while `a` and `p`
-launched the modern sessions directly.
+Production Home `Enter` was already intercepted before `Main.update`, while `a` and
+`p` launched the modern sessions directly.
 
-## Hidden compatibility entrance
+## Retired hidden compatibility entrance
 
-Before retirement, `eventOfKey` still mapped physical Tab to `Main.Event.tab`.
+Before retirement, `eventOfKey` mapped physical Tab to `Main.Event.tab`.
 `homeEventOfKey` fell through to `eventOfKey`, and Tab was not part of the documented
 Home grammar. Consequently one undocumented route remained:
 
@@ -71,19 +71,22 @@ Home physical Tab
   -> legacy Surface.scheduled
 ```
 
-This was compatibility reachability, not a documented product entrance.
+This was compatibility reachability, not a documented product entrance. G2-030
+removes the Tab event, `openScheduled`, and the legacy Scheduled surface entirely.
+There is no second Scheduled workspace left for Tab to open.
 
 No corresponding normal production entrance to legacy `Surface.actual` remained:
-Home Enter was intercepted by SelectedDay and Home `a` entered HraActual.
+Home Enter was already intercepted by SelectedDay and Home `a` entered HraActual.
+G2-030 removes that unreachable Actual surface as well.
 
-## Legacy island inventory
+## Retired compatibility island
 
-Retired surface in `Main`:
+Removed from `Main`:
 
 - `ReviewCursor` and `ScheduledCursor`;
 - derived cursor totals;
 - `ActualMode` and `ScheduledMode`;
-- `Surface.actual`, `Surface.scheduled`, and the cached `lastReview` payload;
+- the `Surface` type, including cached `lastReview` state;
 - cursor construction and movement helpers;
 - `openActual` / `openScheduled`;
 - legacy Actual/Scheduled branches in `Main.update`;
@@ -99,9 +102,19 @@ Retained Home/shared surface:
 - `Snapshot` and `ActualSnapshot`;
 - selected date and notice interaction state;
 - date movement and Home calendar helpers;
-- `recordsForDay`, `homeActualRecords`, and `homeScheduledEvidence` where still
-  consumed by production HRA surfaces;
+- `recordsForDay`, `homeActualRecords`, and `homeScheduledEvidence` where consumed
+  by production HRA surfaces;
 - production Home, SelectedDay, HraActual, and HraScheduled sessions.
+
+`Main.State` is now only Home-root presentation state:
+
+```text
+selectedDate
+notice
+```
+
+This removes the second workspace state machine instead of merely making it harder
+to reach.
 
 ## Migration obligation discovered
 
@@ -123,7 +136,7 @@ HraScheduled   -> occWindowStart
 
 Therefore old cursor tests did not validate production window mechanics.
 
-## Completed bridge
+## Completed regression bridge
 
 The guarantee was migrated before retirement:
 
@@ -143,6 +156,15 @@ legacy compatibility island retired
 The migrated tests exercise the production state/update/view path directly rather
 than reproducing the old `ReviewCursor` or `ScheduledCursor` abstraction.
 
+The qualified tests show:
+
+- HraActual retains 12 rows, reaches row 11, moves its 8-row viewport, and refuses
+  movement beyond the final row without changing selection;
+- HraScheduled does the same for 12 current-open occurrences;
+- G2-029 open-world Unknown remains explicit;
+- Home still distinguishes Scheduled Due, Unknown, and Pending without relying on
+  the retired legacy workspace.
+
 ## KEEP boundaries
 
 G2-030 preserves:
@@ -156,34 +178,30 @@ G2-030 preserves:
 - canonical reload after writes;
 - read semantics and household authority outside presentation.
 
-## Qualification obligations
+## Qualification
 
-The retired topology must show that:
+Qualified code head: `4fd2a62dee6da5e2a4323b072ef5632a8b71b0e9`.
 
-- HraActual independently navigates beyond its first 8-row viewport;
-- HraScheduled independently does the same;
-- selected record/occurrence and rendered window follow the local workspace cursor;
-- end-of-list refusal keeps selection stable;
-- G2-029 Unknown behavior remains explicit;
-- no undocumented Tab route opens a second Scheduled workspace;
-- no production branch constructs legacy Actual/Scheduled surfaces;
-- Home navigation remains intact;
-- production HRA tests and the full Production TUI suite remain green;
-- Compression Audit and Selected Lean Observations remain green.
+The retired topology passed:
 
-## Retirement implementation
+- **Compression Audit #936 — SUCCESS**;
+- **Selected Lean Observations #1178 — SUCCESS**;
+- **Purpose Catalog Boundary #313 — SUCCESS**;
+- **Production TUI #798 — 62/62 SUCCESS**.
 
-The production HRA long-list bridge was staged before removal. The branch now
-removes `ReviewCursor`, `ScheduledCursor`, browse/detail modes, legacy `Surface`
-variants, legacy renderers, the hidden Tab entrance, and the Actual-browse return
-special case. `Main.State` is reduced to selected Home date plus notice, while
-SelectedDay, HraActual, and HraScheduled remain the object-workspace owners.
+Production TUI qualification includes:
+
+- production executable build;
+- HRA Actual long-list navigation at step 21;
+- Scheduled open-world Unknown at step 22;
+- HRA Scheduled long-list/workspace mechanics at step 23;
+- selected-day composition and all remaining production surfaces through step 62.
 
 ## Generation-2 verdict
 
-**SIMPLIFY CANDIDATE / QUALIFICATION PENDING.**
+**SIMPLIFY QUALIFIED.**
 
-The compatibility island has been retired only after its unique long-list guarantee
-was moved to the production HRA workspaces. Promote this result to
-`SIMPLIFY QUALIFIED` only after the retired topology passes Production TUI,
-Compression Audit, and Selected Lean Observations.
+The old Main Actual/Scheduled browse-detail system was a compatibility island after
+the production cutover. Its only remaining unique regression value was migrated to
+the actual production HRA workspaces before deletion. The root TUI state now owns
+only Home focus/notice state, and object workspaces have one production owner each.
