@@ -12,6 +12,7 @@ import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.Reports
@@ -835,7 +836,7 @@ private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
 /-- Largest meaningful vertical offset for the current report and terminal height. -/
 def scrollLimit (bounds : Bounds) (state : State) : Nat :=
   let parts := viewParts state (some bounds)
-  parts.1.length - bodyPageSize bounds parts.2
+  Loam.Tui.Scroll.maxOffset parts.1.length (bodyPageSize bounds parts.2)
 
 private def scrollPositionLine
     (mode : Mode) (offset page total : Nat) : Widget :=
@@ -865,7 +866,7 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   let parts := viewParts state (some bounds)
   let page := bodyPageSize bounds parts.2
-  let offset := min (requestedOffset state page) (parts.1.length - page)
+  let offset := Loam.Tui.Scroll.clamp parts.1.length page (requestedOffset state page)
   let position := scrollPositionLine state.mode offset page parts.1.length
   if bounds.height < parts.2.length + 1 then
     -- In a tiny terminal, retain as much navigation as possible. Existing views
@@ -884,7 +885,10 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
 def updateForBounds
     (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   let step := update state key
-  { step with state := { step.state with scroll := min step.state.scroll (scrollLimit bounds step.state) } }
+  let parts := viewParts step.state (some bounds)
+  let page := bodyPageSize bounds parts.2
+  { step with state := { step.state with
+      scroll := Loam.Tui.Scroll.clamp parts.1.length page step.state.scroll } }
 
 /-- Unbounded compatibility view used by existing pure presentation tests. -/
 def view (state : State) : Widget := fullView state none
