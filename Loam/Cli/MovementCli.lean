@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.ActualAuthority
 import Loam.MovementAdmission
+import Loam.MovementDraftReview
 import Loam.HouseholdCommand
 import Loam.Cli.Movement.Entry
 import Loam.Cli.Movement.RelationEntry
@@ -39,19 +40,37 @@ private def practicalDescription : IO (Option String) := do
       else
         return none
 
-/-- Resolve the New-only canonical data directory. -/
-private def resolveDataDir (args : List String) : IO (Except String String) := do
-  match args with
-  | [] =>
+private structure RunOptions where
+  rootPath : String
+  dryRun : Bool
+
+private def resolveRootPath (explicit : Option String) : IO (Except String String) := do
+  match explicit with
+  | some path =>
+      if path.isEmpty then return .error "loam: data directory must not be empty"
+      return .ok path
+  | none =>
       match ← IO.getEnv "LOAM_DATA_DIR" with
       | some path =>
           if path.isEmpty then return .error "loam: LOAM_DATA_DIR must not be empty"
           return .ok path
       | none => return .ok "../loam-data"
-  | [path] =>
-      if path.isEmpty then return .error "loam: data directory must not be empty"
-      return .ok path
-  | _ => return .error "loam: movement accepts at most one LOAM_DATA_DIR argument"
+
+/-- Resolve publication versus proposal-only mode and the canonical data directory. -/
+private def resolveOptions (args : List String) : IO (Except String RunOptions) := do
+  let parsed : Except String (Bool × Option String) :=
+    match args with
+    | [] => .ok (false, none)
+    | ["--dry-run"] => .ok (true, none)
+    | [path] => .ok (false, some path)
+    | ["--dry-run", path] => .ok (true, some path)
+    | _ => .error "loam: movement accepts optional --dry-run and at most one LOAM_DATA_DIR argument"
+  match parsed with
+  | .error message => return .error message
+  | .ok (dryRun, explicit) =>
+      match ← resolveRootPath explicit with
+      | .error message => return .error message
+      | .ok rootPath => return .ok { rootPath := rootPath, dryRun := dryRun }
 
 /--
 Verify the current normalized Actual authority before human input.
@@ -160,6 +179,19 @@ private def showAdmissionResult
     IO.println ("  [ok] relation discharge evidence admitted: " ++ toString dischargeCount)
   IO.println "  [ok] authoritative Actual publication complete"
 
+private def showDryRunResult (draft : Loam.MovementAdmission.Draft) : IO Unit := do
+  IO.println ""
+  IO.println "Movement proposal"
+  IO.println ("  movement: " ++ toString draft.total ++ " jpy")
+  IO.println ("  date: " ++ draft.validOn)
+  match draft.description with
+  | some text => IO.println ("  description: " ++ text)
+  | none => pure ()
+  IO.println "  [ok] admissible against current household evidence"
+  IO.println "  [ok] persistence: none"
+  IO.println "  [ok] Event identity: not reserved"
+  IO.println "  proposal only; a later publication must re-check current authority"
+
 /--
 Record one balanced human-facing JPY movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
@@ -184,9 +216,30 @@ def recordMovement (rootPath : String) : IO UInt32 := do
               " jpy. Date: " ++ draft.validOn ++ ".")
           return 0
 
+/--
+Collect and check one Movement proposal against current authority without
+publishing, reserving identity, or retaining any external-source mapping.
+-/
+def reviewMovement (rootPath : String) : IO UInt32 := do
+  match ← collectMovementDraft rootPath with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok draft =>
+      match ← Loam.MovementDraftReview.check (System.FilePath.mk rootPath) draft with
+      | .error message =>
+          IO.eprintln message
+          IO.eprintln "loam: movement proposal not admitted; no LOAM persistence was written"
+          return 2
+      | .ok () =>
+          showDryRunResult draft
+          return 0
+
 private def usage : String :=
-  "Record one balanced JPY movement:\n" ++
-  "  ./tools/loam movement [LOAM_DATA_DIR]\n\n" ++
+  "Record or review one balanced JPY movement:\n" ++
+  "  ./tools/loam movement [LOAM_DATA_DIR]\n" ++
+  "  ./tools/loam movement --dry-run [LOAM_DATA_DIR]\n\n" ++
+  "Dry-run uses the same draft and admission rules but writes no LOAM persistence and reserves no EventId.\n" ++
   "If LOAM_DATA_DIR is omitted, the LOAM_DATA_DIR environment variable is used, then ../loam-data.\n" ++
   "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation and relation discharge evidence.\n" ++
   "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
@@ -197,11 +250,15 @@ private def usage : String :=
   "The FROM and TO totals must match exactly."
 
 def run (args : List String) : IO UInt32 := do
-  match ← resolveDataDir args with
+  match ← resolveOptions args with
   | .error _ =>
       IO.eprintln usage
       return 2
-  | .ok rootPath => recordMovement rootPath
+  | .ok options =>
+      if options.dryRun then
+        reviewMovement options.rootPath
+      else
+        recordMovement options.rootPath
 
 end Loam.MovementCli
 
