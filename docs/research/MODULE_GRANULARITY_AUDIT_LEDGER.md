@@ -2,47 +2,48 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-015 COMPLETE — ScheduledCompletionSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #974 ready for merge**
+Status: **MGA-016 COMPLETE — ScheduledContinuationSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #977 ready for merge**
 
 ## Refreshed inventory
 
-The module-granularity inventory was rerun on the PR #974 merge candidate after extracting
-`Loam.Tui.ScheduledCompletionSession`.
+The module-granularity inventory was rerun on the PR #977 merge candidate after extracting
+`Loam.Tui.ScheduledContinuationSession`.
 
 ```text
-Lean modules: 334
-Modules <= 80 lines: 91
+Lean modules: 335
+Modules <= 80 lines: 92
 Modules with exactly one local consumer: 54
 Declared Lake roots: 17
 Production-like modules unreachable from declared roots: 0
 ```
 
-The raw module, small-module, and one-consumer counts each increased by one from MGA-014,
-exactly as expected for one focused Session extraction. No production-like surface became
-unreachable. Current focused metrics are:
+MGA-016 adds one explicit TUI coordinator while removing two duplicated continuation corridors
+from the composition root. The refreshed focused metrics are:
 
 ```text
-Loam.Tui.Cli                          1116 lines / 30 declarations / fan-out 57
-Loam.Tui.RecordSession                  48 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.CorrectionSession              49 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.ScheduledReplacementSession    51 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.ScheduledCompletionSession     50 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.ScheduledCompletion           144 lines /  9 declarations / fan-in 3 / fan-out 3
+Loam.Tui.Cli                          1067 lines / 30 declarations / fan-out 58 / reachable=True
+Loam.Tui.RecordSession                48 lines / 1 declarations / fan-in 1 / fan-out 5 / reachable=True
+Loam.Tui.CorrectionSession            49 lines / 1 declarations / fan-in 1 / fan-out 5 / reachable=True
+Loam.Tui.ScheduledReplacementSession  51 lines / 1 declarations / fan-in 1 / fan-out 5 / reachable=True
+Loam.Tui.ScheduledCompletionSession   51 lines / 1 declarations / fan-in 1 / fan-out 5 / reachable=True
+Loam.Tui.ScheduledContinuationSession 72 lines / 3 declarations / fan-in 1 / fan-out 8 / reachable=True
 ```
 
-MGA-014 left `Tui.Cli` at 1143 lines / 31 declarations / fan-out 56. MGA-015 therefore
-removes another object-local effect loop and one declaration from the composition root,
-while adding one explicit dependency edge to the new Session. The fan-out increase is not
-treated as a regression: responsibility ownership, reachability, and change independence
-decide the boundary rather than raw file or edge counts.
+MGA-015 left `Tui.Cli` at 1116 lines / 30 declarations / fan-out 57. MGA-016 therefore
+removes duplicated post-completion orchestration from the root while adding one explicit
+Session dependency. Raw module count, small-module count, and one-consumer count remain
+candidate signals rather than verdicts; the decisive evidence is the shared two-caller
+workflow, independent semantic authorities, derived-state removal, history, and reachability.
 
-The qualified dependency seams are now explicit:
+The qualified Scheduled dependency seam is now:
 
 ```text
-Tui.Cli -> RecordSession                -> Record + HouseholdCommand
-Tui.Cli -> CorrectionSession            -> Correction + HouseholdCommand
-Tui.Cli -> ScheduledReplacementSession  -> ScheduledReplacement + HouseholdCommand
-Tui.Cli -> ScheduledCompletionSession   -> ScheduledCompletion + HouseholdCommand
+Tui.Cli
+  -> ScheduledCompletionSession       -> ScheduledCompletion + HouseholdCommand
+  -> ScheduledContinuationSession
+       -> ScheduledCreation + ScheduledCreationSession
+       -> HouseholdCommand.inheritScheduledRouting
+  -> canonical reload + HraScheduled/SelectedDay refresh
 ```
 
 ## MGA-001 — `Loam.Sha256`
@@ -507,3 +508,59 @@ Qualification on PR #974 succeeded:
 The result is therefore **KEEP_BOUNDARY / SPLIT_QUALIFIED**. Any future attempt to deduplicate
 completion continuation creation/routing is a separate audit question and is not implied by this
 Session boundary.
+
+
+## MGA-016 — `Loam.Tui.ScheduledContinuationSession` post-completion coordinator
+
+Classification: **KEEP_BOUNDARY / SPLIT_QUALIFIED — PR #977 ready for merge**
+
+MGA-016 followed the explicit stop rule recorded by MGA-015: completion publication remains
+behind `ScheduledCompletionSession`'s Boolean result, and only the workflow on the far side of
+that result was reconsidered.
+
+DRAKONview, the dedicated obligation DAG, source inspection, and history found one repeated
+post-completion corridor in both HRA Scheduled and SelectedDay:
+
+```text
+seed optional next Scheduled
+-> acquire display catalog
+-> run ScheduledCreationSession
+-> if created, inherit predecessor routing
+-> compose final notice
+```
+
+The extraction is justified by more than textual duplication:
+
+- PR #712 had already promoted routing semantics into presentation-neutral
+  `ScheduledContinuationRouting`, yet both TUI callers then required the same parallel adaptation;
+- PR #796 later changed that routing boundary independently of TUI workspace ownership;
+- MGA-015 qualified completion as a separate effect session with a Boolean stop line;
+- the old callers re-encoded one derived state by checking the literal
+  `"Scheduled creation cancelled."` after `runWithScheduledId` had already returned `none`;
+  the creation session returns `none` only on cancellation, so that string branch was not an
+  independent semantic distinction.
+
+`ScheduledContinuationSession.runAfterCompletion` now owns only the common continuation
+composition. It deliberately does not own completion publication, Locus-catalog loading policy,
+routing semantics/authority, canonical reload, or destination-workspace refresh. The caller
+passes catalog acquisition as a lazy `IO Catalog`, preserving the old effect order: catalog I/O
+still occurs only after `initialFromScheduled?` can seed the editor.
+
+Refreshed inventory evidence:
+
+```text
+ScheduledContinuationSession: 72 lines / 3 declarations / fan-in 1 / fan-out 8 / reachable=True
+Tui.Cli: 1067 lines / 30 declarations / fan-out 58 / reachable=True
+production-like unreachable: 0
+```
+
+Initial production qualification on the implementation + obligation-DAG head succeeded:
+
+- Production TUI #820 — SUCCESS, all 62 production steps;
+- Compression Audit #958 — SUCCESS;
+- Selected Lean Observations #1204 — SUCCESS;
+- Purpose Catalog Boundary #341 — SUCCESS.
+
+The result is therefore **KEEP_BOUNDARY / SPLIT_QUALIFIED**. Canonical reload and the
+`HraScheduled.refreshed` / `SelectedDay.refreshed` fork are the next explicit stop line. They
+remain caller-owned and are not candidates merely because the preceding corridor is now shared.

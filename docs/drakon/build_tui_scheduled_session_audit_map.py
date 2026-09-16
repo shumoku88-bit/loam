@@ -65,6 +65,25 @@ DIAGRAMS = {
             ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
         ],
     },
+    "MGA.016.1 Qualified Scheduled Continuation Coordinator": {
+        "description": "Record the shared post-completion continuation coordinator after two-caller, history, DAG, production, and reachability evidence converge.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledContinuationSession.lean; Loam/Tui/ScheduledCreation.lean; Loam/Tui/ScheduledCreationSession.lean; Loam/HouseholdCommand.lean; Loam/ScheduledContinuationRouting.lean; docs/research/SCHEDULED_CONTINUATION_SESSION_OBLIGATION_DAG.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; PR #712; PR #796; PR #974; PR #977",
+        "audit": "MGA-016 starts beyond MGA-015's Boolean completion stop line. HraScheduled and SelectedDay duplicated the same next-editor -> creation-session -> optional routing-inheritance -> notice corridor, and PR #712 provides historical parallel co-change evidence. The old none branch also re-tested a cancellation string even though runWithScheduledId returns none only on cancellation. ScheduledContinuationSession now owns only that common TUI composition; completion publication, catalog policy, routing semantics, canonical reload and workspace refresh remain outside it. Initial PR #977 qualification passed Production TUI #820 62/62, Compression Audit #958, Selected Lean Observations #1204 and Purpose Catalog Boundary #341. Inventory reports 72 lines / fan-in 1 / fan-out 8 / reachable=True; Tui.Cli is 1067 lines / 30 declarations / fan-out 58; production-like unreachable=0.",
+        "nodes": [
+            ("action", "ScheduledCompletionSession returns Bool stop line"),
+            ("decision", "completion published?", "NO -> caller cancellation notice"),
+            ("insertion", "ScheduledContinuationSession.runAfterCompletion"),
+            ("decision", "next editor seed representable?", "NO -> completion + unavailable notice"),
+            ("action", "execute caller-owned lazy Locus catalog action"),
+            ("insertion", "ScheduledCreationSession.runWithScheduledId"),
+            ("decision", "continuation created?", "NO -> completion + no-next notice"),
+            ("insertion", "HouseholdCommand.inheritScheduledRouting"),
+            ("action", "format creation + routing outcomes"),
+            ("action", "return final notice to caller"),
+            ("action", "caller retains canonical reload + workspace-specific refresh"),
+            ("decision", "Independent coordinator boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },
 }
 
 
@@ -77,13 +96,13 @@ def build() -> None:
         db.executescript(base.SCHEMA)
         db.executemany("insert into info values (?,?)", [
             ("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "Lean")])
-        db.execute("insert into state values (1,1,?)", ("LOAM MGA.014-015 - Scheduled session and continuation seams",))
+        db.execute("insert into state values (1,1,?)", ("LOAM MGA.014-016 - Scheduled session and continuation seams",))
         item_id = 1
         for name, spec in DIAGRAMS.items():
             item_id = base.add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.014-015 Scheduled session seams")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.014-016 Scheduled session seams")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
         db.commit()

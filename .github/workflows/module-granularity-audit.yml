@@ -59,9 +59,10 @@ jobs:
               assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
               diagram_count = db.execute("select count(*) from diagrams").fetchone()[0]
               source_count = db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0]
-              assert diagram_count == 3
+              assert diagram_count >= 4
               assert source_count == diagram_count
               assert db.execute("select count(*) from diagrams where name='MGA.015.2 Qualified Scheduled Completion Session Seam'").fetchone()[0] == 1
+              assert db.execute("select count(*) from diagrams where name='MGA.016.1 Qualified Scheduled Continuation Coordinator'").fetchone()[0] == 1
           PY
           git diff --exit-code -- docs/drakon/loam-tui-scheduled-session-audit.drn
 
