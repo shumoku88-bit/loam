@@ -5,6 +5,7 @@ import Loam.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record
+import Loam.Tui.RecordSession
 import Loam.Tui.Correction
 import Loam.Tui.ActualDateCorrection
 import Loam.Tui.ActualReversal
@@ -231,27 +232,6 @@ def selectedDayEventOfKey
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
-/-- A Record session emits one explicit publication intent at most.
-The caller reloads canonical evidence and chooses the presentation destination. -/
-partial def recordLoop (bounds : Bounds) (root : System.FilePath)
-    (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Record cancelled."
-  match step.publish with
-  | some draft =>
-      match ← Loam.HouseholdCommand.record root draft with
-      | .ok eventId => return "Recorded " ++ eventId.token ++ "."
-      | .error message =>
-          let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
-          let nextFrame := compileWidget (Loam.Tui.Record.view known next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          recordLoop bounds root world known next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      recordLoop bounds root world known step.state nextFrame
-
 /-- A Correction session emits one target-bound replacement intent at most.
 Only the shared CorrectionPublisher performs the authoritative re-read and write. -/
 partial def correctionLoop (bounds : Bounds) (root : System.FilePath)
@@ -382,7 +362,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
         (Loam.Tui.Record.initial state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-      let notice ← recordLoop bounds root world known editor editorFrame
+      let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.HraActual.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -767,7 +747,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
         (Loam.Tui.Record.initial state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-      let notice ← recordLoop bounds root world known editor editorFrame
+      let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -1167,7 +1147,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       (Loam.Tui.Record.initial state.selectedDate) catalog
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-    let notice ← recordLoop bounds root world known editor editorFrame
+    let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
     let fresh ← requireReload notice (loadSnapshot dataDir)
     let destination :=
       if isActualBrowse then

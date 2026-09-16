@@ -171,3 +171,24 @@ SPLIT_CANDIDATE
 NEEDS_DRAKON
 NEEDS_HISTORY
 ```
+
+
+## MGA-010 — `Loam.Tui.RecordSession` focused extraction
+
+Classification: **SPLIT_CANDIDATE — IMPLEMENTATION EXPERIMENT**
+
+MGA-009 found that `Loam.Tui.Cli` mixes root navigation/orchestration with
+several object-local terminal editor loops. `Record` is the first narrow
+experiment because neighboring TUI features already demonstrate a stable
+presentation-module / terminal-session seam.
+
+This slice moves only the Record key-read/redraw/publication loop into
+`Loam.Tui.RecordSession`. `Loam.Tui.Record` continues to own editor state,
+validation, transitions, and view; `HouseholdCommand.record` continues to own
+the production write entrance; `Tui.Cli` continues to load/reload canonical
+evidence and choose the destination surface.
+
+The experiment earns a KEEP/SPLIT verdict only if focused Production TUI and
+compression qualification pass and the resulting dependency direction remains
+`Cli -> RecordSession -> Record + HouseholdCommand`, without introducing a
+second semantic or authority boundary.
