@@ -53,6 +53,10 @@ private def hasDuplicateCoordinates (changes : List (MovementChange CapacityCoor
     | c :: rest => if c.coordinate ∈ seen then true else check (c.coordinate :: seen) rest
   check [] changes
 
+private def coordinatePersistable : CapacityCoordinate → Bool
+  | .unallocated => true
+  | .purpose purpose => Loam.Persistence.validToken purpose.token
+
 /-- Pure shape checks for one multi-coordinate balanced Capacity movement. -/
 def validateBalancedDraft (draft : BalancedDraft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.effectiveOn then
@@ -63,7 +67,7 @@ def validateBalancedDraft (draft : BalancedDraft) : Except String Unit := do
     throw "Capacity movement changes must have non-zero quantities."
   if hasDuplicateCoordinates draft.changes then
     throw "Capacity movement changes must not contain duplicate coordinates."
-  if !draft.changes.all (fun c => match c.coordinate with | .unallocated => true | .purpose p => Loam.Persistence.validToken p.token) then
+  if !draft.changes.all (fun c => coordinatePersistable c.coordinate) then
     throw "Capacity movement coordinate contains an invalid Purpose token."
   if movementTotalQuanta draft.changes != 0 then
     throw "Capacity movement changes must balance to zero."
@@ -97,6 +101,8 @@ def validateDraft (draft : Draft) : Except String Unit := do
     throw "Capacity movement amount must be a positive integer JPY quantity."
   if draft.source = draft.destination then
     throw "Capacity movement endpoints must differ."
+  if !coordinatePersistable draft.source || !coordinatePersistable draft.destination then
+    throw "Capacity movement coordinate contains an invalid Purpose token."
 
 private def effectiveEvidenceComplete
     (memory : CapacityMemory)
