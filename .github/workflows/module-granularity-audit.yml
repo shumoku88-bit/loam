@@ -8,6 +8,7 @@ on:
       - "docs/research/MODULE_GRANULARITY_AUDIT.md"
       - "docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md"
       - "docs/research/MODULE_GRANULARITY_FRONTIER_017.md"
+      - "docs/research/MODULE_GRANULARITY_REPORT_WINDOW_018.md"
       - "docs/drakon/build_map.py"
       - "docs/drakon/build_tui_cli_granularity_audit_map.py"
       - "docs/drakon/build_tui_scheduled_session_audit_map.py"
@@ -80,9 +81,10 @@ jobs:
               assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
               diagram_count = db.execute("select count(*) from diagrams").fetchone()[0]
               source_count = db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0]
-              assert diagram_count == 4
+              assert diagram_count == 5
               assert source_count == diagram_count
               assert db.execute("select count(*) from diagrams where name='MGA.017.3 Candidate Seams'").fetchone()[0] == 1
+              assert db.execute("select count(*) from diagrams where name='MGA.018.1 Qualified ReportWindow State Owner'").fetchone()[0] == 1
           PY
           git diff --exit-code -- docs/drakon/loam-tui-reports-granularity-audit.drn
 
