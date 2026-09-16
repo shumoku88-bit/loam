@@ -80,8 +80,8 @@ theorem registerRow_eraseEffectIdentity
     (record : Loam.ActualReview.Record) :
     registerRow (eraseRecordEffectIdentity record) = registerRow record := by
   cases record with
-  | mk event date description replacement isCurrent =>
-      simp [registerRow, eraseRecordEffectIdentity,
+  | mk event date description replacement =>
+      simp [registerRow, eraseRecordEffectIdentity, Loam.ActualReview.Record.isCurrent,
         Loam.Observation255.eraseEventEffectIdentity, List.map_map]
 
 /-- The existing textual Effect rendering also ignores optional durable identity. -/
