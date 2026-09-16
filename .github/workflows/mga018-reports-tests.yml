@@ -6,6 +6,7 @@ on:
       - audit/mga-018-report-window
     paths:
       - .github/workflows/mga018-reports-tests.yml
+      - tools/mga018_reports_test_migration.py
 
 permissions:
   contents: write
