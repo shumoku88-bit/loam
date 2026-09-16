@@ -45,7 +45,7 @@ DIAGRAMS = {
             ("action", "migrated to HraActual / HraScheduled"),
             ("decision", "production long-list tests green?", "YES"),
             ("action", "legacy island retired"),
-            ("action", "full Production TUI qualification pending"),
+            ("action", "full Production TUI qualification passed (62/62)"),
         ],
     },
 }
