@@ -65,11 +65,6 @@ def decodeLocusAdmissionVocabulary?
   let loci ← decodeLocusRows? rows
   LocusAdmissionVocabulary.ofLoci? loci
 
-/-- Sibling path used by the legacy sidecar writer surface. -/
-def locusAdmissionVocabularyPathForEventMemory
-    (memoryPath : System.FilePath) : System.FilePath :=
-  System.FilePath.mk (memoryPath.toString ++ ".locus-admission")
-
 /-- Atomically replace one independently persisted Locus admission vocabulary. -/
 def saveLocusAdmissionVocabulary?
     (path : System.FilePath)
