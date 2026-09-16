@@ -188,9 +188,7 @@ def windowSize : Nat := 12
 def windowStart (state : State) : Nat :=
   match state.selected with
   | none => 0
-  | some index =>
-      if index.val < windowSize then 0
-      else index.val + 1 - windowSize
+  | some index => trailingWindowStart index.val windowSize
 
 def visibleRows (state : State) : List (Nat × Loam.CapacityReview.Row) :=
   let start := windowStart state
