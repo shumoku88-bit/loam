@@ -5,7 +5,9 @@ import re
 path = Path("Loam/Tests/TuiReports.lean")
 text = path.read_text()
 
-# First rewrite the four structure-update fixtures that used the retired flat Form owner.
+# Rewrite only ownership. Preserve every fixture's pre-existing Source value,
+# including the deliberately inconsistent Calendar-Month/non-calendar coordinate
+# fixture that qualifies fail-closed recovery wording.
 replacements = {
 '''  let customEditing : Loam.Tui.Reports.State := {
     pensionState with form := { pensionState.form with focus := ⟨0, by decide⟩ }
@@ -32,7 +34,6 @@ replacements = {
           endExclusive := "2026-10-15"
           focus := ⟨2, by decide⟩
         }
-        source := .custom
       }
   }
 ''',
@@ -72,7 +73,6 @@ replacements = {
           endExclusive := "2026-10-15"
           focus := ⟨2, by decide⟩
         }
-        source := .custom
       }
   }
 ''',
