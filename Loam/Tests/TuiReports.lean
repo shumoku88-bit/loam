@@ -301,8 +301,6 @@ def main : IO Unit := do
       [ { date := "2026-09-10"
         , scheduledChange := Quantity.ofQuanta (-300)
         , balance := Quantity.ofQuanta 700 } ]
-    finalAtHorizon := Quantity.ofQuanta 700
-    lowWater := Quantity.ofQuanta 700
   }
   let liquidityReportText := widgetText (Loam.Tui.Reports.view liquidityReport)
   expect (contains "Forecast path: UNKNOWN" liquidityReportText)
