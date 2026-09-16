@@ -116,23 +116,31 @@ def acceptSelectedCandidate (state : State) : State :=
           candidateIndex := 0 }
 
 /-- Accept candidate and advance focus to the Amount field. If a candidate is selected, use it;
-    otherwise use the first filtered candidate if available. -/
+    otherwise use the first filtered candidate if available. If the typed text is already an
+    exact matching token and the candidate cursor has not moved, preserve the typed token. -/
 def acceptCandidateAndAdvance (state : State) : State :=
-  match selectedCatalogCandidate? state with
-  | some entry =>
-      let state' := { state with
-        form := editActive state.form (fun _ => entry.locus.token),
-        candidateIndex := 0 }
-      { state' with form := moveFocus state'.form false }
+  match activeLocus? state.form with
+  | some entered =>
+      if state.candidateIndex == 0 && (Loam.LocusCatalog.exactToken? state.candidateCatalog entered).isSome then
+        { state with form := moveFocus state.form false, candidateIndex := 0 }
+      else
+        match selectedCatalogCandidate? state with
+        | some entry =>
+            let state' := { state with
+              form := editActive state.form (fun _ => entry.locus.token),
+              candidateIndex := 0 }
+            { state' with form := moveFocus state'.form false }
+        | none =>
+            match (catalogCandidates state).head? with
+            | some entry =>
+                let state' := { state with
+                  form := editActive state.form (fun _ => entry.locus.token),
+                  candidateIndex := 0 }
+                { state' with form := moveFocus state'.form false }
+            | none =>
+                { state with form := moveFocus state.form false, candidateIndex := 0 }
   | none =>
-      match (catalogCandidates state).head? with
-      | some entry =>
-          let state' := { state with
-            form := editActive state.form (fun _ => entry.locus.token),
-            candidateIndex := 0 }
-          { state' with form := moveFocus state'.form false }
-      | none =>
-          { state with form := moveFocus state.form false, candidateIndex := 0 }
+      { state with form := moveFocus state.form false, candidateIndex := 0 }
 
 /-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do

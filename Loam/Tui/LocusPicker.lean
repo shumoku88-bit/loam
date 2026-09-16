@@ -7,13 +7,17 @@ set_option autoImplicit false
 /--
 Presentation-only candidates for one Locus text field.
 
-Empty text intentionally shows the whole current admitted catalog. Exact token
-text remains visible as contextual help but is excluded from completion choices.
+Empty text intentionally shows the whole current admitted catalog. An exact
+matching token is ordered first so completing on an already fully-typed Locus
+is an identity rather than an unwanted substitution.
 -/
 def candidates
     (catalog : Loam.LocusCatalog.Catalog) (entered : String) : Loam.LocusCatalog.Catalog :=
-  (Loam.LocusCatalog.search catalog entered).filter fun entry =>
-    entry.locus.token != entered
+  let results := Loam.LocusCatalog.search catalog entered
+  if entered.isEmpty then results
+  else
+    match results.partition (fun entry => entry.locus.token == entered) with
+    | (exact, rest) => exact ++ rest
 
 /-- Selected candidate under a local cursor. -/
 def selected?

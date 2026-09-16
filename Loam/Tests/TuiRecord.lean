@@ -116,6 +116,40 @@ def main (args : List String) : IO Unit := do
   expect (pickerAccepted.form.rows[1]! == blankCandidateForm.rows[1]!)
     "catalog candidate selection changed another posting row"
 
+  -- Exact matching token must not be substituted by a prefix neighbor on Enter or Right
+  let some foodVocab := LocusAdmissionVocabulary.ofLoci? [⟨"food"⟩, ⟨"food-stock"⟩]
+    | throw (IO.userError "prefix vocabulary")
+  let foodWorld : Loam.MovementAdmission.World := { w with locusAdmission := foodVocab }
+  let exactTypedForm : Form := {
+    readyForm with
+    rows := #[
+      { locus := "food", amount := "170" },
+      { locus := "paypay", amount := "-170" }]
+    focus := ⟨2, by decide⟩ }
+  let exactKnown := ["food", "food-stock"]
+  let exactStart : State := { form := exactTypedForm }
+  let exactPrepared := (update foodWorld exactKnown exactStart .other).state
+  expect ((catalogCandidates exactPrepared).map (fun entry => entry.locus.token) == ["food", "food-stock"])
+    "exact match was not ordered first in catalog candidates"
+  expect ((selectedCatalogCandidate? exactPrepared).map (fun entry => entry.locus.token) == some "food")
+    "exact match was not the default selected candidate"
+  let exactEnter := (update foodWorld exactKnown exactStart .enter).state
+  expect (exactEnter.form.rows[0]!.locus == "food")
+    "Enter substituted exact typed Locus with another candidate"
+  expect (exactEnter.form.focus.val == 3)
+    "Enter from Locus did not advance to Amount field"
+  let exactRight := (update foodWorld exactKnown exactStart .right).state
+  expect (exactRight.form.rows[0]!.locus == "food")
+    "Right substituted exact typed Locus with another candidate"
+  expect (exactRight.form.focus.val == 3)
+    "Right from Locus did not advance to Amount field"
+  let exactDown := (update foodWorld exactKnown exactStart .down).state
+  expect ((selectedCatalogCandidate? exactDown).map (fun entry => entry.locus.token) == some "food-stock")
+    "Down did not select prefix neighbor candidate"
+  let chosenEnter := (update foodWorld exactKnown exactDown .enter).state
+  expect (chosenEnter.form.rows[0]!.locus == "food-stock")
+    "Enter did not accept explicitly chosen candidate"
+
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root w
     | throw (IO.userError "initialize fixture")
   -- An already-previewed draft must be re-admitted against policy changed during think time.
