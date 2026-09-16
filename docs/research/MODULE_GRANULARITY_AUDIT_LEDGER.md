@@ -1,58 +1,44 @@
 # Module Granularity Audit Ledger
 
-Checkpoint base: `cc53d11cde8a1d5a43c96e79e076fb69093d6201`
+Checkpoint base: `098c84557d8e911e732f1ed0d73e15eaa7720286`
 
-Status: **FIRST INVENTORY RUN COMPLETE — implementation changes remain separate**
+Status: **SECOND INVENTORY RUN COMPLETE — MGA-001 graduated; root pass calibrated**
 
-## Inventory result
+## Refreshed inventory
 
-The focused CI inventory completed successfully on PR #957.
+After PR #959 retired the unreachable SHA-256 utility, PR #957 was rebased onto
+current `main` and the inventory was rerun successfully.
 
 ```text
-Lean modules: 331
+Lean modules: 330
 Modules <= 80 lines: 87
 Modules with exactly one local consumer: 50
 Declared Lake roots: 17
-Production-like modules unreachable from declared roots: 1
-  unreachable: Loam.Sha256
-Recent commit change sets observed: 181
+Production-like modules unreachable from declared roots: 0
 ```
 
-The important result is not that LOAM has 87 small modules or 50 one-consumer
-modules. Those are candidate selectors only. The first reachability pass found
-exactly one production-like Lean module outside every declared library/executable
-import path.
+The disappearance of the only unreachable production-like module is the first
+end-to-end calibration result for this audit. The detector found stale physical
+surface, source/history inspection justified retirement, a separate PR removed it,
+and the next inventory closed the reachability finding.
 
 ## MGA-001 — `Loam.Sha256`
 
-Classification: **RETIRE_CANDIDATE**
+Classification: **RETIRED — CLOSED by PR #959**
 
-Evidence:
+Evidence before retirement:
 
-- dependency inventory: `fan_in = 0`, `fan_out = 0`;
-- production-root reachability: unreachable from every one of the 17 declared
-  Lake library/executable roots;
-- current repository code search for `Loam.Sha256` finds only the module itself;
-- the module comment says it exists for the historical-admission prepare/verify
-  boundary;
-- its introduction was PR #308, which added `HistoricalPrepare` / historical
-  candidate qualification using this SHA-256 implementation;
-- current code search for `HistoricalPrepare` finds no production Lean caller.
+- `fan_in = 0`, `fan_out = 0`;
+- unreachable from all declared Lake roots;
+- no current source imported `Loam.Sha256`;
+- its own contract tied it to the historical-admission prepare/verify boundary;
+- repository history showed the former production caller had already retired.
 
-Interpretation:
+PR #959 deleted only `Loam/Sha256.lean`. Compression Audit and Selected Lean
+Observations both passed before merge. The refreshed inventory now reports zero
+production-like unreachable modules.
 
-This is not a file-granularity merge candidate. It is stronger: a formerly real
-mechanical dependency appears to have outlived the production boundary that
-needed it.
-
-Stop point:
-
-Do **not** delete it in PR #957. A separate narrow retirement PR should prove:
-
-1. no workflow/tool/source path still names `Loam.Sha256`;
-2. deleting the file preserves `lake build` and relevant qualification;
-3. no historical experiment is being treated as a production dependency merely
-   because its documentation still mentions the old boundary.
+This was not a size-based merge. It was stale-surface retirement.
 
 ## MGA-002 — `Loam.Persistence.ScheduledPersistence`
 
@@ -62,23 +48,17 @@ Candidate signal:
 
 - exactly one local consumer:
   `Loam.Persistence.ScheduledLifecyclePersistence`;
-- 107 lines;
-- current source explicitly says the standalone Scheduled stream was retired as
-  an authority boundary and this module now supplies only the typed inner codec
-  embedded in the complete lifecycle image.
+- compact child codec.
 
-Why the boundary still earns its keep:
+Why the boundary remains justified:
 
-- it owns one coherent pure responsibility: encode/decode of
-  `ScheduledMemory String`;
-- the lifecycle module separately owns the complete multi-section envelope,
-  terminal projection, staging, rename, and authority-file I/O;
-- after the complete lifecycle cutover in PR #533, the child codec received a
-  later independent dependency-narrowing change in PR #680.
+- it owns pure encode/decode of `ScheduledMemory String`;
+- the lifecycle module separately owns the complete envelope, terminal projection,
+  staging/rename, and authority-file I/O;
+- the child codec has had an independent dependency-narrowing reason to change
+  after the old standalone Scheduled authority retired.
 
-That is concrete evidence of a separate change reason after the old standalone
-authority disappeared. A single consumer is therefore not sufficient evidence
-for collapse.
+One consumer is therefore not evidence of sameness.
 
 ## MGA-003 — `Loam.CycleFundingConfig`
 
@@ -89,33 +69,25 @@ Candidate signal:
 - 29 lines;
 - exactly one local consumer: `Loam.CycleBudgetReview`.
 
-Why the boundary still earns its keep:
+Why the boundary remains justified:
 
-- it owns replaceable config parsing/load policy, including the current JPY-only
-  admission rule and missing-file behavior;
-- `CycleBudgetReview` owns query orchestration, Actual ownership, balance evidence,
-  coverage, and funding composition;
-- the config module was introduced with the Cycle Budget surface, while later
-  Cycle Budget observation/refactoring changes occurred in the consumer without
-  requiring this config module to change.
-
-The split is small but corresponds to an independently stable policy/representation
-boundary rather than an arbitrary intermediate step.
+- it owns replaceable configuration grammar/load policy;
+- `CycleBudgetReview` owns query orchestration and canonical evidence loading;
+- review behavior has changed independently without requiring config changes.
 
 ## MGA-004 — small shared controls
 
 Classification: **KEEP_BOUNDARY**
 
-The following intentionally remain false-positive controls for size-based
-heuristics:
+False-positive controls retained deliberately:
 
 - `Loam.Core.Purpose`;
 - `Loam.FreshNumberedToken`;
 - `Loam.ScheduledActualOwnership`;
 - `Loam.SparseEffectIdentity`.
 
-Each is small, but each has multiple independent production consumers or owns a
-shared law/order that would otherwise be duplicated or hidden inside one caller.
+Each is small but has multiple independent consumers or owns a shared law/order
+that would otherwise be duplicated or hidden.
 
 ## MGA-005 — `Loam.Tui.CompletionPrompt`
 
@@ -128,44 +100,67 @@ Candidate signal:
 
 Counter-evidence:
 
-- PR #622 deliberately moved completion recognition under `Tui/`, making the
-  presentation-local ownership explicit;
-- the module is a small pure recognition projection over Event memory;
-- the sole consumer `Tui.Cli` is already a very large orchestration module, so
-  collapsing a coherent helper into it would reduce file count while increasing
-  local navigation density.
+- PR #622 deliberately moved recognition ownership under `Tui/`;
+- it is one coherent pure recognition projection;
+- folding it into the already-large `Tui.Cli` would reduce file count while
+  increasing navigation density.
 
-This case should be revisited only if a broader TUI decomposition changes the
-consumer topology.
+Revisit only if broader TUI decomposition changes the consumer topology.
 
-## First-pass verdict
+## MGA-006 — root production one-consumer pass
 
-The new lens is already useful, but the first data does **not** support a general
-"LOAM is split into too many tiny files" conclusion.
+Classification: **NO COLLAPSE / MOVE CANDIDATE FOUND**
 
-The strongest machine signals split into two very different classes:
+After MGA-001, the root layer has only two substantive one-consumer cases beyond
+aggregation barrels:
+
+1. `CycleFundingConfig`, already classified KEEP in MGA-003;
+2. `AccountingRoleReview`, consumed today only by
+   `Tui.LocusAdmissionAdministrationSession`.
+
+`AccountingRoleReview` is also **KEEP_BOUNDARY**:
+
+- PR #762 deliberately extracted it as a presentation-neutral canonical evidence
+  loading boundary rather than leaving authority reads inside the TUI session;
+- the module reuses `AccountingRolePublisher.eligibleInitialLoci`, so read
+  presentation cannot invent a second eligibility rule;
+- PR #945 later changed the review independently to include current-anchor evidence
+  when Generation-2 found a virginity gap.
+
+That history is positive evidence of an independent reason to change. Its current
+single consumer does not justify folding authority reads back into the TUI.
+
+`Loam.Core`, `Loam.Application`, and `Loam.Observations` are aggregation modules,
+not semantic micro-modules, and are excluded from collapse ranking.
+
+## Current verdict
+
+The first two passes do not support a general diagnosis that LOAM is fragmented
+into too many tiny Lean modules.
+
+The useful distinction so far is:
 
 ```text
-small / one-consumer + independent responsibility  -> KEEP_BOUNDARY
-unreachable + historical caller retired            -> RETIRE_CANDIDATE
+small + shared/independent responsibility      -> KEEP_BOUNDARY
+one consumer + independent change history      -> KEEP_BOUNDARY
+unreachable + retired historical responsibility -> RETIRE_CANDIDATE
 ```
-
-The first concrete subtraction exposed by this audit is therefore not a merge.
-It is the likely retirement of `Loam.Sha256`.
 
 ## Next pass
 
-Continue with candidate discovery in this order:
+Audit the CLI layer next. Separate three cases explicitly:
 
-1. root production helpers with one consumer or zero incoming edges;
-2. CLI executable roots, separating required executable boundaries from obsolete
-   command surfaces;
-3. TUI `Foo` / `FooSession` pairs, using pure-state vs effect-session separation
-   as an explicit KEEP criterion;
-4. only then inspect larger modules for the opposite problem: files that may be
-   too coarse and own multiple independent reasons to change.
+1. declared executable roots, where `fan_in = 0` is expected;
+2. command modules consumed only by `Loam.Cli`, where a dedicated command contract
+   may still justify a file;
+3. nested helper command modules, especially one-consumer chains such as
+   `ScheduledDayEvidenceCli -> OpenScheduledCli`.
 
-Add `RETIRE_CANDIDATE` to the audit vocabulary alongside:
+Then audit TUI `Foo` / `FooSession` pairs using pure state-machine versus effectful
+terminal-session ownership as a KEEP criterion, followed by the opposite question:
+large modules that may be too coarse.
+
+Audit vocabulary:
 
 ```text
 KEEP_BOUNDARY
