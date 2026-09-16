@@ -1,0 +1,47 @@
+name: MGA-013 Scheduled loop topology
+
+on:
+  push:
+    branches:
+      - audit/mga-013-scheduled-loop-topology
+    paths:
+      - 'tools/mga_013_stage.py'
+      - '.github/workflows/mga-013-stage-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/mga-013-scheduled-loop-topology
+          fetch-depth: 0
+      - name: Apply MGA-013 audit
+        run: |
+          python3 tools/mga_013_stage.py
+          python3 docs/drakon/build_tui_cli_granularity_audit_map.py
+          python3 - <<'PY'
+          import sqlite3
+          p = 'docs/drakon/loam-tui-cli-granularity-audit.drn'
+          with sqlite3.connect(p) as db:
+              assert db.execute('pragma integrity_check').fetchone()[0] == 'ok'
+              n = db.execute('select count(*) from diagrams').fetchone()[0]
+              s = db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0]
+              assert n > 0 and s == n
+          PY
+      - name: Commit MGA-013 audit
+        run: |
+          rm tools/mga_013_stage.py .github/workflows/mga-013-stage-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/drakon/build_tui_cli_granularity_audit_map.py \
+                  docs/drakon/loam-tui-cli-granularity-audit.drn \
+                  docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md \
+                  tools/mga_013_stage.py \
+                  .github/workflows/mga-013-stage-once.yml
+          git commit -m 'docs(audit): classify Scheduled local-loop topology'
+          git push
