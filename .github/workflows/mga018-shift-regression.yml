@@ -1,0 +1,52 @@
+name: MGA018 shift refusal regression
+
+on:
+  push:
+    branches:
+      - audit/mga-018-report-window
+    paths:
+      - .github/workflows/mga018-shift-regression.yml
+
+permissions:
+  contents: write
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-018-report-window
+          fetch-depth: 0
+
+      - name: Preserve refused-shift snapshot policy
+        run: |
+          python3 tools/mga018_shift_policy.py
+          python3 tools/mga018_shift_regression.py
+
+      - name: Set up Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify Reports shift refusal and window behavior
+        run: lake env lean --run Loam/Tests/TuiReports.lean
+
+      - name: Verify sparse Transactions Flow remains intact
+        run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
+
+      - name: Commit qualified refusal preservation
+        run: |
+          rm .github/workflows/mga018-shift-regression.yml tools/mga018_shift_policy.py tools/mga018_shift_regression.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/Reports.lean Loam/Tests/TuiReports.lean .github/workflows/mga018-shift-regression.yml tools/mga018_shift_policy.py tools/mga018_shift_regression.py
+          git commit -m 'fix(tui): preserve Reports snapshot on refused month shift'
+          git push
