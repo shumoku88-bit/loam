@@ -33,7 +33,7 @@ READ_FLOW_DIAGRAMS = {
     "07.1.1 Actual Review Read Boundary": {
         "description": "Production ActualReview.loadRecordsFromActual / recordsFromActualEvidence? from one normalized ActualEvidence image.",
         "sources": "Loam/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Core/EventCorrectionMemory.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ReplacementFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
-        "audit": "One loaded ActualEvidence image feeds both admissions and the final transient Record projection. Successful correction-frontier admission is also the obligation that makes later target-based replacement lookup deterministic: raw EventCorrectionMemory rejects duplicate exact edges but does not itself forbid sibling replacements for one target. No second correction model or read-specific replacement authority is justified.",
+        "audit": "One loaded ActualEvidence image feeds both admissions and the final transient Record projection. Successful correction-frontier admission makes target-based replacement lookup deterministic and proves currentness is exactly replacement absence. ActualReview retains the successor identity and derives Record.isCurrent from it; no second current-status copy or read-specific replacement authority is justified.",
         "nodes": [
             ("insertion", "Load normalized ActualEvidence ONCE\nactual.loam"),
             ("decision", "Actual authority decodes?", "Refuse\nmalformed or unsupported Actual evidence"),
@@ -42,8 +42,8 @@ READ_FLOW_DIAGRAMS = {
             ("insertion", "admittedActualValidityMemory?\ncurrent date frontier"),
             ("decision", "One admitted current date per Event?", "Refuse\nActual validity frontier not justified"),
             ("action", "For each remembered Event\nproject transient review Record"),
-            ("action", "date := admitted validity\nisCurrent := frontier membership"),
-            ("action", "replacement := target lookup\ndeterministic under admitted correction frontier"),
+            ("action", "date := admitted validity\nreplacement := admitted target lookup"),
+            ("action", "derive isCurrent := replacement.isNone\nG2-024"),
             ("action", "description := loaded Actual description evidence"),
             ("action", "Return Records\nno new report authority retained"),
         ],
