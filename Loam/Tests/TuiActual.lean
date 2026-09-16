@@ -55,19 +55,6 @@ private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
   }
   pure { actual, scheduled := .ok scheduled }
 
-private def initialCursor : Loam.Tui.Main.ReviewCursor :=
-  let displayed := ((List.range 12).map testRecord).toArray
-  let selected : Option (Fin displayed.size) :=
-    if h : 0 < displayed.size then some ⟨0, h⟩ else none
-  { date := "2026-09-07"
-    displayed := displayed
-    selected := selected }
-
-private def moveNextN : Nat → Loam.Tui.Main.ReviewCursor → Loam.Tui.Main.ReviewCursor
-  | 0, cursor => cursor
-  | count + 1, cursor =>
-      let (next, _) := Loam.Tui.Main.moveReviewNext cursor
-      moveNextN count next
 
 def main : IO Unit := do
   let snapshot ← hraSnapshot
@@ -145,55 +132,40 @@ def main : IO Unit := do
   expect (contains "[o] order" descViewText)
     "HRA Actual view footer did not expose [o] order"
 
-  let start := initialCursor
-  expect (start.displayed.size == 12)
-    "Actual cursor still truncated a 12-record day"
-  expect (start.totalCount == start.displayed.size)
-    "Actual cursor total is no longer derived from the retained full-day rows"
+  -- Production HRA Actual owns its own eight-row viewport. Pin navigation beyond it
+  -- before the older Main cursor implementation is retired.
+  let longActual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-07"
+    allRecords := (List.range 12).map testRecord
+  }
+  let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
+  let longHraStart :=
+    (Loam.Tui.HraActual.update longSnapshot
+      (Loam.Tui.HraActual.initial "2026-09-07") .focusRight).state
+  let longShifted := (List.range 10).foldl
+    (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+    longHraStart
+  expect (longShifted.transactionRow == 10)
+    "HRA Actual selection could not reach the eleventh record"
+  let longRecords := Loam.Tui.HraActual.visibleRecords longSnapshot longShifted
+  let selectedLong ← requireSome
+    (Loam.Tui.HraActual.selectedRecord? longSnapshot longShifted)
+    "HRA Actual eleventh-row selection disappeared"
+  let longViewText := widgetText
+    (Loam.Tui.HraActual.view { width := 100, height := 30 } longSnapshot longShifted)
+  expect (contains selectedLong.description longViewText)
+    "HRA Actual moving viewport did not render its selected eleventh record"
+  match longRecords.head? with
+  | none => throw (IO.userError "HRA Actual long-list fixture became empty")
+  | some firstLong =>
+      expect (!contains firstLong.description longViewText)
+        "HRA Actual eight-row viewport did not move beyond its first record"
+  let longLast := (List.range 11).foldl
+    (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+    longHraStart
+  let longBlocked := (Loam.Tui.HraActual.update longSnapshot longLast .next).state
+  expect (longBlocked.transactionRow == longLast.transactionRow &&
+    contains "No next Actual row" longBlocked.notice)
+    "HRA Actual end-of-list refusal moved selection or lost its notice"
 
-  let shifted := moveNextN 10 start
-  match shifted.selected with
-  | none => throw (IO.userError "Actual selection disappeared after navigating past row 10")
-  | some selected =>
-      expect (selected.val == 10)
-        "Actual selection could not reach the eleventh record"
-
-  expect (Loam.Tui.Main.reviewWindowStart shifted == 1)
-    "Actual browse window did not follow the eleventh selected record"
-  let rows := Loam.Tui.Main.visibleReviewRows shifted
-  expect (rows.length == 10)
-    "Actual browse rendered more or fewer than ten local rows"
-  match rows with
-  | [] => throw (IO.userError "Actual browse window unexpectedly became empty")
-  | (firstIndex, _) :: _ =>
-      expect (firstIndex == 1)
-        "Actual browse window did not advance by one row"
-
-  match Loam.Tui.Main.selectedRecord? shifted with
-  | none => throw (IO.userError "Actual selected record disappeared after window shift")
-  | some record =>
-      expect (record.description == "row-10")
-        "Actual detail selection no longer follows the global browse selection"
-
-  let state : Loam.Tui.Main.State :=
-    { selectedDate := "2026-09-07"
-      surface := .actual shifted .browse }
-  let text := widgetText (Loam.Tui.Main.actualBrowseView shifted state)
-  expect (contains "row-10" text)
-    "Actual browse window did not render the selected eleventh record"
-  expect (!contains "row-0" text)
-    "Actual browse window failed to drop the row above its ten-line window"
-  expect (contains "12 current record(s)" text)
-    "Actual browse lost the full day record count"
-
-  let last := moveNextN 11 start
-  let (blocked, notice) := Loam.Tui.Main.moveReviewNext last
-  expect (notice == "No next row in this day view.")
-    "Actual end-of-list refusal changed"
-  match blocked.selected, last.selected with
-  | some blockedIndex, some lastIndex =>
-      expect (blockedIndex.val == lastIndex.val)
-        "Actual end-of-list refusal moved the selection"
-  | _, _ => throw (IO.userError "Actual end-of-list selection became unavailable")
-
-  IO.println "TUI Actual: HRA workspace mechanics and retained legacy navigation checks passed."
+  IO.println "TUI Actual: HRA workspace mechanics and production viewport checks passed."

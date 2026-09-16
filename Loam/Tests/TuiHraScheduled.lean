@@ -57,6 +57,29 @@ private def hraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
   }
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
+private def longHraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
+  let rows ← requireSome
+    ((List.range 12).mapM fun index =>
+      scheduledRecord? ("scheduled-long-" ++ toString index) "2026-09-07"
+        "wallet" "food" (Int.ofNat (index + 1)))
+    "long Scheduled fixtures were not admitted"
+  let scheduled ← requireSome (ScheduledMemory.ofOccurrences? rows)
+    "long Scheduled memory fixture was not admitted"
+  let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "empty terminal memory was not admitted for long fixture"
+  let events ← requireSome (EventMemory.ofEvents? [])
+    "empty Event memory was not admitted for long fixture"
+  let scheduledSnapshot : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := scheduled
+    terminals := terminals
+    events := events
+  }
+  let actual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-07"
+    allRecords := []
+  }
+  pure { actual := actual, scheduled := .ok scheduledSnapshot }
+
 def main : IO Unit := do
   let snapshot ← hraScheduledSnapshot
   let start := Loam.Tui.HraScheduled.initial "2026-09-07"
@@ -77,6 +100,35 @@ def main : IO Unit := do
     "HRA Scheduled did not render open-world Unknown explicitly"
   expect (!contains "none due on this day" unknownText)
     "HRA Scheduled collapsed Unknown into an empty-day claim"
+
+  -- Production HRA Scheduled owns its own eight-row viewport. Pin navigation beyond it
+  -- before the older Main Scheduled cursor implementation is retired.
+  let longSnapshot ← longHraScheduledSnapshot
+  let longStart := Loam.Tui.HraScheduled.initial "2026-09-07"
+  let longShifted := (List.range 10).foldl
+    (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+    longStart
+  expect (longShifted.occurrenceRow == 10)
+    "HRA Scheduled selection could not reach the eleventh occurrence"
+  let selectedLong ← requireSome
+    (Loam.Tui.HraScheduled.selectedRecord? longSnapshot longShifted)
+    "HRA Scheduled eleventh-row selection disappeared"
+  let longViewText := widgetText
+    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } longSnapshot longShifted)
+  expect (contains selectedLong.id.token longViewText)
+    "HRA Scheduled moving viewport did not render its selected eleventh occurrence"
+  match (Loam.Tui.HraScheduled.recordsForScope longSnapshot longStart).head? with
+  | none => throw (IO.userError "HRA Scheduled long-list fixture became empty")
+  | some firstLong =>
+      expect (!contains firstLong.id.token longViewText)
+        "HRA Scheduled eight-row viewport did not move beyond its first occurrence"
+  let longLast := (List.range 11).foldl
+    (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+    longStart
+  let longBlocked := (Loam.Tui.HraScheduled.update longSnapshot longLast .next).state
+  expect (longBlocked.occurrenceRow == longLast.occurrenceRow &&
+    contains "No next Scheduled row" longBlocked.notice)
+    "HRA Scheduled end-of-list refusal moved selection or lost its notice"
 
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
   expect (start.pane == .occurrences)
