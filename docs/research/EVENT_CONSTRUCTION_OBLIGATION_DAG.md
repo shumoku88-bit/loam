@@ -1,6 +1,6 @@
 # G2-019 — Event construction obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + source comparison + Core-invariant ownership + existing runtime qualification**.
 
@@ -109,15 +109,15 @@ The previous private theorem `retainedEffectKeys_anonymousInverse` existed solel
 G2-019 does **not** merge the writers.
 
 ```text
-Correction replacement EventId allocation          KEEP LOCAL
+Correction replacement EventId allocation              KEEP LOCAL
 Correction target-current / relation / reversal guards KEEP LOCAL
-Scheduled stable completion EventId                 KEEP LOCAL
-Scheduled current-open + retry/crash protocol       KEEP LOCAL
-Reversal deterministic EventId                      KEEP LOCAL
-Reversal exact inverse construction                 KEEP LOCAL
-Reversal relation-independence guards               KEEP LOCAL
-Locus admission checks                              KEEP WHERE EARNED
-Actual publication protocol                         KEEP LOCAL
+Scheduled stable completion EventId                     KEEP LOCAL
+Scheduled current-open + retry/crash protocol           KEEP LOCAL
+Reversal deterministic EventId                          KEEP LOCAL
+Reversal exact inverse construction                     KEEP LOCAL
+Reversal relation-independence guards                   KEEP LOCAL
+Locus admission checks                                  KEEP WHERE EARNED
+Actual publication protocol                             KEEP LOCAL
 ```
 
 Only Event value admission moves back to its existing Core owner.
@@ -155,6 +155,8 @@ in:
 Delete the Reversal-only theorem whose sole purpose was supplying `keyNodup` for the direct constructor.
 
 No persistence format, Event representation, identity policy, authority topology, or household-visible successful result changes.
+
+The production delta across those three files is `+12 / -40`, net `-28` lines, with no new production type or helper.
 
 ## Obligation DAG
 
@@ -204,18 +206,28 @@ shared crash protocol
 new append-bundle abstraction
 ```
 
-## Qualification target
+## Qualification
 
-The affected production paths already have direct runtime qualification in the repository. Qualification should preserve at minimum:
+Production/audit head `3d6856d0918970cb88d9cc85c6a5adca644620ea` qualified the production refactor.
 
-- normalized Actual correction publication;
-- Scheduled completion and cancellation;
-- interrupted Scheduled completion retry behavior;
-- Actual reversal publication;
-- sparse Effect identity behavior;
-- Production TUI composition;
-- Compression Audit and selected Lean observations.
+Triggered workflows completed successfully:
 
-If those paths remain green, record:
+- Shared Scheduled Terminal Publisher: **SUCCESS**
+  - shared publisher dependencies built;
+  - Actual-backed Scheduled completion and cancellation runtime story passed.
+- Production TUI: **SUCCESS**, all 62 substantive steps.
+  - normalized Actual correction publication passed;
+  - Correction editor/shared publication passed;
+  - Actual Reversal publisher build and both reversal runtime paths passed;
+  - Scheduled terminal publisher build and completion/cancellation passed;
+  - downstream Actual/Scheduled composition and report/routing surfaces also passed.
+- Compression Audit: **SUCCESS**.
+- Selected Lean Observations: **SUCCESS**.
+- Shared ActualValidity Publisher: **SUCCESS**.
+- Shared Scheduled Replacement Publisher: **SUCCESS**.
+
+The final documentation commit after this qualification changes only this audit record. Production code and tests remain identical to the qualified head above.
+
+## Final verdict
 
 **G2-019: SIMPLIFY QUALIFIED — Event construction delegates to `Event.ofEffects?`; Correction, Scheduled Completion and Actual Reversal semantics remain separate.**
