@@ -1,6 +1,6 @@
 # G2-023 — Transactions RowActivity derived-summary obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG + production-consumer reachability**.
 
@@ -179,17 +179,26 @@ Likewise `activeEvents` stays retained because quantity totals do not determine 
 
 No generic `DerivedSummary`, report superclass, or shared aggregation framework is added.
 
-## Qualification target
+## Qualification
 
-Existing qualification must continue to prove:
+Production/audit head `ba7ac822d76d9fee25c8403e4cecfafa652143dd` passed every triggered workflow:
 
-- exact row net;
-- exact positive and negative partitions;
-- exact gross activity;
-- exact active Event count;
-- sparse Transactions-Flow ordering and rendering;
-- neighboring Reports behavior.
+- Compression Audit: **SUCCESS**;
+- Selected Lean Observations: **SUCCESS**;
+- Accounting Projection Basis: **SUCCESS**;
+- Production TUI: **SUCCESS**, all production verification steps passed.
 
-If direct Transactions-Flow and production Reports workflows remain green, record:
+Directly relevant Production TUI steps also passed:
+
+- Build shared Transactions-Flow review boundary: **SUCCESS**;
+- Verify Transactions-Flow incidence, activity and refusal boundaries: **SUCCESS**;
+- Verify sparse Transactions-Flow Reports interaction: **SUCCESS**;
+- Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces: **SUCCESS**.
+
+The existing Transactions-Flow regression was not rewritten for this change and still observes the same exact net, positive, negative, gross and active Event values through the public read surface.
+
+The DRAKON builder is committed audit instrumentation but was not independently executed during this qualification.
+
+## Verdict
 
 **G2-023: SIMPLIFY QUALIFIED — Transactions RowActivity retains only positive, negative and activeEvents; net and gross are derived exact consequences of the signed partitions.**
