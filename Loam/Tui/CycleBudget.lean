@@ -2,6 +2,7 @@ import Loam.CurrentCoverageReview
 import Loam.CycleBudgetReview
 import Loam.PurposeCatalog
 import Loam.Tui.Layout
+import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.CycleBudget
@@ -157,7 +158,8 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
               ({ state with submode := .normal }, .stay)
       | _ => (state, .stay)
   | .normal =>
-      let limit := (body state).length - pageSize bounds
+      let content := (body state).length
+      let visible := pageSize bounds
       match key with
       | .input 'q' | .input 'Q' => (state, .quit)
       | .escape | .input 'b' | .input 'B' => (state, .home)
@@ -185,8 +187,10 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
             ({ state with submode := .grantPicker shortages 0, notice := "" }, .stay)
         | .error _ =>
           ({ state with notice := "CurrentCoverage unavailable." }, .stay)
-      | .up | .input 'k' => ({ state with scroll := state.scroll - 1 }, .stay)
-      | .down | .input 'j' => ({ state with scroll := min limit (state.scroll + 1) }, .stay)
+      | .up | .input 'k' =>
+          ({ state with scroll := Loam.Tui.Scroll.backward content visible state.scroll 1 }, .stay)
+      | .down | .input 'j' =>
+          ({ state with scroll := Loam.Tui.Scroll.forward content visible state.scroll 1 }, .stay)
       | _ => (state, .stay)
 
 def grantPickerView (_bounds : Bounds) (state : State)
@@ -217,7 +221,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
   | .normal =>
       let lines := body state
       let page := pageSize bounds
-      let offset := min state.scroll (lines.length - page)
+      let offset := Loam.Tui.Scroll.clamp lines.length page state.scroll
       let visible := (lines.drop offset).take page
       .column (visible ++ List.replicate (page - visible.length) (line "") ++
         [muted ("j/k scroll " ++ toString (offset + 1) ++ "/" ++ toString lines.length ++
