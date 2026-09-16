@@ -61,7 +61,8 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "parse overlay proposal")
   expect (overlay.relations.length == 1) "relation row was not parsed"
   expect (overlay.discharges.length == 1) "discharge row was not parsed"
-  expect (overlay.effects.filterMap Effect.key |>.map EffectKey.token == ["effect-1", "effect-2"])
+  let overlayKeys := (overlay.effects.filterMap Effect.key).map EffectKey.token
+  expect (overlayKeys == ["effect-1", "effect-2"])
     "explicit proposal EffectKeys were not preserved for overlay references"
 
   expect (!(Loam.MovementProposal.parse?
