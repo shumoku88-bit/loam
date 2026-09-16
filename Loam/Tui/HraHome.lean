@@ -225,6 +225,8 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
   match state.surface with
   | .home _ => homeView bounds snapshot state
-  | _ => Loam.Tui.Main.view snapshot state
+  | .actual cursor .browse => Loam.Tui.Main.actualBrowseView cursor state
+  | .actual cursor .detail => Loam.Tui.Main.actualDetailView snapshot cursor
+  | .scheduled _ cursor mode => Loam.Tui.Main.scheduledView snapshot state cursor mode
 
 end Loam.Tui.HraHome

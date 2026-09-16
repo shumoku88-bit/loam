@@ -105,14 +105,14 @@ def main : IO Unit := do
     selectedDate := "2026-09-07"
     surface := .scheduled none shifted .browse
   }
-  let browseText := widgetText (Loam.Tui.Main.view snapshot browseState)
+  let browseText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot browseState)
   expect (contains "12 explicit current-open occurrence(s)" browseText)
     "Scheduled browse lost the full-day occurrence count"
   expect (contains "↑/↓ select/scroll" browseText)
     "Scheduled browse did not publish its local navigation affordance"
 
   let detailState := (Loam.Tui.Main.update snapshot browseState .enter).state
-  let detailText := widgetText (Loam.Tui.Main.view snapshot detailState)
+  let detailText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot detailState)
   expect (contains ("id: " ++ selected.id.token) detailText)
     "Scheduled detail does not follow the global selection"
   expect (contains "Expectation evidence, not Actual evidence." detailText)
@@ -130,7 +130,7 @@ def main : IO Unit := do
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   let unknownState := (Loam.Tui.Main.update snapshot unknownHome .tab).state
-  let unknownText := widgetText (Loam.Tui.Main.view snapshot unknownState)
+  let unknownText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot unknownState)
   expect (contains "Scheduled / Unknown" unknownText)
     "Scheduled missing evidence stopped publishing Unknown"
   expect (contains "Unknown is not NotDue" unknownText)
