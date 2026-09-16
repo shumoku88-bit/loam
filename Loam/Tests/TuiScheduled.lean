@@ -126,14 +126,14 @@ def main : IO Unit := do
     "Today + focus lost its combined presentation"
   expect (hasStyledText sameDayView " 07! " .normal)
     "Pending-only calendar cell changed"
-  let moved := (Loam.Tui.Main.update pendingSnapshot pendingHome .right).state
+  let moved := (Loam.Tui.Main.update pendingHome .right).state
   expect (moved.selectedDate == "2026-09-09") "Home focus did not advance"
   let movedView := Loam.Tui.HraHome.view bounds pendingSnapshot moved
   expect (hasStyledText movedView " 08  " .underlined)
     "Today indication followed focus instead of the snapshot date"
   expect (hasStyledText movedView "[09 ]" .selected)
     "Focus-only cell lost the existing selected style"
-  let movedAgain := (Loam.Tui.Main.update pendingSnapshot moved .right).state
+  let movedAgain := (Loam.Tui.Main.update moved .right).state
   let movedAgainView := Loam.Tui.HraHome.view bounds pendingSnapshot movedAgain
   expect (hasStyledText movedAgainView " 08  " .underlined &&
     hasStyledText movedAgainView "[10 ]" .selected &&
