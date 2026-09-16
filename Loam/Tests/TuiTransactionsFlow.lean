@@ -117,7 +117,7 @@ def main : IO Unit := do
     "Transactions Flow Down did not move the coordinate selection"
 
   let detailState := (Loam.Tui.Reports.update report .enter).state
-  expect detailState.transactionsDetail
+  expect detailState.transactions.detail
     "Transactions Flow Enter did not open focused contributors"
   let detailText := widgetText (Loam.Tui.Reports.view detailState)
   expect (contains "Focused coordinate: cash/jpy" detailText)
@@ -142,7 +142,7 @@ def main : IO Unit := do
       s!"Transactions Flow narrow detail row exceeded 53 columns: {l} ({width} cols)"
 
   let summaryAgain := (Loam.Tui.Reports.update detailState .escape).state
-  expect (!summaryAgain.transactionsDetail && isTransactionsFlow summaryAgain)
+  expect (!summaryAgain.transactions.detail && isTransactionsFlow summaryAgain)
     "Transactions Flow detail Escape did not return to summary"
   let menuAgain := (Loam.Tui.Reports.update summaryAgain .escape).state
   expect (match menuAgain.mode with | .menu => true | _ => false)
@@ -152,7 +152,7 @@ def main : IO Unit := do
   expect (editStart.window.form.focus.val == 0)
     "Transactions Flow did not reuse the shared window focus cycle"
   let edited := (Loam.Tui.Reports.update editStart (.input '9')).state
-  expect edited.transactionsSnapshot.isNone
+  expect edited.transactions.snapshot.isNone
     "editing Transactions Flow coordinates left a stale snapshot visible"
   expect (Loam.Tui.Reports.windowSourceLabel edited == "Custom")
     "editing Transactions Flow coordinates did not become Custom window state"

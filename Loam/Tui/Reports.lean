@@ -8,6 +8,7 @@ import Loam.RoleFlowReview
 import Loam.RoleBalanceReview
 import Loam.Tui.RoleBalances
 import Loam.Tui.ReportWindow
+import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
@@ -61,11 +62,9 @@ structure State where
   window : Loam.Tui.ReportWindow.State := {}
   liquidityForm : LiquidityForm := {}
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
-  transactionsSnapshot : Option Loam.TransactionsFlowReview.Snapshot := none
+  transactions : Loam.Tui.TransactionsFlowPane.State := {}
   incomeExpenseSnapshot : Option Loam.RoleFlowReview.Snapshot := none
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
-  transactionsIndex : Nat := 0
-  transactionsDetail : Bool := false
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
   notice : String := ""
@@ -116,9 +115,7 @@ def withStockFlowSnapshot
 def withTransactionsFlowSnapshot
     (state : State) (snapshot : Loam.TransactionsFlowReview.Snapshot) : State :=
   { state with
-      transactionsSnapshot := some snapshot
-      transactionsIndex := 0
-      transactionsDetail := false
+      transactions := Loam.Tui.TransactionsFlowPane.withSnapshot state.transactions snapshot
       notice := ""
       scroll := 0 }
 
@@ -146,11 +143,9 @@ def withBudgetSnapshot
 def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
-      transactionsSnapshot := none
+      transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
       roleBalanceSnapshot := none
-      transactionsIndex := 0
-      transactionsDetail := false
       liquiditySnapshot := none
       budgetSnapshot := none
       notice := message
@@ -159,11 +154,9 @@ def withError (state : State) (message : String) : State :=
 private def clearResults (state : State) : State :=
   { state with
       stockFlowSnapshot := none
-      transactionsSnapshot := none
+      transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
       roleBalanceSnapshot := none
-      transactionsIndex := 0
-      transactionsDetail := false
       liquiditySnapshot := none
       budgetSnapshot := none
       scroll := 0 }
@@ -299,100 +292,66 @@ private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : S
   | _ => { state }
 
 
-private def transactionCoordinateLe
-    (left right : Loam.Core.EffectCoordinate) : Bool :=
-  if left.locus.token == right.locus.token then
-    left.measure.token <= right.measure.token
-  else
-    left.locus.token <= right.locus.token
-
-private def transactionRowLe
-    (left right : Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) : Bool :=
-  if left.2.gross.quanta == right.2.gross.quanta then
-    transactionCoordinateLe left.1 right.1
-  else
-    left.2.gross.quanta >= right.2.gross.quanta
-
-private def transactionRows
-    (snapshot : Loam.TransactionsFlowReview.Snapshot) :
-    List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) :=
-  (snapshot.rows.map fun coordinate =>
-      (coordinate, Loam.TransactionsFlowReview.rowActivity snapshot coordinate))
-    |>.filter (fun row => row.2.activeEvents > 0)
-    |>.mergeSort transactionRowLe
-
-private def transactionContributions
-    (snapshot : Loam.TransactionsFlowReview.Snapshot)
-    (coordinate : Loam.Core.EffectCoordinate) :
-    List (Loam.TransactionsFlowReview.Column × Loam.Core.Quantity) :=
-  snapshot.columns.filterMap fun column =>
-    let quantity := Loam.Core.Event.quantityAt
-      column.event coordinate.locus coordinate.measure
-    if quantity.quanta = 0 then none else some (column, quantity)
-
-private def moveTransactionSelection (state : State) (back : Bool) : State :=
-  match state.transactionsSnapshot with
-  | none => state
-  | some snapshot =>
-      let count := (transactionRows snapshot).length
-      if count = 0 then
-        { state with transactionsIndex := 0, scroll := 0 }
-      else
-        let maxIndex := count - 1
-        let current := min state.transactionsIndex maxIndex
-        let next := if back then current - 1 else min maxIndex (current + 1)
-        { state with transactionsIndex := next, scroll := 0, notice := "" }
-
 private def updateTransactionsFlow
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  if state.transactionsDetail then
+  if state.transactions.detail then
     match key with
     | .escape | .input 'b' | .input 'B' =>
-        { state := { state with transactionsDetail := false, scroll := 0, notice := "" } }
+        { state := { state with
+            transactions := Loam.Tui.TransactionsFlowPane.closeDetail state.transactions
+            scroll := 0
+            notice := "" } }
     | .up | .input 'k' | .input 'K' =>
         { state := { state with scroll := state.scroll - 1 } }
     | .down | .input 'j' | .input 'J' =>
         { state := { state with scroll := state.scroll + 1 } }
     | _ => { state }
+  else if !Loam.Tui.TransactionsFlowPane.hasSnapshot state.transactions then
+    updateWindowReport state key
   else
-    match state.transactionsSnapshot with
-    | none => updateWindowReport state key
-    | some snapshot =>
-        let rows := transactionRows snapshot
-        match key with
-        | .escape | .input 'b' | .input 'B' =>
-            { state := { state with mode := .menu, notice := "", scroll := 0 } }
-        | .up | .input 'k' | .input 'K' =>
-            { state := moveTransactionSelection state true }
-        | .down | .input 'j' | .input 'J' =>
-            { state := moveTransactionSelection state false }
-        | .left => { state := shiftCalendarMonth state false }
-        | .right => { state := shiftCalendarMonth state true }
-        | .input '[' => { state := cycleWindowSource state false }
-        | .input ']' => { state := cycleWindowSource state true }
-        | .tab =>
-            { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window false, notice := "" } }
-        | .shiftTab =>
-            { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window true, notice := "" } }
-        | .backspace =>
-            if state.window.form.focus.val < 2 then
-              { state := editWindowState state (fun text => String.ofList text.toList.dropLast) }
-            else
-              { state }
-        | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
-        | .input char =>
-            if state.window.form.focus.val < 2 then
-              { state := editWindowState state (fun text => text.push char) }
-            else
-              { state }
-        | .enter =>
-            if state.window.form.focus.val < 2 then
-              { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window false, notice := "" } }
-            else if rows.isEmpty then
-              { state := { state with notice := "No quantity activity in this window." } }
-            else
-              { state := { state with transactionsDetail := true, scroll := 0, notice := "" } }
-        | _ => { state }
+    match key with
+    | .escape | .input 'b' | .input 'B' =>
+        { state := { state with mode := .menu, notice := "", scroll := 0 } }
+    | .up | .input 'k' | .input 'K' =>
+        { state := { state with
+            transactions := Loam.Tui.TransactionsFlowPane.moveSelection state.transactions true
+            scroll := 0
+            notice := "" } }
+    | .down | .input 'j' | .input 'J' =>
+        { state := { state with
+            transactions := Loam.Tui.TransactionsFlowPane.moveSelection state.transactions false
+            scroll := 0
+            notice := "" } }
+    | .left => { state := shiftCalendarMonth state false }
+    | .right => { state := shiftCalendarMonth state true }
+    | .input '[' => { state := cycleWindowSource state false }
+    | .input ']' => { state := cycleWindowSource state true }
+    | .tab =>
+        { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window false, notice := "" } }
+    | .shiftTab =>
+        { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window true, notice := "" } }
+    | .backspace =>
+        if state.window.form.focus.val < 2 then
+          { state := editWindowState state (fun text => String.ofList text.toList.dropLast) }
+        else
+          { state }
+    | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
+    | .input char =>
+        if state.window.form.focus.val < 2 then
+          { state := editWindowState state (fun text => text.push char) }
+        else
+          { state }
+    | .enter =>
+        if state.window.form.focus.val < 2 then
+          { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window false, notice := "" } }
+        else if Loam.Tui.TransactionsFlowPane.activeRowsEmpty state.transactions then
+          { state := { state with notice := "No quantity activity in this window." } }
+        else
+          { state := { state with
+              transactions := Loam.Tui.TransactionsFlowPane.openDetail state.transactions
+              scroll := 0
+              notice := "" } }
+    | _ => { state }
 
 private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
@@ -557,179 +516,14 @@ private def transactionWindowLines (state : State) : List Widget :=
   , blank
   ]
 
-private def transactionSummaryPrefix
-    (snapshot : Loam.TransactionsFlowReview.Snapshot)
-    (rows : List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity)) :
-    List Widget :=
-  [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-  , muted (toString rows.length ++ " active coordinate(s); zero cells omitted.")
-  , muted "Rows ordered by gross quantity (presentation only)."
-  , blank
-  ]
-
-structure TableLayout where
-  coordWidth : Nat
-  netWidth : Nat
-  grossWidth : Nat
-  posWidth : Nat
-  negWidth : Nat
-  evWidth? : Option Nat
-  deriving Repr
-
-private def defaultReportWidth : Nat := 72
-
-private def tableLayoutForWidth (width : Nat) : TableLayout :=
-  if width ≥ 70 then
-    { coordWidth := min 26 (width - 46)
-    , netWidth := 9
-    , grossWidth := 9
-    , posWidth := 9
-    , negWidth := 9
-    , evWidth? := some 8
-    }
-  else if width ≥ 51 then
-    { coordWidth := width - 36
-    , netWidth := 7
-    , grossWidth := 7
-    , posWidth := 7
-    , negWidth := 7
-    , evWidth? := some (min 6 (width - (2 + (width - 36) + 28)))
-    }
-  else if width ≥ 44 then
-    { coordWidth := width - 30
-    , netWidth := 7
-    , grossWidth := 7
-    , posWidth := 7
-    , negWidth := 7
-    , evWidth? := none
-    }
-  else
-    { coordWidth := max 10 (width - 23)
-    , netWidth := 7
-    , grossWidth := 7
-    , posWidth := 7
-    , negWidth := 0
-    , evWidth? := none
-    }
-
-private def TableLayout.totalWidth (layout : TableLayout) : Nat :=
-  2 + layout.coordWidth + layout.netWidth + layout.grossWidth + layout.posWidth +
-    (if layout.negWidth > 0 then layout.negWidth else 0) +
-    (match layout.evWidth? with | some w => w | none => 0)
-
-
-private def transactionTableHeader (layout : TableLayout) : Widget :=
-  let marker := "  "
-  let coord := Loam.Tui.Layout.padRight layout.coordWidth "Coordinate"
-  let net := padNum layout.netWidth "Net"
-  let gross := padNum layout.grossWidth "Gross"
-  let pos := padNum layout.posWidth "+In"
-  let neg := if layout.negWidth > 0 then padNum layout.negWidth "-Out" else ""
-  let ev := match layout.evWidth? with
-    | some w => if w ≥ 6 then padNum w "Events" else padNum w "Ev"
-    | none => ""
-  muted (marker ++ coord ++ net ++ gross ++ pos ++ neg ++ ev)
-
-private def repeatChar (count : Nat) (char : Char) : String :=
-  String.ofList (List.replicate count char)
-
-private def transactionTableRule (layout : TableLayout) : Widget :=
-  muted (repeatChar layout.totalWidth '-')
-
-private def transactionRowLine
-    (state : State) (layout : TableLayout) (index : Nat)
-    (row : Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) : Widget :=
-  let coordinate := row.1
-  let activity := row.2
-  let marker := if state.transactionsIndex = index then "> " else "  "
-  let coordToken := coordinate.locus.token ++ "/" ++ coordinate.measure.token
-  let coord := Loam.Tui.Layout.padRight layout.coordWidth coordToken
-  let net := padNum layout.netWidth (signedQuanta activity.net)
-  let gross := padNum layout.grossWidth (toString activity.gross.quanta)
-  let pos := padNum layout.posWidth (signedQuanta activity.positive)
-  let neg := if layout.negWidth > 0 then padNum layout.negWidth (signedQuanta activity.negative) else ""
-  let ev := match layout.evWidth? with
-    | some w => padNum w (toString activity.activeEvents)
-    | none => ""
-  line (marker ++ coord ++ net ++ gross ++ pos ++ neg ++ ev)
-
-private def transactionRowLines
-    (state : State) (layout : TableLayout) : Nat →
-    List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) →
-    List Widget
-  | _, [] => []
-  | index, row :: rest =>
-      transactionRowLine state layout index row ::
-        transactionRowLines state layout (index + 1) rest
-
-private def selectedTransactionRow?
-    (state : State) :
-    Option (Loam.TransactionsFlowReview.Snapshot ×
-      (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity)) := do
-  let snapshot ← state.transactionsSnapshot
-  let row ← (transactionRows snapshot)[state.transactionsIndex]?
-  some (snapshot, row)
-
-private def transactionContributionLine
-    (coordinate : Loam.Core.EffectCoordinate)
-    (entry : Loam.TransactionsFlowReview.Column × Loam.Core.Quantity) : Widget :=
-  let column := entry.1
-  let quantity := entry.2
-  let description :=
-    if column.description.isEmpty then
-      "[" ++ column.event.id.token ++ "]"
-    else
-      column.description ++ "  [" ++ column.event.id.token ++ "]"
-  line
-    ("- " ++ column.date ++ "  " ++ signedQuanta quantity ++ " " ++
-      coordinate.measure.token ++ "  " ++ description)
-
-private def transactionDetailLines (state : State) : List Widget :=
-  match selectedTransactionRow? state with
-  | none => [muted "No selected Transactions Flow coordinate is available."]
-  | some (snapshot, row) =>
-      let coordinate := row.1
-      let activity := row.2
-      let contributions := transactionContributions snapshot coordinate
-      [ line ("Focused coordinate: " ++ coordinate.locus.token ++ "/" ++ coordinate.measure.token)
-      , line
-          ("Net " ++ toString activity.net.quanta ++
-            " | Gross " ++ toString activity.gross.quanta ++
-            " | +In " ++ signedQuanta activity.positive ++
-            " | -Out " ++ signedQuanta activity.negative)
-      , muted (toString contributions.length ++ " contributing Event(s); zero cells omitted.")
-      , blank
-      ] ++
-      contributions.map (transactionContributionLine coordinate) ++
-      [ blank
-      , muted "Signs are exact quantity changes, not income/expense."
-      ]
-
-private def transactionSummaryLines (state : State) (bounds : Option Bounds) : List Widget :=
-  match state.transactionsSnapshot with
-  | none => [muted "No explicit Transactions Flow window has been run yet."]
-  | some snapshot =>
-      let rows := transactionRows snapshot
-      transactionSummaryPrefix snapshot rows ++
-      if rows.isEmpty then
-        [muted "No quantity activity appears in this window."]
-      else
-        let width := match bounds with
-          | some b => Loam.Tui.Layout.contentWidth b
-          | none => defaultReportWidth
-        let layout := tableLayoutForWidth width
-        transactionTableHeader layout ::
-        transactionTableRule layout ::
-        transactionRowLines state layout 0 rows
-
 private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widget :=
-  if state.transactionsDetail then
+  if state.transactions.detail then
     .column <|
       [ line "Reports / Transactions Flow"
       , muted "Focused nonzero Event witnesses for coordinate."
       , blank
       ] ++
-      transactionDetailLines state ++
+      Loam.Tui.TransactionsFlowPane.detailLines state.transactions ++
       [ blank
       , muted "↑/↓ or j/k scroll contributors"
       , muted "b / Esc summary   q quit"
@@ -739,7 +533,7 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
   else
     .column <|
       transactionWindowLines state ++
-      transactionSummaryLines state bounds ++
+      Loam.Tui.TransactionsFlowPane.summaryLines state.transactions bounds ++
       [ blank
       , muted "[ / ] source   ← / → Month   m sel-day month"
       , muted "↑/↓ select coord   Enter detail   Tab window focus"
@@ -1057,20 +851,14 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
       -- The six menu rows follow four heading/context rows in `menuView`.
       (4 + state.menuIndex.val + 1) - page
   | .transactionsFlow =>
-      if state.transactionsDetail then
-        state.scroll
-      else
-        match state.transactionsSnapshot with
-        | none => state.scroll
-        | some snapshot =>
-            let rows := transactionRows snapshot
-            if rows.isEmpty then state.scroll
-            else
-              let index := min state.transactionsIndex (rows.length - 1)
-              let selectedLine :=
-                (transactionWindowLines state).length +
-                (transactionSummaryPrefix snapshot rows).length + 2 + index
-              (selectedLine + 1) - page
+    if state.transactions.detail then
+      state.scroll
+    else
+      match Loam.Tui.TransactionsFlowPane.selectedSummaryLine? state.transactions with
+      | none => state.scroll
+      | some selectedBodyLine =>
+          let selectedLine := (transactionWindowLines state).length + selectedBodyLine
+          (selectedLine + 1) - page
   | _ => state.scroll
 
 /-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
