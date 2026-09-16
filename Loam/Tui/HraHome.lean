@@ -202,14 +202,6 @@ private def helpLines (bounds : Bounds) : List Widget :=
   else
     (Loam.Tui.Layout.flowLines width "  " [navHelpTokens, workspaceHelpTokens]).map mutedLine
 
-/-- Reserve the bottom rows for HRA-style stable help and truncate only body rows. -/
-private def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=
-  let available := if bounds.height > 0 then bounds.height - 1 else 0
-  let bodyCapacity := available - footer.length
-  let visibleBody := body.take bodyCapacity
-  let padding := bodyCapacity - visibleBody.length
-  visibleBody ++ (List.replicate padding blankLine) ++ footer
-
 /--
 HRA-shaped Home presentation over LOAM's already-admitted read answers.
 This is presentation only: it adds no household authority, cycle policy,
@@ -219,7 +211,7 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
   let body := homeBody bounds snapshot state
   let footer :=
     (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ helpLines bounds
-  .column (fitWithFooter bounds body footer)
+  .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
 
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
