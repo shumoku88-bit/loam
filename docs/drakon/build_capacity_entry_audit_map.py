@@ -51,7 +51,7 @@ DIAGRAMS = {
     },
     "G2.013.3 Minimal Repair / Stop Point": {
         "description": "Record the smallest production repair and the boundaries that should remain distinct.",
-        "sources": "Loam/CapacityPublisher.lean; Loam/Tests/CapacityPublisher.lean; commit fa1542688a1680af0d3994f0f3d18b451368f85f",
+        "sources": "Loam/CapacityPublisher.lean; Loam/Tests/CapacityPublisher.lean; production fix commit 991c92ee84337c349ac8a8d52faff356e9fa9001",
         "audit": "Share only coordinatePersistable between binary and BalancedDraft validation. Keep binary positive-amount, distinct-endpoint, and source-entitlement diagnostics local; keep BalancedDraft nonempty/nonzero/unique/exact-balance and per-Purpose nonnegative obligations local. Keep the first-generation shared publication tail unchanged. The regression pins that an invalid binary Purpose token changes neither Capacity movements nor effective entries.",
         "nodes": [
             ("insertion", "coordinatePersistable"),
@@ -64,7 +64,7 @@ DIAGRAMS = {
             ("action", "KEEP shared admitted publication tail"),
             ("insertion", "regression: invalid binary Purpose token"),
             ("decision", "both retained family counts unchanged?"),
-            ("action", "yes -> FIX QUALIFIED when CI passes"),
+            ("action", "yes -> FIX QUALIFIED"),
         ],
     },
 }
