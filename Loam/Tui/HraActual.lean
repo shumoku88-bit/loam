@@ -261,13 +261,6 @@ private def footer (bounds : Bounds) : List Widget :=
     , mutedLine "[n] new [q] back"
     ]
 
-private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
-  let available := if bounds.height > 0 then bounds.height - 1 else 0
-  let bodyCapacity := available - footerRows.length
-  let visibleBody := body.take bodyCapacity
-  let padding := bodyCapacity - visibleBody.length
-  visibleBody ++ List.replicate padding blankLine ++ footerRows
-
 private def orderText (state : State) : String :=
   match state.order with
   | .asc => "oldest first"
@@ -315,6 +308,6 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     (List.range 8).map (paneRow snapshot state leftWidth rightWidth) ++
     [rule bounds '-'] ++ detailLines snapshot state ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (fitWithFooter bounds body (footer bounds))
+  .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds))
 
 end Loam.Tui.HraActual
