@@ -21,6 +21,8 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('Loam/Tui/Cli.lean')
           text = p.read_text()
 
@@ -35,13 +37,14 @@ jobs:
           end = text.index('/-- Cancellation confirmation is presentation-only;', start)
           text = text[:start] + text[end:]
 
-          old_call = '''let completed ← scheduledCompletionLoop
-                bounds root world known editor editorFrame'''
-          new_call = '''let completed ← Loam.Tui.ScheduledCompletionSession.run
-                bounds root world known editor editorFrame'''
-          if text.count(old_call) != 2:
-              raise SystemExit(f'unexpected completion call count: {text.count(old_call)}')
-          text = text.replace(old_call, new_call)
+          pattern = r'let completed ← scheduledCompletionLoop\n(\s+)bounds root world known editor editorFrame'
+          text, changed = re.subn(
+              pattern,
+              lambda m: 'let completed ← Loam.Tui.ScheduledCompletionSession.run\n' + m.group(1) + 'bounds root world known editor editorFrame',
+              text,
+          )
+          if changed != 2:
+              raise SystemExit(f'unexpected completion call count: {changed}')
 
           if 'scheduledCompletionLoop' in text:
               raise SystemExit('legacy completion loop reference remains')
