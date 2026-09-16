@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build MGA-017 Reports module-granularity audit map."""
+"""Build MGA-017/018 Reports module-granularity audit map."""
 
 from pathlib import Path
 import sqlite3
@@ -73,6 +73,25 @@ DIAGRAMS = {
             ("action", "Otherwise -> KEEP Reports window state inline"),
         ],
     },
+    "MGA.018.1 Qualified ReportWindow State Owner": {
+        "description": "Record the MGA-018 extraction after state-singularity, behavior, reachability, and inventory qualification.",
+        "sources": "Loam/Tui/ReportWindow.lean; Loam/Tui/Reports.lean; Loam/Tests/TuiReports.lean; Loam/Tests/TuiTransactionsFlow.lean; docs/research/MODULE_GRANULARITY_REPORT_WINDOW_018.md; docs/research/MODULE_GRANULARITY_FRONTIER_017.md",
+        "audit": "MGA-018 replaces Reports' flat Form/calendarAnchor/windowPresets/windowSource fields with exactly one nested ReportWindow.State. ReportWindow owns only calendar/preset/custom coordinate presentation transitions; Reports retains report snapshots, invalidation policy, query selection, rendering, and Liquidity's independent assumption horizon. Reports falls from 1214/103 to 1104/97 lines/declarations; ReportWindow is 176 lines / 14 declarations / fan-in 1 / fan-out 2 / reachable, with production-like unreachable still zero. A refused month shift preserves the current snapshot, while a successful coordinate change invalidates it; success is derived from old/new canonical window-state equality rather than stored separately. KEEP_BOUNDARY / SPLIT_QUALIFIED.",
+        "nodes": [
+            ("action", "Before: Reports flat window fields\nForm + anchor + presets + source"),
+            ("action", "After: Reports.window : ReportWindow.State\none canonical owner"),
+            ("action", "ReportWindow owns\nseed / reset / shift / preset cycle / custom edit / focus"),
+            ("decision", "mirrored coordinate state remains?", "NO"),
+            ("action", "Stock / Transactions / Income / Budget\nreuse same nested state"),
+            ("decision", "Liquidity completeness horizon moved?", "NO - stays Reports-owned"),
+            ("decision", "report semantics / snapshots moved?", "NO - stay Reports-owned"),
+            ("decision", "month shift refused?", "YES -> notice only; preserve snapshot"),
+            ("action", "successful coordinate change\nclear stale report results"),
+            ("action", "derive changed/not-changed from canonical state equality"),
+            ("action", "inventory: Reports 1104/97; ReportWindow 176/14; reachable; unreachable=0"),
+            ("decision", "independent physical owner qualified?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },
 }
 
 
@@ -85,13 +104,13 @@ def build() -> None:
         db.executescript(base.SCHEMA)
         db.executemany("insert into info values (?,?)", [
             ("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "Lean")])
-        db.execute("insert into state values (1,1,?)", ("LOAM MGA.017 - Reports module granularity frontier",))
+        db.execute("insert into state values (1,1,?)", ("LOAM MGA.017-018 - Reports module granularity",))
         item_id = 1
         for name, spec in DIAGRAMS.items():
             item_id = base.add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.017 Reports granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.017-018 Reports granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
         db.commit()
