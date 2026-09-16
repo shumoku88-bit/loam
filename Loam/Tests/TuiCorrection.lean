@@ -51,8 +51,7 @@ private def nonJpyRecord? : Option Loam.Tui.Main.ReviewRecord := do
     event
     date := some "2026-09-07"
     description := "usd"
-    replacement := none
-    isCurrent := true }
+    replacement := none }
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
