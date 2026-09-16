@@ -1,0 +1,165 @@
+name: G2-030 migrate production window tests
+
+on:
+  push:
+    branches: [audit/g2-030-retire-legacy-workspaces]
+    paths: [.github/workflows/g2-030-migrate-window-tests.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/g2-030-retire-legacy-workspaces
+          fetch-depth: 0
+
+      - name: Move long-list guarantees to HRA workspaces
+        shell: python
+        run: |
+          from pathlib import Path
+
+          actual = Path("Loam/Tests/TuiActual.lean")
+          text = actual.read_text()
+          anchor = '''  let start := initialCursor
+          '''
+          addition = '''  -- Production HRA Actual owns its own eight-row viewport. Pin navigation beyond it
+          -- before the older Main cursor implementation is retired.
+          let longActual : Loam.Tui.Main.ActualSnapshot := {
+            today := "2026-09-07"
+            allRecords := (List.range 12).map testRecord
+          }
+          let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
+          let longHraStart :=
+            (Loam.Tui.HraActual.update longSnapshot
+              (Loam.Tui.HraActual.initial "2026-09-07") .focusRight).state
+          let longShifted := (List.range 10).foldl
+            (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+            longHraStart
+          expect (longShifted.transactionRow == 10)
+            "HRA Actual selection could not reach the eleventh record"
+          let longRecords := Loam.Tui.HraActual.visibleRecords longSnapshot longShifted
+          let selectedLong ← requireSome
+            (Loam.Tui.HraActual.selectedRecord? longSnapshot longShifted)
+            "HRA Actual eleventh-row selection disappeared"
+          let longViewText := widgetText
+            (Loam.Tui.HraActual.view { width := 100, height := 30 } longSnapshot longShifted)
+          expect (contains selectedLong.description longViewText)
+            "HRA Actual moving viewport did not render its selected eleventh record"
+          match longRecords.head? with
+          | none => throw (IO.userError "HRA Actual long-list fixture became empty")
+          | some firstLong =>
+              expect (!contains firstLong.description longViewText)
+                "HRA Actual eight-row viewport did not move beyond its first record"
+          let longLast := (List.range 11).foldl
+            (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+            longHraStart
+          let longBlocked := (Loam.Tui.HraActual.update longSnapshot longLast .next).state
+          expect (longBlocked.transactionRow == longLast.transactionRow &&
+            contains "No next Actual row" longBlocked.notice)
+            "HRA Actual end-of-list refusal moved selection or lost its notice"
+
+          let start := initialCursor
+          '''
+          if text.count(anchor) != 1:
+              raise SystemExit(f"TuiActual migration anchor changed: {text.count(anchor)}")
+          actual.write_text(text.replace(anchor, addition, 1))
+
+          scheduled = Path("Loam/Tests/TuiHraScheduled.lean")
+          text = scheduled.read_text()
+          fixture_anchor = '''  pure { actual := actual, scheduled := .ok scheduledSnapshot }
+
+          def main : IO Unit := do
+          '''
+          long_fixture = '''  pure { actual := actual, scheduled := .ok scheduledSnapshot }
+
+          private def longHraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
+            let rows ← requireSome
+              ((List.range 12).mapM fun index =>
+                scheduledRecord? ("scheduled-long-" ++ toString index) "2026-09-07"
+                  "wallet" "food" (Int.ofNat (index + 1)))
+              "long Scheduled fixtures were not admitted"
+            let scheduled ← requireSome (ScheduledMemory.ofOccurrences? rows)
+              "long Scheduled memory fixture was not admitted"
+            let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+              "empty terminal memory was not admitted for long fixture"
+            let events ← requireSome (EventMemory.ofEvents? [])
+              "empty Event memory was not admitted for long fixture"
+            let scheduledSnapshot : Loam.ScheduledReview.EvidenceSnapshot := {
+              scheduled := scheduled
+              terminals := terminals
+              events := events
+            }
+            let actual : Loam.Tui.Main.ActualSnapshot := {
+              today := "2026-09-07"
+              allRecords := []
+            }
+            pure { actual := actual, scheduled := .ok scheduledSnapshot }
+
+          def main : IO Unit := do
+          '''
+          if text.count(fixture_anchor) != 1:
+              raise SystemExit("TuiHraScheduled fixture anchor changed")
+          text = text.replace(fixture_anchor, long_fixture, 1)
+
+          anchor = '''  -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
+          '''
+          addition = '''  -- Production HRA Scheduled owns its own eight-row viewport. Pin navigation beyond it
+          -- before the older Main Scheduled cursor implementation is retired.
+          let longSnapshot ← longHraScheduledSnapshot
+          let longStart := Loam.Tui.HraScheduled.initial "2026-09-07"
+          let longShifted := (List.range 10).foldl
+            (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+            longStart
+          expect (longShifted.occurrenceRow == 10)
+            "HRA Scheduled selection could not reach the eleventh occurrence"
+          let selectedLong ← requireSome
+            (Loam.Tui.HraScheduled.selectedRecord? longSnapshot longShifted)
+            "HRA Scheduled eleventh-row selection disappeared"
+          let longViewText := widgetText
+            (Loam.Tui.HraScheduled.view { width := 100, height := 30 } longSnapshot longShifted)
+          expect (contains selectedLong.id.token longViewText)
+            "HRA Scheduled moving viewport did not render its selected eleventh occurrence"
+          match (Loam.Tui.HraScheduled.recordsForScope longSnapshot longStart).head? with
+          | none => throw (IO.userError "HRA Scheduled long-list fixture became empty")
+          | some firstLong =>
+              expect (!contains firstLong.id.token longViewText)
+                "HRA Scheduled eight-row viewport did not move beyond its first occurrence"
+          let longLast := (List.range 11).foldl
+            (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+            longStart
+          let longBlocked := (Loam.Tui.HraScheduled.update longSnapshot longLast .next).state
+          expect (longBlocked.occurrenceRow == longLast.occurrenceRow &&
+            contains "No next Scheduled row" longBlocked.notice)
+            "HRA Scheduled end-of-list refusal moved selection or lost its notice"
+
+          -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
+          '''
+          if text.count(anchor) != 1:
+              raise SystemExit("TuiHraScheduled migration anchor changed")
+          scheduled.write_text(text.replace(anchor, addition, 1))
+
+      - name: Guard migrated guarantees
+        shell: python
+        run: |
+          from pathlib import Path
+          actual = Path("Loam/Tests/TuiActual.lean").read_text()
+          scheduled = Path("Loam/Tests/TuiHraScheduled.lean").read_text()
+          for token in ["HRA Actual selection could not reach the eleventh record", "HRA Actual eight-row viewport did not move"]:
+              if token not in actual:
+                  raise SystemExit(f"missing Actual migration token: {token}")
+          for token in ["HRA Scheduled selection could not reach the eleventh occurrence", "HRA Scheduled eight-row viewport did not move"]:
+              if token not in scheduled:
+                  raise SystemExit(f"missing Scheduled migration token: {token}")
+
+      - name: Commit migration and self-remove
+        run: |
+          git rm .github/workflows/g2-030-migrate-window-tests.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Loam/Tests/TuiActual.lean Loam/Tests/TuiHraScheduled.lean
+          git commit -m "test(tui): migrate G2-030 long-list guarantees to HRA"
+          git push
