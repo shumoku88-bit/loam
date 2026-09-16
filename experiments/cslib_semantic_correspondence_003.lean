@@ -164,7 +164,10 @@ private theorem admitted_preserves_locusAdmission
     (hAdmitted : Loam.MovementAdmission.admit? before draft = .ok admitted) :
     admitted.world.locusAdmission = before.locusAdmission := by
   simp only [Loam.MovementAdmission.admit?] at hAdmitted
-  split at hAdmitted <;> simp_all
+  repeat
+    split at hAdmitted <;> simp_all only
+  cases hAdmitted
+  rfl
 
 /-- Fixed Locus policy is a one-step invariant of Movement admission. -/
 theorem locus_policy_step_invariant
