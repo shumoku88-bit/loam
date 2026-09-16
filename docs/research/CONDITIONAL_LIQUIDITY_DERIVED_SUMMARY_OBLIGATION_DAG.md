@@ -1,6 +1,6 @@
 # G2-022 — Conditional Liquidity derived-summary obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG + production-consumer reachability**.
 
@@ -165,18 +165,25 @@ G2-022 does **not** attempt to remove `Point.balance` merely because it can be r
 
 Likewise, no generic report-summary abstraction is added.
 
-## Qualification target
+## Qualification
 
-Existing tests must continue to prove:
+Production/audit head `5e8443e4564671d20392814741349ce1976a6c9a` passed all triggered qualification:
 
-- chronological day-boundary points;
-- same-day netting;
-- final-at-horizon arithmetic;
-- low-water arithmetic;
-- empty-path identity;
-- overdue refusal;
-- Reports rendering of the same summary values and epistemic labels.
+- Compression Audit: **SUCCESS**;
+- Selected Lean Observations: **SUCCESS**;
+- Production TUI: **SUCCESS**, all production verification steps passed.
 
-If the direct Conditional Liquidity and production Reports workflows stay green, record:
+The directly relevant Production TUI steps also passed:
+
+- build conditional selected-balance path review boundary: **SUCCESS**;
+- conditional selected-balance path and refusal boundaries: **SUCCESS**;
+- sparse Transactions-Flow Reports interaction: **SUCCESS**;
+- Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces: **SUCCESS**.
+
+The existing ConditionalBalancePath regression therefore still proves chronological day-boundary points, same-day netting, final-at-horizon arithmetic, low-water arithmetic, empty-path identity, and overdue refusal. The Reports regression still renders the same summary values and epistemic labels even though the two summaries are no longer retained fields.
+
+The DRAKON builder is committed audit instrumentation but was not independently executed during this qualification, so no generated-map runtime claim is made here.
+
+Final verdict:
 
 **G2-022: SIMPLIFY QUALIFIED — Conditional Liquidity retains only the independent path state; final-at-horizon and day-boundary low-water are derived from currentSelected plus points.**
