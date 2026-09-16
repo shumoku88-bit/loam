@@ -1,0 +1,98 @@
+name: MGA020 Finalize Audit Qualification
+
+on:
+  push:
+    branches:
+      - 'audit/mga-020-transactions-flow-pane-clean'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-020-transactions-flow-pane-clean
+      - name: Extend Transactions Flow DRAKON and permanent qualification
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          builder = Path('docs/drakon/build_tui_transactions_flow_granularity_audit_map.py')
+          text = builder.read_text()
+          text = text.replace(
+              '"""Build MGA-019 Transactions Flow module-granularity audit map."""',
+              '"""Build MGA-019/020 Transactions Flow module-granularity audit map."""', 1)
+          text = text.replace(
+              '("LOAM MGA.019 - Transactions Flow module granularity",)',
+              '("LOAM MGA.019-020 - Transactions Flow module granularity",)', 1)
+          text = text.replace(
+              '"MGA.019 Transactions Flow granularity"',
+              '"MGA.019-020 Transactions Flow granularity"', 1)
+          marker = '\n}\n\n\ndef build()'
+          if text.count(marker) != 1:
+              raise SystemExit('could not locate DRAKON diagram dictionary terminator')
+          diagram = r'''
+    "MGA.020.1 Qualified TransactionsFlowPane State Owner": {
+        "description": "Record the qualified post-MGA-020 result-local Transactions Flow presentation owner and the ownership that deliberately remains in Reports.",
+        "sources": "Loam/Tui/TransactionsFlowPane.lean; Loam/Tui/Reports.lean; Loam/Tests/TuiTransactionsFlow.lean; docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_020.md; docs/research/TRANSACTIONS_FLOW_PANE_OBLIGATION_DAG.md",
+        "audit": "MGA-020 replaces Reports' flat transactionsSnapshot/transactionsIndex/transactionsDetail fields with exactly one TransactionsFlowPane.State containing Snapshot, selectedIndex, and detail. The pane owns result-local row/contribution derivation, local selection/detail transitions, and responsive body presentation. ReportWindow, Query.transactionsFlow emission, stale-result invalidation, scroll, paging/bounds clamp, menu/mode/notice composition, and TransactionsFlowReview semantics remain outside. Rows, selected coordinate, contributions, layout, and selected-summary-line position are derived, not retained. Focused production build/tests pass; inventory reports Reports 892/78, Pane 287/33, both reachable, and production-like unreachable remains zero. KEEP_BOUNDARY / SPLIT_QUALIFIED.",
+        "nodes": [
+            ("action", "Before: Reports flat Transactions fields\nsnapshot + index + detail"),
+            ("action", "After: Reports.transactions : TransactionsFlowPane.State\none canonical result-local owner"),
+            ("action", "Pane owns\nsnapshot adoption + selection/detail + responsive result body"),
+            ("decision", "rows / contributions / layout cached?", "NO - derived from Snapshot/index/width"),
+            ("decision", "ReportWindow or query moved?", "NO - remain Reports-owned"),
+            ("decision", "scroll / paging / bounds clamp moved?", "NO - remain Reports-owned"),
+            ("decision", "movement semantics duplicated?", "NO - TransactionsFlowReview remains owner"),
+            ("action", "focused loamTui + Transactions/Reports tests PASS"),
+            ("action", "inventory: Reports 892/78; Pane 287/33; reachable; unreachable=0"),
+            ("decision", "all MGA-019 obligations discharged?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },'''
+          text = text.replace(marker, '\n' + diagram + marker, 1)
+          builder.write_text(text)
+
+          workflow = Path('.github/workflows/module-granularity-audit.yml')
+          w = workflow.read_text()
+          anchor = '      - "docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_019.md"\n'
+          addition = anchor + '      - "docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_020.md"\n      - "Loam/Tui/Reports.lean"\n      - "Loam/Tui/TransactionsFlowPane.lean"\n      - "Loam/Tests/TuiTransactionsFlow.lean"\n'
+          if w.count(anchor) != 1:
+              raise SystemExit('MGA-019 workflow path anchor mismatch')
+          w = w.replace(anchor, addition, 1)
+          if w.count('assert diagram_count == 3') != 1:
+              raise SystemExit('Transactions diagram-count assertion mismatch')
+          w = w.replace('assert diagram_count == 3', 'assert diagram_count == 4', 1)
+          assertion = '              assert db.execute("select count(*) from diagrams where name=\'MGA.019.3 Qualification Obligation DAG\'").fetchone()[0] == 1\n'
+          extra = assertion + '              assert db.execute("select count(*) from diagrams where name=\'MGA.020.1 Qualified TransactionsFlowPane State Owner\'").fetchone()[0] == 1\n'
+          if w.count(assertion) != 1:
+              raise SystemExit('MGA-019 assertion anchor mismatch')
+          w = w.replace(assertion, extra, 1)
+          workflow.write_text(w)
+          PY
+
+          python3 docs/drakon/build_tui_transactions_flow_granularity_audit_map.py
+          python3 - <<'PY'
+          import sqlite3
+          path = 'docs/drakon/loam-tui-transactions-flow-granularity-audit.drn'
+          with sqlite3.connect(path) as db:
+              assert db.execute('pragma integrity_check').fetchone()[0] == 'ok'
+              assert db.execute('select count(*) from diagrams').fetchone()[0] == 4
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 4
+              assert db.execute("select count(*) from diagrams where name='MGA.020.1 Qualified TransactionsFlowPane State Owner'").fetchone()[0] == 1
+          PY
+          rm .github/workflows/mga020-measure.yml
+          rm .github/workflows/mga020-finalize-audit.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            docs/drakon/build_tui_transactions_flow_granularity_audit_map.py \
+            docs/drakon/loam-tui-transactions-flow-granularity-audit.drn \
+            .github/workflows/module-granularity-audit.yml \
+            .github/workflows/mga020-measure.yml \
+            .github/workflows/mga020-finalize-audit.yml
+          git commit -m 'docs(drakon): qualify MGA-020 Transactions Flow pane'
+          git push origin HEAD:audit/mga-020-transactions-flow-pane-clean
