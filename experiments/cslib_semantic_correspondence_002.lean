@@ -64,7 +64,7 @@ private theorem advance?_prefix_some
   rw [← hSplit, advance?_add] at hAdvance
   cases hCurrent : advance? next? prefixSteps start with
   | none => simp [hCurrent] at hAdvance
-  | some current => exact ⟨current, hCurrent⟩
+  | some current => exact ⟨current, rfl⟩
 
 private def returnsWithin {Id : Type} [DecidableEq Id]
     (next? : Id → Option Id)
@@ -281,7 +281,8 @@ private theorem bounded_return_of_return
         have hShort :
             ∃ shorter, 0 < shorter ∧ shorter < steps ∧
               advance? next? shorter start = some start := by
-          by_contra hNoShort
+          apply Classical.byContradiction
+          intro hNoShort
           let orbit :=
             (List.range (sources.length + 1)).map (orbitAt next? start)
           have hOrbitNodup : orbit.Nodup := by
@@ -293,13 +294,8 @@ private theorem bounded_return_of_return
             intro hOrbitEq
             have hjSteps : j < steps := by omega
             exact hNoShort
-              ⟨i + (steps - j),
-                (shorter_return_of_orbit_eq
-                  next? start steps i j hReturn hij hjSteps hOrbitEq).2.1,
-                (shorter_return_of_orbit_eq
-                  next? start steps i j hReturn hij hjSteps hOrbitEq).2.2.1,
-                (shorter_return_of_orbit_eq
-                  next? start steps i j hReturn hij hjSteps hOrbitEq).2.2.2⟩
+              (shorter_return_of_orbit_eq
+                next? start steps i j hReturn hij hjSteps hOrbitEq)
           have hOrbitSubset : ∀ id, id ∈ orbit → id ∈ sources := by
             intro id hMem
             rcases List.mem_map.mp hMem with ⟨index, hIndex, rfl⟩
