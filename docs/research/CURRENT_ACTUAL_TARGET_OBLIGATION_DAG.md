@@ -1,8 +1,10 @@
 # G2-012 — Current Actual target obligation DAG
 
-Status: **Generation-2 audit evidence — KEEP candidate**
+Status: **Generation-2 audit evidence — KEEP LOCAL**
 
 Primary instruments: **DRAKONview + production-bound obligation DAG + historical cross-check**.
+
+No production code change is proposed. Qualification rests on the current canonical Actual load contract, the existing `CorrectionFrontier` membership theorem, the three current production publisher tests, and the #776 historical compression change that deliberately removed per-writer whole-frontier recomputation.
 
 ## Question
 
