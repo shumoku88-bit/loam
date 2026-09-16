@@ -33,7 +33,6 @@ private def record
     date := some date
     description := description
     replacement := none
-    isCurrent := true
   }
 
 private def snapshot? : Option Loam.TransactionsFlowReview.Snapshot := do
