@@ -1,5 +1,6 @@
 import Loam.CurrentQuantityAnchor
 import Loam.Persistence.TokenSyntax
+import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 
@@ -49,8 +50,9 @@ private def focusCount : Nat := 6
 private def firstAction : Nat := 3
 
 private def moveFocus (form : Form) (back : Bool) : Form :=
-  let next := if back then (form.focus + focusCount - 1) % focusCount
-              else (form.focus + 1) % focusCount
+  let next :=
+    if back then Loam.Tui.CyclicIndex.backward focusCount form.focus
+    else Loam.Tui.CyclicIndex.forward focusCount form.focus
   { form with focus := next }
 
 private def editActive (form : Form) (edit : String → String) : Form :=
@@ -104,9 +106,9 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           | .input 'e' | .input 'E' =>
               { state := { state with mode := .editing, form := { state.form with focus := 0 }, notice := "" } }
           | .tab | .right =>
-              { state := { state with mode := .preview ((choice + 1) % 3) } }
+              { state := { state with mode := .preview (Loam.Tui.CyclicIndex.forward 3 choice) } }
           | .shiftTab | .left =>
-              { state := { state with mode := .preview ((choice + 2) % 3) } }
+              { state := { state with mode := .preview (Loam.Tui.CyclicIndex.backward 3 choice) } }
           | .enter =>
               if choice = 0 then
                 { state, publish := some state.assertions }
