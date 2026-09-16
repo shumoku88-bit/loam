@@ -13,6 +13,7 @@ import Loam.Tui.ActualReversal
 import Loam.Tui.ActualReversalSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledCompletionSession
+import Loam.Tui.ScheduledContinuationSession
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
@@ -353,34 +354,9 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 if !completed then
                   pure "Scheduled completion cancelled."
                 else
-                  let completedNotice :=
-                    "Completed " ++ record.id.token ++ "."
-                  match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
-                    | .error message =>
-                        pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
-                    | .ok nextEditor =>
-                        let catalog ← currentLocusCatalog dataDir world
-                        let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
-                        let nextEditorFrame :=
-                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
-                        Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithScheduledId
-                          bounds root known nextEditor nextEditorFrame
-                        match createdOpt with
-                        | none =>
-                            if nextNotice == "Scheduled creation cancelled." then
-                              pure (completedNotice ++ " No next Scheduled created.")
-                            else
-                              pure (completedNotice ++ " " ++ nextNotice)
-                        | some created =>
-                            let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
-                                root record.id created snapshot.actual.today with
-                            | .error err =>
-                                pure s!" (routing inheritance failed: {err})"
-                            | .ok report =>
-                                let notices := report.formatOutcomes
-                                pure (if notices.isEmpty then "" else " (" ++ String.intercalate ", " notices ++ ")")
-                            pure (completedNotice ++ " " ++ nextNotice ++ routeNotice)
+                  Loam.Tui.ScheduledContinuationSession.runAfterCompletion
+                    bounds root known record snapshot.actual.today
+                    (currentLocusCatalog dataDir world)
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -496,34 +472,9 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
                 if !completed then
                   pure "Scheduled completion cancelled."
                 else
-                  let completedNotice :=
-                    "Completed " ++ record.id.token ++ "."
-                  match Loam.Tui.ScheduledCreation.initialFromScheduled? record with
-                    | .error message =>
-                        pure (completedNotice ++ " Next Scheduled editor unavailable: " ++ message)
-                    | .ok nextEditor =>
-                        let catalog ← currentLocusCatalog dataDir world
-                        let nextEditor := Loam.Tui.ScheduledCreation.withCatalog nextEditor catalog
-                        let nextEditorFrame :=
-                          compileWidget (Loam.Tui.ScheduledCreation.view known nextEditor)
-                        Loam.Tui.Terminal.redrawFromBlank bounds nextEditorFrame
-                        let (createdOpt, nextNotice) ← Loam.Tui.ScheduledCreationSession.runWithScheduledId
-                          bounds root known nextEditor nextEditorFrame
-                        match createdOpt with
-                        | none =>
-                            if nextNotice == "Scheduled creation cancelled." then
-                              pure (completedNotice ++ " No next Scheduled created.")
-                            else
-                              pure (completedNotice ++ " " ++ nextNotice)
-                        | some created =>
-                            let routeNotice ← match ← Loam.HouseholdCommand.inheritScheduledRouting
-                                root record.id created snapshot.actual.today with
-                            | .error err =>
-                                pure s!" (routing inheritance failed: {err})"
-                            | .ok report =>
-                                let notices := report.formatOutcomes
-                                pure (if notices.isEmpty then "" else " (" ++ String.intercalate ", " notices ++ ")")
-                            pure (completedNotice ++ " " ++ nextNotice ++ routeNotice)
+                  Loam.Tui.ScheduledContinuationSession.runAfterCompletion
+                    bounds root known record snapshot.actual.today
+                    (currentLocusCatalog dataDir world)
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
