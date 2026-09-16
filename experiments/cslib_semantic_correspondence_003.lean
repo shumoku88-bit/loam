@@ -159,15 +159,28 @@ not mutate the current Locus-admission policy. The successful result literally
 copies `world.locusAdmission`; the theorem below makes that one-step fact usable
 by the generic multistep rule.
 -/
+private def LocusPreservedResult (before : World) : Except String Admitted → Prop
+  | .error _ => True
+  | .ok admitted => admitted.world.locusAdmission = before.locusAdmission
+
+private theorem admit_preserves_locus_result (before : World) (draft : Draft) :
+    LocusPreservedResult before
+      (Loam.MovementAdmission.admit? before draft) := by
+  simp only [Loam.MovementAdmission.admit?]
+  all_goals
+    repeat
+      first
+      | rfl
+      | exact True.intro
+      | split
+
 private theorem admitted_preserves_locusAdmission
     {before : World} {draft : Draft} {admitted : Admitted}
     (hAdmitted : Loam.MovementAdmission.admit? before draft = .ok admitted) :
     admitted.world.locusAdmission = before.locusAdmission := by
-  simp only [Loam.MovementAdmission.admit?] at hAdmitted
-  repeat
-    split at hAdmitted <;> simp_all only
-  cases hAdmitted
-  rfl
+  have hResult := admit_preserves_locus_result before draft
+  rw [hAdmitted] at hResult
+  exact hResult
 
 /-- Fixed Locus policy is a one-step invariant of Movement admission. -/
 theorem locus_policy_step_invariant
