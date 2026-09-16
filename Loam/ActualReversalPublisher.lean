@@ -68,16 +68,6 @@ private def inverseEffects (target : Event) : List Effect :=
   target.effects.map fun effect =>
     Effect.ofAnonymousQuantity effect.locus effect.measure (-effect.quantity)
 
-private theorem retainedEffectKeys_anonymousInverse
-    (effects : List Effect) :
-    retainedEffectKeys
-      (effects.map fun effect =>
-        Effect.ofAnonymousQuantity effect.locus effect.measure (-effect.quantity)) = [] := by
-  simp only [retainedEffectKeys, List.filterMap_map]
-  rw [List.filterMap_eq_nil_iff]
-  intro effect _
-  simp [Function.comp_def]
-
 private def admit?
     (evidence : ActualEvidence)
     (locusAdmission : LocusAdmissionVocabulary)
@@ -101,16 +91,10 @@ private def admit?
   let reversal := deterministicReversalId draft.target
   let relation : ActualReversal := { target := draft.target, reversal := reversal }
   let effects := inverseEffects target
-  let event : Event := {
-    id := relation.reversal
-    effects := effects
-    keyNodup := by
-      change (retainedEffectKeys effects).Nodup
-      rw [show retainedEffectKeys effects = [] by
-        simpa [effects, inverseEffects] using
-          retainedEffectKeys_anonymousInverse target.effects]
-      exact List.nodup_nil
-  }
+  let event ←
+    match Event.ofEffects? relation.reversal effects with
+    | some event => pure event
+    | none => throw "loam: reversal Effect identity is not unique"
   let events ←
     match EventMemory.add? evidence.events event with
     | some events => pure events
