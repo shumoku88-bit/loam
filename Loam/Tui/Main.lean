@@ -61,8 +61,8 @@ def moveDate (state : State) (offset : Int) : State :=
   | none => { state with notice := "Calendar boundary reached." }
   | some date => { state with selectedDate := date, notice := "" }
 
-/-- Home-only root navigation. Object workspaces own their own interaction state. -/
-def update (_snapshot : Snapshot) (state : State) (event : Event) : Step :=
+/-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/
+def update (state : State) (event : Event) : Step :=
   match event with
   | .quit => { state, quit := true }
   | .left => { state := moveDate state (-1) }
