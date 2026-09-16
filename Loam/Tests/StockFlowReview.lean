@@ -17,8 +17,7 @@ private def record (event : Event) (date : Option String) (isCurrent : Bool := t
     event := event
     date := date
     description := ""
-    replacement := none
-    isCurrent := isCurrent
+    replacement := if isCurrent then none else some ⟨"fixture-replacement"⟩
   }
 
 
