@@ -303,13 +303,6 @@ private def footer (bounds : Bounds) : List Widget :=
     , mutedLine "[c/Enter] complete [s] replace [x] cancel"
     ]
 
-private def fitWithFooter (bounds : Bounds) (body footerRows : List Widget) : List Widget :=
-  let available := if bounds.height > 0 then bounds.height - 1 else 0
-  let bodyCapacity := available - footerRows.length
-  let visibleBody := body.take bodyCapacity
-  let padding := bodyCapacity - visibleBody.length
-  visibleBody ++ List.replicate padding blankLine ++ footerRows
-
 /--
 HRA-shaped Scheduled workspace over the shared ScheduledReview answer.
 Locus filtering, pane focus, windowing, and cursor coordinates are process-local presentation state.
@@ -345,6 +338,6 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     (List.range 8).map (paneRow snapshot state leftWidth rightWidth) ++
     [rule bounds '-'] ++ detailLines snapshot state ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (fitWithFooter bounds body (footer bounds))
+  .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds))
 
 end Loam.Tui.HraScheduled
