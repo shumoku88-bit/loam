@@ -1,6 +1,6 @@
 # MGA-018 — Canonical ReportWindow state owner
 
-Status: **KEEP_BOUNDARY / SPLIT_QUALIFIED pending full PR qualification**
+Status: **KEEP_BOUNDARY / SPLIT_QUALIFIED — focused + DRAKON qualification complete; full PR suite pending**
 
 Baseline:
 
@@ -198,6 +198,11 @@ interaction and responsive presentation.
 
 Both focused tests pass after a fresh production TUI rebuild.
 
+The synchronized Reports granularity DRAKON artifact also passes SQLite integrity,
+contains five source-traceable diagrams, and includes the qualified
+`MGA.018.1 Qualified ReportWindow State Owner` seam. The permanent module-granularity
+workflow now regenerates that artifact and rejects drift.
+
 ## Inventory after extraction
 
 The refreshed module inventory reports:
@@ -276,6 +281,7 @@ extra change/outcome state retained    NO
 reachable from production roots        YES
 production-like unreachable introduced NO
 focused production behavior preserved  YES
+DRAKON source/artifact synchronized     YES
 ```
 
 **MGA-018 verdict: KEEP_BOUNDARY / SPLIT_QUALIFIED**, subject only to the final
