@@ -1,0 +1,36 @@
+name: MGA020 Generate Qualified DRAKON
+
+on:
+  push:
+    branches:
+      - 'audit/mga-020-transactions-flow-pane-clean'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-020-transactions-flow-pane-clean
+      - name: Generate and validate qualified map
+        run: |
+          python3 docs/drakon/build_tui_transactions_flow_granularity_audit_map.py
+          python3 - <<'PY'
+          import sqlite3
+          path = 'docs/drakon/loam-tui-transactions-flow-granularity-audit.drn'
+          with sqlite3.connect(path) as db:
+              assert db.execute('pragma integrity_check').fetchone()[0] == 'ok'
+              assert db.execute('select count(*) from diagrams').fetchone()[0] == 4
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 4
+              assert db.execute("select count(*) from diagrams where name='MGA.020.1 Qualified TransactionsFlowPane State Owner'").fetchone()[0] == 1
+          PY
+          rm .github/workflows/mga020-generate-drakon.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/drakon/loam-tui-transactions-flow-granularity-audit.drn .github/workflows/mga020-generate-drakon.yml
+          git commit -m 'docs(drakon): sync MGA-020 Transactions Flow pane artifact'
+          git push origin HEAD:audit/mga-020-transactions-flow-pane-clean
