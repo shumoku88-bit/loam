@@ -1,6 +1,6 @@
 # G2-027 — TUI undated-count derivation obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY IDENTIFIED**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + proof-obligation DAG**.
 
@@ -124,9 +124,19 @@ A code change should prove through compilation/tests that:
 - the line CLI `.undated` query remains unchanged;
 - Production TUI and selected Lean observations remain green.
 
+## Qualification
+
+The code-qualified head `6991a5fa658a1dc2a8fa89025220e53b7bb66109` passed:
+
+- Compression Audit: **SUCCESS**;
+- Selected Lean Observations: **SUCCESS**;
+- Purpose Catalog Boundary: **SUCCESS**;
+- Production TUI: **62/62 SUCCESS**;
+- focused full-day Actual local window navigation, including the G2-027 current-vs-superseded undated regression: **SUCCESS**.
+
 ## Generation-2 verdict
 
-**SIMPLIFY IDENTIFIED.**
+**SIMPLIFY QUALIFIED.**
 
 The evidence is stronger than a normal cache-removal argument: the retained value
 is an exact consequence of `allRecords`, and its only current consumer is outside
