@@ -154,48 +154,21 @@ theorem movement_multistep_invariant
   ProbeLTS.mtrInv_of_trInv hStep
 
 /-!
-A concrete production invariant worth checking is that Movement admission does
-not mutate the current Locus-admission policy. The successful result literally
-copies `world.locusAdmission`; the theorem below makes that one-step fact usable
-by the generic multistep rule.
+CSA-003 deliberately stops here.
+
+A concrete invariant such as preservation of `locusAdmission` is visible in the
+current `admit?` construction, but proving it here by unfolding the entire
+admission implementation would couple this semantic correspondence probe to a
+large internal branch tree. That would invert the intended ownership boundary:
+
+* LOAM should own domain-specific one-step obligations at the production seam
+  when such an obligation is actually needed;
+* CSLib-style vocabulary should own generic composition from one step to a
+  finite trace.
+
+The generic composition theorem above is therefore the earned result. No new
+production theorem, canonical label type, synthetic error state, monolithic
+household world, or CSLib dependency is justified by this probe alone.
 -/
-private def LocusPreservedResult (before : World) : Except String Admitted → Prop
-  | .error _ => True
-  | .ok admitted => admitted.world.locusAdmission = before.locusAdmission
-
-private theorem admit_preserves_locus_result (before : World) (draft : Draft) :
-    LocusPreservedResult before
-      (Loam.MovementAdmission.admit? before draft) := by
-  simp only [Loam.MovementAdmission.admit?]
-  all_goals
-    repeat
-      first
-      | rfl
-      | exact True.intro
-      | split
-
-private theorem admitted_preserves_locusAdmission
-    {before : World} {draft : Draft} {admitted : Admitted}
-    (hAdmitted : Loam.MovementAdmission.admit? before draft = .ok admitted) :
-    admitted.world.locusAdmission = before.locusAdmission := by
-  have hResult := admit_preserves_locus_result before draft
-  rw [hAdmitted] at hResult
-  exact hResult
-
-/-- Fixed Locus policy is a one-step invariant of Movement admission. -/
-theorem locus_policy_step_invariant
-    (policy : Loam.Core.LocusAdmissionVocabulary) :
-    ProbeLTS.TrInv movementLTS (fun world => world.locusAdmission = policy) := by
-  intro before draft after hTr hPolicy
-  rcases hTr with ⟨admitted, hAdmitted, hWorld⟩
-  subst after
-  rw [admitted_preserves_locusAdmission hAdmitted]
-  exact hPolicy
-
-/-- Hence the same Locus policy survives every finite Movement trace. -/
-theorem locus_policy_multistep_invariant
-    (policy : Loam.Core.LocusAdmissionVocabulary) :
-    ProbeLTS.MTrInv movementLTS (fun world => world.locusAdmission = policy) :=
-  ProbeLTS.mtrInv_of_trInv (locus_policy_step_invariant policy)
 
 end Loam.Experiments.CSLibSemanticCorrespondence003
