@@ -18,6 +18,9 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
 
 private def debt : EffectCoordinate := ⟨⟨"debt"⟩, ⟨"jpy"⟩⟩
 
+private def debtAdmission : LocusAdmissionVocabulary :=
+  { approved := [debt.locus], nodup := by simp }
+
 private def effect (key : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨key⟩ debt.locus debt.measure (Quantity.ofQuanta quanta)
 
@@ -42,7 +45,8 @@ private def freshAnchor
     { coordinate := debt, quantity := Quantity.ofQuanta observed }
   requireOk
     (Loam.CurrentQuantityAnchorPublisher.propose?
-      events corrections ZeroOriginCoverage.empty OpeningSupportMap.empty [assertion])
+      events corrections debtAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty [assertion])
     "fresh observation proposal"
 
 private def oldAnchor?
