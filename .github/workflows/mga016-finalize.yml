@@ -1,0 +1,36 @@
+name: MGA016 finalize
+
+on:
+  push:
+    branches:
+      - audit/mga-016-scheduled-continuation-session
+    paths:
+      - .github/workflows/mga016-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-016-scheduled-continuation-session
+          fetch-depth: 250
+      - name: Measure and graduate MGA-016 evidence
+        run: python3 .github/mga016_finalize.py
+      - name: Commit synchronized evidence and retire helpers
+        run: |
+          rm .github/workflows/mga016-finalize.yml .github/mga016_finalize.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md \
+            docs/drakon/build_tui_scheduled_session_audit_map.py \
+            docs/drakon/loam-tui-scheduled-session-audit.drn \
+            .github/workflows/module-granularity-audit.yml \
+            .github/workflows/mga016-finalize.yml \
+            .github/mga016_finalize.py
+          git commit -m 'docs(audit): qualify MGA-016 continuation session boundary'
+          git push
