@@ -47,6 +47,24 @@ DIAGRAMS = {
             ("action", "MGA-015: narrow CompletionSession experiment justified; continuation remains caller-owned"),
         ],
     },
+    "MGA.015.2 Qualified Scheduled Completion Session Seam": {
+        "description": "Record the narrow Completion terminal/effect split after production, inventory, and continuation-boundary qualification.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCompletionSession.lean; Loam/Tui/ScheduledCreationSession.lean; Loam/HouseholdCommand.lean; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; PR #974",
+        "audit": "PR #974 extracted only the reusable Completion terminal/effect shell. ScheduledCompletion still owns editor semantics; ScheduledCompletionSession owns key reads, dirty redraws, HouseholdCommand.completeScheduled delegation and refusal retry, and returns Bool only. HraScheduled and SelectedDay retain optional next-Scheduled creation, routing inheritance, canonical reload and destination refresh. Production TUI #812, Compression Audit #950, module inventory #20, Selected Lean Observations #1194 and Purpose Catalog Boundary #331 all succeeded. Inventory reports the new Session at 50 lines / one declaration / fan-in 1 / fan-out 5 / reachable, with zero production-like unreachable modules. The boundary therefore graduates to KEEP_BOUNDARY / SPLIT_QUALIFIED without absorbing continuation semantics.",
+        "nodes": [
+            ("action", "ScheduledCompletion.State / validation / preview / view"),
+            ("insertion", "ScheduledCompletionSession.run"),
+            ("action", "read terminal key + update + dirty redraw"),
+            ("decision", "Step publishes completion draft?", "YES"),
+            ("insertion", "HouseholdCommand.completeScheduled"),
+            ("decision", "publication refused?", "YES -> same editor retry"),
+            ("action", "Session returns Bool only"),
+            ("decision", "completion published?", "NO -> cancellation notice"),
+            ("action", "caller retains optional creation + routing inheritance + reload + workspace refresh"),
+            ("action", "inventory: 50 lines / fan-in 1 / fan-out 5 / reachable"),
+            ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },
 }
 
 

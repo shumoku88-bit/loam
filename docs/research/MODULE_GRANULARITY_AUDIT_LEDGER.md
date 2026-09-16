@@ -2,39 +2,39 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-014 COMPLETE — ScheduledReplacementSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #971 ready for merge**
+Status: **MGA-015 COMPLETE — ScheduledCompletionSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #974 ready for merge**
 
 ## Refreshed inventory
 
-The module-granularity inventory was rerun on the PR #971 merge candidate after extracting
-`Loam.Tui.ScheduledReplacementSession`.
+The module-granularity inventory was rerun on the PR #974 merge candidate after extracting
+`Loam.Tui.ScheduledCompletionSession`.
 
 ```text
-Lean modules: 333
-Modules <= 80 lines: 90
-Modules with exactly one local consumer: 53
+Lean modules: 334
+Modules <= 80 lines: 91
+Modules with exactly one local consumer: 54
 Declared Lake roots: 17
 Production-like modules unreachable from declared roots: 0
 ```
 
-The raw module, small-module, and one-consumer counts each increased by one, as expected for
-one justified Session extraction. No production-like surface became unreachable. Current
-focused metrics are:
+The raw module, small-module, and one-consumer counts each increased by one from MGA-014,
+exactly as expected for one focused Session extraction. No production-like surface became
+unreachable. Current focused metrics are:
 
 ```text
-Loam.Tui.Cli                         1143 lines / 31 declarations / fan-out 56
-Loam.Tui.RecordSession                 48 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.CorrectionSession             49 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.ScheduledReplacementSession   51 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.ScheduledReplacement         264 lines / 23 declarations / fan-in 3 / fan-out 6
+Loam.Tui.Cli                          1116 lines / 30 declarations / fan-out 57
+Loam.Tui.RecordSession                  48 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.CorrectionSession              49 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.ScheduledReplacementSession    51 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.ScheduledCompletionSession     50 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.ScheduledCompletion           144 lines /  9 declarations / fan-in 3 / fan-out 3
 ```
 
-The post-#968 pre-extraction `Tui.Cli` shape is recoverable from the qualified diff as
-1166 lines / 32 declarations / fan-out 55. MGA-014 therefore removes one object-local effect
-loop and one declaration from the composition root while adding one explicit dependency edge
-to the new Session. That fan-out increase is not treated as a regression: file count, small-module
-count, one-consumer count, and composition-root fan-out are candidate detectors, not verdicts.
-Responsibility ownership decides the boundary.
+MGA-014 left `Tui.Cli` at 1143 lines / 31 declarations / fan-out 56. MGA-015 therefore
+removes another object-local effect loop and one declaration from the composition root,
+while adding one explicit dependency edge to the new Session. The fan-out increase is not
+treated as a regression: responsibility ownership, reachability, and change independence
+decide the boundary rather than raw file or edge counts.
 
 The qualified dependency seams are now explicit:
 
@@ -42,6 +42,7 @@ The qualified dependency seams are now explicit:
 Tui.Cli -> RecordSession                -> Record + HouseholdCommand
 Tui.Cli -> CorrectionSession            -> Correction + HouseholdCommand
 Tui.Cli -> ScheduledReplacementSession  -> ScheduledReplacement + HouseholdCommand
+Tui.Cli -> ScheduledCompletionSession   -> ScheduledCompletion + HouseholdCommand
 ```
 
 ## MGA-001 — `Loam.Sha256`
@@ -449,3 +450,60 @@ reload policy, or workspace transition moved into the Session. The boundary is
 therefore qualified on ownership, proof locality, navigation cost, reuse, history,
 and reachability evidence. The next Scheduled candidate remains Completion, but it
 must be re-observed as a continuation seam rather than copied from Replacement.
+
+
+## MGA-015 — `Loam.Tui.ScheduledCompletionSession` focused extraction
+
+Classification: **KEEP_BOUNDARY / SPLIT_QUALIFIED — PR #974 ready for merge**
+
+MGA-015 re-observed completion after MGA-014 and the paired DRAKON continuation map.
+The experiment deliberately extracts only the reusable inner terminal/effect shell:
+
+- `ScheduledCompletion` retains editor state, representability checks, Record-shaped
+  editing/preview transitions, completion-draft construction, refusal restoration,
+  and view;
+- `ScheduledCompletionSession` owns terminal key reads, dirty redraws, delegation to
+  `HouseholdCommand.completeScheduled`, retry after publication refusal, and one
+  Boolean result;
+- both HRA Scheduled and SelectedDay enter the same session;
+- a successful session returns `true`, while cancellation returns `false`;
+- optional next-Scheduled creation, `ScheduledCreationSession.runWithScheduledId`,
+  routing inheritance, canonical reload, and destination-workspace refresh remain
+  caller-owned continuation semantics.
+
+The Boolean return is therefore treated as an explicit stop line rather than an
+invitation to absorb the continuation into the Session. The experiment is qualified
+only if production CI remains green, the module remains reachable with a narrow
+dependency surface, and the refreshed inventory shows no production-like unreachable
+module. Final classification and inventory numbers are intentionally deferred until
+those checks complete.
+
+
+### MGA-015 final qualification
+
+The narrow extraction qualifies as a durable physical boundary rather than naming symmetry:
+
+- the same effect shell is entered from both HRA Scheduled and SelectedDay;
+- `ScheduledCompletion` retains editor state, validation, transitions, preview, draft construction,
+  refusal restoration, and view;
+- `ScheduledCompletionSession` owns only key reads, dirty redraws,
+  `HouseholdCommand.completeScheduled` delegation, refusal retry, and the Boolean session result;
+- the Boolean result remains the explicit stop line before optional next-Scheduled creation and
+  routing inheritance, so continuation semantics were not absorbed into the Session;
+- publication authority remains outside TUI;
+- the new 50-line module is reachable, has fan-in 1 / fan-out 5, and no production-like module
+  became unreachable;
+- `Tui.Cli` fell from 1143 lines / 31 declarations to 1116 lines / 30 declarations while keeping
+  continuation orchestration visible at the two caller sites.
+
+Qualification on PR #974 succeeded:
+
+- Production TUI #812 — SUCCESS;
+- Compression Audit #950 — SUCCESS;
+- Module granularity inventory #20 — SUCCESS;
+- Selected Lean Observations #1194 — SUCCESS;
+- Purpose Catalog Boundary #331 — SUCCESS.
+
+The result is therefore **KEEP_BOUNDARY / SPLIT_QUALIFIED**. Any future attempt to deduplicate
+completion continuation creation/routing is a separate audit question and is not implied by this
+Session boundary.
