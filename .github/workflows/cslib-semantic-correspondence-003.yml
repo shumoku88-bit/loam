@@ -1,0 +1,20 @@
+name: CSLib Semantic Correspondence 003
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/cslib_semantic_correspondence_003.lean'
+      - '.github/workflows/cslib-semantic-correspondence-003.yml'
+      - 'Loam/MovementAdmission.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Check CSA-003 proof
+        run: lake env lean experiments/cslib_semantic_correspondence_003.lean
