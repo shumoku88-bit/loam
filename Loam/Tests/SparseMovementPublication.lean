@@ -83,6 +83,27 @@ def main (args : List String) : IO Unit := do
   expect (earnedEvent.effects.filterMap (fun effect => effect.key) == [earnedKey])
     "admission retained more EffectKeys than Relation semantics require"
 
+  -- G2-011: the retained knownPositive Relation gate remains the authoritative
+  -- refusal after the redundant whole-Event source-resolution pass is removed.
+  -- A RelationDraft naming no Effect in the Movement must still fail closed.
+  let missingSource : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-12"
+    description := some "missing relation source"
+    effects := [
+      keyedEffect "temp-left" "cash" (-100),
+      keyedEffect "temp-right" "food" 100]
+    relations := [{
+      sourceEffect := ⟨"temp-missing"⟩
+      debtor := .external ⟨"friend-missing"⟩
+      creditor := .household
+      quantity := Quantity.ofQuanta 50 }]
+    discharges := []
+    total := 100
+  }
+  match Loam.MovementAdmission.admit? world missingSource with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "Relation with missing source Effect was admitted")
+
   -- Collector-local keys on an ordinary movement must not become canonical identity.
   let ordinary : Loam.MovementAdmission.Draft := {
     validOn := "2026-09-12"
@@ -130,4 +151,4 @@ def main (args : List String) : IO Unit := do
   expect (relatedEvent.effects.filterMap (fun effect => effect.key) == [sourceKey])
     "publication retained more EffectKeys than Relation semantics require"
 
-  IO.println "Sparse Movement publication: admission canonicalization, relation-earned identity, anonymous ordinary Effects and relation-only key promotion passed."
+  IO.println "Sparse Movement publication: admission canonicalization, relation-earned identity, missing-source refusal, anonymous ordinary Effects and relation-only key promotion passed."
