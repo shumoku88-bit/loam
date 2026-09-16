@@ -1,5 +1,6 @@
 import Loam.ActualAuthority
 import Loam.CurrentQuantityAnchor
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -33,19 +34,28 @@ Event correction root represented by the admitted Actual world while Actual is
 held under writer ownership. This prevents file order, dates, EventId spelling,
 or Git history from becoming a hidden temporal boundary.
 
-The first production boundary refuses coordinates already supported by
+New assertions must use a currently admitted Locus. This is publication policy,
+not an invariant of retained anchor evidence: an older anchor using a later-
+disallowed Locus remains readable, but a new reconciliation write cannot create
+an unapproved canonical quantity coordinate.
+
+The first production boundary also refuses coordinates already supported by
 ZeroOriginCoverage or OpeningSupport. Choosing precedence between independent
 support families has not been qualified and is therefore not invented here.
 -/
 def propose?
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
+    (locusAdmission : LocusAdmissionVocabulary)
     (coverage : ZeroOriginCoverage)
     (opening : OpeningSupportMap)
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) :
     Except String Loam.CurrentQuantityAnchor.Evidence := do
   if assertions.isEmpty then
     throw "loam: current quantity anchor requires at least one observed quantity"
+  if !assertions.all (fun assertion =>
+      locusAdmission.allows assertion.coordinate.locus) then
+    throw "loam: current quantity anchor uses a Locus not approved for new publication"
   if assertions.any (overlapsExistingSupport coverage opening) then
     throw "loam: current quantity anchor refuses a coordinate already supported by zero-origin or opening evidence"
   let some roots := Loam.Application.correctionRootIds? events corrections
@@ -79,6 +89,10 @@ private def publishUnderOwnership
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok evidence => pure evidence
     | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok vocabulary => pure vocabulary
+    | .error message => return .error message
   let coverage ←
     match ← loadCoverage root with
     | .ok evidence => pure evidence
@@ -88,7 +102,8 @@ private def publishUnderOwnership
     | .ok evidence => pure evidence
     | .error message => return .error message
   let anchor ←
-    match propose? actual.events actual.corrections coverage opening assertions with
+    match propose?
+        actual.events actual.corrections locusAdmission coverage opening assertions with
     | .ok evidence => pure evidence
     | .error message => return .error message
   if !(← Loam.Persistence.saveCurrentQuantityAnchor? anchorPath anchor) then
@@ -98,6 +113,11 @@ private def publishUnderOwnership
 /--
 Publish one complete current reconciliation image while holding both the Actual
 world and the anchor image against concurrent replacement.
+
+Current Locus admission is re-read during this publication interval. The only
+production Locus-admission mutation is currently add-only, so a concurrent new
+admission can make this read conservatively stale only in the refusal direction;
+no extra Locus-policy lock is added until revocation/replacement is qualified.
 
 Replacement means a new current reconciliation session, not historical
 correction of an earlier assertion. No anchor identity or revision graph is

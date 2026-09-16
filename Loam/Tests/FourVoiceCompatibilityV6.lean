@@ -19,6 +19,9 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def debt : EffectCoordinate := ⟨⟨"debt"⟩, yen⟩
 
+private def debtAdmission : LocusAdmissionVocabulary :=
+  { approved := [debt.locus], nodup := by simp }
+
 private def event? (id : String) (amount : Int) : Option Event :=
   Event.ofEffects? ⟨id⟩
     [Effect.ofQuantity ⟨id ++ "-effect"⟩ debt.locus debt.measure
@@ -178,7 +181,7 @@ private def overlappingSupportRemovesAnswer : IO Unit := do
     "V6d reader invented precedence between opening and current-anchor support"
   expect
     (match Loam.CurrentQuantityAnchorPublisher.propose?
-      events corrections ZeroOriginCoverage.empty support [assertion] with
+      events corrections debtAdmission ZeroOriginCoverage.empty support [assertion] with
       | .error _ => true
       | .ok _ => false)
     "V6d publisher admitted overlapping opening/current-anchor support"

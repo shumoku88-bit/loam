@@ -35,13 +35,19 @@ def main : IO Unit := do
   let corrections ← requireSome
     (EventCorrectionMemory.ofCorrections? [{ target := old.id, replacement := replacement.id }])
     "correction memory"
+  let locusAdmission ← requireSome
+    (LocusAdmissionVocabulary.ofLoci? [⟨"debt"⟩, ⟨"cash"⟩])
+    "current Locus admission vocabulary"
 
   let debt : EffectCoordinate := ⟨⟨"debt"⟩, ⟨"jpy"⟩⟩
   let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
+  let typo : EffectCoordinate := ⟨⟨"detb"⟩, ⟨"jpy"⟩⟩
   let assertion : Loam.CurrentQuantityAnchor.Assertion :=
     { coordinate := debt, quantity := Quantity.ofQuanta (-70) }
   let cashAssertion : Loam.CurrentQuantityAnchor.Assertion :=
     { coordinate := cash, quantity := Quantity.ofQuanta 25 }
+  let typoAssertion : Loam.CurrentQuantityAnchor.Assertion :=
+    { coordinate := typo, quantity := Quantity.ofQuanta (-70) }
 
   let roots ← requireSome
     (Loam.Application.correctionRootIds? events corrections)
@@ -91,7 +97,8 @@ def main : IO Unit := do
     { coordinate := debt, quantity := anchored }
   let published ← requireOk
     (Loam.CurrentQuantityAnchorPublisher.propose?
-      events corrections ZeroOriginCoverage.empty OpeningSupportMap.empty [nowAssertion])
+      events corrections locusAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty [nowAssertion])
     "publisher proposal"
   expect (published.reflectedRoots.contains old.id) "publisher omitted corrected root"
   expect (published.reflectedRoots.contains later.id) "publisher omitted untouched root"
@@ -101,6 +108,22 @@ def main : IO Unit := do
     | throw (IO.userError "published assertion disappeared")
   expect (publishedQuantity.quanta == anchored.quanta)
     "new reconciliation session did not preserve the observed current quantity"
+
+  -- Retained anchor evidence may still describe a historical/read-only Locus, but a
+  -- new publication cannot create a canonical quantity coordinate outside current admission.
+  let historicalOnly ← requireSome
+    (Loam.CurrentQuantityAnchor.Evidence.ofLists? [old.id] [typoAssertion])
+    "historical-only anchor evidence"
+  expect
+    ((Loam.CurrentQuantityAnchor.Evidence.assertionFor? historicalOnly typo).isSome)
+    "retained anchor structure unexpectedly depended on current admission"
+  expect
+    (match Loam.CurrentQuantityAnchorPublisher.propose?
+      events corrections locusAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty [typoAssertion] with
+      | .error _ => true
+      | .ok _ => false)
+    "publisher admitted an unapproved Locus through current quantity evidence"
 
   let encoded ← requireSome
     (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
@@ -133,7 +156,7 @@ def main : IO Unit := do
     "overlap coverage"
   expect
     (match Loam.CurrentQuantityAnchorPublisher.propose?
-      events corrections covered OpeningSupportMap.empty [nowAssertion] with
+      events corrections locusAdmission covered OpeningSupportMap.empty [nowAssertion] with
       | .error _ => true
       | .ok _ => false)
     "publisher invented precedence over zero-origin support"
@@ -183,4 +206,4 @@ def main : IO Unit := do
     "RoleBalance selected a winner for overlapping support families"
 
   IO.println
-    "Current Quantity Anchor: shared root cut, correction stability, persistence and RoleBalance composition qualified."
+    "Current Quantity Anchor: shared root cut, current Locus admission, correction stability, persistence and RoleBalance composition qualified."
