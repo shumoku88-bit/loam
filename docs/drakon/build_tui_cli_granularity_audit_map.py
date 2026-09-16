@@ -11,16 +11,16 @@ OUTPUT = HERE / "loam-tui-cli-granularity-audit.drn"
 
 DIAGRAMS = {
     "MGA.009.1 TUI CLI Responsibility Fanout": {
-        "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after the first focused session extraction.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean",
-        "audit": "Tui.Cli remains the production terminal composition root. PRs #961 and #964 removed the Record and Correction terminal/effect loops, but key grammars, snapshot/config loading, one intentionally-inline date loop plus three local Scheduled loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
+        "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after focused session extraction.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean; Loam/Tui/ScheduledReplacementSession.lean",
+        "audit": "Tui.Cli remains the production terminal composition root. PRs #961, #964 and #971 removed the Record, Correction and Scheduled Replacement terminal/effect loops. Key grammars, snapshot/config loading, one intentionally-inline date loop plus Completion and Cancellation, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. Raw module count is candidate evidence; responsibility ownership decides the boundary.",
         "nodes": [
             ("insertion", "loamTui main / terminal entrance"),
             ("action", "resolve data directory + current authority roots"),
             ("action", "load shared snapshot / catalogs / presets"),
             ("action", "map terminal keys to Home / Actual / Scheduled / SelectedDay events"),
-            ("action", "delegate extracted terminal sessions\nRecord / Correction / creation / routing / capacity / admission / reversal"),
-            ("action", "run remaining local editor loops\nDate (KEEP_INLINE) / Completion / Cancellation / Replacement"),
+            ("action", "delegate extracted terminal sessions\nRecord / Correction / Replacement / creation / routing / capacity / admission / reversal"),
+            ("action", "run remaining local editor loops\nDate (KEEP_INLINE) / Completion / Cancellation"),
             ("action", "orchestrate HRA Home / Actual / Scheduled / SelectedDay"),
             ("action", "dispatch Reports queries + redraw"),
             ("action", "reload canonical evidence after successful writes"),
@@ -132,7 +132,22 @@ DIAGRAMS = {
             ("decision", "narrow extraction worth testing?", "YES -> MGA-014"),
         ],
     },
-
+    "MGA.014.1 Qualified Scheduled Replacement Session Seam": {
+        "description": "Record the post-G2-030 Scheduled Replacement split after source, history, qualification, and inventory evidence converge.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledReplacement.lean; Loam/Tui/ScheduledReplacementSession.lean; Loam/HouseholdCommand.lean; PR #710; PR #767; PR #968; PR #971; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md",
+        "audit": "Post-#968 re-observation preserved the same effect seam: ScheduledReplacement owns editor state, validation, preview, transitions and view; ScheduledReplacementSession owns key reads, dirty redraws, HouseholdCommand.replaceScheduled delegation and retry after refusal. HraScheduled and SelectedDay retain selection, vocabulary loading, canonical reload and workspace refresh. History is independent in both directions (#710/#767 editor-only pressure; #968 composition-root topology pressure). PR #971 passed Production TUI, Compression Audit, Selected Lean Observations, Purpose Catalog Boundary and module inventory; the new 51-line module is reachable with fan-in 1/fan-out 5 and production-like unreachable remains zero. KEEP_BOUNDARY / SPLIT_QUALIFIED.",
+        "nodes": [
+            ("action", "ScheduledReplacement.State / validation / preview / view"),
+            ("insertion", "ScheduledReplacementSession.run"),
+            ("action", "read key + update + dirty redraw"),
+            ("decision", "Step publishes draft?", "YES"),
+            ("insertion", "HouseholdCommand.replaceScheduled"),
+            ("decision", "publication refused?", "YES -> same editor retry"),
+            ("action", "callers retain selection + vocabulary + canonical reload + workspace refresh"),
+            ("action", "inventory: 51 lines / fan-in 1 / fan-out 5 / reachable"),
+            ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT QUALIFIED"),
+        ],
+    },
 }
 
 
@@ -156,7 +171,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM MGA.009-013 - TUI CLI module granularity",),
+            ("LOAM MGA.009-014 - TUI CLI module granularity",),
         )
 
         item_id = 1
@@ -165,7 +180,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-013 TUI CLI module granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-014 TUI CLI module granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 
