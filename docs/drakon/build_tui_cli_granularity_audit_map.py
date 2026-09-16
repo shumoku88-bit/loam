@@ -12,15 +12,15 @@ OUTPUT = HERE / "loam-tui-cli-granularity-audit.drn"
 DIAGRAMS = {
     "MGA.009.1 TUI CLI Responsibility Fanout": {
         "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after the first focused session extraction.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean",
-        "audit": "Tui.Cli remains the production terminal composition root. PR #961 removed the Record terminal/effect loop, but key grammars, snapshot/config loading, five local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean",
+        "audit": "Tui.Cli remains the production terminal composition root. PR #961 removed the Record terminal/effect loop, but key grammars, snapshot/config loading, four local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
         "nodes": [
             ("insertion", "loamTui main / terminal entrance"),
             ("action", "resolve data directory + current authority roots"),
             ("action", "load shared snapshot / catalogs / presets"),
             ("action", "map terminal keys to Home / Actual / Scheduled / SelectedDay events"),
-            ("action", "delegate extracted terminal sessions\nRecord / creation / routing / capacity / admission / reversal"),
-            ("action", "run remaining local editor loops\nCorrection / Date / Completion / Cancellation / Replacement"),
+            ("action", "delegate extracted terminal sessions\nRecord / Correction / creation / routing / capacity / admission / reversal"),
+            ("action", "run remaining local editor loops\nDate / Completion / Cancellation / Replacement"),
             ("action", "orchestrate HRA Home / Actual / Scheduled / SelectedDay"),
             ("action", "dispatch Reports queries + redraw"),
             ("action", "reload canonical evidence after successful writes"),
@@ -44,12 +44,12 @@ DIAGRAMS = {
         ],
     },
     "MGA.010.2 Remaining Session Comparison": {
-        "description": "Compare the five editor-session loops still retained in Tui.Cli without turning the successful Record extraction into a symmetry-driven sweep.",
+        "description": "Record the focused Correction extraction while keeping the four other local editor-session loops uncommitted candidates.",
         "sources": "Loam/Tui/Cli.lean; Loam/Tui/Correction.lean; Loam/Tui/ActualDateCorrection.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCancellation.lean; Loam/Tui/ScheduledReplacement.lean",
-        "audit": "Correction is the closest next control to Record: it has a dedicated presentation module, re-enters its editor on publication error, returns only a completion notice, and leaves canonical reload plus workspace destination to Tui.Cli. ActualDateCorrection is similarly narrow but provides less comparative pressure. ScheduledCompletion is more coupled because its Bool result drives continuation creation and routing inheritance in the caller. Cancellation and Replacement remain scheduled-workflow candidates, but extracting all remaining loops merely for naming symmetry would violate the stop rule.",
+        "audit": "Correction is now the focused MGA-011 extraction: its dedicated presentation module keeps state, validation, transitions and view, while CorrectionSession owns key reads, dirty redraws, publication delegation and retry-on-publication-error. Canonical reload plus workspace destination remain in Tui.Cli. ActualDateCorrection is similarly narrow but provides less comparative pressure. ScheduledCompletion is more coupled because its Bool result drives continuation creation and routing inheritance in the caller. Cancellation and Replacement remain scheduled-workflow candidates, but extracting all remaining loops merely for naming symmetry would violate the stop rule.",
         "nodes": [
-            ("action", "Correction loop\nString result + editor retry + caller reload"),
-            ("decision", "Closest Record-shaped effect seam?", "YES - next focused experiment"),
+            ("action", "CorrectionSession.run\nString result + editor retry + caller reload"),
+            ("decision", "Record-shaped effect seam isolated?", "UNDER QUALIFICATION - MGA-011"),
             ("action", "ActualDateCorrection loop\nsmall independent editor shell"),
             ("action", "ScheduledCompletion loop\nBool result feeds continuation workflow"),
             ("action", "ScheduledCancellation loop\nconfirmation + publication notice"),
@@ -60,7 +60,7 @@ DIAGRAMS = {
     "MGA.010.3 Stop Rule": {
         "description": "Calibrate the coarse-file audit with the Record result and constrain the next experiment.",
         "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; Loam/Tui/Cli.lean; Loam/Tui/RecordSession.lean",
-        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. The next experiment is Correction only; the other local loops remain uncommitted candidates.",
+        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. The current experiment is Correction only; the other local loops remain uncommitted candidates.",
         "nodes": [
             ("action", "Observe raw granularity metrics"),
             ("decision", "Metrics worsen after a split?", "NOT A VETO"),
@@ -68,7 +68,7 @@ DIAGRAMS = {
             ("action", "try one narrow extraction"),
             ("action", "qualify Production TUI + Compression + inventory"),
             ("decision", "Boundary stays coherent and navigation improves?", "YES -> graduate"),
-            ("action", "Next test: Correction only; otherwise KEEP in Tui.Cli"),
+            ("action", "Current test: qualify Correction; otherwise return it to Tui.Cli"),
         ],
     },
 }
@@ -94,7 +94,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM MGA.009-010 - TUI CLI module granularity",),
+            ("LOAM MGA.009-011 - TUI CLI module granularity",),
         )
 
         item_id = 1
@@ -103,7 +103,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-010 TUI CLI module granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-011 TUI CLI module granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 

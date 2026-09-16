@@ -2,7 +2,7 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-010 GRADUATED — Record session split qualified; Correction selected as the next focused experiment**
+Status: **MGA-011 IMPLEMENTATION EXPERIMENT — Correction terminal session extraction under qualification**
 
 ## Refreshed inventory
 
@@ -215,7 +215,14 @@ there is enough present ownership/effect evidence to keep the boundary.
 
 ## MGA-011 — `Loam.Tui.CorrectionSession` candidate
 
-Classification: **SPLIT_CANDIDATE — NEXT FOCUSED EXPERIMENT**
+Classification: **SPLIT_CANDIDATE — IMPLEMENTATION EXPERIMENT**
+
+This branch moves only the Correction terminal key-read/redraw/publication loop
+into `Loam.Tui.CorrectionSession`. `Correction` keeps replacement-editor state,
+validation, transitions, and view; `HouseholdCommand.correctActual` stays the
+authoritative write entrance; `Tui.Cli` keeps selected-world loading, canonical
+reload, and workspace destination. Graduation remains conditional on focused CI
+and the refreshed module inventory.
 
 Five local editor/effect loops remain in `Tui.Cli` after MGA-010:
 
