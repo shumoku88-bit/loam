@@ -67,7 +67,6 @@ abbrev Record := ScheduledOccurrence String
 inductive ScopeEvidence where
   | records (rows : List Record)
   | unknown
-  deriving Repr, DecidableEq
 
 private def unavailableNotice? (snapshot : Snapshot) : Option String :=
   match snapshot.scheduled with
