@@ -24,7 +24,7 @@ next-Scheduled creation, routing inheritance, canonical reload, and destination
 workspace refresh remain caller-owned continuation semantics.
 -/
 
-/-- Run one Scheduled completion editor session. `true` means publication succeeded. -/
+/-- Run one Scheduled completion editor session. `true` means completion publication succeeded. -/
 partial def run
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
