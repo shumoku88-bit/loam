@@ -1,6 +1,6 @@
 # MGA-017 — Module granularity frontier after Generation 2
 
-Status: **CANDIDATE MAP — Reports selected for focused DRAKON inspection**
+Status: **COMPLETE — ReportWindow SPLIT_CANDIDATE; Transactions Flow SPLIT_CANDIDATE deferred**
 
 Baseline:
 
