@@ -37,11 +37,11 @@ def main : IO Unit := do
   expect (contains "Balances" menuText) "Reports menu lost evidence-aware Balances"
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
-  expect (initial.form.start == "2026-09-01")
+  expect (initial.window.form.start == "2026-09-01")
     "Reports did not seed the selected-day calendar month start"
-  expect (initial.form.endExclusive == "2026-10-01")
+  expect (initial.window.form.endExclusive == "2026-10-01")
     "Reports did not seed the selected-day calendar month end"
-  expect (initial.form.focus.val == 2) "calendar-month prefill did not focus Run"
+  expect (initial.window.form.focus.val == 2) "calendar-month prefill did not focus Run"
   expect (initial.liquidityForm.assumedCompleteThrough == "2026-09-30")
     "conditional outlook did not prefill the selected-day calendar month end"
   expect (initial.liquidityForm.focus.val == 1)
@@ -88,9 +88,9 @@ def main : IO Unit := do
   let pensionState := (Loam.Tui.Reports.update presetStock (.input ']')).state
   expect (Loam.Tui.Reports.windowSourceLabel pensionState == "Pension")
     "named report preset was not selected"
-  expect (pensionState.form.start == "2026-08-15")
+  expect (pensionState.window.form.start == "2026-08-15")
     "Pension preset did not resolve the explicit previous boundary"
-  expect (pensionState.form.endExclusive == "2026-10-15")
+  expect (pensionState.window.form.endExclusive == "2026-10-15")
     "Pension preset did not resolve the explicit next boundary"
   let pensionText := widgetText (Loam.Tui.Reports.view pensionState)
   expect (contains "Window: Pension" pensionText)
@@ -106,13 +106,15 @@ def main : IO Unit := do
   let calendarAgain := (Loam.Tui.Reports.update pensionState (.input ']')).state
   expect (Loam.Tui.Reports.windowSourceLabel calendarAgain == "Calendar Month")
     "window-source cycle did not return to Calendar Month"
-  expect (calendarAgain.form.start == "2026-09-01")
+  expect (calendarAgain.window.form.start == "2026-09-01")
     "Calendar Month source did not restore selected-day month start"
-  expect (calendarAgain.form.endExclusive == "2026-10-01")
+  expect (calendarAgain.window.form.endExclusive == "2026-10-01")
     "Calendar Month source did not restore selected-day month end"
 
   let customEditing : Loam.Tui.Reports.State := {
-    pensionState with form := { pensionState.form with focus := ⟨0, by decide⟩ }
+    pensionState with
+      window := { pensionState.window with
+        form := { pensionState.window.form with focus := ⟨0, by decide⟩ } }
   }
   let customState := (Loam.Tui.Reports.update customEditing .backspace).state
   expect (Loam.Tui.Reports.windowSourceLabel customState == "Custom")
@@ -121,7 +123,7 @@ def main : IO Unit := do
   let outBase := Loam.Tui.Reports.initialForDateWithPresets "2026-10-15" [pension]
   let outStock := (Loam.Tui.Reports.update outBase .enter).state
   let outPreset := (Loam.Tui.Reports.update outStock (.input ']')).state
-  expect (outPreset.form.start.isEmpty && outPreset.form.endExclusive.isEmpty)
+  expect (outPreset.window.form.start.isEmpty && outPreset.window.form.endExclusive.isEmpty)
     "preset without a later explicit boundary left stale coordinates visible"
   expect (contains "no explicit adjacent boundary window" outPreset.notice)
     "preset exhaustion did not fail closed with an explanation"
@@ -137,41 +139,43 @@ def main : IO Unit := do
     "Stock–Flow surface lost the calendar-coordinate non-claim"
 
   let previous := (Loam.Tui.Reports.update stock .left).state
-  expect (previous.form.start == "2026-08-01") "left did not shift to previous calendar month"
-  expect (previous.form.endExclusive == "2026-09-01")
+  expect (previous.window.form.start == "2026-08-01") "left did not shift to previous calendar month"
+  expect (previous.window.form.endExclusive == "2026-09-01")
     "left did not keep an explicit half-open calendar month"
 
   let next := (Loam.Tui.Reports.update stock .right).state
-  expect (next.form.start == "2026-10-01") "right did not shift to next calendar month"
-  expect (next.form.endExclusive == "2026-11-01")
+  expect (next.window.form.start == "2026-10-01") "right did not shift to next calendar month"
+  expect (next.window.form.endExclusive == "2026-11-01")
     "right did not keep an explicit half-open calendar month"
 
   let decemberBase := Loam.Tui.Reports.initialForDate "2026-12-20"
   let december := (Loam.Tui.Reports.update decemberBase .enter).state
   let january := (Loam.Tui.Reports.update december .right).state
-  expect (january.form.start == "2027-01-01") "calendar month shift lost year rollover"
-  expect (january.form.endExclusive == "2027-02-01")
+  expect (january.window.form.start == "2027-01-01") "calendar month shift lost year rollover"
+  expect (january.window.form.endExclusive == "2027-02-01")
     "calendar month year rollover end was wrong"
 
   let explicit : Loam.Tui.Reports.State := {
     stock with
-      form := {
-        start := "2026-08-17"
-        endExclusive := "2026-10-15"
-        focus := ⟨2, by decide⟩
+      window := { stock.window with
+        form := {
+          start := "2026-08-17"
+          endExclusive := "2026-10-15"
+          focus := ⟨2, by decide⟩
+        }
       }
   }
   let shiftedExplicit := (Loam.Tui.Reports.update explicit .right).state
-  expect (shiftedExplicit.form.start == "2026-08-17")
+  expect (shiftedExplicit.window.form.start == "2026-08-17")
     "arrow key rewrote a manually edited non-calendar window"
   expect (contains "press m to restore" shiftedExplicit.notice)
     "non-calendar arrow refusal did not explain the recovery action"
 
   let restored := (Loam.Tui.Reports.update explicit (.input 'm')).state
-  expect (restored.form.start == "2026-09-01") "m did not restore selected-day calendar month start"
-  expect (restored.form.endExclusive == "2026-10-01")
+  expect (restored.window.form.start == "2026-09-01") "m did not restore selected-day calendar month start"
+  expect (restored.window.form.endExclusive == "2026-10-01")
     "m did not restore selected-day calendar month end"
-  expect (restored.form.focus.val == 2) "m did not return focus to Run"
+  expect (restored.window.form.focus.val == 2) "m did not return focus to Run"
 
   let runStep := Loam.Tui.Reports.update explicit .enter
   match runStep.query with
@@ -205,7 +209,9 @@ def main : IO Unit := do
     "Stock–Flow lost its sign/classification non-claim"
 
   let editing : Loam.Tui.Reports.State := {
-    stockReport with form := { stockReport.form with focus := ⟨0, by decide⟩ }
+    stockReport with
+      window := { stockReport.window with
+        form := { stockReport.window.form with focus := ⟨0, by decide⟩ } }
   }
   let edited := (Loam.Tui.Reports.update editing (.input '9')).state
   expect edited.stockFlowSnapshot.isNone
@@ -266,7 +272,9 @@ def main : IO Unit := do
     "Income & Expense view overstated occurrence-time flow as a closed P/L"
 
   let incomeExpenseEditing : Loam.Tui.Reports.State := {
-    incomeExpenseReport with form := { incomeExpenseReport.form with focus := ⟨0, by decide⟩ }
+    incomeExpenseReport with
+      window := { incomeExpenseReport.window with
+        form := { incomeExpenseReport.window.form with focus := ⟨0, by decide⟩ } }
   }
   let incomeExpenseEdited := (Loam.Tui.Reports.update incomeExpenseEditing .backspace).state
   expect incomeExpenseEdited.incomeExpenseSnapshot.isNone
@@ -333,10 +341,12 @@ def main : IO Unit := do
   let budget : Loam.Tui.Reports.State := {
     initial with
       mode := .budgetWindow
-      form := {
-        start := "2026-08-17"
-        endExclusive := "2026-10-15"
-        focus := ⟨2, by decide⟩
+      window := { initial.window with
+        form := {
+          start := "2026-08-17"
+          endExclusive := "2026-10-15"
+          focus := ⟨2, by decide⟩
+        }
       }
   }
   match (Loam.Tui.Reports.update budget .enter).query with
