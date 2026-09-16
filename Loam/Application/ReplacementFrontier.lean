@@ -16,19 +16,25 @@ filtering outside the source domain.
 Current production uses the bounded start-return detector in `acyclic`. Earlier
 production families used both a seen-set traversal and a start-return traversal.
 Observation 218 established an important qualification boundary: those two
-algorithms are not path-locally equivalent on arbitrary deterministic graphs,
-but their whole-domain admission decisions coincide for the finite partial-
-injective maps admitted here. Injectivity matters; it is supplied by
-`endpointUnique` together with the finite represented edge set.
+algorithms are not path-locally equivalent on arbitrary deterministic graphs.
+That historical path-local comparison used successor injectivity.
 
-That result justified standardizing current production on one small
-start-return implementation rather than maintaining two cycle engines. The
-large theorem-heavy migration proof is historical evidence, not a second live
-runtime contract. Exact proof source remains recoverable in Git history.
+CSA-002 later separated the standard relation-level obligation. For a finite
+right-unique represented relation whose source list covers the function domain,
+the bounded whole-domain start-return decision agrees with standard
+`Relation.TransGen` acyclicity without requiring successor injectivity.
+Production still keeps successor uniqueness in `endpointUnique` because LOAM
+replacement frontiers intentionally refuse merges as part of their one-to-one
+supersession semantics, not because the cycle detector needs that premise.
 
-Do not generalize this helper merely to absorb relation shapes that violate
-these premises. In particular, revision models with explicit retraction or
-non-injective/multi-parent structure require their own semantics.
+These results justify standardizing current production on one small start-return
+implementation rather than maintaining two cycle engines. The theorem-heavy
+comparison evidence remains in the correspondence experiments and Git history;
+it is not a second live runtime contract.
+
+Do not generalize this helper merely to absorb relation shapes that violate the
+retained replacement premises. In particular, revision models with explicit
+retraction or multi-parent structure require their own semantics.
 -/
 
 /-- One generic supersession edge. Domain meaning stays in the adapter. -/
