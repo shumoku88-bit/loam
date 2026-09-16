@@ -1,0 +1,38 @@
+name: Module granularity inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/module_granularity_audit.py"
+      - "docs/research/MODULE_GRANULARITY_AUDIT.md"
+      - ".github/workflows/module-granularity-audit.yml"
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 250
+
+      - name: Build module inventory
+        run: |
+          python3 tools/module_granularity_audit.py \
+            --history 200 \
+            --tsv /tmp/loam-module-granularity.tsv \
+            --dot /tmp/loam-module-imports.dot \
+            --markdown /tmp/loam-module-granularity.md
+          test -s /tmp/loam-module-granularity.tsv
+          test -s /tmp/loam-module-imports.dot
+          test -s /tmp/loam-module-granularity.md
+          head -n 25 /tmp/loam-module-granularity.md
+
+      - name: Upload descriptive inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-granularity-inventory
+          path: |
+            /tmp/loam-module-granularity.tsv
+            /tmp/loam-module-imports.dot
+            /tmp/loam-module-granularity.md
