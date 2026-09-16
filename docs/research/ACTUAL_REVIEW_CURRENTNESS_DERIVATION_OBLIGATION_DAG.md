@@ -1,6 +1,6 @@
 # G2-024 — Actual Review currentness derivation obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG + production-consumer reachability**.
 
@@ -155,18 +155,34 @@ Do **not** bypass `correctionFrontierMemory?`. `replacement.isNone` is a suffici
 
 Do **not** introduce a generic status framework. This is one local exact derivation from an already-retained correction edge.
 
-## Qualification target
+## Qualification
 
-Existing qualification must continue to prove:
+Production/audit head `344d8341a7be5786e25ff7af17eb9fecc8f99616` passed every triggered workflow:
 
-- corrected originals are not selected as current;
-- replacements remain selected as current;
-- search can still expose historical corrected records and labels;
-- Stock–Flow and Transactions–Flow exclude superseded records;
-- TUI Actual / Selected Day / Correction behavior is unchanged;
-- Observation 256 still proves register visibility invariant under EffectKey erasure;
-- malformed or unsupported correction topology still refuses before record projection.
+- Compression Audit: **SUCCESS**
+- Selected Lean Observations: **SUCCESS**
+- Shared ActualValidity Publisher: **SUCCESS**
+- Production TUI: **SUCCESS**, all 62 production verification steps passed
 
-If the direct Actual/report/TUI and selected observation workflows remain green, record:
+Directly relevant Production TUI checks passed without changing consumer syntax:
+
+- shared Actual review checks;
+- Record publication and fresh canonical review;
+- normalized Actual correction publication;
+- selected-day Correction editor and shared publication;
+- Actual Reversal and selected-day fresh review;
+- full-day Actual navigation;
+- Stock–Flow reconstruction and refusal boundaries;
+- Transactions–Flow incidence, activity and refusal boundaries;
+- sparse Transactions–Flow Reports interaction;
+- integrated Reports surfaces.
+
+Selected Lean Observations also rebuilt Observation 256 successfully with the smaller four-field `ActualReview.Record` constructor.
+
+Synthetic superseded Stock–Flow and Transactions–Flow fixtures now carry a replacement identity instead of an independent false Boolean, and their existing filtering regressions remain green.
+
+The DRAKON builder is committed audit instrumentation but was not independently executed during this qualification.
+
+## Verdict
 
 **G2-024: SIMPLIFY QUALIFIED — ActualReview retains the replacement edge and derives currentness from replacement absence after correction-frontier admission.**
