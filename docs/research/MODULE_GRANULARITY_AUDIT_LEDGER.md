@@ -1,8 +1,22 @@
 # Module Granularity Audit Ledger
 
-Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
+Checkpoint base: `813425b1ef4a115b8b419936a9cc95bc530d1857`
 
-Status: **MGA-016 COMPLETE — ScheduledContinuationSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #977 ready for merge**
+Status: **MGA-021 FIRST PASS CLOSED — no unexplained structural candidate justifies another broad implementation experiment**
+
+## MGA-021 current checkpoint
+
+Fresh whole-repository inventory after MGA-020 / PR #986:
+
+```text
+Lean modules: 337
+Modules <= 80 lines: 92
+Modules with exactly one local consumer: 56
+Declared Lake roots: 17
+Production-like modules unreachable from declared roots: 0
+```
+
+MGA-017 through MGA-020 focused on the remaining Reports responsibility density. MGA-018 qualified `ReportWindow`; MGA-020 qualified `TransactionsFlowPane`. The MGA-021 residual rerank found no new unexplained collapse, move, split, or retirement candidate strong enough to continue the broad first pass. See `MODULE_GRANULARITY_FIRST_PASS_CLOSURE_021.md` for the closure evidence and reopening rule. Historical detailed entries remain below.
 
 ## Refreshed inventory
 

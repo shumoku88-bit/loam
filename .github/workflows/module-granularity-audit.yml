@@ -7,6 +7,7 @@ on:
       - "tools/module_granularity_audit.py"
       - "docs/research/MODULE_GRANULARITY_AUDIT.md"
       - "docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md"
+      - "docs/research/MODULE_GRANULARITY_FIRST_PASS_CLOSURE_021.md"
       - "docs/research/MODULE_GRANULARITY_FRONTIER_017.md"
       - "docs/research/MODULE_GRANULARITY_REPORT_WINDOW_018.md"
       - "docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_019.md"

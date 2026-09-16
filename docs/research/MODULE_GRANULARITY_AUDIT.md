@@ -1,6 +1,14 @@
 # Module Granularity Audit
 
-Status: **EXPERIMENTAL INVENTORY — no merge/split verdict authorized yet**
+Status: **FIRST PASS CLOSED — MGA-021; reopen only on concrete structural pressure**
+
+The first repository-wide pass is complete. It did not find evidence that LOAM is
+generally over-fragmented into semantically meaningless Lean files. It did find
+specific stale, oversized, or composition-heavy boundaries, and those were handled
+one slice at a time rather than by enforcing a target module count.
+
+The closure evidence and reopening rule are recorded in
+`MODULE_GRANULARITY_FIRST_PASS_CLOSURE_021.md`.
 
 ## Question
 
@@ -23,7 +31,7 @@ The governing question is:
 - no target LOC count;
 - no automatic merging of small modules;
 - no assumption that one-consumer modules are redundant;
-- no broad refactor while Generation-2 semantic audit slices are active;
+- no coupling of physical-granularity work to a semantic-subtraction campaign;
 - no ontology inferred from aggregation barrels such as `Loam/Core.lean`.
 
 ## Instruments
@@ -125,23 +133,30 @@ with a deletion hunt.
 5. **Tests and historical Observations**: use primarily as qualification and
    history evidence, not as production-module merge targets.
 
-The active Generation-2 audit remains authoritative for semantic subtraction.
-This audit asks a different question: whether physical module boundaries still
-match the independent reasons LOAM has to change.
+Generation-2 semantic auditing is now closed independently. Module granularity
+remains a physical-boundary question and should not be reopened merely because a
+new semantic campaign begins.
 
 ## First stop condition
 
-The inventory pass ends with a small candidate ledger, not code movement.
-Each candidate receives one of:
+The first pass closes when a fresh whole-repository rerank produces no unexplained
+candidate with enough positive evidence to justify a narrow collapse, move, split,
+or retirement experiment.
+
+Candidate vocabulary remains:
 
 ```text
 KEEP_BOUNDARY
+KEEP_INLINE
 COLLAPSE_CANDIDATE
+RETIRE_CANDIDATE
 MOVE_LAYER_CANDIDATE
 SPLIT_CANDIDATE
+SPLIT_QUALIFIED
 NEEDS_DRAKON
 NEEDS_HISTORY
 ```
 
-Only a `COLLAPSE_CANDIDATE` with source and history evidence graduates to a
-separate, narrow implementation PR.
+MGA-021 satisfies this stop condition. Future work should reopen the audit only
+when a concrete change, reachability anomaly, navigation burden, duplicated owner,
+or independent history creates new structural pressure.
