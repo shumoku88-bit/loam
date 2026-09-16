@@ -1,0 +1,39 @@
+name: MGA014 DRAKON sync
+
+on:
+  push:
+    branches:
+      - docs/mga-014-drakon-sync
+    paths:
+      - "docs/drakon/build_tui_scheduled_session_audit_map.py"
+      - ".github/workflows/mga014-drakon-sync.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Generate and validate artifact
+        run: |
+          python3 docs/drakon/build_tui_scheduled_session_audit_map.py
+          python3 - <<'PY'
+          import sqlite3
+          path = "docs/drakon/loam-tui-scheduled-session-audit.drn"
+          with sqlite3.connect(path) as db:
+              assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+              assert db.execute("select count(*) from diagrams").fetchone()[0] == 2
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 2
+              assert db.execute("select count(*) from diagrams where name like 'MGA.014%'").fetchone()[0] == 1
+              assert db.execute("select count(*) from diagrams where name like 'MGA.015%'").fetchone()[0] == 1
+          PY
+      - name: Commit synchronized artifact and retire one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/drakon/loam-tui-scheduled-session-audit.drn
+          git rm .github/workflows/mga014-drakon-sync.yml
+          git commit -m "docs(drakon): sync MGA-014 scheduled session artifact"
+          git push
