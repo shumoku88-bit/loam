@@ -46,6 +46,9 @@ Record one balanced JPY movement into actual.loam:
 Review one machine-readable Movement proposal without publishing:
   ./tools/loam movement-proposal PROPOSAL_FILE [LOAM_DATA_DIR]
 
+Record one explicitly accepted machine-readable Movement proposal:
+  ./tools/loam movement-proposal-record PROPOSAL_FILE [LOAM_DATA_DIR]
+
 Move JPY spending capacity:
   ./tools/loam capacity CAPACITY_FILE
 
@@ -103,6 +106,11 @@ fi
 if [[ "${1:-}" == "movement-proposal" ]]; then
   shift
   run_target loamMovementProposal "$@"
+fi
+
+if [[ "${1:-}" == "movement-proposal-record" ]]; then
+  shift
+  run_target loamMovementProposalRecord "$@"
 fi
 
 if [[ "${1:-}" == "capacity" ]]; then

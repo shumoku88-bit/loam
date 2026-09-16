@@ -1,0 +1,44 @@
+name: Movement Proposal Record
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/Movement/Proposal.lean'
+      - 'Loam/Cli/MovementProposalRecordCli.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Tests/MovementProposalRecord.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/movement-proposal-record.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Qualify explicit proposal publication
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build proposal writer and fixture boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovementProposalRecord Loam.Tests.ActualWorldFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify canonical writer reread and refusal atomicity
+        run: lake env lean --run Loam/Tests/MovementProposalRecord.lean "$(mktemp -d)/movement-proposal-record"
