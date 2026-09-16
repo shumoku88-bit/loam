@@ -144,6 +144,7 @@ theorem vectorEquivalent_iff_denotation_extEq
       ProbeFinFun.ExtEq (denote left) (denote right) := by
   constructor
   · intro h coordinate
+    change denoteQuanta left coordinate = denoteQuanta right coordinate
     have hQuanta := congrArg Quantity.quanta (h coordinate)
     simpa [Loam.Observation159.aggregateAt, denoteQuanta] using hQuanta
   · intro h coordinate
