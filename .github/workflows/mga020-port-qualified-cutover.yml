@@ -1,0 +1,34 @@
+name: MGA020 Port Qualified Cutover
+
+on:
+  push:
+    branches:
+      - 'audit/mga-020-transactions-flow-pane-clean'
+
+permissions:
+  contents: write
+
+jobs:
+  port:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-020-transactions-flow-pane-clean
+          fetch-depth: 0
+      - name: Copy qualified production diff and retire one-shot workflow
+        run: |
+          git fetch origin audit/mga-020-transactions-flow-pane
+          git checkout origin/audit/mga-020-transactions-flow-pane -- \
+            Loam/Tui/TransactionsFlowPane.lean \
+            Loam/Tui/Reports.lean \
+            Loam/Tests/TuiTransactionsFlow.lean
+          rm .github/workflows/mga020-port-qualified-cutover.yml
+          git diff --check
+          ! grep -Eq 'transactionsSnapshot|transactionsIndex|transactionsDetail' Loam/Tui/Reports.lean
+          grep -q 'transactions : Loam.Tui.TransactionsFlowPane.State' Loam/Tui/Reports.lean
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/TransactionsFlowPane.lean Loam/Tui/Reports.lean Loam/Tests/TuiTransactionsFlow.lean .github/workflows/mga020-port-qualified-cutover.yml
+          git commit -m 'refactor(tui): isolate Transactions Flow result pane'
+          git push origin HEAD:audit/mga-020-transactions-flow-pane-clean
