@@ -1,8 +1,8 @@
 # G2-013 — Capacity entry obligation DAG
 
-Status: **Generation-2 audit evidence — FIX CANDIDATE**
+Status: **Generation-2 audit evidence — FIX QUALIFIED + KEEP existing shared tail**
 
-Primary instruments: **DRAKONview + production-bound obligation DAG + persistence trace**.
+Primary instruments: **DRAKONview + production-bound obligation DAG + persistence trace + focused runtime regression**.
 
 ## Question
 
@@ -89,7 +89,7 @@ Only M5 is also an independent obligation of the binary entrance that was not al
 
 `CapacityPersistence.encodeCapacityChangeRow?` refuses a `.purpose` coordinate whose token fails `Persistence.validToken`.
 
-Before G2-013 this path was possible:
+Before G2-013 this source path was possible:
 
 ```text
 binary Draft
@@ -123,11 +123,11 @@ next writer sees incomplete evidence
 and requires explicit recovery
 ```
 
-This is not merely a malformed external file case. The production writer itself could create the recover-required state from a directly constructed binary Draft.
+This is not merely a malformed external file case. Source inspection shows that the production writer itself could create the recover-required state from a directly constructed binary Draft.
 
 ## Minimal shared obligation
 
-The smallest justified repair is one local predicate:
+The qualified repair adds one local predicate:
 
 ```text
 coordinatePersistable : CapacityCoordinate -> Bool
@@ -136,7 +136,7 @@ unallocated    -> true
 purpose token  -> Persistence.validToken token
 ```
 
-Use it in both entrance validators:
+Both entrance validators now use it:
 
 ```text
 BalancedDraft M5
@@ -214,17 +214,30 @@ First-generation compression already did the right structural work:
 
 G2-013 does not reopen that abstraction. It finds one missing entrance precondition exposed only when the two paths are drawn at the same scale against the effective-first persistence order.
 
-## Expected verdict after CI
+## Qualification
+
+Production/audit head `1be67d1d83ddec7c9e27027cb3b6d222ba1786a9` qualified green before this final documentation-only status update:
+
+- Shared Capacity Publisher run `35049242155`: **SUCCESS**
+  - Capacity publisher/review build: SUCCESS
+  - focused runtime publication test, including non-persistable binary Purpose refusal and unchanged retained-family counts: SUCCESS
+- Compression Audit run `35049242147`: **SUCCESS**
+- Selected Lean Observations run `35049242115`: **SUCCESS**
+- Production TUI run `35049242109`: **SUCCESS**
+  - all 62 substantive build/test steps passed;
+  - Capacity publisher build, transfer, rebalance, review, Current Coverage, and Capacity workspace all passed.
+
+The production change therefore closes the writer-created incomplete-evidence path without disturbing the existing Capacity semantic surface.
+
+## Verdict
 
 ```text
 shared admitted publication tail             KEEP
 binary positive / distinct-endpoint checks   KEEP LOCAL
 balanced multi-coordinate shape checks       KEEP LOCAL
 coordinate persistence predicate             SHARE LOCALLY
-binary missing persistence gate              ADD / FIX
+binary missing persistence gate              FIX QUALIFIED
 new Capacity abstraction                     DO NOT ADD
 ```
-
-If the focused Capacity workflow passes with the new regression, record:
 
 **G2-013: FIX QUALIFIED + KEEP existing shared tail.**
