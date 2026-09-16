@@ -17,7 +17,7 @@ private def widgetText (widget : Widget) : String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
+private def requireSome {α : Type} (value : Option α) (message : String) : IO α := do
   match value with
   | some result => pure result
   | none => throw (IO.userError message)
@@ -77,6 +77,18 @@ def main : IO Unit := do
   for line in flowed20 do
     expect (displayWidth line ≤ 20)
       s!"flowed line exceeded target width: {line} (width {displayWidth line})"
+
+  -- 1b. Stable footer geometry owns only body capacity and vertical fitting.
+  let frameBounds : Bounds := { width := 80, height := 6 }
+  expect (footerBodyCapacity frameBounds 2 == 3)
+    "footer body capacity did not reserve the terminal row and footer rows"
+  let frameBody : List Widget := [.row [span "body"]]
+  let frameFooter : List Widget := [.row [span "footer-a"], .row [span "footer-b"]]
+  let fittedFrame := fitWithFooter frameBounds frameBody frameFooter
+  expect (fittedFrame.length == 5)
+    "stable footer fitting did not fill the usable terminal rows"
+  expect (contains "body\n\n\nfooter-a\nfooter-b" (widgetText (.column fittedFrame)))
+    "stable footer fitting did not pad short body content above the footer"
 
   -- 2. Test HraHome help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"

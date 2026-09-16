@@ -79,6 +79,21 @@ def padLeft (columns : Nat) (text : String) : String :=
 def contentWidth (bounds : Bounds) : Nat :=
   if bounds.width > 1 then bounds.width - 1 else bounds.width
 
+/-- Rows available to body content after the terminal's final row and footer are reserved. -/
+def footerBodyCapacity (bounds : Bounds) (footerRows : Nat) : Nat :=
+  (bounds.height - 1) - footerRows
+
+/--
+Keep footer rows stable at the bottom of the usable terminal image. Body rows are
+truncated first and padded with blank rows when short. Footer meaning remains
+caller-owned; this function owns only vertical presentation geometry.
+-/
+def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=
+  let bodyCapacity := footerBodyCapacity bounds footer.length
+  let visibleBody := body.take bodyCapacity
+  let padding := bodyCapacity - visibleBody.length
+  visibleBody ++ List.replicate padding (.row []) ++ footer
+
 /--
 Return at most `maxVisible` list items with their original indices, keeping the
 selected index near the middle when the list is larger than the window.
