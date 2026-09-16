@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build MGA-019 Transactions Flow module-granularity audit map."""
+"""Build MGA-019/020 Transactions Flow module-granularity audit map."""
 
 from pathlib import Path
 import sqlite3
@@ -59,6 +59,23 @@ DIAGRAMS = {
             ("decision", "all obligations satisfied?", "YES -> MGA-020 SPLIT_QUALIFIED; NO -> SPLIT_REJECTED"),
         ],
     },
+    "MGA.020.1 Qualified TransactionsFlowPane State Owner": {
+        "description": "Record the qualified post-MGA-020 result-local Transactions Flow presentation owner and the ownership that deliberately remains in Reports.",
+        "sources": "Loam/Tui/TransactionsFlowPane.lean; Loam/Tui/Reports.lean; Loam/Tests/TuiTransactionsFlow.lean; docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_020.md; docs/research/TRANSACTIONS_FLOW_PANE_OBLIGATION_DAG.md",
+        "audit": "MGA-020 replaces Reports' flat transactionsSnapshot/transactionsIndex/transactionsDetail fields with exactly one TransactionsFlowPane.State containing Snapshot, selectedIndex, and detail. The pane owns result-local row/contribution derivation, local selection/detail transitions, and responsive body presentation. ReportWindow, Query.transactionsFlow emission, stale-result invalidation, scroll, paging/bounds clamp, menu/mode/notice composition, and TransactionsFlowReview semantics remain outside. Rows, selected coordinate, contributions, layout, and selected-summary-line position are derived, not retained. Focused production build/tests pass; inventory reports Reports 892/78, Pane 287/33, both reachable, and production-like unreachable remains zero. KEEP_BOUNDARY / SPLIT_QUALIFIED.",
+        "nodes": [
+            ("action", "Before: Reports flat Transactions fields\nsnapshot + index + detail"),
+            ("action", "After: Reports.transactions : TransactionsFlowPane.State\none canonical result-local owner"),
+            ("action", "Pane owns\nsnapshot adoption + selection/detail + responsive result body"),
+            ("decision", "rows / contributions / layout cached?", "NO - derived from Snapshot/index/width"),
+            ("decision", "ReportWindow or query moved?", "NO - remain Reports-owned"),
+            ("decision", "scroll / paging / bounds clamp moved?", "NO - remain Reports-owned"),
+            ("decision", "movement semantics duplicated?", "NO - TransactionsFlowReview remains owner"),
+            ("action", "focused loamTui + Transactions/Reports tests PASS"),
+            ("action", "inventory: Reports 892/78; Pane 287/33; reachable; unreachable=0"),
+            ("decision", "all MGA-019 obligations discharged?", "YES - KEEP_BOUNDARY / SPLIT_QUALIFIED"),
+        ],
+    },
 }
 
 
@@ -71,13 +88,13 @@ def build() -> None:
         db.executescript(base.SCHEMA)
         db.executemany("insert into info values (?,?)", [
             ("type", "drakon"), ("version", "2"), ("start_version", "1"), ("language", "Lean")])
-        db.execute("insert into state values (1,1,?)", ("LOAM MGA.019 - Transactions Flow module granularity",))
+        db.execute("insert into state values (1,1,?)", ("LOAM MGA.019-020 - Transactions Flow module granularity",))
         item_id = 1
         for name, spec in DIAGRAMS.items():
             item_id = base.add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.019 Transactions Flow granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.019-020 Transactions Flow granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
         db.commit()
