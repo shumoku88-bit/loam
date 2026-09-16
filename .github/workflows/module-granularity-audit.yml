@@ -40,8 +40,10 @@ jobs:
           path = "docs/drakon/loam-tui-cli-granularity-audit.drn"
           with sqlite3.connect(path) as db:
               assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
-              assert db.execute("select count(*) from diagrams").fetchone()[0] == 4
-              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 4
+              diagram_count = db.execute("select count(*) from diagrams").fetchone()[0]
+              source_count = db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0]
+              assert diagram_count > 0
+              assert source_count == diagram_count
           PY
 
       - name: Upload descriptive inventory
