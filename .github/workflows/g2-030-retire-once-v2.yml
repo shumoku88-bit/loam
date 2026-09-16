@@ -20,6 +20,7 @@ jobs:
           fetch-depth: 0
       - name: Apply G2-030 retirement
         run: |
+          # Retry after restoring the DRAKON builder to the current build_map API.
           sed -i 's/"isHome", "isActualBrowse"/"let isHome :=", "let isActualBrowse :="/' tools/g2_030_retire_legacy_workspaces.py
           python3 tools/g2_030_retire_legacy_workspaces.py
           python3 docs/drakon/build_tui_legacy_workspace_retirement_audit_map.py
