@@ -142,22 +142,6 @@ private def materializeRelationDischarges
 private def uncoveredRelationSource
     (_ : Loam.Core.EventId) (_ : Loam.Core.EffectKey) : Bool := false
 
-/--
-An anonymous Effect has no independently addressable Relation source to resolve.
-A retained key, when present, must still resolve through the same source-local
-frontier as before sparse Effect identity.
--/
-private def relationSourceResolved?
-    (events : Loam.Core.EventMemory)
-    (relations : List Loam.Core.RelationUnit)
-    (eventId : Loam.Core.EventId)
-    (effectKey : Option Loam.Core.EffectKey) : Bool :=
-  match effectKey with
-  | none => true
-  | some key =>
-      (Loam.Application.currentRelationState?
-        events relations uncoveredRelationSource eventId key).isSome
-
 private def relationSourcePositive?
     (events : Loam.Core.EventMemory)
     (relations : List Loam.Core.RelationUnit)
@@ -168,13 +152,18 @@ private def relationSourcePositive?
   | some (.knownPositive _) => true
   | _ => false
 
+/--
+Every retained Effect key in a canonicalized Movement is earned by one
+`RelationDraft.sourceEffect`. `materializeRelationUnits` preserves those source
+keys, so requiring every new RelationUnit to reach `knownPositive` already
+implies that every retained source key resolves. No second whole-Event
+source-resolution pass is needed.
+-/
 private def relationPublicationAdmissible
     (events : Loam.Core.EventMemory)
     (relations : List Loam.Core.RelationUnit)
     (event : Loam.Core.Event)
     (newRelations : List Loam.Core.RelationUnit) : Bool :=
-  event.effects.all (fun effect =>
-    relationSourceResolved? events relations event.id effect.key) &&
   newRelations.all (fun relation =>
     relationSourcePositive? events relations event.id relation.sourceEffect)
 
