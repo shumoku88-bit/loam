@@ -21,7 +21,8 @@ read one key at a time, redraw the editor, delegate one completion intent to
 
 The session intentionally returns only whether completion was published. Optional
 next-Scheduled creation, routing inheritance, canonical reload, and destination
-workspace refresh remain caller-owned continuation semantics.
+workspace refresh remain caller-owned continuation semantics. The Boolean result
+is the explicit stop line before that continuation begins.
 -/
 
 /-- Run one Scheduled completion editor session. `true` means completion publication succeeded. -/
