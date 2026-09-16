@@ -120,18 +120,23 @@ text = text.replace(
 )
 
 # No retired flat owner may remain. Function names such as cycleWindowSource are
-# intentionally retained as Reports composition helpers, so check declarations/fields only.
-for residue in [
+# intentionally retained as Reports composition helpers.
+plain_residues = [
     "inductive WindowSource",
     "structure Form where",
     "windowPresets :",
     "windowSource : WindowSource",
     "state.windowSource",
-    "state.calendarAnchor",
-    "state.form",
-]:
+]
+for residue in plain_residues:
     if residue in text:
         raise SystemExit(f"retired Reports window residue remains: {residue}")
+for pattern, label in [
+    (r"(?<!\.)\bstate\.calendarAnchor\b", "state.calendarAnchor"),
+    (r"(?<!\.)\bstate\.form\b", "state.form"),
+]:
+    if re.search(pattern, text):
+        raise SystemExit(f"retired Reports window residue remains: {label}")
 
 path.write_text(text)
 print("updated", path)
