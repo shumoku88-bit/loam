@@ -28,7 +28,7 @@ structure Record where
 
 /--
 A review record is current exactly when no admitted Correction leaves its Event.
-`recordsFromActualEvidence?` first admits the correction frontier, so the retained
+`recordsFromActualEvidence?` first admits the correction relation, so the retained
 replacement edge is the unique local witness needed for this read-side status.
 -/
 def Record.isCurrent (record : Record) : Bool :=
@@ -114,20 +114,19 @@ Project transient review records from authoritative Actual evidence.
 -/
 def recordsFromActualEvidence?
     (evidence : ActualEvidence) : Except String (List Record) :=
-  match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
-  | none =>
-      .error "loam: movement corrections do not justify one current record frontier"
-  | some _ =>
-      match Loam.Application.admittedActualValidityMemory? evidence.validity with
-      | none =>
-          .error "loam: actual-validity corrections do not justify one current date per event"
-      | some validities =>
-          .ok (evidence.events.events.map fun event => {
-            event := event
-            date := validities.findByEventId? event.id
-            description := (evidence.descriptions.findText? event.id).getD ""
-            replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
-          })
+  if !Loam.Application.correctionFrontierAdmissible evidence.events evidence.corrections then
+    .error "loam: movement corrections do not justify one current record frontier"
+  else
+    match Loam.Application.admittedActualValidityMemory? evidence.validity with
+    | none =>
+        .error "loam: actual-validity corrections do not justify one current date per event"
+    | some validities =>
+        .ok (evidence.events.events.map fun event => {
+          event := event
+          date := validities.findByEventId? event.id
+          description := (evidence.descriptions.findText? event.id).getD ""
+          replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
+        })
 
 /--
 Load authoritative review records from the normalized Actual authority file.

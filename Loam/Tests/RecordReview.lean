@@ -64,4 +64,36 @@ def main : IO Unit := do
   expect (parseQuery "2026-09-03" "2026-02-29" == none) "invalid date should be refused"
   expect (parseQuery "2026-09-03" "t" == some (.week "2026-09-03"))
     "default recent window must be explicit"
-  IO.println "Record review projection and calendar checks passed."
+
+  let some branchRoot := Event.ofEffects? ⟨"branch-root"⟩ []
+    | throw <| IO.userError "branch root fixture admission failed"
+  let some branchLeft := Event.ofEffects? ⟨"branch-left"⟩ []
+    | throw <| IO.userError "branch left fixture admission failed"
+  let some branchRight := Event.ofEffects? ⟨"branch-right"⟩ []
+    | throw <| IO.userError "branch right fixture admission failed"
+  let some branchEvents := EventMemory.ofEvents? [branchRoot, branchLeft, branchRight]
+    | throw <| IO.userError "branch Event memory admission failed"
+
+  let validEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with events := branchEvents }
+  match recordsFromActualEvidence? validEvidence with
+  | .error message => throw <| IO.userError ("admissible correction-free review refused: " ++ message)
+  | .ok rows =>
+      expect (rows.length == 3)
+        "admission-only Actual review lost correction-free Events"
+
+  let some branchingCorrections := EventCorrectionMemory.ofCorrections?
+      [ { target := branchRoot.id, replacement := branchLeft.id }
+      , { target := branchRoot.id, replacement := branchRight.id }
+      ]
+    | throw <| IO.userError "branching correction fixture storage admission failed"
+  let branchingEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := branchEvents
+      corrections := branchingCorrections }
+  match recordsFromActualEvidence? branchingEvidence with
+  | .error _ => pure ()
+  | .ok _ =>
+      throw <| IO.userError "Actual review accepted branching correction topology"
+
+  IO.println "Record review projection, calendar checks and admission-only correction guard passed."
