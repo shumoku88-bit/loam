@@ -64,7 +64,7 @@ private def publishUnlocked
     effectiveOn := draft.effectiveOn
     purpose := purpose
   }
-  match RoutingHistory.ofEntries? (history.entries ++ [entry]) with
+  match history.add? entry with
   | none =>
       return .error "loam: Actual routing already has evidence at this locus/effective coordinate"
   | some updated =>
