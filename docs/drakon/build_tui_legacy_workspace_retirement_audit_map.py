@@ -54,24 +54,50 @@ DIAGRAMS = {
 def build() -> None:
     if OUTPUT.exists():
         OUTPUT.unlink()
-    conn = sqlite3.connect(OUTPUT)
-    try:
-        base.create_schema(conn)
+
+    names = list(DIAGRAMS)
+    diagram_ids = {name: index for index, name in enumerate(names, 1)}
+
+    with sqlite3.connect(OUTPUT) as db:
+        db.executescript(base.SCHEMA)
+        db.executemany(
+            "insert into info values (?,?)",
+            [
+                ("type", "drakon"),
+                ("version", "2"),
+                ("start_version", "1"),
+                ("language", "Lean"),
+            ],
+        )
+        db.execute(
+            "insert into state values (1,1,?)",
+            ("LOAM G2-030 - legacy TUI workspace retirement",),
+        )
+
+        item_id = 1
         for name, spec in DIAGRAMS.items():
-            diagram_id = base.insert_diagram(conn, name, spec["description"])
-            base.insert_parameter(conn, diagram_id, "sources", spec["sources"])
-            base.insert_parameter(conn, diagram_id, "audit", spec["audit"])
-            base.insert_linear_nodes(conn, diagram_id, spec["nodes"])
-        conn.commit()
-        if conn.execute("PRAGMA integrity_check").fetchone() != ("ok",):
-            raise RuntimeError("DRAKON database integrity failed")
-        count = conn.execute("SELECT COUNT(*) FROM diagrams").fetchone()[0]
-        if count != len(DIAGRAMS):
-            raise RuntimeError(f"expected {len(DIAGRAMS)} diagrams, found {count}")
-    finally:
-        conn.close()
+            item_id = base.add_flow_diagram(db, item_id, diagram_ids[name], name, spec)
+
+        node_id = 1
+        root = node_id
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "G2-030 legacy workspace retirement")
+        for name in names:
+            node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
+
+        db.commit()
+        db.execute("pragma page_size=512")
+        db.execute("vacuum")
+
+        integrity = db.execute("pragma integrity_check").fetchone()[0]
+        if integrity != "ok":
+            raise SystemExit(f"SQLite integrity check failed: {integrity}")
+        if db.execute("select count(*) from diagrams").fetchone()[0] != len(names):
+            raise SystemExit("legacy workspace retirement diagram count mismatch")
+        if db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] != len(names):
+            raise SystemExit("missing legacy workspace retirement source traceability metadata")
+
+    print(OUTPUT)
 
 
 if __name__ == "__main__":
     build()
-    print(OUTPUT)
