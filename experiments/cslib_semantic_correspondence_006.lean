@@ -186,43 +186,29 @@ theorem movementTotal_eq_coordinate_add_remainder
       rfl
   | cons change rest ih =>
       by_cases h : change.coordinate = coordinate
-      · calc
-          movementTotalQuanta (change :: rest) =
-              change.quantity.quanta + movementTotalQuanta rest :=
-            movementTotal_cons change rest
-          _ = change.quantity.quanta +
-              (aggregateQuanta rest coordinate +
-                movementTotalQuanta (eraseCoordinate coordinate rest)) :=
-            congrArg (fun total => change.quantity.quanta + total) ih
-          _ = aggregateQuanta (change :: rest) coordinate +
-              movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
-            simpa only [aggregateQuanta, eraseCoordinate, h, movementTotal_cons] using
-              (Int.add_assoc
-                change.quantity.quanta
-                (aggregateQuanta rest coordinate)
-                (movementTotalQuanta (eraseCoordinate coordinate rest))).symm
-      · have hReorder :
-            change.quantity.quanta +
-                (aggregateQuanta rest coordinate +
-                  movementTotalQuanta (eraseCoordinate coordinate rest)) =
-              aggregateQuanta rest coordinate +
-                (change.quantity.quanta +
-                  movementTotalQuanta (eraseCoordinate coordinate rest)) := by
-          omega
-        calc
-          movementTotalQuanta (change :: rest) =
-              change.quantity.quanta + movementTotalQuanta rest :=
-            movementTotal_cons change rest
-          _ = change.quantity.quanta +
-              (aggregateQuanta rest coordinate +
-                movementTotalQuanta (eraseCoordinate coordinate rest)) :=
-            congrArg (fun total => change.quantity.quanta + total) ih
-          _ = aggregateQuanta rest coordinate +
-              (change.quantity.quanta +
-                movementTotalQuanta (eraseCoordinate coordinate rest)) := hReorder
-          _ = aggregateQuanta (change :: rest) coordinate +
-              movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
-            simp only [aggregateQuanta, eraseCoordinate, h, movementTotal_cons]
+      · have hAggregate :
+            aggregateQuanta (change :: rest) coordinate =
+              change.quantity.quanta + aggregateQuanta rest coordinate := by
+          simp [aggregateQuanta, h]
+        have hErase :
+            eraseCoordinate coordinate (change :: rest) =
+              eraseCoordinate coordinate rest := by
+          simp [eraseCoordinate, h]
+        rw [movementTotal_cons, hAggregate, hErase, ih]
+        exact (Int.add_assoc
+          change.quantity.quanta
+          (aggregateQuanta rest coordinate)
+          (movementTotalQuanta (eraseCoordinate coordinate rest))).symm
+      · have hAggregate :
+            aggregateQuanta (change :: rest) coordinate =
+              aggregateQuanta rest coordinate := by
+          simp [aggregateQuanta, h]
+        have hErase :
+            eraseCoordinate coordinate (change :: rest) =
+              change :: eraseCoordinate coordinate rest := by
+          simp [eraseCoordinate, h]
+        rw [movementTotal_cons, hAggregate, hErase, movementTotal_cons, ih]
+        omega
 
 private theorem movementTotal_zero_of_all_quanta_zero_of_length
     {Coordinate : Type} [DecidableEq Coordinate]
