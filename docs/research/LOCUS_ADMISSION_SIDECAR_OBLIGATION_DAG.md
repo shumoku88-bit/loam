@@ -1,6 +1,6 @@
 # G2-014 — Locus admission placement obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + reachability search + authority/persistence boundary inspection**.
 
@@ -131,17 +131,26 @@ LocusAdmissionPublisher.propose? / publishAdmission
 No compatibility replacement is introduced because doing so would preserve the dead
 physical-topology concept the audit is retiring.
 
-## Qualification target
+## Qualification
 
-A compile/test pass is sufficient for the production deletion because the removed symbol
-has no caller and no semantic path changes. Relevant integration tests should continue to
-prove:
+Production/audit head `ce61aa2aa8c64a485a6c4444f1e739e5a924ffbf` qualified green:
 
-- add-only admission publication works;
-- duplicate or persistence-invalid tokens are refused;
-- Actual Event/validity/description/relation/discharge evidence is unchanged;
-- the selected Actual world observes the same current Locus policy authority.
+- Compression Audit run `35049794948`: **SUCCESS**
+  - production source inventory: SUCCESS
+  - production import reachability: SUCCESS
+  - semantic candidate vocabulary scan: SUCCESS
+  - mechanics multiplication scan: SUCCESS
+- Selected Lean Observations run `35049794894`: **SUCCESS**
+  - selected live observation umbrella build: SUCCESS
 
-Expected final verdict after CI:
+No Production TUI workflow was triggered because the changed persistence file is outside
+that workflow's PR path filter. No production execution path changed: the removed symbol
+had no caller and the canonical Locus admission authority path is untouched.
+
+Relevant existing integration evidence remains the Locus admission publisher test, which
+pins add-only admission, duplicate and persistence-invalid token refusal, Actual evidence
+isolation, and agreement between the selected Actual world and the current local policy.
+
+## Final verdict
 
 **G2-014: SIMPLIFY QUALIFIED — retire dead legacy sidecar path helper; KEEP local authority boundary.**
