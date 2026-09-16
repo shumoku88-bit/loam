@@ -1,6 +1,6 @@
 # G2-011 — Relation opening / discharge publication obligation DAG
 
-Status: **Generation-2 audit evidence — qualification pending**
+Status: **Generation-2 audit evidence — QUALIFIED**
 
 Primary instruments: **DRAKONview + production-bound obligation DAG + regression qualification**.
 
@@ -47,7 +47,7 @@ one admitted Movement world or fail closed
 
 ## Open-relation obligations before G2-011
 
-`relationPublicationAdmissible` currently contains two gates:
+`relationPublicationAdmissible` contained two gates:
 
 ```text
 O1  every Event Effect
@@ -81,13 +81,13 @@ O1 for k
 
 Anonymous Effects already make O1 true by definition.
 
-Therefore, on the only production entrance that calls this helper:
+Therefore, on the only production entrance that called this helper:
 
 ```text
 O2  ->  O1
 ```
 
-The first whole-Event source-resolution pass is derived from the stronger new-Relation positive-frontier obligation plus sparse identity canonicalization.
+The first whole-Event source-resolution pass was derived from the stronger new-Relation positive-frontier obligation plus sparse identity canonicalization.
 
 ## Counterexample pressure
 
@@ -100,9 +100,12 @@ The simplification must **not** weaken these failures:
 - several current units exceed aggregate source coverage;
 - RelationUnit identity is ambiguous.
 
-All of these are already rejected by `currentRelationState?` / `knownPositive` admission for the newly materialized RelationUnit. Removing O1 must not bypass O2.
+All of these are already rejected by `currentRelationState?` / `knownPositive` admission for the newly materialized RelationUnit. Removing O1 does not bypass O2.
 
-The existing sparse-publication regression also fixes the positive construction law: only Relation-referenced Effect keys survive canonicalization; unreferenced collector keys become anonymous.
+The sparse-publication regression fixes both sides of the construction law:
+
+- only Relation-referenced Effect keys survive canonicalization;
+- a RelationDraft naming a missing source Effect still fails closed after O1 is removed.
 
 ## Discharge obligations
 
@@ -122,33 +125,48 @@ That frontier independently owns:
 
 These distinctions have independent tests and are not consequences of sparse Effect identity.
 
-## Candidate production change
+## Qualified production change
 
-Delete only the derived open-relation gate:
+G2-011 deletes only the derived open-relation gate:
 
 ```text
 event.effects.all relationSourceResolved?
 ```
 
-and retire the now-private-unused `relationSourceResolved?` helper.
+and retires the now-unused private `relationSourceResolved?` helper.
 
-Keep:
+The stronger gate remains unchanged:
 
 ```text
 newRelations.all relationSourcePositive?
 ```
 
-unchanged.
+No generic Relation publisher, no merged opening/discharge frontier, no new Core vocabulary, and no new persistence authority is introduced.
 
-No generic Relation publisher, no merged opening/discharge frontier, no new Core vocabulary, and no new persistence authority is proposed.
+## Qualification
 
-## Expected verdict
+Head qualified before this status update: `9f29d8105741decab65675acea9719fa9ea87977`.
 
 ```text
-Open relation source-resolved pass   SIMPLIFY candidate
+Compression Audit                    SUCCESS  run 35047590683
+Lean Application                     SUCCESS  run 35047590758
+  build application / Movement       SUCCESS
+  sparse Movement runtime regression SUCCESS
+Selected Lean Observations           SUCCESS  run 35047590788
+Shared Scheduled Terminal Publisher  SUCCESS  run 35047590760
+Production TUI                       SUCCESS  run 35047590634
+  all 62 substantive build/test steps SUCCESS
+```
+
+The sparse Movement runtime regression includes the new missing-source refusal, so qualification directly exercises the stronger gate that replaces the removed derived pass.
+
+## Verdict
+
+```text
+Open relation source-resolved pass   SIMPLIFY QUALIFIED
 Open relation knownPositive gate     KEEP
 RelationDischarge frontier            KEEP
 Opening / discharge distinction       KEEP
 ```
 
-Qualification should require the production relation regressions and the broader compression / practical Movement checks to remain green.
+G2-011 is therefore a semantic compression result, not a merger of relation concepts: one redundant observation pass disappears while the independently meaningful opening and discharge boundaries remain explicit.
