@@ -1,0 +1,46 @@
+name: MGA018 module inventory
+
+on:
+  push:
+    branches:
+      - audit/mga-018-report-window
+    paths:
+      - .github/workflows/mga018-inventory.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/mga-018-report-window
+          fetch-depth: 250
+
+      - name: Measure module boundary
+        run: |
+          python3 tools/module_granularity_audit.py --history 200 --tsv /tmp/inventory.tsv --markdown /tmp/inventory.md
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          rows = list(csv.DictReader(Path('/tmp/inventory.tsv').open(), delimiter='\t'))
+          by_name = {r['module']: r for r in rows}
+          print('Lean modules:', len(rows))
+          print('Modules <=80 lines:', sum(int(r['lines']) <= 80 for r in rows))
+          print('Exactly one local consumer:', sum(bool(r['sole_consumer']) for r in rows))
+          print('Production-like unreachable:', sum(r['reachable_from_declared_root'] == 'False' and r['module'].startswith('Loam.') for r in rows))
+          for name in ['Loam.Tui.Reports', 'Loam.Tui.ReportWindow']:
+              r = by_name[name]
+              print(name, 'lines=' + r['lines'], 'decls=' + r['declarations'], 'fan_in=' + r['fan_in'], 'fan_out=' + r['fan_out'], 'reachable=' + r['reachable_from_declared_root'], 'sole_consumer=' + r['sole_consumer'])
+          PY
+
+      - name: Retire one-shot inventory workflow
+        run: |
+          rm .github/workflows/mga018-inventory.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/mga018-inventory.yml
+          git commit -m 'chore(mga): retire MGA-018 inventory helper'
+          git push
