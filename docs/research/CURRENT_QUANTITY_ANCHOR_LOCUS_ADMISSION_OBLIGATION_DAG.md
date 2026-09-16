@@ -1,6 +1,6 @@
 # G2-020 — Current quantity anchor Locus-admission obligation DAG
 
-Status: **Generation-2 audit evidence — FIX CANDIDATE**
+Status: **Generation-2 audit evidence — FIX QUALIFIED**
 
 Primary instruments: **DRAKONview + cross-generation policy audit + source reachability + regression qualification**.
 
@@ -201,24 +201,40 @@ G2-020 does **not** add:
 
 The one missing obligation is the already-existing current new-write policy gate.
 
-## Qualification target
+## Qualification
 
-The existing CurrentQuantityAnchor test should pin both directions:
+Production/audit head `4b12d6c702e4806840de95654e13ffe978dffd66` qualified the repair and the direct caller fixtures.
+
+Triggered workflows completed successfully:
+
+- Accounting Projection Basis: **SUCCESS**
+  - role-aware flow composition: SUCCESS
+  - role-aware balance composition: SUCCESS
+  - current quantity anchor composition: SUCCESS
+  - current quantity anchor CLI boundary: SUCCESS
+- Selected Lean Observations: **SUCCESS**
+- Practical Slice B: **SUCCESS**
+- Compression Audit: **SUCCESS**
+
+The CurrentQuantityAnchor regression pins both sides of the boundary:
 
 ```text
 retained evidence may contain a historical/read-only Locus
 new publisher proposal rejects that same unapproved Locus
 ```
 
-Normal anchor composition must remain unchanged for admitted Loci, including:
+The Four-Voice V4/V5/V6 direct `propose?` fixtures now state their already-assumed `debt` admission explicitly, preserving their existing semantic questions while making the publication dependency visible.
+
+Production TUI did not trigger for this path set, so G2-020 does not claim a new Production TUI qualification run. The directly affected anchor composition and CLI publication boundary did run and pass.
+
+Normal anchor composition remains qualified for admitted Loci, including:
 
 - reflected-root cut derivation;
 - correction stability;
 - zero/opening overlap refusal;
 - persistence roundtrip;
-- RoleBalance composition;
-- Production TUI / CLI publication.
+- RoleBalance composition.
 
-If the direct anchor suite and broader triggered workflows stay green, record:
+## Verdict
 
 **G2-020: FIX QUALIFIED — new CurrentQuantityAnchor publication obeys current Locus admission; retained anchor evidence remains historically readable.**
