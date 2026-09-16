@@ -42,14 +42,14 @@ DIAGRAMS = {
     "G2.031.3 Refactor Boundary": {
         "description": "Remove only the false transition dependency while keeping real read-side Snapshot dependencies.",
         "sources": "Loam/Tui/Main.lean; Loam/Tui/Cli.lean; Loam/Tui/HraHome.lean; Loam/Tests/TuiScheduled.lean",
-        "audit": "G2-031 changes Main.update from Snapshot -> State -> Event -> Step to State -> Event -> Step. It preserves Snapshot, HraHome presentation, homeActualRecords, homeScheduledEvidence, g/known Today navigation, and snapshot-dependent object workspaces. Existing Home focus/presentation regression tests now exercise the snapshot-free transition directly.",
+        "audit": "G2-031 changes Main.update from Snapshot -> State -> Event -> Step to State -> Event -> Step. It preserves Snapshot, HraHome presentation, homeActualRecords, homeScheduledEvidence, g/known Today navigation, and snapshot-dependent object workspaces. PR #972 qualified the merge result against current main with Compression Audit #944, Selected Lean Observations #1188, Purpose Catalog Boundary #325, and Production TUI #806 all succeeding.",
         "nodes": [
             ("action", "SIMPLIFY Main.update signature"),
             ("action", "KEEP Snapshot read model"),
             ("action", "KEEP HraHome evidence rendering"),
             ("action", "KEEP g / known Snapshot dependency"),
             ("action", "KEEP snapshot-dependent object workspaces"),
-            ("action", "qualify production TUI + audit workflows"),
+            ("action", "QUALIFIED\n4 affected workflows green"),
         ],
     },
 }
