@@ -19,10 +19,6 @@ structure ActualSnapshot where
   today : String
   allRecords : List ReviewRecord
 
-/-- Current undated Actuals are an exact consequence of the retained review records. -/
-def ActualSnapshot.undatedCount (snapshot : ActualSnapshot) : Nat :=
-  (Loam.ActualReview.select snapshot.allRecords .undated).length
-
 /-- One admitted household read snapshot. It is process-local evidence, never TUI authority. -/
 structure Snapshot where
   actual : ActualSnapshot
@@ -283,117 +279,14 @@ def calendarSlot (state : State) (row col : Nat) : Option String :=
   | some date => date
 
 
-def dayText (date : String) : String :=
-  match date.splitOn "-" with
-  | [_, _, day] => day ++ "  "
-  | _ => "    "
-
-
-def calendarSpans (state : State) (row : Nat) : List Span :=
-  (List.range 7).map fun col =>
-    match calendarSlot state row col with
-    | none => span "    "
-    | some date =>
-        span (dayText date) (if date == state.selectedDate then .selected else .normal)
-
-
 def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   recordsForDay snapshot state.selectedDate
-
-/-- Home is a recency surface over the deterministic Actual review ordering. -/
-def recentActualPreview (records : List ReviewRecord) : List ReviewRecord :=
-  records.reverse.take 3
-
-
-def homeActualPreview (snapshot : Snapshot) (state : State) : List ReviewRecord :=
-  recentActualPreview (homeActualRecords snapshot state)
-
 
 def homeScheduledEvidence
     (snapshot : Snapshot) (state : State) : Except String ScheduledEvidence :=
   match snapshot.scheduled with
   | .error message => .error message
   | .ok scheduled => .ok (Loam.ScheduledReview.dayEvidence scheduled state.selectedDate)
-
-
-def homeScheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
-  match homeScheduledEvidence snapshot state with
-  | .error _ => []
-  | .ok evidence => Loam.ScheduledReview.explicitDueRecords evidence
-
-
-def homeScheduledPreview (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
-  (homeScheduledRecords snapshot state).take 2
-
-
-def listAt? {α : Type} : List α → Nat → Option α
-  | [], _ => none
-  | value :: _, 0 => some value
-  | _ :: rest, index + 1 => listAt? rest index
-
-
-def actualPreviewSpans (snapshot : Snapshot) (state : State) (index : Nat) : List Span :=
-  match listAt? (homeActualPreview snapshot state) index with
-  | none => [span ""]
-  | some record =>
-      [span "- " .muted,
-       span (Loam.ActualReview.shortText 44 (Loam.ActualReview.summary record))]
-
-
-def scheduledPreviewSpans (snapshot : Snapshot) (state : State) (index : Nat) : List Span :=
-  match listAt? (homeScheduledPreview snapshot state) index with
-  | none => [span ""]
-  | some record => [span "- " .muted, span (Loam.ActualReview.shortText 32 (Loam.ScheduledReview.summary record))]
-
-
-def scheduledHeader (snapshot : Snapshot) (state : State) : String :=
-  match homeScheduledEvidence snapshot state with
-  | .error _ => "Scheduled / Unavailable"
-  | .ok (.due first rest) => "Scheduled / Due / " ++ toString (rest.length + 1) ++ " explicit"
-  | .ok .unknown => "Scheduled / Unknown"
-  | .ok .unknownCompletionScheduled => "Scheduled / refused completion evidence"
-  | .ok .unknownRetirementScheduled => "Scheduled / refused retirement evidence"
-  | .ok .unknownReplacementScheduled => "Scheduled / refused replacement evidence"
-  | .ok .invalidReplacementGraph => "Scheduled / refused replacement graph"
-  | .ok .conflictingTerminalEvidence => "Scheduled / refused terminal evidence"
-
-
-def homeEvidenceSpans (snapshot : Snapshot) (state : State) : Nat → List Span
-  | 0 => [span ("Actual / " ++ toString (homeActualRecords snapshot state).length ++ " current / recent")]
-  | 1 => actualPreviewSpans snapshot state 0
-  | 2 => actualPreviewSpans snapshot state 1
-  | 3 => actualPreviewSpans snapshot state 2
-  | 4 => [span (scheduledHeader snapshot state)]
-  | 5 => scheduledPreviewSpans snapshot state 0
-  | 6 => scheduledPreviewSpans snapshot state 1
-  | _ => [span ""]
-
-
-def homeEvidenceRow (snapshot : Snapshot) (state : State) (row : Nat) : Widget :=
-  let calendar := if row < 6 then calendarSpans state row else [span "                            "]
-  .row <| calendar ++ [span "    "] ++ homeEvidenceSpans snapshot state row
-
-
-def homeView (snapshot : Snapshot) (state : State) : Widget :=
-  .column <|
-    [ .row [span "LOAM Home", span "        ", span (" " ++ state.selectedDate ++ " ") .selected]
-    , mutedLine "One selected day drives Actual and Scheduled evidence."
-    , blankLine
-    , .row
-        [ span ("    " ++ Loam.Tui.Calendar.monthLabel (selectedMonth state))
-        , span "                  "
-        , span "Selected-day evidence"
-        ]
-    , .row [span "Mon Tue Wed Thu Fri Sat Sun" .muted]
-    ] ++
-    (List.range 7).map (homeEvidenceRow snapshot state) ++
-    [ blankLine
-    , mutedLine ("Undated current Actual: " ++ toString snapshot.actual.undatedCount)
-    , mutedLine "←/→ day   ↑/↓ week   Enter Actual   Tab Scheduled   r Record   q quit"
-    , mutedLine (if state.notice.isEmpty then
-        "a Attention   b Balances   c Capacity   p Reports"
-      else state.notice)
-    ]
 
 
 def selectedRecord? (cursor : ReviewCursor) : Option ReviewRecord :=
@@ -577,17 +470,5 @@ def scheduledView
   | .ok .invalidReplacementGraph => refusedScheduledView state "Scheduled replacement topology is invalid."
   | .ok .conflictingTerminalEvidence => refusedScheduledView state "Scheduled terminal evidence conflicts."
 
-
-def view (snapshot : Snapshot) (state : State) : Widget :=
-  match state.surface with
-  | .home _ => homeView snapshot state
-  | .actual cursor .browse => actualBrowseView cursor state
-  | .actual cursor .detail => actualDetailView snapshot cursor
-  | .scheduled _ cursor mode => scheduledView snapshot state cursor mode
-
-
-def screenBounds : Bounds := { width := 80, height := 24 }
-def screenFor (snapshot : Snapshot) (state : State) : Screen screenBounds :=
-  renderAt screenBounds 1 1 (view snapshot state)
 
 end Loam.Tui.Main
