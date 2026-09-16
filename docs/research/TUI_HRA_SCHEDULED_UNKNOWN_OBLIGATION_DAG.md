@@ -22,16 +22,16 @@ explicit rather than silently becoming empty, false, zero, or irrelevant.
 Home `p`
   -> Cli.hraScheduledLoop
        -> HraScheduled.view
-            -> HraScheduled.scopeRecordsResult
+            -> HraScheduled.scopeEvidence
                  -> ScheduledReview.dayEvidence focusDate
 ```
 
-The production path therefore consumes the shared day-evidence answer directly.
-No separate semantic engine is needed in the TUI.
+The production path consumes the shared day-evidence answer directly. No separate
+semantic engine is needed in the TUI.
 
-## Observed collapse
+## Observed pre-fix collapse
 
-Current `HraScheduled.scopeRecordsResult` contains:
+Before the G2-029 candidate change, `HraScheduled.scopeRecordsResult` contained:
 
 ```text
 ScheduledReview.dayEvidence = .due first rest
@@ -41,13 +41,13 @@ ScheduledReview.dayEvidence = .unknown
   -> .ok []
 ```
 
-The view later sees an empty successful result and renders:
+The view later saw an empty successful result and rendered:
 
 ```text
 (none due on this day)
 ```
 
-The resulting DAG is therefore:
+The pre-fix DAG was therefore:
 
 ```text
 ScheduledReview .unknown
@@ -59,23 +59,23 @@ ScheduledReview .unknown
 "none due on this day"
 ```
 
-This collapses an independently meaningful open-world result into the same
-mechanical list used when no explicit rows are available.
+This collapsed an independently meaningful open-world result into the same
+mechanical list used when no explicit rows were available.
 
 ## Why this is a semantic bug
 
 `ScheduledReview.dayEvidence` deliberately preserves `.unknown`. The repository's
 architecture law says missing/incomplete/unknown evidence must not silently become
-empty or false. The current production Scheduled workspace violates that boundary
-only in presentation adaptation; the shared review answer itself remains correct.
+empty or false. The defect was confined to presentation adaptation; the shared
+review answer itself remained correct.
 
 The older Main Scheduled workspace explicitly rendered `Scheduled / Unknown` and
 `Unknown is not NotDue`, which is why its legacy regression still catches this
 meaning even though Home `p` now enters HRA Scheduled instead.
 
-## Target DAG
+## Implemented candidate DAG
 
-Retain an explicit presentation result:
+The G2-029 branch now retains an explicit presentation result:
 
 ```text
 ScheduledReview.dayEvidence
@@ -90,15 +90,36 @@ ScopeEvidence.records []
    -> no explicit current-open rows
 
 ScopeEvidence.unknown
+   -> "Scheduled [Unknown]"
    -> "Unknown; no completeness horizon claimed"
 ```
 
-A list projection may still map Unknown to `[]` for cursor/locus mechanics, but
-that projection must not be the answer used to label evidence completeness.
+`recordsForScope` still projects `ScopeEvidence.unknown` to `[]` for cursor/locus
+mechanics. Presentation completeness no longer reads that list projection; headers,
+empty-row text, and detail text inspect `scopeEvidence` instead.
+
+`ScopeEvidence` intentionally derives no `Repr` or equality instance. Its retained
+records do not need those capabilities for this boundary, and the first CI attempt
+correctly exposed that requesting them would impose unrelated instances on
+`ScheduledOccurrence`.
+
+## Focused regression
+
+`TuiHraScheduled` now probes a day with no completeness horizon and requires:
+
+```text
+scopeEvidence = .ok .unknown
+render contains "Scheduled [Unknown]"
+render contains "Unknown; no completeness horizon claimed"
+render does not contain "none due on this day"
+```
+
+The existing due-day, browsing, filtering, command, and startup-unavailability
+checks remain in the same test surface.
 
 ## KEEP boundaries
 
-G2-029 must preserve:
+G2-029 preserves:
 
 - `ScheduledReview.dayEvidence` unchanged;
 - HRA Scheduled Focus Day and All Current scopes;
@@ -121,11 +142,16 @@ The implementation must show that:
   still retained;
 - Production TUI, Compression Audit, and Selected Lean Observations remain green.
 
+The first Production TUI attempt failed only because the candidate `ScopeEvidence`
+requested unused `Repr` and `DecidableEq` instances that its record payload does not
+provide. Those unused derives were removed; semantic structure was unchanged. Full
+qualification is still pending on the corrected head.
+
 ## Generation-2 verdict
 
 **FIX IDENTIFIED.**
 
-The shared Scheduled semantics are correct; the production HRA Scheduled adapter
-currently spends information by mapping Unknown to the same successful empty list
-used by ordinary mechanics. Preserve Unknown at the adapter boundary before
-retiring any legacy Scheduled presentation path.
+The shared Scheduled semantics are correct. The production HRA Scheduled adapter
+now has a candidate repair that preserves Unknown before local list projection.
+Promote this verdict to `FIX QUALIFIED` only after the corrected production head
+passes the full qualification gates.
