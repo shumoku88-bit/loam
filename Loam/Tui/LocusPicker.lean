@@ -1,4 +1,5 @@
 import Loam.LocusCatalog
+import Loam.Tui.CyclicIndex
 
 namespace Loam.Tui.LocusPicker
 
@@ -32,9 +33,10 @@ def move
     (index : Nat) (back : Bool) : Nat :=
   let options := candidates catalog entered
   if options.isEmpty then 0
+  else if back then
+    Loam.Tui.CyclicIndex.backward options.length index
   else
-    let count := options.length
-    if back then (index + count - 1) % count else (index + 1) % count
+    Loam.Tui.CyclicIndex.forward options.length index
 
 /-- Human-facing compact row; token remains visible because it is the stable identity. -/
 def display (entry : Loam.LocusCatalog.Entry) : String :=
