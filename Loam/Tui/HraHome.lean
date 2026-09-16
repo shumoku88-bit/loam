@@ -221,12 +221,8 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
     (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ helpLines bounds
   .column (fitWithFooter bounds body footer)
 
-/-- Use the HRA-shaped Home while retaining existing production workspace views. -/
+/-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
-  match state.surface with
-  | .home _ => homeView bounds snapshot state
-  | .actual cursor .browse => Loam.Tui.Main.actualBrowseView cursor state
-  | .actual cursor .detail => Loam.Tui.Main.actualDetailView snapshot cursor
-  | .scheduled _ cursor mode => Loam.Tui.Main.scheduledView snapshot state cursor mode
+  homeView bounds snapshot state
 
 end Loam.Tui.HraHome

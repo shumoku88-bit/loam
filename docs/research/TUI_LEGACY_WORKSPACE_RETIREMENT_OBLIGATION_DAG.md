@@ -1,6 +1,6 @@
 # G2-030 — legacy Main workspace retirement obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY IDENTIFIED / MIGRATION REQUIRED**
+Status: **Generation-2 implementation — LEGACY WORKSPACE RETIRED / QUALIFICATION REQUIRED**
 
 Primary instruments: **production reachability + DRAKONview + interaction-regression DAG**.
 
@@ -189,3 +189,14 @@ production workspaces and has only a hidden Tab compatibility entrance. Its remo
 is strongly indicated, but two useful long-list regressions still live only on the
 legacy abstractions. Move those guarantees to the production HRA workspaces first;
 then retire the compatibility island rather than deleting the tests with it.
+
+## Retirement implementation
+
+The production HRA long-list bridge passed before removal. The branch now removes
+`ReviewCursor`, `ScheduledCursor`, browse/detail modes, legacy `Surface` variants,
+legacy renderers, the hidden Tab entrance, and the Actual-browse return special
+case. `Main.State` is reduced to selected Home date plus notice, while SelectedDay,
+HraActual, and HraScheduled remain the only object-workspace owners.
+
+The implementation is not yet graduated until Production TUI, Compression Audit,
+and Selected Lean Observations pass on the retired topology.

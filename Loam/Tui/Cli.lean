@@ -153,11 +153,6 @@ def eventOfKey : Loam.Tui.Terminal.Key → Event
   | .right => .right
   | .up => .up
   | .down => .down
-  | .tab => .tab
-  | .enter => .enter
-  | .escape => .back
-  | .input 'b' => .back
-  | .input 'B' => .back
   | .input 'q' => .quit
   | .input 'Q' => .quit
   | _ => .other
@@ -952,18 +947,16 @@ partial def reportsLoop (bounds : Bounds)
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  let isHome := match state.surface with | .home _ => true | _ => false
-  let isActualBrowse := match state.surface with | .actual _ .browse => true | _ => false
-  if isHome && key = .enter then
+  if key = .enter then
     let day := Loam.Tui.SelectedDay.initial state.selectedDate
     let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame dayFrame
     let fresh ← selectedDayLoop bounds dataDir root snapshot day dayFrame
-    let home := { state with surface := .home none, notice := "" }
+    let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if isHome && (key = .input 'm' || key = .input 'M') then
+  else if (key = .input 'm' || key = .input 'M') then
     let world ←
       match ← Loam.ActualAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
@@ -974,31 +967,31 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
     let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
       bounds dataDir root admin adminFrame
-    let home := { state with surface := .home none, notice := notice }
+    let home := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'a' || key = .input 'A') then
+  else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
     let actual := Loam.Tui.HraActual.withMetadata
       (Loam.Tui.HraActual.initial state.selectedDate) metadata
     let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
     let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
-    let home := { state with surface := .home none, notice := "" }
+    let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if isHome && (key = .input 'p' || key = .input 'P') then
+  else if (key = .input 'p' || key = .input 'P') then
     let scheduled := Loam.Tui.HraScheduled.initial state.selectedDate
     let scheduledFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot scheduled)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
     let fresh ← hraScheduledLoop bounds dataDir root snapshot scheduled scheduledFrame
-    let home := { state with surface := .home none, notice := "" }
+    let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if isHome && (key = .input 'i' || key = .input 'I') then
+  else if (key = .input 'i' || key = .input 'I') then
     match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
     | .error message =>
         let home := { state with notice := unavailableNotice "Attention" message }
@@ -1015,7 +1008,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'b' || key = .input 'B') then
+  else if (key = .input 'b' || key = .input 'B') then
     match ← Loam.BalanceReview.loadSnapshot dataDir root with
     | .error message =>
         let home := { state with notice := unavailableNotice "Balances" message }
@@ -1032,7 +1025,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if isHome && Loam.Tui.CycleBudget.isHomeEntrance key then
+  else if Loam.Tui.CycleBudget.isHomeEntrance key then
     let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
     let purposeMetadata ← currentPurposeMetadata dataDir
     let budget := Loam.Tui.CycleBudget.withPurposeMetadata purposeMetadata
@@ -1044,7 +1037,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'u' || key = .input 'U') then
+  else if (key = .input 'u' || key = .input 'U') then
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
     | .error message =>
         let home := { state with notice := unavailableNotice "Purpose routes" message }
@@ -1058,11 +1051,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
         let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
           bounds root administration administrationFrame
-        let home := { state with surface := .home none, notice := notice }
+        let home := { state with notice := notice }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'e' || key = .input 'E') then
+  else if (key = .input 'e' || key = .input 'E') then
     match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir with
     | .error message =>
         let home := { state with notice := unavailableNotice "Capacity" message }
@@ -1083,16 +1076,16 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'o' || key = .input 'O') then
+  else if (key = .input 'o' || key = .input 'O') then
     let editor := Loam.Tui.CurrentQuantityAnchor.initial
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
-    let home := { state with surface := .home none, notice := notice }
+    let home := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'v' || key = .input 'V') then
+  else if (key = .input 'v' || key = .input 'V') then
     let reports ←
       match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
       | some presets =>
@@ -1109,13 +1102,13 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if isHome && (key = .input 'g' || key = .input 'G') then
+  else if (key = .input 'g' || key = .input 'G') then
     let home :=
-      { state with selectedDate := snapshot.actual.today, surface := .home none, notice := "" }
+      { state with selectedDate := snapshot.actual.today, notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if (isHome || isActualBrowse) && (key = .input 'r' || key = .input 'R') then
+  else if (key = .input 'r' || key = .input 'R') then
     let world ←
       match ← Loam.ActualAuthority.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
@@ -1128,18 +1121,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
     let fresh ← requireReload notice (loadSnapshot dataDir)
-    let destination :=
-      if isActualBrowse then
-        { state with
-            surface := .actual (cursorForDay fresh state.selectedDate) .browse
-            notice := notice }
-      else
-        { state with surface := .home none, notice := notice }
+    let destination := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds fresh destination
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh destination nextFrame
   else
-    let event := if isHome then homeEventOfKey key else eventOfKey key
+    let event := homeEventOfKey key
     let step := update snapshot state event
     if step.quit then return
     let nextFrame := compiledFrameFor bounds snapshot step.state

@@ -42,12 +42,6 @@ private def scheduled? (index : Nat) : Option (ScheduledOccurrence String) := do
     movement := movement
   }
 
-private def moveNextN : Nat → Loam.Tui.Main.ScheduledCursor → Loam.Tui.Main.ScheduledCursor
-  | 0, cursor => cursor
-  | count + 1, cursor =>
-      let (next, _) := Loam.Tui.Main.moveScheduledNext cursor
-      moveNextN count next
-
 private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
   let records ← requireSome ((List.range 12).mapM scheduled?)
     "Scheduled fixtures were not admitted"
@@ -71,70 +65,27 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
   let home := Loam.Tui.Main.initialState "2026-09-07"
-  let opened := (Loam.Tui.Main.update snapshot home .tab).state
-  let cursor ←
-    match opened.surface with
-    | .scheduled _ cursor .browse => pure cursor
-    | _ => throw (IO.userError "Tab did not open Scheduled browse")
+  let bounds : Bounds := { width := 140, height := 42 }
 
-  expect (cursor.displayed.size == 12)
-    "Scheduled cursor still truncated a 12-occurrence day"
-  let shifted := moveNextN 10 cursor
-  match shifted.selected with
-  | none => throw (IO.userError "Scheduled selection disappeared after row 10")
-  | some selected =>
-      expect (selected.val == 10)
-        "Scheduled selection could not reach the eleventh occurrence"
+  match Loam.Tui.Main.homeScheduledEvidence snapshot home with
+  | .ok (.due _ rest) =>
+      expect (rest.length + 1 == 12)
+        "Home selected-day Scheduled evidence lost retained due occurrences"
+  | _ => throw (IO.userError "Home selected-day Scheduled evidence stopped being Due")
 
-  expect (Loam.Tui.Main.scheduledWindowStart shifted == 1)
-    "Scheduled browse window did not follow the eleventh selected occurrence"
-  let rows := Loam.Tui.Main.visibleScheduledRows shifted
-  expect (rows.length == 10)
-    "Scheduled browse did not retain a ten-row local window"
-  match rows with
-  | [] => throw (IO.userError "Scheduled browse window unexpectedly became empty")
-  | (firstIndex, _) :: _ =>
-      expect (firstIndex == 1)
-        "Scheduled browse window did not advance by one row"
-
-  let selected ←
-    match Loam.Tui.Main.selectedScheduledRecord? shifted with
-    | some record => pure record
-    | none => throw (IO.userError "Scheduled selected occurrence disappeared")
-  let browseState : Loam.Tui.Main.State := {
-    selectedDate := "2026-09-07"
-    surface := .scheduled none shifted .browse
-  }
-  let browseText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot browseState)
-  expect (contains "12 explicit current-open occurrence(s)" browseText)
-    "Scheduled browse lost the full-day occurrence count"
-  expect (contains "↑/↓ select/scroll" browseText)
-    "Scheduled browse did not publish its local navigation affordance"
-
-  let detailState := (Loam.Tui.Main.update snapshot browseState .enter).state
-  let detailText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot detailState)
-  expect (contains ("id: " ++ selected.id.token) detailText)
-    "Scheduled detail does not follow the global selection"
-  expect (contains "Expectation evidence, not Actual evidence." detailText)
-    "Scheduled detail lost its expectation/Actual distinction"
-
-  let backState := (Loam.Tui.Main.update snapshot detailState .back).state
-  match backState.surface with
-  | .scheduled _ backCursor .browse =>
-      match backCursor.selected, shifted.selected with
-      | some actualIndex, some expectedIndex =>
-          expect (actualIndex.val == expectedIndex.val)
-            "Scheduled detail back-navigation lost the selected occurrence"
-      | _, _ => throw (IO.userError "Scheduled selection became unavailable after detail back")
-  | _ => throw (IO.userError "Scheduled detail did not return to browse")
+  let dueTodayView := Loam.Tui.HraHome.view bounds snapshot home
+  expect (contains "Scheduled: Due (12)" (widgetText dueTodayView))
+    "Home status lost the selected-day Scheduled due count"
+  expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
+    "Scheduled on Today was incorrectly marked Pending"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
-  let unknownState := (Loam.Tui.Main.update snapshot unknownHome .tab).state
-  let unknownText := widgetText (Loam.Tui.HraHome.view { width := 80, height := 24 } snapshot unknownState)
-  expect (contains "Scheduled / Unknown" unknownText)
-    "Scheduled missing evidence stopped publishing Unknown"
-  expect (contains "Unknown is not NotDue" unknownText)
-    "Scheduled workspace collapsed open-world Unknown into NotDue"
+  match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
+  | .ok .unknown => pure ()
+  | _ => throw (IO.userError "Home Scheduled evidence collapsed an unknown day")
+  let unknownText := widgetText (Loam.Tui.HraHome.view bounds snapshot unknownHome)
+  expect (contains "unknown; no completeness horizon is claimed" unknownText)
+    "Home collapsed Scheduled Unknown into an empty-day claim"
 
   let pendingActual : Loam.Tui.Main.ActualSnapshot := {
     snapshot.actual with today := "2026-09-08"
@@ -158,7 +109,6 @@ def main : IO Unit := do
         "Scheduled due on the boundary was incorrectly classified as past-date pending"
 
   let pendingHome := Loam.Tui.Main.initialState "2026-09-08"
-  let bounds : Bounds := { width := 140, height := 42 }
   let pendingText := widgetText (Loam.Tui.HraHome.view bounds pendingSnapshot pendingHome)
   expect (contains "Pending: 12" pendingText)
     "Home status did not expose the past-date current-open Scheduled count"
@@ -189,9 +139,6 @@ def main : IO Unit := do
     hasStyledText movedAgainView "[10 ]" .selected &&
     hasStyledText movedAgainView " 09  " .normal)
     "Moving focus left stale emphasis or moved Today"
-  let dueTodayView := Loam.Tui.HraHome.view bounds snapshot home
-  expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
-    "Scheduled on Today was incorrectly marked Pending"
 
   -- A real Pending date is strictly before Today. Synthetic marker input checks
   -- presentation composition without weakening that evidence boundary.
@@ -211,4 +158,4 @@ def main : IO Unit := do
     expect (sgr.startsWith "\x1b[0;" || sgr == "\x1b[0m")
       "Terminal style can leak attributes into the next calendar cell"
 
-  IO.println "TUI Scheduled: browse/detail, Unknown, Pending and independent Today/focus presentation passed."
+  IO.println "TUI Scheduled: Home Unknown/Pending and independent Today/focus presentation passed."
