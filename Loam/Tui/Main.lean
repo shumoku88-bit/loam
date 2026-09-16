@@ -144,7 +144,7 @@ def moveScheduledPrevious (cursor : ScheduledCursor) : ScheduledCursor × String
   | none => (cursor, "No explicit current-open Scheduled occurrence is available on this day.")
   | some index =>
       if h : index.val = 0 then
-        (cursor, "No previous row in this day view.")
+        (cursor, "No previous Scheduled row in this day view.")
       else
         ({ cursor with selected := some ⟨index.val - 1, by omega⟩ }, "")
 
