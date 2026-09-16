@@ -75,16 +75,10 @@ private def admit?
     replacement := replacementId
   }
 
-  let replacement : Event := {
-    id := correction.replacement
-    effects := effects
-    keyNodup := by
-      change (retainedEffectKeys effects).Nodup
-      rw [show retainedEffectKeys effects = [] by
-        simpa only [effects] using
-          Loam.SparseEffectIdentity.retainedEffectKeys_canonicalizeEffects_nil draft.effects]
-      exact List.nodup_nil
-  }
+  let replacement ←
+    match Event.ofEffects? correction.replacement effects with
+    | some event => pure event
+    | none => throw "loam: correction replacement Effect identity is not unique"
   let updatedEvents ←
     match EventMemory.add? evidence.events replacement with
     | some events => pure events

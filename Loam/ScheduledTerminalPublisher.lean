@@ -88,16 +88,10 @@ private def appendCompletionActual?
     throw "loam: Scheduled completion currently admits plain Actual Movement effects only"
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: Scheduled completion uses a Locus not approved for new publication"
-  let event : Event := {
-    id := actualId
-    effects := effects
-    keyNodup := by
-      change (retainedEffectKeys effects).Nodup
-      rw [show retainedEffectKeys effects = [] by
-        simpa only [effects] using
-          Loam.SparseEffectIdentity.retainedEffectKeys_canonicalizeEffects_nil rawDraft.effects]
-      exact List.nodup_nil
-  }
+  let event ←
+    match Event.ofEffects? actualId effects with
+    | some event => pure event
+    | none => throw "loam: Scheduled completion Effect identity is not unique"
   let fact : ActualValidityFact String :=
     .base actualId draft.validOn
   let events ←
