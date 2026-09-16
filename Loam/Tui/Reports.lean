@@ -200,7 +200,11 @@ private def cycleWindowSource (state : State) (forward : Bool) : State :=
   applyWindowResult state (Loam.Tui.ReportWindow.cycleSource state.window forward)
 
 private def shiftCalendarMonth (state : State) (forward : Bool) : State :=
-  applyWindowResult state (Loam.Tui.ReportWindow.shiftCalendarMonth state.window forward)
+  let result := Loam.Tui.ReportWindow.shiftCalendarMonth state.window forward
+  if result.state = state.window then
+    { state with notice := result.notice }
+  else
+    applyWindowResult state result
 
 private def editWindowState (state : State) (edit : String → String) : State :=
   clearResults {

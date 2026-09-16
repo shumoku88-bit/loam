@@ -192,6 +192,10 @@ def main : IO Unit := do
     decreasesAcrossEvents := Quantity.ofQuanta (-20)
     currentTracked := Quantity.ofQuanta 140
   }
+  let refusedShiftFromReport := (Loam.Tui.Reports.update stockReport .right).state
+  expect refusedShiftFromReport.stockFlowSnapshot.isSome
+    "refused non-calendar shift discarded the existing Stock-Flow snapshot"
+
   let stockReportText := widgetText (Loam.Tui.Reports.view stockReport)
   expect (contains "Reconstructed at start:" stockReportText && contains "100 jpy" stockReportText)
     "Stock–Flow start reconstruction was not rendered"
