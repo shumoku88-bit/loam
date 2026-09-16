@@ -40,14 +40,15 @@ jobs:
               r'(?=              let fresh ← requireReload notice)',
               re.S,
           )
-          replacement = '''              let notice ←
-                if !completed then
-                  pure "Scheduled completion cancelled."
-                else
-                  Loam.Tui.ScheduledContinuationSession.runAfterCompletion
-                    bounds root known record snapshot.actual.today
-                    (currentLocusCatalog dataDir world)
-'''
+          replacement = (
+              '              let notice ←\n'
+              '                if !completed then\n'
+              '                  pure "Scheduled completion cancelled."\n'
+              '                else\n'
+              '                  Loam.Tui.ScheduledContinuationSession.runAfterCompletion\n'
+              '                    bounds root known record snapshot.actual.today\n'
+              '                    (currentLocusCatalog dataDir world)\n'
+          )
           text, count = pattern.subn(replacement, text)
           if count != 2:
               raise SystemExit(f'unexpected continuation block count: {count}')
