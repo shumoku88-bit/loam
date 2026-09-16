@@ -1,0 +1,21 @@
+name: CSLib Semantic Correspondence 005
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/cslib_semantic_correspondence_005.lean'
+      - '.github/workflows/cslib-semantic-correspondence-005.yml'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Observations/Observation159.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+      - name: Check CSA-005 proof
+        run: lake env lean experiments/cslib_semantic_correspondence_005.lean
