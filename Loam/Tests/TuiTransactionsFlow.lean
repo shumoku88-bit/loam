@@ -67,7 +67,7 @@ def main : IO Unit := do
   let direct := (Loam.Tui.Reports.update initial (.input 't')).state
   expect (isTransactionsFlow direct)
     "Transactions Flow direct key did not enter the report"
-  expect (direct.form.start == "2026-09-01" && direct.form.endExclusive == "2026-10-01")
+  expect (direct.window.form.start == "2026-09-01" && direct.window.form.endExclusive == "2026-10-01")
     "Transactions Flow did not reuse the shared explicit report window"
 
   match (Loam.Tui.Reports.update direct .enter).query with
@@ -149,7 +149,7 @@ def main : IO Unit := do
     "Transactions Flow summary Escape did not return to Reports menu"
 
   let editStart := (Loam.Tui.Reports.update report .tab).state
-  expect (editStart.form.focus.val == 0)
+  expect (editStart.window.form.focus.val == 0)
     "Transactions Flow did not reuse the shared window focus cycle"
   let edited := (Loam.Tui.Reports.update editStart (.input '9')).state
   expect edited.transactionsSnapshot.isNone
