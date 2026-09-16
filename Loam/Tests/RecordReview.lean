@@ -34,7 +34,7 @@ def main : IO Unit := do
   let z ← record "z" (some "2026-09-02") "same day"
   let old ← record "old" (some "2001-01-01") "old receipt"
   let unknown ← record "unknown" none "forgotten date"
-  let corrected : Record := { a with replacement := some ⟨"z"⟩, isCurrent := false }
+  let corrected : Record := { a with replacement := some ⟨"z"⟩ }
   let records := [unknown, old, z, a]
   let ids := fun rows : List Record => rows.map (·.event.id.token)
   expect (ids (select records (.week "2026-09-03")) == ["a", "z"])
