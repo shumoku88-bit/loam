@@ -29,7 +29,6 @@ jobs:
             docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md \
             docs/drakon/build_tui_scheduled_session_audit_map.py \
             docs/drakon/loam-tui-scheduled-session-audit.drn \
-            .github/workflows/module-granularity-audit.yml \
             .github/workflows/mga016-finalize.yml \
             .github/mga016_finalize.py
           git commit -m 'docs(audit): qualify MGA-016 continuation session boundary'
