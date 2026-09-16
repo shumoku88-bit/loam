@@ -12,6 +12,9 @@ lean_exe loam where
 lean_exe loamMovement where
   root := `Loam.Cli.MovementCli
 
+lean_exe loamMovementProposal where
+  root := `Loam.Cli.MovementProposalCli
+
 lean_exe loamCapacity where
   root := `Loam.Cli.CapacityCli
 

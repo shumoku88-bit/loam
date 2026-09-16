@@ -1,0 +1,45 @@
+name: Movement Proposal
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli/Movement/Proposal.lean'
+      - 'Loam/Cli/MovementProposalCli.lean'
+      - 'Loam/MovementDraftReview.lean'
+      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Cli/Movement/RelationEntry.lean'
+      - 'Loam/Cli/Movement/DischargeEntry.lean'
+      - 'Loam/Tests/MovementProposal.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/movement-proposal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Qualify read-only proposal transport
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build proposal executable and fixture boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamMovementProposal Loam.Tests.ActualWorldFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify versioned proposal parsing and read-only review
+        run: lake env lean --run Loam/Tests/MovementProposal.lean "$(mktemp -d)/movement-proposal"

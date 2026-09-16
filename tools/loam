@@ -43,6 +43,9 @@ Publish one complete current quantity observation image:
 Record one balanced JPY movement into actual.loam:
   ./tools/loam movement [LOAM_DATA_DIR]
 
+Review one machine-readable Movement proposal without publishing:
+  ./tools/loam movement-proposal PROPOSAL_FILE [LOAM_DATA_DIR]
+
 Move JPY spending capacity:
   ./tools/loam capacity CAPACITY_FILE
 
@@ -95,6 +98,11 @@ fi
 if [[ "${1:-}" == "movement" ]]; then
   shift
   run_target loamMovement "$@"
+fi
+
+if [[ "${1:-}" == "movement-proposal" ]]; then
+  shift
+  run_target loamMovementProposal "$@"
 fi
 
 if [[ "${1:-}" == "capacity" ]]; then
