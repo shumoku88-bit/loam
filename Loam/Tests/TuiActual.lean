@@ -115,7 +115,7 @@ def main : IO Unit := do
   expect (paypayDescRecords.map (·.description) == ["alpha", "beta", "gamma"])
     "HRA Actual paypay records in descending order did not list newest first"
   match Loam.Tui.HraActual.selectedRecord? snapshot paypayDesc with
-  | none => throw (IO.userError "HRA Actual descending paypay record disappeared")
+  | none => throw (IO.userError "HRA Actual descending paypay record selection disappeared")
   | some record =>
       expect (record.description == "alpha")
         "HRA Actual descending paypay record at row 0 was not newest (alpha)"
