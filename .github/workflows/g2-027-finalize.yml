@@ -1,0 +1,69 @@
+name: G2-027 finalize
+
+on:
+  push:
+    branches:
+      - audit/g2-027-undated-count-derivation
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: audit/g2-027-undated-count-derivation
+          fetch-depth: 0
+
+      - name: Record qualification and normalize EOF
+        shell: python
+        run: |
+          from pathlib import Path
+
+          main = Path("Loam/Tui/Main.lean")
+          text = main.read_text()
+          if not text.endswith("\n"):
+              main.write_text(text + "\n")
+
+          dag = Path("docs/research/TUI_UNDATED_COUNT_DERIVATION_OBLIGATION_DAG.md")
+          text = dag.read_text()
+          text = text.replace(
+              "Status: **Generation-2 audit evidence — SIMPLIFY IDENTIFIED**",
+              "Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**",
+              1,
+          )
+          text = text.replace(
+              "## Generation-2 verdict\n\n**SIMPLIFY IDENTIFIED.**",
+              "## Qualification\n\n"
+              "The code-qualified head `6991a5fa658a1dc2a8fa89025220e53b7bb66109` passed:\n\n"
+              "- Compression Audit: **SUCCESS**;\n"
+              "- Selected Lean Observations: **SUCCESS**;\n"
+              "- Purpose Catalog Boundary: **SUCCESS**;\n"
+              "- Production TUI: **62/62 SUCCESS**;\n"
+              "- focused full-day Actual local window navigation, including the G2-027 current-vs-superseded undated regression: **SUCCESS**.\n\n"
+              "## Generation-2 verdict\n\n**SIMPLIFY QUALIFIED.**",
+              1,
+          )
+          if "SIMPLIFY IDENTIFIED" in text:
+              raise SystemExit("stale G2-027 status remains")
+          if "SIMPLIFY QUALIFIED" not in text:
+              raise SystemExit("qualified G2-027 status missing")
+          dag.write_text(text)
+
+      - name: Guard documentation-only finalization
+        run: |
+          git diff --check
+          changed=$(git diff --name-only | sort)
+          expected=$(printf '%s\n' 'Loam/Tui/Main.lean' 'docs/research/TUI_UNDATED_COUNT_DERIVATION_OBLIGATION_DAG.md' | sort)
+          test "$changed" = "$expected"
+
+      - name: Commit and remove helper workflow
+        run: |
+          rm .github/workflows/g2-027-finalize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Loam/Tui/Main.lean docs/research/TUI_UNDATED_COUNT_DERIVATION_OBLIGATION_DAG.md .github/workflows/g2-027-finalize.yml
+          git commit -m 'docs(audit): qualify G2-027 undated count derivation'
+          git push origin HEAD:audit/g2-027-undated-count-derivation
