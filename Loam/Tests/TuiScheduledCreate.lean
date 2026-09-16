@@ -50,8 +50,7 @@ private def loadSnapshot
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
-    allRecords := actualRecords
-    undatedCount := (Loam.ActualReview.select actualRecords .undated).length }
+    allRecords := actualRecords }
   return { actual := actual, scheduled := .ok scheduled }
 
 private def hasScheduled

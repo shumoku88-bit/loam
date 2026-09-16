@@ -65,7 +65,6 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-07"
     allRecords := []
-    undatedCount := 0
   }
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
