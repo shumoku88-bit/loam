@@ -1,6 +1,6 @@
 # G2-031 — Home update Snapshot dependency obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY IMPLEMENTED, QUALIFICATION PENDING**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + semantic dependency DAG + caller inspection**.
 
@@ -175,15 +175,22 @@ G2-031 preserves:
 The change does **not** claim that `Snapshot` is redundant. It claims only that
 `Main.update` was not one of its consumers.
 
-## Qualification target
+## Qualification
 
-Before promotion to **SIMPLIFY QUALIFIED**, require the normal affected-boundary
-checks, especially:
+PR #972 qualified the current boundary against current `main`, including the
+independent MGA-014 Scheduled replacement-session change merged as #971.
 
-- Compression Audit;
-- Selected Lean Observations;
-- Purpose Catalog Boundary;
-- Production TUI, including the Home Today/focus regression.
+The affected-boundary checks all succeeded:
+
+- **Compression Audit #944 — SUCCESS**;
+- **Selected Lean Observations #1188 — SUCCESS**;
+- **Purpose Catalog Boundary #325 — SUCCESS**;
+- **Production TUI #806 — SUCCESS**.
+
+Production TUI completed its full integration sequence through step 62, including
+Home/Scheduled presentation regression coverage. The merge result remained clean
+against #971; the PR diff changes only the Home transition caller in `Cli.lean`,
+not the Scheduled replacement-session seam.
 
 The DRAKON builder is:
 
@@ -199,7 +206,7 @@ docs/drakon/loam-tui-home-update-snapshot-audit.drn
 
 ## Generation-2 verdict
 
-**SIMPLIFY IMPLEMENTED, QUALIFICATION PENDING.**
+**SIMPLIFY QUALIFIED.**
 
 The old `Snapshot` argument was a signature remnant of a broader Main state
 machine, not an independent input to the remaining Home transition. G2-031 makes
