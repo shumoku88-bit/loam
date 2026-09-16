@@ -46,14 +46,24 @@ structure Snapshot where
   endExclusive : String
   columns : List Column
 
-/-- Two-sided activity at one exact coordinate across the selected Event columns. -/
+/--
+Two independent sides of activity plus the number of contributing Events.
+Net and gross are exact arithmetic consequences and remain exposed as derived
+read functions rather than independently representable state.
+-/
 structure RowActivity where
-  net : Quantity
   positive : Quantity
   negative : Quantity
-  gross : Quantity
   activeEvents : Nat
   deriving Repr, DecidableEq
+
+/-- Exact signed net derived from the retained positive and negative partitions. -/
+def RowActivity.net (activity : RowActivity) : Quantity :=
+  activity.positive + activity.negative
+
+/-- Exact gross magnitude derived from nonnegative positive and nonpositive negative partitions. -/
+def RowActivity.gross (activity : RowActivity) : Quantity :=
+  activity.positive - activity.negative
 
 private def validateCurrentDates :
     List Loam.ActualReview.Record → Except String Unit
@@ -168,9 +178,10 @@ def rowTotal (snapshot : Snapshot) (coordinate : EffectCoordinate) : Quantity :=
 /--
 Expose two-sided coordinate activity that a small net value can otherwise hide.
 
-`positive` is nonnegative, `negative` is nonpositive, and `gross` is the exact
-sum of absolute Event contributions. These are quantity arithmetic only; they do
-not classify inflow/outflow, debit/credit, transfer, income, or expense meaning.
+`positive` is nonnegative and `negative` is nonpositive. `net` and `gross` are
+exactly derived from those retained partitions. These are quantity arithmetic
+only; they do not classify inflow/outflow, debit/credit, transfer, income, or
+expense meaning.
 -/
 def rowActivity
     (snapshot : Snapshot) (coordinate : EffectCoordinate) : RowActivity :=
@@ -179,20 +190,16 @@ def rowActivity
       let quantity :=
         (Event.quantityAt column.event coordinate.locus coordinate.measure).quanta
       if quantity > 0 then
-        (state.1 + quantity, state.2.1,
-          state.2.2.1 + quantity, state.2.2.2 + 1)
+        (state.1 + quantity, state.2.1, state.2.2 + 1)
       else if quantity < 0 then
-        (state.1, state.2.1 + quantity,
-          state.2.2.1 - quantity, state.2.2.2 + 1)
+        (state.1, state.2.1 + quantity, state.2.2 + 1)
       else
         state)
-    (0, 0, 0, 0)
+    (0, 0, 0)
   {
-    net := Quantity.ofQuanta (accumulated.1 + accumulated.2.1)
     positive := Quantity.ofQuanta accumulated.1
     negative := Quantity.ofQuanta accumulated.2.1
-    gross := Quantity.ofQuanta accumulated.2.2.1
-    activeEvents := accumulated.2.2.2
+    activeEvents := accumulated.2.2
   }
 
 /--
