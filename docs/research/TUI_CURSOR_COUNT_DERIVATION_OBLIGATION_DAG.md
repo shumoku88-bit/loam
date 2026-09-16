@@ -1,6 +1,6 @@
 # G2-026 — TUI cursor count derivation obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + proof-obligation DAG**.
 
@@ -95,7 +95,7 @@ G2-026 does **not** remove:
 
 ## Qualification obligations
 
-The production change must preserve:
+The production change preserves:
 
 - an Actual day with 12 records reports `12` while rendering only the local
   ten-row window;
@@ -104,12 +104,18 @@ The production change must preserve:
 - Scheduled browse totals remain equal to the retained full-day Scheduled array;
 - no production or test constructor can supply a contradictory cursor total.
 
-The focused TUI Actual test pins the first three obligations. The production TUI
-suite and compilation of Scheduled browse construction cover the shared shape.
+The focused TUI Actual regression pins the derived-count law. On the qualified
+branch, `Compression Audit` and `Selected Lean Observations` completed
+successfully, and the production TUI workflow completed all 62 verification steps
+successfully. In particular, the focused `full-day Actual local window navigation`,
+Scheduled browse/open-world, and HRA Scheduled steps all passed.
+
+The dedicated G2-026 DRAKON builder is retained as reproducible audit-map source.
+It is not production authority and does not participate in runtime semantics.
 
 ## Generation-2 verdict
 
-**SIMPLIFY** if qualification passes.
+**SIMPLIFY QUALIFIED.**
 
 The intended semantic graph is:
 
