@@ -82,6 +82,15 @@ def eraseCoordinate {Coordinate : Type} [DecidableEq Coordinate]
       else
         change :: eraseCoordinate coordinate rest
 
+/-- Exact total of a cons presentation. -/
+private theorem movementTotal_cons
+    {Coordinate : Type}
+    (change : MovementChange Coordinate)
+    (rest : List (MovementChange Coordinate)) :
+    movementTotalQuanta (change :: rest) =
+      change.quantity.quanta + movementTotalQuanta rest := by
+  rfl
+
 /-- Erasing one coordinate never increases presentation length. -/
 theorem eraseCoordinate_length_le
     {Coordinate : Type} [DecidableEq Coordinate]
@@ -136,17 +145,12 @@ theorem aggregateQuanta_eraseCoordinate_other
       rfl
   | cons change rest ih =>
       by_cases hErase : change.coordinate = erased
-      · have hObserved : change.coordinate ≠ observed := by
-          intro hEqual
-          apply hDifferent
-          calc
-            observed = change.coordinate := hEqual.symm
-            _ = erased := hErase
-        simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using ih
+      · have hReverse : erased ≠ observed := Ne.symm hDifferent
+        simpa [eraseCoordinate, hErase, hReverse, aggregateQuanta] using ih
       · by_cases hObserved : change.coordinate = observed
         · have hLifted :=
             congrArg (fun total => change.quantity.quanta + total) ih
-          simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using hLifted
+          simpa [eraseCoordinate, hErase, hObserved, hDifferent, aggregateQuanta] using hLifted
         · simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using ih
 
 /-- Integer-vector equivalence survives erasing the same coordinate on both sides. -/
@@ -184,26 +188,41 @@ theorem movementTotal_eq_coordinate_add_remainder
       by_cases h : change.coordinate = coordinate
       · calc
           movementTotalQuanta (change :: rest) =
-              change.quantity.quanta + movementTotalQuanta rest := by rfl
+              change.quantity.quanta + movementTotalQuanta rest :=
+            movementTotal_cons change rest
           _ = change.quantity.quanta +
               (aggregateQuanta rest coordinate +
                 movementTotalQuanta (eraseCoordinate coordinate rest)) :=
             congrArg (fun total => change.quantity.quanta + total) ih
           _ = aggregateQuanta (change :: rest) coordinate +
               movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
-            simp [aggregateQuanta, eraseCoordinate, h]
-            omega
-      · calc
+            simpa only [aggregateQuanta, eraseCoordinate, h, movementTotal_cons] using
+              (Int.add_assoc
+                change.quantity.quanta
+                (aggregateQuanta rest coordinate)
+                (movementTotalQuanta (eraseCoordinate coordinate rest))).symm
+      · have hReorder :
+            change.quantity.quanta +
+                (aggregateQuanta rest coordinate +
+                  movementTotalQuanta (eraseCoordinate coordinate rest)) =
+              aggregateQuanta rest coordinate +
+                (change.quantity.quanta +
+                  movementTotalQuanta (eraseCoordinate coordinate rest)) := by
+          omega
+        calc
           movementTotalQuanta (change :: rest) =
-              change.quantity.quanta + movementTotalQuanta rest := by rfl
+              change.quantity.quanta + movementTotalQuanta rest :=
+            movementTotal_cons change rest
           _ = change.quantity.quanta +
               (aggregateQuanta rest coordinate +
                 movementTotalQuanta (eraseCoordinate coordinate rest)) :=
             congrArg (fun total => change.quantity.quanta + total) ih
+          _ = aggregateQuanta rest coordinate +
+              (change.quantity.quanta +
+                movementTotalQuanta (eraseCoordinate coordinate rest)) := hReorder
           _ = aggregateQuanta (change :: rest) coordinate +
               movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
-            simp [aggregateQuanta, eraseCoordinate, h]
-            omega
+            simp only [aggregateQuanta, eraseCoordinate, h, movementTotal_cons]
 
 private theorem movementTotal_zero_of_all_quanta_zero_of_length
     {Coordinate : Type} [DecidableEq Coordinate]
