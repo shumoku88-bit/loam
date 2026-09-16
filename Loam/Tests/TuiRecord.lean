@@ -1,6 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.Tui.Record
+import Loam.MovementDraftReview
 import Loam.MovementPublisher
 import Loam.ActualReview
 
@@ -152,11 +153,20 @@ def main (args : List String) : IO Unit := do
 
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root w
     | throw (IO.userError "initialize fixture")
+  let beforeReview ← IO.FS.readFile (root / "actual.loam")
+  let .ok () ← Loam.MovementDraftReview.check root draft
+    | throw (IO.userError "read-only Movement draft review")
+  expect ((← IO.FS.readFile (root / "actual.loam")) == beforeReview)
+    "Movement draft review changed Actual authority"
   -- An already-previewed draft must be re-admitted against policy changed during think time.
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root
       { w with locusAdmission := LocusAdmissionVocabulary.empty }
     | throw (IO.userError "change fixture policy")
   let before ← IO.FS.readFile (root / "actual.loam")
+  let refusedReview ← Loam.MovementDraftReview.check root draft
+  expect (!refusedReview.isOk) "Movement draft review bypassed current Locus policy"
+  expect ((← IO.FS.readFile (root / "actual.loam")) == before)
+    "refused Movement draft review changed authority"
   let refused ← Loam.MovementPublisher.publishDraft root.toString draft
   expect (!refused.isOk) "stale preview bypassed current Locus policy"
   expect ((← IO.FS.readFile (root / "actual.loam")) == before) "refusal changed authority"
@@ -170,4 +180,4 @@ def main (args : List String) : IO Unit := do
   expect (records.any fun record => record.event.id.token == eventId.token &&
     record.description == "数学ガール" && record.date == some "2026-09-06")
     "fresh review lost published evidence"
-  IO.println "TUI Record: signed postings, canonical catalog selection, admission, stale policy rejection, publication and fresh review passed."
+  IO.println "TUI Record: signed postings, canonical catalog selection, read-only proposal review, admission, stale policy rejection, publication and fresh review passed."
