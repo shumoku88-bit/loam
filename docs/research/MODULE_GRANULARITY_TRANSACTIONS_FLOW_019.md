@@ -272,6 +272,22 @@ production root reachability preserved                 YES
 
 If the extraction requires report-specific window adapters, a second scroll owner, compatibility mirrors, or a new semantic result type that duplicates `TransactionsFlowReview.Snapshot`, reject the split.
 
+## DRAKON qualification
+
+MGA-019 has a dedicated three-diagram DRAKON artifact:
+
+```text
+docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
+```
+
+The generated map records:
+
+1. the current Transactions-specific ownership cluster inside Reports;
+2. the candidate `TransactionsFlowPane` seam and the responsibilities that must stay above it;
+3. the all-or-nothing qualification obligations for MGA-020.
+
+The builder-generated artifact passed SQLite integrity, exact three-diagram count, source metadata coverage, and explicit presence checks for the candidate-seam and obligation-DAG diagrams. The one-shot generator retired itself after committing the artifact. Permanent Module Granularity CI now regenerates and compares this map on relevant PRs.
+
 ## Current verdict
 
 The post-MGA-018 evidence is stronger than at MGA-017 because the largest shared concern has already moved to its canonical owner.
