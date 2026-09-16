@@ -1,6 +1,6 @@
 # G2-018 — Routing publication append obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + source comparison + Core-invariant ownership + existing runtime qualification**.
 
@@ -230,13 +230,33 @@ That would share orchestration while obscuring the reasons those paths differ.
 
 The one mechanic below those differences is the append invariant, and Core already has the correct generic owner for it.
 
-## Qualification obligations
+## Qualification result
 
-Existing workflows already exercise the distinguishing behavior.
+Production/audit head `a76c3b0a6e7f9246b35e314b0efbdf9b62714dea` qualified the factorization across both routing specializations and the broader dependent surface.
+
+Successful runs:
+
+```text
+Practical Actual Routing Writer       SUCCESS
+Practical Scheduled Routing           SUCCESS
+Practical Actual Routing Persistence  SUCCESS
+Compression Audit                     SUCCESS
+Practical Slice A2                    SUCCESS
+Practical Slice B                     SUCCESS
+Stateless Shadow Quantity             SUCCESS
+Cycle Funding Inspection              SUCCESS
+Observation 078                       SUCCESS
+Production TUI                        SUCCESS, all 62 substantive steps
+Selected Lean Observations            SUCCESS on rerun
+```
+
+The first Selected Lean attempt failed before any Lean build because the runner could not resolve `release.lean-lang.org` while installing Elan. The failed job was rerun unchanged and completed successfully. This was infrastructure failure, not a source/proof failure.
+
+The routing-specific runtime stories preserved all distinguishing behavior.
 
 ### Actual
 
-`Practical Actual Routing Writer` is path-triggered by both `HistoricalRouting.lean` and `ActualRoutingPublisher.lean`. It builds the executable and directly exercises:
+`Practical Actual Routing Writer` passed:
 
 ```text
 initial managed append
@@ -249,7 +269,7 @@ persistence reload / latest-visible behavior
 
 ### Scheduled
 
-`Practical Scheduled Routing` exercises `Loam/Tests/ScheduledRoutingPublisher.lean`, including:
+`Practical Scheduled Routing` passed the existing publisher story, including:
 
 ```text
 managed + unmanaged append
@@ -263,7 +283,7 @@ CLI publication
 re-read of updated Scheduled lifecycle
 ```
 
-Production TUI and normal compression/Lean checks should remain green if triggered.
+Production TUI also passed the Actual Purpose routing administration steps, Scheduled Routing TUI interaction, Scheduled continuation routing inheritance, and every downstream report/workspace check.
 
 ## Obligation DAG
 
@@ -301,7 +321,7 @@ Not earned:
   LocusAdmission gate for all routing
 ```
 
-## Expected verdict after CI
+## Final verdict
 
 ```text
 Actual / Scheduled routing semantics       KEEP SEPARATE
@@ -312,7 +332,5 @@ Scheduled lifecycle extra ownership        DO NOT ADD
 Actual current-Locus admission gate        DO NOT ADD
 Generic RoutingPublisher                    DO NOT ADD
 ```
-
-If both routing specializations and the normal audit surface qualify green, record:
 
 **G2-018: SIMPLIFY QUALIFIED — `RoutingHistory` owns append uniqueness; Actual and Scheduled routing publication boundaries remain semantically separate.**
