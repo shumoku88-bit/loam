@@ -1127,7 +1127,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root fresh destination nextFrame
   else
     let event := homeEventOfKey key
-    let step := update snapshot state event
+    let step := update state event
     if step.quit then return
     let nextFrame := compiledFrameFor bounds snapshot step.state
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
