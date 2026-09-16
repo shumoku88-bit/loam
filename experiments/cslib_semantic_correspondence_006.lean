@@ -16,15 +16,65 @@ a FinFun-style finite-support integer denotation. The missing direction is:
 
     same finite vector -> same movementTotalQuanta
 
-If this holds, the balance law `movementTotalQuanta changes = 0` is a property
-of the vector meaning rather than of list shape. No quotient, CSLib dependency,
-Mathlib dependency, or production carrier is introduced here.
+The proof below stays on the integer carrier until the final bridge back to
+Observation 159's `Quantity` wrapper. No quotient, CSLib dependency, Mathlib
+dependency, or production carrier is introduced.
 -/
+
+/-- Exact integer coefficient observed at one coordinate. -/
+def aggregateQuanta {Coordinate : Type} [DecidableEq Coordinate]
+    (changes : List (MovementChange Coordinate))
+    (coordinate : Coordinate) : Int :=
+  changes.foldr
+    (fun change total =>
+      if change.coordinate = coordinate then
+        change.quantity.quanta + total
+      else
+        total)
+    0
+
+/-- Observation 159's quantity projection wraps exactly `aggregateQuanta`. -/
+@[simp] theorem aggregateAt_quanta
+    {Coordinate : Type} [DecidableEq Coordinate]
+    (changes : List (MovementChange Coordinate))
+    (coordinate : Coordinate) :
+    (Loam.Observation159.aggregateAt changes coordinate).quanta =
+      aggregateQuanta changes coordinate := by
+  rfl
+
+/-- Pointwise integer-vector equality used internally by the augmentation proof. -/
+def QuantaEquivalent {Coordinate : Type} [DecidableEq Coordinate]
+    (left right : List (MovementChange Coordinate)) : Prop :=
+  ∀ coordinate, aggregateQuanta left coordinate = aggregateQuanta right coordinate
+
+/-- Observation 159 vector equality implies integer-vector equality. -/
+theorem vectorEquivalent_to_quantaEquivalent
+    {Coordinate : Type} [DecidableEq Coordinate]
+    {left right : List (MovementChange Coordinate)}
+    (hEquivalent : Loam.Observation159.VectorEquivalent left right) :
+    QuantaEquivalent left right := by
+  intro coordinate
+  have hQuanta := congrArg Quantity.quanta (hEquivalent coordinate)
+  simpa only [aggregateAt_quanta] using hQuanta
+
+/-- Integer-vector equality is also sufficient for Observation 159 vector equality. -/
+theorem quantaEquivalent_to_vectorEquivalent
+    {Coordinate : Type} [DecidableEq Coordinate]
+    {left right : List (MovementChange Coordinate)}
+    (hEquivalent : QuantaEquivalent left right) :
+    Loam.Observation159.VectorEquivalent left right := by
+  intro coordinate
+  calc
+    Loam.Observation159.aggregateAt left coordinate =
+        Quantity.ofQuanta (aggregateQuanta left coordinate) := by rfl
+    _ = Quantity.ofQuanta (aggregateQuanta right coordinate) :=
+      congrArg Quantity.ofQuanta (hEquivalent coordinate)
+    _ = Loam.Observation159.aggregateAt right coordinate := by rfl
 
 /-- Remove every represented change at one coordinate while preserving the others. -/
 def eraseCoordinate {Coordinate : Type} [DecidableEq Coordinate]
     (coordinate : Coordinate) :
-    List (MovementChange Coordinate) -> List (MovementChange Coordinate)
+    List (MovementChange Coordinate) → List (MovementChange Coordinate)
   | [] => []
   | change :: rest =>
       if change.coordinate = coordinate then
@@ -37,10 +87,10 @@ theorem eraseCoordinate_length_le
     {Coordinate : Type} [DecidableEq Coordinate]
     (coordinate : Coordinate)
     (changes : List (MovementChange Coordinate)) :
-    (eraseCoordinate coordinate changes).length <= changes.length := by
+    (eraseCoordinate coordinate changes).length ≤ changes.length := by
   induction changes with
   | nil =>
-      rfl
+      simp [eraseCoordinate]
   | cons change rest ih =>
       by_cases h : change.coordinate = coordinate
       · simp [eraseCoordinate, h]
@@ -59,89 +109,108 @@ theorem eraseCoordinate_head_length_lt
   have hLe := eraseCoordinate_length_le head.coordinate rest
   omega
 
-/-- After erasing one coordinate, that coordinate observes exact zero. -/
-theorem aggregateAt_eraseCoordinate_same
+/-- After erasing one coordinate, its integer coefficient is exact zero. -/
+theorem aggregateQuanta_eraseCoordinate_same
     {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate))
     (coordinate : Coordinate) :
-    Loam.Observation159.aggregateAt
-        (eraseCoordinate coordinate changes) coordinate = 0 := by
+    aggregateQuanta (eraseCoordinate coordinate changes) coordinate = 0 := by
   induction changes with
   | nil =>
       rfl
   | cons change rest ih =>
       by_cases h : change.coordinate = coordinate
-      · simp [eraseCoordinate, h, Loam.Observation159.aggregateAt, ih]
-      · simp [eraseCoordinate, h, Loam.Observation159.aggregateAt, ih]
+      · simpa [eraseCoordinate, h] using ih
+      · simpa [eraseCoordinate, h, aggregateQuanta] using ih
 
-/-- Erasing one coordinate leaves every other coordinate aggregate unchanged. -/
-theorem aggregateAt_eraseCoordinate_other
+/-- Erasing one coordinate leaves every other integer coefficient unchanged. -/
+theorem aggregateQuanta_eraseCoordinate_other
     {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate))
     (erased observed : Coordinate)
-    (hDifferent : observed != erased) :
-    Loam.Observation159.aggregateAt
-        (eraseCoordinate erased changes) observed =
-      Loam.Observation159.aggregateAt changes observed := by
+    (hDifferent : observed ≠ erased) :
+    aggregateQuanta (eraseCoordinate erased changes) observed =
+      aggregateQuanta changes observed := by
   induction changes with
   | nil =>
       rfl
   | cons change rest ih =>
       by_cases hErase : change.coordinate = erased
-      · have hObserved : change.coordinate != observed := by
+      · have hObserved : change.coordinate ≠ observed := by
           intro hEqual
           apply hDifferent
           calc
             observed = change.coordinate := hEqual.symm
             _ = erased := hErase
-        simp [eraseCoordinate, hErase, hObserved,
-          Loam.Observation159.aggregateAt, ih]
-      · simp [eraseCoordinate, hErase, Loam.Observation159.aggregateAt, ih]
+        simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using ih
+      · by_cases hObserved : change.coordinate = observed
+        · have hLifted :=
+            congrArg (fun total => change.quantity.quanta + total) ih
+          simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using hLifted
+        · simpa [eraseCoordinate, hErase, hObserved, aggregateQuanta] using ih
 
-/-- Vector equivalence survives erasing the same coordinate on both sides. -/
-theorem vectorEquivalent_eraseCoordinate
+/-- Integer-vector equivalence survives erasing the same coordinate on both sides. -/
+theorem quantaEquivalent_eraseCoordinate
     {Coordinate : Type} [DecidableEq Coordinate]
     (left right : List (MovementChange Coordinate))
     (coordinate : Coordinate)
-    (hEquivalent : Loam.Observation159.VectorEquivalent left right) :
-    Loam.Observation159.VectorEquivalent
+    (hEquivalent : QuantaEquivalent left right) :
+    QuantaEquivalent
       (eraseCoordinate coordinate left)
       (eraseCoordinate coordinate right) := by
   intro observed
   by_cases hSame : observed = coordinate
   · subst observed
-    rw [aggregateAt_eraseCoordinate_same, aggregateAt_eraseCoordinate_same]
-  · rw [aggregateAt_eraseCoordinate_other left coordinate observed hSame]
-    rw [aggregateAt_eraseCoordinate_other right coordinate observed hSame]
+    rw [aggregateQuanta_eraseCoordinate_same, aggregateQuanta_eraseCoordinate_same]
+  · rw [aggregateQuanta_eraseCoordinate_other left coordinate observed hSame]
+    rw [aggregateQuanta_eraseCoordinate_other right coordinate observed hSame]
     exact hEquivalent observed
 
 /--
-One presentation splits exactly into the aggregate at one coordinate plus the
-total of all remaining coordinates.
+One presentation splits exactly into one coordinate coefficient plus the total
+of all remaining coordinates.
 -/
 theorem movementTotal_eq_coordinate_add_remainder
     {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate))
     (coordinate : Coordinate) :
     movementTotalQuanta changes =
-      (Loam.Observation159.aggregateAt changes coordinate).quanta +
+      aggregateQuanta changes coordinate +
         movementTotalQuanta (eraseCoordinate coordinate changes) := by
   induction changes with
   | nil =>
       rfl
   | cons change rest ih =>
       by_cases h : change.coordinate = coordinate
-      · simp [movementTotalQuanta, Loam.Observation159.aggregateAt,
-          eraseCoordinate, h, ih, Int.add_assoc]
-      · simp [movementTotalQuanta, Loam.Observation159.aggregateAt,
-          eraseCoordinate, h, ih, Int.add_assoc, Int.add_comm, Int.add_left_comm]
+      · calc
+          movementTotalQuanta (change :: rest) =
+              change.quantity.quanta + movementTotalQuanta rest := by rfl
+          _ = change.quantity.quanta +
+              (aggregateQuanta rest coordinate +
+                movementTotalQuanta (eraseCoordinate coordinate rest)) :=
+            congrArg (fun total => change.quantity.quanta + total) ih
+          _ = aggregateQuanta (change :: rest) coordinate +
+              movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
+            simp [aggregateQuanta, eraseCoordinate, h]
+            omega
+      · calc
+          movementTotalQuanta (change :: rest) =
+              change.quantity.quanta + movementTotalQuanta rest := by rfl
+          _ = change.quantity.quanta +
+              (aggregateQuanta rest coordinate +
+                movementTotalQuanta (eraseCoordinate coordinate rest)) :=
+            congrArg (fun total => change.quantity.quanta + total) ih
+          _ = aggregateQuanta (change :: rest) coordinate +
+              movementTotalQuanta (eraseCoordinate coordinate (change :: rest)) := by
+            simp [aggregateQuanta, eraseCoordinate, h]
+            omega
 
-private theorem movementTotal_zero_of_all_aggregates_zero_of_length
+private theorem movementTotal_zero_of_all_quanta_zero_of_length
     {Coordinate : Type} [DecidableEq Coordinate]
     (n : Nat) :
-    forall changes : List (MovementChange Coordinate),
-      changes.length = n ->
-      (forall coordinate, Loam.Observation159.aggregateAt changes coordinate = 0) ->
+    ∀ changes : List (MovementChange Coordinate),
+      changes.length = n →
+      (∀ coordinate, aggregateQuanta changes coordinate = 0) →
       movementTotalQuanta changes = 0 := by
   induction n using Nat.strongRecOn with
   | ind n ih =>
@@ -152,17 +221,18 @@ private theorem movementTotal_zero_of_all_aggregates_zero_of_length
       | cons head rest =>
           have hSmaller :
               (eraseCoordinate head.coordinate (head :: rest)).length < n := by
-            rw [<- hLength]
+            rw [← hLength]
             exact eraseCoordinate_head_length_lt head rest
           have hReducedZero :
-              forall coordinate,
-                Loam.Observation159.aggregateAt
+              ∀ coordinate,
+                aggregateQuanta
                     (eraseCoordinate head.coordinate (head :: rest)) coordinate = 0 := by
             intro coordinate
             by_cases hSame : coordinate = head.coordinate
             · subst coordinate
-              exact aggregateAt_eraseCoordinate_same (head :: rest) head.coordinate
-            · rw [aggregateAt_eraseCoordinate_other
+              exact aggregateQuanta_eraseCoordinate_same
+                (head :: rest) head.coordinate
+            · rw [aggregateQuanta_eraseCoordinate_other
                 (head :: rest) head.coordinate coordinate hSame]
               exact hZero coordinate
           have hReducedTotal :=
@@ -177,45 +247,43 @@ private theorem movementTotal_zero_of_all_aggregates_zero_of_length
           rw [hZero head.coordinate, hReducedTotal]
           rfl
 
-/-- If every coordinate aggregate is zero, the represented total is zero. -/
-theorem movementTotal_zero_of_all_aggregates_zero
+/-- If every coordinate coefficient is zero, the represented total is zero. -/
+theorem movementTotal_zero_of_all_quanta_zero
     {Coordinate : Type} [DecidableEq Coordinate]
     (changes : List (MovementChange Coordinate))
-    (hZero : forall coordinate,
-      Loam.Observation159.aggregateAt changes coordinate = 0) :
+    (hZero : ∀ coordinate, aggregateQuanta changes coordinate = 0) :
     movementTotalQuanta changes = 0 :=
-  movementTotal_zero_of_all_aggregates_zero_of_length
+  movementTotal_zero_of_all_quanta_zero_of_length
     changes.length changes rfl hZero
 
-private theorem vectorEquivalent_preserves_movementTotal_of_left_length
+private theorem quantaEquivalent_preserves_movementTotal_of_left_length
     {Coordinate : Type} [DecidableEq Coordinate]
     (n : Nat) :
-    forall left : List (MovementChange Coordinate),
-      left.length = n ->
-      forall right : List (MovementChange Coordinate),
-        Loam.Observation159.VectorEquivalent left right ->
+    ∀ left : List (MovementChange Coordinate),
+      left.length = n →
+      ∀ right : List (MovementChange Coordinate),
+        QuantaEquivalent left right →
         movementTotalQuanta left = movementTotalQuanta right := by
   induction n using Nat.strongRecOn with
   | ind n ih =>
       intro left hLength right hEquivalent
       cases left with
       | nil =>
-          have hRightZero :
-              forall coordinate,
-                Loam.Observation159.aggregateAt right coordinate = 0 := by
+          have hRightZero : ∀ coordinate, aggregateQuanta right coordinate = 0 := by
             intro coordinate
-            simpa [Loam.Observation159.aggregateAt] using
-              (hEquivalent coordinate).symm
+            have hAt := hEquivalent coordinate
+            simpa [aggregateQuanta] using hAt.symm
           have hTotalRight :=
-            movementTotal_zero_of_all_aggregates_zero right hRightZero
-          simp [movementTotalQuanta, hTotalRight]
+            movementTotal_zero_of_all_quanta_zero right hRightZero
+          change 0 = movementTotalQuanta right
+          exact hTotalRight.symm
       | cons head rest =>
           have hSmaller :
               (eraseCoordinate head.coordinate (head :: rest)).length < n := by
-            rw [<- hLength]
+            rw [← hLength]
             exact eraseCoordinate_head_length_lt head rest
           have hReducedEquivalent :=
-            vectorEquivalent_eraseCoordinate
+            quantaEquivalent_eraseCoordinate
               (head :: rest) right head.coordinate hEquivalent
           have hReducedTotal :=
             ih
@@ -230,9 +298,17 @@ private theorem vectorEquivalent_preserves_movementTotal_of_left_length
           rw [movementTotal_eq_coordinate_add_remainder right head.coordinate]
           rw [hEquivalent head.coordinate]
           exact congrArg
-            (fun total =>
-              (Loam.Observation159.aggregateAt right head.coordinate).quanta + total)
+            (fun total => aggregateQuanta right head.coordinate + total)
             hReducedTotal
+
+/-- Integer-vector equality determines exact augmentation. -/
+theorem quantaEquivalent_preserves_movementTotal
+    {Coordinate : Type} [DecidableEq Coordinate]
+    (left right : List (MovementChange Coordinate))
+    (hEquivalent : QuantaEquivalent left right) :
+    movementTotalQuanta left = movementTotalQuanta right :=
+  quantaEquivalent_preserves_movementTotal_of_left_length
+    left.length left rfl right hEquivalent
 
 /--
 The augmentation factors through Observation 159's finite-vector meaning:
@@ -243,16 +319,23 @@ theorem vectorEquivalent_preserves_movementTotal
     (left right : List (MovementChange Coordinate))
     (hEquivalent : Loam.Observation159.VectorEquivalent left right) :
     movementTotalQuanta left = movementTotalQuanta right :=
-  vectorEquivalent_preserves_movementTotal_of_left_length
-    left.length left rfl right hEquivalent
+  quantaEquivalent_preserves_movementTotal
+    left right (vectorEquivalent_to_quantaEquivalent hEquivalent)
 
 /-- Consequently, zero augmentation is a property of vector meaning, not list shape. -/
 theorem vectorEquivalent_preserves_zero_augmentation
     {Coordinate : Type} [DecidableEq Coordinate]
     (left right : List (MovementChange Coordinate))
     (hEquivalent : Loam.Observation159.VectorEquivalent left right) :
-    movementTotalQuanta left = 0 <-> movementTotalQuanta right = 0 := by
-  rw [vectorEquivalent_preserves_movementTotal left right hEquivalent]
+    movementTotalQuanta left = 0 ↔ movementTotalQuanta right = 0 := by
+  have hTotal := vectorEquivalent_preserves_movementTotal left right hEquivalent
+  constructor
+  · intro hZero
+    rw [← hTotal]
+    exact hZero
+  · intro hZero
+    rw [hTotal]
+    exact hZero
 
 /-- The represented augmentation is additive under concatenation. -/
 theorem movementTotal_append
@@ -262,23 +345,28 @@ theorem movementTotal_append
       movementTotalQuanta left + movementTotalQuanta right := by
   induction left with
   | nil =>
-      rfl
+      simp [movementTotalQuanta]
   | cons head rest ih =>
-      simp [movementTotalQuanta, ih, Int.add_assoc]
+      change
+        head.quantity.quanta + movementTotalQuanta (rest ++ right) =
+          head.quantity.quanta + movementTotalQuanta rest + movementTotalQuanta right
+      rw [ih]
+      exact (Int.add_assoc
+        head.quantity.quanta (movementTotalQuanta rest) (movementTotalQuanta right)).symm
 
 /--
 The factorization is strict: equal augmentation is weaker than equal vector
 meaning. Observation 163 already carries a concrete zero-total counterexample.
 -/
 theorem equal_augmentation_does_not_imply_vector_equivalence :
-    exists left right : List (MovementChange Loam.Observation159.Coordinate),
-      movementTotalQuanta left = movementTotalQuanta right /\
-        not (Loam.Observation159.VectorEquivalent left right) := by
-  refine <| exists.intro Loam.Observation163.driftLeft <|
-    exists.intro Loam.Observation163.driftRight ?_
-  constructor
-  · exact Loam.Observation163.drifted_meaning_accepts_witness
-  · exact Loam.Observation163.strict_meaning_rejects_witness
+    ∃ left right : List (MovementChange Loam.Observation159.Coordinate),
+      movementTotalQuanta left = movementTotalQuanta right ∧
+        ¬ Loam.Observation159.VectorEquivalent left right := by
+  refine ⟨Loam.Observation163.driftLeft, Loam.Observation163.driftRight, ?_, ?_⟩
+  · simpa [Loam.Observation163.DriftedMeaning] using
+      Loam.Observation163.drifted_meaning_accepts_witness
+  · simpa [Loam.Observation163.StrictMeaning] using
+      Loam.Observation163.strict_meaning_rejects_witness
 
 /-!
 CSA-006 therefore identifies the standard algebraic shape without changing
