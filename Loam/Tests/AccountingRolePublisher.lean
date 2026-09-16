@@ -1,6 +1,8 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.AccountingRolePublisher
+import Loam.CurrentQuantityAnchorPublisher
+import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core
@@ -19,7 +21,8 @@ private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [event]
     | throw (IO.userError "EventMemory fixture")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci?
-      [⟨"fresh"⟩, ⟨"actual-used"⟩, ⟨"scheduled-used"⟩, ⟨"assigned"⟩, ⟨"cash"⟩]
+      [⟨"fresh"⟩, ⟨"actual-used"⟩, ⟨"scheduled-used"⟩, ⟨"anchor-used"⟩,
+       ⟨"assigned"⟩, ⟨"cash"⟩]
     | throw (IO.userError "Locus admission fixture")
   return {
     events := events
@@ -59,6 +62,15 @@ private def roleMap : IO AccountingRoleMap := do
     | throw (IO.userError "AccountingRole fixture")
   return roles
 
+private def anchorEvidence : IO Loam.CurrentQuantityAnchor.Evidence := do
+  let assertion : Loam.CurrentQuantityAnchor.Assertion := {
+    coordinate := ⟨⟨"anchor-used"⟩, ⟨"jpy"⟩⟩
+    quantity := Quantity.ofQuanta 750
+  }
+  let some anchor := Loam.CurrentQuantityAnchor.Evidence.ofLists? [] [assertion]
+    | throw (IO.userError "current quantity anchor fixture")
+  return anchor
+
 private def hasRole
     (roles : AccountingRoleMap) (locus : String) (role : AccountingRole) : Bool :=
   roles.roleOf? ⟨locus⟩ == some role
@@ -70,28 +82,47 @@ def main (args : List String) : IO Unit := do
   let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
   let roleFile := dataDir / "accounting-role.loam"
+  let anchorFile := Loam.CurrentQuantityAnchorPublisher.path root
 
   let w ← world
   let scheduled ← scheduledMemory
   let roles ← roleMap
+  let anchor ← anchorEvidence
+  let emptyAnchor := Loam.CurrentQuantityAnchor.Evidence.empty
 
   let .ok proposed := Loam.AccountingRolePublisher.propose?
-      w.locusAdmission w.events scheduled roles { locus := ⟨"fresh"⟩, role := .expense }
+      w.locusAdmission w.events scheduled emptyAnchor roles
+      { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "virgin admitted Locus role assignment was rejected")
   expect (hasRole proposed "fresh" .expense)
     "proposal did not retain first role assignment"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w.locusAdmission w.events scheduled roles { locus := ⟨"assigned"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled emptyAnchor roles
+      { locus := ⟨"assigned"⟩, role := .expense }).isOk)
     "existing AccountingRole was replaceable"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w.locusAdmission w.events scheduled roles { locus := ⟨"unknown"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled emptyAnchor roles
+      { locus := ⟨"unknown"⟩, role := .expense }).isOk)
     "non-admitted Locus received AccountingRole"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w.locusAdmission w.events scheduled roles { locus := ⟨"actual-used"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled emptyAnchor roles
+      { locus := ⟨"actual-used"⟩, role := .expense }).isOk)
     "Actual-used unresolved Locus received retroactive AccountingRole"
   expect (!(Loam.AccountingRolePublisher.propose?
-      w.locusAdmission w.events scheduled roles { locus := ⟨"scheduled-used"⟩, role := .expense }).isOk)
+      w.locusAdmission w.events scheduled emptyAnchor roles
+      { locus := ⟨"scheduled-used"⟩, role := .expense }).isOk)
     "Scheduled-used unresolved Locus received retroactive AccountingRole"
+  expect (!(Loam.AccountingRolePublisher.propose?
+      w.locusAdmission w.events scheduled anchor roles
+      { locus := ⟨"anchor-used"⟩, role := .expense }).isOk)
+    "current-anchor-backed unresolved Locus received retroactive AccountingRole"
+
+  let candidates := Loam.AccountingRolePublisher.eligibleInitialLoci
+    w.locusAdmission w.events scheduled anchor roles
+  expect (candidates.contains ⟨"fresh"⟩)
+    "virgin Locus disappeared from initial AccountingRole candidates"
+  expect (!candidates.contains ⟨"anchor-used"⟩)
+    "current-anchor-backed Locus remained an initial AccountingRole candidate"
 
   let encoded ←
     match Loam.Persistence.encodeAccountingRoleMap? proposed with
@@ -109,6 +140,8 @@ def main (args : List String) : IO Unit := do
     "publish Scheduled lifecycle fixture"
   expect (← Loam.Persistence.saveAccountingRoleMap? roleFile roles)
     "publish AccountingRole fixture"
+  expect (← Loam.Persistence.saveCurrentQuantityAnchor? anchorFile anchor)
+    "publish current quantity anchor fixture"
 
   let .ok () ← Loam.AccountingRolePublisher.publishInitialRole
       scheduledFile.toString root.toString roleFile.toString
@@ -123,6 +156,19 @@ def main (args : List String) : IO Unit := do
       scheduledFile.toString root.toString roleFile.toString
       { locus := ⟨"fresh"⟩, role := .income }).isOk)
     "publisher allowed role replacement after first assignment"
+  expect (!(← Loam.AccountingRolePublisher.publishInitialRole
+      scheduledFile.toString root.toString roleFile.toString
+      { locus := ⟨"anchor-used"⟩, role := .expense }).isOk)
+    "publisher classified retained current-anchor quantity retroactively"
+
+  let some rolesAfterAnchorRefusal ← Loam.Persistence.loadAccountingRoleMap? roleFile
+    | throw (IO.userError "reload AccountingRole authority after anchor refusal")
+  expect ((rolesAfterAnchorRefusal.roleOf? ⟨"anchor-used"⟩).isNone)
+    "anchor-backed refusal changed AccountingRole authority"
+  let some anchorAfter ← Loam.Persistence.loadCurrentQuantityAnchor? anchorFile
+    | throw (IO.userError "reload current quantity anchor after role refusal")
+  expect (decide (anchorAfter = anchor))
+    "AccountingRole refusal changed current quantity anchor evidence"
 
   let .ok loadedWorld ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload Movement authority")
@@ -134,4 +180,4 @@ def main (args : List String) : IO Unit := do
   expect (loadedLifecycle.scheduled.occurrences.length == lifecycle0.scheduled.occurrences.length)
     "AccountingRole publication changed retained Scheduled evidence"
 
-  IO.println "AccountingRole publisher: virgin-Locus first assignment, retroactive refusal, persistence round-trip and authority isolation passed."
+  IO.println "AccountingRole publisher: virgin-Locus first assignment, Actual/Scheduled/current-anchor retroactive refusal, persistence round-trip and authority isolation passed."
