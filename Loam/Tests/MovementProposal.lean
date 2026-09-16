@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Cli.Movement.Proposal
-import Loam.Cli.MovementProposalCli
+import Loam.MovementDraftReview
 
 open Loam.Core
 
@@ -77,10 +77,13 @@ def main (args : List String) : IO Unit := do
 
   let proposalFile := root / "proposal.loam-movement"
   IO.FS.writeFile proposalFile ordinaryProposal
+  let fileText ← IO.FS.readFile proposalFile
+  let .ok fileDraft := Loam.MovementProposal.parse? fileText
+    | throw (IO.userError "parse proposal file")
   let before ← IO.FS.readFile (root / "actual.loam")
-  let code ← Loam.MovementProposalCli.reviewFile proposalFile.toString root.toString
-  expect (code == 0) "proposal CLI refused an admissible proposal"
+  let .ok () ← Loam.MovementDraftReview.check root fileDraft
+    | throw (IO.userError "review proposal against current household world")
   expect ((← IO.FS.readFile (root / "actual.loam")) == before)
-    "proposal CLI changed Actual authority"
+    "proposal review changed Actual authority"
 
   IO.println "Movement proposal transport: versioned parsing, derived total, explicit overlay references and read-only current-world review passed."
