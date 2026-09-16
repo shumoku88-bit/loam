@@ -12,6 +12,7 @@ import Loam.Tui.ActualDateCorrection
 import Loam.Tui.ActualReversal
 import Loam.Tui.ActualReversalSession
 import Loam.Tui.ScheduledCompletion
+import Loam.Tui.ScheduledCompletionSession
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
@@ -250,34 +251,6 @@ partial def actualDateCorrectionLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualDateCorrectionLoop bounds root step.state nextFrame
 
-/--
-Scheduled completion edits an Actual draft; shared publication re-reads both
-authorities. Returns true when completion was published successfully, or false
-when the editor was cancelled. Continuation creation remains a separate
-operation.
--/
-partial def scheduledCompletionLoop
-    (bounds : Bounds) (root : System.FilePath)
-    (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) :
-    IO Bool := do
-  let step := Loam.Tui.ScheduledCompletion.update world known state
-    (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return false
-  match step.publish with
-  | some draft =>
-      match ← Loam.HouseholdCommand.completeScheduled root draft with
-      | .ok () => return true
-      | .error message =>
-          let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          scheduledCompletionLoop bounds root world known next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      scheduledCompletionLoop bounds root world known step.state nextFrame
-
 /-- Cancellation confirmation is presentation-only; publisher refusal returns to fresh day evidence. -/
 partial def scheduledCancellationLoop
     (bounds : Bounds) (root : System.FilePath)
@@ -374,7 +347,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let completed ← scheduledCompletionLoop
+              let completed ← Loam.Tui.ScheduledCompletionSession.run
                 bounds root world known editor editorFrame
               let notice ←
                 if !completed then
@@ -517,7 +490,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let completed ← scheduledCompletionLoop
+              let completed ← Loam.Tui.ScheduledCompletionSession.run
                 bounds root world known editor editorFrame
               let notice ←
                 if !completed then
