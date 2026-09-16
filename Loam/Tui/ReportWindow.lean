@@ -1,5 +1,6 @@
 import Loam.BoundaryPresetConfig
 import Loam.Tui.Calendar
+import Loam.Tui.CyclicIndex
 
 namespace Loam.Tui.ReportWindow
 
@@ -77,10 +78,14 @@ def initialForDateWithPresets
 
 /-- Move among Start, End, and Run without changing query coordinates. -/
 def moveFocus (state : State) (back : Bool) : State :=
-  let next := if back then (state.form.focus.val + 2) % 3 else (state.form.focus.val + 1) % 3
+  let next :=
+    if back then Loam.Tui.CyclicIndex.backward 3 state.form.focus.val
+    else Loam.Tui.CyclicIndex.forward 3 state.form.focus.val
   { state with form := { state.form with focus := ⟨next, by
       dsimp [next]
-      split <;> exact Nat.mod_lt _ (by decide)⟩ } }
+      split
+      · exact Loam.Tui.CyclicIndex.backward_lt 3 state.form.focus.val (by decide)
+      · exact Loam.Tui.CyclicIndex.forward_lt 3 state.form.focus.val (by decide)⟩ } }
 
 /-- Edit the active coordinate. Editing Start or End makes the source explicitly Custom. -/
 def editActive (state : State) (edit : String → String) : State :=
