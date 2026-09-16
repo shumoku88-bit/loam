@@ -132,25 +132,61 @@ Canonical publication remains separately owned by `HouseholdCommand.record`, whi
 
 An AI does not need a bank-specific parser to use this boundary. It can interpret a receipt, statement row, message, or user instruction and produce the small proposal transport directly.
 
-A future CSV or bank adapter can do the same transformation mechanically:
+A future CSV, bank, receipt, or email adapter can produce the same transport without changing Movement semantics:
 
 ```text
-bank / CSV / receipt / email / AI
-             |
-             v
-   frontend-specific interpretation
-             |
-             v
+AI now
+  |
+  v
+frontend-specific interpretation
+  |
+  v
 LOAM-MOVEMENT-PROPOSAL v1
-             |
-             v
-    MovementAdmission.Draft
+
+future external adapters
+  |
+  +-> the same transport boundary
 ```
 
-This makes external connectivity incremental. Each source adapter owns only source interpretation; LOAM admission remains one shared semantic boundary.
+The transport therefore stays source-neutral while product work can remain AI-first.
+
+## Current product priority
+
+The current product priority is deliberately narrower than the transport's possible producer set:
+
+```text
+AI reader / AI writer
+    now
+
+CSV / bank / receipt import
+    deferred
+```
+
+No concrete external importer is currently earned. Keeping the transport independent of AI-specific syntax preserves that future extension point without building unused source machinery today.
+
+The writer path should preserve the existing authority boundary:
+
+```text
+user observation
+  -> AI interpretation
+  -> LOAM-MOVEMENT-PROPOSAL v1
+  -> MovementProposal.parse?
+  -> MovementDraftReview.check
+  -> human-visible proposal
+  -> explicit acceptance
+  -> HouseholdCommand.record
+  -> MovementPublisher
+  -> authoritative re-read + canonical publication
+```
+
+The earlier read-only review is not publication authority. Acceptance must not create a second publisher, reserve the hypothetical identity, or assume that a proposal accepted against an earlier world must still publish. The existing writer owns the authoritative re-read and may still refuse.
+
+The reader direction should follow the same discipline from the opposite side: expose existing semantic read boundaries to AI rather than constructing a second AI-specific household model or asking the AI to infer semantics from raw persistence.
 
 ## Next pressure
 
-After this transport qualifies, the next useful experiment is not another transport format. It is one concrete source adapter, preferably a one-shot CSV reader, that produces this proposal format without claiming repeatable source identity.
+After this transport qualifies, the next useful experiment is the smallest explicit-acceptance AI writer path that turns an already reviewed proposal into the existing `HouseholdCommand.record` request without adding another Movement semantics or publisher.
 
-Only after real duplicate pressure appears should the project reopen the Observation 075-077 question of stable source identity versus explicit reconciliation.
+After that, inspect the existing application/read boundaries and identify the smallest AI reader surface that can answer household questions from canonical semantic projections.
+
+External import remains intentionally deferred until concrete user demand earns a source-specific adapter. If repeatable source identity or duplicate handling ever becomes necessary, Observations 075-078 remain the authority boundary; those concerns must not leak into the current one-shot AI proposal path merely to keep future options open.
