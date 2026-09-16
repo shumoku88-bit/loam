@@ -145,7 +145,43 @@ def main : IO Unit := do
   expect (contains "[o] order" descViewText)
     "HRA Actual view footer did not expose [o] order"
 
-  let start := initialCursor
+  -- Production HRA Actual owns its own eight-row viewport. Pin navigation beyond it
+-- before the older Main cursor implementation is retired.
+let longActual : Loam.Tui.Main.ActualSnapshot := {
+  today := "2026-09-07"
+  allRecords := (List.range 12).map testRecord
+}
+let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
+let longHraStart :=
+  (Loam.Tui.HraActual.update longSnapshot
+    (Loam.Tui.HraActual.initial "2026-09-07") .focusRight).state
+let longShifted := (List.range 10).foldl
+  (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+  longHraStart
+expect (longShifted.transactionRow == 10)
+  "HRA Actual selection could not reach the eleventh record"
+let longRecords := Loam.Tui.HraActual.visibleRecords longSnapshot longShifted
+let selectedLong ← requireSome
+  (Loam.Tui.HraActual.selectedRecord? longSnapshot longShifted)
+  "HRA Actual eleventh-row selection disappeared"
+let longViewText := widgetText
+  (Loam.Tui.HraActual.view { width := 100, height := 30 } longSnapshot longShifted)
+expect (contains selectedLong.description longViewText)
+  "HRA Actual moving viewport did not render its selected eleventh record"
+match longRecords.head? with
+| none => throw (IO.userError "HRA Actual long-list fixture became empty")
+| some firstLong =>
+    expect (!contains firstLong.description longViewText)
+      "HRA Actual eight-row viewport did not move beyond its first record"
+let longLast := (List.range 11).foldl
+  (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
+  longHraStart
+let longBlocked := (Loam.Tui.HraActual.update longSnapshot longLast .next).state
+expect (longBlocked.transactionRow == longLast.transactionRow &&
+  contains "No next Actual row" longBlocked.notice)
+  "HRA Actual end-of-list refusal moved selection or lost its notice"
+
+let start := initialCursor
   expect (start.displayed.size == 12)
     "Actual cursor still truncated a 12-record day"
   expect (start.totalCount == start.displayed.size)
