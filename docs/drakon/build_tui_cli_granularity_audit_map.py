@@ -59,32 +59,33 @@ DIAGRAMS = {
             ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT QUALIFIED"),
         ],
     },
-    "MGA.012.1 Actual Date Anti-Symmetry Control": {
-        "description": "Compare keeping the tiny ActualDateCorrection loop in Tui.Cli against extracting another Session module before making a symmetry-driven change.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md",
-        "audit": "ActualDateCorrection already owns date-editor state, validation, transitions and view. Its local Tui.Cli loop owns key reads, dirty redraws, HouseholdCommand.correctActualDate delegation and retry on refusal. That resembles the two qualified session seams, but the shell is especially small. MGA-012 is therefore an anti-symmetry control: compare INLINE versus SESSION and extract only if ownership and navigation improve for an independent reason, not merely because RecordSession and CorrectionSession exist.",
+    "MGA.012.1 Actual Date Anti-Symmetry Verdict": {
+        "description": "Record the negative control: keep the tiny ActualDateCorrection terminal loop inline instead of copying the Session naming pattern.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; PR #519; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md",
+        "audit": "ActualDateCorrection already owns state, validation, transitions, publication intent and view, while HouseholdCommand.correctActualDate remains authoritative. The local terminal loop has one selected-day caller and no reusable world/catalog context. Extracting it would not remove the surrounding selected-record lookup, initial editor construction, canonical reload, SelectedDay refresh, or destination redraw from Tui.Cli. File history shows the editor and terminal wiring were introduced together in PR #519 and have not shown an independent change history. MGA-012 therefore keeps the shell inline: logical separability alone does not justify another physical module.",
         "nodes": [
             ("action", "ActualDateCorrection.State / Step / view"),
-            ("action", "current local loop in Tui.Cli"),
-            ("decision", "Effect shell has independent change reason?", "TO TEST"),
-            ("action", "Shape A: keep loop inline"),
-            ("action", "Shape B: extract ActualDateCorrectionSession"),
-            ("decision", "Only argument is naming symmetry?", "YES -> KEEP INLINE"),
-            ("decision", "Ownership/navigation materially clearer?", "YES -> narrow extraction experiment"),
+            ("action", "tiny terminal/effect loop stays in Tui.Cli"),
+            ("insertion", "HouseholdCommand.correctActualDate"),
+            ("action", "caller reloads canonical evidence + refreshes SelectedDay"),
+            ("decision", "Would Session extraction remove workflow coupling?", "NO"),
+            ("decision", "Independent history / reuse / ownership pressure?", "NO EVIDENCE YET"),
+            ("decision", "Split only for Record/Correction symmetry?", "REJECT"),
+            ("action", "KEEP_INLINE / SPLIT_REJECTED"),
         ],
     },
-    "MGA.010.3 Stop Rule": {
-        "description": "Calibrate the coarse-file audit with the Record result and constrain the next experiment.",
-        "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; Loam/Tui/Cli.lean; Loam/Tui/RecordSession.lean",
-        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. Record and Correction are qualified; the next test is whether the much smaller ActualDateCorrection shell deserves a boundary at all.",
+    "MGA.012.2 Physical Boundary Stop Rule": {
+        "description": "Calibrate physical module creation with two positive session splits and one deliberate negative control.",
+        "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; Loam/Tui/Cli.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean; Loam/Tui/ActualDateCorrection.lean",
+        "audit": "MGA-010 and MGA-011 show that justified effect/session boundaries can increase raw module counts while reducing responsibility coupling. MGA-012 supplies the necessary negative control: a logically distinct tiny effect shell can still remain inline when extraction does not materially improve navigation, reuse, ownership, or change independence. The next audit compares the three remaining Scheduled loops by their actual continuation topology rather than by naming symmetry.",
         "nodes": [
-            ("action", "Observe raw granularity metrics"),
-            ("decision", "Metrics worsen after a split?", "NOT A VETO"),
-            ("decision", "Independent ownership/effect boundary?", "YES"),
-            ("action", "try one narrow extraction"),
-            ("action", "qualify Production TUI + Compression + inventory"),
-            ("decision", "Boundary stays coherent and navigation improves?", "YES -> graduate"),
-            ("action", "Next test: compare INLINE vs SESSION for ActualDateCorrection"),
+            ("action", "Observe semantic ownership + effect topology + history"),
+            ("decision", "Logical responsibility is distinct?", "CANDIDATE ONLY"),
+            ("decision", "Physical split materially improves navigation / reuse / change independence?", "REQUIRED"),
+            ("action", "Record + Correction: split qualified"),
+            ("action", "ActualDateCorrection: keep inline"),
+            ("decision", "Naming symmetry alone?", "NEVER A SPLIT REASON"),
+            ("action", "Next: compare Completion / Cancellation / Replacement topology"),
         ],
     },
 }
@@ -110,7 +111,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM MGA.009-012 - TUI CLI module granularity",),
+            ("LOAM MGA.009-013 - TUI CLI module granularity",),
         )
 
         item_id = 1
@@ -119,7 +120,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-012 TUI CLI module granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-013 TUI CLI module granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 

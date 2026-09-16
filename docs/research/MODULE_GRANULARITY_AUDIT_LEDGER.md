@@ -2,7 +2,7 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-011 GRADUATED — Correction session split qualified; ActualDateCorrection selected as the next anti-symmetry control**
+Status: **MGA-012 CLOSED — ActualDateCorrection terminal loop stays inline; physical Session symmetry rejected**
 
 ## Refreshed inventory
 
@@ -170,6 +170,7 @@ Audit vocabulary:
 
 ```text
 KEEP_BOUNDARY
+KEEP_INLINE
 COLLAPSE_CANDIDATE
 RETIRE_CANDIDATE
 MOVE_LAYER_CANDIDATE
@@ -250,43 +251,71 @@ reasons from the pure editor/presentation module.
 
 ## MGA-012 — `Loam.Tui.ActualDateCorrection` anti-symmetry control
 
-Classification: **NEEDS_DRAKON / SPLIT_CANDIDATE — DO NOT EXTRACT YET**
+Classification: **KEEP_INLINE / SPLIT_REJECTED**
 
-Four local editor/effect loops remain in `Tui.Cli`:
+MGA-012 deliberately tested the opposite conclusion from MGA-010 and MGA-011.
+`ActualDateCorrection` already has a clean semantic boundary: the module owns
+editor state, date validation, transition, publication intent, and view, while
+`HouseholdCommand.correctActualDate` remains the authoritative write entrance.
+The only question was whether the tiny terminal/effect loop still living in
+`Tui.Cli` deserved another physical `*Session` module.
 
-1. `actualDateCorrectionLoop`;
-2. `scheduledCompletionLoop`;
-3. `scheduledCancellationLoop`;
-4. `scheduledReplacementLoop`.
+The comparison rejects that split for now:
 
-`ActualDateCorrection` is the next useful control precisely because it is smaller
-and more special-purpose than Record or Correction. Its current shape is strongly
-session-like:
+- the loop has one caller and only one selected-day entrance;
+- the caller must still own selected-record lookup, `initial?`, first editor
+  redraw, canonical reload, `SelectedDay.refreshed`, and destination redraw, so
+  extracting the inner loop removes little workflow-navigation burden;
+- the effect shell carries no reusable world/catalog context and returns only a
+  short notice;
+- `Loam/Tui/ActualDateCorrection.lean` has only one repository-history commit,
+  PR #519, where the editor, selected-day delegation, publication wiring, tests,
+  and terminal loop were introduced together; there is no historical evidence
+  yet that the shell changes independently;
+- semantic ownership is already non-duplicated and authority remains outside the
+  TUI, so leaving the shell inline does not create a second model or writer.
 
-- `ActualDateCorrection` owns date-editor state, validation, transition, and view;
-- the local loop owns terminal reads, dirty redraws, delegation to
-  `HouseholdCommand.correctActualDate`, and retry after publication refusal;
-- the loop returns only a human-facing notice;
-- the caller retains canonical reload and workspace destination.
+This differs from Record and Correction in an important way. Their extraction
+removed a substantial object-local terminal session from the composition root and
+made an independently useful call boundary. For ActualDateCorrection, creating a
+new file would mostly turn a logically separable but tiny implementation detail
+into another one-consumer module. Logical separability is therefore not enough by
+itself to justify physical module ownership.
 
-But that similarity is not itself permission to create another file. MGA-012 asks
-a sharper question: **does this tiny effect shell have an independent change
-reason, or would a separate `ActualDateCorrectionSession` merely copy the naming
-pattern established by Record and Correction?**
-
-This is the anti-symmetry control for the audit. Before any extraction, use the
-DRAKON map to compare the two physical shapes:
+The anti-symmetry control is successful because it produces a negative result:
 
 ```text
-A. keep the tiny terminal loop in Tui.Cli
-B. extract ActualDateCorrectionSession
+same editor/session shape
+!=
+automatically same file split
 ```
 
-Prefer B only if it improves ownership/navigation while preserving one semantic
-owner and one authority owner. If the only argument is naming consistency with
-Record/Correction, keep A.
+The current dependency shape remains:
 
-The Scheduled loops remain deliberately deferred. `ScheduledCompletion` is still
-more coupled because its Boolean result feeds continuation creation and routing
-inheritance; cancellation and replacement should be judged from their own
-workflow ownership rather than from `*Session` symmetry.
+```text
+Tui.Cli
+  -> ActualDateCorrection   (state / validation / transition / view)
+  -> HouseholdCommand.correctActualDate  (authoritative write entrance)
+```
+
+No production code changes are required for MGA-012.
+
+## MGA-013 — remaining Scheduled local-loop topology
+
+Classification: **NEEDS_DRAKON / NEEDS_HISTORY — NO BATCH EXTRACTION**
+
+Three local Scheduled editor/effect loops remain in `Tui.Cli`:
+
+1. `scheduledCompletionLoop`;
+2. `scheduledCancellationLoop`;
+3. `scheduledReplacementLoop`.
+
+They must not be treated as a naming family. Their continuation semantics differ:
+completion returns a Boolean into next-Scheduled creation and routing inheritance;
+cancellation is a compact confirmation/publication path; replacement owns an
+editor retry path closer to Correction. MGA-013 should compare those three
+control-flow shapes before considering any further physical split.
+
+The next audit therefore asks which, if any, of those loops has a durable
+independent change/effect boundary that materially improves navigation when
+extracted. A shared `Scheduled*Session` pattern is not an objective.
