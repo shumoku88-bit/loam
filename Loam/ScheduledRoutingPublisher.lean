@@ -26,7 +26,7 @@ reading projections such as `ScheduledCommitmentInspection`.
 
 The publisher enforces:
 - WriterOwnership over the routing authority
-- re-reading the authoritative Scheduled lifecycle under lock
+- re-reading the authoritative Scheduled lifecycle during publication
 - verification that `ScheduledId` exists and contains the requested `LocusId`
 - re-reading the routing authority under lock
 - rejection of duplicate `(subject, effectiveOn)` coordinates
@@ -81,7 +81,7 @@ private def publishUnlocked
                     effectiveOn := draft.effectiveOn
                     purpose := purposeOpt
                   }
-                  match RoutingHistory.ofEntries? (history.entries ++ [entry]) with
+                  match history.add? entry with
                   | none =>
                       return .error
                         "loam: Scheduled routing already has evidence at this subject/effective coordinate"

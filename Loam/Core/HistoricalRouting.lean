@@ -74,6 +74,16 @@ def ofEntries? [DecidableEq Subject] [DecidableEq Time]
   else
     none
 
+/--
+Append one routing assertion while re-admitting the history's local
+`(subject, effectiveOn)` uniqueness invariant. Representation order is retained,
+but still carries no temporal priority or winner meaning.
+-/
+def add? [DecidableEq Subject] [DecidableEq Time]
+    (history : RoutingHistory Subject Time)
+    (entry : RoutingEntry Subject Time) : Option (RoutingHistory Subject Time) :=
+  ofEntries? (history.entries ++ [entry])
+
 @[simp] theorem ofEntries?_nil [DecidableEq Subject] [DecidableEq Time] :
     ofEntries? ([] : List (RoutingEntry Subject Time)) =
       some { entries := [], coordinateNodup := by simp } := by
