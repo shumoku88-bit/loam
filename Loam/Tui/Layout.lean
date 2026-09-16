@@ -110,6 +110,14 @@ def centeredListWindow {α : Type} (items : List α) (selected maxVisible : Nat)
     let start := if selected > half then min (selected - half) (total - maxVisible) else 0
     (items.drop start |>.take maxVisible).zipIdx.map fun (x, i) => (start + i, x)
 
+/--
+Start a fixed-size presentation window at zero until selection reaches its final
+visible row, then advance just enough to keep the selected index at the trailing
+edge. Cursor validity, empty-list policy, and window size remain caller-owned.
+-/
+def trailingWindowStart (selected maxVisible : Nat) : Nat :=
+  if selected < maxVisible then 0 else selected + 1 - maxVisible
+
 private def takeCellsColumns : List Cell → Nat → List Cell
   | [], _ => []
   | cell :: rest, remaining =>
