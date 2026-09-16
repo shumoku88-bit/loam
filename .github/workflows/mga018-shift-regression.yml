@@ -6,6 +6,7 @@ on:
       - audit/mga-018-report-window
     paths:
       - .github/workflows/mga018-shift-regression.yml
+      - tools/mga018_shift_policy.py
 
 permissions:
   contents: write
@@ -47,6 +48,6 @@ jobs:
           rm .github/workflows/mga018-shift-regression.yml tools/mga018_shift_policy.py tools/mga018_shift_regression.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add Loam/Tui/Reports.lean Loam/Tests/TuiReports.lean .github/workflows/mga018-shift-regression.yml tools/mga018_shift_policy.py tools/mga018_shift_regression.py
+          git add Loam/Tui/ReportWindow.lean Loam/Tui/Reports.lean Loam/Tests/TuiReports.lean .github/workflows/mga018-shift-regression.yml tools/mga018_shift_policy.py tools/mga018_shift_regression.py
           git commit -m 'fix(tui): preserve Reports snapshot on refused month shift'
           git push
