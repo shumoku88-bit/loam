@@ -13,14 +13,14 @@ DIAGRAMS = {
     "MGA.009.1 TUI CLI Responsibility Fanout": {
         "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after the first focused session extraction.",
         "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean; Loam/Tui/CorrectionSession.lean",
-        "audit": "Tui.Cli remains the production terminal composition root. PRs #961 and #964 removed the Record and Correction terminal/effect loops, but key grammars, snapshot/config loading, four local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
+        "audit": "Tui.Cli remains the production terminal composition root. PRs #961 and #964 removed the Record and Correction terminal/effect loops, but key grammars, snapshot/config loading, one intentionally-inline date loop plus three local Scheduled loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
         "nodes": [
             ("insertion", "loamTui main / terminal entrance"),
             ("action", "resolve data directory + current authority roots"),
             ("action", "load shared snapshot / catalogs / presets"),
             ("action", "map terminal keys to Home / Actual / Scheduled / SelectedDay events"),
             ("action", "delegate extracted terminal sessions\nRecord / Correction / creation / routing / capacity / admission / reversal"),
-            ("action", "run remaining local editor loops\nDate / Completion / Cancellation / Replacement"),
+            ("action", "run remaining local editor loops\nDate (KEEP_INLINE) / Completion / Cancellation / Replacement"),
             ("action", "orchestrate HRA Home / Actual / Scheduled / SelectedDay"),
             ("action", "dispatch Reports queries + redraw"),
             ("action", "reload canonical evidence after successful writes"),
@@ -88,6 +88,51 @@ DIAGRAMS = {
             ("action", "Next: compare Completion / Cancellation / Replacement topology"),
         ],
     },
+    "MGA.013.1 Scheduled Loop Shape Comparison": {
+        "description": "Compare Completion, Cancellation, and Replacement by continuation and retry topology instead of by Scheduled naming symmetry.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCancellation.lean; Loam/Tui/ScheduledReplacement.lean; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md",
+        "audit": "The three Scheduled local loops are not one physical family. Completion and Replacement both have reusable editor/effect shells entered from HRA Scheduled and SelectedDay, while Cancellation is a tiny confirmation that exits on refusal. Completion additionally returns a Boolean into caller-owned continuation creation and routing inheritance. MGA-013 therefore rejects batch extraction and classifies each shape separately.",
+        "nodes": [
+            ("action", "three local Scheduled terminal loops in Tui.Cli"),
+            ("decision", "retry editor after publication refusal?", "Completion + Replacement: YES / Cancellation: NO"),
+            ("decision", "reused from HRA Scheduled + SelectedDay?", "YES - all three"),
+            ("decision", "caller has post-publication continuation semantics?", "Completion: YES"),
+            ("action", "Completion -> SPLIT_CANDIDATE, defer"),
+            ("action", "Cancellation -> KEEP_INLINE / SPLIT_REJECTED"),
+            ("action", "Replacement -> SPLIT_CANDIDATE / MGA-014"),
+        ],
+    },
+    "MGA.013.2 Scheduled Cancellation Negative Control": {
+        "description": "Keep the tiny confirmation shell inline even though two workspaces reuse it.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledCancellation.lean; PR #524",
+        "audit": "ScheduledCancellation owns only presentation evidence for an explicit protective confirmation. The terminal loop has no reusable world/catalog context and no retry state: a publisher refusal immediately becomes a notice and fresh canonical evidence is loaded by the caller. The presentation module has only its original #524 history. Moving this tiny shell to another file would mostly add a physical module without removing meaningful workflow navigation, so MGA-013 keeps it inline.",
+        "nodes": [
+            ("action", "ScheduledCancellation.State / Step / view"),
+            ("action", "tiny local confirmation loop"),
+            ("decision", "publish target-only cancellation?", "YES"),
+            ("insertion", "HouseholdCommand.cancelScheduled"),
+            ("decision", "refusal returns to editor retry?", "NO - return notice"),
+            ("action", "caller reloads canonical evidence"),
+            ("decision", "physical Session materially improves navigation?", "NO"),
+            ("action", "KEEP_INLINE / SPLIT_REJECTED"),
+        ],
+    },
+    "MGA.013.3 Scheduled Replacement Candidate": {
+        "description": "Select Replacement as the next narrow implementation experiment without pre-judging qualification.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/ScheduledReplacement.lean; Loam/HouseholdCommand.lean; PR #710; PR #767",
+        "audit": "ScheduledReplacement owns a substantial presentation-only editor, while the local Tui.Cli shell owns terminal reads, dirty redraws, HouseholdCommand.replaceScheduled delegation and retry after refusal. The same shell is entered from HRA Scheduled and SelectedDay. Its editor has independent change history after introduction, including dependency narrowing and BalancedMovement migration. This is materially closer to the qualified Correction session seam than to ActualDateCorrection, so MGA-014 will try one narrow ScheduledReplacementSession extraction and qualify it before any further split.",
+        "nodes": [
+            ("action", "ScheduledReplacement.State / validation / preview / view"),
+            ("action", "shared local terminal/effect loop in Tui.Cli"),
+            ("action", "read key + update + dirty redraw"),
+            ("decision", "Step publishes draft?", "YES"),
+            ("insertion", "HouseholdCommand.replaceScheduled"),
+            ("decision", "publication refused?", "YES -> same editor retry"),
+            ("action", "callers retain selection + canonical reload + destination refresh"),
+            ("decision", "narrow extraction worth testing?", "YES -> MGA-014"),
+        ],
+    },
+
 }
 
 

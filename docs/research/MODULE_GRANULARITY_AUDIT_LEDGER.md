@@ -2,7 +2,7 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-012 CLOSED — ActualDateCorrection terminal loop stays inline; physical Session symmetry rejected**
+Status: **MGA-013 COMPLETE — Scheduled loops classified individually; Replacement selected for one narrow split experiment**
 
 ## Refreshed inventory
 
@@ -302,20 +302,83 @@ No production code changes are required for MGA-012.
 
 ## MGA-013 — remaining Scheduled local-loop topology
 
-Classification: **NEEDS_DRAKON / NEEDS_HISTORY — NO BATCH EXTRACTION**
+Classification: **MIXED VERDICT — NO BATCH EXTRACTION**
 
-Three local Scheduled editor/effect loops remain in `Tui.Cli`:
+Three local Scheduled editor/effect loops remain in `Tui.Cli`, but DRAKON and
+history do not support treating them as one naming family.
 
-1. `scheduledCompletionLoop`;
-2. `scheduledCancellationLoop`;
-3. `scheduledReplacementLoop`.
+### ScheduledCompletion
 
-They must not be treated as a naming family. Their continuation semantics differ:
-completion returns a Boolean into next-Scheduled creation and routing inheritance;
-cancellation is a compact confirmation/publication path; replacement owns an
-editor retry path closer to Correction. MGA-013 should compare those three
-control-flow shapes before considering any further physical split.
+Classification: **SPLIT_CANDIDATE — focused experiment justified**
 
-The next audit therefore asks which, if any, of those loops has a durable
-independent change/effect boundary that materially improves navigation when
-extracted. A shared `Scheduled*Session` pattern is not an objective.
+The completion shell is stronger than the rejected ActualDateCorrection split:
+
+- the same local loop is entered from both HRA Scheduled and SelectedDay;
+- it carries reusable `world` and `known` catalog context;
+- publication refusal returns to the same editor and redraws, matching the
+  already-qualified Record/Correction session shape;
+- the loop returns only a Boolean completion result, while continuation creation
+  and routing inheritance deliberately remain in the caller;
+- `ScheduledCompletion.lean` has changed independently after its introduction,
+  including shared Record-shaped field rendering (#642) and catalog candidate
+  projection cleanup (#646).
+
+A physical session boundary is therefore plausible, but completion has an extra
+continuation contract. It should not be the first Scheduled extraction while a
+simpler positive control exists.
+
+### ScheduledCancellation
+
+Classification: **KEEP_INLINE / SPLIT_REJECTED**
+
+Cancellation is the negative control inside the Scheduled family:
+
+- it is a compact confirmation-only interaction with no editable household
+  payload and no world/catalog context;
+- publisher refusal exits immediately as a human-facing notice instead of
+  returning to an editor retry loop;
+- its presentation module has only the original #524 history so far, with no
+  observed independent change pressure;
+- although both HRA Scheduled and SelectedDay reuse the local loop, moving this
+  tiny shell to another file removes little navigation burden from either caller.
+
+Two callers are therefore useful candidate evidence, not an automatic split
+reason. Cancellation stays inline.
+
+### ScheduledReplacement
+
+Classification: **SPLIT_CANDIDATE — SELECTED FOR MGA-014 IMPLEMENTATION EXPERIMENT**
+
+Replacement is the cleanest next experiment:
+
+- the same terminal shell is entered from both HRA Scheduled and SelectedDay;
+- `ScheduledReplacement` owns a substantial presentation-only editor with date,
+  posting rows, validation, preview, and publication-intent construction;
+- the local shell owns key reads, dirty redraws, delegation to
+  `HouseholdCommand.replaceScheduled`, and retry after publication refusal;
+- the caller still owns selected-record lookup, initial editor construction,
+  canonical reload, and destination refresh;
+- the editor has independent history after introduction, including validity
+  dependency narrowing (#710) and canonical `BalancedMovement` draft migration
+  (#767).
+
+This is materially closer to the already-qualified Correction session seam than
+to the rejected ActualDateCorrection shell. MGA-014 should therefore extract only
+`ScheduledReplacementSession`, then re-run Production TUI, Compression Audit,
+module inventory, and the relevant Scheduled tests before deciding whether the
+boundary graduates.
+
+### MGA-013 stop rule
+
+The Scheduled family now gives three different outcomes from superficially
+similar local loops:
+
+```text
+Completion    -> SPLIT_CANDIDATE, defer until continuation seam is tested
+Cancellation  -> KEEP_INLINE / SPLIT_REJECTED
+Replacement   -> SPLIT_CANDIDATE, next narrow implementation experiment
+```
+
+This is the intended result of the granularity audit. Physical modules follow
+ownership, reuse, continuation topology, navigation cost, and observed change
+reasons. They do not follow suffix symmetry.
