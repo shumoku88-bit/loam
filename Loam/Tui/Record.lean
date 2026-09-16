@@ -1,5 +1,6 @@
 import Loam.LocusCatalog
 import Loam.MovementAdmission
+import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
 import Loam.Tui.Terminal
@@ -49,11 +50,18 @@ def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
 
 def moveFocus (form : Form) (back : Bool) : Form :=
   let count := 2 + form.rows.size * 2 + 4
-  let next := if back then (form.focus.val + count - 1) % count
-              else (form.focus.val + 1) % count
-  { form with focus := ⟨next, by
-      dsimp [next]
-      split <;> exact Nat.mod_lt _ (by dsimp [count]; omega)⟩ }
+  have hcount : 0 < count := by
+    dsimp [count]
+    omega
+  let next :=
+    if back then Loam.Tui.CyclicIndex.backward count form.focus.val
+    else Loam.Tui.CyclicIndex.forward count form.focus.val
+  have hnext : next < count := by
+    dsimp [next]
+    split
+    · exact Loam.Tui.CyclicIndex.backward_lt count form.focus.val hcount
+    · exact Loam.Tui.CyclicIndex.forward_lt count form.focus.val hcount
+  { form with focus := ⟨next, by simpa [count] using hnext⟩ }
 
 def replaceRows (form : Form) (rows : Array Row) : Form :=
   { date := form.date, description := form.description, rows := rows,
