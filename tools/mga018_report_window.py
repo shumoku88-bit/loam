@@ -119,8 +119,17 @@ text = text.replace(
     "window := Loam.Tui.ReportWindow.moveFocus state.window true",
 )
 
-# No retired flat owner may remain.
-for residue in ["WindowSource", "windowPresets", "windowSource :", "state.windowSource", "state.calendarAnchor", "state.form"]:
+# No retired flat owner may remain. Function names such as cycleWindowSource are
+# intentionally retained as Reports composition helpers, so check declarations/fields only.
+for residue in [
+    "inductive WindowSource",
+    "structure Form where",
+    "windowPresets :",
+    "windowSource : WindowSource",
+    "state.windowSource",
+    "state.calendarAnchor",
+    "state.form",
+]:
     if residue in text:
         raise SystemExit(f"retired Reports window residue remains: {residue}")
 
