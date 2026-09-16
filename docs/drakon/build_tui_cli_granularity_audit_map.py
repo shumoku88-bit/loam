@@ -11,64 +11,64 @@ OUTPUT = HERE / "loam-tui-cli-granularity-audit.drn"
 
 DIAGRAMS = {
     "MGA.009.1 TUI CLI Responsibility Fanout": {
-        "description": "Expose the distinct responsibilities currently meeting in Loam.Tui.Cli before deciding whether the file is merely a large composition root or owns too many independent reasons to change.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean",
-        "audit": "Tui.Cli is the production terminal composition root, but it also owns key grammars, snapshot/config loading, several local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances. Size alone does not authorize a split; this map separates the reasons to change so they can be tested independently.",
+        "description": "Expose the distinct responsibilities still meeting in Loam.Tui.Cli after the first focused session extraction.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Main.lean; Loam/Tui/Reports.lean; Loam/Tui/RecordSession.lean",
+        "audit": "Tui.Cli remains the production terminal composition root. PR #961 removed the Record terminal/effect loop, but key grammars, snapshot/config loading, five local editor loops, Home/Actual/Scheduled/SelectedDay orchestration, report query execution, and administration entrances still meet here. The Record result proves that raw module count is only candidate evidence; responsibility ownership decides the boundary.",
         "nodes": [
             ("insertion", "loamTui main / terminal entrance"),
             ("action", "resolve data directory + current authority roots"),
             ("action", "load shared snapshot / catalogs / presets"),
             ("action", "map terminal keys to Home / Actual / Scheduled / SelectedDay events"),
-            ("action", "run local editor loops\nRecord / Correction / Date / Scheduled terminal edits"),
-            ("action", "run extracted *Session modules\ncreation / routing / capacity / admission / reversal"),
+            ("action", "delegate extracted terminal sessions\nRecord / creation / routing / capacity / admission / reversal"),
+            ("action", "run remaining local editor loops\nCorrection / Date / Completion / Cancellation / Replacement"),
             ("action", "orchestrate HRA Home / Actual / Scheduled / SelectedDay"),
             ("action", "dispatch Reports queries + redraw"),
             ("action", "reload canonical evidence after successful writes"),
-            ("decision", "One independent reason to change?", "NO - several families are visible"),
+            ("decision", "One independent reason to change?", "NO - several families remain"),
         ],
     },
-    "MGA.009.2 Existing Session Seam": {
-        "description": "Use an already-extracted session as a control showing what a real TUI file boundary looks like.",
-        "sources": "Loam/Tui/ScheduledCreation.lean; Loam/Tui/ScheduledCreationSession.lean; Loam/HouseholdCommand.lean",
-        "audit": "ScheduledCreation owns presentation state, validation and transition logic. ScheduledCreationSession owns terminal reads, dirty redraws and publication delegation. HouseholdCommand owns the production write entrance. The files therefore have different reasons to change even though the session is small and has a narrow consumer surface.",
+    "MGA.010.1 Qualified Record Session Seam": {
+        "description": "Record the first focused split that graduated from candidate pressure to a qualified ownership boundary.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Record.lean; Loam/Tui/RecordSession.lean; Loam/HouseholdCommand.lean; PR #961",
+        "audit": "Record owns editor state, validation, transitions and view. RecordSession owns one terminal/effect shell: key reads, dirty redraws and publication delegation. HouseholdCommand.record remains the authoritative write entrance, while Tui.Cli still loads the selected world, reloads canonical evidence and chooses the destination surface. PR #961 passed Production TUI, Compression Audit, Module granularity inventory and Selected Lean Observations. The split is therefore qualified even though it adds one small one-consumer module.",
         "nodes": [
-            ("action", "ScheduledCreation.State / Step"),
-            ("action", "pure-ish presentation transition\nupdate + draft + view"),
-            ("insertion", "ScheduledCreationSession.run"),
+            ("action", "Record.State / Step / view"),
+            ("insertion", "RecordSession.run"),
             ("action", "read terminal key"),
-            ("action", "emit dirty redraw"),
+            ("action", "Record.update + dirty redraw"),
             ("decision", "Step publishes draft?", "YES"),
-            ("insertion", "HouseholdCommand.createScheduled"),
-            ("action", "authoritative publication elsewhere"),
+            ("insertion", "HouseholdCommand.record"),
+            ("action", "return human-facing completion notice"),
+            ("action", "caller reloads canonical evidence + chooses destination"),
+            ("decision", "Independent effect/change boundary qualified?", "YES - KEEP_BOUNDARY / SPLIT QUALIFIED"),
         ],
     },
-    "MGA.009.3 Local Session Cluster": {
-        "description": "Identify editor-session loops still physically retained inside Tui.Cli even though neighboring features use dedicated Session modules.",
-        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Record.lean; Loam/Tui/Correction.lean; Loam/Tui/ActualDateCorrection.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCancellation.lean; Loam/Tui/ScheduledReplacement.lean",
-        "audit": "Record, Correction, ActualDateCorrection, ScheduledCompletion, ScheduledCancellation and ScheduledReplacement each own presentation modules, while their terminal/effect loops still live in Tui.Cli. This is split pressure, not a split verdict. The next test is whether moving a coherent session cluster reduces Tui.Cli change coupling without creating navigation-only files.",
+    "MGA.010.2 Remaining Session Comparison": {
+        "description": "Compare the five editor-session loops still retained in Tui.Cli without turning the successful Record extraction into a symmetry-driven sweep.",
+        "sources": "Loam/Tui/Cli.lean; Loam/Tui/Correction.lean; Loam/Tui/ActualDateCorrection.lean; Loam/Tui/ScheduledCompletion.lean; Loam/Tui/ScheduledCancellation.lean; Loam/Tui/ScheduledReplacement.lean",
+        "audit": "Correction is the closest next control to Record: it has a dedicated presentation module, re-enters its editor on publication error, returns only a completion notice, and leaves canonical reload plus workspace destination to Tui.Cli. ActualDateCorrection is similarly narrow but provides less comparative pressure. ScheduledCompletion is more coupled because its Bool result drives continuation creation and routing inheritance in the caller. Cancellation and Replacement remain scheduled-workflow candidates, but extracting all remaining loops merely for naming symmetry would violate the stop rule.",
         "nodes": [
-            ("action", "Record presentation module"),
-            ("action", "recordLoop retained in Tui.Cli"),
-            ("action", "Correction presentation module"),
-            ("action", "correctionLoop retained in Tui.Cli"),
-            ("action", "ActualDateCorrection presentation module"),
-            ("action", "actualDateCorrectionLoop retained in Tui.Cli"),
-            ("action", "Scheduled terminal presentation modules"),
-            ("action", "completion / cancellation / replacement loops retained in Tui.Cli"),
-            ("decision", "Do these loops change independently of root navigation?", "CHECK HISTORY + FOCUSED EXTRACTION"),
+            ("action", "Correction loop\nString result + editor retry + caller reload"),
+            ("decision", "Closest Record-shaped effect seam?", "YES - next focused experiment"),
+            ("action", "ActualDateCorrection loop\nsmall independent editor shell"),
+            ("action", "ScheduledCompletion loop\nBool result feeds continuation workflow"),
+            ("action", "ScheduledCancellation loop\nconfirmation + publication notice"),
+            ("action", "ScheduledReplacement loop\neditor retry + scheduled workflow context"),
+            ("decision", "Batch-extract all five for symmetry?", "NO - test Correction alone"),
         ],
     },
-    "MGA.009.4 Stop Rule": {
-        "description": "Prevent the coarse-file audit from turning into style-driven decomposition.",
-        "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; Loam/Tui/Cli.lean",
-        "audit": "A split graduates only when it isolates a real ownership/effect/change boundary and reduces cross-feature coupling. Creating one file per function or per screen merely for symmetry is explicitly out of scope.",
+    "MGA.010.3 Stop Rule": {
+        "description": "Calibrate the coarse-file audit with the Record result and constrain the next experiment.",
+        "sources": "docs/research/MODULE_GRANULARITY_AUDIT.md; docs/research/MODULE_GRANULARITY_AUDIT_LEDGER.md; Loam/Tui/Cli.lean; Loam/Tui/RecordSession.lean",
+        "audit": "MGA-010 demonstrates that a justified split may increase file count, small-module count, one-consumer count and composition-root fan-out. Those metrics remain useful detectors but are not verdicts. A split graduates only when it isolates a real ownership/effect/change boundary, preserves semantic and authority ownership, and passes focused qualification. The next experiment is Correction only; the other local loops remain uncommitted candidates.",
         "nodes": [
-            ("action", "Measure source responsibility + history"),
-            ("decision", "Independent change/effect boundary?", "YES"),
+            ("action", "Observe raw granularity metrics"),
+            ("decision", "Metrics worsen after a split?", "NOT A VETO"),
+            ("decision", "Independent ownership/effect boundary?", "YES"),
             ("action", "try one narrow extraction"),
-            ("action", "qualify build + focused TUI tests"),
-            ("decision", "Navigation/coupling improves?", "YES -> SPLIT_CANDIDATE earns implementation"),
-            ("action", "Otherwise KEEP Tui.Cli as composition root"),
+            ("action", "qualify Production TUI + Compression + inventory"),
+            ("decision", "Boundary stays coherent and navigation improves?", "YES -> graduate"),
+            ("action", "Next test: Correction only; otherwise KEEP in Tui.Cli"),
         ],
     },
 }
@@ -94,7 +94,7 @@ def build() -> None:
         )
         db.execute(
             "insert into state values (1,1,?)",
-            ("LOAM MGA.009 - TUI CLI module granularity",),
+            ("LOAM MGA.009-010 - TUI CLI module granularity",),
         )
 
         item_id = 1
@@ -103,7 +103,7 @@ def build() -> None:
 
         node_id = 1
         root = node_id
-        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009 TUI CLI module granularity")
+        node_id = base.add_tree_node(db, node_id, 0, "folder", "MGA.009-010 TUI CLI module granularity")
         for name in names:
             node_id = base.add_tree_node(db, node_id, root, "item", diagram_id=diagram_ids[name])
 

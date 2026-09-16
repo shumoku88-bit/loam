@@ -1,26 +1,43 @@
 # Module Granularity Audit Ledger
 
-Checkpoint base: `098c84557d8e911e732f1ed0d73e15eaa7720286`
+Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **SECOND INVENTORY RUN COMPLETE — MGA-001 graduated; root pass calibrated**
+Status: **MGA-010 GRADUATED — Record session split qualified; Correction selected as the next focused experiment**
 
 ## Refreshed inventory
 
-After PR #959 retired the unreachable SHA-256 utility, PR #957 was rebased onto
-current `main` and the inventory was rerun successfully.
+The module-granularity inventory was rerun on the PR #961 head after extracting
+`Loam.Tui.RecordSession`.
 
 ```text
-Lean modules: 330
-Modules <= 80 lines: 87
-Modules with exactly one local consumer: 50
+Lean modules: 331
+Modules <= 80 lines: 88
+Modules with exactly one local consumer: 51
 Declared Lake roots: 17
 Production-like modules unreachable from declared roots: 0
 ```
 
-The disappearance of the only unreachable production-like module is the first
-end-to-end calibration result for this audit. The detector found stale physical
-surface, source/history inspection justified retirement, a separate PR removed it,
-and the next inventory closed the reachability finding.
+The raw counts increased by one module, one small module, and one one-consumer
+module. That is expected: MGA-010 intentionally added a physical boundary.
+The important result is that no production-like surface became unreachable and
+that the new dependency direction is explicit:
+
+```text
+Tui.Cli -> RecordSession -> Record + HouseholdCommand
+```
+
+Current focused metrics:
+
+```text
+Loam.Tui.Cli           1200 lines / 33 declarations / fan-out 54
+Loam.Tui.RecordSession   48 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.Record          302 lines / 28 declarations / fan-in 7 / fan-out 6
+```
+
+This is an important calibration result for the audit: file count, small-module
+count, one-consumer count, and composition-root fan-out are candidate detectors,
+not verdicts. A justified ownership boundary can make all four raw metrics look
+worse while reducing change coupling.
 
 ## MGA-001 — `Loam.Sha256`
 
@@ -35,7 +52,7 @@ Evidence before retirement:
 - repository history showed the former production caller had already retired.
 
 PR #959 deleted only `Loam/Sha256.lean`. Compression Audit and Selected Lean
-Observations both passed before merge. The refreshed inventory now reports zero
+Observations both passed before merge. The refreshed inventory reports zero
 production-like unreachable modules.
 
 This was not a size-based merge. It was stale-surface retirement.
@@ -135,30 +152,18 @@ not semantic micro-modules, and are excluded from collapse ranking.
 
 ## Current verdict
 
-The first two passes do not support a general diagnosis that LOAM is fragmented
-into too many tiny Lean modules.
-
-The useful distinction so far is:
+The audit still does not support a general diagnosis that LOAM is fragmented into
+too many tiny Lean modules. MGA-010 adds a stronger distinction:
 
 ```text
-small + shared/independent responsibility      -> KEEP_BOUNDARY
-one consumer + independent change history      -> KEEP_BOUNDARY
-unreachable + retired historical responsibility -> RETIRE_CANDIDATE
+small + shared/independent responsibility       -> KEEP_BOUNDARY
+one consumer + independent ownership/effect seam -> KEEP_BOUNDARY can be valid
+unreachable + retired historical responsibility  -> RETIRE_CANDIDATE
+large root + object-local effect loops             -> SPLIT_CANDIDATE, one slice at a time
 ```
 
-## Next pass
-
-Audit the CLI layer next. Separate three cases explicitly:
-
-1. declared executable roots, where `fan_in = 0` is expected;
-2. command modules consumed only by `Loam.Cli`, where a dedicated command contract
-   may still justify a file;
-3. nested helper command modules, especially one-consumer chains such as
-   `ScheduledDayEvidenceCli -> OpenScheduledCli`.
-
-Then audit TUI `Foo` / `FooSession` pairs using pure state-machine versus effectful
-terminal-session ownership as a KEEP criterion, followed by the opposite question:
-large modules that may be too coarse.
+A raw increase in module count is not a failure if the new file owns one durable
+reason to change and no semantic or authority ownership is duplicated.
 
 Audit vocabulary:
 
@@ -168,27 +173,88 @@ COLLAPSE_CANDIDATE
 RETIRE_CANDIDATE
 MOVE_LAYER_CANDIDATE
 SPLIT_CANDIDATE
+SPLIT_QUALIFIED
 NEEDS_DRAKON
 NEEDS_HISTORY
 ```
 
-
 ## MGA-010 — `Loam.Tui.RecordSession` focused extraction
 
-Classification: **SPLIT_CANDIDATE — IMPLEMENTATION EXPERIMENT**
+Classification: **KEEP_BOUNDARY / SPLIT_QUALIFIED — CLOSED by PR #961**
 
-MGA-009 found that `Loam.Tui.Cli` mixes root navigation/orchestration with
-several object-local terminal editor loops. `Record` is the first narrow
-experiment because neighboring TUI features already demonstrate a stable
+MGA-009 found that `Loam.Tui.Cli` mixed root navigation/orchestration with
+object-local terminal editor loops. Record was chosen as the first narrow
+experiment because neighboring TUI features already demonstrated a stable
 presentation-module / terminal-session seam.
 
-This slice moves only the Record key-read/redraw/publication loop into
-`Loam.Tui.RecordSession`. `Loam.Tui.Record` continues to own editor state,
-validation, transitions, and view; `HouseholdCommand.record` continues to own
-the production write entrance; `Tui.Cli` continues to load/reload canonical
-evidence and choose the destination surface.
+PR #961 moved only the Record key-read/redraw/publication loop into
+`Loam.Tui.RecordSession`:
 
-The experiment earns a KEEP/SPLIT verdict only if focused Production TUI and
-compression qualification pass and the resulting dependency direction remains
-`Cli -> RecordSession -> Record + HouseholdCommand`, without introducing a
-second semantic or authority boundary.
+- `Loam.Tui.Record` still owns editor state, validation, transitions, and view;
+- `RecordSession` owns terminal reads, dirty redraws, publication delegation, and
+  retry-on-publication-error for one editor session;
+- `HouseholdCommand.record` still owns the authoritative production write entrance;
+- `Tui.Cli` still loads the selected world, reloads canonical evidence after the
+  session, and chooses the destination surface.
+
+The PR head passed:
+
+- Production TUI;
+- Compression Audit;
+- Module granularity inventory;
+- Selected Lean Observations;
+- Purpose Catalog Boundary.
+
+No second semantic engine, authority boundary, or canonical state owner was
+introduced. The experiment therefore graduates despite adding one 48-line,
+one-consumer module.
+
+Historical independence remains naturally young because the boundary was just
+created. Future co-change history may strengthen or challenge the verdict, but
+there is enough present ownership/effect evidence to keep the boundary.
+
+## MGA-011 — `Loam.Tui.CorrectionSession` candidate
+
+Classification: **SPLIT_CANDIDATE — NEXT FOCUSED EXPERIMENT**
+
+Five local editor/effect loops remain in `Tui.Cli` after MGA-010:
+
+1. `correctionLoop`;
+2. `actualDateCorrectionLoop`;
+3. `scheduledCompletionLoop`;
+4. `scheduledCancellationLoop`;
+5. `scheduledReplacementLoop`.
+
+Correction is the best next comparison, but this is not yet a split verdict.
+Its current shape most closely matches the qualified Record seam:
+
+- `Correction` already owns presentation state, validation, transition, and view;
+- the local loop owns terminal reads, dirty redraws, and delegation to
+  `HouseholdCommand.correctActual`;
+- publication refusal re-enters the same editor through `withPublishError`;
+- the loop returns only a human-facing notice;
+- the caller remains responsible for canonical reload and destination-surface
+  orchestration.
+
+The alternatives are less useful as the immediate control:
+
+- `ActualDateCorrection` is also narrow, but tests a smaller special-purpose editor;
+- `ScheduledCompletion` returns `Bool` into a caller that may immediately open
+  continuation creation and routing inheritance, so its session boundary is more
+  coupled to surrounding workflow;
+- Scheduled cancellation and replacement remain legitimate candidates, but doing
+  all remaining loops together would turn one successful experiment into a
+  naming-symmetry refactor.
+
+Next experiment rule:
+
+```text
+extract Correction only
+-> keep Correction state/validation/view in Correction
+-> keep canonical reload + workspace destination in Tui.Cli
+-> keep HouseholdCommand.correctActual authoritative
+-> run Production TUI + Compression + module inventory
+-> graduate only if the boundary remains coherent
+```
+
+Do not create the other `*Session` modules merely for symmetry.
