@@ -63,21 +63,27 @@ def initial (focusDate : String) : State :=
 
 abbrev Record := ScheduledOccurrence String
 
+/-- Presentation result for one HRA Scheduled scope. Unknown is not an empty answer. -/
+inductive ScopeEvidence where
+  | records (rows : List Record)
+  | unknown
+  deriving Repr, DecidableEq
+
 private def unavailableNotice? (snapshot : Snapshot) : Option String :=
   match snapshot.scheduled with
   | .error message => some ("[Unavailable] Scheduled: " ++ message)
   | .ok _ => none
 
 
-def scopeRecordsResult (snapshot : Snapshot) (state : State) : Except String (List Record) :=
+def scopeEvidence (snapshot : Snapshot) (state : State) : Except String ScopeEvidence :=
   match snapshot.scheduled with
   | .error message => .error message
   | .ok scheduled =>
       match state.scope with
       | .focusDay =>
           match Loam.ScheduledReview.dayEvidence scheduled state.focusDate with
-          | .due first rest => .ok (first :: rest)
-          | .unknown => .ok []
+          | .due first rest => .ok (.records (first :: rest))
+          | .unknown => .ok .unknown
           | .unknownCompletionScheduled => .error "Scheduled completion evidence references an unknown identity."
           | .unknownRetirementScheduled => .error "Scheduled retirement evidence references an unknown identity."
           | .unknownReplacementScheduled => .error "Scheduled replacement evidence references an unknown identity."
@@ -86,14 +92,16 @@ def scopeRecordsResult (snapshot : Snapshot) (state : State) : Except String (Li
       | .allCurrent =>
           match Loam.ScheduledReview.currentOpenRecords scheduled with
           | .ok records =>
-              .ok (records.mergeSort fun left right =>
+              .ok (.records (records.mergeSort fun left right =>
                 if left.scheduledOn = right.scheduledOn then left.id.token ≤ right.id.token
-                else left.scheduledOn ≤ right.scheduledOn)
+                else left.scheduledOn ≤ right.scheduledOn))
           | .error message => .error message
 
+/-- Local browse mechanics project only explicit rows; presentation completeness uses `scopeEvidence`. -/
 def recordsForScope (snapshot : Snapshot) (state : State) : List Record :=
-  match scopeRecordsResult snapshot state with
-  | .ok records => records
+  match scopeEvidence snapshot state with
+  | .ok (.records records) => records
+  | .ok .unknown => []
   | .error _ => []
 
 def lociForScope (snapshot : Snapshot) (state : State) : List String :=
@@ -251,9 +259,10 @@ private def paneRow (snapshot : Snapshot) (state : State)
     | some record => rightPrefix ++ scheduledSummary record
     | none =>
         if row = 0 && (visibleRecords snapshot state).isEmpty then
-          match scopeRecordsResult snapshot state with
+          match scopeEvidence snapshot state with
           | .error message => " [Unavailable] " ++ message
-          | .ok _ =>
+          | .ok .unknown => " (Unknown; no completeness horizon claimed)"
+          | .ok (.records _) =>
               match state.scope with
               | .focusDay => " (none due on this day)"
               | .allCurrent => " (no current-open Scheduled occurrences)"
@@ -263,12 +272,16 @@ private def paneRow (snapshot : Snapshot) (state : State)
 private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   match selectedRecord? snapshot state with
   | none =>
-      match scopeRecordsResult snapshot state with
+      match scopeEvidence snapshot state with
       | .error message =>
           [ plainLine " Selected Scheduled Details:"
           , plainLine ("   [Unavailable] " ++ message)
           ]
-      | .ok _ =>
+      | .ok .unknown =>
+          [ plainLine " Selected Scheduled Details:"
+          , mutedLine "   (Unknown; no completeness horizon claimed)"
+          ]
+      | .ok (.records _) =>
           [ plainLine " Selected Scheduled Details:"
           , mutedLine "   (no Scheduled selected)"
           ]
@@ -315,9 +328,10 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
        else " Loci (" ++ toString lociCount ++ ")")
   let rightHeader :=
-    match snapshot.scheduled with
+    match scopeEvidence snapshot state with
     | .error _ => fit rightWidth " Scheduled [Unavailable]"
-    | .ok _ =>
+    | .ok .unknown => fit rightWidth " Scheduled [Unknown]"
+    | .ok (.records _) =>
         fit rightWidth
           (if state.pane == .occurrences then " Scheduled [active] (" ++ toString occCount ++ ")"
            else " Scheduled (" ++ toString occCount ++ ")")
