@@ -1,6 +1,6 @@
 # G2-015 — Initial AccountingRole virginity obligation DAG
 
-Status: **Generation-2 audit evidence — FIX CANDIDATE**
+Status: **Generation-2 audit evidence — FIX QUALIFIED**
 
 Primary instruments: **DRAKONview + production-bound obligation DAG + ownership-order inspection + direct regression**.
 
@@ -174,7 +174,7 @@ This result does **not** earn general AccountingRole history or a generic "all q
 
 ## Regression obligations
 
-The focused AccountingRole publisher test must pin all of the following:
+The focused AccountingRole publisher test pins all of the following:
 
 ```text
 fresh admitted Locus
@@ -216,19 +216,31 @@ Existing Actual-used, Scheduled-used, duplicate-role, non-admitted and authority
 
 The write-side ownership chain closes the same three mutable quantity observations before the role image is replaced.
 
-## Expected verdict after CI
+## Qualification
+
+Production/audit head `8b21af79e3561c47e6e7041b62b0e3b137558fd4` qualified green before this documentation-only verdict update.
+
+- Production TUI run `35050561948`: **SUCCESS**, all 62 substantive build/test steps.
+  - shared initial AccountingRole publisher build: SUCCESS
+  - virgin-Locus initial AccountingRole publication, including anchor-only refusal: SUCCESS
+  - AccountingRole administration interaction: SUCCESS
+  - downstream Balance, Capacity, routing, Reports, CycleBudget and Scheduled routing surfaces: SUCCESS
+- Compression Audit run `35050561967`: **SUCCESS**.
+- Selected Lean Observations run `35050562012`: **SUCCESS**.
+
+Repository search also found no production writer that reverses the new ownership relation: CurrentQuantityAnchor publication owns `Actual -> Anchor`, and the AccountingRole map has one production publisher.
+
+## Qualified verdict
 
 ```text
 virgin-only AccountingRole boundary          KEEP
 Actual-use guard                             KEEP
 Scheduled-use guard                          KEEP
-CurrentQuantityAnchor-use guard              ADD / FIX
+CurrentQuantityAnchor-use guard              ADD / FIX QUALIFIED
 candidate/publication semantic sharing       KEEP
-lock order                                   EXTEND COMPATIBLY
+lock order                                   EXTEND COMPATIBLY / QUALIFIED
 role history                                 DO NOT ADD
 new AccountingRole authority abstraction     DO NOT ADD
 ```
-
-If focused and integrated qualification pass, record:
 
 **G2-015: FIX QUALIFIED — CurrentQuantityAnchor joins AccountingRole virginity; KEEP virgin-only role boundary.**
