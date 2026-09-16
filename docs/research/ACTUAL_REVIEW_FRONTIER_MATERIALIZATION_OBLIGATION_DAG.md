@@ -1,6 +1,6 @@
 # G2-025 — Actual Review frontier materialization obligation DAG
 
-Status: **Generation-2 audit evidence — SIMPLIFY CANDIDATE**
+Status: **Generation-2 audit evidence — SIMPLIFY QUALIFIED**
 
 Primary instruments: **DRAKONview + obligation DAG + source reachability + focused regression**.
 
@@ -101,7 +101,7 @@ No current-frontier Event collection appears in the answer path.
 
 ## Why direct admission is not weaker
 
-The proposed production change is only:
+The production change is only:
 
 ```text
 materialize current Event frontier and test Option success
@@ -125,7 +125,7 @@ G2-025 adds two direct `recordsFromActualEvidence?` cases.
 
 ### Accepted world
 
-A valid EventMemory with no Correction edges must still produce one review Record per remembered Event.
+A valid EventMemory with no Correction edges still produces one review Record per remembered Event.
 
 ### Refused world
 
@@ -136,7 +136,7 @@ root -> left
 root -> right
 ```
 
-This branching relation must still be rejected by Actual Review before record projection.
+This branching relation is still rejected by Actual Review before record projection.
 
 That regression pins the important distinction:
 
@@ -181,18 +181,26 @@ ActualReview
 
 Everything else stays where it is.
 
-## Qualification target
+## Qualification
 
-Qualification must preserve:
+Production/test head `28608a8017b026e2065e2ff9d46503872d44d282` completed all 62 Production TUI verification steps successfully before a later documentation push superseded that workflow run. Directly relevant successes included:
 
-- correction-free Actual review projection;
-- refusal of branching correction topology;
-- correction-aware current day/week selection;
-- historical corrected search visibility;
-- Correction and Reversal TUI behavior;
-- Stock-Flow and Transactions-Flow behavior downstream of Actual Review;
-- malformed correction evidence failing before transient Record projection.
+- shared Actual review checks, including the new correction-free acceptance and branching-correction refusal;
+- fresh Record publication and canonical review;
+- Correction, ActualValidity and Actual Reversal boundaries;
+- Stock-Flow reconstruction and refusal boundaries;
+- Transactions-Flow incidence, activity and refusal boundaries;
+- sparse Transactions-Flow Reports and integrated Reports surfaces.
 
-If the direct Record Review and integrated production workflows remain green, record:
+Final code + read-atlas head `469dbe3bb6700bce500ce3cfcfc8346ec31fc2dc` then passed:
+
+- Compression Audit: **SUCCESS**;
+- Selected Lean Observations: **SUCCESS**;
+- Shared ActualValidity Publisher: **SUCCESS**;
+- Production TUI: **SUCCESS**, all 62 verification steps.
+
+The dedicated G2-025 DRAKON builder is committed audit instrumentation but was not independently executed during qualification.
+
+## Verdict
 
 **G2-025: SIMPLIFY QUALIFIED — Actual Review admits correction topology directly and no longer materializes a current Event frontier that it does not consume.**
