@@ -31,7 +31,6 @@ private def actualRecord? : Option Loam.Tui.Main.ReviewRecord := do
     date := some "2026-09-07"
     description := "コンビニ"
     replacement := none
-    isCurrent := true
   }
 
 private def scheduledRecord? : Option (ScheduledOccurrence String) := do
