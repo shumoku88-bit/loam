@@ -19,6 +19,9 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
 
 private def debt : EffectCoordinate := ⟨⟨"debt"⟩, ⟨"jpy"⟩⟩
 
+private def debtAdmission : LocusAdmissionVocabulary :=
+  { approved := [debt.locus], nodup := by simp }
+
 private def effect (key : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨key⟩ debt.locus debt.measure (Quantity.ofQuanta quanta)
 
@@ -217,7 +220,8 @@ private def freshObservationCreatesNewCut : IO Unit := do
     { coordinate := debt, quantity := Quantity.ofQuanta current }
   let freshAnchor ← requireOk
     (Loam.CurrentQuantityAnchorPublisher.propose?
-      events corrections ZeroOriginCoverage.empty OpeningSupportMap.empty [newAssertion])
+      events corrections debtAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty [newAssertion])
     "fresh observation proposal"
   expect (freshAnchor.reflectedRoots.contains old.id)
     "V4e fresh cut omitted covered old root"
