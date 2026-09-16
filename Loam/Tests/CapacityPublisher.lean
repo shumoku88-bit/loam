@@ -96,6 +96,12 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
       destination := .purpose ⟨"buffer"⟩
       quanta := 1 })
     "Capacity publisher admitted an impossible effective date"
+  expectError (← Loam.CapacityPublisher.publish capacityFile.toString {
+      effectiveOn := "2026-09-10"
+      source := .unallocated
+      destination := .purpose ⟨""⟩
+      quanta := 1 })
+    "Capacity publisher admitted a non-persistable Purpose coordinate"
 
   let some memory ← Loam.Persistence.loadCapacityMemory? capacityFile
     | throw (IO.userError "reload Capacity authority")
