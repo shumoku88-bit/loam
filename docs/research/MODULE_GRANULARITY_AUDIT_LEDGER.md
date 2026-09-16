@@ -2,43 +2,47 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-013 COMPLETE — Scheduled loops classified individually; Replacement selected for one narrow split experiment**
+Status: **MGA-014 COMPLETE — ScheduledReplacementSession KEEP_BOUNDARY / SPLIT_QUALIFIED; PR #971 ready for merge**
 
 ## Refreshed inventory
 
-The module-granularity inventory was rerun on the PR #964 merge candidate after extracting
-`Loam.Tui.CorrectionSession`.
+The module-granularity inventory was rerun on the PR #971 merge candidate after extracting
+`Loam.Tui.ScheduledReplacementSession`.
 
 ```text
-Lean modules: 332
-Modules <= 80 lines: 89
-Modules with exactly one local consumer: 52
+Lean modules: 333
+Modules <= 80 lines: 90
+Modules with exactly one local consumer: 53
 Declared Lake roots: 17
 Production-like modules unreachable from declared roots: 0
 ```
 
-The raw counts again increased by one module, one small module, and one
-one-consumer module. MGA-011 deliberately tests whether that apparent metric
-regression can still represent a cleaner ownership boundary. No production-like
-surface became unreachable. The two qualified dependency seams are now explicit:
+The raw module, small-module, and one-consumer counts each increased by one, as expected for
+one justified Session extraction. No production-like surface became unreachable. Current
+focused metrics are:
 
 ```text
-Tui.Cli -> RecordSession     -> Record + HouseholdCommand
-Tui.Cli -> CorrectionSession -> Correction + HouseholdCommand
+Loam.Tui.Cli                         1143 lines / 31 declarations / fan-out 56
+Loam.Tui.RecordSession                 48 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.CorrectionSession             49 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.ScheduledReplacementSession   51 lines /  1 declaration  / fan-in 1 / fan-out 5
+Loam.Tui.ScheduledReplacement         264 lines / 23 declarations / fan-in 3 / fan-out 6
 ```
 
-Current focused metrics:
+The post-#968 pre-extraction `Tui.Cli` shape is recoverable from the qualified diff as
+1166 lines / 32 declarations / fan-out 55. MGA-014 therefore removes one object-local effect
+loop and one declaration from the composition root while adding one explicit dependency edge
+to the new Session. That fan-out increase is not treated as a regression: file count, small-module
+count, one-consumer count, and composition-root fan-out are candidate detectors, not verdicts.
+Responsibility ownership decides the boundary.
+
+The qualified dependency seams are now explicit:
 
 ```text
-Loam.Tui.Cli              1179 lines / 32 declarations / fan-out 55
-Loam.Tui.RecordSession      48 lines /  1 declaration  / fan-in 1 / fan-out 5
-Loam.Tui.CorrectionSession  49 lines /  1 declaration  / fan-in 1 / fan-out 5
+Tui.Cli -> RecordSession                -> Record + HouseholdCommand
+Tui.Cli -> CorrectionSession            -> Correction + HouseholdCommand
+Tui.Cli -> ScheduledReplacementSession  -> ScheduledReplacement + HouseholdCommand
 ```
-
-This is an important calibration result for the audit: file count, small-module
-count, one-consumer count, and composition-root fan-out are candidate detectors,
-not verdicts. A justified ownership boundary can make all four raw metrics look
-worse while reducing change coupling.
 
 ## MGA-001 — `Loam.Sha256`
 
@@ -154,13 +158,13 @@ not semantic micro-modules, and are excluded from collapse ranking.
 ## Current verdict
 
 The audit still does not support a general diagnosis that LOAM is fragmented into
-too many tiny Lean modules. MGA-010 adds a stronger distinction:
+too many tiny Lean modules. MGA-014 strengthens the calibrated distinction:
 
 ```text
-small + shared/independent responsibility       -> KEEP_BOUNDARY
+small + shared/independent responsibility        -> KEEP_BOUNDARY
 one consumer + independent ownership/effect seam -> KEEP_BOUNDARY can be valid
-unreachable + retired historical responsibility  -> RETIRE_CANDIDATE
-large root + object-local effect loops             -> SPLIT_CANDIDATE, one slice at a time
+unreachable + retired historical responsibility -> RETIRE_CANDIDATE
+large root + object-local effect loops           -> SPLIT_CANDIDATE, one slice at a time
 ```
 
 A raw increase in module count is not a failure if the new file owns one durable
@@ -304,8 +308,9 @@ No production code changes are required for MGA-012.
 
 Classification: **MIXED VERDICT — NO BATCH EXTRACTION**
 
-Three local Scheduled editor/effect loops remain in `Tui.Cli`, but DRAKON and
-history do not support treating them as one naming family.
+Three local Scheduled editor/effect loops remained in `Tui.Cli` at the MGA-013
+checkpoint, but DRAKON and history did not support treating them as one naming
+family.
 
 ### ScheduledCompletion
 
@@ -324,8 +329,8 @@ The completion shell is stronger than the rejected ActualDateCorrection split:
   projection cleanup (#646).
 
 A physical session boundary is therefore plausible, but completion has an extra
-continuation contract. It should not be the first Scheduled extraction while a
-simpler positive control exists.
+continuation contract. It was deliberately deferred while Replacement supplied the
+simpler positive experiment.
 
 ### ScheduledCancellation
 
@@ -347,9 +352,9 @@ reason. Cancellation stays inline.
 
 ### ScheduledReplacement
 
-Classification: **SPLIT_CANDIDATE — SELECTED FOR MGA-014 IMPLEMENTATION EXPERIMENT**
+Classification at MGA-013: **SPLIT_CANDIDATE — SELECTED FOR MGA-014 IMPLEMENTATION EXPERIMENT**
 
-Replacement is the cleanest next experiment:
+Replacement was selected because:
 
 - the same terminal shell is entered from both HRA Scheduled and SelectedDay;
 - `ScheduledReplacement` owns a substantial presentation-only editor with date,
@@ -362,23 +367,85 @@ Replacement is the cleanest next experiment:
   dependency narrowing (#710) and canonical `BalancedMovement` draft migration
   (#767).
 
-This is materially closer to the already-qualified Correction session seam than
-to the rejected ActualDateCorrection shell. MGA-014 should therefore extract only
-`ScheduledReplacementSession`, then re-run Production TUI, Compression Audit,
-module inventory, and the relevant Scheduled tests before deciding whether the
-boundary graduates.
+MGA-014 below records the implementation result.
 
 ### MGA-013 stop rule
 
-The Scheduled family now gives three different outcomes from superficially
-similar local loops:
+The Scheduled family produced three different outcomes from superficially similar
+local loops:
 
 ```text
-Completion    -> SPLIT_CANDIDATE, defer until continuation seam is tested
+Completion    -> SPLIT_CANDIDATE, deferred because continuation semantics remain caller-owned
 Cancellation  -> KEEP_INLINE / SPLIT_REJECTED
-Replacement   -> SPLIT_CANDIDATE, next narrow implementation experiment
+Replacement   -> SPLIT_CANDIDATE, qualified by MGA-014
 ```
 
-This is the intended result of the granularity audit. Physical modules follow
-ownership, reuse, continuation topology, navigation cost, and observed change
-reasons. They do not follow suffix symmetry.
+Physical modules follow ownership, reuse, continuation topology, navigation cost,
+and observed change reasons. They do not follow suffix symmetry.
+
+## MGA-014 — `Loam.Tui.ScheduledReplacementSession` post-#968 focused extraction
+
+Classification: **KEEP_BOUNDARY / SPLIT_QUALIFIED — PR #971 ready for merge**
+
+MGA-014 did not assume the MGA-013 candidate verdict survived G2-030. The topology
+was re-observed after PR #968 retired the legacy Main Actual/Scheduled workspace
+state machine. `Main.State` is now only Home date focus plus notice, but the
+replacement effect shell remained an object-local responsibility shared by the two
+production Scheduled workspaces.
+
+The post-#968 evidence supports a physical boundary:
+
+- `ScheduledReplacement` owns date/posting editor state, validation, preview,
+  transitions, publication-intent construction, and view;
+- `ScheduledReplacementSession` owns key reads, dirty redraws, delegation to
+  `HouseholdCommand.replaceScheduled`, and retry after publication refusal;
+- both `HraScheduled` and `SelectedDay` enter that same Session;
+- both callers continue to own selected-record lookup, `initial?`, vocabulary
+  loading, canonical snapshot reload, `refreshed`, and destination redraw;
+- publication authority remains outside TUI in the shared publisher reached via
+  `HouseholdCommand.replaceScheduled`.
+
+Change history gives bidirectional independence rather than naming symmetry:
+
+- PR #710 and PR #767 changed `ScheduledReplacement.lean` without changing
+  `Tui.Cli`;
+- PR #968 changed `Tui.Cli` / `Main` topology without changing
+  `ScheduledReplacement.lean`.
+
+PR #971 performs only the narrow effect-shell extraction:
+
+```text
+Tui.Cli
+  -> ScheduledReplacementSession
+       -> ScheduledReplacement
+       -> HouseholdCommand.replaceScheduled
+```
+
+The implementation adds one 51-line Session module and removes the 27-line local
+loop from `Tui.Cli`. The qualified inventory reports:
+
+```text
+ScheduledReplacementSession  51 lines / 1 declaration / fan-in 1 / fan-out 5 / reachable
+ScheduledReplacement        264 lines / 23 declarations / fan-in 3 / fan-out 6 / reachable
+Tui.Cli                     1143 lines / 31 declarations / fan-out 56 / reachable
+production-like unreachable = 0
+```
+
+The post-#968 pre-extraction `Tui.Cli` was 1166 lines / 32 declarations / fan-out
+55, derived from the qualified diff and refreshed inventory. The split therefore
+reduces responsibility density even though the raw fan-out rises by one through
+the explicit Session edge.
+
+The PR head passed every focused qualification gate:
+
+- Production TUI, including all 62 functional verification steps;
+- Compression Audit;
+- Module granularity inventory;
+- Selected Lean Observations;
+- Purpose Catalog Boundary.
+
+No household authority, semantic engine, canonical state owner, selection policy,
+reload policy, or workspace transition moved into the Session. The boundary is
+therefore qualified on ownership, proof locality, navigation cost, reuse, history,
+and reachability evidence. The next Scheduled candidate remains Completion, but it
+must be re-observed as a continuation seam rather than copied from Replacement.

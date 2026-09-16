@@ -14,6 +14,7 @@ import Loam.Tui.ActualReversalSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledReplacement
+import Loam.Tui.ScheduledReplacementSession
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.Attention
@@ -293,30 +294,6 @@ partial def scheduledCancellationLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       scheduledCancellationLoop bounds root step.state nextFrame
 
-/-- Scheduled replacement editor emits one source-bound replacement draft at most. -/
-partial def scheduledReplacementLoop
-    (bounds : Bounds) (root : System.FilePath)
-    (known : List String)
-    (state : Loam.Tui.ScheduledReplacement.State) (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.ScheduledReplacement.update known state
-    (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Scheduled supersede cancelled."
-  match step.publish with
-  | some draft =>
-      match ← Loam.HouseholdCommand.replaceScheduled root draft with
-      | .ok () =>
-          return "Superseded " ++ draft.source.token ++ "."
-      | .error message =>
-          let next := Loam.Tui.ScheduledReplacement.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          scheduledReplacementLoop bounds root known next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      scheduledReplacementLoop bounds root known step.state nextFrame
-
-
 /-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
@@ -478,7 +455,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let notice ← scheduledReplacementLoop
+              let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
@@ -621,7 +598,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-              let notice ← scheduledReplacementLoop
+              let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
