@@ -2,7 +2,7 @@
 
 Checkpoint base: `448fffdbe0b161151f8f21811bc1cde177d2b1f4`
 
-Status: **MGA-013 COMPLETE — Scheduled loops classified individually; Replacement selected for one narrow split experiment**
+Status: **MGA-014 IMPLEMENTED — ScheduledReplacementSession production gates passed; refreshed inventory pending**
 
 ## Refreshed inventory
 
@@ -157,10 +157,10 @@ The audit still does not support a general diagnosis that LOAM is fragmented int
 too many tiny Lean modules. MGA-010 adds a stronger distinction:
 
 ```text
-small + shared/independent responsibility       -> KEEP_BOUNDARY
+small + shared/independent responsibility        -> KEEP_BOUNDARY
 one consumer + independent ownership/effect seam -> KEEP_BOUNDARY can be valid
-unreachable + retired historical responsibility  -> RETIRE_CANDIDATE
-large root + object-local effect loops             -> SPLIT_CANDIDATE, one slice at a time
+unreachable + retired historical responsibility -> RETIRE_CANDIDATE
+large root + object-local effect loops           -> SPLIT_CANDIDATE, one slice at a time
 ```
 
 A raw increase in module count is not a failure if the new file owns one durable
@@ -382,3 +382,58 @@ Replacement   -> SPLIT_CANDIDATE, next narrow implementation experiment
 This is the intended result of the granularity audit. Physical modules follow
 ownership, reuse, continuation topology, navigation cost, and observed change
 reasons. They do not follow suffix symmetry.
+
+## MGA-014 — `Loam.Tui.ScheduledReplacementSession` post-#968 focused extraction
+
+Classification: **IMPLEMENTED — production qualification passed; inventory refresh pending**
+
+MGA-014 did not assume the MGA-013 candidate verdict survived G2-030. The topology
+was re-observed after PR #968 retired the legacy Main Actual/Scheduled workspace
+state machine. `Main.State` is now only Home date focus plus notice, but the
+replacement effect shell remained an object-local responsibility shared by the two
+production Scheduled workspaces.
+
+The post-#968 evidence still supports a physical boundary:
+
+- `ScheduledReplacement` owns date/posting editor state, validation, preview,
+  transitions, publication-intent construction, and view;
+- one terminal/effect shell owns key reads, dirty redraws, delegation to
+  `HouseholdCommand.replaceScheduled`, and retry after publication refusal;
+- both `HraScheduled` and `SelectedDay` enter that same shell;
+- both callers continue to own selected-record lookup, `initial?`, vocabulary
+  loading, canonical snapshot reload, `refreshed`, and destination redraw;
+- publication authority remains outside TUI in the shared publisher reached via
+  `HouseholdCommand.replaceScheduled`.
+
+Change history now gives bidirectional independence rather than naming symmetry:
+
+- PR #710 and PR #767 changed `ScheduledReplacement.lean` without changing
+  `Tui.Cli`;
+- PR #968 changed `Tui.Cli` / `Main` topology without changing
+  `ScheduledReplacement.lean`.
+
+PR #971 performs only the narrow effect-shell extraction:
+
+```text
+Tui.Cli
+  -> ScheduledReplacementSession
+       -> ScheduledReplacement
+       -> HouseholdCommand.replaceScheduled
+```
+
+The implementation adds one 51-line Session module and removes the 27-line local
+loop from `Tui.Cli`; the composition-root file is now 1143 lines. The PR diff is
+limited to the new Session plus `Tui.Cli` delegation. No household authority,
+semantic engine, canonical state owner, selection policy, reload policy, or
+workspace transition moved into the Session.
+
+The production-code head passed:
+
+- Production TUI, including all 62 functional verification steps;
+- Compression Audit;
+- Selected Lean Observations;
+- Purpose Catalog Boundary.
+
+The module-granularity inventory is intentionally triggered by this ledger update.
+Its refreshed module/fan-in/fan-out/reachability evidence must be recorded before
+MGA-014 is marked `KEEP_BOUNDARY / SPLIT_QUALIFIED` and closed.
