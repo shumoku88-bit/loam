@@ -17,6 +17,7 @@ import Loam.Core.CapacityEffective
 import Loam.Core.Event
 import Loam.Core.ZeroOriginCoverage
 import Loam.Core.OpeningSupport
+import Loam.Core.ExternalParty
 import Loam.Core.OpenRelation
 import Loam.Core.EventMemory
 import Loam.Core.EventCorrection

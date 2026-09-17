@@ -1,4 +1,5 @@
 import Loam.Core.Event
+import Loam.Core.ExternalParty
 
 namespace Loam.Core
 
@@ -28,25 +29,15 @@ known-none. Those are later admission / projection questions.
 -/
 
 /--
-Stable opaque identity for one external endpoint of an open relation.
-
-The token is identity only. It is not a display name and carries no built-in
-person, merchant, institution, account, debtor, creditor, or other role meaning.
--/
-structure ExternalEndpointId where
-  token : String
-deriving Repr, DecidableEq
-
-/--
 The minimum endpoint space currently earned for household open relations.
 
-`household` is the distinguished household endpoint. External identity remains
-opaque; debtor / creditor role belongs to each relation unit rather than to the
-endpoint itself.
+`household` is the distinguished household endpoint. External identity is the
+shared role-free `ExternalPartyId`; debtor / creditor role belongs to each
+relation unit rather than to the external party itself.
 -/
 inductive RelationEndpoint where
   | household
-  | external (id : ExternalEndpointId)
+  | external (id : ExternalPartyId)
 deriving Repr, DecidableEq
 
 /--
