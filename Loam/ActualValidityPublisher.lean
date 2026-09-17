@@ -29,7 +29,20 @@ private theorem revisionToken_mem_of_ref_mem
   induction facts with
   | nil => simp
   | cons fact rest ih =>
-      cases fact <;> simp [revisionTokens, ActualValidityFact.ref, ih]
+      cases fact with
+      | base event validOn =>
+          intro h
+          simp only [List.map_cons, ActualValidityFact.ref, List.mem_cons] at h
+          rcases h with hHead | hRest
+          · cases hHead
+          · exact ih hRest
+      | revision existing event validOn =>
+          intro h
+          simp only [List.map_cons, ActualValidityFact.ref, List.mem_cons] at h
+          rcases h with hHead | hRest
+          · cases hHead
+            simp [revisionTokens]
+          · exact List.mem_cons_of_mem _ (ih hRest)
 
 private def freshRevisionId
     (history : ActualValidityHistory String) : ActualValidityRevisionId :=
@@ -60,7 +73,9 @@ private def appendDateChange?
   let replacement : ActualValidityFact String :=
     .revision revisionId currentFact.event validOn
   let withFact := history.addFreshFact replacement (by
-    simpa [replacement] using hRevisionFresh)
+    change ActualValidityRef.revision revisionId ∉
+      history.facts.map ActualValidityFact.ref
+    exact hRevisionFresh)
   let correction : ActualValidityCorrection := {
     target := currentFact.ref
     replacement := revisionId
