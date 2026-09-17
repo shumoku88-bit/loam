@@ -23,6 +23,7 @@ import Loam.Core.EventMemory
 import Loam.Core.EventCorrection
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventDescription
+import Loam.Core.EventMerchantEvidence
 
 namespace Loam
 
