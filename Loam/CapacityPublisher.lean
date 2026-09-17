@@ -85,16 +85,6 @@ def Draft.toBalancedDraft (draft : Draft) : BalancedDraft :=
       [ { coordinate := draft.source, quantity := Quantity.ofQuanta (-draft.quanta) }
       , { coordinate := draft.destination, quantity := Quantity.ofQuanta draft.quanta } ] }
 
-/--
-The binary transfer constructor is balanced by construction, independently of
-its operation-specific positivity, endpoint, and entitlement admission.
--/
-def Draft.toBalancedMovement (draft : Draft) : BalancedMovement CapacityCoordinate :=
-  { measure := ⟨"jpy"⟩
-    changes := draft.toBalancedDraft.changes
-    balanced := by
-      simp [Draft.toBalancedDraft, movementTotalQuanta] }
-
 /-- Stable presentation token for one minimal Capacity coordinate. -/
 def coordinateToken : CapacityCoordinate → String
   | .unallocated => "unallocated"
@@ -183,9 +173,10 @@ private def publishUnlocked
   if !canMoveCapacityFrom memory.movements draft.source ⟨"jpy"⟩ draft.quanta then
     return .error "Capacity source has insufficient current entitlement."
 
+  let some balanced := BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.toBalancedDraft.changes
+    | return .error "Capacity movement could not be represented as a balanced JPY movement."
   let movementId ←
-    match ← publishAdmittedMovement
-        capacityFile memory effective draft.effectiveOn draft.toBalancedMovement with
+    match ← publishAdmittedMovement capacityFile memory effective draft.effectiveOn balanced with
     | .ok id => pure id
     | .error message => return .error message
 
