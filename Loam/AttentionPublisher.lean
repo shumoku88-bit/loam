@@ -53,16 +53,15 @@ private def freshId (items : AttentionMemory String) : AttentionId :=
 
 private theorem freshId_fresh (items : AttentionMemory String) :
     freshId items ∉ items.items.map Attention.id := by
-  let used := items.items.map (fun item => item.id.token)
-  have hToken :
-      Loam.firstUnusedNumberedToken "attention-" used 1 ∉ used :=
-    Loam.firstUnusedNumberedToken_fresh "attention-" used 1
   intro hId
+  have hToken :=
+    Loam.firstUnusedNumberedToken_fresh
+      "attention-" (items.items.map (fun item => item.id.token)) 1
   apply hToken
   simp only [List.mem_map] at hId ⊢
   rcases hId with ⟨existing, hExisting, hEq⟩
   refine ⟨existing, hExisting, ?_⟩
-  simpa [freshId, used] using congrArg AttentionId.token hEq
+  simpa [freshId] using congrArg AttentionId.token hEq
 
 private def validDue : AttentionDue String → Bool
   | .dueOn date => Loam.ActualDate.validIsoDate date
@@ -79,7 +78,8 @@ private def addUnlocked
   let id := freshId items
   let item : Attention String := { id := id, context := draft.context, due := draft.due }
   let updatedItems := AttentionMemory.addFresh items item (by
-    simpa [item, id] using freshId_fresh items)
+    change id ∉ items.items.map Attention.id
+    exact freshId_fresh items)
   if ← saveAttentionMemory? path updatedItems closures then
     return .ok id
   else
