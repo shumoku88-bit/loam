@@ -1,6 +1,7 @@
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
+import Loam.Core.EventMerchantEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
 import Loam.Core.OpenRelation
@@ -23,6 +24,7 @@ structure ActualEvidence where
   events : EventMemory
   validity : ActualValidityHistory String
   descriptions : EventDescriptionMemory
+  merchants : EventMerchantEvidenceMemory
   corrections : EventCorrectionMemory
   reversals : ActualReversalMemory
   relations : List RelationUnit
@@ -38,6 +40,7 @@ def ActualEvidence.empty : ActualEvidence := {
     correctionIdNodup := by simp
   }
   descriptions := EventDescriptionMemory.empty
+  merchants := EventMerchantEvidenceMemory.empty
   corrections := { corrections := [], idNodup := by simp }
   reversals := ActualReversalMemory.empty
   relations := []
@@ -45,4 +48,3 @@ def ActualEvidence.empty : ActualEvidence := {
 }
 
 end Loam
-

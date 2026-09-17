@@ -102,13 +102,11 @@ private def admit?
         | none => throw "loam: could not append replacement description"
 
   pure {
+    evidence with
     events := updatedEvents
     validity := updatedValidity
     descriptions := updatedDescriptions
     corrections := updatedCorrections
-    reversals := evidence.reversals
-    relations := evidence.relations
-    discharges := evidence.discharges
   }
 
 private def publishUnderOwnership

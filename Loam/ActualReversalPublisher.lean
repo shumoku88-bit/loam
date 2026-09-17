@@ -114,13 +114,10 @@ private def admit?
     | none => throw "loam: reversal relation could not be appended"
 
   pure {
+    evidence with
     events := events
     validity := validity
-    descriptions := evidence.descriptions
-    corrections := evidence.corrections
     reversals := updatedReversals
-    relations := evidence.relations
-    discharges := evidence.discharges
   }
 
 private def publishUnderOwnership

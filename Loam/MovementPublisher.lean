@@ -50,11 +50,10 @@ private def publishUnderOwnership
   | Except.error message => return Except.error message
   | Except.ok admitted =>
       let updatedEvidence : ActualEvidence := {
+        evidence with
         events := admitted.world.events
         validity := admitted.world.validity
         descriptions := admitted.world.descriptions
-        corrections := evidence.corrections
-        reversals := evidence.reversals
         relations := admitted.world.relations
         discharges := admitted.world.discharges
       }
