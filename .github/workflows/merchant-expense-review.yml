@@ -1,0 +1,60 @@
+name: Merchant Expense Review
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/MerchantExpenseReview.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/MerchantExpenseReview.lean'
+      - '.github/workflows/merchant-expense-review.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/MerchantExpenseReview.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/MerchantExpenseReview.lean'
+      - '.github/workflows/merchant-expense-review.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test exact Merchant Expense review
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build Merchant Expense review
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.MerchantExpenseReview
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify exact Merchant Expense projection
+        run: lake env lean --run Loam/Tests/MerchantExpenseReview.lean
