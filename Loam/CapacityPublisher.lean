@@ -280,8 +280,8 @@ def set (p : Proposal) (purpose : PurposeId) (newDelta : Int) : Proposal :=
     { deltas := filtered ++ [(purpose, newDelta)] }
 
 /-- Reset one Purpose's delta to 0. -/
-def clearPurpose (p : Proposal) (purpose : PurposeId) (newDelta : Int := 0) : Proposal :=
-  p.set purpose newDelta
+def clearPurpose (p : Proposal) (purpose : PurposeId) : Proposal :=
+  p.set purpose 0
 
 /-- Clear the entire proposal. -/
 def clear (_ : Proposal) : Proposal :=
