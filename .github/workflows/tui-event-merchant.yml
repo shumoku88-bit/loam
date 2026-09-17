@@ -1,0 +1,63 @@
+name: TUI Event Merchant
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tui/EventMerchant.lean'
+      - 'Loam/Tui/SelectedDay.lean'
+      - 'Loam/Tui/Cli.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/TuiEventMerchant.lean'
+      - '.github/workflows/tui-event-merchant.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui-event-merchant
+    paths:
+      - 'Loam/Tui/EventMerchant.lean'
+      - 'Loam/Tui/SelectedDay.lean'
+      - 'Loam/Tui/Cli.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/TuiEventMerchant.lean'
+      - '.github/workflows/tui-event-merchant.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test TUI Event Merchant input
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build TUI Merchant entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Tui.Cli Loam.Tui.EventMerchant Loam.HouseholdCommand Loam.Tests.ActualWorldFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify TUI Event Merchant classification
+        run: lake env lean --run Loam/Tests/TuiEventMerchant.lean "$(mktemp -d)/tui-event-merchant"
