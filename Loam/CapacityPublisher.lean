@@ -135,16 +135,10 @@ private theorem freshCapacityId_fresh
     (effective : CapacityEffectiveMemory String) :
     freshCapacityId memory effective ∉ usedCapacityIds memory effective := by
   intro hUsed
-  have hTokenUsed :
-      (freshCapacityId memory effective).token ∈
-        (usedCapacityIds memory effective).map CapacityMovementId.token :=
-    List.mem_map.mpr ⟨freshCapacityId memory effective, hUsed, rfl⟩
-  exact
-    (Loam.firstUnusedNumberedToken_fresh
-      "capacity-"
-      ((usedCapacityIds memory effective).map CapacityMovementId.token)
-      1)
-      (by simpa [freshCapacityId] using hTokenUsed)
+  apply Loam.firstUnusedNumberedToken_fresh
+    "capacity-" ((usedCapacityIds memory effective).map CapacityMovementId.token) 1
+  simpa [freshCapacityId] using
+    (List.mem_map_of_mem CapacityMovementId.token hUsed)
 
 /--
 Publish one already-admitted balanced movement through the one Capacity physical
@@ -159,24 +153,16 @@ private def publishAdmittedMovement
     (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
   let movementId := freshCapacityId memory effective
   have hFresh := freshCapacityId_fresh memory effective
-  have hMemoryFresh : movementId ∉ memory.movements.map CapacityMovement.id := by
-    intro h
-    apply hFresh
-    simp [usedCapacityIds, h]
-  have hEffectiveFresh :
-      movementId ∉ effective.entries.map CapacityEffective.movement := by
-    intro h
-    apply hFresh
-    simp [usedCapacityIds, h]
+  simp only [usedCapacityIds, List.mem_append, not_or] at hFresh
   let movement : CapacityMovement := { id := movementId, movement := balanced }
   let updated := memory.addFresh movement (by
-    simpa [movement] using hMemoryFresh)
+    simpa [movement] using hFresh.1)
   let effectiveEntry : CapacityEffective String := {
     movement := movementId
     effectiveOn := effectiveOn
   }
   let updatedEffective := effective.addFresh effectiveEntry (by
-    simpa [effectiveEntry] using hEffectiveFresh)
+    simpa [effectiveEntry] using hFresh.2)
 
   if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
     return .error "Capacity effective evidence could not be published."
