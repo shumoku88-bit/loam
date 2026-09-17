@@ -1,5 +1,7 @@
 import Loam.Tui.Layout
 import Loam.Tui.Main
+import Loam.Tui.Scroll
+import Loam.Tui.Terminal
 
 namespace Loam.Tui.HraHome
 
@@ -62,6 +64,37 @@ def hraCalendarSpans
 
 private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
   (List.range 6).map fun row => .row (hraCalendarSpans today pastOpenDates state row)
+
+private def cellsWidth (cells : List Cell) : Nat :=
+  cells.foldl (fun width cell => width + Loam.Tui.Layout.charWidth cell.glyph) 0
+
+private def cellsToSpans (cells : List Cell) : List Span :=
+  cells.map fun cell => span (String.ofList [cell.glyph]) cell.style
+
+/--
+Presentation-only horizontal composition for the wide Home experiment.
+It remains private until a second production surface earns a general layout primitive.
+-/
+private def sideBySide
+    (height leftWidth rightWidth : Nat) (left right : Widget) : List Widget :=
+  let leftLines := left.lines
+  let rightLines := right.lines
+  (List.range height).map fun row =>
+    let leftCells :=
+      match listGet? leftLines row with
+      | some cells => cells
+      | none => []
+    let rightCells :=
+      match listGet? rightLines row with
+      | some cells => cells
+      | none => []
+    let clippedLeft := Loam.Tui.Layout.clipCells leftWidth leftCells
+    let clippedRight := Loam.Tui.Layout.clipCells rightWidth rightCells
+    let leftPadding := leftWidth - cellsWidth clippedLeft
+    .row
+      (cellsToSpans clippedLeft ++
+       [span (repeatChar leftPadding ' '), span " │ " .muted] ++
+       cellsToSpans clippedRight)
 
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
@@ -141,7 +174,7 @@ private def pendingSection (pending : PendingEvidence) : List Widget :=
   | .ok [] => []
   | _ => [blankLine, plainLine " Pending Scheduled:"] ++ pendingLines pending
 
-private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
+private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
   let pastOpenDates := pendingDates pending
   [ ruleLine bounds '='
@@ -176,6 +209,95 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   scheduledLines snapshot state ++
   [ruleLine bounds '=']
 
+private def wideCalendarPane
+    (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : Widget :=
+  .column
+    ([ plainLine (centeredMonthTitle state)
+     , calendarHeader
+     ] ++
+     calendarRows snapshot.actual.today pastOpenDates state ++
+     [mutedLine " underline = today"] ++
+     (if pastOpenDates.isEmpty then [] else
+       [mutedLine " ! = still current-open"]))
+
+private def wideDetailLines
+    (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
+  pendingSection pending ++
+  [ blankLine
+  , plainLine " Actual"
+  ] ++
+  actualLines snapshot state ++
+  [ blankLine
+  , plainLine " Scheduled"
+  ] ++
+  scheduledLines snapshot state
+
+private def wideDetailHeaderRows : Nat := 4
+
+private def wideDetailVisibleRows (panelRows : Nat) : Nat :=
+  panelRows - wideDetailHeaderRows
+
+private def widePendingMarkerExplanation : PendingEvidence → Widget
+  | .ok [] => blankLine
+  | .ok _ => mutedLine " ! = expected date passed; Scheduled is still current-open"
+  | .error _ => blankLine
+
+private def wideScrollHint (content visible offset : Nat) : Widget :=
+  if content ≤ visible then blankLine
+  else
+    let maxOffset := Loam.Tui.Scroll.maxOffset content visible
+    let direction :=
+      if offset = 0 then "↓"
+      else if offset = maxOffset then "↑"
+      else "↑↓"
+    mutedLine (" " ++ direction ++ " scroll  (Ctrl-U/D)")
+
+private def wideSelectedDayPane
+    (panelRows : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : Widget :=
+  let details := wideDetailLines snapshot state pending
+  let visible := wideDetailVisibleRows panelRows
+  let offset := Loam.Tui.Scroll.clamp details.length visible state.detailScroll
+  let status := String.intercalate "  " (statusTokens snapshot state pending)
+  .column
+    ([ .row [span " Selected Day  " .muted, span state.selectedDate .selected]
+     , mutedLine (" " ++ status)
+     , widePendingMarkerExplanation pending
+     , wideScrollHint details.length visible offset
+     ] ++
+     ((details.drop offset).take visible))
+
+private def widePanelRows (bounds : Bounds) (footerRows : Nat) : Nat :=
+  Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 4
+
+private def wideHomeBody
+    (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  let pending := pendingEvidence snapshot
+  let pastOpenDates := pendingDates pending
+  let contentWidth := Loam.Tui.Layout.contentWidth bounds
+  let leftWidth := 41
+  let dividerWidth := 3
+  let rightWidth := contentWidth - leftWidth - dividerWidth
+  let panelRows := widePanelRows bounds footerRows
+  let left := wideCalendarPane snapshot state pastOpenDates
+  let right := wideSelectedDayPane panelRows snapshot state pending
+  [ ruleLine bounds '='
+  , .row
+      [ span " LOAM Home: known through " .muted
+      , span snapshot.actual.today
+      , span "  [Focus: " .muted
+      , span state.selectedDate .selected
+      , span "]" .muted
+      ]
+  , ruleLine bounds '='
+  ] ++
+  sideBySide panelRows leftWidth rightWidth left right ++
+  [ruleLine bounds '=']
+
+private def homeBody
+    (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
+  else stackedHomeBody bounds snapshot state
+
 private def dayHelpTokens : List String :=
   ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[Enter] open",
    "[r] record", "[a] actual", "[s] scheduled", "[q] quit"]
@@ -192,15 +314,48 @@ private def helpLines (bounds : Bounds) : List Widget :=
   (Loam.Tui.Layout.flowLines width "  "
     [dayHelpTokens, householdHelpTokens, manageHelpTokens]).map mutedLine
 
+/-- Wide Home is a spatial projection; narrow Home retains the stacked projection. -/
+def usesWideLayout (bounds : Bounds) : Bool :=
+  decide (120 ≤ bounds.width)
+
+/-- Layout width may expose a local detail viewport, but never changes arrow-key meaning. -/
+def detailScrollDirection?
+    (bounds : Bounds) : Loam.Tui.Terminal.Key → Option Bool
+  | .ctrl 'u' => if usesWideLayout bounds then some false else none
+  | .ctrl 'd' => if usesWideLayout bounds then some true else none
+  | _ => none
+
+private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
+  let help := helpLines bounds
+  if usesWideLayout bounds then
+    (if state.notice.isEmpty then [blankLine] else [plainLine state.notice]) ++ help
+  else
+    (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ help
+
+/-- Move only the wide Home detail viewport. -/
+def scrollWideDetail
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) : State :=
+  if !usesWideLayout bounds then state
+  else
+    let footerRows := (homeFooter bounds state).length
+    let panelRows := widePanelRows bounds footerRows
+    let visible := wideDetailVisibleRows panelRows
+    let pending := pendingEvidence snapshot
+    let content := (wideDetailLines snapshot state pending).length
+    let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
+    let next :=
+      if forward then Loam.Tui.Scroll.forward content visible current 1
+      else Loam.Tui.Scroll.backward content visible current 1
+    { state with detailScroll := next, notice := "" }
+
 /--
 HRA-shaped Home presentation over LOAM's already-admitted read answers.
 This is presentation only: it adds no household authority, cycle policy,
 Scheduled completeness claim, or retained pending status.
 -/
 def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
-  let body := homeBody bounds snapshot state
-  let footer :=
-    (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ helpLines bounds
+  let footer := homeFooter bounds state
+  let body := homeBody bounds footer.length snapshot state
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
 
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/

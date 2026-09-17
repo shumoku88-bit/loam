@@ -28,6 +28,8 @@ structure Snapshot where
 structure State where
   selectedDate : String
   notice : String := ""
+  /-- Presentation-only viewport offset for the wide Home detail pane. -/
+  detailScroll : Nat := 0
 
 inductive Event where
   | left
@@ -59,7 +61,7 @@ def recordsForDay (snapshot : Snapshot) (date : String) : List ReviewRecord :=
 def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
-  | some date => { state with selectedDate := date, notice := "" }
+  | some date => { state with selectedDate := date, notice := "", detailScroll := 0 }
 
 /-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/
 def update (state : State) (event : Event) : Step :=

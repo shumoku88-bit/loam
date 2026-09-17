@@ -1044,7 +1044,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 't' || key = .input 'T') then
     let home :=
-      { state with selectedDate := snapshot.actual.today, notice := "" }
+      { state with selectedDate := snapshot.actual.today, notice := "", detailScroll := 0 }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
@@ -1065,6 +1065,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh destination
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh destination nextFrame
+  else if let some forward := Loam.Tui.HraHome.detailScrollDirection? bounds key then
+    let home := Loam.Tui.HraHome.scrollWideDetail bounds snapshot state forward
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
   else
     let event := homeEventOfKey key
     let step := update state event
