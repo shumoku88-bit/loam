@@ -138,7 +138,9 @@ private theorem freshCapacityId_fresh
   apply Loam.firstUnusedNumberedToken_fresh
     "capacity-" ((usedCapacityIds memory effective).map CapacityMovementId.token) 1
   simpa [freshCapacityId] using
-    (List.mem_map_of_mem CapacityMovementId.token hUsed)
+    (List.mem_map_of_mem hUsed :
+      (freshCapacityId memory effective).token ∈
+        (usedCapacityIds memory effective).map CapacityMovementId.token)
 
 /--
 Publish one already-admitted balanced movement through the one Capacity physical
@@ -152,17 +154,19 @@ private def publishAdmittedMovement
     (effectiveOn : String)
     (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
   let movementId := freshCapacityId memory effective
-  have hFresh := freshCapacityId_fresh memory effective
-  simp only [usedCapacityIds, List.mem_append, not_or] at hFresh
+  have hFreshSplit :
+      movementId ∉ memory.movements.map CapacityMovement.id ∧
+        movementId ∉ effective.entries.map CapacityEffective.movement := by
+    simpa [usedCapacityIds] using (freshCapacityId_fresh memory effective)
   let movement : CapacityMovement := { id := movementId, movement := balanced }
   let updated := memory.addFresh movement (by
-    simpa [movement] using hFresh.1)
+    simpa [movement] using hFreshSplit.1)
   let effectiveEntry : CapacityEffective String := {
     movement := movementId
     effectiveOn := effectiveOn
   }
   let updatedEffective := effective.addFresh effectiveEntry (by
-    simpa [effectiveEntry] using hFresh.2)
+    simpa [effectiveEntry] using hFreshSplit.2)
 
   if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
     return .error "Capacity effective evidence could not be published."
