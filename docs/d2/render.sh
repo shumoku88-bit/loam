@@ -25,10 +25,14 @@ d2 --layout=elk "$INPUT" "$ASCII"
 printf 'D2 projection rendered:\n  SVG:   %s\n  ASCII: %s\n' "$SVG" "$ASCII"
 
 if [ "${1:-}" = "--open" ]; then
-  if command -v open >/dev/null 2>&1; then
-    open "$SVG"
+  if [ "$(uname -s)" = "Darwin" ] && command -v open >/dev/null 2>&1; then
+    # Use Safari explicitly so the experiment does not depend on the user's
+    # system-wide SVG file association (which may point at an editor).
+    open -a Safari "$SVG"
   elif command -v xdg-open >/dev/null 2>&1; then
     xdg-open "$SVG" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    open "$SVG"
   else
     printf 'No desktop opener found; open the SVG path above manually.\n' >&2
   fi
