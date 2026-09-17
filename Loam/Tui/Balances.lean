@@ -48,7 +48,7 @@ def view (state : State) : Widget :=
       (state.snapshot.rows.take 12).map rowLine) ++
     [ blank
     , muted "Zero is shown when explicitly derived; rows follow balance-view order only."
-    , muted "b / Esc home   q quit"
+    , muted "q / Esc home"
     ]
 
 end Loam.Tui.Balances

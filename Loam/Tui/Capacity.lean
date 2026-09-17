@@ -246,7 +246,7 @@ def view (state : State) : Widget :=
       ] ++ coverageFooter state ++
       [ muted "t transfer can grant Capacity from unallocated to a new Purpose token."
       , muted "unallocated is an allocation boundary, not money available to allocate."
-      , muted "t transfer   r rebalance   b home   q quit"
+      , muted "t transfer   r rebalance   q / Esc home"
       , muted state.notice
       ]
   else
@@ -264,7 +264,7 @@ def view (state : State) : Widget :=
       ] ++ coverageFooter state ++
       [ muted "t transfer, r rebalance; shared CapacityPublisher owns publication."
       , muted "unallocated is an allocation boundary, not money available to allocate."
-      , muted "↑/↓ select/scroll   t transfer   r rebalance   b home   q quit"
+      , muted "↑/↓ select/scroll   t transfer   r rebalance   q / Esc home"
       , muted state.notice
       ]
 

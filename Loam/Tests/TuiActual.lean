@@ -129,8 +129,8 @@ def main : IO Unit := do
   let descViewText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot paypayDesc)
   expect (contains "desc" descViewText && contains "newest first" descViewText)
     "HRA Actual view did not display descending order indication"
-  expect (contains "[o] order" descViewText)
-    "HRA Actual view footer did not expose [o] order"
+  expect (contains "[s] sort" descViewText)
+    "HRA Actual view footer did not expose [s] sort"
 
   -- Production HRA Actual owns its own eight-row viewport. Pin navigation beyond it
   -- before the older Main cursor implementation is retired.

@@ -327,8 +327,8 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
       else
         [mutedLine compact]
   | .scheduled =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [s] supersede  [x] cancel  [q] back"
-      let compact := "[j/k] select [h/l] pane [n] new [c/Enter] complete [s] supersede [x] cancel [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [r] supersede  [x] cancel  [q] back"
+      let compact := "[j/k] select [h/l] pane [n] new [c/Enter] complete [r] supersede [x] cancel [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else

@@ -135,7 +135,7 @@ private def statusTokens
     | .ok records => toString records.length
     | .error _ => "Unavailable"
   ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus,
-   "[b] balances", "[c] budget", "[e] capacity", "[u] purpose routing",
+   "[b] balances", "[c] budget", "[e] capacity", "[p] purpose routing",
    "[m] manage loci", "[o] observe quantities", "[v] reports"]
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -185,18 +185,18 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   ]
 
 private def navHelpTokens : List String :=
-  ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record", "[q] quit"]
+  ["[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record", "[q] quit"]
 
 private def workspaceHelpTokens : List String :=
-  ["[a] actual", "[p] scheduled", "[i] attention", "[b] balances", "[c] budget",
-   "[e] capacity", "[u] purpose routing", "[m] manage loci", "[o] observe quantities",
+  ["[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
+   "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
    "[v] reports"]
 
 private def singleHelpLine : String :=
   "  ".intercalate
-    ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
-     "[a] actual", "[p] scheduled", "[i] attention", "[b] balances", "[c] budget",
-     "[e] capacity", "[u] purpose routing", "[m] manage loci", "[o] observe quantities",
+    ["[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record",
+     "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
+     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
      "[v] reports", "[q] quit"]
 
 private def helpLines (bounds : Bounds) : List Widget :=
