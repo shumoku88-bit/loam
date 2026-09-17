@@ -196,25 +196,23 @@ private def parseTxRows
                 effects (dateRevisions ++ [item]) relations discharges rest
         | ["RELATION", relId, "SOURCE", key, debtorStr, creditorStr, quantityStr] => do
             let quanta ← quantityStr.toInt?
-            if quanta <= 0 || !validToken relId || !validToken key then none
+            if !validToken relId || !validToken key then none
             else
               let debtor ← parseEndpoint? debtorStr
               let creditor ← parseEndpoint? creditorStr
-              if debtor == creditor then none
-              else
-                let rel : RelationUnit := {
-                  id := ⟨relId⟩
-                  sourceEvent := event
-                  sourceEffect := ⟨key⟩
-                  debtor := debtor
-                  creditor := creditor
-                  quantity := Quantity.ofQuanta quanta
-                }
-                parseTxRows event baseValidOn description merchant replaces reversalOf
-                  effects dateRevisions (relations ++ [rel]) discharges rest
+              let rel : RelationUnit := {
+                id := ⟨relId⟩
+                sourceEvent := event
+                sourceEffect := ⟨key⟩
+                debtor := debtor
+                creditor := creditor
+                quantity := Quantity.ofQuanta quanta
+              }
+              parseTxRows event baseValidOn description merchant replaces reversalOf
+                effects dateRevisions (relations ++ [rel]) discharges rest
         | ["DISCHARGE", relId, quantityStr] => do
             let quanta ← quantityStr.toInt?
-            if quanta <= 0 || !validToken relId then none
+            if !validToken relId then none
             else
               let discharge : RelationDischarge := {
                 event := event
