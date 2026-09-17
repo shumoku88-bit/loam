@@ -56,8 +56,9 @@ def main : IO Unit := do
     "coverage failure hid physical evidence"
   expect (Loam.Tui.CycleBudget.isHomeEntrance (.input 'c')) "Home c entrance missing"
   expect (!(Loam.Tui.CycleBudget.isHomeEntrance (.input 'e'))) "raw Capacity alias stolen"
-  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'b')).2 == .home) "back is not Home"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'q')).2 == .home) "q is not Home"
   expect ((Loam.Tui.CycleBudget.update bounds state .escape).2 == .home) "Esc is not Home"
+  expect ((Loam.Tui.CycleBudget.update bounds state (.input 'b')).2 == .stay) "retired b Home alias survived"
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'e')).2 == .stay)
     "Budget e still enters raw Capacity"
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'E')).2 == .stay)
@@ -182,10 +183,13 @@ def main : IO Unit := do
   expect (stateCancelEsc.submode == .normal) "submode reset on Esc"
   expect (intentCancelEsc == .stay) "Esc must stay"
 
-  -- Picker cancel with b
-  let (stateCancelB, intentCancelB) := Loam.Tui.CycleBudget.update bounds statePicker (.input 'b')
-  expect (stateCancelB.submode == .normal) "submode reset on b"
-  expect (intentCancelB == .stay) "b must stay"
+  -- Picker cancel with q; retired b alias must not cancel.
+  let (stateCancelQ, intentCancelQ) := Loam.Tui.CycleBudget.update bounds statePicker (.input 'q')
+  expect (stateCancelQ.submode == .normal) "submode reset on q"
+  expect (intentCancelQ == .stay) "q cancel must stay in Budget"
+  let (stateIgnoredB, intentIgnoredB) := Loam.Tui.CycleBudget.update bounds statePicker (.input 'b')
+  expect (stateIgnoredB.submode == statePicker.submode) "retired b alias still cancels picker"
+  expect (intentIgnoredB == .stay) "ignored b changed intent"
 
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'r')).2 == .rebalance)
     "r did not enter existing Capacity Rebalance"
@@ -196,7 +200,7 @@ def main : IO Unit := do
   expect (down.scroll == 1) "small terminal cannot scroll"
   expect ((Loam.Tui.CycleBudget.view small down).lines.length < small.height) "footer overflow"
   let last := text (Loam.Tui.CycleBudget.view small { state with scroll := 999 })
-  expect (contains "-111" last && contains "b Home" last) "scrolled rows/help inaccessible"
+  expect (contains "-111" last && contains "q/Esc Home" last) "scrolled rows/help inaccessible"
   expect (Loam.ActualDate.daysBetween? "2026-09-08" "2026-10-15" == some 37) "distance 37"
   expect (Loam.ActualDate.daysBetween? "2024-02-28" "2024-03-01" == some 2) "leap distance"
   expect (Loam.ActualDate.daysBetween? "2026-12-31" "2027-01-01" == some 1) "year distance"

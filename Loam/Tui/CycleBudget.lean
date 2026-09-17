@@ -25,7 +25,7 @@ structure State where
   deriving Repr
 
 inductive Intent where
-  | stay | home | rebalance | quit | unresolved
+  | stay | home | rebalance | unresolved
   | grant (row : Loam.CurrentCoverageReview.Row)
   deriving Repr, DecidableEq
 
@@ -140,9 +140,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
   match state.submode with
   | .grantPicker shortages selected =>
       match key with
-      | .input 'q' | .input 'Q' =>
-          ({ state with submode := .normal }, .quit)
-      | .escape | .input 'b' | .input 'B' =>
+      | .escape | .input 'q' | .input 'Q' =>
           ({ state with submode := .normal, notice := "" }, .stay)
       | .up | .input 'k' | .input 'K' =>
           let next := if selected == 0 then 0 else selected - 1
@@ -161,8 +159,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : State × Intent :=
       let content := (body state).length
       let visible := pageSize bounds
       match key with
-      | .input 'q' | .input 'Q' => (state, .quit)
-      | .escape | .input 'b' | .input 'B' => (state, .home)
+      | .escape | .input 'q' | .input 'Q' => (state, .home)
       | .input 'r' | .input 'R' => (state, .rebalance)
       | .input 'u' | .input 'U' =>
         match state.snapshot.coverage with
@@ -211,7 +208,7 @@ def grantPickerView (_bounds : Bounds) (state : State)
     ] ++ listLines ++
     [ line ""
     , if state.notice.isEmpty then line "" else line state.notice
-    , muted "j/k select   Enter confirm   b/Esc cancel"
+    , muted "j/k select   Enter confirm   q/Esc cancel"
     ]
 
 def view (bounds : Bounds) (state : State) : Widget :=
@@ -225,6 +222,6 @@ def view (bounds : Bounds) (state : State) : Widget :=
       let visible := (lines.drop offset).take page
       .column (visible ++ List.replicate (page - visible.length) (line "") ++
         [muted ("j/k scroll " ++ toString (offset + 1) ++ "/" ++ toString lines.length ++
-          " | g grant | u route | r rebalance | b Home | q quit")])
+          " | g grant | u route | r rebalance | q/Esc Home")])
 
 end Loam.Tui.CycleBudget

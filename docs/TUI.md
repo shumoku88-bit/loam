@@ -29,16 +29,16 @@ The production Home surface currently exposes these entrances:
 ```text
 h/l        previous / next day
 k/j        previous / next week
-g          return focus to the known-through day
+t          return focus to today
 Enter      selected-day workspace
 r          Record
 a          Actual workspace
-p          Scheduled workspace
+s          Scheduled workspace
 i          Attention
 b          Balances
 c          current-cycle Budget
 e          raw/general Capacity
-u          Purpose routing administration
+p          Purpose routing administration
 m          Locus administration
 o          current quantity observation
 v          Reports
@@ -48,6 +48,9 @@ q          quit
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, and Record interactions. It does not redefine the current-cycle
 Budget observation date or silently manufacture a household cycle.
+
+Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
+surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 The Home labels distinguish the user-facing action from the narrower implementation
 module name. `u` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
@@ -104,7 +107,7 @@ evidence after durable writes.
 
 ## Scheduled workspace
 
-Home `p` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
+Home `s` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
 the current-open Scheduled frontier over neutral Loci coordinates, supporting
 Focus Day and All Current-Open scopes (`f`).
 
@@ -145,8 +148,7 @@ Budget is an action surface, not a read-only workspace:
 g          grant a selected negative After-known shortage through Capacity transfer
 u          route unresolved Scheduled pressure through shared Scheduled routing
 r          rebalance through the existing Capacity rebalance path
-b / Esc    Home
-q          quit
+q / Esc    Home
 ```
 
 The former Budget `e -> Capacity` detour is retired. `e` inside Budget is not an
@@ -172,8 +174,7 @@ Capacity currently exposes:
 t          transfer
 r          rebalance
 up/down    select remembered Purpose
-b / Esc    Home
-q          quit
+q / Esc    Home
 ```
 
 Editors remain local interaction state. `CapacityPublisher` and the existing shared
@@ -181,7 +182,7 @@ publication sessions own authoritative writes and fresh review.
 
 ## Purpose routing
 
-Home `u` opens Actual-to-Purpose routing administration. The surface edits explicit
+Home `p` opens Actual-to-Purpose routing administration. The surface edits explicit
 routing evidence; it does not infer a Purpose from an AccountingRole, sign, account
 name, or current balance. Expense Loci remain the default audit scope while admitted
 non-Expense Loci can be entered explicitly when a generic Purpose question needs it.

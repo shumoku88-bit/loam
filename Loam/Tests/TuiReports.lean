@@ -46,6 +46,10 @@ def main : IO Unit := do
     "conditional outlook did not prefill the selected-day calendar month end"
   expect (initial.liquidityForm.focus.val == 1)
     "conditional outlook prefill did not focus explicit Run"
+  expect ((Loam.Tui.Reports.update initial (.input 'q')).back)
+    "Reports menu q did not return Home"
+  expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
+    "retired Reports b Home alias survived"
 
   let balancesStep := Loam.Tui.Reports.update initial (.input 'r')
   expect (match balancesStep.state.mode with | .balances => true | _ => false)
@@ -137,6 +141,9 @@ def main : IO Unit := do
     "Stock–Flow lost explicit end"
   expect (contains "Calendar month is only a coordinate convenience" stockText)
     "Stock–Flow surface lost the calendar-coordinate non-claim"
+  let stockBack := Loam.Tui.Reports.update stock (.input 'q')
+  expect (isMenu stockBack.state && !stockBack.back)
+    "Reports detail q did not return exactly one level to the Reports menu"
 
   let previous := (Loam.Tui.Reports.update stock .left).state
   expect (previous.window.form.start == "2026-08-01") "left did not shift to previous calendar month"
@@ -384,7 +391,7 @@ def main : IO Unit := do
   let smallMenuText := widgetText (Loam.Tui.Reports.viewForBounds small lastMenuItem)
   expect (contains "Budget Window" smallMenuText)
     "bounded Reports menu let its selected item leave the viewport"
-  expect (contains "b / Esc home   q quit" smallMenuText)
+  expect (contains "q / Esc home" smallMenuText)
     "bounded Reports menu did not pin its navigation"
 
   let topBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small stockReport)
@@ -392,7 +399,7 @@ def main : IO Unit := do
     "bounded Stock–Flow lost the top of its report body"
   expect (contains "Lines 1–" topBoundedText)
     "bounded report did not expose its scroll position"
-  expect (contains "b / Esc Reports menu   q quit" topBoundedText)
+  expect (contains "q / Esc Reports menu" topBoundedText)
     "bounded report did not pin navigation at the top position"
   expect ((Loam.Tui.Reports.viewForBounds small stockReport).lines.length <= small.height)
     "bounded report exceeded the terminal height"
@@ -405,7 +412,7 @@ def main : IO Unit := do
   let bottomBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small bottom)
   expect (contains "not income/spending" bottomBoundedText)
     "bounded report could not scroll to the end of its body"
-  expect (contains "b / Esc Reports menu   q quit" bottomBoundedText)
+  expect (contains "q / Esc Reports menu" bottomBoundedText)
     "bounded report did not pin navigation at the bottom position"
   expect ((Loam.Tui.Reports.updateForBounds small bottom .down).state.scroll == bottom.scroll)
     "bounded report scrolled beyond its final meaningful offset"
@@ -437,7 +444,7 @@ def main : IO Unit := do
       let rendered := Loam.Tui.Reports.viewForBounds tiny report
       expect (rendered.lines.length <= tiny.height)
         ("Reports exceeded tiny terminal height " ++ toString tiny.height)
-      expect (contains "q quit" (widgetText rendered))
+      expect (contains "q / Esc" (widgetText rendered))
         ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
   IO.println
