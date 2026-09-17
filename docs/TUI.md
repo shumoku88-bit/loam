@@ -38,6 +38,9 @@ i          Attention
 b          Balances
 c          current-cycle Budget
 e          raw/general Capacity
+u          Purpose routing administration
+m          Locus administration
+o          current quantity observation
 v          Reports
 q          quit
 ```
@@ -45,6 +48,10 @@ q          quit
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, and Record interactions. It does not redefine the current-cycle
 Budget observation date or silently manufacture a household cycle.
+
+The Home labels distinguish the user-facing action from the narrower implementation
+module name. `u` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
+`o` publishes one complete current quantity observation image.
 
 ## Surface map
 
@@ -171,6 +178,26 @@ q          quit
 
 Editors remain local interaction state. `CapacityPublisher` and the existing shared
 publication sessions own authoritative writes and fresh review.
+
+## Purpose routing
+
+Home `u` opens Actual-to-Purpose routing administration. The surface edits explicit
+routing evidence; it does not infer a Purpose from an AccountingRole, sign, account
+name, or current balance. Expense Loci remain the default audit scope while admitted
+non-Expense Loci can be entered explicitly when a generic Purpose question needs it.
+
+## Locus administration
+
+Home `m` opens add-only Locus administration. It shows the currently admitted
+vocabulary before proposing one new stable Locus token. Admission does not also
+create a label, AccountingRole, Purpose route, rename, or alias.
+
+## Current quantity observation
+
+Home `o` opens the current quantity observation editor. It collects one complete set
+of `Locus × Measure × observed Quantity` rows observed together and publishes the
+whole image through the shared boundary. The editor does not merge the image with an
+older observation or derive reconciliation semantics locally.
 
 ## Reports
 
