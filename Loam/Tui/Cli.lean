@@ -9,6 +9,7 @@ import Loam.Tui.RecordSession
 import Loam.Tui.Correction
 import Loam.Tui.CorrectionSession
 import Loam.Tui.ActualDateCorrection
+import Loam.Tui.EventMerchant
 import Loam.Tui.ActualReversal
 import Loam.Tui.ActualReversalSession
 import Loam.Tui.ScheduledCompletion
@@ -226,6 +227,7 @@ def selectedDayEventOfKey
       | .scheduled => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
+  | .input 'm' | .input 'M' => .classifyMerchant
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -249,6 +251,28 @@ partial def actualDateCorrectionLoop
       let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualDateCorrectionLoop bounds root step.state nextFrame
+
+/-- Merchant editing stays local; canonical first-classification semantics remain in the publisher. -/
+partial def eventMerchantLoop
+    (bounds : Bounds) (root : System.FilePath)
+    (state : Loam.Tui.EventMerchant.State) (frame : CompiledWidget) : IO String := do
+  let step := Loam.Tui.EventMerchant.update state (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return "Merchant classification cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.HouseholdCommand.classifyEventMerchant root draft with
+      | .ok () =>
+          return "Published " ++ Loam.Tui.EventMerchant.dispositionText draft.disposition ++
+            " for " ++ draft.target.token ++ "."
+      | .error message =>
+          let next := Loam.Tui.EventMerchant.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.EventMerchant.view next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          eventMerchantLoop bounds root next nextFrame
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.EventMerchant.view step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      eventMerchantLoop bounds root step.state nextFrame
 
 /-- Cancellation confirmation is presentation-only; publisher refusal returns to fresh day evidence. -/
 partial def scheduledCancellationLoop
@@ -547,6 +571,37 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← actualDateCorrectionLoop
                 bounds root editor editorFrame
+              let fresh ← requireReload notice (loadSnapshot dataDir)
+              let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+              let next := { refreshed with notice := notice }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+              selectedDayLoop bounds dataDir root fresh next nextFrame
+  | .classifyMerchant =>
+      match Loam.Tui.SelectedDay.selectedActual? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current Actual is selected for Merchant classification." }
+          let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          selectedDayLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          let evidence ←
+            match ← Loam.ActualAuthority.loadActual? root with
+            | .ok evidence => pure evidence
+            | .error message => throw (IO.userError message)
+          match evidence.merchants.findDisposition? record.event.id with
+          | some disposition =>
+              let next := { step.state with
+                notice := "Merchant already classified: " ++
+                  Loam.Tui.EventMerchant.dispositionText disposition ++ "." }
+              let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              selectedDayLoop bounds dataDir root snapshot next nextFrame
+          | none =>
+              let editor := Loam.Tui.EventMerchant.initial record
+              let editorFrame := compileWidget (Loam.Tui.EventMerchant.view editor)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              let notice ← eventMerchantLoop bounds root editor editorFrame
               let fresh ← requireReload notice (loadSnapshot dataDir)
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
