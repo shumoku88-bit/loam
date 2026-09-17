@@ -134,9 +134,12 @@ private def statusTokens
     match pending with
     | .ok records => toString records.length
     | .error _ => "Unavailable"
-  ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus,
-   "[b] balances", "[c] budget", "[e] capacity", "[p] purpose routing",
-   "[m] manage loci", "[o] observe quantities", "[v] reports"]
+  ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus]
+
+private def pendingSection (pending : PendingEvidence) : List Widget :=
+  match pending with
+  | .ok [] => []
+  | _ => [blankLine, plainLine " Pending Scheduled:"] ++ pendingLines pending
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
@@ -159,14 +162,10 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
     [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
   [ ruleLine bounds '-'
   , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
-  , plainLine (" Known Through: " ++ snapshot.actual.today)
   ] ++
   (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
-    (fun text => plainLine (" " ++ text)) ++
-  [ ruleLine bounds '-'
-  , plainLine " Pending Scheduled:"
-  ] ++
-  pendingLines pending ++
+    (fun text => mutedLine (" " ++ text)) ++
+  pendingSection pending ++
   [ blankLine
   , plainLine " Actual Transactions:"
   ] ++
@@ -175,36 +174,23 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   , plainLine " Scheduled:"
   ] ++
   scheduledLines snapshot state ++
-  [ blankLine
-  , plainLine " Household Shortcuts:"
-  , mutedLine "   [i] Attention is current-open evidence; selected-day membership is not inferred."
-  , mutedLine "   [c] Budget uses the current explicit preset; [e] raw Capacity/actions."
-  , mutedLine "   [u] Purpose routing audits explicit Expense Loci and edits Actual routing."
-  , mutedLine "   [o] Observe quantities publishes one complete current reconciliation image."
-  , ruleLine bounds '='
-  ]
+  [ruleLine bounds '=']
 
-private def navHelpTokens : List String :=
-  ["[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record", "[q] quit"]
+private def dayHelpTokens : List String :=
+  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[Enter] open",
+   "[r] record", "[a] actual", "[s] scheduled", "[q] quit"]
 
-private def workspaceHelpTokens : List String :=
-  ["[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
-   "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
+private def householdHelpTokens : List String :=
+  ["Household:", "[i] attention", "[b] balances", "[c] budget", "[e] capacity",
    "[v] reports"]
 
-private def singleHelpLine : String :=
-  "  ".intercalate
-    ["[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record",
-     "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
-     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
-     "[v] reports", "[q] quit"]
+private def manageHelpTokens : List String :=
+  ["Manage:", "[p] purpose routing", "[m] manage loci", "[o] observe quantities"]
 
 private def helpLines (bounds : Bounds) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  if Loam.Tui.Layout.displayWidth singleHelpLine ≤ width then
-    [mutedLine singleHelpLine]
-  else
-    (Loam.Tui.Layout.flowLines width "  " [navHelpTokens, workspaceHelpTokens]).map mutedLine
+  (Loam.Tui.Layout.flowLines width "  "
+    [dayHelpTokens, householdHelpTokens, manageHelpTokens]).map mutedLine
 
 /--
 HRA-shaped Home presentation over LOAM's already-admitted read answers.
