@@ -135,7 +135,8 @@ private def statusTokens
     | .ok records => toString records.length
     | .error _ => "Unavailable"
   ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus,
-   "[c] budget", "[e] capacity", "[u] routes", "[m] loci", "[o] observe qty", "[v] reports"]
+   "[b] balances", "[c] budget", "[e] capacity", "[u] purpose routing",
+   "[m] manage loci", "[o] observe quantities", "[v] reports"]
 
 private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
@@ -171,15 +172,15 @@ private def homeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : L
   ] ++
   actualLines snapshot state ++
   [ blankLine
-  , plainLine " Planned Payments:"
+  , plainLine " Scheduled:"
   ] ++
   scheduledLines snapshot state ++
   [ blankLine
-  , plainLine " Household Workspaces:"
+  , plainLine " Household Shortcuts:"
   , mutedLine "   [i] Attention is current-open evidence; selected-day membership is not inferred."
   , mutedLine "   [c] Budget uses the current explicit preset; [e] raw Capacity/actions."
-  , mutedLine "   [u] Purpose routes audits explicit Expense Loci and edits Actual routing."
-  , mutedLine "   [o] Observe quantity publishes one complete current reconciliation image."
+  , mutedLine "   [u] Purpose routing audits explicit Expense Loci and edits Actual routing."
+  , mutedLine "   [o] Observe quantities publishes one complete current reconciliation image."
   , ruleLine bounds '='
   ]
 
@@ -187,13 +188,16 @@ private def navHelpTokens : List String :=
   ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record", "[q] quit"]
 
 private def workspaceHelpTokens : List String :=
-  ["[a] actual", "[p] scheduled", "[i] attention", "[c] budget", "[e] capacity", "[u] purpose routes", "[m] loci", "[o] observe qty", "[v] reports"]
+  ["[a] actual", "[p] scheduled", "[i] attention", "[b] balances", "[c] budget",
+   "[e] capacity", "[u] purpose routing", "[m] manage loci", "[o] observe quantities",
+   "[v] reports"]
 
 private def singleHelpLine : String :=
   "  ".intercalate
     ["[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
-     "[a] actual", "[p] scheduled", "[i] attention", "[c] budget", "[e] capacity",
-     "[u] purpose routes", "[m] loci", "[o] observe qty", "[v] reports", "[q] quit"]
+     "[a] actual", "[p] scheduled", "[i] attention", "[b] balances", "[c] budget",
+     "[e] capacity", "[u] purpose routing", "[m] manage loci", "[o] observe quantities",
+     "[v] reports", "[q] quit"]
 
 private def helpLines (bounds : Bounds) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
