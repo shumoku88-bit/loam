@@ -94,8 +94,8 @@ def main : IO Unit := do
   let state := Loam.Tui.Main.initialState "2026-09-10"
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
-    "[a] actual", "[p] scheduled", "[i] attention", "[c] budget",
-    "[e] capacity", "[u] purpose routes", "[m] loci", "[o] observe qty",
+    "[a] actual", "[p] scheduled", "[i] attention", "[b] balances", "[c] budget",
+    "[e] capacity", "[u] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
   ]
 
