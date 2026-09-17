@@ -105,15 +105,13 @@ private def closeUnlocked
     | none => return .error "loam: malformed or unsupported Attention authority"
   if (AttentionMemory.findById? items draft.attention).isNone then
     return .error "loam: Attention closure target is not retained"
-  if (AttentionClosureMemory.findByAttention? closures draft.attention).isSome then
-    return .error "loam: Attention item is already closed"
   let closure : AttentionClosure String := {
     attention := draft.attention
     knownOn := draft.knownOn
     kind := draft.kind
   }
   let some updatedClosures := AttentionClosureMemory.add? closures closure
-    | return .error "loam: Attention closure could not be admitted"
+    | return .error "loam: Attention item is already closed"
   if ← saveAttentionMemory? path items updatedClosures then
     return .ok ()
   else
