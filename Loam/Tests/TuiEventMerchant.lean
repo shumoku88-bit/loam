@@ -2,8 +2,8 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.HouseholdCommand
-import Loam.Tui.Cli
 import Loam.Tui.EventMerchant
+import Loam.Tui.SelectedDay
 
 open Loam.Core
 
@@ -57,16 +57,20 @@ def main (args : List String) : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
 
-  expect
-    (Loam.Tui.Cli.selectedDayEventOfKey .actual (.input 'm') ==
-      Loam.Tui.SelectedDay.Event.classifyMerchant)
-    "SelectedDay m key does not enter Merchant classification"
-
   let .ok purchaseId ← Loam.HouseholdCommand.record root
       (draft "2026-09-17" "三和" 840)
     | throw (IO.userError "record Merchant target")
   let .ok records ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Merchant target review")
+  let snapshot : Loam.Tui.Main.Snapshot := {
+    actual := { today := "2026-09-17", allRecords := records }
+    scheduled := .error "unused Merchant fixture"
+  }
+  let dayState := Loam.Tui.SelectedDay.initial "2026-09-17"
+  let entrance := Loam.Tui.SelectedDay.update snapshot dayState .classifyMerchant
+  expect (entrance.command == Loam.Tui.SelectedDay.Command.classifyMerchant)
+    "SelectedDay Actual selection did not expose Merchant classification intent"
+
   let purchase ← requireSome
     ((Loam.ActualReview.select records (.day "2026-09-17")).find? fun record =>
       record.event.id == purchaseId)
@@ -136,4 +140,4 @@ def main (args : List String) : IO Unit := do
     "explicit Nonmerchant disposition was not retained"
 
   IO.println
-    "TUI Event Merchant: m entrance, explicit Merchant/Nonmerchant edit, preview, shared publication and duplicate refusal passed."
+    "TUI Event Merchant: SelectedDay intent, explicit Merchant/Nonmerchant edit, preview, shared publication and duplicate refusal passed."
