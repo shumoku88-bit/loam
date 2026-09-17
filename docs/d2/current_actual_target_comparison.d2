@@ -1,15 +1,15 @@
 # G2-012 projection experiment.
 #
-# This is deliberately a second view over existing audit evidence, not a new
-# semantic authority and not a proposal to replace DRAKON. The source facts are
-# docs/research/CURRENT_ACTUAL_TARGET_OBLIGATION_DAG.md and
-# docs/drakon/build_current_actual_target_audit_map.py.
+# This remains a second view over existing audit evidence, not a new semantic
+# authority and not a proposal to replace DRAKON.
 #
-# Read the graph as an obligation / ownership view. It intentionally emphasizes
-# shared semantic roots and divergent consumers rather than exact execution
-# order inside each publisher.
+# Primary purpose:
+# show one shared semantic root and three downstream consumers whose needs
+# diverge immediately after that root.
 
 direction: down
+
+semantic_law: "CorrectionFrontier theorem already owns:\ncurrent frontier membership iff\nretained Event AND not Correction target"
 
 authority: "Canonical Actual authority precondition" {
   load: "ActualAuthority.loadActual?"
@@ -34,49 +34,52 @@ root: "Shared semantic root" {
   not_target -> stale: no
 }
 
-authority.frontier -> root.requested
+consumers: "Downstream consumers" {
+  direction: right
 
-correction: "CorrectionPublisher" {
-  payload: "consume retained Event payload"
-  movement_shape: "practical Movement"
-  provenance: "no Relation / Reversal references"
-  validity: "carry current validity date"
-  result: "replacement Event\n+ EventCorrection provenance"
+  correction: "CorrectionPublisher" {
+    payload: "consume retained Event payload"
+    movement_check: "practical Movement"
+    provenance: "no Relation / Reversal references"
+    validity: "carry current validity date"
+    result: "replacement Event\n+ EventCorrection provenance"
 
-  payload -> movement_shape -> provenance -> validity -> result
+    payload -> movement_check -> provenance -> validity -> result
+  }
+
+  reversal: "ActualReversalPublisher" {
+    payload: "consume retained Event payload"
+    provenance: "no reversal / Relation /\nScheduled-completion conflict"
+    movement_check: "practical Movement"
+    inverse: "derive exact anonymous inverse"
+    result: "inverse Event\n+ ActualReversal provenance"
+
+    payload -> provenance -> movement_check -> inverse -> result
+  }
+
+  date_correction: "ActualValidityPublisher" {
+    identity: "Event identity only\nEvent payload unused"
+    validity: "resolve current validity frontier fact"
+    same_date: "requested date equals current date?"
+    noop: "successful no-op"
+    revision: "append validity revision\n+ correction edge"
+
+    identity -> validity -> same_date
+    same_date -> noop: yes
+    same_date -> revision: no
+  }
 }
-
-reversal: "ActualReversalPublisher" {
-  payload: "consume retained Event payload"
-  provenance: "no reversal / Relation / Scheduled-completion conflict"
-  movement_shape: "practical Movement"
-  inverse: "derive exact anonymous inverse"
-  result: "inverse Event\n+ ActualReversal provenance"
-
-  payload -> provenance -> movement_shape -> inverse -> result
-}
-
-date_correction: "ActualValidityPublisher" {
-  identity: "Event identity only\nEvent payload unused"
-  validity: "resolve current validity frontier fact"
-  same_date: "requested date equals current date?"
-  noop: "successful no-op"
-  revision: "append validity revision\n+ correction edge"
-
-  identity -> validity -> same_date
-  same_date -> noop: yes
-  same_date -> revision: no
-}
-
-root.current -> correction.payload: needs Event payload
-root.current -> reversal.payload: needs Event payload
-root.current -> date_correction.identity: needs identity only
-
-semantic_law: "CorrectionFrontier theorem already owns:\ncurrent frontier membership iff\nretained Event AND not Correction target"
-semantic_law -> root.current: justifies
 
 stop_point: "Projection hypothesis:\nshared semantic law does NOT imply\nshared runtime helper"
-correction.result -> stop_point
-reversal.result -> stop_point
-date_correction.noop -> stop_point
-date_correction.revision -> stop_point
+
+semantic_law -> root.current: justifies
+authority.frontier -> root.requested
+
+root.current -> consumers.correction.payload: needs Event payload
+root.current -> consumers.reversal.payload: needs Event payload
+root.current -> consumers.date_correction.identity: needs identity only
+
+consumers.correction.result -> stop_point
+consumers.reversal.result -> stop_point
+consumers.date_correction.noop -> stop_point
+consumers.date_correction.revision -> stop_point
