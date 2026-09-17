@@ -34,26 +34,25 @@ def add? {Time : Type}
   ofItems? (memory.items ++ [item])
 
 private theorem appendedIdNodup_of_fresh {Time : Type}
-    (memory : AttentionMemory Time)
+    (items : List (Attention Time))
     (item : Attention Time)
-    (hFresh : item.id ∉ memory.items.map Attention.id) :
-    ((memory.items ++ [item]).map Attention.id).Nodup := by
-  induction memory.items with
+    (hNodup : (items.map Attention.id).Nodup)
+    (hFresh : item.id ∉ items.map Attention.id) :
+    ((items ++ [item]).map Attention.id).Nodup := by
+  induction items with
   | nil =>
       simp
   | cons head tail ih =>
-      simp only [List.map_cons, List.nodup_cons] at memory_idNodup hFresh
+      simp only [List.map_cons, List.nodup_cons] at hNodup hFresh
       simp only [List.cons_append, List.map_cons, List.nodup_cons]
       constructor
       · intro hMem
         rw [List.map_append] at hMem
         simp only [List.mem_append, List.map_singleton, List.mem_singleton] at hMem
         cases hMem with
-        | inl hTail => exact memory_idNodup.1 hTail
+        | inl hTail => exact hNodup.1 hTail
         | inr hEq => exact hFresh.1 hEq.symm
-      · exact ih
-          { items := tail, idNodup := memory_idNodup.2 }
-          item hFresh.2
+      · exact ih hNodup.2 hFresh.2
 
 /--
 Append an item whose identity is already proved fresh.
@@ -66,7 +65,7 @@ def addFresh {Time : Type}
     (item : Attention Time)
     (hFresh : item.id ∉ memory.items.map Attention.id) : AttentionMemory Time :=
   { items := memory.items ++ [item]
-    idNodup := appendedIdNodup_of_fresh memory item hFresh }
+    idNodup := appendedIdNodup_of_fresh memory.items item memory.idNodup hFresh }
 
 /-- Find one retained Attention item by stable identity. -/
 def findById? {Time : Type}
