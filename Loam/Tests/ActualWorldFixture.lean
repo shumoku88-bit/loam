@@ -12,20 +12,19 @@ set_option autoImplicit false
 Initialize one isolated test household from the older MovementAdmission.World shape.
 
 This helper is deliberately test-only. MovementAdmission.World does not carry
-correction or reversal history, so converting it to ActualEvidence is only sound
-for fresh fixtures that intentionally start with those histories empty. Actual
-and Locus-admission files are written sequentially; this is not a production
+correction, reversal, or Merchant history, so converting it to ActualEvidence is
+only sound for fresh fixtures that intentionally start with those histories empty.
+Actual and Locus-admission files are written sequentially; this is not a production
 multi-authority transaction boundary.
 -/
 def publishWorld?
     (root : System.FilePath)
     (world : Loam.MovementAdmission.World) : IO (Except String Unit) := do
   let evidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
     events := world.events
     validity := world.validity
     descriptions := world.descriptions
-    corrections := { corrections := [], idNodup := by simp }
-    reversals := ActualReversalMemory.empty
     relations := world.relations
     discharges := world.discharges
   }

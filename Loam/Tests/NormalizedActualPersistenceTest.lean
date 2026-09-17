@@ -26,6 +26,7 @@ def requireNone {α : Type} (option : Option α) (message : String) : IO Unit :=
 def validFixtureWire : String :=
   "LOAM-NORMALIZED-ACTUAL\t1\n" ++
   "TX\tev-root\t2026-09-01\tDESC\tRoot transaction with mixed effects\n" ++
+  "MERCHANT\tmerchant-grocery\n" ++
   "EFFECT\twallet\tjpy\t-1000\n" ++
   "EFFECT\twallet\tjpy\t-500\n" ++
   "KEYED-EFFECT\tk-source\tbank\tjpy\t1500\n" ++
@@ -40,6 +41,7 @@ def validFixtureWire : String :=
   "EFFECT\tbank\tjpy\t-1500\n" ++
   "ENDTX\n" ++
   "TX\tev-discharge\t2026-09-05\tDESC\tPartial repayment\n" ++
+  "NONMERCHANT\n" ++
   "EFFECT\twallet\tjpy\t400\n" ++
   "EFFECT\tbank\tjpy\t-400\n" ++
   "DISCHARGE\trel-loan\t400\n" ++
@@ -64,6 +66,17 @@ def main : IO Unit := do
   let evidence1 ← requireSome (decodeNormalizedActual? validFixtureWire)
     "valid normalized actual fixture failed to decode"
 
+  -- 1a. Merchant evidence preserves the unresolved / merchant / nonmerchant distinction.
+  match evidence1.merchants.findDisposition? ⟨"ev-root"⟩ with
+  | some (.merchant party) =>
+      expect (party.token == "merchant-grocery") "merchant identity decoded incorrectly"
+  | _ => throw <| IO.userError "merchant disposition missing for ev-root"
+  match evidence1.merchants.findDisposition? ⟨"ev-discharge"⟩ with
+  | some .nonmerchant => pure ()
+  | _ => throw <| IO.userError "explicit nonmerchant disposition missing"
+  expect ((evidence1.merchants.findDisposition? ⟨"ev-reversal"⟩).isNone)
+    "missing Merchant row did not remain unresolved"
+
   -- 1b. Aggregate validity facts must not name Events outside the generation.
   let orphanValidity ← requireSome
     (evidence1.validity.addFact? (.base ⟨"orphan-event"⟩ "2026-09-10"))
@@ -73,6 +86,18 @@ def main : IO Unit := do
     "admitted a validity fact for an absent Event"
   requireNone (encodeNormalizedActual? orphanEvidence)
     "encoded an orphan validity fact by silently dropping it"
+
+  -- 1c. Merchant evidence must also remain referentially closed over retained Events.
+  let orphanMerchants ← requireSome
+    (EventMerchantEvidenceMemory.ofEntries? [
+      { event := ⟨"orphan-event"⟩, disposition := .merchant ⟨"orphan-merchant"⟩ }
+    ])
+    "could not construct orphan Merchant regression fixture"
+  let orphanMerchantEvidence := { evidence1 with merchants := orphanMerchants }
+  requireNone (admitActualEvidence? orphanMerchantEvidence)
+    "admitted Merchant evidence for an absent Event"
+  requireNone (encodeNormalizedActual? orphanMerchantEvidence)
+    "encoded orphan Merchant evidence by silently dropping it"
 
   -- 2. Verify identity sparsity: anonymous effects are none, keyed is some
   let rootEv ← requireSome (evidence1.events.findById? ⟨"ev-root"⟩)
@@ -124,19 +149,25 @@ def main : IO Unit := do
   let encodedWire ← requireSome (encodeNormalizedActual? evidence1)
     "encoding admitted evidence failed"
 
-  -- Check wire preservation: anonymous effects do NOT have KEYED-EFFECT
+  -- Check wire preservation: anonymous effects do NOT have KEYED-EFFECT, Merchant rows are explicit.
   expect ((encodedWire.splitOn "EFFECT\twallet\tjpy\t-1000").length >= 2)
     "encoded wire lost anonymous effect"
   expect ((encodedWire.splitOn "KEYED-EFFECT\tk-source\tbank\tjpy\t1500").length >= 2)
     "encoded wire lost keyed effect"
   expect ((encodedWire.splitOn "KEYED-EFFECT\t").length == 2)
     "encoded wire has wrong number of keyed effects"
+  expect ((encodedWire.splitOn "MERCHANT\tmerchant-grocery").length == 2)
+    "encoded wire lost Merchant identity evidence"
+  expect ((encodedWire.splitOn "NONMERCHANT").length == 2)
+    "encoded wire lost explicit nonmerchant evidence"
 
   -- 5. Decode again and verify semantic round-trip
   let evidence2 ← requireSome (decodeNormalizedActual? encodedWire)
     "decoding re-encoded wire failed"
   expect (evidence1.events.events.length == evidence2.events.events.length)
     "round trip changed event count"
+  expect (evidence1.merchants.entries.length == evidence2.merchants.entries.length)
+    "round trip changed Merchant evidence count"
   expect (evidence1.relations.length == evidence2.relations.length)
     "round trip changed relation count"
   expect (evidence1.discharges.length == evidence2.discharges.length)
@@ -145,6 +176,11 @@ def main : IO Unit := do
     "round trip changed correction count"
   expect (evidence1.reversals.reversals.length == evidence2.reversals.reversals.length)
     "round trip changed reversal count"
+  expect (evidence2.merchants.findDisposition? ⟨"ev-root"⟩ ==
+      some (.merchant ⟨"merchant-grocery"⟩))
+    "round trip changed Merchant identity"
+  expect (evidence2.merchants.findDisposition? ⟨"ev-discharge"⟩ == some .nonmerchant)
+    "round trip changed explicit nonmerchant disposition"
 
   -- 6. Fail-closed tests on invalid fixtures
 
@@ -240,6 +276,29 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidLocusToken)
     "admitted an Effect with an invalid Locus token"
+
+  -- 6j. One Event may retain at most one Merchant disposition row.
+  let duplicateMerchant :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "MERCHANT\tshop-1\n" ++
+    "NONMERCHANT\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? duplicateMerchant)
+    "admitted two Merchant dispositions for one Event"
+
+  -- 6k. Merchant identity uses the same canonical token syntax as other opaque identities.
+  let invalidMerchantToken :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "MERCHANT\t\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? invalidMerchantToken)
+    "admitted malformed Merchant identity token"
 
   -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
   let balancedUsd :=

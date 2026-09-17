@@ -16,10 +16,10 @@ set_option autoImplicit false
 This module provides the production publication and loading boundary for the
 canonical single-generation normalized Actual fact families (`actual.loam`).
 
-All historical Actual evidence (Events, Validity history, Descriptions,
-Corrections, Reversals, Relations, and Discharges) lives co-published within
-one generation in `actual.loam`. Referential closure and validity are enforced
-at decode/encode time by `NormalizedActualPersistence`.
+All historical Actual evidence (Events, Validity history, Descriptions, Merchant
+dispositions, Corrections, Reversals, Relations, and Discharges) lives co-published
+within one generation in `actual.loam`. Referential closure and validity are
+enforced at decode/encode time by `NormalizedActualPersistence`.
 
 Publication follows strict atomic crash-resilient semantics:
 1. Writer acquires cross-process exclusive ownership on `actual.loam.loam-writer-lock`.

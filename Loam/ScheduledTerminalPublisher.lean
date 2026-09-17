@@ -171,11 +171,10 @@ private def publishCompletionUnderOwnership
         return .error "loam: Scheduled completion lifecycle could not be published"
   | some _ => pure ()
   let updatedEvidence : ActualEvidence := {
+    evidence with
     events := updatedWorld.events
     validity := updatedWorld.validity
     descriptions := updatedWorld.descriptions
-    corrections := evidence.corrections
-    reversals := evidence.reversals
     relations := updatedWorld.relations
     discharges := updatedWorld.discharges
   }
