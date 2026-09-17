@@ -132,7 +132,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "HouseholdCommand refused Nonmerchant TUI intent")
   let .ok final ← Loam.ActualAuthority.loadActual? root
     | throw (IO.userError "reload final Merchant authority")
-  expect (final.merchants.findDisposition? rentId == some .nonmerchant)
+  expect (decide (final.merchants.findDisposition? rentId = some .nonmerchant))
     "explicit Nonmerchant disposition was not retained"
 
   IO.println
