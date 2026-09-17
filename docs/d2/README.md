@@ -1,27 +1,57 @@
-# D2 projection experiment
+# D2 structural audit projections
 
-This directory tests whether LOAM benefits from a second visual projection beside DRAKON.
+LOAM uses D2 as a complementary visual audit instrument beside DRAKON.
 
-The experiment does **not** adopt D2 as architecture authority, does not replace DRAKON, and does not add a production or CI dependency. It asks a narrower question:
+The two views have deliberately different jobs:
 
-> Does a structure-first projection make existing LOAM audit evidence easier for a human and an AI to inspect without erasing the execution/refusal information for which DRAKON is useful?
+```text
+DRAKON
+  execution order
+  decisions and refusal paths
+  retry / recovery flow
 
-## First probe: G2-012 Current Actual target
+D2
+  structural topology
+  ownership / authority relationships
+  shared roots and divergent consumers
+  proof-obligation / dependency shape
+```
+
+D2 does **not** replace DRAKON, and neither diagram family is semantic authority. Production source, retained evidence, formal models, proofs, and qualification results remain authoritative. Committed `.d2` files are inspectable audit projections over that evidence; generated SVG / ASCII output is disposable.
+
+D2 is also not a production or steady-state CI dependency. Install the CLI when rendering or inspecting these projections locally.
+
+## When to use which view
+
+Use DRAKON when the main question is:
+
+- what runs first or next;
+- where an operation refuses;
+- how a retry or recovery path behaves;
+- which local branch leads to which outcome.
+
+Use D2 when the main question is:
+
+- what depends on what;
+- which authorities are read or written;
+- where ownership is shared without semantic authority being merged;
+- which consumers share a semantic root but require different payloads or obligations;
+- whether a proof / obligation DAG exposes a structural distinction that procedural flow obscures.
+
+Do not produce both views mechanically. A second projection must answer a distinct audit question.
+
+## Accepted projection 1: Current Actual target comparison
 
 `current_actual_target_comparison.d2` projects the same evidence already recorded by:
 
 - `docs/research/CURRENT_ACTUAL_TARGET_OBLIGATION_DAG.md`;
 - `docs/drakon/build_current_actual_target_audit_map.py`.
 
-The subject is useful because three writers share one semantic root but immediately diverge in what they consume:
+The useful structural distinction is that Correction and Reversal consume the retained Event payload after the shared correction-current root, while Date correction consumes Event identity only. The projection therefore makes shared semantics visible without implying that one shared runtime helper is justified.
 
-- Correction needs the retained Event payload;
-- Reversal needs the retained Event payload;
-- Date correction needs Event identity only.
+DRAKON remains the stronger view for exact target-selection order and refusal routing.
 
-The D2 projection deliberately emphasizes that ownership / obligation shape. DRAKON remains the better reference when exact decision order, refusal routing, or recovery flow is the question.
-
-## Second probe: Scheduled / Actual ownership topology
+## Accepted projection 2: Scheduled / Actual ownership topology
 
 `scheduled_actual_ownership_topology.d2` projects a materially different kind of evidence: several production operations share one fixed ownership mechanic while retaining different semantic authority responsibilities.
 
@@ -33,9 +63,9 @@ Scheduled writer ownership
 Actual writer ownership
 ```
 
-The callers do not therefore become one semantic operation. Creation, replacement, completion, cancellation, reversal, and initial AccountingRole publication read and mutate different authorities for different reasons. AccountingRole additionally extends the lock order through current-quantity-anchor and role ownership.
+Creation, replacement, completion, cancellation, reversal, and initial AccountingRole publication do not thereby become one semantic operation. They read and mutate different authorities for different reasons. AccountingRole additionally extends the ownership order through current-quantity-anchor and role ownership.
 
-This probe asks whether D2 makes that topology easier to inspect than a procedural flow diagram without encouraging a generic publisher or merged authority abstraction.
+This projection makes the distinction between shared lock mechanics and separate semantic authority easier to inspect than a procedural flow diagram.
 
 ## Render
 
@@ -45,7 +75,7 @@ Install the D2 CLI and verify it first:
 d2 version
 ```
 
-Then, from the LOAM repository root, render every committed D2 probe to both a human-facing SVG and a terminal/AI-friendly ASCII projection:
+From the repository root, render every committed D2 projection to both SVG and ASCII:
 
 ```sh
 sh docs/d2/render.sh
@@ -60,30 +90,22 @@ scratch/d2/scheduled_actual_ownership_topology.svg
 scratch/d2/scheduled_actual_ownership_topology.txt
 ```
 
-On macOS, render and open all SVG probes in Safari:
+On macOS, render and open all SVG projections in Safari:
 
 ```sh
 sh docs/d2/render.sh --open
 ```
 
-The renderer uses ELK and an explicit SVG scale so local browser zoom and scrolling remain useful. The committed `.d2` source remains the inspectable evidence projection; generated SVG / ASCII output is disposable and not canonical evidence.
+The renderer uses ELK and an explicit SVG scale so local browser zoom and scrolling remain useful.
 
-## Evaluation questions
+## Maintenance rule
 
-Do not judge the experiment by appearance alone. Across the two probes, ask whether D2 repeatedly exposes distinctions that are awkward in DRAKON:
+Keep D2 small and question-driven.
 
-1. Can a reviewer identify shared semantic or ownership structure faster?
-2. Are divergent consumers or mutation owners immediately visible?
-3. Does the view preserve the distinction between shared mechanics and separate semantic authority?
-4. Does it accidentally suggest a shared runtime helper or generic publisher that the evidence does not justify?
-5. Does DRAKON still answer execution-order, refusal-path, and recovery questions more clearly?
-6. Can an AI inspect the text source and recover the same structural distinctions without needing a screenshot?
-7. Does maintaining the second projection reveal enough additional structure to justify its maintenance cost?
+- Do not mirror every DRAKON map.
+- Do not add a generic diagram framework merely because two renderers exist.
+- Do not infer a shared runtime abstraction merely from a visually shared node or edge.
+- Prefer source-derived or proof-derived distinctions over presentation convenience.
+- Add a D2 projection only when topology, ownership, authority, or obligation shape is itself under inspection.
 
-## Promotion rule
-
-Keep this directory experimental until at least two materially different audit subjects show a repeatable benefit.
-
-If D2 only redraws information already obvious in DRAKON, remove it. If it repeatedly exposes architecture, ownership, or proof-obligation relationships that DRAKON makes awkward, the next step is not to duplicate every diagram manually. The next step would be to test a small neutral observation representation from which DRAKON and D2 can both be projected.
-
-That neutral representation must be earned by repeated evidence. Do not introduce a diagram framework merely because two renderers exist.
+The two accepted projections establish that D2 can expose distinct information in materially different audit subjects. If repeated future use creates real duplication between DRAKON builders and D2 sources, then test a small neutral observation representation from which both can be projected. That shared representation is not required yet.
