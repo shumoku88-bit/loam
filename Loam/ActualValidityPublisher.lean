@@ -15,25 +15,72 @@ structure Draft where
   target : EventId
   validOn : String
 
+private def revisionIds :
+    List (ActualValidityFact String) → List ActualValidityRevisionId
+  | [] => []
+  | .base _ _ :: rest => revisionIds rest
+  | .revision id _ _ :: rest => id :: revisionIds rest
+
+private theorem revisionId_mem_of_ref_mem
+    (facts : List (ActualValidityFact String))
+    (id : ActualValidityRevisionId)
+    (h : ActualValidityRef.revision id ∈ facts.map ActualValidityFact.ref) :
+    id ∈ revisionIds facts := by
+  induction facts with
+  | nil =>
+      simp at h
+  | cons fact rest ih =>
+      cases fact with
+      | base event validOn =>
+          have hRest :
+              ActualValidityRef.revision id ∈ rest.map ActualValidityFact.ref := by
+            simpa [ActualValidityFact.ref] using h
+          exact ih hRest
+      | revision existing event validOn =>
+          simp only [List.map_cons, ActualValidityFact.ref, List.mem_cons] at h
+          rcases h with hEq | hRest
+          · cases hEq
+            simp [revisionIds]
+          · simp [revisionIds, ih hRest]
+
 private def freshRevisionId
     (history : ActualValidityHistory String) : ActualValidityRevisionId :=
-  let used := history.facts.filterMap fun fact =>
-    match fact with
-    | .base _ _ => none
-    | .revision id _ _ => some id.token
+  let used := (revisionIds history.facts).map ActualValidityRevisionId.token
   ⟨Loam.firstUnusedNumberedToken "validity-" used 1⟩
+
+private theorem freshRevisionId_fresh
+    (history : ActualValidityHistory String) :
+    ActualValidityRef.revision (freshRevisionId history) ∉
+      history.facts.map ActualValidityFact.ref := by
+  intro hRef
+  have hId :
+      freshRevisionId history ∈ revisionIds history.facts :=
+    revisionId_mem_of_ref_mem history.facts (freshRevisionId history) hRef
+  have hToken :
+      (freshRevisionId history).token ∉
+        (revisionIds history.facts).map ActualValidityRevisionId.token := by
+    simpa [freshRevisionId] using
+      (Loam.firstUnusedNumberedToken_fresh
+        "validity-"
+        ((revisionIds history.facts).map ActualValidityRevisionId.token)
+        1)
+  apply hToken
+  simp only [List.mem_map]
+  exact ⟨freshRevisionId history, hId, rfl⟩
 
 private def appendDateChange?
     (history : ActualValidityHistory String)
     (currentFact : ActualValidityFact String)
     (validOn : String) : Except String (ActualValidityHistory String) := do
   let revisionId := freshRevisionId history
+  have hRevisionFresh :
+      ActualValidityRef.revision revisionId ∉
+        history.facts.map ActualValidityFact.ref :=
+    freshRevisionId_fresh history
   let replacement : ActualValidityFact String :=
     .revision revisionId currentFact.event validOn
-  let withFact ←
-    match history.addFact? replacement with
-    | some updated => pure updated
-    | none => throw "loam: could not append occurrence-date revision evidence"
+  let withFact := history.addFreshFact replacement (by
+    simpa [replacement] using hRevisionFresh)
   let correction : ActualValidityCorrection := {
     target := currentFact.ref
     replacement := revisionId
