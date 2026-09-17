@@ -47,9 +47,19 @@ private def loadImageOrEmpty?
   else
     return emptyImage?
 
-private def freshId (items : AttentionMemory String) : AttentionId :=
+private def freshId
+    (items : AttentionMemory String) :
+    { id : AttentionId // id ∉ items.items.map Attention.id } := by
   let used := items.items.map (fun item => item.id.token)
-  ⟨Loam.firstUnusedNumberedToken "attention-" used 1⟩
+  let token := Loam.firstUnusedNumberedToken "attention-" used 1
+  have hToken : token ∉ used :=
+    Loam.firstUnusedNumberedToken_fresh "attention-" used 1
+  refine ⟨⟨token⟩, ?_⟩
+  intro hId
+  apply hToken
+  simp only [List.mem_map] at hId ⊢
+  rcases hId with ⟨existing, hExisting, hEq⟩
+  exact ⟨existing, hExisting, congrArg AttentionId.token hEq⟩
 
 private def validDue : AttentionDue String → Bool
   | .dueOn date => Loam.ActualDate.validIsoDate date
@@ -63,10 +73,11 @@ private def addUnlocked
     match ← loadImageOrEmpty? path with
     | some image => pure image
     | none => return .error "loam: malformed or unsupported Attention authority"
-  let id := freshId items
+  let fresh := freshId items
+  let id := fresh.1
   let item : Attention String := { id := id, context := draft.context, due := draft.due }
-  let some updatedItems := AttentionMemory.add? items item
-    | return .error "loam: fresh Attention identity was unexpectedly rejected"
+  let updatedItems := AttentionMemory.addFresh items item (by
+    simpa [item, id] using fresh.2)
   if ← saveAttentionMemory? path updatedItems closures then
     return .ok id
   else
