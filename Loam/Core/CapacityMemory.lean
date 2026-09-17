@@ -36,6 +36,16 @@ def ofMovements? (movements : List CapacityMovement) : Option CapacityMemory :=
 def add? (memory : CapacityMemory) (movement : CapacityMovement) : Option CapacityMemory :=
   ofMovements? (memory.movements ++ [movement])
 
+/-- Append a Capacity movement whose identity is already proved fresh. -/
+def addFresh
+    (memory : CapacityMemory)
+    (movement : CapacityMovement)
+    (hFresh : movement.id ∉ memory.movements.map CapacityMovement.id) : CapacityMemory :=
+  { movements := memory.movements ++ [movement]
+    idNodup :=
+      FiniteKeyed.appendFresh_nodup
+        CapacityMovement.id memory.movements movement memory.idNodup hFresh }
+
 /-- Find one retained capacity movement by stable identity. -/
 def findById?
     (memory : CapacityMemory)
