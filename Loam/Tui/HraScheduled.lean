@@ -295,12 +295,12 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [n] new  [c/Enter] complete  [s] replace  [x] cancel  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
     [ mutedLine "[j/k] select [h/l] pane [f] scope [n] new [q] back"
-    , mutedLine "[c/Enter] complete [s] replace [x] cancel"
+    , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
 /--

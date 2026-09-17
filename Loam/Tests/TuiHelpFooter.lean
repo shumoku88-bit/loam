@@ -93,9 +93,9 @@ def main : IO Unit := do
   -- 2. Test HraHome help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"
   let expectedTokens := [
-    "[h/l] day", "[k/j] week", "[g] known", "[Enter] day", "[r] record",
-    "[a] actual", "[p] scheduled", "[i] attention", "[c] budget",
-    "[e] capacity", "[u] purpose routes", "[m] loci", "[o] observe qty",
+    "[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record",
+    "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
+    "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
   ]
 

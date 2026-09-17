@@ -183,7 +183,7 @@ def hraScheduledEventOfKey
       match pane with
       | .loci => .other
       | .occurrences => .completeScheduled
-  | .input 's' | .input 'S' => .replaceScheduled
+  | .input 'r' | .input 'R' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
@@ -195,7 +195,6 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'f' | .input 'F' => .cycleFilter
-  | .input 'o' | .input 'O'
   | .input 's' | .input 'S' => .cycleOrder
   | .input 'n' | .input 'N' => .recordNew
   | .escape | .input 'q' | .input 'Q' => .back
@@ -224,8 +223,7 @@ def selectedDayEventOfKey
   | .input 'r' | .input 'R' =>
       match pane with
       | .actual => .reverseActual
-      | .scheduled => .other
-  | .input 's' | .input 'S' => .replaceScheduled
+      | .scheduled => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
   | .escape | .input 'q' | .input 'Q' => .back
@@ -634,29 +632,25 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       selectedDayLoop bounds dataDir root snapshot step.state nextFrame
 
-/-- Read-only Attention session. `true` means the user chose to quit LOAM. -/
+/-- Read-only Attention session; q/Esc returns to Home. -/
 partial def attentionLoop (bounds : Bounds)
-    (state : Loam.Tui.Attention.State) (frame : CompiledWidget) : IO Bool := do
+    (state : Loam.Tui.Attention.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  if key = .input 'q' || key = .input 'Q' then
-    return true
-  let back := key = .escape || key = .input 'b' || key = .input 'B'
+  let back := key = .escape || key = .input 'q' || key = .input 'Q'
   match Loam.Tui.Attention.update state back with
-  | .back => return false
+  | .back => return ()
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Attention.view next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       attentionLoop bounds next nextFrame
 
-/-- Read-only balance-view session. `true` means quit LOAM. -/
+/-- Read-only balance-view session; q/Esc returns to Home. -/
 partial def balancesLoop (bounds : Bounds)
-    (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Bool := do
+    (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  if key = .input 'q' || key = .input 'Q' then
-    return true
-  let back := key = .escape || key = .input 'b' || key = .input 'B'
+  let back := key = .escape || key = .input 'q' || key = .input 'Q'
   match Loam.Tui.Balances.update state back with
-  | .back => return false
+  | .back => return ()
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Balances.view next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -688,11 +682,9 @@ partial def currentQuantityAnchorLoop
 partial def capacityLoop
     (bounds : Bounds) (dataDir root : System.FilePath)
     (observedAt : String)
-    (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Bool := do
+    (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  if key = .input 'q' || key = .input 'Q' then
-    return true
-  let backKey := key = .escape || key = .input 'b' || key = .input 'B'
+  let backKey := key = .escape || key = .input 'q' || key = .input 'Q'
   let event : Loam.Tui.Capacity.Event :=
     if backKey then .back
     else
@@ -703,7 +695,7 @@ partial def capacityLoop
       | .input 'r' | .input 'R' => .rebalance
       | _ => .other
   match Loam.Tui.Capacity.update state event with
-  | .back => return false
+  | .back => return ()
   | .transfer current =>
       let editor := Loam.Tui.CapacityTransfer.initial
         current.snapshot observedAt (Loam.Tui.Capacity.selectedPurpose? current)
@@ -739,12 +731,11 @@ partial def capacityLoop
 
 /-- Current-cycle Budget composes shared actions without adding a second semantic engine. -/
 partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
-    (state : Loam.Tui.CycleBudget.State) (frame : CompiledWidget) : IO Bool := do
+    (state : Loam.Tui.CycleBudget.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
   let (next, intent) := Loam.Tui.CycleBudget.update bounds state key
   match intent with
-  | .quit => return true
-  | .home => return false
+  | .home => return ()
   | .stay =>
     let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -804,15 +795,13 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
 
-/-- Reports session. `true` means quit LOAM. -/
+/-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 partial def reportsLoop (bounds : Bounds)
     (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bool := do
+    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  if key = .input 'q' || key = .input 'Q' then
-    return true
   let step := Loam.Tui.Reports.updateForBounds bounds state key
-  if step.back then return false
+  if step.back then return ()
   let next ←
     match step.query with
     | none => pure step.state
@@ -883,7 +872,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if (key = .input 'p' || key = .input 'P') then
+  else if (key = .input 's' || key = .input 'S') then
     let scheduled := Loam.Tui.HraScheduled.initial state.selectedDate
     let scheduledFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot scheduled)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
@@ -903,8 +892,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let attention := Loam.Tui.Attention.initial evidence
         let attentionFrame := compileWidget (Loam.Tui.Attention.view attention)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame attentionFrame
-        if ← attentionLoop bounds attention attentionFrame then
-          return
+        attentionLoop bounds attention attentionFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
@@ -920,8 +908,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let balances := Loam.Tui.Balances.initial balanceSnapshot
         let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
-        if ← balancesLoop bounds balances balancesFrame then
-          return
+        balancesLoop bounds balances balancesFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
@@ -933,12 +920,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       ({ snapshot := answer } : Loam.Tui.CycleBudget.State)
     let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
-    if ← cycleBudgetLoop bounds dataDir root budget budgetFrame then return
+    cycleBudgetLoop bounds dataDir root budget budgetFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if (key = .input 'u' || key = .input 'U') then
+  else if (key = .input 'p' || key = .input 'P') then
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
     | .error message =>
         let home := { state with notice := unavailableNotice "Purpose routes" message }
@@ -970,9 +957,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
         let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-        if ← capacityLoop bounds dataDir root snapshot.actual.today
-            capacity capacityFrame then
-          return
+        capacityLoop bounds dataDir root snapshot.actual.today capacity capacityFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
@@ -997,13 +982,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             notice := "Boundary preset config malformed; named presets unavailable." }
     let reportsFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds reports)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame reportsFrame
-    if ← reportsLoop bounds dataDir root reports reportsFrame then
-      return
+    reportsLoop bounds dataDir root reports reportsFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if (key = .input 'g' || key = .input 'G') then
+  else if (key = .input 't' || key = .input 'T') then
     let home :=
       { state with selectedDate := snapshot.actual.today, notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home

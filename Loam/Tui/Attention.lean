@@ -54,7 +54,7 @@ def view (state : State) : Widget :=
         , line "No canonical Attention stream is configured."
         , muted "Unavailable is not a claim that there are zero open matters."
         , blank
-        , muted "b home   q quit"
+        , muted "q / Esc home"
         ]
   | .available snapshot =>
       if snapshot.openItems.isEmpty then
@@ -65,7 +65,7 @@ def view (state : State) : Widget :=
           , blank
           , line "The configured Attention stream has no currently open items."
           , blank
-          , muted "b home   q quit"
+          , muted "q / Esc home"
           ]
       else
         .column <|
@@ -79,7 +79,7 @@ def view (state : State) : Widget :=
           , muted "Due / no due date / due unknown remain distinct."
           , muted "Order shown is representation order, not priority or due ordering."
           , muted "Read-only: no lifecycle or write decisions live in this surface."
-          , muted "b home   q quit"
+          , muted "q / Esc home"
           ]
 
 end Loam.Tui.Attention

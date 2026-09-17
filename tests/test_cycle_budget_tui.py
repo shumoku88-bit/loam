@@ -184,15 +184,14 @@ try:
 
     os.write(master, b"u")
     wait_for("No unresolved Scheduled routing subjects.")
-    # Stage E3: Budget e is retired. If e still entered Capacity, this b would return
-    # to Budget instead of Home, so the Home focus below would never appear.
+    # Stage E3: Budget e is retired. q returns directly to Home under the shared grammar.
     os.write(master, b"e")
-    os.write(master, b"b")
+    os.write(master, b"q")
     wait_for(f"Focus: {today + datetime.timedelta(days=42)}")
     # Home's raw e entrance remains as the fallback/general transfer path.
     os.write(master, b"e")
     wait_for("t transfer")
-    os.write(master, b"b")
+    os.write(master, b"q")
     wait_for("LOAM Home")
 
     # Independent malformed workspace evidence stays fail-closed, but no longer
@@ -212,7 +211,7 @@ try:
     routing_path = root / "actual-routing.loam"
     routing = routing_path.read_bytes()
     routing_path.write_text("not-routing-evidence\n")
-    expect_local_unavailability(b"u", "Purpose routes")
+    expect_local_unavailability(b"p", "Purpose routes")
     routing_path.write_bytes(routing)
 
     capacity_path = root / "capacity.loam"
@@ -249,7 +248,7 @@ try:
         assert "Scheduled" in startup, "Home did not identify Scheduled as unavailable"
         assert process2.poll() is None, "TUI exited after retaining Scheduled startup refusal"
 
-        os.write(master2, b"p")
+        os.write(master2, b"s")
         scheduled_screen = wait_for_fd(master2, "Scheduled [Unavailable]")
         assert "Household Scheduled Workspace" in scheduled_screen
         assert process2.poll() is None, "TUI exited while showing unavailable Scheduled workspace"

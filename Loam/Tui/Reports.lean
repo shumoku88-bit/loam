@@ -239,7 +239,7 @@ private def selectMenuStep (state : State) : Step :=
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
-  | .escape | .input 'b' | .input 'B' => { state, back := true }
+  | .escape | .input 'q' | .input 'Q' => { state, back := true }
   | .up | .input 'k' | .input 'K' => { state := moveMenu state true }
   | .down | .input 'j' | .input 'J' => { state := moveMenu state false }
   | .enter => selectMenuStep state
@@ -268,7 +268,7 @@ private def queryForMode (state : State) : Option Query :=
 
 private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
-  | .escape | .input 'b' | .input 'B' =>
+  | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
@@ -297,7 +297,7 @@ private def updateTransactionsFlow
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   if state.transactions.detail then
     match key with
-    | .escape | .input 'b' | .input 'B' =>
+    | .escape | .input 'q' | .input 'Q' =>
         { state := { state with
             transactions := Loam.Tui.TransactionsFlowPane.closeDetail state.transactions
             scroll := 0
@@ -311,7 +311,7 @@ private def updateTransactionsFlow
     updateWindowReport state key
   else
     match key with
-    | .escape | .input 'b' | .input 'B' =>
+    | .escape | .input 'q' | .input 'Q' =>
         { state := { state with mode := .menu, notice := "", scroll := 0 } }
     | .up | .input 'k' | .input 'K' =>
         { state := { state with
@@ -356,7 +356,7 @@ private def updateTransactionsFlow
 
 private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
-  | .escape | .input 'b' | .input 'B' =>
+  | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
@@ -367,7 +367,7 @@ private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step 
 
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
-  | .escape | .input 'b' | .input 'B' =>
+  | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
@@ -459,7 +459,7 @@ private def menuView (state : State) : Widget :=
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , blank
     , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w direct"
-    , muted "b / Esc home   q quit"
+    , muted "q / Esc home"
     , line state.notice
     ]
 
@@ -499,7 +499,7 @@ private def stockFlowView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "b / Esc Reports menu   q quit"
+    , muted "q / Esc Reports menu"
     , line state.notice
     ]
 
@@ -538,7 +538,7 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       [ blank
       , muted "[ / ] source   ← / → Month   m sel-day month"
       , muted "↑/↓ select coord   Enter detail   Tab window focus"
-      , muted "b / Esc Reports menu   q quit"
+      , muted "q / Esc Reports menu"
       , line state.notice
       ]
 
@@ -664,7 +664,7 @@ private def incomeExpenseView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "b / Esc Reports menu   q quit"
+    , muted "q / Esc Reports menu"
     , line state.notice
     ]
 
@@ -683,7 +683,7 @@ private def balancesView (state : State) : Widget :=
     balancesResultLines state ++
     [ blank
     , muted "Enter refresh   ↑/↓ or j/k scroll"
-    , muted "b / Esc Reports menu   q quit"
+    , muted "q / Esc Reports menu"
     , line state.notice
     ]
 
@@ -751,7 +751,7 @@ private def liquidityView (state : State) : Widget :=
     liquidityResultLines state ++
     [ blank
     , muted "m selected-day month end   Tab / Shift-Tab focus"
-    , muted "Enter next/run   Backspace delete   b / Esc Reports menu   q quit"
+    , muted "Enter next/run   Backspace delete   q / Esc Reports menu"
     , line state.notice
     ]
 
@@ -797,7 +797,7 @@ private def budgetView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "b / Esc Reports menu   q quit"
+    , muted "q / Esc Reports menu"
     , line state.notice
     ]
 
