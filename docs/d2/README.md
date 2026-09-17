@@ -21,6 +21,22 @@ The subject is useful because three writers share one semantic root but immediat
 
 The D2 projection deliberately emphasizes that ownership / obligation shape. DRAKON remains the better reference when exact decision order, refusal routing, or recovery flow is the question.
 
+## Second probe: Scheduled / Actual ownership topology
+
+`scheduled_actual_ownership_topology.d2` projects a materially different kind of evidence: several production operations share one fixed ownership mechanic while retaining different semantic authority responsibilities.
+
+The shared mechanic is intentionally small:
+
+```text
+Scheduled writer ownership
+        ->
+Actual writer ownership
+```
+
+The callers do not therefore become one semantic operation. Creation, replacement, completion, cancellation, reversal, and initial AccountingRole publication read and mutate different authorities for different reasons. AccountingRole additionally extends the lock order through current-quantity-anchor and role ownership.
+
+This probe asks whether D2 makes that topology easier to inspect than a procedural flow diagram without encouraging a generic publisher or merged authority abstraction.
+
 ## Render
 
 Install the D2 CLI and verify it first:
@@ -29,43 +45,38 @@ Install the D2 CLI and verify it first:
 d2 version
 ```
 
-Then, from the LOAM repository root, render both a human-facing SVG and a terminal/AI-friendly ASCII projection:
+Then, from the LOAM repository root, render every committed D2 probe to both a human-facing SVG and a terminal/AI-friendly ASCII projection:
 
 ```sh
 sh docs/d2/render.sh
 ```
 
-Outputs are written under the already-ignored `scratch/` tree:
+Outputs are written under the already-ignored `scratch/d2/` tree with matching base names, for example:
 
 ```text
 scratch/d2/current_actual_target_comparison.svg
 scratch/d2/current_actual_target_comparison.txt
+scratch/d2/scheduled_actual_ownership_topology.svg
+scratch/d2/scheduled_actual_ownership_topology.txt
 ```
 
-On macOS, render and open the SVG in one command:
+On macOS, render and open all SVG probes in Safari:
 
 ```sh
 sh docs/d2/render.sh --open
 ```
 
-The renderer uses ELK because this probe is a hierarchical graph with three sibling consumer branches. The committed `.d2` source remains the inspectable evidence projection; generated SVG / ASCII output is disposable and not canonical evidence.
-
-For a direct CLI invocation, the equivalent SVG command is:
-
-```sh
-d2 --layout=elk docs/d2/current_actual_target_comparison.d2 \
-  scratch/d2/current_actual_target_comparison.svg
-```
+The renderer uses ELK and an explicit SVG scale so local browser zoom and scrolling remain useful. The committed `.d2` source remains the inspectable evidence projection; generated SVG / ASCII output is disposable and not canonical evidence.
 
 ## Evaluation questions
 
-Do not judge the experiment by appearance alone. Compare the D2 view with the DRAKON map and the obligation DAG and ask:
+Do not judge the experiment by appearance alone. Across the two probes, ask whether D2 repeatedly exposes distinctions that are awkward in DRAKON:
 
-1. Can a reviewer identify the already-shared semantic law faster?
-2. Is it immediately visible that Correction/Reversal consume Event payload while Date correction consumes identity only?
-3. Does the view make authority preconditions and downstream consumers easier to distinguish?
-4. Does it accidentally suggest a shared runtime helper that the audit evidence does not justify?
-5. Does DRAKON still answer execution-order and refusal-path questions more clearly?
+1. Can a reviewer identify shared semantic or ownership structure faster?
+2. Are divergent consumers or mutation owners immediately visible?
+3. Does the view preserve the distinction between shared mechanics and separate semantic authority?
+4. Does it accidentally suggest a shared runtime helper or generic publisher that the evidence does not justify?
+5. Does DRAKON still answer execution-order, refusal-path, and recovery questions more clearly?
 6. Can an AI inspect the text source and recover the same structural distinctions without needing a screenshot?
 7. Does maintaining the second projection reveal enough additional structure to justify its maintenance cost?
 
