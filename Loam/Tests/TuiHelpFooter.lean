@@ -17,6 +17,9 @@ private def widgetText (widget : Widget) : String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
+private def occurrences (needle haystack : String) : Nat :=
+  if needle.isEmpty then 0 else (haystack.splitOn needle).length - 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α := do
   match value with
   | some result => pure result
@@ -93,7 +96,7 @@ def main : IO Unit := do
   -- 2. Test HraHome help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"
   let expectedTokens := [
-    "[h/l] day", "[k/j] week", "[t] today", "[Enter] day", "[r] record",
+    "[h/l] day", "[k/j] week", "[t] today", "[Enter] open", "[r] record",
     "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
@@ -104,6 +107,21 @@ def main : IO Unit := do
   let wideText := widgetText (Loam.Tui.HraHome.view wideBounds snapshot state)
   for token in expectedTokens do
     expect (contains token wideText) s!"wide Home lost token {token}"
+  expect (contains "Day:" wideText && contains "Household:" wideText && contains "Manage:" wideText)
+    "wide Home lost semantic footer groups"
+  expect (contains "Pending: 0" wideText)
+    "empty Pending evidence disappeared from the glance status"
+  expect (!contains "Pending Scheduled:" wideText)
+    "empty Pending evidence should not allocate a body section"
+  expect (!contains "Household Shortcuts:" wideText)
+    "Home body regained a duplicate shortcut section"
+  expect (!contains "Attention is current-open evidence" wideText)
+    "Home body regained explanatory shortcut prose"
+  for token in ["[i] attention", "[b] balances", "[c] budget", "[e] capacity",
+                "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
+                "[v] reports"] do
+    expect (occurrences token wideText == 1)
+      s!"Home should advertise {token} exactly once in the footer"
 
   -- 2b. Target dogfood terminal (150 cols, user environment)
   let mediumBounds : Bounds := { width := 150, height := 45 }
@@ -128,11 +146,10 @@ def main : IO Unit := do
       s!"80-column Home lost token {token}; must not be clipped"
 
   let narrowContentWidth := contentWidth narrowBounds
-  let narrowLines := (widgetText narrowView).splitOn "\n"
-  let footerLines := narrowLines.reverse.filter (fun l => !l.trimAscii.isEmpty) |>.take 3
-  for lineStr in footerLines do
+  for lineCells in narrowView.lines do
+    let lineStr := String.ofList (lineCells.map Cell.glyph)
     expect (displayWidth lineStr ≤ narrowContentWidth)
-      s!"80-column footer line exceeded contentWidth: {lineStr} (width {displayWidth lineStr} vs {narrowContentWidth})"
+      s!"80-column line exceeded contentWidth: {lineStr} (width {displayWidth lineStr} vs {narrowContentWidth})"
 
   -- 3. Test SelectedDay footer geometry
   let selState := Loam.Tui.SelectedDay.initial "2026-09-10"

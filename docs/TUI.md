@@ -52,8 +52,14 @@ Budget observation date or silently manufacture a household cycle.
 Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
+Home keeps household state in the body and shortcut grammar in the stable footer.
+The footer groups commands as `Day`, `Household`, and `Manage`; all Home entrances
+remain one-keystroke commands. The body glance line reports only Scheduled and
+Pending state. An empty Pending set remains visible as `Pending: 0` but does not
+allocate a separate empty `Pending Scheduled` section.
+
 The Home labels distinguish the user-facing action from the narrower implementation
-module name. `u` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
+module name. `p` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
 `o` publishes one complete current quantity observation image.
 
 ## Surface map
@@ -98,7 +104,7 @@ to the surrounding workspace. A cached TUI answer is never promoted into authori
 
 Home `a` opens the Actual workspace (`Loam.Tui.HraActual`). It projects current
 Actual records over neutral Loci coordinates, supporting Focus Day and All Current
-scopes (`f`), as well as ascending and descending chronology toggling (`o` / `s`) so
+scopes (`f`), as well as ascending and descending chronology toggling (`s`) so
 records can be inspected starting from the newest transaction.
 
 Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
@@ -112,7 +118,7 @@ the current-open Scheduled frontier over neutral Loci coordinates, supporting
 Focus Day and All Current-Open scopes (`f`).
 
 Like the selected-day Scheduled pane, object-local actions include Scheduled
-creation (`n`), completion (`c` / `Enter`), supersede/replacement (`s`), and
+creation (`n`), completion (`c` / `Enter`), supersede/replacement (`r`), and
 cancellation (`x`). The surface collects intent and delegates execution to shared
 publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
 `ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
