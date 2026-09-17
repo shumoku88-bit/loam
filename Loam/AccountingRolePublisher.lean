@@ -81,8 +81,6 @@ def propose?
     (draft : Draft) : Except String AccountingRoleMap := do
   if !locusAdmission.allows draft.locus then
     throw "loam: AccountingRole assignment requires a currently admitted Locus"
-  if (roles.roleOf? draft.locus).isSome then
-    throw "loam: AccountingRole is already assigned; role replacement is not qualified"
   if actualUsesLocus events draft.locus then
     throw "loam: AccountingRole initial assignment refuses a Locus already used by Actual evidence"
   if scheduledUsesLocus scheduled draft.locus then
@@ -91,7 +89,7 @@ def propose?
     throw "loam: AccountingRole initial assignment refuses a Locus already used by current quantity anchor evidence"
   let assignments := roles.assignments ++ [{ locus := draft.locus, role := draft.role }]
   let some updated := AccountingRoleMap.ofAssignments? assignments
-    | throw "loam: AccountingRole proposal would violate unique Locus assignment"
+    | throw "loam: AccountingRole is already assigned; role replacement is not qualified"
   return updated
 
 private def loadCurrentAnchor
