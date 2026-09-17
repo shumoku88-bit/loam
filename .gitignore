@@ -3,3 +3,4 @@ dist-newstyle/
 scratch/
 __pycache__/
 *.py[cod]
+.DS_Store
