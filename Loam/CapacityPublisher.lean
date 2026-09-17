@@ -57,8 +57,13 @@ private def coordinatePersistable : CapacityCoordinate → Bool
   | .unallocated => true
   | .purpose purpose => Loam.Persistence.validToken purpose.token
 
-/-- Pure shape checks for one multi-coordinate balanced Capacity movement. -/
-def validateBalancedDraft (draft : BalancedDraft) : Except String Unit := do
+/--
+Validate one multi-coordinate draft and return the balanced movement evidence
+that downstream publication needs. The balance law is checked exactly once at
+this boundary and then carried by `BalancedMovement`.
+-/
+def validateBalancedDraft
+    (draft : BalancedDraft) : Except String (BalancedMovement CapacityCoordinate) := do
   if !Loam.ActualDate.validIsoDate draft.effectiveOn then
     throw "Capacity effective date must be a real calendar date in YYYY-MM-DD form."
   if draft.changes.isEmpty then
@@ -69,8 +74,9 @@ def validateBalancedDraft (draft : BalancedDraft) : Except String Unit := do
     throw "Capacity movement changes must not contain duplicate coordinates."
   if !draft.changes.all (fun c => coordinatePersistable c.coordinate) then
     throw "Capacity movement coordinate contains an invalid Purpose token."
-  if movementTotalQuanta draft.changes != 0 then
-    throw "Capacity movement changes must balance to zero."
+  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
+    | throw "Capacity movement changes must balance to zero."
+  return movement
 
 /-- Convert a binary transfer Draft into an equivalent 2-change BalancedDraft. -/
 def Draft.toBalancedDraft (draft : Draft) : BalancedDraft :=
@@ -78,6 +84,16 @@ def Draft.toBalancedDraft (draft : Draft) : BalancedDraft :=
   , changes :=
       [ { coordinate := draft.source, quantity := Quantity.ofQuanta (-draft.quanta) }
       , { coordinate := draft.destination, quantity := Quantity.ofQuanta draft.quanta } ] }
+
+/--
+The binary transfer constructor is balanced by construction, independently of
+its operation-specific positivity, endpoint, and entitlement admission.
+-/
+def Draft.toBalancedMovement (draft : Draft) : BalancedMovement CapacityCoordinate :=
+  { measure := ⟨"jpy"⟩
+    changes := draft.toBalancedDraft.changes
+    balanced := by
+      simp [Draft.toBalancedDraft, movementTotalQuanta] }
 
 /-- Stable presentation token for one minimal Capacity coordinate. -/
 def coordinateToken : CapacityCoordinate → String
@@ -120,32 +136,23 @@ private def freshCapacityId
       effective.entries.map (fun entry => entry.movement.token)
   ⟨Loam.firstUnusedNumberedToken "capacity-" used 1⟩
 
-private def movementForBalancedDraft?
-    (id : CapacityMovementId) (draft : BalancedDraft) : Option CapacityMovement := do
-  if draft.changes.isEmpty || movementTotalQuanta draft.changes != 0 then
-    none
-  else
-    let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
-    pure { id := id, movement := movement }
-
 /--
-Publish one already-admitted balanced movement shape through the one Capacity
-physical sequence. Callers retain operation-specific validation and entitlement
-admission; this helper owns only fresh identity, append, and effective-first
-publication mechanics shared by the binary and multi-coordinate entrances.
+Publish one already-admitted balanced movement through the one Capacity physical
+sequence. Callers retain operation-specific validation and entitlement admission;
+this helper owns only fresh identity, append, and effective-first publication mechanics.
 -/
 private def publishAdmittedMovement
     (capacityFile : System.FilePath)
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String)
-    (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
+    (effectiveOn : String)
+    (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
   let movementId := freshCapacityId memory effective
-  let some movement := movementForBalancedDraft? movementId draft
-    | return .error "Capacity movement could not be represented as a balanced JPY movement."
+  let movement : CapacityMovement := { id := movementId, movement := balanced }
   let some updated := memory.add? movement
     | return .error "Could not append Capacity movement authority."
   let some updatedEffective := CapacityEffectiveMemory.ofEntries?
-      (effective.entries ++ [{ movement := movementId, effectiveOn := draft.effectiveOn }])
+      (effective.entries ++ [{ movement := movementId, effectiveOn := effectiveOn }])
     | return .error "Could not append Capacity effective evidence."
 
   if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
@@ -177,7 +184,8 @@ private def publishUnlocked
     return .error "Capacity source has insufficient current entitlement."
 
   let movementId ←
-    match ← publishAdmittedMovement capacityFile memory effective draft.toBalancedDraft with
+    match ← publishAdmittedMovement
+        capacityFile memory effective draft.effectiveOn draft.toBalancedMovement with
     | .ok id => pure id
     | .error message => return .error message
 
@@ -191,15 +199,16 @@ incomplete evidence, checks named-source entitlement, allocates fresh identity,
 and publishes effective evidence before the Capacity authority image.
 -/
 def publish
-    (capacityPath : String) (draft : Draft) : IO (Except String CapacityMovementId) :=
+    (capacityPath : String) (draft : Draft) : IO (Except String CapacityMovementId) := do
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishUnlocked capacityFile draft)
 
 private def publishBalancedUnlocked
     (capacityFile : System.FilePath) (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
-  match validateBalancedDraft draft with
-  | .error message => return .error message
-  | .ok _ => pure ()
+  let balanced ←
+    match validateBalancedDraft draft with
+    | .error message => return .error message
+    | .ok movement => pure movement
 
   let image ←
     match ← Loam.CapacityAuthority.loadOrEmpty capacityFile with
@@ -221,7 +230,7 @@ private def publishBalancedUnlocked
     | .unallocated => pure ()
 
   let movementId ←
-    match ← publishAdmittedMovement capacityFile memory effective draft with
+    match ← publishAdmittedMovement capacityFile memory effective draft.effectiveOn balanced with
     | .ok id => pure id
     | .error message => return .error message
 
@@ -235,7 +244,7 @@ allocates one fresh CapacityMovementId, and publishes effective evidence before
 Capacity authority.
 -/
 def publishBalanced
-    (capacityPath : String) (draft : BalancedDraft) : IO (Except String CapacityMovementId) :=
+    (capacityPath : String) (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishBalancedUnlocked capacityFile draft)
 
@@ -271,8 +280,8 @@ def set (p : Proposal) (purpose : PurposeId) (newDelta : Int) : Proposal :=
     { deltas := filtered ++ [(purpose, newDelta)] }
 
 /-- Reset one Purpose's delta to 0. -/
-def clearPurpose (p : Proposal) (purpose : PurposeId) : Proposal :=
-  p.set purpose 0
+def clearPurpose (p : Proposal) (purpose : PurposeId) (newDelta : Int := 0) : Proposal :=
+  p.set purpose newDelta
 
 /-- Clear the entire proposal. -/
 def clear (_ : Proposal) : Proposal :=
@@ -308,7 +317,7 @@ def toBalancedDraft (effectiveOn : String) (p : Proposal) : Except String Balanc
     effectiveOn := effectiveOn
     changes := p.toChanges
   }
-  validateBalancedDraft draft
+  let _ ← validateBalancedDraft draft
   return draft
 
 /-- Find all purposes whose proposed entitlement (current + delta) would be strictly negative. -/
