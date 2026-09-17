@@ -38,22 +38,22 @@ authority.frontier -> root.requested
 
 correction: "CorrectionPublisher" {
   payload: "consume retained Event payload"
-  shape: "practical Movement"
+  movement_shape: "practical Movement"
   provenance: "no Relation / Reversal references"
   validity: "carry current validity date"
   result: "replacement Event\n+ EventCorrection provenance"
 
-  payload -> shape -> provenance -> validity -> result
+  payload -> movement_shape -> provenance -> validity -> result
 }
 
 reversal: "ActualReversalPublisher" {
   payload: "consume retained Event payload"
   provenance: "no reversal / Relation / Scheduled-completion conflict"
-  shape: "practical Movement"
+  movement_shape: "practical Movement"
   inverse: "derive exact anonymous inverse"
   result: "inverse Event\n+ ActualReversal provenance"
 
-  payload -> provenance -> shape -> inverse -> result
+  payload -> provenance -> movement_shape -> inverse -> result
 }
 
 date_correction: "ActualValidityPublisher" {
