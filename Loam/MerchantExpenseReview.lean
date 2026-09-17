@@ -38,7 +38,6 @@ structure UnresolvedRoleEffect where
   event : EventId
   date : String
   effect : Effect
-deriving Repr, DecidableEq
 
 /--
 One Event-level contribution derived from the Event's Effects whose Loci are
