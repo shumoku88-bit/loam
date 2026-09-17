@@ -39,7 +39,19 @@ private theorem appendedIdNodup_of_fresh {Time : Type}
     (hNodup : (items.map Attention.id).Nodup)
     (hFresh : item.id ∉ items.map Attention.id) :
     ((items ++ [item]).map Attention.id).Nodup := by
-  simpa [List.map_append] using List.Nodup.concat hFresh hNodup
+  rw [List.map_append]
+  apply List.nodup_append.mpr
+  constructor
+  · exact hNodup
+  constructor
+  · simp
+  · intro existing hExisting appended hAppended
+    simp only [List.map_singleton, List.mem_singleton] at hAppended
+    subst appended
+    intro hEqual
+    apply hFresh
+    rw [← hEqual]
+    exact hExisting
 
 /--
 Append an item whose identity is already proved fresh.
