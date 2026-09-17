@@ -23,14 +23,39 @@ The D2 projection deliberately emphasizes that ownership / obligation shape. DRA
 
 ## Render
 
-With D2 installed, render the probe with the ELK layout:
+Install the D2 CLI and verify it first:
 
 ```sh
-D2_LAYOUT=elk d2 docs/d2/current_actual_target_comparison.d2 \
-  /tmp/loam-current-actual-target.svg
+d2 version
 ```
 
-ELK is chosen for this probe because the graph is hierarchical and contains three sibling consumer branches. The committed source remains plain text; generated render output is not canonical evidence.
+Then, from the LOAM repository root, render both a human-facing SVG and a terminal/AI-friendly ASCII projection:
+
+```sh
+sh docs/d2/render.sh
+```
+
+Outputs are written under the already-ignored `scratch/` tree:
+
+```text
+scratch/d2/current_actual_target_comparison.svg
+scratch/d2/current_actual_target_comparison.txt
+```
+
+On macOS, render and open the SVG in one command:
+
+```sh
+sh docs/d2/render.sh --open
+```
+
+The renderer uses ELK because this probe is a hierarchical graph with three sibling consumer branches. The committed `.d2` source remains the inspectable evidence projection; generated SVG / ASCII output is disposable and not canonical evidence.
+
+For a direct CLI invocation, the equivalent SVG command is:
+
+```sh
+d2 --layout=elk docs/d2/current_actual_target_comparison.d2 \
+  scratch/d2/current_actual_target_comparison.svg
+```
 
 ## Evaluation questions
 
