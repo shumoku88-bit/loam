@@ -51,6 +51,18 @@ private def freshId (items : AttentionMemory String) : AttentionId :=
   let used := items.items.map (fun item => item.id.token)
   ⟨Loam.firstUnusedNumberedToken "attention-" used 1⟩
 
+private theorem freshId_fresh (items : AttentionMemory String) :
+    freshId items ∉ items.items.map Attention.id := by
+  intro hId
+  have hToken :=
+    Loam.firstUnusedNumberedToken_fresh
+      "attention-" (items.items.map (fun item => item.id.token)) 1
+  apply hToken
+  simp only [List.mem_map] at hId ⊢
+  rcases hId with ⟨existing, hExisting, hEq⟩
+  refine ⟨existing, hExisting, ?_⟩
+  simpa [freshId] using congrArg AttentionId.token hEq
+
 private def validDue : AttentionDue String → Bool
   | .dueOn date => Loam.ActualDate.validIsoDate date
   | .noDueDate => true
@@ -65,8 +77,9 @@ private def addUnlocked
     | none => return .error "loam: malformed or unsupported Attention authority"
   let id := freshId items
   let item : Attention String := { id := id, context := draft.context, due := draft.due }
-  let some updatedItems := AttentionMemory.add? items item
-    | return .error "loam: fresh Attention identity was unexpectedly rejected"
+  let updatedItems := AttentionMemory.addFresh items item (by
+    change id ∉ items.items.map Attention.id
+    exact freshId_fresh items)
   if ← saveAttentionMemory? path updatedItems closures then
     return .ok id
   else

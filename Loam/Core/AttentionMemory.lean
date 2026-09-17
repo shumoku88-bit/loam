@@ -33,6 +33,39 @@ def add? {Time : Type}
     (item : Attention Time) : Option (AttentionMemory Time) :=
   ofItems? (memory.items ++ [item])
 
+private theorem appendedIdNodup_of_fresh {Time : Type}
+    (items : List (Attention Time))
+    (item : Attention Time)
+    (hNodup : (items.map Attention.id).Nodup)
+    (hFresh : item.id ∉ items.map Attention.id) :
+    ((items ++ [item]).map Attention.id).Nodup := by
+  rw [List.map_append]
+  apply List.nodup_append.mpr
+  constructor
+  · exact hNodup
+  constructor
+  · simp
+  · intro existing hExisting appended hAppended
+    simp only [List.map_singleton, List.mem_singleton] at hAppended
+    subst appended
+    intro hEqual
+    apply hFresh
+    rw [← hEqual]
+    exact hExisting
+
+/--
+Append an item whose identity is already proved fresh.
+
+This is the proof-carrying entrance for callers that derive freshness before
+reaching the memory owner. Unlike `add?`, it has no duplicate-refusal branch.
+-/
+def addFresh {Time : Type}
+    (memory : AttentionMemory Time)
+    (item : Attention Time)
+    (hFresh : item.id ∉ memory.items.map Attention.id) : AttentionMemory Time :=
+  { items := memory.items ++ [item]
+    idNodup := appendedIdNodup_of_fresh memory.items item memory.idNodup hFresh }
+
 /-- Find one retained Attention item by stable identity. -/
 def findById? {Time : Type}
     (memory : AttentionMemory Time)
