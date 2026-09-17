@@ -117,6 +117,9 @@ def main : IO Unit := do
     "Home body regained a duplicate shortcut section"
   expect (!contains "Attention is current-open evidence" wideText)
     "Home body regained explanatory shortcut prose"
+  let expectedWidePanelRows := footerBodyCapacity wideBounds 4 - 4
+  expect (occurrences " │ " wideText == expectedWidePanelRows)
+    "wide Home divider height changed with content instead of filling the fixed viewport"
   for token in ["[i] attention", "[b] balances", "[c] budget", "[e] capacity",
                 "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
@@ -130,6 +133,32 @@ def main : IO Unit := do
   for token in expectedTokens do
     expect (contains token mediumText)
       s!"150-column Home lost token {token}; must not be clipped"
+
+  let scrollBounds : Bounds := { width := 150, height := 15 }
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .up == none)
+    "wide layout stole Up from Calendar navigation"
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .down == none)
+    "wide layout stole Down from Calendar navigation"
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .left == none)
+    "wide layout stole Left from Calendar navigation"
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .right == none)
+    "wide layout stole Right from Calendar navigation"
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds (.ctrl 'u') == some false)
+    "wide layout lost Ctrl-U detail scrolling"
+  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds (.ctrl 'd') == some true)
+    "wide layout lost Ctrl-D detail scrolling"
+  let narrowScrollBounds : Bounds := { width := 80, height := 15 }
+  expect (Loam.Tui.HraHome.detailScrollDirection? narrowScrollBounds (.ctrl 'd') == none)
+    "narrow layout unexpectedly captured detail-scroll input"
+  let scrolled := Loam.Tui.HraHome.scrollWideDetail scrollBounds snapshot state true
+  expect (scrolled.detailScroll == 1)
+    "wide Home detail viewport did not advance by one row"
+  let scrolledText := widgetText (Loam.Tui.HraHome.view scrollBounds snapshot scrolled)
+  expect (contains "scroll  (Ctrl-U/D)" scrolledText)
+    "overflowing wide Home did not advertise its local scroll affordance"
+  let resetStep := Loam.Tui.Main.update scrolled .right
+  expect (resetStep.state.detailScroll == 0)
+    "changing Home date did not reset the detail viewport to its origin"
 
   let mediumContentWidth := contentWidth mediumBounds
   for lineCells in mediumView.lines do
