@@ -84,17 +84,6 @@ def ofEffects? (id : EventId) (effects : List Effect) : Option Event :=
   else
     none
 
-/-- Successful Event construction preserves the caller-supplied stable identity. -/
-theorem ofEffects?_some_id
-    (id : EventId) (effects : List Effect) (event : Event)
-    (h : ofEffects? id effects = some event) :
-    event.id = id := by
-  unfold ofEffects? at h
-  split at h
-  · cases h
-    rfl
-  · contradiction
-
 /--
 Project an event onto one locus/measure coordinate and sum every matching exact
 quantity. Effect identity and the original effect list remain intact; this is a
