@@ -9,7 +9,7 @@ open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
-/-- Raw terminal input. Surface-specific meaning stays in the pure TUI update function. -/
+/-- Normalized terminal input. Surface-specific meaning stays in the pure TUI update function. -/
 inductive Key where
   | left
   | right
@@ -66,6 +66,26 @@ private def readByte : IO UInt8 := do
   if bytes.isEmpty then return 0
   return bytes.get! 0
 
+/--
+Normalize one SGR mouse payload (the bytes after CSI `<` and before `M`/`m`).
+Plain wheel motion becomes the same directional input as keyboard Up/Down so
+surface-specific scrolling and selection policy remains caller-owned.
+-/
+def decodeSgrMousePayload (payload : String) : Key :=
+  match (payload.splitOn ";").head?.bind String.toNat? with
+  | some 64 => .up
+  | some 65 => .down
+  | _ => .other
+
+private def readSgrMousePayload : Nat → String → IO String
+  | 0, acc => pure acc
+  | Nat.succ fuel, acc => do
+      let byte ← readByte
+      let value := byte.toNat
+      if value = 0 ∨ value = 77 ∨ value = 109 then
+        return acc
+      readSgrMousePayload fuel (acc.push (Char.ofNat value))
+
 /-- Small input decoder shared by all production TUI surfaces. -/
 def readKey : IO Key := do
   let first ← readByte
@@ -81,6 +101,9 @@ def readKey : IO Key := do
     | 67 => return .right
     | 68 => return .left
     | 90 => return .shiftTab
+    | 60 =>
+        let payload ← readSgrMousePayload 32 ""
+        return decodeSgrMousePayload payload
     | _ => return .other
   else if value = 9 then
     return .tab
@@ -143,11 +166,11 @@ def setTerminalMode (mode : String) : IO Unit := do
 
 def enter : IO Unit := do
   setTerminalMode "-echo -icanon min 0 time 1"
-  IO.print "\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H"
+  IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
-  IO.print "\x1b[0m\x1b[?25h\x1b[?1049l"
+  IO.print "\x1b[0m\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"
 

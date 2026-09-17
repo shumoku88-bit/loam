@@ -28,6 +28,10 @@ example : Loam.Tui.Scroll.forward 20 5 13 9 = 15 := by decide
 example : Loam.Tui.CyclicIndex.backward 3 0 = 2 := by decide
 example : Loam.Tui.CyclicIndex.forward 3 2 = 0 := by decide
 
+example : Loam.Tui.Terminal.decodeSgrMousePayload "64;10;5" = .up := by native_decide
+example : Loam.Tui.Terminal.decodeSgrMousePayload "65;10;5" = .down := by native_decide
+example : Loam.Tui.Terminal.decodeSgrMousePayload "0;10;5" = .other := by native_decide
+
 private def widgetText (widget : Widget) : String :=
   String.intercalate "\n" <| widget.lines.map fun cells =>
     String.ofList (cells.map Cell.glyph)
