@@ -1,0 +1,76 @@
+# Second D2 projection experiment.
+#
+# This view tests whether D2 is useful for ownership / authority topology rather
+# than execution flow. The source facts are the current production publishers
+# and Loam.ScheduledActualOwnership.
+#
+# The important distinction is that several operations share one lock order
+# while retaining different semantic read/write responsibilities.
+
+direction: right
+
+operations: "Production operations" {
+  direction: down
+
+  creation: "Scheduled Creation\nwrite Scheduled; read Actual guard"
+  replacement: "Scheduled Replacement\nwrite Scheduled; read Actual guard"
+  completion: "Scheduled Completion\nwrite Scheduled, then write Actual"
+  cancellation: "Scheduled Cancellation\nwrite Scheduled; read Actual guard"
+  reversal: "Actual Reversal\nwrite Actual; read Scheduled guard"
+  accounting_role: "Initial AccountingRole\nwrite Role; read Scheduled + Actual + Anchor"
+}
+
+mechanics: "Shared ownership mechanics" {
+  direction: down
+
+  scheduled_lock: "1. Scheduled writer ownership"
+  actual_lock: "2. Actual writer ownership"
+  anchor_lock: "3. Current-quantity-anchor ownership\nAccountingRole extension only"
+  role_lock: "4. AccountingRole ownership\nAccountingRole extension only"
+
+  scheduled_lock -> actual_lock: fixed shared order
+  actual_lock -> anchor_lock: AccountingRole extends
+  anchor_lock -> role_lock: AccountingRole extends
+}
+
+authorities: "Semantic authorities" {
+  direction: down
+
+  scheduled_authority: "Scheduled lifecycle authority\nscheduled.loam"
+  actual_authority: "Actual authority\nactual.loam"
+  anchor_authority: "Current quantity anchor authority"
+  role_authority: "AccountingRole authority"
+}
+
+operations.creation -> mechanics.scheduled_lock: uses shared corridor
+operations.replacement -> mechanics.scheduled_lock: uses shared corridor
+operations.completion -> mechanics.scheduled_lock: uses shared corridor
+operations.cancellation -> mechanics.scheduled_lock: uses shared corridor
+operations.reversal -> mechanics.scheduled_lock: uses shared corridor
+operations.accounting_role -> mechanics.scheduled_lock: uses + extends corridor
+
+operations.creation -> authorities.scheduled_authority: writes
+operations.creation -> authorities.actual_authority: reads guard
+
+operations.replacement -> authorities.scheduled_authority: writes
+operations.replacement -> authorities.actual_authority: reads guard
+
+operations.completion -> authorities.scheduled_authority: writes first
+operations.completion -> authorities.actual_authority: writes second
+
+operations.cancellation -> authorities.scheduled_authority: writes
+operations.cancellation -> authorities.actual_authority: reads guard
+
+operations.reversal -> authorities.scheduled_authority: reads guard
+operations.reversal -> authorities.actual_authority: writes
+
+operations.accounting_role -> authorities.scheduled_authority: reads guard
+operations.accounting_role -> authorities.actual_authority: reads guard
+operations.accounting_role -> authorities.anchor_authority: reads guard
+operations.accounting_role -> authorities.role_authority: writes
+
+principle: "Audit hypothesis:\nshared lock mechanics do NOT merge semantic authority"
+mechanics.actual_lock -> principle: shared mechanics stop here
+authorities.scheduled_authority -> principle
+authorities.actual_authority -> principle
+authorities.role_authority -> principle
