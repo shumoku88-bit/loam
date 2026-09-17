@@ -50,14 +50,12 @@ def admit?
   let _ ← validateDisposition? draft.disposition
   if (EventMemory.findById? evidence.events draft.target).isNone then
     throw "loam: Merchant classification requires an existing Event"
-  if (evidence.merchants.findDisposition? draft.target).isSome then
-    throw "loam: Event Merchant is already classified; replacement is not qualified"
   let entry : EventMerchantEvidence := {
     event := draft.target
     disposition := draft.disposition
   }
   let some merchants := evidence.merchants.add? entry
-    | throw "loam: Merchant classification would violate one disposition per Event"
+    | throw "loam: Event Merchant is already classified; replacement is not qualified"
   return { evidence with merchants := merchants }
 
 private def publishUnderOwnership
