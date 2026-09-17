@@ -19,7 +19,11 @@ fi
 
 mkdir -p "$OUT_DIR"
 
-d2 --layout=elk "$INPUT" "$SVG"
+# D2's default SVG is fit-to-screen. That is convenient for embedding, but a
+# local browser can then behave like the whole diagram is one fitted canvas.
+# An explicit scale keeps intrinsic SVG dimensions so normal browser zoom and
+# scrolling remain useful during audit inspection.
+d2 --layout=elk --scale=1 "$INPUT" "$SVG"
 d2 --layout=elk "$INPUT" "$ASCII"
 
 printf 'D2 projection rendered:\n  SVG:   %s\n  ASCII: %s\n' "$SVG" "$ASCII"
