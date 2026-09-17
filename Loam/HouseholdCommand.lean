@@ -2,6 +2,7 @@ import Loam.MovementPublisher
 import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
 import Loam.ActualReversalPublisher
+import Loam.EventMerchantPublisher
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
@@ -69,6 +70,13 @@ def correctActualDate
     (draft : Loam.ActualValidityPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.ActualValidityPublisher.publishDate root.toString draft
+
+/-- Publish one first Event Merchant / Nonmerchant classification. -/
+def classifyEventMerchant
+    (root : System.FilePath)
+    (draft : Loam.EventMerchantPublisher.Draft) :
+    IO (Except String Unit) :=
+  Loam.EventMerchantPublisher.publishDisposition root.toString draft
 
 /-- Publish one exact Actual reversal. -/
 def reverseActual
