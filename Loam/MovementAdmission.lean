@@ -259,10 +259,6 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   let eventId := freshRecordEventId world
   have hFreshUsed : eventId ∉ usedRecordEventIds world := by
     exact freshRecordEventId_fresh world
-  have hFreshEvent : eventId ∉ world.events.events.map Loam.Core.Event.id := by
-    intro h
-    apply hFreshUsed
-    simp [usedRecordEventIds, h]
   have hFreshDescription :
       eventId ∉ world.descriptions.entries.map Loam.Core.EventDescription.event := by
     intro h
@@ -286,13 +282,9 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
         simpa [Loam.Core.ActualValidityFact.ref, Loam.Core.ActualValidityFact.event] using hRef
     | revision revisionId existing validOn =>
         simp [Loam.Core.ActualValidityFact.ref] at hRef
-  let admittedEvent : { candidate : Loam.Core.Event // candidate.id = eventId } ←
-    match h : Loam.Core.Event.ofEffects? eventId draft.effects with
-    | some admitted =>
-        pure ⟨admitted,
-          Loam.Core.Event.ofEffects?_some_id eventId draft.effects admitted h⟩
+  let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
+    | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
-  let event := admittedEvent.1
   let newRelations := materializeRelationUnits world eventId draft.relations
   let newDischarges := materializeRelationDischarges eventId draft.discharges
   let fact : Loam.Core.ActualValidityFact String :=
@@ -301,9 +293,10 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
     | none => world.descriptions
     | some text =>
         world.descriptions.addFresh { event := eventId, text := text } hFreshDescription
-  let updatedEvents := Loam.Core.EventMemory.addFresh world.events event (by
-    rw [admittedEvent.2]
-    exact hFreshEvent)
+  let updatedEvents ← match Loam.Core.EventMemory.add? world.events event with
+    | some events => pure events
+    | none =>
+        throw "loam: could not append movement, occurrence-date, and description evidence"
   let updatedHistory := world.validity.addFreshFact fact (by
     change Loam.Core.ActualValidityRef.root eventId ∉
       world.validity.facts.map Loam.Core.ActualValidityFact.ref
