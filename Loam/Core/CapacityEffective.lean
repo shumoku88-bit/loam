@@ -45,6 +45,17 @@ def ofEntries?
   else
     none
 
+/-- Append effective evidence whose Capacity movement identity is already proved fresh. -/
+def addFresh
+    (memory : CapacityEffectiveMemory Time)
+    (entry : CapacityEffective Time)
+    (hFresh : entry.movement ∉ memory.entries.map CapacityEffective.movement) :
+    CapacityEffectiveMemory Time :=
+  { entries := memory.entries ++ [entry]
+    movementNodup :=
+      FiniteKeyed.appendFresh_nodup
+        CapacityEffective.movement memory.entries entry memory.movementNodup hFresh }
+
 /-- Find the retained effective coordinate for one Capacity movement identity. -/
 def findByMovementId?
     (memory : CapacityEffectiveMemory Time)

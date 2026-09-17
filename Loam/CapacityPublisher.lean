@@ -118,13 +118,29 @@ private def effectiveEvidenceComplete
     effective.entries.all
       (fun entry => (memory.findById? entry.movement).isSome)
 
+private def usedCapacityIds
+    (memory : CapacityMemory)
+    (effective : CapacityEffectiveMemory String) : List CapacityMovementId :=
+  memory.movements.map CapacityMovement.id ++
+    effective.entries.map CapacityEffective.movement
+
 private def freshCapacityId
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String) : CapacityMovementId :=
-  let used :=
-    memory.movements.map (fun movement => movement.id.token) ++
-      effective.entries.map (fun entry => entry.movement.token)
+  let used := (usedCapacityIds memory effective).map CapacityMovementId.token
   ⟨Loam.firstUnusedNumberedToken "capacity-" used 1⟩
+
+private theorem freshCapacityId_fresh
+    (memory : CapacityMemory)
+    (effective : CapacityEffectiveMemory String) :
+    freshCapacityId memory effective ∉ usedCapacityIds memory effective := by
+  intro hUsed
+  apply Loam.firstUnusedNumberedToken_fresh
+    "capacity-" ((usedCapacityIds memory effective).map CapacityMovementId.token) 1
+  simpa [freshCapacityId] using
+    (List.mem_map_of_mem hUsed :
+      (freshCapacityId memory effective).token ∈
+        (usedCapacityIds memory effective).map CapacityMovementId.token)
 
 /--
 Publish one already-admitted balanced movement through the one Capacity physical
@@ -138,12 +154,19 @@ private def publishAdmittedMovement
     (effectiveOn : String)
     (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
   let movementId := freshCapacityId memory effective
+  have hFreshSplit :
+      movementId ∉ memory.movements.map CapacityMovement.id ∧
+        movementId ∉ effective.entries.map CapacityEffective.movement := by
+    simpa [usedCapacityIds] using (freshCapacityId_fresh memory effective)
   let movement : CapacityMovement := { id := movementId, movement := balanced }
-  let some updated := memory.add? movement
-    | return .error "Could not append Capacity movement authority."
-  let some updatedEffective := CapacityEffectiveMemory.ofEntries?
-      (effective.entries ++ [{ movement := movementId, effectiveOn := effectiveOn }])
-    | return .error "Could not append Capacity effective evidence."
+  let updated := memory.addFresh movement (by
+    simpa [movement] using hFreshSplit.1)
+  let effectiveEntry : CapacityEffective String := {
+    movement := movementId
+    effectiveOn := effectiveOn
+  }
+  let updatedEffective := effective.addFresh effectiveEntry (by
+    simpa [effectiveEntry] using hFreshSplit.2)
 
   if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
     return .error "Capacity effective evidence could not be published."
