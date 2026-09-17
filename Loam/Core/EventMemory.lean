@@ -149,6 +149,16 @@ it latest, later, more authoritative, or causally subsequent.
 def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
   ofEvents? (memory.events ++ [event])
 
+/-- Append an Event whose identity is already proved fresh. -/
+def addFresh
+    (memory : EventMemory)
+    (event : Event)
+    (hFresh : event.id ∉ memory.events.map Event.id) : EventMemory :=
+  { events := memory.events ++ [event]
+    idNodup :=
+      FiniteKeyed.appendFresh_nodup
+        Event.id memory.events event memory.idNodup hFresh }
+
 @[simp] theorem add?_empty (event : Event) :
     add? { events := [], idNodup := by simp } event =
       some { events := [event], idNodup := by simp } := by
