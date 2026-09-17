@@ -13,6 +13,19 @@ def freshId (memory : ScheduledMemory String) : ScheduledId :=
   let used := memory.occurrences.map (fun occurrence => occurrence.id.token)
   ⟨Loam.firstUnusedNumberedToken "scheduled-" used 1⟩
 
+/-- The generated Scheduled identity is outside the retained Scheduled namespace. -/
+theorem freshId_fresh (memory : ScheduledMemory String) :
+    freshId memory ∉ memory.occurrences.map ScheduledOccurrence.id := by
+  intro hId
+  have hToken :=
+    Loam.firstUnusedNumberedToken_fresh
+      "scheduled-" (memory.occurrences.map (fun occurrence => occurrence.id.token)) 1
+  apply hToken
+  simp only [List.mem_map] at hId ⊢
+  rcases hId with ⟨existing, hExisting, hEq⟩
+  refine ⟨existing, hExisting, ?_⟩
+  simpa [freshId] using congrArg ScheduledId.token hEq
+
 private def positiveQuanta (quanta : Int) : Int :=
   if 0 < quanta then quanta else 0
 
