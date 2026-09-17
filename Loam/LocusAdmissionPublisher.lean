@@ -33,13 +33,11 @@ def propose?
   if !Loam.Persistence.validToken draft.token then
     throw "loam: new Locus must be one valid stable token"
   let locus : LocusId := ⟨draft.token⟩
-  if vocabulary.allows locus then
-    throw "loam: Locus is already admitted for new writes"
   let approved := vocabulary.approved ++ [locus]
   let updated ←
     match LocusAdmissionVocabulary.ofLoci? approved with
     | some updated => pure updated
-    | none => throw "loam: proposed Locus admission vocabulary is not unique"
+    | none => throw "loam: Locus is already admitted for new writes"
   pure updated
 
 /--
