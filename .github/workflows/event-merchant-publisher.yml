@@ -1,0 +1,62 @@
+name: Event Merchant Publisher
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ActualEvidence.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/EventMerchantPublisher.lean'
+      - '.github/workflows/event-merchant-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ActualEvidence.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/EventMerchantPublisher.lean'
+      - '.github/workflows/event-merchant-publisher.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build and test Event Merchant publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build Merchant publisher dependencies
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.EventMerchantPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Verify Event Merchant publication
+        run: lake env lean --run Loam/Tests/EventMerchantPublisher.lean "$(mktemp -d)/event-merchant-publisher"
