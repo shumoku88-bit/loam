@@ -73,6 +73,17 @@ def add?
     (entry : EventDescription) : Option EventDescriptionMemory :=
   ofEntries? (memory.entries ++ [entry])
 
+/-- Append description evidence whose Event identity is already proved fresh. -/
+def addFresh
+    (memory : EventDescriptionMemory)
+    (entry : EventDescription)
+    (hFresh : entry.event ∉ memory.entries.map EventDescription.event) :
+    EventDescriptionMemory :=
+  { entries := memory.entries ++ [entry]
+    eventNodup :=
+      FiniteKeyed.appendFresh_nodup
+        EventDescription.event memory.entries entry memory.eventNodup hFresh }
+
 /-- Lookup the description text associated with one EventId, if present. -/
 def findText? (memory : EventDescriptionMemory) (target : EventId) : Option String :=
   (FiniteKeyed.findBy? EventDescription.event memory.entries target).map EventDescription.text

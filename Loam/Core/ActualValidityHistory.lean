@@ -125,6 +125,19 @@ def addFact?
     (fact : ActualValidityFact Time) : Option (ActualValidityHistory Time) :=
   ofParts? (history.facts ++ [fact]) history.corrections
 
+/-- Append a validity fact whose structural reference is already proved fresh. -/
+def addFreshFact
+    (history : ActualValidityHistory Time)
+    (fact : ActualValidityFact Time)
+    (hFresh : fact.ref ∉ history.facts.map ActualValidityFact.ref) :
+    ActualValidityHistory Time :=
+  { facts := history.facts ++ [fact]
+    factRefNodup :=
+      FiniteKeyed.appendFresh_nodup
+        ActualValidityFact.ref history.facts fact history.factRefNodup hFresh
+    corrections := history.corrections
+    correctionIdNodup := history.correctionIdNodup }
+
 /-- Append one raw validity correction without deriving a winner from list position. -/
 def addCorrection?
     (history : ActualValidityHistory Time)

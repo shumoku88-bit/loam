@@ -90,14 +90,28 @@ structure Admitted where
   world : World
   eventId : Loam.Core.EventId
 
+private def usedRecordEventIds (world : World) : List Loam.Core.EventId :=
+  world.events.events.map Loam.Core.Event.id ++
+    world.validity.facts.map Loam.Core.ActualValidityFact.event ++
+    world.descriptions.entries.map Loam.Core.EventDescription.event ++
+    world.relations.map Loam.Core.RelationUnit.sourceEvent ++
+    world.discharges.map Loam.Core.RelationDischarge.event
+
 private def freshRecordEventId (world : World) : Loam.Core.EventId :=
-  let used :=
-    world.events.events.map (fun event => event.id.token) ++
-      world.validity.facts.map (fun fact => fact.event.token) ++
-      world.descriptions.entries.map (fun entry => entry.event.token) ++
-      world.relations.map (fun relation => relation.sourceEvent.token) ++
-      world.discharges.map (fun discharge => discharge.event.token)
+  let used := (usedRecordEventIds world).map Loam.Core.EventId.token
   ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
+
+private theorem freshRecordEventId_fresh (world : World) :
+    freshRecordEventId world ∉ usedRecordEventIds world := by
+  intro hUsed
+  have hTokenUsed :
+      (freshRecordEventId world).token ∈
+        (usedRecordEventIds world).map Loam.Core.EventId.token :=
+    List.mem_map.mpr ⟨freshRecordEventId world, hUsed, rfl⟩
+  have hTokenFresh :=
+    Loam.firstUnusedNumberedToken_fresh
+      "record-" ((usedRecordEventIds world).map Loam.Core.EventId.token) 1
+  exact hTokenFresh (by simpa [freshRecordEventId] using hTokenUsed)
 
 private def materializeRelationUnitsFrom
     (eventId : Loam.Core.EventId)
@@ -243,6 +257,31 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   if !world.locusAdmission.admitsEffects draft.effects then
     throw "loam: movement uses a Locus not approved for new publication"
   let eventId := freshRecordEventId world
+  have hFreshUsed : eventId ∉ usedRecordEventIds world := by
+    exact freshRecordEventId_fresh world
+  have hFreshDescription :
+      eventId ∉ world.descriptions.entries.map Loam.Core.EventDescription.event := by
+    intro h
+    apply hFreshUsed
+    simp [usedRecordEventIds, h]
+  have hFreshValidityEvent :
+      eventId ∉ world.validity.facts.map Loam.Core.ActualValidityFact.event := by
+    intro h
+    apply hFreshUsed
+    simp [usedRecordEventIds, h]
+  have hFreshValidityRef :
+      Loam.Core.ActualValidityRef.root eventId ∉
+        world.validity.facts.map Loam.Core.ActualValidityFact.ref := by
+    intro hRef
+    apply hFreshValidityEvent
+    simp only [List.mem_map] at hRef ⊢
+    rcases hRef with ⟨fact, hFact, hRef⟩
+    refine ⟨fact, hFact, ?_⟩
+    cases fact with
+    | base existing validOn =>
+        simpa [Loam.Core.ActualValidityFact.ref, Loam.Core.ActualValidityFact.event] using hRef
+    | revision revisionId existing validOn =>
+        simp [Loam.Core.ActualValidityFact.ref] at hRef
   let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
     | some admitted => pure admitted
     | none => throw "loam: could not admit generated movement or relation evidence"
@@ -250,21 +289,18 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
   let newDischarges := materializeRelationDischarges eventId draft.discharges
   let fact : Loam.Core.ActualValidityFact String :=
     .base eventId draft.validOn
-  let updatedDescriptions ← match draft.description with
-    | none => pure world.descriptions
+  let updatedDescriptions := match draft.description with
+    | none => world.descriptions
     | some text =>
-        match world.descriptions.add? { event := eventId, text := text } with
-        | some descriptions => pure descriptions
-        | none =>
-            throw "loam: could not append movement, occurrence-date, and description evidence"
+        world.descriptions.addFresh { event := eventId, text := text } hFreshDescription
   let updatedEvents ← match Loam.Core.EventMemory.add? world.events event with
     | some events => pure events
     | none =>
         throw "loam: could not append movement, occurrence-date, and description evidence"
-  let updatedHistory ← match world.validity.addFact? fact with
-    | some history => pure history
-    | none =>
-        throw "loam: could not append movement, occurrence-date, and description evidence"
+  let updatedHistory := world.validity.addFreshFact fact (by
+    change Loam.Core.ActualValidityRef.root eventId ∉
+      world.validity.facts.map Loam.Core.ActualValidityFact.ref
+    exact hFreshValidityRef)
   let updatedRelations := world.relations ++ newRelations
   let updatedDischarges := world.discharges ++ newDischarges
   if !relationPublicationAdmissible updatedEvents updatedRelations event newRelations then
