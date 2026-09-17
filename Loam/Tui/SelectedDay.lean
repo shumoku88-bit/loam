@@ -31,6 +31,7 @@ inductive Event where
   | correctActual
   | reverseActual
   | correctDate
+  | classifyMerchant
   | completeScheduled
   | cancelScheduled
   | replaceScheduled
@@ -45,6 +46,7 @@ inductive Command where
   | correctActual
   | reverseActual
   | correctDate
+  | classifyMerchant
   | completeScheduled
   | cancelScheduled
   | replaceScheduled
@@ -171,6 +173,15 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
           | none =>
               { state := { state with notice := "No current Actual is selected for date correction." } }
           | some _ => { state, command := .correctDate }
+  | .classifyMerchant =>
+      match state.pane with
+      | .scheduled =>
+          { state := { state with notice := "Merchant classification is available from the Actual pane." } }
+      | .actual =>
+          match selectedActual? snapshot state with
+          | none =>
+              { state := { state with notice := "No current Actual is selected for Merchant classification." } }
+          | some _ => { state, command := .classifyMerchant }
   | .completeScheduled =>
       match state.pane with
       | .actual =>
@@ -320,8 +331,8 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   match state.pane with
   | .actual =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [q] back"
-      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [m] merchant  [q] back"
+      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [m] merchant [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
@@ -336,9 +347,9 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
-answers and owns only pane/cursor state. Actual Record/Correction/Reversal/date
-actions and Scheduled creation/completion/cancellation/replacement are local
-interaction intents; publication authority stays in shared publishers.
+answers and owns only pane/cursor state. Actual Record/Correction/Reversal/date/
+Merchant actions and Scheduled creation/completion/cancellation/replacement are
+local interaction intents; publication authority stays in shared publishers.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
