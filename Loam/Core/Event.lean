@@ -220,7 +220,7 @@ theorem quantityAt_sameCoordinate_anonymous_two
   simp [quantityAt]
 
 /-- An effect at another locus does not contribute to the queried coordinate. -/
-@[simp] theorem quantityAt_otherLocus_zero
+theorem quantityAt_otherLocus_zero
     (id : EventId) (key : EffectKey)
     (effectLocus queryLocus : LocusId)
     (hDifferent : effectLocus ≠ queryLocus)
