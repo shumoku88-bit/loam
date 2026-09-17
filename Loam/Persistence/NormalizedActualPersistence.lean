@@ -90,17 +90,12 @@ def admitActualEvidence? (evidence : ActualEvidence) : Option ActualEvidence := 
   -- quantity bounds, aggregate coverage, and stable identity uniqueness.
   let _ ← admittedRelationFrontier? evidence.events evidence.relations
 
-  -- 7. Discharges: target relation must exist, unique (event, target), total discharge <= relation quantity
-  let dischargePairs := evidence.discharges.map fun d => (d.event, d.target)
-  if !dischargePairs.Nodup then
-    none
+  -- 7. Discharges: Persistence owns same-generation reference closure.
+  -- Positivity, non-self-discharge, per-target Event uniqueness, and aggregate
+  -- quantity bounds remain owned by the Application discharge frontier below.
   for discharge in evidence.discharges do
     let _ ← evidence.events.findById? discharge.event
-    if discharge.quantity.quanta <= 0 then
-      none
-    let rawRel ← evidence.relations.find? fun r => r.id = discharge.target
-    if discharge.event = rawRel.sourceEvent then
-      none
+    let _ ← evidence.relations.find? fun r => r.id = discharge.target
 
   for relation in evidence.relations do
     let _ ← admittedRelationDischargesFor?
