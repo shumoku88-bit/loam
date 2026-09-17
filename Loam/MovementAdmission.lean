@@ -286,9 +286,13 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
         simpa [Loam.Core.ActualValidityFact.ref, Loam.Core.ActualValidityFact.event] using hRef
     | revision revisionId existing validOn =>
         simp [Loam.Core.ActualValidityFact.ref] at hRef
-  let event ← match Loam.Core.Event.ofEffects? eventId draft.effects with
-    | some admitted => pure admitted
+  let admittedEvent : { candidate : Loam.Core.Event // candidate.id = eventId } ←
+    match h : Loam.Core.Event.ofEffects? eventId draft.effects with
+    | some admitted =>
+        pure ⟨admitted,
+          Loam.Core.Event.ofEffects?_some_id eventId draft.effects admitted h⟩
     | none => throw "loam: could not admit generated movement or relation evidence"
+  let event := admittedEvent.1
   let newRelations := materializeRelationUnits world eventId draft.relations
   let newDischarges := materializeRelationDischarges eventId draft.discharges
   let fact : Loam.Core.ActualValidityFact String :=
@@ -298,7 +302,7 @@ def admit? (world : World) (rawDraft : Draft) : Except String Admitted := do
     | some text =>
         world.descriptions.addFresh { event := eventId, text := text } hFreshDescription
   let updatedEvents := Loam.Core.EventMemory.addFresh world.events event (by
-    change eventId ∉ world.events.events.map Loam.Core.Event.id
+    rw [admittedEvent.2]
     exact hFreshEvent)
   let updatedHistory := world.validity.addFreshFact fact (by
     change Loam.Core.ActualValidityRef.root eventId ∉
