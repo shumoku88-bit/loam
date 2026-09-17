@@ -108,10 +108,9 @@ private def publishUnderOwnership
     scheduledOn := draft.scheduledOn
     movement := draft.movement
   }
-  let updatedScheduled ←
-    match lifecycle.scheduled.add? occurrence with
-    | some scheduled => pure scheduled
-    | none => return .error "loam: replacement Scheduled identity collides with retained evidence"
+  let updatedScheduled := ScheduledMemory.addFresh lifecycle.scheduled occurrence (by
+    change replacementId ∉ lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
+    exact Loam.ScheduledOccurrenceConstruction.freshId_fresh lifecycle.scheduled)
   let relation : ScheduledTerminal := {
     source := draft.source
     target := some (.scheduled replacementId)

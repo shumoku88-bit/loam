@@ -34,6 +34,22 @@ def add? {Time : Type}
     (occurrence : ScheduledOccurrence Time) : Option (ScheduledMemory Time) :=
   ofOccurrences? (memory.occurrences ++ [occurrence])
 
+/--
+Append one Scheduled occurrence whose identity is already proved fresh.
+
+This is the total internal entrance for construction paths that derive freshness
+before reaching the memory owner. Runtime-loaded arbitrary values still use
+`add?`.
+-/
+def addFresh {Time : Type}
+    (memory : ScheduledMemory Time)
+    (occurrence : ScheduledOccurrence Time)
+    (hFresh : occurrence.id ∉ memory.occurrences.map ScheduledOccurrence.id) :
+    ScheduledMemory Time :=
+  { occurrences := memory.occurrences ++ [occurrence]
+    idNodup := FiniteKeyed.appendFresh_nodup
+      ScheduledOccurrence.id memory.occurrences occurrence memory.idNodup hFresh }
+
 /-- Find one retained Scheduled occurrence by stable identity. -/
 def findById? {Time : Type}
     (memory : ScheduledMemory Time)

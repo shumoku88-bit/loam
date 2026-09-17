@@ -95,10 +95,9 @@ private def publishUnderOwnership
     scheduledOn := draft.scheduledOn
     movement := draft.movement
   }
-  let updatedScheduled ←
-    match lifecycle.scheduled.add? occurrence with
-    | some scheduled => pure scheduled
-    | none => return .error "loam: generated Scheduled identity already retained"
+  let updatedScheduled := ScheduledMemory.addFresh lifecycle.scheduled occurrence (by
+    change scheduledId ∉ lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
+    exact Loam.ScheduledOccurrenceConstruction.freshId_fresh lifecycle.scheduled)
   let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled lifecycle could not be published"

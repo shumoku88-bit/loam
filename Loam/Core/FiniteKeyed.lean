@@ -25,6 +25,34 @@ def findBy? {Item Key : Type} [DecidableEq Key]
         findBy? keyOf rest key
 
 /--
+Appending one item whose projected key is fresh preserves unique-key evidence.
+
+This is representation mechanics only: callers still own the semantic meaning
+of the key and the proof that the proposed key is fresh.
+-/
+theorem appendFresh_nodup
+    {Item Key : Type}
+    (keyOf : Item → Key)
+    (items : List Item)
+    (item : Item)
+    (hNodup : (items.map keyOf).Nodup)
+    (hFresh : keyOf item ∉ items.map keyOf) :
+    ((items ++ [item]).map keyOf).Nodup := by
+  rw [List.map_append]
+  apply List.nodup_append.mpr
+  constructor
+  · exact hNodup
+  constructor
+  · simp
+  · intro existing hExisting appended hAppended
+    simp only [List.map_singleton, List.mem_singleton] at hAppended
+    subst appended
+    intro hEqual
+    apply hFresh
+    rw [← hEqual]
+    exact hExisting
+
+/--
 Unique-key lookup is invariant under permutation of the represented list.
 
 The caller supplies the semantic key and the existing uniqueness proof; this
