@@ -42,8 +42,6 @@ def parseEndpoint? (s : String) : Option RelationEndpoint :=
   else
     none
 
-private def uncoveredSource (_ : EventId) (_ : EffectKey) : Bool := false
-
 /--
 Validate that an ActualEvidence aggregate satisfies referential closure and
 semantic admission using existing Core and Application boundaries.
@@ -88,28 +86,9 @@ def admitActualEvidence? (evidence : ActualEvidence) : Option ActualEvidence := 
     if !ActualReversal.exactPhysicalInverse? targetEvent.effects reversalEvent.effects then
       none
 
-  -- 6. Relations: source Event and keyed Effect must exist, bounds and positive quantity
-  for relation in evidence.relations do
-    let sourceEvent ← evidence.events.findById? relation.sourceEvent
-    let sourceEffect ← sourceEvent.effects.find? fun e => e.key = some relation.sourceEffect
-    if relation.debtor = relation.creditor then
-      none
-    if relation.quantity.quanta <= 0 then
-      none
-    if relation.quantity.quanta > sourceEffect.quantity.quanta.natAbs then
-      none
-    -- Must resolve through existing relation frontier
-    let state ← currentRelationState?
-      evidence.events evidence.relations uncoveredSource relation.sourceEvent relation.sourceEffect
-    match state with
-    | .knownPositive current =>
-        if !(current.any fun u => u.relation.id = relation.id) then
-          none
-    | _ => none
-
-  -- Relation unit IDs must be unique
-  if !(evidence.relations.map RelationUnit.id).Nodup then
-    none
+  -- 6. Relations: the whole-family frontier owns source resolution, shape,
+  -- quantity bounds, aggregate coverage, and stable identity uniqueness.
+  let _ ← admittedRelationFrontier? evidence.events evidence.relations
 
   -- 7. Discharges: target relation must exist, unique (event, target), total discharge <= relation quantity
   let dischargePairs := evidence.discharges.map fun d => (d.event, d.target)
