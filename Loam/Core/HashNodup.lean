@@ -110,4 +110,21 @@ def hashNodupBy?
     hashNodupBy? keyOf keyInjective [item, item] = none := by
   simp [hashNodupBy?, buildHashNodup?]
 
+theorem hashNodupBy?_pair_of_key_ne
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (left right : Item)
+    (hKey : keyOf left ≠ keyOf right) :
+    hashNodupBy? keyOf keyInjective [left, right] =
+      some ({
+        proof := by
+          have hItem : left ≠ right := by
+            intro hEq
+            exact hKey (congrArg keyOf hEq)
+          simp [hItem]
+      } : HashNodupWitness [left, right]) := by
+  simp [hashNodupBy?, buildHashNodup?, hKey, Ne.symm hKey]
+
 end Loam.Core
