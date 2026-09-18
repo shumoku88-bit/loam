@@ -235,9 +235,55 @@ are:
 Any implementation must preserve explicit user choice. A same-date/same-positive-
 Locus match is evidence to **ask**, not evidence to silently suppress publication.
 
+## Production candidate — PR #1065
+
+Status: **UNDER QUALIFICATION**
+
+The smallest production candidate reuses the existing Scheduled Review boundary
+instead of introducing recurrence or series semantics.
+
+Immediately after the final edited-draft review and before publication, the TUI
+loads one fresh current-open Scheduled snapshot. Each edited draft is compared
+against retained open plans using only:
+
+```text
+same explicit date
++
+same positive Locus set
+```
+
+A match remains advisory. The user receives three choices:
+
+```text
+Keep existing  -> omit this draft from the pending fill
+Add another    -> retain this draft for ordinary publication
+Review         -> inspect the retained Scheduled evidence, then choose
+```
+
+`Keep existing` is the default and Escape action. Amount equality is
+deliberately not required, matching the post-completion awareness semantics.
+
+The write path is unchanged:
+
+```text
+approved draft
+    -> HouseholdCommand.createScheduled
+    -> ScheduledCreationPublisher
+    -> optional routing inheritance
+```
+
+Therefore the candidate adds no second writer, recurrence authority, batch
+transaction, or persisted cadence.
+
+The candidate also improves retry behavior after a partially published fill:
+already-retained same-date/same-positive-Locus occurrences become visible before
+the corresponding regenerated draft can be published again. A routing failure
+after creation remains an explicit independent-routing outcome; the awareness
+match does not claim enough identity to repair routing automatically.
+
 ## Verdict
 
-**RESIDUAL AWARENESS PRESSURE CONFIRMED.**
+**RESIDUAL AWARENESS PRESSURE CONFIRMED; MINIMAL FIX UNDER QUALIFICATION.**
 
 The Trivet-style decomposition was useful: most apparent risk closed
 deterministically from existing code and types, leaving one narrow semantic
