@@ -1,8 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.BudgetWindowReview
-import Loam.Persistence.CapacityPersistence
-import Loam.Persistence.CapacityEffectivePersistence
+import Loam.CapacityAuthority
 import Loam.Persistence.ActualRoutingPersistence
 
 open Loam.Core
@@ -79,11 +78,10 @@ def main (args : List String) : IO Unit := do
       [{ movement := ⟨"capacity-food"⟩, effectiveOn := "2026-08-17" },
        { movement := ⟨"capacity-general"⟩, effectiveOn := "2026-08-17" }])
     "capacity effective memory"
-  expect (← Loam.Persistence.saveCapacityMemory? (root / "capacity.loam") capacity)
-    "save capacity"
-  expect (← Loam.Persistence.saveCapacityEffectiveMemory?
-      (root / "capacity.loam.effective") effective)
-    "save capacity effective"
+  let evidence ← requireSome
+    (Loam.CapacityEvidence.ofParts? capacity effective) "capacity evidence"
+  let .ok _ ← Loam.CapacityAuthority.publishImage? (root / "capacity.loam") evidence
+    | throw (IO.userError "publish capacity image")
 
   let routing ← requireSome
     (RoutingHistory.ofEntries?

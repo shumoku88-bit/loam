@@ -50,11 +50,8 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero) "save zero"
 
   let capacityFile := root / "capacity.loam"
-  let capacityEffectiveFile := root / "capacity.loam.effective"
   IO.FS.writeFile capacityFile
-    "LOAM-CAPACITY-MEMORY\t1\nMOVEMENT\tcapacity-1\tjpy\nCHANGE\tUNALLOCATED\t-17108\nCHANGE\tPURPOSE\t固定費予定\t17108\n"
-  IO.FS.writeFile capacityEffectiveFile
-    "LOAM-CAPACITY-EFFECTIVE\t1\nEFFECTIVE\tcapacity-1\t2026-08-14\n"
+    "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-08-14\tjpy\nCHANGE\tUNALLOCATED\t-17108\nCHANGE\tPURPOSE\t固定費予定\t17108\nENDMOVEMENT\n"
   IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++

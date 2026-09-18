@@ -21,16 +21,16 @@ start = today - datetime.timedelta(days=3)
 end = today + datetime.timedelta(days=37)
 (root / "config/boundary-presets.tsv").write_text(f"Pension\t{start}\t{end}\n")
 # Two remembered purposes let the PTY construct a balanced proposal without publishing it.
-(root / "capacity.loam").write_text("""LOAM-CAPACITY-MEMORY\t1
-MOVEMENT\tcapacity-1\tjpy
+(root / "capacity.loam").write_text(f"""LOAM-NORMALIZED-CAPACITY\t1
+MOVEMENT\tcapacity-1\t{start}\tjpy
 CHANGE\tUNALLOCATED\t-100
 CHANGE\tPURPOSE\tfood\t100
-MOVEMENT\tcapacity-2\tjpy
+ENDMOVEMENT
+MOVEMENT\tcapacity-2\t{start}\tjpy
 CHANGE\tUNALLOCATED\t-50
 CHANGE\tPURPOSE\tstock\t50
+ENDMOVEMENT
 """)
-(root / "capacity.loam.effective").write_text(
-    f"LOAM-CAPACITY-EFFECTIVE\t1\nEFFECTIVE\tcapacity-1\t{start}\nEFFECTIVE\tcapacity-2\t{start}\n")
 sched_date = today + datetime.timedelta(days=5)
 (root / "scheduled.loam").write_text(f"""LOAM-SCHEDULED-LIFECYCLE\t1
 BEGIN\tScheduled

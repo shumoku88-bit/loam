@@ -8,7 +8,9 @@ on:
       - 'Loam/Core.lean'
       - 'Loam/Application/CapacityInspection.lean'
       - 'Loam/CapacityReview.lean'
-      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/CapacityEvidence.lean'
+      - 'Loam/CapacityAuthority.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
       - 'tools/loam'
@@ -24,7 +26,9 @@ on:
       - 'Loam/Core.lean'
       - 'Loam/Application/CapacityInspection.lean'
       - 'Loam/CapacityReview.lean'
-      - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/CapacityEvidence.lean'
+      - 'Loam/CapacityAuthority.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
       - 'tools/loam'
@@ -90,3 +94,11 @@ jobs:
             echo 'internal unallocated boundary leaked into entitlement view' >&2
             exit 1
           fi
+
+          grep -F $'LOAM-NORMALIZED-CAPACITY\t1' "$capacity"
+          test ! -e "$capacity.effective"
+
+          window="$(.lake/build/bin/loamCapacity show-window "$capacity" 2026-01-01 2099-01-01)"
+          printf '%s\n' "$window"
+          grep -F 'food: 60 jpy' <<<"$window"
+          grep -F 'groceries: 40 jpy' <<<"$window"
