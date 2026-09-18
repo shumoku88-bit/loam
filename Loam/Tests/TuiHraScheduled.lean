@@ -190,6 +190,10 @@ def main : IO Unit := do
   expect (createStep.command == .createScheduled)
     "HRA Scheduled createScheduled event did not emit createScheduled command"
 
+  let fillStep := Loam.Tui.HraScheduled.update snapshot occPane .fillCurrentCycle
+  expect (fillStep.command == .fillCurrentCycle)
+    "HRA Scheduled fillCurrentCycle event did not emit fillCurrentCycle command"
+
   let backStep := Loam.Tui.HraScheduled.update snapshot occPane .back
   expect (backStep.command == .back)
     "HRA Scheduled back event did not emit back command"
@@ -200,6 +204,9 @@ def main : IO Unit := do
     "HRA Scheduled completeScheduled from loci pane unexpectedly emitted a non-stay command"
   expect (contains "Scheduled pane" lociCompleteStep.state.notice)
     "HRA Scheduled complete notice from loci pane was missing guidance"
+  let lociFillStep := Loam.Tui.HraScheduled.update snapshot toLoci .fillCurrentCycle
+  expect (lociFillStep.command == .stay && contains "Scheduled pane" lociFillStep.state.notice)
+    "HRA Scheduled cycle fill from loci pane was not refused with guidance"
 
   -- 8. Startup refusal remains explicit and blocks Scheduled writes.
   let unavailable : Loam.Tui.Main.Snapshot :=
@@ -213,5 +220,9 @@ def main : IO Unit := do
   expect (unavailableCreate.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableCreate.state.notice)
     "HRA Scheduled emitted a write intent while Scheduled evidence was unavailable"
+  let unavailableFill := Loam.Tui.HraScheduled.update unavailable start .fillCurrentCycle
+  expect (unavailableFill.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailableFill.state.notice)
+    "HRA Scheduled emitted cycle-fill intent while Scheduled evidence was unavailable"
 
   IO.println "TUI Scheduled: HRA Scheduled workspace mechanics and startup unavailability passed."
