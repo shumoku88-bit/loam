@@ -434,9 +434,9 @@ private def loadCurrentAnchor
     return .ok Loam.CurrentQuantityAnchor.Evidence.empty
 
 /--
-Load existing production balance evidence, optional explicit opening/current
-support and explicit AccountingRole evidence, then compose them. No presentation
-selection such as `balance-view.tsv` is used.
+Load one admitted production Actual image, independent zero-origin coverage,
+optional opening/current support, and explicit AccountingRole evidence, then
+compose them. No presentation selection such as `balance-view.tsv` is used.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
