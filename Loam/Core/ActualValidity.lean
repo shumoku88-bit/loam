@@ -64,7 +64,6 @@ def ofEntries?
     ofEntries? ([] : List (ActualValidity Time)) =
       some { entries := [], eventNodup := by simp } := by
   unfold ofEntries?
-  rw [show ([] : List (ActualValidity Time)).map ActualValidity.event = [] by rfl]
   rw [hashNodupBy?_nil]
   rfl
 
@@ -72,7 +71,6 @@ def ofEntries?
 @[simp] theorem ofEntries?_singleton (entry : ActualValidity Time) :
     ofEntries? [entry] = some { entries := [entry], eventNodup := by simp } := by
   unfold ofEntries?
-  rw [show [entry].map ActualValidity.event = [entry.event] by rfl]
   rw [hashNodupBy?_singleton]
   rfl
 
