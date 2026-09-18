@@ -32,6 +32,9 @@ Publication follows strict atomic crash-resilient semantics:
 7. Interruption at any step before rename leaves existing authority completely untouched.
 -/
 
+/-- The admitted normalized Actual image exposed to read-side callers. -/
+abbrev Image := Loam.Persistence.AdmittedActualImage
+
 /-- The standard canonical filename for normalized Actual authority. -/
 def actualFileName : String := "actual.loam"
 
@@ -39,18 +42,34 @@ def actualFileName : String := "actual.loam"
 def actualPath (root : System.FilePath) : System.FilePath :=
   root / actualFileName
 
-/-- Load authoritative Actual evidence from an explicit file path. -/
-def loadActualFile? (path : System.FilePath) : IO (Except String ActualEvidence) := do
+/-- Load one fully admitted Actual image from an explicit file path. -/
+def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
   if !(← path.pathExists) then
     return .error s!"loam: actual authority not found: {path}"
   let text ← IO.FS.readFile path
-  match Loam.Persistence.decodeNormalizedActual? text with
-  | some evidence => return .ok evidence
+  match Loam.Persistence.decodeNormalizedActualImage? text with
+  | some image => return .ok image
   | none => return .error s!"loam: actual authority is malformed or unsupported: {path}"
 
-/-- Load authoritative Actual evidence from the repository root. -/
-def loadActual? (root : System.FilePath) : IO (Except String ActualEvidence) :=
-  loadActualFile? (actualPath root)
+/-- Load one fully admitted Actual image from the repository root. -/
+def loadImage? (root : System.FilePath) : IO (Except String Image) :=
+  loadImageFile? (actualPath root)
+
+/--
+Compatibility loader exposing only retained ActualEvidence.
+Read-side callers that need current Event or validity views should prefer
+`loadImageFile?` so normalized admission is not recomputed downstream.
+-/
+def loadActualFile? (path : System.FilePath) : IO (Except String ActualEvidence) := do
+  match ← loadImageFile? path with
+  | .ok image => return .ok image.evidence
+  | .error message => return .error message
+
+/-- Compatibility root loader exposing only retained ActualEvidence. -/
+def loadActual? (root : System.FilePath) : IO (Except String ActualEvidence) := do
+  match ← loadImage? root with
+  | .ok image => return .ok image.evidence
+  | .error message => return .error message
 
 /--
 Construct the Movement admission view from retained Actual evidence and the
