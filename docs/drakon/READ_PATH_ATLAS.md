@@ -61,21 +61,20 @@ or an awkward route is itself the evidence.
 
 ## Current observed topology
 
-`ActualReview.loadRecordsFromActual` reads one normalized `ActualEvidence` image
-and projects review records only after both the Event correction frontier and the
-Actual validity frontier admit. The current flag is derived from the admitted
-correction frontier, while the occurrence date is read from the admitted validity
-memory. Description and correction label stay projections of the same loaded
-Actual evidence rather than becoming separate report authority.
+`ActualReview.loadRecordsFromActual` now reads one fully admitted
+`ActualAuthority.Image`. Normalized decoding has already established the Event
+correction frontier and current ActualValidity view before the review begins.
+Actual Review still projects every retained historical Event, including
+superseded correction targets, but reuses the carried current validity memory
+instead of rebuilding that admission.
 
-The Actual Review diagram also exposes an important obligation that is easy to
-miss in source-local reading. Raw `EventCorrectionMemory` rejects duplicate exact
-edges, but it does not by itself make correction target lookup functional.
-`correctionFrontierMemory?` admits only closed, acyclic, source/successor-unique
-replacement paths. Because `recordsFromActualEvidence?` refuses before record
-projection when that admission fails, its later `replacement` lookup by target is
-deterministic under the already-admitted frontier. Generation 2 records this as
-a KEEP result: no second correction model or proof-only read API is justified.
+Raw `recordsFromActualEvidence?` remains available for arbitrary in-memory
+evidence and still performs its own fail-closed correction/validity admission.
+The canonical authority path is narrower: correction target lookup is safe
+because full image admission has already accepted only closed, acyclic,
+source/successor-unique replacement paths. Currentness remains exactly
+`replacement.isNone`; the admitted current Event frontier is not substituted for
+the historical record list.
 
 `CurrentCoverageReview.loadSnapshotAt` now resolves and classifies current-open
 Scheduled pressure once at the snapshot level. Query-global pressure frontiers
