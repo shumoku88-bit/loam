@@ -31,15 +31,27 @@ private def monthHeader (month : String) : String :=
 private def coverageCell (cell : Loam.ScheduledCoverageReview.MonthCell) : String :=
   Loam.Tui.Layout.padRight 8 (cellGlyph cell)
 
+private def coveredThrough? (row : Loam.ScheduledCoverageReview.Row) : Option String :=
+  let beforeGap :=
+    match row.firstMissing with
+    | none => row.cells
+    | some gap => row.cells.takeWhile fun cell => !(cell.month == gap)
+  (beforeGap.reverse.find? fun cell =>
+    cell.expected && !(cell.explicitCount == 0)).map (·.month)
+
 private def rowLine (row : Loam.ScheduledCoverageReview.Row) : Widget :=
+  let through :=
+    match coveredThrough? row with
+    | some month => "  through " ++ month
+    | none => "  through —"
   let gap :=
     match row.firstMissing with
-    | some month => "  first gap " ++ month
+    | some month => "  next gap " ++ month
     | none => "  no gap in view"
   line <|
     Loam.Tui.Layout.padRight 18 row.rule.name ++
     Loam.Tui.Layout.padRight 10 (cadenceLabel row.rule.everyMonths) ++
-    String.intercalate "" (row.cells.map coverageCell) ++ gap
+    String.intercalate "" (row.cells.map coverageCell) ++ through ++ gap
 
 def lines (snapshot : Loam.ScheduledCoverageReview.Snapshot) : List Widget :=
   if snapshot.rows.isEmpty then
