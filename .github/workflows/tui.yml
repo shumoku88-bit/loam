@@ -57,6 +57,9 @@ on:
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/ActualRoutingReview.lean'
       - 'Loam/Tests/TuiActualRoutingAdministration.lean'
+      - 'Loam/ScheduledCoverageConfig.lean'
+      - 'Loam/ScheduledCoverageReview.lean'
+      - 'Loam/Tests/ScheduledCoverageReview.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
@@ -166,6 +169,9 @@ on:
       - 'Loam/Tests/TuiCapacityRebalance.lean'
       - 'Loam/Tests/ActualRoutingReview.lean'
       - 'Loam/Tests/TuiActualRoutingAdministration.lean'
+      - 'Loam/ScheduledCoverageConfig.lean'
+      - 'Loam/ScheduledCoverageReview.lean'
+      - 'Loam/Tests/ScheduledCoverageReview.lean'
       - 'Loam/Tests/TuiReports.lean'
       - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
@@ -464,7 +470,13 @@ jobs:
       - name: Verify sparse Transactions-Flow Reports interaction
         run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
 
-      - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity and Budget Window surfaces
+      - name: Build Scheduled future coverage review boundary
+        run: lake build Loam.ScheduledCoverageReview
+
+      - name: Verify Scheduled monthly and multi-month coverage projection
+        run: lake env lean --run Loam/Tests/ScheduledCoverageReview.lean
+
+      - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity, Budget Window and Scheduled Coverage surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
 
       - name: Verify TUI help footer geometry and adaptive flow
