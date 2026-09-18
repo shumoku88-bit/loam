@@ -67,8 +67,8 @@ def ofEntries?
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective []
-      some { entries := [], eventNodup := h.proof }) =
-    some { entries := [], eventNodup := by simp }
+      some ({ entries := [], eventNodup := h.proof } : ActualValidityMemory Time)) =
+    some ({ entries := [], eventNodup := by simp } : ActualValidityMemory Time)
   rw [hashNodupBy?_nil]
   rfl
 
@@ -79,8 +79,8 @@ def ofEntries?
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective [entry.event]
-      some { entries := [entry], eventNodup := h.proof }) =
-    some { entries := [entry], eventNodup := by simp }
+      some ({ entries := [entry], eventNodup := h.proof } : ActualValidityMemory Time)) =
+    some ({ entries := [entry], eventNodup := by simp } : ActualValidityMemory Time)
   rw [hashNodupBy?_singleton]
   rfl
 
