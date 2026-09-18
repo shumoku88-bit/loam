@@ -17,7 +17,7 @@ private def conflictsWithSource
 Regenerate one hledger/Ledger-compatible accounting journal from current LOAM
 Actual evidence plus explicit AccountingRole evidence.
 -/
-def export
+def exportJournal
     (actualPath rolePath outputPath : String) : IO UInt32 := do
   if conflictsWithSource actualPath rolePath outputPath then
     IO.eprintln "loam: PTA output must not replace Actual or AccountingRole authority"
@@ -70,7 +70,7 @@ def main (args : List String) : IO UInt32 :=
   | [actualPath, rolePath, outputPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.PlainTextAccountingExportCli.export actualPath rolePath outputPath)
+        (Loam.PlainTextAccountingExportCli.exportJournal actualPath rolePath outputPath)
   | _ => do
       IO.eprintln usage
       return 2
