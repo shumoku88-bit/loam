@@ -258,8 +258,8 @@ jobs:
           root="$(mktemp -d)/journal-export"
           lake env lean --run Loam/Tests/JournalExport.lean "$root"
           ./.lake/build/bin/loamJournalExport "$root/actual.loam" "$root/actual-journal.txt"
-          grep -q "2026-09-02	 journal-replacement" "$root/actual-journal.txt"
-          grep -q "2026-09-03	 journal-untouched" "$root/actual-journal.txt"
+          grep -Fq "2026-09-02"$'\t'"journal-replacement" "$root/actual-journal.txt"
+          grep -Fq "2026-09-03"$'\t'"journal-untouched" "$root/actual-journal.txt"
           if grep -q "journal-original" "$root/actual-journal.txt"; then
             echo "superseded correction target leaked into current journal" >&2
             exit 1
