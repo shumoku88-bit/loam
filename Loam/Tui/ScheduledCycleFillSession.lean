@@ -136,7 +136,7 @@ private def awarenessOption (selected : Bool) (text : String) : Span :=
 
 private def awarenessChoiceView (state : AwarenessPromptState) : Widget :=
   .column <|
-    [ awarenessLine "Scheduled / Fill Current Cycle / Existing Plan"
+    [ awarenessLine "Scheduled / Fill Cycle / Existing Plan"
     , awarenessLine ("Fill draft due: " ++ state.draft.scheduledOn)
     , awarenessLine ("Existing Scheduled: " ++ state.candidate.id.token)
     , awarenessLine ("Existing expected: " ++ Loam.ScheduledReview.summary state.candidate)
@@ -158,7 +158,7 @@ private def awarenessChoiceView (state : AwarenessPromptState) : Widget :=
 
 private def awarenessReviewView (state : AwarenessPromptState) : Widget :=
   .column <|
-    [ awarenessLine "Scheduled / Fill Current Cycle / Existing Plan / Review"
+    [ awarenessLine "Scheduled / Fill Cycle / Existing Plan / Review"
     , awarenessLine ("Identity: " ++ state.candidate.id.token)
     , awarenessLine ("Due: " ++ state.candidate.scheduledOn)
     , awarenessLine ("Summary: " ++ Loam.ScheduledReview.summary state.candidate)
@@ -224,7 +224,7 @@ private partial def publishDraftsFrom
   | [] =>
       pure <|
         "Published " ++ toString createdCount ++
-        " explicit Scheduled occurrence(s) for the current cycle. No recurrence was retained."
+        " explicit Scheduled occurrence(s) for the selected cycle. No recurrence was retained."
   | draft :: rest =>
       match ← Loam.HouseholdCommand.createScheduled root draft with
       | .error message =>
@@ -257,33 +257,33 @@ partial def reviewAndPublish
     (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ScheduledCycleFill.update state
     (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Current-cycle Scheduled fill cancelled."
+  if step.cancel then return "Scheduled cycle fill cancelled."
   if step.publish then
     match step.state.mode with
     | .preview _ drafts _ =>
         if !allDatesValid step.state.window step.state.observedAt drafts then
           pure <|
-            "Current-cycle Scheduled fill not published: every edited due date must remain " ++
-            "inside the current cycle and not precede the observation date."
+            "Scheduled cycle fill not published: every edited due date must remain " ++
+            "inside the selected cycle and not precede the observation date."
         else
           match ← Loam.ScheduledReview.loadHouseholdEvidence root root with
           | .error message =>
               pure <|
-                "Current-cycle Scheduled fill not published: existing Scheduled inspection " ++
+                "Scheduled cycle fill not published: existing Scheduled inspection " ++
                 "is unavailable: " ++ message
           | .ok snapshot =>
               match ← resolveDraftAwareness bounds snapshot drafts with
               | .error message =>
                   pure <|
-                    "Current-cycle Scheduled fill not published: existing Scheduled awareness " ++
+                    "Scheduled cycle fill not published: existing Scheduled awareness " ++
                     "failed: " ++ message
               | .ok [] =>
                   pure <|
                     "No new Scheduled occurrences published; existing matching plan(s) were kept."
               | .ok approved =>
                   publishDrafts root step.state.source step.state.observedAt approved
-    | .cadence _ =>
-        pure "Current-cycle Scheduled fill reached an invalid preview state."
+    | .scope _ | .cadence _ =>
+        pure "Scheduled cycle fill reached an invalid preview state."
   else
     let nextFrame := compileWidget (Loam.Tui.ScheduledCycleFill.view step.state)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -298,25 +298,25 @@ partial def chooseCadence
     (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.ScheduledCycleFill.update state
     (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Current-cycle Scheduled fill cancelled."
+  if step.cancel then return "Scheduled cycle fill cancelled."
   match step.cadence with
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCycleFill.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       chooseCadence bounds root known catalog step.state nextFrame
   | some cadence =>
-      match Loam.ScheduledCycleFill.planCandidatesAfter
+      match Loam.ScheduledCycleFill.planCandidatesForWindow
           state.window state.observedAt
           { anchor := state.source.scheduledOn, cadence := cadence } with
-      | .error message => pure ("Current-cycle Scheduled fill unavailable: " ++ message)
+      | .error message => pure ("Scheduled cycle fill unavailable: " ++ message)
       | .ok [] =>
           pure <|
             "No later " ++ cadence.label ++
-            " occurrence falls inside the current cycle."
+            " occurrence falls inside the selected cycle."
       | .ok candidates =>
           match ← collectDrafts bounds known catalog state.source candidates with
-          | .error message => pure ("Current-cycle Scheduled fill unavailable: " ++ message)
-          | .ok none => pure "Current-cycle Scheduled fill cancelled before publication."
+          | .error message => pure ("Scheduled cycle fill unavailable: " ++ message)
+          | .ok none => pure "Scheduled cycle fill cancelled before publication."
           | .ok (some drafts) =>
               let preview := Loam.Tui.ScheduledCycleFill.withDrafts state cadence drafts
               let previewFrame := compileWidget (Loam.Tui.ScheduledCycleFill.view preview)
@@ -332,11 +332,17 @@ def run
     (observedAt : String) : IO String := do
   match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
   | .error message =>
-      pure ("Current-cycle Scheduled fill unavailable: " ++ message)
-  | .ok window =>
-      let state := Loam.Tui.ScheduledCycleFill.initial source window observedAt
-      let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
-      Loam.Tui.Terminal.redrawFromBlank bounds frame
-      chooseCadence bounds root known catalog state frame
+      pure ("Scheduled cycle fill unavailable: " ++ message)
+  | .ok currentWindow =>
+      match ← Loam.BoundaryPresetConfig.loadFollowingWindow dataDir observedAt with
+      | .error message =>
+          pure ("Scheduled cycle fill unavailable: " ++ message)
+      | .ok followingWindow =>
+          let state :=
+            Loam.Tui.ScheduledCycleFill.initial
+              source currentWindow followingWindow observedAt
+          let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
+          Loam.Tui.Terminal.redrawFromBlank bounds frame
+          chooseCadence bounds root known catalog state frame
 
 end Loam.Tui.ScheduledCycleFillSession
