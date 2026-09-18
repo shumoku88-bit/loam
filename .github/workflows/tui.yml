@@ -26,6 +26,8 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledCycleFill.lean'
+      - 'Loam/Tests/ScheduledCycleFill.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
@@ -127,6 +129,8 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
+      - 'Loam/ScheduledCycleFill.lean'
+      - 'Loam/Tests/ScheduledCycleFill.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
@@ -307,6 +311,9 @@ jobs:
 
       - name: Build shared Scheduled creation publisher boundary
         run: lake build Loam.ScheduledCreationPublisher
+
+      - name: Verify construction-only current-cycle Scheduled generation
+        run: lake env lean --run Loam/Tests/ScheduledCycleFill.lean
 
       - name: Verify selected-day Scheduled creation and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create"
