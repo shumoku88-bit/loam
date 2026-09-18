@@ -79,6 +79,7 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/JournalExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/JournalExport.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
@@ -177,6 +178,7 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/JournalExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
+      - 'Loam/Tests/JournalExport.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
@@ -248,6 +250,9 @@ jobs:
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Verify admitted Actual journal export
+        run: lake env lean --run Loam/Tests/JournalExport.lean "$(mktemp -d)/journal-export"
 
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
