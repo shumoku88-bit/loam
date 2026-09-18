@@ -178,47 +178,12 @@ def currentWindowFor?
   | [] => .error "no configured boundary preset contains the current date"
   | _ => .error "multiple configured boundary presets contain the current date"
 
-/--
-Resolve the explicitly configured window immediately after the current one.
-
-No recurrence or inferred boundary is introduced. A following window exists only
-when the same preset contains one more explicit boundary after the current end.
--/
-def followingWindowFor?
-    (presets : List Preset) (observedAt : String) : Except String (Option CurrentWindow) :=
-  if !Loam.ActualDate.validIsoDate observedAt then
-    .error "current date is not a real YYYY-MM-DD calendar date"
-  else
-    let windows := presets.filterMap fun preset =>
-      (adjacentWindowWithTail? observedAt preset.boundaries).map fun
-        (start, endExclusive, rest) =>
-          (preset.name, start, endExclusive, rest)
-    match windows with
-    | [(name, _, endExclusive, nextEnd :: rest)] =>
-        .ok <| some {
-          source := name
-          start := endExclusive
-          endExclusive := nextEnd
-          hasFollowingBoundary := !rest.isEmpty
-        }
-    | [(_, _, _, [])] => .ok none
-    | [] => .error "no configured boundary preset contains the current date"
-    | _ => .error "multiple configured boundary presets contain the current date"
-
 def loadCurrentWindow (dataDir : System.FilePath) (observedAt : String) :
     IO (Except String CurrentWindow) := do
   try
     match ← load? (dataDir / "config" / "boundary-presets.tsv") with
     | none => return .error "boundary preset config is malformed"
     | some presets => return currentWindowFor? presets observedAt
-  catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
-
-def loadFollowingWindow (dataDir : System.FilePath) (observedAt : String) :
-    IO (Except String (Option CurrentWindow)) := do
-  try
-    match ← load? (dataDir / "config" / "boundary-presets.tsv") with
-    | none => return .error "boundary preset config is malformed"
-    | some presets => return followingWindowFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
 
 def loadHorizonSuggestions (dataDir : System.FilePath) (observedAt : String) :
