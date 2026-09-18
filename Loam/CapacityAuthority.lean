@@ -21,7 +21,7 @@ two-write protocol with one staged, typed, atomic authority switch.
 -/
 
 /-- The persistence-neutral complete Capacity image exposed to callers. -/
-abbrev Image := Loam.CapacityEvidence
+abbrev Image := Loam.CapacityEvidence String
 
 private def loadExisting (capacityPath : System.FilePath) : IO (Except String Image) := do
   let input ← IO.FS.readFile capacityPath
