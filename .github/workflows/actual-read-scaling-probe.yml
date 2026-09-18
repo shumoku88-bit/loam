@@ -30,5 +30,5 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Measure 1k 5k 10k Event reads
-        run: python3 tools/benchmark-actual-read.py --sizes 1000 5000 10000 --repeat 2 --timeout 240 --no-build
+      - name: Measure 50k Event read
+        run: python3 tools/benchmark-actual-read.py --sizes 50000 --repeat 1 --timeout 300 --no-build
