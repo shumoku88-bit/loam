@@ -282,7 +282,7 @@ partial def reviewAndPublish
                     "No new Scheduled occurrences published; existing matching plan(s) were kept."
               | .ok approved =>
                   publishDrafts root step.state.source step.state.observedAt approved
-    | .horizon _ | .cadence _ =>
+    | .horizon _ | .customDate _ | .cadence _ =>
         pure "Scheduled generation reached an invalid preview state."
   else
     let nextFrame := compileWidget (Loam.Tui.ScheduledGeneration.view step.state)
