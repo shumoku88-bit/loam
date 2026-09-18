@@ -36,11 +36,10 @@ def main (args : List String) : IO Unit := do
         "missing Capacity storage did not preserve the existing empty-history policy"
   | .error message => throw (IO.userError message)
 
-  let empty ← requireSome (CapacityMemory.ofMovements? [])
-    "empty Capacity memory was rejected"
   let emptyPath := root / "empty.loam"
-  expect (← Loam.Persistence.saveCapacityMemory? emptyPath empty)
-    "explicit empty Capacity memory could not be saved"
+  match ← Loam.CapacityAuthority.publishImage? emptyPath Loam.CapacityEvidence.empty with
+  | .ok _ => pure ()
+  | .error message => throw (IO.userError message)
   match ← Loam.CapacityReview.loadSnapshot emptyPath with
   | .ok snapshot => expect snapshot.rows.isEmpty "explicit empty Capacity review was not empty"
   | .error message => throw (IO.userError message)
@@ -56,9 +55,17 @@ def main (args : List String) : IO Unit := do
   let memory ← requireSome
     (CapacityMemory.ofMovements? [allocation, reallocation])
     "Capacity review specimen memory was rejected"
+  let effective ← requireSome
+    (CapacityEffectiveMemory.ofEntries?
+      [{ movement := allocation.id, effectiveOn := "2026-09-01" },
+       { movement := reallocation.id, effectiveOn := "2026-09-02" }])
+    "Capacity review effective specimen was rejected"
+  let evidence ← requireSome (Loam.CapacityEvidence.ofParts? memory effective)
+    "Capacity review complete image was rejected"
   let path := root / "capacity.loam"
-  expect (← Loam.Persistence.saveCapacityMemory? path memory)
-    "Capacity review specimen could not be saved"
+  match ← Loam.CapacityAuthority.publishImage? path evidence with
+  | .ok _ => pure ()
+  | .error message => throw (IO.userError message)
 
   match ← Loam.CapacityReview.loadSnapshot path with
   | .error message => throw (IO.userError message)
@@ -72,4 +79,4 @@ def main (args : List String) : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "malformed Capacity storage was silently accepted")
 
-  IO.println "Capacity review: missing/empty policy, entitlement projection and malformed refusal passed."
+  IO.println "Capacity review: missing/normalized-empty policy, entitlement projection and malformed refusal passed."
