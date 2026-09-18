@@ -22,6 +22,7 @@ import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
+import Loam.ScheduledCoverageReview
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -910,6 +911,11 @@ partial def reportsLoop (bounds : Bounds)
         match ← Loam.ConditionalBalancePathReview.loadSnapshot
             dataDir root assumedCompleteThrough with
         | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.scheduledCoverage observedAt) =>
+        match ← Loam.ScheduledCoverageReview.loadSnapshot
+            dataDir root observedAt with
+        | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
