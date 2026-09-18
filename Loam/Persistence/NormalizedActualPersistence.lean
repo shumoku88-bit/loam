@@ -43,65 +43,98 @@ def parseEndpoint? (s : String) : Option RelationEndpoint :=
     none
 
 /--
+One fully admitted normalized Actual image plus the two read-side projections
+that production repeatedly reconstructs.
+
+The raw retained evidence remains available for writer candidate construction.
+`currentEvents` and `currentValidities` are derived views, not new authorities.
+Their proof fields prevent those views from drifting from the retained evidence.
+-/
+structure AdmittedActualImage where
+  evidence : ActualEvidence
+  currentEvents : EventMemory
+  currentValidities : ActualValidityMemory String
+  currentEvents_admitted :
+    correctionFrontierMemory? evidence.events evidence.corrections = some currentEvents
+  currentValidities_admitted :
+    admittedActualValidityMemory? evidence.validity = some currentValidities
+
+/--
 Validate that an ActualEvidence aggregate satisfies referential closure and
-semantic admission using existing Core and Application boundaries.
+semantic admission using existing Core and Application boundaries, while
+retaining the two derived read views that are otherwise recomputed downstream.
 
 This performs no second engine semantics: it calls existing frontiers and checks
 that references among the co-published fact families resolve within the generation.
 -/
+def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :=
+  match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
+  | none => none
+  | some currentEvents =>
+      match hValidity : admittedActualValidityMemory? evidence.validity with
+      | none => none
+      | some admittedDates => do
+          -- Every retained validity fact must belong to a retained Event.
+          for fact in evidence.validity.facts do
+            if (evidence.events.findById? fact.event).isNone then
+              none
+          -- Every remembered Event must have a valid current occurrence date.
+          for event in evidence.events.events do
+            if (admittedDates.findByEventId? event.id).isNone then
+              none
+
+          -- Event descriptions: every described Event must exist.
+          for entry in evidence.descriptions.entries do
+            if (evidence.events.findById? entry.event).isNone then
+              none
+
+          -- Merchant dispositions: every classified Event must exist.
+          if !EventMerchantEvidenceMemory.referencesOnlyKnownEvents
+              evidence.events evidence.merchants then
+            none
+
+          -- Reversals: target and reversal must exist, exact physical inverse,
+          -- and reversal-of-reversal chains remain refused.
+          for reversal in evidence.reversals.reversals do
+            let targetEvent ← evidence.events.findById? reversal.target
+            let reversalEvent ← evidence.events.findById? reversal.reversal
+            if reversal.target = reversal.reversal then
+              none
+            if (evidence.reversals.findByReversal? reversal.target).isSome then
+              none
+            if !ActualReversal.exactPhysicalInverse?
+                targetEvent.effects reversalEvent.effects then
+              none
+
+          -- Relations: whole-family frontier owns source resolution, shape,
+          -- quantity bounds, aggregate coverage, and stable identity uniqueness.
+          let _ ← admittedRelationFrontier? evidence.events evidence.relations
+
+          -- Discharges: persistence owns same-generation reference closure.
+          for discharge in evidence.discharges do
+            let _ ← evidence.events.findById? discharge.event
+            let _ ← evidence.relations.find? fun r => r.id = discharge.target
+
+          for relation in evidence.relations do
+            let _ ← admittedRelationDischargesFor?
+              evidence.events evidence.relations evidence.discharges relation.id
+
+          some {
+            evidence := evidence
+            currentEvents := currentEvents
+            currentValidities := admittedDates
+            currentEvents_admitted := hFrontier
+            currentValidities_admitted := hValidity
+          }
+
+/--
+Compatibility entrance returning only retained ActualEvidence.
+Writers that mutate a candidate continue to use this raw aggregate and therefore
+must requalify the changed candidate before publication.
+-/
 def admitActualEvidence? (evidence : ActualEvidence) : Option ActualEvidence := do
-  -- 1. Event correction frontier: requires reference closure, acyclicity, no branching
-  let _ ← correctionFrontierMemory? evidence.events evidence.corrections
-
-  -- 2. Validity frontier: requires reference closure, single current date per Event
-  let admittedDates ← admittedActualValidityMemory? evidence.validity
-  -- Every retained validity fact must belong to a retained Event
-  for fact in evidence.validity.facts do
-    if (evidence.events.findById? fact.event).isNone then
-      none
-  -- Every remembered event must have a valid current occurrence date
-  for event in evidence.events.events do
-    if (admittedDates.findByEventId? event.id).isNone then
-      none
-
-  -- 3. Event descriptions: every described event must exist
-  for entry in evidence.descriptions.entries do
-    if (evidence.events.findById? entry.event).isNone then
-      none
-
-  -- 4. Merchant dispositions: every classified Event must exist
-  if !EventMerchantEvidenceMemory.referencesOnlyKnownEvents evidence.events evidence.merchants then
-    none
-
-  -- 5. Reversals: target and reversal must exist, exact physical inverse, no reversal-of-reversal
-  for reversal in evidence.reversals.reversals do
-    let targetEvent ← evidence.events.findById? reversal.target
-    let reversalEvent ← evidence.events.findById? reversal.reversal
-    if reversal.target = reversal.reversal then
-      none
-    -- Lean publisher qualification: reversal-of-reversal chains are rejected
-    if (evidence.reversals.findByReversal? reversal.target).isSome then
-      none
-    -- Physical effects must form an exact inverse multiset of (locus, measure, quantity)
-    if !ActualReversal.exactPhysicalInverse? targetEvent.effects reversalEvent.effects then
-      none
-
-  -- 6. Relations: the whole-family frontier owns source resolution, shape,
-  -- quantity bounds, aggregate coverage, and stable identity uniqueness.
-  let _ ← admittedRelationFrontier? evidence.events evidence.relations
-
-  -- 7. Discharges: Persistence owns same-generation reference closure.
-  -- Positivity, non-self-discharge, per-target Event uniqueness, and aggregate
-  -- quantity bounds remain owned by the Application discharge frontier below.
-  for discharge in evidence.discharges do
-    let _ ← evidence.events.findById? discharge.event
-    let _ ← evidence.relations.find? fun r => r.id = discharge.target
-
-  for relation in evidence.relations do
-    let _ ← admittedRelationDischargesFor?
-      evidence.events evidence.relations evidence.discharges relation.id
-
-  some evidence
+  let image ← admitActualImage? evidence
+  some image.evidence
 
 /--
 Intermediate per-transaction parsing state during normalized Actual decoding.
@@ -250,7 +283,7 @@ private partial def parseTxs : List String → Option (List ParsedTx)
 Decode a complete normalized Actual document into persistence-neutral ActualEvidence.
 Fails closed (`none`) on any syntax error, unknown row, missing header, or semantic violation.
 -/
-def decodeNormalizedActual? (input : String) : Option ActualEvidence := do
+def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage := do
   if !input.endsWith "\n" then none
   let lines := (input.dropEnd 1).toString.splitOn "\n"
   match lines with
@@ -312,7 +345,15 @@ def decodeNormalizedActual? (input : String) : Option ActualEvidence := do
           discharges := discharges
         }
 
-        admitActualEvidence? rawEvidence
+        admitActualImage? rawEvidence
+
+/--
+Decode only the retained ActualEvidence compatibility view.
+Read-side authority consumers should prefer the richer admitted image.
+-/
+def decodeNormalizedActual? (input : String) : Option ActualEvidence := do
+  let image ← decodeNormalizedActualImage? input
+  some image.evidence
 
 /--
 Encode persistence-neutral ActualEvidence into normalized Actual wire representation.
