@@ -53,11 +53,24 @@ def run : IO Unit := do
     endExclusive := "2026-03-15"
     hasFollowingBoundary := true
   }
+  match Loam.ScheduledCycleFill.planCandidatesAfter shortWindow "2026-01-01"
+      { anchor := "2026-01-31", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("day-31 candidate planning unexpectedly refused: " ++ message))
+  | .ok candidates =>
+      expect (candidates == [.needsDate 2026 2 31])
+        s!"day-31 candidate did not stay explicitly unresolved: {repr candidates}"
+
   match Loam.ScheduledCycleFill.planAfter shortWindow "2026-01-01"
       { anchor := "2026-01-31", cadence := .monthly } with
   | .ok dates =>
       throw (IO.userError s!"day-31 monthly fill silently invented dates: {repr dates}")
   | .error _ => pure ()
+
+  expect (Loam.ScheduledCycleFill.validResolvedDate shortWindow "2026-01-01" "2026-02-28")
+    "human-resolved February 28 was not accepted inside the explicit cycle"
+  expect (!Loam.ScheduledCycleFill.validResolvedDate shortWindow "2026-01-01" "2026-03-15")
+    "exclusive cycle boundary was accepted as a human-resolved date"
 
   let twoMonthWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
     source := "test"

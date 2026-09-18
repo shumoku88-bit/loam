@@ -14,6 +14,29 @@ open Loam.Tui.Runtime
 set_option autoImplicit false
 
 /--
+Run the existing Scheduled editor until the user either confirms one draft or
+cancels, without publishing anything.
+
+Higher-level construction helpers can therefore collect several explicit drafts,
+show the complete set, and only then publish through the ordinary household
+command boundary.
+-/
+partial def collectDraft
+    (bounds : Bounds)
+    (known : List String)
+    (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
+    IO (Option Loam.ScheduledCreationPublisher.Draft) := do
+  let step := Loam.Tui.ScheduledCreation.update known state
+    (← Loam.Tui.Terminal.readKey)
+  if step.cancel then return none
+  match step.publish with
+  | some draft => return some draft
+  | none =>
+      let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      collectDraft bounds known step.state nextFrame
+
+/--
 Run one presentation-only Scheduled creation editor session, returning the created Scheduled identity if published.
 -/
 partial def runWithScheduledId

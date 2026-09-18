@@ -20,6 +20,8 @@ import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
+import Loam.Tui.ScheduledCycleFill
+import Loam.Tui.ScheduledCycleFillSession
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -179,6 +181,7 @@ def hraScheduledEventOfKey
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'f' | .input 'F' => .cycleFilter
   | .input 'n' | .input 'N' => .createScheduled
+  | .input 'g' | .input 'G' => .fillCurrentCycle
   | .input 'c' | .input 'C' => .completeScheduled
   | .enter =>
       match pane with
@@ -348,6 +351,29 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
       let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .fillCurrentCycle =>
+      match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice :=
+            "No current-open Scheduled occurrence is selected as the cycle-fill source." }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          let world ←
+            match ← Loam.ActualAuthority.loadSelectedWorld? root with
+            | .error message => throw (IO.userError message)
+            | .ok world => pure world
+          let known := world.locusAdmission.approved.map (fun locus => locus.token)
+          let catalog ← currentLocusCatalog dataDir world
+          let notice ← Loam.Tui.ScheduledCycleFillSession.run
+            bounds dataDir root known catalog record snapshot.actual.today
+          let fresh ← requireReload notice (loadSnapshot dataDir)
+          let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state
+          let next := { refreshed with notice := notice }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          hraScheduledLoop bounds dataDir root fresh next nextFrame
   | .completeScheduled =>
       match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
       | none =>

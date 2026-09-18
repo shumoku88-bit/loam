@@ -37,6 +37,7 @@ inductive Event where
   | focusRight
   | cycleFilter
   | createScheduled
+  | fillCurrentCycle
   | completeScheduled
   | replaceScheduled
   | cancelScheduled
@@ -47,6 +48,7 @@ inductive Event where
 inductive Command where
   | stay
   | createScheduled
+  | fillCurrentCycle
   | completeScheduled
   | replaceScheduled
   | cancelScheduled
@@ -174,6 +176,19 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none => { state, command := .createScheduled }
+  | .fillCurrentCycle =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          match state.pane with
+          | .loci =>
+              { state := { state with notice := "Fill cycle is available from the Scheduled pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none =>
+                  { state := { state with notice :=
+                      "No current-open Scheduled occurrence is selected as the cycle-fill source." } }
+              | some _ => { state, command := .fillCurrentCycle }
   | .completeScheduled =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
@@ -295,11 +310,11 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [n] new  [g] fill cycle  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] scope [n] new [q] back"
+    [ mutedLine "[j/k] select [h/l] pane [f] scope [n] new [g] fill cycle [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
