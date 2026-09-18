@@ -31,6 +31,8 @@ Observations 006–007 are the historical miniKanren example. Their first Racket
 
 Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
 
+For non-trivial semantic changes and audits, LOAM first decomposes the question into deterministic, previously-earned, and genuinely residual obligations before adding proofs or asking AI to reason over the whole subsystem. See [`docs/OBLIGATION_SCAFFOLD_METHOD.md`](docs/OBLIGATION_SCAFFOLD_METHOD.md).
+
 Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
 
 For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
