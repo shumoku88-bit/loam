@@ -125,6 +125,6 @@ theorem hashNodupBy?_pair_of_key_ne
             exact hKey (congrArg keyOf hEq)
           simp [hItem]
       } : HashNodupWitness [left, right]) := by
-  simp [hashNodupBy?, buildHashNodup?, hKey, Ne.symm hKey]
+  simp [hashNodupBy?, buildHashNodup?, Ne.symm hKey]
 
 end Loam.Core
