@@ -12,7 +12,8 @@ set_option autoImplicit false
 # Scheduled future coverage projection
 
 This read-only projection compares explicit current-open Scheduled evidence with
-replaceable monitoring rules. A missing cell means only "the configured coverage
+replaceable monitoring rules. Rule identity is the exact signed Locus shape, with
+amounts deliberately ignored. A missing cell means only "the configured coverage
 expectation has no matching explicit current-open Scheduled occurrence in this
 month". It is not a canonical NotDue/Due claim and it does not infer recurrence
 from finite Scheduled evidence.
@@ -55,9 +56,13 @@ private def monthText (index : Nat) : String :=
   let month := index % 12 + 1
   padded 4 year ++ "-" ++ padded 2 month
 
-private def positiveLocusTokens (record : Record) : List String :=
+private def signedLocusTokens
+    (record : Record) (positive : Bool) : List String :=
   ((record.movement.changes.filterMap fun change =>
-      if change.quantity.quanta > 0 then some change.coordinate.token else none).eraseDups)
+      if positive then
+        if change.quantity.quanta > 0 then some change.coordinate.token else none
+      else
+        if change.quantity.quanta < 0 then some change.coordinate.token else none).eraseDups)
     |>.mergeSort (fun left right => left <= right)
 
 private def expectedAt (rule : Rule) (target : Nat) : Bool :=
@@ -72,7 +77,8 @@ private def expectedAt (rule : Rule) (target : Nat) : Bool :=
 private def explicitCountAt
     (rule : Rule) (records : List Record) (target : Nat) : Nat :=
   (records.filter fun record =>
-    positiveLocusTokens record == rule.positiveLoci &&
+    signedLocusTokens record false == rule.negativeLoci &&
+    signedLocusTokens record true == rule.positiveLoci &&
       match monthIndex? record.scheduledOn with
       | some index => index == target
       | none => false).length
