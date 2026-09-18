@@ -57,7 +57,7 @@ inductive PromptAction where
   deriving Repr, DecidableEq, BEq
 
 structure PromptState where
-  candidate : Option Loam.ScheduledReview.Record
+  candidate : Option Loam.ScheduledReview.Record := none
   additionalCount : Nat := 0
   mode : PromptMode := .choice
   choice : Nat := 0
