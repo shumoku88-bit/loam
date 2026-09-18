@@ -104,6 +104,31 @@ def main (args : List String) : IO Unit := do
   expect (correctedCash.quantity.quanta == 0)
     "shared correction basis lost an explicitly covered zero"
 
+  -- The canonical authority path should reuse the already-admitted current Event
+  -- basis and return the same correction-aware quantities without rebuilding the
+  -- frontier inside BalanceReview.
+  let correctedEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := world.events
+      validity := world.validity
+      corrections := validCorrections
+  }
+  match ← Loam.ActualAuthority.publishActualFile?
+      (Loam.ActualAuthority.actualPath actualRoot) correctedEvidence with
+  | .error message =>
+      throw (IO.userError ("publish corrected canonical Actual: " ++ message))
+  | .ok () => pure ()
+  let .ok canonicalCorrected ← Loam.BalanceReview.loadSnapshot root actualRoot
+    | throw (IO.userError "canonical admitted Balance Review refused corrected fixture")
+  let canonicalWallet ← requireSome (findRow? canonicalCorrected "wallet")
+    "missing canonical corrected wallet row"
+  expect (canonicalWallet.quantity.quanta == -30)
+    "canonical Balance Review did not reuse admitted correction frontier"
+  let canonicalCash ← requireSome (findRow? canonicalCorrected "cash")
+    "missing canonical corrected cash row"
+  expect (canonicalCash.quantity.quanta == 0)
+    "canonical Balance Review lost explicitly covered zero"
+
   -- Empty selection remains lazy: malformed correction topology is irrelevant
   -- when no balance row is requested.
   let brokenCorrections ← requireSome

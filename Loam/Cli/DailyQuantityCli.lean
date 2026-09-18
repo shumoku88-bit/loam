@@ -1,5 +1,4 @@
 import Loam.ActualAuthority
-import Loam.Application.ZeroOriginQuantity
 import Loam.BalanceViewConfig
 import Loam.Persistence.ZeroOriginCoveragePersistence
 import Std
@@ -18,16 +17,12 @@ private def usage : String :=
   "  ./tools/loam current <actual-file> <zero-origin-coverage>\n\n" ++
   "Starting-quantity writers are retired. Zero-origin coverage is changed only by explicit reconstruction/cutover."
 
-private def loadEvidenceForView?
-    (path : System.FilePath) : IO (Except String (EventMemory × EventCorrectionMemory)) := do
-  let loaded ←
-    if path.fileName == some Loam.ActualAuthority.actualFileName then
-      Loam.ActualAuthority.loadActualFile? path
-    else
-      Loam.ActualAuthority.loadActual? path
-  match loaded with
-  | .ok evidence => return .ok (evidence.events, evidence.corrections)
-  | .error message => return .error message
+private def loadImageForView?
+    (path : System.FilePath) : IO (Except String Loam.ActualAuthority.Image) :=
+  if path.fileName == some Loam.ActualAuthority.actualFileName then
+    Loam.ActualAuthority.loadImageFile? path
+  else
+    Loam.ActualAuthority.loadImage? path
 
 private def loadCoverageForView?
     (path : System.FilePath) : IO (Option ZeroOriginCoverage) := do
@@ -43,33 +38,29 @@ private def quantityLine (coordinate : EffectCoordinate) (quantity : Quantity) :
 private inductive CollectionResult where
   | lines (value : List String)
   | coverageMissing (coordinate : EffectCoordinate)
-  | missingEventCorrectionEndpoint
-  | eventFrontierRequired
 
 private def collectCurrentLines
-    (events : EventMemory)
-    (eventCorrections : EventCorrectionMemory)
+    (basis : EventMemory)
     (coverage : ZeroOriginCoverage)
     (includeZero : Bool) :
     List EffectCoordinate → CollectionResult
   | [] => .lines []
   | coordinate :: rest =>
-      match Loam.Application.inspectZeroOriginQuantity
-          coverage events eventCorrections coordinate with
-      | .current quantity =>
-          match collectCurrentLines events eventCorrections coverage includeZero rest with
-          | .lines later =>
-              if quantity.quanta = 0 then
-                if includeZero then
-                  .lines (quantityLine coordinate quantity :: later)
-                else
-                  .lines later
-              else
+      if coverage.covers coordinate then
+        let quantity :=
+          EventMemory.quantityAtRecorded basis coordinate.locus coordinate.measure
+        match collectCurrentLines basis coverage includeZero rest with
+        | .lines later =>
+            if quantity.quanta = 0 then
+              if includeZero then
                 .lines (quantityLine coordinate quantity :: later)
-          | other => other
-      | .coverageMissing => .coverageMissing coordinate
-      | .missingEventCorrectionEndpoint => .missingEventCorrectionEndpoint
-      | .eventFrontierRequired => .eventFrontierRequired
+              else
+                .lines later
+            else
+              .lines (quantityLine coordinate quantity :: later)
+        | other => other
+      else
+        .coverageMissing coordinate
 
 private def reportCollectionFailure
     (contextLabel : String) : CollectionResult → IO UInt32
@@ -79,33 +70,24 @@ private def reportCollectionFailure
         ("loam: " ++ contextLabel ++ " unavailable: zero-origin coverage missing for " ++
           coordinate.locus.token ++ " / " ++ coordinate.measure.token)
       pure 1
-  | .missingEventCorrectionEndpoint => do
-      IO.eprintln
-        ("loam: " ++ contextLabel ++ " unavailable: correction references are not closed")
-      pure 1
-  | .eventFrontierRequired => do
-      IO.eprintln
-        ("loam: " ++ contextLabel ++
-          " unavailable: event corrections do not justify one frontier")
-      pure 1
 
 /-- Show all nonzero current quantities whose retained history is explicitly complete from zero. -/
 def showCurrentQuantities
     (actualPath coveragePath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
-  match ← loadEvidenceForView? actualFile with
+  match ← loadImageForView? actualFile with
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok (events, eventCorrections) =>
+  | .ok image =>
       match ← loadCoverageForView? coverageFile with
       | none =>
           IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
           return 2
       | some coverage =>
           let coordinates := coverage.coordinates
-          match collectCurrentLines events eventCorrections coverage false coordinates with
+          match collectCurrentLines image.currentEvents coverage false coordinates with
           | .lines lines =>
               if coordinates.isEmpty then
                 IO.println "No current quantities are covered from zero."
@@ -126,11 +108,11 @@ def showBalances
     (balanceViewPath? : Option String := none) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let coverageFile := System.FilePath.mk coveragePath
-  match ← loadEvidenceForView? actualFile with
+  match ← loadImageForView? actualFile with
   | .error message =>
       IO.eprintln message
       return 2
-  | .ok (events, eventCorrections) =>
+  | .ok image =>
       match ← loadCoverageForView? coverageFile with
           | none =>
               IO.eprintln "loam: malformed or unsupported zero-origin coverage file"
@@ -148,7 +130,7 @@ def showBalances
                   IO.eprintln "loam: malformed or unsupported balance-view config"
                   return 2
               | some coordinates =>
-                  match collectCurrentLines events eventCorrections coverage true coordinates with
+                  match collectCurrentLines image.currentEvents coverage true coordinates with
                   | .lines lines =>
                       if coordinates.isEmpty then
                         match balanceViewPath? with

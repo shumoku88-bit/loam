@@ -1,6 +1,6 @@
 # Actual admitted read image promotion audit — 2026-09
 
-Status: **STAGE A MERGED; STAGE B-1 IMPLEMENTED ON BRANCH**
+Status: **STAGE A + B-1 MERGED; STAGE B-2 IMPLEMENTED ON BRANCH**
 
 Stage A merged as `805a13726a646e55b68df117cb6e00b82ed5099c`.
 
@@ -88,6 +88,56 @@ The former explicit calls to `correctionFrontierMemory?` and
 
 Stage B-1 does not weaken raw testing entrances. It removes duplicate admission
 only after the caller has crossed the normalized ActualAuthority image boundary.
+
+## Stage B-2
+
+The second reader migration targets current quantity projection:
+
+- BalanceReview canonical snapshot;
+- DailyQuantity CLI current/balances;
+- Effective CLI.
+
+### BalanceReview
+
+The raw `project` function remains unchanged. It still accepts arbitrary
+`EventMemory + EventCorrectionMemory` and preserves the qualified refusal order
+used by raw tests and higher-level composition.
+
+Only canonical `loadSnapshot` changes. After `ActualAuthority.Image` has already
+been admitted, it projects rows from `image.currentEvents` directly. Zero-origin
+coverage remains an independent gate.
+
+### DailyQuantity
+
+The canonical CLI now loads one `ActualAuthority.Image` and evaluates every
+covered coordinate against `image.currentEvents`.
+
+This removes per-coordinate calls through `inspectZeroOriginQuantity`, which
+could reconstruct the same correction frontier once for every selected
+coordinate. The raw Application function remains available unchanged.
+
+### Effective CLI
+
+The effective quantity command now enumerates coordinates from
+`image.currentEvents` and reads quantities directly from that same admitted
+basis.
+
+The raw `inspectQuantity` Application boundary remains available for arbitrary
+in-memory diagnostic callers. Canonical malformed correction topology is already
+refused by `ActualAuthority.loadImageFile?`, so the CLI no longer rechecks the
+same frontier for every coordinate.
+
+### Cross-surface qualification
+
+One correction-bearing fixture feeds all three production surfaces. The expected
+current quantities are checked across:
+
+- BalanceReview;
+- `loamDailyQuantity current`;
+- `loamDailyQuantity balances`;
+- `loam effective`.
+
+This pins observational agreement while removing duplicate canonical admission.
 
 ## Non-goals
 

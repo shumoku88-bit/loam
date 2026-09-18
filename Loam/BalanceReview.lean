@@ -71,6 +71,20 @@ private def collectRowsFromBasis
         .error (coverageError coordinate)
 
 /--
+Project one balance view from an already-admitted current Event basis.
+
+This is the canonical read path after crossing ActualAuthority.Image. It keeps
+zero-origin coverage as an independent coordinate gate but does not reconstruct
+Correction admission that normalized Actual loading has already established.
+-/
+private def projectFromAdmittedBasis
+    (basis : EventMemory)
+    (coverage : ZeroOriginCoverage)
+    (coordinates : List EffectCoordinate) : Except String Snapshot := do
+  let rows ← collectRowsFromBasis basis coverage coordinates.eraseDups
+  return { rows := rows }
+
+/--
 Project one already-loaded balance view. Presentation duplicates are normalized,
 but zero-origin membership remains an independent evidence requirement.
 
@@ -143,14 +157,21 @@ invent a zero balance; balance-view.tsv selects display coordinates only.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
-  let evidence ←
-    match ← loadEvidence dataDir actualRoot with
+  let path :=
+    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+    else Loam.ActualAuthority.actualPath actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? path with
+    | .ok image => pure image
+    | .error message => return .error message
+  let coverage ←
+    match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←
     match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
-  return project evidence.events evidence.corrections evidence.coverage coordinates
+  return projectFromAdmittedBasis image.currentEvents coverage coordinates
 
 end Loam.BalanceReview
