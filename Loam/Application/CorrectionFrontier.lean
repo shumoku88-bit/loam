@@ -223,7 +223,7 @@ theorem correctionFrontierMemory?_mem_iff
     subst frontier
     have hNoCorrections : corrections.corrections = [] := by
       cases hList : corrections.corrections with
-      | nil => exact hList
+      | nil => rfl
       | cons head tail => simp [hList] at hEmpty
     simp [hNoCorrections]
   · split at hFrontier
