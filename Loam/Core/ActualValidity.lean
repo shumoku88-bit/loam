@@ -57,7 +57,7 @@ def ofEntries?
     (fun id : EventId => id.token)
     eventIdToken_injective
     (entries.map ActualValidity.event)
-  some { entries := entries, eventNodup := h }
+  some { entries := entries, eventNodup := h.proof }
 
 /-- Empty validity memory is valid. -/
 @[simp] theorem ofEntries?_nil :
