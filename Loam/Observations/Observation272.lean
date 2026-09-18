@@ -1,4 +1,4 @@
-import Loam.ScheduledCycleFill
+import Loam.ScheduledGeneration
 import Loam.ScheduledReview
 
 namespace Loam.Observation272
@@ -8,16 +8,16 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Observation 272 — current-cycle fill existing-plan pressure
+# Observation 272 — Scheduled generation existing-plan pressure
 
-Current-cycle Scheduled fill generates explicit construction candidates from one
+Scheduled generation generates explicit construction candidates from one
 selected Scheduled occurrence and one construction-only cadence. Post-completion
 continuation separately reloads current-open Scheduled evidence and surfaces
 later plans with the same positive Locus set.
 
 This observation asks whether both facts can hold at once:
 
-1. cycle-fill generation proposes a later explicit due date; and
+1. generation proposes a later explicit due date; and
 2. the admitted Scheduled world already contains a later current-open plan with
    the same positive Locus set at that date.
 
@@ -25,11 +25,8 @@ The observation does not call such plans duplicates or assert series identity.
 It only fixes the residual awareness pressure mechanically.
 -/
 
-private def window : Loam.BoundaryPresetConfig.CurrentWindow := {
-  source := "Pension"
-  start := "2026-08-14"
+private def limit : Loam.ScheduledGeneration.FillLimit := {
   endExclusive := "2026-10-15"
-  hasFollowingBoundary := true
 }
 
 private def overlapWitness : Bool :=
@@ -58,7 +55,7 @@ private def overlapWitness : Bool :=
             events := events
           }
           match
-              Loam.ScheduledCycleFill.planAfter window "2026-09-18" {
+              Loam.ScheduledGeneration.plan limit "2026-09-18" {
                 anchor := source.scheduledOn
                 cadence := .monthly
               },
@@ -70,7 +67,7 @@ private def overlapWitness : Bool :=
       | _, _, _ => false
 
 /--
-A monthly current-cycle fill can propose an explicit date that is already
+A monthly generation action can propose an explicit date that is already
 represented by a later current-open same-positive-Locus Scheduled occurrence.
 
 This proves only an awareness overlap. Same date + same positive Locus does not

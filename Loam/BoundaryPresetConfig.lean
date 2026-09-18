@@ -88,6 +88,18 @@ private def adjacentWindowWithHorizon?
         none
   | _ => none
 
+private def adjacentWindowWithTail?
+    (selected : String) : List String → Option (String × String × List String)
+  | start :: endExclusive :: rest =>
+      if start <= selected then
+        if selected < endExclusive then
+          some (start, endExclusive, rest)
+        else
+          adjacentWindowWithTail? selected (endExclusive :: rest)
+      else
+        none
+  | _ => none
+
 private def explicitWindowForDate?
     (preset : Preset) (selected : String) : Option (String × String × Bool) :=
   if Loam.ActualDate.validIsoDate selected then
@@ -109,6 +121,49 @@ structure CurrentWindow where
   hasFollowingBoundary : Bool
   deriving Repr, DecidableEq
 
+
+/--
+One presentation suggestion beginning at the current boundary and ending at a
+boundary already present in the same preset.
+
+This is replaceable query configuration only. It is not Scheduled construction
+semantics, retained cycle identity, recurrence evidence, or a series fact.
+-/
+structure HorizonSuggestion where
+  source : String
+  start : String
+  endExclusive : String
+  deriving Repr, DecidableEq
+
+private def horizonsFromTail
+    (source start : String) (ends : List String) : List HorizonSuggestion :=
+  ends.map fun endExclusive => { source, start, endExclusive }
+
+/--
+Return every boundary-derived horizon suggestion available from the current
+window, shortest first.
+
+For boundaries A < B < C < D and an observation inside [A,B), the answer is:
+
+[A,B), [A,C), [A,D)
+
+No boundary is extrapolated beyond the preset.
+-/
+def horizonSuggestionsFor?
+    (presets : List Preset) (observedAt : String) :
+    Except String (List HorizonSuggestion) :=
+  if !Loam.ActualDate.validIsoDate observedAt then
+    .error "current date is not a real YYYY-MM-DD calendar date"
+  else
+    let candidates := presets.filterMap fun preset =>
+      (adjacentWindowWithTail? observedAt preset.boundaries).map fun
+        (start, endExclusive, rest) =>
+          (preset.name, start, endExclusive :: rest)
+    match candidates with
+    | [(name, start, ends)] => .ok (horizonsFromTail name start ends)
+    | [] => .error "no configured boundary preset contains the current date"
+    | _ => .error "multiple configured boundary presets contain the current date"
+
 /-- No inference or priority among presets: exactly one must contain observedAt. -/
 def currentWindowFor?
     (presets : List Preset) (observedAt : String) : Except String CurrentWindow :=
@@ -129,6 +184,14 @@ def loadCurrentWindow (dataDir : System.FilePath) (observedAt : String) :
     match ← load? (dataDir / "config" / "boundary-presets.tsv") with
     | none => return .error "boundary preset config is malformed"
     | some presets => return currentWindowFor? presets observedAt
+  catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
+
+def loadHorizonSuggestions (dataDir : System.FilePath) (observedAt : String) :
+    IO (Except String (List HorizonSuggestion)) := do
+  try
+    match ← load? (dataDir / "config" / "boundary-presets.tsv") with
+    | none => return .error "boundary preset config is malformed"
+    | some presets => return horizonSuggestionsFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
 
 end Loam.BoundaryPresetConfig

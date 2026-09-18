@@ -20,8 +20,8 @@ import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
-import Loam.Tui.ScheduledCycleFill
-import Loam.Tui.ScheduledCycleFillSession
+import Loam.Tui.ScheduledGeneration
+import Loam.Tui.ScheduledGenerationSession
 import Loam.Tui.Attention
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
@@ -366,7 +366,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
             | .ok world => pure world
           let known := world.locusAdmission.approved.map (fun locus => locus.token)
           let catalog ← currentLocusCatalog dataDir world
-          let notice ← Loam.Tui.ScheduledCycleFillSession.run
+          let notice ← Loam.Tui.ScheduledGenerationSession.run
             bounds dataDir root known catalog record snapshot.actual.today
           let fresh ← requireReload notice (loadSnapshot dataDir)
           let refreshed := Loam.Tui.HraScheduled.refreshed fresh step.state

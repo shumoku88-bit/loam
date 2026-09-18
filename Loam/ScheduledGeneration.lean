@@ -1,20 +1,18 @@
 import Loam.ActualDate
-import Loam.BoundaryPresetConfig
 
-namespace Loam.ScheduledCycleFill
+namespace Loam.ScheduledGeneration
 
 set_option autoImplicit false
 
 /-!
-# Current-cycle Scheduled generation
+# Scheduled generation
 
-A generation cadence is explicit input intent used only while constructing
-ordinary Scheduled occurrences. It is not retained recurrence evidence and does
-not introduce a second Scheduled authority.
+Pure construction kernel for proposing later explicit Scheduled dates.
 
-Generation is clipped to the explicit current boundary window and the current
-observation date. The end boundary remains exclusive, matching Current Coverage
-and Cycle Budget Scheduled pressure semantics.
+This module knows nothing about household cycles, boundary presets, reporting
+windows, TUI state, or persistence. A cadence and fill limit are one-shot
+construction input only. After review and publication elsewhere, the retained
+facts are ordinary Scheduled occurrences with explicit dates.
 -/
 
 /-- User-selected construction cadence. No value of this type is persisted. -/
@@ -42,12 +40,23 @@ end GenerationCadence
 /--
 Construction request anchored by one explicit Scheduled due date.
 
-The anchor is evidence supplied by the caller. The cadence expresses only how
-this one creation action should propose later explicit dates.
+The anchor is retained Scheduled evidence supplied by the caller. The cadence
+expresses only how this one construction action should propose later dates.
 -/
 structure Request where
   anchor : String
   cadence : GenerationCadence
+  deriving Repr, DecidableEq
+
+/--
+Exclusive upper bound for one Scheduled generation action.
+
+Its origin is deliberately absent. A UI may obtain it from a boundary
+suggestion, direct user input, or another presentation-specific source without
+changing generation semantics.
+-/
+structure FillLimit where
+  endExclusive : String
   deriving Repr, DecidableEq
 
 private def parseDateParts? (text : String) : Option (Nat × Nat × Nat) := do
@@ -76,53 +85,51 @@ One construction-time candidate.
 
 `dated` carries an ordinary generated calendar date. `needsDate` preserves a
 nominal cadence slot whose calendar day does not exist, such as February 29 in a
-non-leap year or day 31 in a shorter month. The latter is deliberately unresolved
-until a human chooses an explicit real date.
+non-leap year or day 31 in a shorter month. The latter stays unresolved until a
+human supplies an explicit real date.
 -/
 inductive Candidate where
   | dated (date : String)
   | needsDate (year month nominalDay : Nat)
   deriving Repr, DecidableEq
 
-/-- Whether one human-resolved date remains inside the current-cycle horizon. -/
+/-- Whether one reviewed date remains within this construction action. -/
 def validResolvedDate
-    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+    (limit : FillLimit)
     (observedAt date : String) : Bool :=
-  Loam.ActualDate.validIsoDate date &&
-    decide (window.start <= date ∧ observedAt <= date ∧ date < window.endExclusive)
+  Loam.ActualDate.validIsoDate limit.endExclusive &&
+    Loam.ActualDate.validIsoDate observedAt &&
+    Loam.ActualDate.validIsoDate date &&
+    decide (observedAt <= date ∧ date < limit.endExclusive)
 
 /--
-Generate construction candidates after one explicit anchor.
+Generate later construction candidates before one exclusive fill limit.
 
-The cadence remains input intent only. Valid calendar dates are proposed
-directly. A missing nominal calendar day is surfaced as `needsDate` rather than
-silently clamped, skipped, or persisted as recurrence policy.
+The selected anchor may be arbitrarily old; already-past generated dates are
+simply omitted relative to `observedAt`. No cycle coordinate participates.
 
-Unresolved candidates are permitted in the same calendar month as the exclusive
-cycle boundary because only the human-selected concrete date can determine
-whether that slot finally lies before the boundary. Final publication must call
-`validResolvedDate`.
+The cadence remains one-shot input. Missing nominal calendar days stay
+`needsDate` until a human supplies an explicit date.
 -/
-def planCandidatesAfter
-    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+def planCandidates
+    (limit : FillLimit)
     (observedAt : String)
     (request : Request) : Except String (List Candidate) := do
-  if !Loam.ActualDate.validIsoDate window.start ||
-      !Loam.ActualDate.validIsoDate window.endExclusive ||
+  if !Loam.ActualDate.validIsoDate limit.endExclusive ||
       !Loam.ActualDate.validIsoDate observedAt ||
       !Loam.ActualDate.validIsoDate request.anchor then
-    throw "loam: Scheduled cycle fill requires valid ISO calendar dates"
-  if !(decide (window.start <= observedAt ∧ observedAt < window.endExclusive)) then
-    throw "loam: Scheduled cycle fill observation must lie inside the current window"
-  if !(decide (window.start <= request.anchor ∧ request.anchor < window.endExclusive)) then
-    throw "loam: Scheduled cycle fill anchor must lie inside the current window"
+    throw "loam: Scheduled generation requires valid ISO calendar dates"
+  if !(decide (observedAt < limit.endExclusive)) then
+    throw "loam: Scheduled generation observation must precede the fill limit"
+  if !(decide (request.anchor < limit.endExclusive)) then
+    throw "loam: Scheduled generation anchor must precede the fill limit"
 
   let some anchorMonth := monthIndex? request.anchor
-    | throw "loam: Scheduled cycle fill anchor is invalid"
+    | throw "loam: Scheduled generation anchor is invalid"
   let some observedMonth := monthIndex? observedAt
-    | throw "loam: Scheduled cycle fill observation is invalid"
-  let some endMonth := monthIndex? window.endExclusive
-    | throw "loam: Scheduled cycle fill end boundary is invalid"
+    | throw "loam: Scheduled generation observation is invalid"
+  let some endMonth := monthIndex? limit.endExclusive
+    | throw "loam: Scheduled generation fill limit is invalid"
 
   let stepMonths := request.cadence.months
   let steps :=
@@ -133,34 +140,35 @@ def planCandidatesAfter
   for index in List.range steps do
     let offset := (index + 1) * stepMonths
     let some (year, month, nominalDay) := shiftedNominalParts? request.anchor offset
-      | throw "loam: Scheduled cycle fill exceeds the supported calendar range"
+      | throw "loam: Scheduled generation exceeds the supported calendar range"
     let targetMonth := year * 12 + (month - 1)
     if observedMonth <= targetMonth then
       match Loam.ActualDate.shiftMonthsSameDay? request.anchor offset with
       | some date =>
-          if validResolvedDate window observedAt date then
+          if validResolvedDate limit observedAt date then
             candidates := candidates ++ [.dated date]
       | none =>
-          candidates := candidates ++ [.needsDate year month nominalDay]
+          if targetMonth <= endMonth then
+            candidates := candidates ++ [.needsDate year month nominalDay]
   return candidates
 
 /--
 Generate only already-resolved explicit due dates.
 
 Headless callers that cannot ask a human to resolve a missing nominal calendar
-day still fail closed. Interactive callers should use `planCandidatesAfter`
-and collect an explicit date for every `needsDate` candidate before publication.
+day fail closed. Interactive callers should use `planCandidates` and collect an
+explicit date for every `needsDate` candidate before publication.
 -/
-def planAfter
-    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+def plan
+    (limit : FillLimit)
     (observedAt : String)
     (request : Request) : Except String (List String) := do
-  let candidates ← planCandidatesAfter window observedAt request
+  let candidates ← planCandidates limit observedAt request
   candidates.mapM fun
     | .dated date => pure date
     | .needsDate _ _ _ =>
         throw
           ("loam: " ++ request.cadence.label ++
-           " cycle fill reaches a month without the anchor day; choose an explicit date policy")
+           " generation reaches a month without the anchor day; choose an explicit date")
 
-end Loam.ScheduledCycleFill
+end Loam.ScheduledGeneration

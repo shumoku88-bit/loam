@@ -54,6 +54,16 @@ def main : IO Unit := do
       expect (!window.hasFollowingBoundary)
         "last Salary window incorrectly claimed a following boundary"
 
+  match Loam.BoundaryPresetConfig.horizonSuggestionsFor? [salary] "2026-09-08" with
+  | .error message => throw (IO.userError message)
+  | .ok suggestions =>
+      expect (suggestions.map (fun suggestion => suggestion.endExclusive) ==
+          ["2026-09-25", "2026-10-25"])
+        "boundary horizon suggestions did not expose every explicit future boundary"
+      expect (suggestions.all fun suggestion =>
+          suggestion.source == "Salary" && suggestion.start == "2026-08-25")
+        "boundary horizon suggestions changed their presentation provenance"
+
   expectNone (Loam.BoundaryPresetConfig.windowForDate? pension "2026-10-15")
     "preset invented a later boundary after its explicit evidence ended"
   expectNone (Loam.BoundaryPresetConfig.windowForDate? pension "2026-08-14")
