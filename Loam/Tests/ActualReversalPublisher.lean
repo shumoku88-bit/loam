@@ -58,6 +58,49 @@ private def initialWorld : IO Loam.MovementAdmission.World := do
     discharges := []
     locusAdmission := vocabulary }
 
+private def dischargeWorld : IO Loam.MovementAdmission.World := do
+  let sourceEffects :=
+    [ Effect.ofQuantity ⟨"source-effect"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
+    , Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 700)
+    ]
+  let dischargeEffects :=
+    [ Effect.ofAnonymousQuantity ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 400)
+    , Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-400))
+    ]
+  let some source := Event.ofEffects? ⟨"actual-source"⟩ sourceEffects
+    | throw (IO.userError "Relation source Event")
+  let some dischargeEvent := Event.ofEffects? ⟨"actual-1"⟩ dischargeEffects
+    | throw (IO.userError "Relation discharge Event")
+  let some events := EventMemory.ofEvents? [source, dischargeEvent]
+    | throw (IO.userError "Relation discharge Event memory")
+  let relation : RelationUnit := {
+    id := ⟨"relation-1"⟩
+    sourceEvent := source.id
+    sourceEffect := ⟨"source-effect"⟩
+    debtor := .external ⟨"friend"⟩
+    creditor := .household
+    quantity := Quantity.ofQuanta 700 }
+  let discharge : RelationDischarge := {
+    event := dischargeEvent.id
+    target := relation.id
+    quantity := Quantity.ofQuanta 400 }
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
+    | throw (IO.userError "Relation discharge Locus vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := [
+        .base source.id "2026-09-06",
+        .base dischargeEvent.id "2026-09-07"
+      ]
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := [relation]
+    discharges := [discharge]
+    locusAdmission := vocabulary }
+
 private def quantityFor (event : Event) (locus : String) : Int :=
   event.effects.foldl
     (fun total effect => if effect.locus.token = locus then total + effect.quantity.quanta else total)
@@ -167,6 +210,27 @@ def main (args : List String) : IO Unit := do
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
+  let dischargeRoot := dataDir / "relation-discharge-guard"
+  IO.FS.createDirAll dischargeRoot
+  let dischargeScheduledFile := dischargeRoot / "scheduled.loam"
+  let retainedDischargeWorld ← dischargeWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? dischargeRoot retainedDischargeWorld
+    | throw (IO.userError "publish Relation-discharge Actual world")
+  let dischargeLifecycle ← emptyLifecycle
+  expect (← Loam.Persistence.saveScheduledLifecycleImage?
+      dischargeScheduledFile dischargeLifecycle)
+    "publish empty lifecycle for Relation-discharge reversal guard"
+  let blockedDischarge ← Loam.ActualReversalPublisher.publishReversal
+    dischargeScheduledFile.toString dischargeRoot.toString draft
+  expect (!blockedDischarge.isOk)
+    "Relation-discharge Event was accepted by the reversal entrance before discharge reversal semantics were qualified"
+  let .ok afterDischargeBlocked ← Loam.ActualAuthority.loadActual? dischargeRoot
+    | throw (IO.userError "reload Actual after refused Relation-discharge reversal")
+  expect ((afterDischargeBlocked.reversals.findByTarget? draft.target).isNone)
+    "refused Relation-discharge reversal retained a reversal relation"
+  expect (afterDischargeBlocked.events.events.length == 2)
+    "refused Relation-discharge reversal mutated retained Event memory"
+
   let completionRoot := dataDir / "scheduled-completion-guard"
   IO.FS.createDirAll completionRoot
   let completionScheduledFile := completionRoot / "scheduled.loam"
@@ -188,4 +252,4 @@ def main (args : List String) : IO Unit := do
   expect ((afterBlocked.reversals.findByTarget? draft.target).isNone)
     "refused Scheduled-completion reversal retained a reversal relation"
 
-  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + date-correction independence + cross-writer Correction refusal + Scheduled-completion refusal + fail-closed repeat passed."
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + date-correction independence + cross-writer Correction refusal + Relation-discharge refusal + Scheduled-completion refusal + fail-closed repeat passed."
