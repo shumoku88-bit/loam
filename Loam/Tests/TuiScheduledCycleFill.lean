@@ -49,19 +49,19 @@ def main : IO Unit := do
     "cycle-fill target-window choice did not expose the explicit following boundaries"
 
   let nextScope := Loam.Tui.ScheduledCycleFill.update state .right
-  let scoped := Loam.Tui.ScheduledCycleFill.update nextScope.state .enter
-  expect (scoped.state.scope == .following &&
-      scoped.state.window.start == "2026-10-15" &&
-      scoped.state.window.endExclusive == "2026-12-15")
+  let selectedScope := Loam.Tui.ScheduledCycleFill.update nextScope.state .enter
+  expect (selectedScope.state.scope == .following &&
+      selectedScope.state.window.start == "2026-10-15" &&
+      selectedScope.state.window.endExclusive == "2026-12-15")
     "cycle-fill did not preserve explicit Next cycle selection"
 
-  let text := widgetText (Loam.Tui.ScheduledCycleFill.view scoped.state)
+  let text := widgetText (Loam.Tui.ScheduledCycleFill.view selectedScope.state)
   expect (contains "Monthly" text && contains "Every 2 months" text && contains "Yearly" text)
     "cycle-fill cadence choices were not visible after target selection"
   expect (contains "no recurrence authority is retained" text)
     "cycle-fill view did not explain construction-only cadence"
 
-  let twoMonth := Loam.Tui.ScheduledCycleFill.update scoped.state .right
+  let twoMonth := Loam.Tui.ScheduledCycleFill.update selectedScope.state .right
   let chosen := Loam.Tui.ScheduledCycleFill.update twoMonth.state .enter
   expect (decide (chosen.cadence = some .everyTwoMonths))
     "cycle-fill cadence selection did not preserve explicit input choice"
@@ -80,7 +80,7 @@ def main : IO Unit := do
     scheduledOn := "2026-11-15"
     movement := source.movement
   }
-  let preview := Loam.Tui.ScheduledCycleFill.withDrafts scoped.state .monthly [draft1, draft2]
+  let preview := Loam.Tui.ScheduledCycleFill.withDrafts selectedScope.state .monthly [draft1, draft2]
   let previewText := widgetText (Loam.Tui.ScheduledCycleFill.view preview)
   expect (contains "2026-09-15" previewText && contains "2026-10-16" previewText)
     "cycle-fill final review did not show individually edited dates"
