@@ -45,7 +45,6 @@ def ofEvents? (events : List Event) : Option EventMemory := do
 @[simp] theorem ofEvents?_nil :
     ofEvents? [] = some { events := [], idNodup := by simp } := by
   unfold ofEvents?
-  rw [show [].map Event.id = [] by rfl]
   rw [hashNodupBy?_nil]
   rfl
 
@@ -53,7 +52,6 @@ def ofEvents? (events : List Event) : Option EventMemory := do
 @[simp] theorem ofEvents?_singleton (event : Event) :
     ofEvents? [event] = some { events := [event], idNodup := by simp } := by
   unfold ofEvents?
-  rw [show [event].map Event.id = [event.id] by rfl]
   rw [hashNodupBy?_singleton]
   rfl
 
@@ -173,7 +171,6 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
 @[simp] theorem add?_singleton_duplicate (event : Event) :
     add? { events := [event], idNodup := by simp } event = none := by
   unfold add? ofEvents?
-  rw [show ([event] ++ [event]).map Event.id = [event.id, event.id] by rfl]
   rw [hashNodupBy?_repeat]
   rfl
 
@@ -185,7 +182,6 @@ theorem add?_singleton_distinct
     intro hEq
     exact h (eventIdToken_injective hEq)
   unfold add? ofEvents?
-  rw [show ([existing] ++ [added]).map Event.id = [existing.id, added.id] by rfl]
   rw [hashNodupBy?_pair_of_key_ne
     (fun id : EventId => id.token) eventIdToken_injective existing.id added.id hToken]
   rfl
