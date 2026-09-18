@@ -167,6 +167,12 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
             if evidence.reversals.mentionsEvent correction.target then
               none
 
+          -- Reversals must preserve the same retained Relation/Discharge
+          -- independence required by the practical Reversal publisher.
+          for reversal in evidence.reversals.reversals do
+            if evidence.relationEvidenceMentionsEvent reversal.target then
+              none
+
           -- Reversals: target and reversal must exist, exact physical inverse,
           -- and reversal-of-reversal chains remain refused.
           for reversal in evidence.reversals.reversals do
