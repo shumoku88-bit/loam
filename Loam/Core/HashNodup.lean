@@ -82,4 +82,32 @@ def hashNodupBy?
   let built ← buildHashNodup? keyOf items
   some { proof := built.nodup }
 
+@[simp] theorem hashNodupBy?_nil
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf) :
+    hashNodupBy? keyOf keyInjective [] =
+      some ({ proof := by simp } : HashNodupWitness ([] : List Item)) := by
+  simp [hashNodupBy?, buildHashNodup?]
+
+@[simp] theorem hashNodupBy?_singleton
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (item : Item) :
+    hashNodupBy? keyOf keyInjective [item] =
+      some ({ proof := by simp } : HashNodupWitness [item]) := by
+  simp [hashNodupBy?, buildHashNodup?]
+
+@[simp] theorem hashNodupBy?_repeat
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (item : Item) :
+    hashNodupBy? keyOf keyInjective [item, item] = none := by
+  simp [hashNodupBy?, buildHashNodup?]
+
 end Loam.Core
