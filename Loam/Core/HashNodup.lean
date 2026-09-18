@@ -51,11 +51,19 @@ private def buildHashNodup?
           nodup := List.nodup_cons.mpr ⟨hFresh, built.nodup⟩
           seen_iff := by
             intro key
-            simp [Std.HashSet.mem_insert, built.seen_iff, eq_comm]
+            rw [Std.HashSet.mem_insert]
+            rw [built.seen_iff]
+            simp only [List.map_cons, List.mem_cons, beq_iff_eq]
+            constructor
+            · intro h
+              exact h.elim (fun hEq => Or.inl hEq.symm) Or.inr
+            · intro h
+              exact h.elim (fun hEq => Or.inl hEq.symm) Or.inr
         }
 
 /-- Successful hash-backed duplicate admission carrying the existing proof proposition. -/
 structure HashNodupWitness {Item : Type} (items : List Item) where
+  marker : Unit := ()
   proof : items.Nodup
 
 /--
