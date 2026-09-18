@@ -327,8 +327,47 @@ private def unsupportedRows
     { coordinate := coordinate, role := roles.roleOf? coordinate.locus }
 
 /--
+Compose one Role Balance snapshot from an already-established ordinary frontier.
+
+The caller supplies the zero-origin projection entrance so raw/in-memory callers
+can preserve BalanceReview's own fail-closed admission, while canonical callers
+can reuse a proof-carrying ActualAuthority.Image. Current-anchor projection keeps
+its separate reflected-root delta world.
+-/
+private def projectWithOrdinaryFrontier
+    (frontier : EventMemory)
+    (zeroProject : List EffectCoordinate → Except String Loam.BalanceReview.Snapshot)
+    (anchorEvents : EventMemory)
+    (anchorCorrections : EventCorrectionMemory)
+    (coverage : ZeroOriginCoverage)
+    (openingSupport : OpeningSupportMap)
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (roles : AccountingRoleMap) : Except String Snapshot := do
+  validateOpeningSupports frontier openingSupport
+  validateSupportSeparation coverage openingSupport currentAnchor
+
+  let candidates := candidateCoordinates frontier coverage openingSupport currentAnchor
+  let buckets := routeCandidates coverage openingSupport currentAnchor candidates
+
+  let zeroBalances ← zeroProject buckets.zeroOrigin
+  let openingRows := openingBalanceRows frontier buckets.opening
+  let anchorRows ← currentAnchorRows
+    anchorEvents anchorCorrections currentAnchor buckets.currentAnchor
+  let balances : Loam.BalanceReview.Snapshot :=
+    { rows := zeroBalances.rows ++ openingRows ++ anchorRows }
+
+  return {
+    rows := classifiedRows balances roles
+    unresolvedRoles := unresolvedSupported balances roles
+    unsupportedBalances := unsupportedRows buckets.unsupported roles
+  }
+
+/--
 Compose the current correction frontier, independent zero-origin, opening and
 current-anchor support evidence, and explicit AccountingRole evidence.
+
+This raw/in-memory entrance keeps its own correction admission and delegates
+zero-origin projection to BalanceReview's raw fail-closed boundary.
 -/
 def project
     (evidence : Loam.BalanceReview.Evidence)
@@ -340,27 +379,41 @@ def project
     | some frontier => pure frontier
     | none => throw "loam: role balances unavailable: event corrections do not justify one frontier"
 
-  validateOpeningSupports frontier openingSupport
-  validateSupportSeparation evidence.coverage openingSupport currentAnchor
+  projectWithOrdinaryFrontier
+    frontier
+    (fun coordinates =>
+      Loam.BalanceReview.project
+        evidence.events evidence.corrections evidence.coverage coordinates)
+    evidence.events
+    evidence.corrections
+    evidence.coverage
+    openingSupport
+    currentAnchor
+    roles
 
-  let candidates := candidateCoordinates frontier evidence.coverage openingSupport currentAnchor
-  let buckets := routeCandidates evidence.coverage openingSupport currentAnchor candidates
+/--
+Compose Role Balance from one fully admitted Actual read image.
 
-  -- Keep zero-origin semantics owned by BalanceReview even though that boundary
-  -- independently re-admits the ordinary correction basis.
-  let zeroBalances ← Loam.BalanceReview.project
-    evidence.events evidence.corrections evidence.coverage buckets.zeroOrigin
-  let openingRows := openingBalanceRows frontier buckets.opening
-  let anchorRows ← currentAnchorRows
-    evidence.events evidence.corrections currentAnchor buckets.currentAnchor
-  let balances : Loam.BalanceReview.Snapshot :=
-    { rows := zeroBalances.rows ++ openingRows ++ anchorRows }
-
-  return {
-    rows := classifiedRows balances roles
-    unresolvedRoles := unresolvedSupported balances roles
-    unsupportedBalances := unsupportedRows buckets.unsupported roles
-  }
+The ordinary current world reuses `image.currentEvents` for candidate discovery,
+opening support, and zero-origin projection. The current-anchor path deliberately
+keeps retained raw Events + Corrections because its reflected-root delta frontier
+is a different semantic world.
+-/
+def projectImage
+    (image : Loam.ActualAuthority.Image)
+    (coverage : ZeroOriginCoverage)
+    (openingSupport : OpeningSupportMap)
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (roles : AccountingRoleMap) : Except String Snapshot :=
+  projectWithOrdinaryFrontier
+    image.currentEvents
+    (fun coordinates => Loam.BalanceReview.projectImage image coverage coordinates)
+    image.evidence.events
+    image.evidence.corrections
+    coverage
+    openingSupport
+    currentAnchor
+    roles
 
 private def loadOpeningSupport
     (path : System.FilePath) : IO (Except String OpeningSupportMap) := do
@@ -381,9 +434,9 @@ private def loadCurrentAnchor
     return .ok Loam.CurrentQuantityAnchor.Evidence.empty
 
 /--
-Load existing production balance evidence, optional explicit opening/current
-support and explicit AccountingRole evidence, then compose them. No presentation
-selection such as `balance-view.tsv` is used.
+Load one admitted production Actual image, independent zero-origin coverage,
+optional opening/current support, and explicit AccountingRole evidence, then
+compose them. No presentation selection such as `balance-view.tsv` is used.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
@@ -391,10 +444,17 @@ def loadSnapshot
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
-  let evidence ←
-    match ← Loam.BalanceReview.loadEvidence dataDir actualRoot with
+  let actualPath :=
+    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+    else Loam.ActualAuthority.actualPath actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
-    | .ok evidence => pure evidence
+    | .ok image => pure image
+  let coverage ←
+    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    | .error message => return .error message
+    | .ok coverage => pure coverage
   let openingSupport ←
     match ← loadOpeningSupport (dataDir / "opening-support.loam") with
     | .error message => return .error message
@@ -408,6 +468,6 @@ def loadSnapshot
     | some roles => pure roles
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
-  return project evidence openingSupport currentAnchor roles
+  return projectImage image coverage openingSupport currentAnchor roles
 
 end Loam.RoleBalanceReview

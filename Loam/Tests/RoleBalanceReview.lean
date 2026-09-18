@@ -133,6 +133,61 @@ def main : IO Unit := do
       | .ok _ => false)
     "opening support leaked into zero-origin BalanceReview"
 
+  -- Canonical admitted-image projection must reuse the carried current Event
+  -- frontier while preserving the raw/in-memory answer.
+  let correctedPurchase ← requireSome
+    (Event.ofEffects? ⟨"purchase-corrected"⟩
+      [effect "wallet-out-corrected" "wallet" (-40),
+       effect "food-in-corrected" "food" 40])
+    "corrected purchase event"
+  let correctedEvents ← requireSome
+    (EventMemory.ofEvents?
+      [receipt, purchase, correctedPurchase, ambiguous, ghostEvent, debtOpening, debtRepayment])
+    "corrected event memory"
+  let correctedCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := purchase.id, replacement := correctedPurchase.id }])
+    "corrected correction memory"
+  let correctedValidity ← requireSome
+    (ActualValidityHistory.ofParts? [
+      .base receipt.id "2026-09-01",
+      .base purchase.id "2026-09-02",
+      .base correctedPurchase.id "2026-09-03",
+      .base ambiguous.id "2026-09-04",
+      .base ghostEvent.id "2026-09-05",
+      .base debtOpening.id "2026-09-06",
+      .base debtRepayment.id "2026-09-07"
+    ] [])
+    "corrected validity history"
+  let correctedActual : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := correctedEvents
+      validity := correctedValidity
+      corrections := correctedCorrections
+  }
+  let correctedImage ← requireSome
+    (Loam.Persistence.admitActualImage? correctedActual)
+    "corrected admitted Actual image"
+  let .ok imageSnapshot :=
+      Loam.RoleBalanceReview.projectImage
+        correctedImage coverage openingSupport currentAnchor roles
+    | throw (IO.userError "admitted-image Role Balance refused corrected fixture")
+  let imageWallet ← requireSome (findRow? imageSnapshot "wallet")
+    "missing admitted-image wallet row"
+  expect (imageWallet.quantity.quanta == 55)
+    "admitted-image Role Balance did not follow corrected current Event frontier"
+
+  let correctedEvidence : Loam.BalanceReview.Evidence := {
+    events := correctedEvents
+    corrections := correctedCorrections
+    coverage := coverage
+  }
+  let .ok rawCorrected :=
+      Loam.RoleBalanceReview.project correctedEvidence openingSupport currentAnchor roles
+    | throw (IO.userError "raw Role Balance refused corrected fixture")
+  expect (decide (imageSnapshot = rawCorrected))
+    "admitted-image and raw Role Balance projections diverged"
+
   let .ok withoutOpening :=
       Loam.RoleBalanceReview.project evidence OpeningSupportMap.empty currentAnchor roles
     | throw (IO.userError "empty opening-support fixture refused")
