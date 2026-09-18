@@ -31,6 +31,8 @@ LOAM Read Path Atlas
 +-- 07.0 Read Path Comparison
 +-- 07.1 Actual Review
 |   `-- 07.1.1 Actual Review Read Boundary
++-- 07.3 Role Balance
+|   `-- 07.3.1 Role Balance Read Boundary
 +-- 07.7 Current Coverage
 |   +-- 07.7.1 Current Coverage Read Boundary
 |   +-- 07.7.2 Per-Purpose Coverage Projection
@@ -75,6 +77,20 @@ because full image admission has already accepted only closed, acyclic,
 source/successor-unique replacement paths. Currentness remains exactly
 `replacement.isNone`; the admitted current Event frontier is not substituted for
 the historical record list.
+
+`RoleBalanceReview.loadSnapshot` now also crosses the admitted image
+boundary directly. Its ordinary current world is `image.currentEvents`: opening
+witness validation, candidate discovery, opening-supported quantities, and
+zero-origin quantities all share that admitted frontier. The zero-origin branch
+still belongs to BalanceReview, but production calls its new
+`projectImage` entrance so it does not reconstruct Correction admission.
+
+This does not collapse Role Balance's support families. Zero-origin coverage,
+opening support, current quantity anchors, and AccountingRole evidence remain
+independent. In particular, CurrentQuantityAnchor still receives retained raw
+Events + Corrections from `image.evidence` and derives its reflected-root delta
+frontier separately. Raw `RoleBalanceReview.project` remains available for
+arbitrary in-memory evidence and continues to self-admit fail-closed.
 
 `CurrentCoverageReview.loadSnapshotAt` resolves and classifies current-open
 Scheduled pressure once at the snapshot level. Query-global pressure frontiers
