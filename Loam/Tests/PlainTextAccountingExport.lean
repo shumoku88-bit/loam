@@ -51,7 +51,7 @@ def main : IO Unit := do
   expect (contains "    expenses:gpt-plus  3000 jpy" rendered)
     "Expense role did not project to expenses: account prefix"
 
-  let incomeEvent ← balancedEvent "event-income" "pension" "smbc" "jpy" (-1000)
+  let incomeEvent ← balancedEvent "event-income" "pension" "smbc" "jpy" 1000
   let incomeEntry : Loam.ActualJournalProjection.Entry := {
     event := incomeEvent
     validOn := "2026-09-15"
@@ -77,7 +77,7 @@ def main : IO Unit := do
     "Liability sign was rewritten instead of preserving LOAM quantity"
 
   let openingEvent ← balancedEvent
-    "event-opening" "equity:opening-balances" "smbc" "jpy" (-100)
+    "event-opening" "equity:opening-balances" "smbc" "jpy" 100
   let openingEntry : Loam.ActualJournalProjection.Entry := {
     event := openingEvent
     validOn := "2026-09-15"
