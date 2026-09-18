@@ -63,11 +63,12 @@ partial def collectDrafts
           | some draft => collectDrafts bounds known catalog source rest (acc ++ [draft])
 
 private def allDatesValid
-    (horizon : Loam.BoundaryPresetConfig.ExplicitHorizon)
+    (horizon : Loam.BoundaryPresetConfig.HorizonSuggestion)
     (observedAt : String)
     (drafts : List Loam.ScheduledCreationPublisher.Draft) : Bool :=
   drafts.all fun draft =>
-    Loam.ScheduledCycleFill.validResolvedDateThrough horizon observedAt draft.scheduledOn
+    Loam.ScheduledCycleFill.validResolvedDate
+      { endExclusive := horizon.endExclusive } observedAt draft.scheduledOn
 
 inductive AwarenessMode where
   | choice
@@ -305,8 +306,8 @@ partial def chooseCadence
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       chooseCadence bounds root known catalog step.state nextFrame
   | some cadence =>
-      match Loam.ScheduledCycleFill.planCandidatesThrough
-          state.horizon state.observedAt
+      match Loam.ScheduledCycleFill.planCandidates
+          { endExclusive := state.horizon.endExclusive } state.observedAt
           { anchor := state.source.scheduledOn, cadence := cadence } with
       | .error message => pure ("Scheduled plan fill unavailable: " ++ message)
       | .ok [] =>
@@ -330,7 +331,7 @@ def run
     (catalog : Loam.LocusCatalog.Catalog)
     (source : Loam.Tui.Main.ScheduledRecord)
     (observedAt : String) : IO String := do
-  match ← Loam.BoundaryPresetConfig.loadExplicitHorizons dataDir observedAt with
+  match ← Loam.BoundaryPresetConfig.loadHorizonSuggestions dataDir observedAt with
   | .error message =>
       pure ("Scheduled plan fill unavailable: " ++ message)
   | .ok horizons =>
