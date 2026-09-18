@@ -39,7 +39,7 @@ def ofEvents? (events : List Event) : Option EventMemory := do
     (fun id : EventId => id.token)
     eventIdToken_injective
     (events.map Event.id)
-  some { events := events, idNodup := h }
+  some { events := events, idNodup := h.proof }
 
 /-- Empty Event memory is valid. -/
 @[simp] theorem ofEvents?_nil :
