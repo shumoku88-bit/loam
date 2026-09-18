@@ -200,9 +200,11 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n" ++
     "TX\tev-1\t2026-09-02\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? dupEvent) "admitted duplicate EventId"
 
@@ -221,6 +223,7 @@ def main : IO Unit := do
     "TX\tev-repl\t2026-09-01\tNODESC\n" ++
     "REPLACES\tmissing-target\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? openCorrection) "admitted open correction"
 
@@ -230,6 +233,7 @@ def main : IO Unit := do
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "DATE-REV\trev-1\t2026-09-02\tREPLACES\tREV\tmissing-rev\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidDateRev) "admitted invalid date revision"
 
@@ -238,6 +242,7 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "KEYED-EFFECT\tk-1\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "RELATION\trel-1\tSOURCE\tmissing-key\texternal:f\thousehold\t50\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? unresRelSource) "admitted unresolved relation source"
@@ -247,6 +252,7 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "DISCHARGE\tmissing-rel\t50\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? unknownDischarge) "admitted unknown discharge target"
@@ -255,11 +261,13 @@ def main : IO Unit := do
   let overDischarge :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
     "KEYED-EFFECT\tk-1\tbank\tjpy\t100\n" ++
     "RELATION\trel-1\tSOURCE\tk-1\texternal:f\thousehold\t100\n" ++
     "ENDTX\n" ++
     "TX\tev-2\t2026-09-02\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t150\n" ++
+    "EFFECT\tbank\tjpy\t-150\n" ++
     "DISCHARGE\trel-1\t150\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? overDischarge) "admitted over-discharge"
@@ -310,6 +318,72 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidMerchantToken)
     "admitted malformed Merchant identity token"
+
+  -- 6l. Quantity-bearing Events must close to zero at persistence re-admission.
+  let unbalancedEvent :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-unbalanced\t2026-09-01\tNODESC\n" ++
+    "EFFECT\tcash\tjpy\t50000\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? unbalancedEvent)
+    "admitted an unbalanced quantity-bearing Event"
+
+  -- 6m. Zero-quantity Effects are not retained as ghost physical evidence.
+  let zeroEffect :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-zero\t2026-09-01\tNODESC\n" ++
+    "EFFECT\tcash\tjpy\t0\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? zeroEffect)
+    "admitted a zero-quantity Effect"
+
+  -- 6n. Base dates must be real calendar dates, not merely valid text tokens.
+  let invalidBaseDate :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-date\t2026-02-30\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? invalidBaseDate)
+    "admitted a nonexistent base calendar date"
+
+  let nonsensicalBaseDate :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-date\tbanana\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? nonsensicalBaseDate)
+    "admitted a non-date base token"
+
+  -- 6o. Date revisions pass through the same calendar-semantic boundary.
+  let invalidRevisionDate :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-date\t2026-09-01\tNODESC\n" ++
+    "DATE-REV\trev-bad-date\t2026-02-30\tREPLACES\tROOT\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? invalidRevisionDate)
+    "admitted a nonexistent revision calendar date"
+
+  -- 6p. Different Measures cannot cancel one another dimensionally.
+  let crossMeasureCancellation :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-mixed\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tusd\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? crossMeasureCancellation)
+    "admitted cross-Measure cancellation"
+
+  -- 6q. Neutral empty-effect Events remain representable.
+  let emptyEvent :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-empty\t2026-09-01\tNODESC\n" ++
+    "ENDTX\n"
+  let _ ← requireSome (decodeNormalizedActual? emptyEvent)
+    "normalized Actual incorrectly rejected a neutral empty-effect Event"
 
   -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
   let balancedUsd :=
