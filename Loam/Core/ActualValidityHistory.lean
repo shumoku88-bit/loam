@@ -182,7 +182,23 @@ def addCorrection?
         corrections := []
         correctionIdNodup := by simp
       } := by
-  simp [ofParts?]
+  change
+    (do
+      let hFacts ← hashNodupBy? refHashKey refHashKey_injective []
+      some ({
+        facts := []
+        factRefNodup := hFacts.proof
+        corrections := []
+        correctionIdNodup := by simp
+      } : ActualValidityHistory Time)) =
+    some ({
+      facts := []
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp
+    } : ActualValidityHistory Time)
+  rw [hashNodupBy?_nil]
+  rfl
 
 end ActualValidityHistory
 
