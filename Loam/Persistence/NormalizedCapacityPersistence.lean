@@ -1,0 +1,119 @@
+import Loam.ActualDate
+import Loam.CapacityEvidence
+import Loam.Core.BalancedMovement
+import Loam.Persistence.TokenSyntax
+
+namespace Loam.Persistence
+
+open Loam
+open Loam.Core
+
+set_option autoImplicit false
+
+/-!
+# Normalized Capacity persistence experiment
+
+Candidate single-document wire representation for CapacityMovement and
+CapacityEffective. The two meanings remain distinct after decoding; only their
+physical publication unit is normalized.
+-/
+
+/-- Header for the experimental normalized Capacity document. -/
+def normalizedCapacityHeader : String := "LOAM-NORMALIZED-CAPACITY\t1"
+
+private def encodeChangeRow? (change : MovementChange CapacityCoordinate) : Option String :=
+  match change.coordinate with
+  | .unallocated =>
+      some ("CHANGE\tUNALLOCATED\t" ++ toString change.quantity.quanta)
+  | .purpose purpose =>
+      if validToken purpose.token then
+        some ("CHANGE\tPURPOSE\t" ++ purpose.token ++ "\t" ++ toString change.quantity.quanta)
+      else
+        none
+
+private def decodeChangeRow? (row : String) : Option (MovementChange CapacityCoordinate) :=
+  match row.splitOn "\t" with
+  | ["CHANGE", "UNALLOCATED", quantaText] => do
+      let quanta ← quantaText.toInt?
+      some { coordinate := .unallocated, quantity := Quantity.ofQuanta quanta }
+  | ["CHANGE", "PURPOSE", purposeToken, quantaText] => do
+      if !validToken purposeToken then none
+      else
+        let quanta ← quantaText.toInt?
+        some { coordinate := .purpose ⟨purposeToken⟩, quantity := Quantity.ofQuanta quanta }
+  | _ => none
+
+private structure ParsedMovement where
+  id : CapacityMovementId
+  effectiveOn : String
+  measure : MeasureId
+  changes : List (MovementChange CapacityCoordinate)
+
+private def parseMovementRows
+    (changes : List (MovementChange CapacityCoordinate)) :
+    List String → Option (List (MovementChange CapacityCoordinate) × List String)
+  | [] => none
+  | row :: rest =>
+      if row == "ENDMOVEMENT" then
+        some (changes, rest)
+      else do
+        let change ← decodeChangeRow? row
+        parseMovementRows (changes ++ [change]) rest
+
+private partial def parseMovements : List String → Option (List ParsedMovement)
+  | [] => some []
+  | row :: rest => do
+      match row.splitOn "\t" with
+      | ["MOVEMENT", idToken, effectiveOn, measureToken] =>
+          if !validToken idToken || !validToken measureToken ||
+              !Loam.ActualDate.validIsoDate effectiveOn then
+            none
+          else
+            match parseMovementRows [] rest with
+            | none => none
+            | some (changes, remaining) => do
+                let tail ← parseMovements remaining
+                some ({
+                  id := ⟨idToken⟩
+                  effectiveOn := effectiveOn
+                  measure := ⟨measureToken⟩
+                  changes := changes
+                } :: tail)
+      | _ => none
+
+/-- Decode a complete candidate normalized Capacity image, failing closed. -/
+def decodeNormalizedCapacity? (input : String) : Option CapacityEvidence := do
+  if !input.endsWith "\n" then none
+  let lines := (input.dropEnd 1).toString.splitOn "\n"
+  match lines with
+  | [] => none
+  | header :: rows =>
+      if header != normalizedCapacityHeader then none
+      else
+        let parsed ← parseMovements rows
+        let mut movements : List CapacityMovement := []
+        let mut effective : List (CapacityEffective String) := []
+        for item in parsed do
+          let balanced ← BalancedMovement.ofChanges? item.measure item.changes
+          movements := movements ++ [{ id := item.id, movement := balanced }]
+          effective := effective ++ [{ movement := item.id, effectiveOn := item.effectiveOn }]
+        let movementMemory ← CapacityMemory.ofMovements? movements
+        let effectiveMemory ← CapacityEffectiveMemory.ofEntries? effective
+        CapacityEvidence.ofParts? movementMemory effectiveMemory
+
+/-- Encode one admitted Capacity image as one normalized document. -/
+def encodeNormalizedCapacity? (evidence : CapacityEvidence) : Option String := do
+  let admitted ← CapacityEvidence.ofParts? evidence.movements evidence.effective
+  let mut rows : List String := [normalizedCapacityHeader]
+  for movement in admitted.movements.movements do
+    let effectiveOn ← admitted.effective.findByMovementId? movement.id
+    if !validToken movement.id.token || !validToken movement.measure.token ||
+        !Loam.ActualDate.validIsoDate effectiveOn then
+      none
+    let changeRows ← movement.movement.changes.mapM encodeChangeRow?
+    rows := rows ++
+      [s!"MOVEMENT\t{movement.id.token}\t{effectiveOn}\t{movement.measure.token}"] ++
+      changeRows ++ ["ENDMOVEMENT"]
+  some (String.intercalate "\n" rows ++ "\n")
+
+end Loam.Persistence
