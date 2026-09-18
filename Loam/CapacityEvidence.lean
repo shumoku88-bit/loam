@@ -23,7 +23,7 @@ not need to rescan both memories merely to rediscover the same cross-family fact
 -/
 
 /-- Whether both retained families refer to exactly the same movement identities. -/
-def capacityReferencesComplete
+def capacityReferencesComplete {Time : Type}
     (movements : CapacityMemory)
     (effective : CapacityEffectiveMemory Time) : Bool :=
   movements.movements.all
@@ -40,7 +40,7 @@ structure CapacityEvidence (Time : Type) where
 namespace CapacityEvidence
 
 /-- Public name for the carried cross-family completeness predicate. -/
-def referencesComplete
+def referencesComplete {Time : Type}
     (movements : CapacityMemory)
     (effective : CapacityEffectiveMemory Time) : Bool :=
   capacityReferencesComplete movements effective
@@ -50,7 +50,7 @@ Admit one persistence-neutral Capacity image only when every movement has one
 effective coordinate and every effective coordinate names a retained movement.
 Uniqueness inside each family remains owned by the two existing memory types.
 -/
-def ofParts?
+def ofParts? {Time : Type}
     (movements : CapacityMemory)
     (effective : CapacityEffectiveMemory Time) : Option (CapacityEvidence Time) :=
   if h : capacityReferencesComplete movements effective = true then
@@ -63,14 +63,14 @@ def ofParts?
     none
 
 /-- The empty pair is a complete Capacity image. -/
-def empty : CapacityEvidence Time := {
+def empty {Time : Type} : CapacityEvidence Time := {
   movements := { movements := [], idNodup := by simp }
   effective := { entries := [], movementNodup := by simp }
   complete := by rfl
 }
 
 /-- Every admitted Capacity image carries the complete-reference law. -/
-theorem complete_references (evidence : CapacityEvidence Time) :
+theorem complete_references {Time : Type} (evidence : CapacityEvidence Time) :
     referencesComplete evidence.movements evidence.effective = true := by
   exact evidence.complete
 
