@@ -121,6 +121,38 @@ def currentOpenBeforeDate
     else
       left.scheduledOn ≤ right.scheduledOn
 
+private def positiveLocusTokens (record : Record) : List String :=
+  ((record.movement.changes.filterMap fun change =>
+      if change.quantity.quanta > 0 then some change.coordinate.token else none).eraseDups)
+    |>.mergeSort (fun left right => left <= right)
+
+/--
+Find later current-open Scheduled occurrences that share the completed source's
+positive Locus set.
+
+This is a read-only presentation aid for post-completion awareness. Matching
+does not assert recurrence, continuation provenance, series identity, contract
+identity, or equal amounts. The caller must present the result as a possible
+already-planned continuation and leave the final choice to the user.
+-/
+def laterSimilarOpenRecords
+    (snapshot : EvidenceSnapshot) (source : Record) : Except String (List Record) := do
+  if !Loam.ActualDate.validIsoDate source.scheduledOn then
+    throw "loam: continuation source contains an invalid retained date"
+  let sourceLoci := positiveLocusTokens source
+  if sourceLoci.isEmpty then return []
+  let records ← currentOpenRecords snapshot
+  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+    throw "loam: current-open Scheduled evidence contains an invalid retained date"
+  let candidates := records.filter fun record =>
+    decide (source.scheduledOn < record.scheduledOn) &&
+      positiveLocusTokens record == sourceLoci
+  return candidates.mergeSort fun left right =>
+    if left.scheduledOn = right.scheduledOn then
+      left.id.token <= right.id.token
+    else
+      left.scheduledOn <= right.scheduledOn
+
 private def fromChanges (record : Record) : List (MovementChange LocusId) :=
   record.movement.changes.filter fun change => change.quantity.quanta < 0
 
