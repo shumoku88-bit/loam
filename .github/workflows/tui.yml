@@ -26,8 +26,8 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledCycleFill.lean'
-      - 'Loam/Tests/ScheduledCycleFill.lean'
+      - 'Loam/ScheduledGeneration.lean'
+      - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
@@ -43,7 +43,7 @@ on:
       - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiHraScheduled.lean'
-      - 'Loam/Tests/TuiScheduledCycleFill.lean'
+      - 'Loam/Tests/TuiScheduledGeneration.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
@@ -135,8 +135,8 @@ on:
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualReversalPublisher.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledCycleFill.lean'
-      - 'Loam/Tests/ScheduledCycleFill.lean'
+      - 'Loam/ScheduledGeneration.lean'
+      - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
@@ -152,7 +152,7 @@ on:
       - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
       - 'Loam/Tests/TuiHraScheduled.lean'
-      - 'Loam/Tests/TuiScheduledCycleFill.lean'
+      - 'Loam/Tests/TuiScheduledGeneration.lean'
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
@@ -343,14 +343,14 @@ jobs:
       - name: Build shared Scheduled creation publisher boundary
         run: lake build Loam.ScheduledCreationPublisher
 
-      - name: Build construction-only current-cycle Scheduled generation
-        run: lake build Loam.ScheduledCycleFill
+      - name: Build construction-only Scheduled generation
+        run: lake build Loam.ScheduledGeneration
 
-      - name: Verify construction-only current-cycle Scheduled generation
-        run: lake env lean --run Loam/Tests/ScheduledCycleFill.lean
+      - name: Verify construction-only Scheduled generation
+        run: lake env lean --run Loam/Tests/ScheduledGeneration.lean
 
-      - name: Verify Scheduled current-cycle fill interaction
-        run: lake env lean --run Loam/Tests/TuiScheduledCycleFill.lean
+      - name: Verify Scheduled generation interaction
+        run: lake env lean --run Loam/Tests/TuiScheduledGeneration.lean
 
       - name: Verify selected-day Scheduled creation and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create"
