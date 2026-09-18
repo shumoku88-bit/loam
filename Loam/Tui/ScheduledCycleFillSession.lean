@@ -6,11 +6,13 @@ import Loam.Tui.Kernel
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledCycleFill
+import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.ScheduledCycleFillSession
 
 open Loam.Tui.Kernel
+open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
@@ -66,31 +68,41 @@ private def allDatesValid
   drafts.all fun draft =>
     Loam.ScheduledCycleFill.validResolvedDate window observedAt draft.scheduledOn
 
+private partial def publishDraftsFrom
+    (root : System.FilePath)
+    (source : Loam.Tui.Main.ScheduledRecord)
+    (observedAt : String)
+    (drafts : List Loam.ScheduledCreationPublisher.Draft)
+    (createdCount : Nat) : IO String := do
+  match drafts with
+  | [] =>
+      pure <|
+        "Published " ++ toString createdCount ++
+        " explicit Scheduled occurrence(s) for the current cycle. No recurrence was retained."
+  | draft :: rest =>
+      match ← Loam.HouseholdCommand.createScheduled root draft with
+      | .error message =>
+          pure <|
+            "Cycle fill stopped after " ++ toString createdCount ++
+            " publication(s): " ++ message
+      | .ok created =>
+          let nextCount := createdCount + 1
+          match ← Loam.HouseholdCommand.inheritScheduledRouting
+              root source.id created observedAt with
+          | .error message =>
+              pure <|
+                "Created " ++ created.token ++
+                ", but routing inheritance failed; cycle fill stopped after " ++
+                toString nextCount ++ " publication(s): " ++ message
+          | .ok _ =>
+              publishDraftsFrom root source observedAt rest nextCount
+
 private def publishDrafts
     (root : System.FilePath)
     (source : Loam.Tui.Main.ScheduledRecord)
     (observedAt : String)
-    (drafts : List Loam.ScheduledCreationPublisher.Draft) : IO String := do
-  let mut createdCount := 0
-  for draft in drafts do
-    match ← Loam.HouseholdCommand.createScheduled root draft with
-    | .error message =>
-        return
-          "Cycle fill stopped after " ++ toString createdCount ++
-          " publication(s): " ++ message
-    | .ok created =>
-        createdCount := createdCount + 1
-        match ← Loam.HouseholdCommand.inheritScheduledRouting
-            root source.id created observedAt with
-        | .ok _ => pure ()
-        | .error message =>
-            return
-              "Created " ++ created.token ++
-              ", but routing inheritance failed; cycle fill stopped after " ++
-              toString createdCount ++ " publication(s): " ++ message
-  return
-    "Published " ++ toString createdCount ++
-    " explicit Scheduled occurrence(s) for the current cycle. No recurrence was retained."
+    (drafts : List Loam.ScheduledCreationPublisher.Draft) : IO String :=
+  publishDraftsFrom root source observedAt drafts 0
 
 partial def reviewAndPublish
     (bounds : Bounds)
@@ -104,12 +116,13 @@ partial def reviewAndPublish
     match step.state.mode with
     | .preview _ drafts _ =>
         if !allDatesValid step.state.window step.state.observedAt drafts then
-          return
+          pure <|
             "Current-cycle Scheduled fill not published: every edited due date must remain " ++
             "inside the current cycle and not precede the observation date."
-        publishDrafts root step.state.source step.state.observedAt drafts
+        else
+          publishDrafts root step.state.source step.state.observedAt drafts
     | .cadence _ =>
-        return "Current-cycle Scheduled fill reached an invalid preview state."
+        pure "Current-cycle Scheduled fill reached an invalid preview state."
   else
     let nextFrame := compileWidget (Loam.Tui.ScheduledCycleFill.view step.state)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -134,15 +147,15 @@ partial def chooseCadence
       match Loam.ScheduledCycleFill.planCandidatesAfter
           state.window state.observedAt
           { anchor := state.source.scheduledOn, cadence := cadence } with
-      | .error message => return "Current-cycle Scheduled fill unavailable: " ++ message
+      | .error message => pure ("Current-cycle Scheduled fill unavailable: " ++ message)
       | .ok [] =>
-          return
+          pure <|
             "No later " ++ cadence.label ++
             " occurrence falls inside the current cycle."
       | .ok candidates =>
           match ← collectDrafts bounds known catalog state.source candidates with
-          | .error message => return "Current-cycle Scheduled fill unavailable: " ++ message
-          | .ok none => return "Current-cycle Scheduled fill cancelled before publication."
+          | .error message => pure ("Current-cycle Scheduled fill unavailable: " ++ message)
+          | .ok none => pure "Current-cycle Scheduled fill cancelled before publication."
           | .ok (some drafts) =>
               let preview := Loam.Tui.ScheduledCycleFill.withDrafts state cadence drafts
               let previewFrame := compileWidget (Loam.Tui.ScheduledCycleFill.view preview)
@@ -158,7 +171,7 @@ def run
     (observedAt : String) : IO String := do
   match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
   | .error message =>
-      return "Current-cycle Scheduled fill unavailable: " ++ message
+      pure ("Current-cycle Scheduled fill unavailable: " ++ message)
   | .ok window =>
       let state := Loam.Tui.ScheduledCycleFill.initial source window observedAt
       let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
