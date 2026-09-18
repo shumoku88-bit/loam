@@ -85,6 +85,20 @@ private def projectFromAdmittedBasis
   return { rows := rows }
 
 /--
+Project one balance view from a fully admitted Actual read image.
+
+The image itself carries the proof that `currentEvents` is the correction
+frontier of its retained Actual evidence, so canonical readers can reuse that
+basis without accepting an arbitrary `EventMemory` as already admitted.
+Zero-origin coverage remains an independent evidence gate.
+-/
+def projectImage
+    (image : Loam.ActualAuthority.Image)
+    (coverage : ZeroOriginCoverage)
+    (coordinates : List EffectCoordinate) : Except String Snapshot :=
+  projectFromAdmittedBasis image.currentEvents coverage coordinates
+
+/--
 Project one already-loaded balance view. Presentation duplicates are normalized,
 but zero-origin membership remains an independent evidence requirement.
 
@@ -116,7 +130,8 @@ def project
       else
         .error (coverageError first)
 
-private def loadCoverage
+/-- Load independent zero-origin coverage for production readers. -/
+def loadCoverage
     (path : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
   if ← path.pathExists then
     match ← Loam.Persistence.loadZeroOriginCoverage? path with
@@ -172,6 +187,6 @@ def loadSnapshot
     match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
-  return projectFromAdmittedBasis image.currentEvents coverage coordinates
+  return projectImage image coverage coordinates
 
 end Loam.BalanceReview
