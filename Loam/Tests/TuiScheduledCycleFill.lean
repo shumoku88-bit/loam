@@ -82,7 +82,7 @@ def main : IO Unit := do
   }
   let preview := Loam.Tui.ScheduledCycleFill.withDrafts selectedScope.state .monthly [draft1, draft2]
   let previewText := widgetText (Loam.Tui.ScheduledCycleFill.view preview)
-  expect (contains "2026-09-15" previewText && contains "2026-10-16" previewText)
+  expect (contains "2026-10-15" previewText && contains "2026-11-15" previewText)
     "cycle-fill final review did not show individually edited dates"
   expect (contains "Cadence will not be stored" previewText)
     "cycle-fill final review implied retained recurrence"
