@@ -84,18 +84,17 @@ private def dischargeWorld : IO Loam.MovementAdmission.World := do
     event := dischargeEvent.id
     target := relation.id
     quantity := Quantity.ofQuanta 400 }
+  let some validity := ActualValidityHistory.ofParts?
+      [
+        .base source.id "2026-09-06",
+        .base dischargeEvent.id "2026-09-07"
+      ] []
+    | throw (IO.userError "Relation discharge validity history")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
     | throw (IO.userError "Relation discharge Locus vocabulary")
   return {
     events := events
-    validity := {
-      facts := [
-        .base source.id "2026-09-06",
-        .base dischargeEvent.id "2026-09-07"
-      ]
-      factRefNodup := by simp
-      corrections := []
-      correctionIdNodup := by simp }
+    validity := validity
     descriptions := .empty
     relations := [relation]
     discharges := [discharge]
