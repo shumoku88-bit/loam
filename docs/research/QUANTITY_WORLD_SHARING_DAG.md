@@ -125,6 +125,35 @@ Verdict: **KEEP BOUNDARY RE-ADMISSION**.
 Revisit only if another production caller independently earns an admitted
 BalanceReview-basis API with real provenance, not merely an untyped EventMemory.
 
+## Stage B-4 follow-up: admitted provenance now exists
+
+The G2-006 decision to keep zero-origin boundary re-admission was correct for its
+time: the only shareable ordinary basis was a bare `EventMemory`, and exposing
+that as "already admitted" would have weakened provenance.
+
+Stage A later introduced `ActualAuthority.Image`. Its `currentEvents` field is
+proof-carrying: the image stores the theorem that the retained Events and
+Corrections admit exactly that current frontier.
+
+Stage B-4 can therefore remove the canonical RoleBalance -> BalanceReview
+re-admission without inventing the broad prepared-basis type G2-006 rejected:
+
+```text
+canonical ActualAuthority.Image
+        |
+        +--> image.currentEvents
+        |       +--> RoleBalance opening rows
+        |       +--> BalanceReview.projectImage zero-origin rows
+        |
+        +--> image.evidence.events + corrections
+                -> CurrentQuantityAnchor delta frontier
+```
+
+The raw/in-memory `RoleBalanceReview.project` and `BalanceReview.project`
+entrances still self-admit. Thus the historical **KEEP BOUNDARY RE-ADMISSION**
+verdict remains true for arbitrary raw evidence, while the canonical
+proof-carrying path is now **SIMPLIFY**.
+
 ## Anchor-world sharing
 
 `CurrentQuantityAnchor.Evidence` explicitly represents one reconciliation image:
