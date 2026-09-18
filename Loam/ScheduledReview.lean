@@ -121,10 +121,40 @@ def currentOpenBeforeDate
     else
       left.scheduledOn ≤ right.scheduledOn
 
-private def positiveLocusTokens (record : Record) : List String :=
-  ((record.movement.changes.filterMap fun change =>
+private def positiveLocusTokensFromChanges
+    (changes : List (MovementChange LocusId)) : List String :=
+  ((changes.filterMap fun change =>
       if change.quantity.quanta > 0 then some change.coordinate.token else none).eraseDups)
     |>.mergeSort (fun left right => left <= right)
+
+private def positiveLocusTokens (record : Record) : List String :=
+  positiveLocusTokensFromChanges record.movement.changes
+
+/--
+Find current-open Scheduled occurrences on one exact date that share an edited
+draft's positive Locus set.
+
+This is advisory read evidence only. Exact date + positive-Locus equality does
+not establish recurrence, series identity, contract identity, or duplicate
+semantic identity. It is only sufficient evidence to ask before publishing
+another explicit Scheduled occurrence.
+-/
+def sameDateSimilarOpenRecords
+    (snapshot : EvidenceSnapshot)
+    (scheduledOn : String)
+    (movement : BalancedMovement LocusId) : Except String (List Record) := do
+  if !Loam.ActualDate.validIsoDate scheduledOn then
+    throw "loam: Scheduled awareness date must be a real YYYY-MM-DD calendar date"
+  let proposedLoci := positiveLocusTokensFromChanges movement.changes
+  if proposedLoci.isEmpty then return []
+  let records ← currentOpenRecords snapshot
+  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+    throw "loam: current-open Scheduled evidence contains an invalid retained date"
+  let candidates := records.filter fun record =>
+    record.scheduledOn == scheduledOn &&
+      positiveLocusTokens record == proposedLoci
+  return candidates.mergeSort fun left right =>
+    left.id.token <= right.id.token
 
 /--
 Find later current-open Scheduled occurrences that share the completed source's
