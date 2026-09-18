@@ -139,7 +139,9 @@ adding a second quantity implementation or a proof-only constructor path.
 def correctionFrontierMemory?
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Option EventMemory :=
-  if correctionFrontierAdmissible events corrections then
+  if corrections.corrections.isEmpty then
+    some events
+  else if correctionFrontierAdmissible events corrections then
     EventMemory.ofEvents? (frontierEvents events corrections)
   else
     none
@@ -216,13 +218,22 @@ theorem correctionFrontierMemory?_mem_iff
           correction.target ≠ event.id := by
   unfold correctionFrontierMemory? at hFrontier
   split at hFrontier
-  · unfold EventMemory.ofEvents? at hFrontier
-    split at hFrontier
-    · simp only [Option.some.injEq] at hFrontier
-      subst frontier
-      simp [frontierEvents, targetsEvent_false_iff]
+  · rename_i hEmpty
+    simp only [Option.some.injEq] at hFrontier
+    subst frontier
+    have hNoCorrections : corrections.corrections = [] := by
+      cases hList : corrections.corrections with
+      | nil => rfl
+      | cons head tail => simp [hList] at hEmpty
+    simp [hNoCorrections]
+  · split at hFrontier
+    · unfold EventMemory.ofEvents? at hFrontier
+      split at hFrontier
+      · simp only [Option.some.injEq] at hFrontier
+        subst frontier
+        simp [frontierEvents, targetsEvent_false_iff]
+      · simp at hFrontier
     · simp at hFrontier
-  · simp at hFrontier
 
 /--
 Project one locus/measure quantity from the admitted correction frontier.

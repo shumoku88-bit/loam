@@ -69,7 +69,11 @@ without making raw history itself pretend to contain only current facts.
 -/
 def admittedActualValidityMemory?
     (history : ActualValidityHistory Time) : Option (ActualValidityMemory Time) := do
-  let facts ← admittedActualValidityFacts? history
+  let facts ←
+    if history.corrections.isEmpty then
+      some history.facts
+    else
+      admittedActualValidityFacts? history
   ActualValidityMemory.ofEntries?
     (facts.map fun fact => { event := fact.event, validOn := fact.validOn })
 
