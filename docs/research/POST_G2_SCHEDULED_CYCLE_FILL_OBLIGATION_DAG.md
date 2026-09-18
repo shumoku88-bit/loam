@@ -294,3 +294,76 @@ workflows.
 The Trivet-style decomposition was useful: most apparent risk closed
 deterministically from existing code and types, leaving one narrow semantic
 question instead of reopening the whole Scheduled subsystem.
+
+
+## Design closure after qualification — PR #1067
+
+The audit began from a current-cycle fill feature, but subsequent implementation
+work exposed a more general ownership boundary:
+
+```text
+Scheduled generation is about calendar construction.
+Household cycles are only one possible source of presentation suggestions.
+```
+
+PR #1066 temporarily generalized Current cycle into Current / Next cycle. That
+design was not merged. It was superseded by PR #1067 after recognizing that the
+Scheduled generator should not own household-cycle coordinates at all.
+
+The final construction boundary is:
+
+```text
+BoundaryPresetConfig.HorizonSuggestion
+        |
+        | optional presentation suggestion
+        v
+TUI
+        |
+        | only endExclusive crosses
+        v
+ScheduledGeneration.FillLimit
+        |
+        v
+pure explicit-date candidates
+        |
+        v
+ordinary Scheduled publication
+```
+
+`ScheduledGeneration` imports no `BoundaryPresetConfig` vocabulary. Its input is
+only:
+
+```text
+anchor
+observedAt
+GenerationCadence
+FillLimit.endExclusive
+```
+
+A non-boundary date such as `2027-01-20` is a valid fill limit. The TUI also
+exposes `Custom date…`, and remains usable even when boundary suggestions are
+unavailable.
+
+This does not weaken O1-O8. Instead it removes an unnecessary premise from the
+construction mechanism:
+
+- date validity and exclusive upper-bound validation remain explicit;
+- cadence remains construction-only;
+- missing nominal dates remain unresolved;
+- edited drafts are revalidated against the chosen fill limit;
+- publication remains the ordinary Scheduled writer;
+- routing remains independent evidence;
+- existing-plan awareness remains advisory;
+- retry awareness still sees already-retained matching plans.
+
+The final ownership conclusion is therefore:
+
+```text
+Core Scheduled       = retained facts
+ScheduledGeneration  = pure construction mechanics
+BoundaryPresetConfig = optional presentation suggestions
+Coverage              = future read-side projection
+```
+
+No recurrence, series identity, persisted cadence, persisted fill horizon, or
+cycle-owned Scheduled semantics were introduced.
