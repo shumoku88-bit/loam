@@ -53,7 +53,9 @@ def main : IO Unit := do
     | throw (IO.userError "later similar Scheduled projection refused")
   expect (candidates.map (fun row => row.id.token) == ["next-raised", "later-raised"])
     "later similar projection did not use positive Locus + later date ordering"
-  expect (candidates[0]!.movement.changes.any fun change =>
+  let firstCandidate ← requireSome candidates.head?
+    "later similar projection unexpectedly returned no first candidate"
+  expect (firstCandidate.movement.changes.any fun change =>
       change.coordinate.token == "gpt-plus" && change.quantity.quanta == 6000)
     "amount-changing later Scheduled was not retained as an awareness candidate"
   expect (!(candidates.any fun row => row.id.token == "other"))
