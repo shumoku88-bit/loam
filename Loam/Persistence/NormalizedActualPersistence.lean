@@ -12,6 +12,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Loam.Persistence.TokenSyntax
+import Std.Data.HashMap
 
 namespace Loam.Persistence
 
@@ -59,6 +60,18 @@ structure AdmittedActualImage where
   currentValidities_admitted :
     admittedActualValidityMemory? evidence.validity = some currentValidities
 
+private def retainedEventIndex
+    (events : EventMemory) : Std.HashMap String Event :=
+  events.events.foldl
+    (fun index event => index.insert event.id.token event)
+    {}
+
+private def currentValidityIndex
+    (validities : ActualValidityMemory String) : Std.HashMap String String :=
+  validities.entries.foldl
+    (fun index entry => index.insert entry.event.token entry.validOn)
+    {}
+
 /--
 Validate that an ActualEvidence aggregate satisfies referential closure and
 semantic admission using existing Core and Application boundaries, while
@@ -74,18 +87,22 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
       match hValidity : admittedActualValidityMemory? evidence.validity with
       | none => none
       | some admittedDates => do
+          -- Derived acceleration indexes only. Core memories remain the proof-carrying authority.
+          let retainedEvents := retainedEventIndex evidence.events
+          let currentValidities := currentValidityIndex admittedDates
+
           -- Every retained validity fact must belong to a retained Event.
           for fact in evidence.validity.facts do
-            if (evidence.events.findById? fact.event).isNone then
+            if !retainedEvents.contains fact.event.token then
               none
           -- Every remembered Event must have a valid current occurrence date.
           for event in evidence.events.events do
-            if (admittedDates.findByEventId? event.id).isNone then
+            if !currentValidities.contains event.id.token then
               none
 
           -- Event descriptions: every described Event must exist.
           for entry in evidence.descriptions.entries do
-            if (evidence.events.findById? entry.event).isNone then
+            if !retainedEvents.contains entry.event.token then
               none
 
           -- Merchant dispositions: every classified Event must exist.
@@ -96,8 +113,8 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
           -- Reversals: target and reversal must exist, exact physical inverse,
           -- and reversal-of-reversal chains remain refused.
           for reversal in evidence.reversals.reversals do
-            let targetEvent ← evidence.events.findById? reversal.target
-            let reversalEvent ← evidence.events.findById? reversal.reversal
+            let targetEvent ← retainedEvents[reversal.target.token]?
+            let reversalEvent ← retainedEvents[reversal.reversal.token]?
             if reversal.target = reversal.reversal then
               none
             if (evidence.reversals.findByReversal? reversal.target).isSome then
@@ -112,7 +129,7 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
 
           -- Discharges: persistence owns same-generation reference closure.
           for discharge in evidence.discharges do
-            let _ ← evidence.events.findById? discharge.event
+            let _ ← retainedEvents[discharge.event.token]?
             let _ ← evidence.relations.find? fun r => r.id = discharge.target
 
           for relation in evidence.relations do
