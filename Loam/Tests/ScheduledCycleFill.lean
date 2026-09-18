@@ -42,7 +42,7 @@ def main : IO Unit := do
     "2026-08-14" "2026-08-14" .monthly ["2026-09-14", "2026-10-14"]
 
   expectPlan "already-past candidates are not recreated"
-    "2026-09-18" "2026-08-10" .monthly ["2026-10-10"]
+    "2026-09-18" "2026-08-14" .monthly ["2026-10-14"]
 
   let shortWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
     source := "test"
