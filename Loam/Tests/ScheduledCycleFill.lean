@@ -23,7 +23,7 @@ private def expectPlan
       throw (IO.userError (label ++ ": unexpected refusal: " ++ message))
   | .ok dates =>
       expect (dates == expected)
-        (label ++ ": expected " ++ repr expected ++ ", got " ++ repr dates)
+        s!"{label}: expected {repr expected}, got {repr dates}"
 
 def main : IO Unit := do
   expectPlan "monthly wifi inside current cycle"
@@ -53,7 +53,7 @@ def main : IO Unit := do
   match Loam.ScheduledCycleFill.planAfter shortWindow "2026-01-01"
       { anchor := "2026-01-31", cadence := .monthly } with
   | .ok dates =>
-      throw (IO.userError ("day-31 monthly fill silently invented dates: " ++ repr dates))
+      throw (IO.userError s!"day-31 monthly fill silently invented dates: {repr dates}")
   | .error _ => pure ()
 
   let twoMonthWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
@@ -68,7 +68,7 @@ def main : IO Unit := do
       throw (IO.userError ("two-month day-31 fill refused valid March target: " ++ message))
   | .ok dates =>
       expect (dates == ["2026-03-31"])
-        ("two-month day-31 fill changed target: " ++ repr dates)
+        s!"two-month day-31 fill changed target: {repr dates}"
 
   IO.println "Scheduled current-cycle generation checks succeeded."
 
