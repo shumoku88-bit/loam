@@ -45,8 +45,7 @@ structure Snapshot where
   deriving Repr, DecidableEq
 
 private structure Evidence where
-  capacity : CapacityMemory
-  effective : CapacityEffectiveMemory String
+  capacity : Loam.CapacityAuthority.Image
   events : EventMemory
   corrections : EventCorrectionMemory
   validities : ActualValidityMemory String
@@ -70,8 +69,8 @@ private def projectPurpose?
     (purpose : PurposeId) : Option Row := do
   let yen : MeasureId := ⟨"jpy"⟩
   let entitlement ←
-    entitlementAtEffectiveWindow?
-      evidence.capacity evidence.effective start end_ purpose yen
+    entitlementAtAdmittedEffectiveWindow?
+      evidence.capacity start end_ purpose yen
   let consumption ←
     consumptionAtCorrectionFrontierEffectiveRoutingWindow?
       evidence.events evidence.corrections evidence.validities evidence.routing
@@ -84,8 +83,9 @@ private def projectPurpose?
 
 /--
 Project one Purpose after the query-global correction frontier has already been
-admitted. Entitlement remains Purpose-local and keeps its existing Capacity
-completeness/window checks; only the correction world is shared.
+admitted. Entitlement remains Purpose-local, while Capacity cross-family
+completeness is carried by the already-admitted authority image and is not
+rescanned per Purpose.
 -/
 private def projectPurposeFromFrontier?
     (evidence : Evidence)
@@ -94,8 +94,8 @@ private def projectPurposeFromFrontier?
     (purpose : PurposeId) : Option Row := do
   let yen : MeasureId := ⟨"jpy"⟩
   let entitlement ←
-    entitlementAtEffectiveWindow?
-      evidence.capacity evidence.effective start end_ purpose yen
+    entitlementAtAdmittedEffectiveWindow?
+      evidence.capacity start end_ purpose yen
   let consumption ←
     consumptionAtRecordedEffectiveRoutingWindow?
       frontier evidence.validities evidence.routing start end_ purpose yen
@@ -142,8 +142,7 @@ private def loadEvidence
     | none => return .error "loam: malformed or unsupported Actual routing evidence"
 
   return .ok {
-    capacity := capacityImage.movements
-    effective := capacityImage.effective
+    capacity := capacityImage
     events := actualEvidence.events
     corrections := actualEvidence.corrections
     validities := validities
@@ -192,15 +191,15 @@ def loadSnapshot
     match ← loadWindowEvidence dataDir actualRoot start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
-  let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity
+  let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity.movements
   match purposes with
   | [] =>
       return .ok { start := start, endExclusive := end_, rows := [] }
   | first :: rest =>
       let yen : MeasureId := ⟨"jpy"⟩
       let some firstEntitlement :=
-          entitlementAtEffectiveWindow?
-            evidence.capacity evidence.effective start end_ first yen
+          entitlementAtAdmittedEffectiveWindow?
+            evidence.capacity start end_ first yen
         | return .error "loam: canonical evidence does not justify this budget-window projection"
       let some frontier := correctionFrontierMemory? evidence.events evidence.corrections
         | return .error "loam: canonical evidence does not justify this budget-window projection"

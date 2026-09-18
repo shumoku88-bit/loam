@@ -1,6 +1,7 @@
 import Init.Data.Order
 import Loam.Application.ActualRoutingInspection
 import Loam.Application.CorrectionFrontier
+import Loam.CapacityEvidence
 import Loam.Core.CapacityEffective
 import Loam.Core.CapacityMemory
 
@@ -49,16 +50,35 @@ def validCurrentWindow (start observedAt : Time) : Bool :=
 def capacityEffectiveEvidenceComplete
     (capacity : CapacityMemory)
     (effective : CapacityEffectiveMemory Time) : Bool :=
-  capacity.movements.all
-      (fun movement => (effective.findByMovementId? movement.id).isSome) &&
-    effective.entries.all
-      (fun entry => (capacity.findById? entry.movement).isSome)
+  Loam.capacityReferencesComplete capacity effective
 
 /--
-Project Capacity at one coordinate inside `[start, end)`.
+Project one coordinate from already-admitted Capacity evidence inside
+`[start, end)`. Cross-family completeness is carried by the input value, so this
+path does not rescan both memories before every query.
+-/
+def capacityAtAdmittedEffectiveWindow?
+    (evidence : Loam.CapacityEvidence Time)
+    (start end_ : Time)
+    (coordinate : CapacityCoordinate)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCapacityWindow start end_ then
+    none
+  else
+    let quanta ← evidence.movements.movements.foldlM
+      (fun total movement => do
+        let effectiveOn ← evidence.effective.findByMovementId? movement.id
+        if inHalfOpen start end_ effectiveOn && movement.measure = measure then
+          return total + (movement.quantityAt coordinate).quanta
+        else
+          return total)
+      0
+    return Quantity.ofQuanta quanta
 
-The projection refuses an invalid window, missing effective coordinates, and
-orphan effective evidence. Representation order never supplies missing time.
+/--
+Project Capacity at one coordinate inside `[start, end)` from raw memories.
+
+Raw callers still fail closed by admitting cross-family completeness first.
 -/
 def capacityAtEffectiveWindow?
     (capacity : CapacityMemory)
@@ -68,38 +88,47 @@ def capacityAtEffectiveWindow?
     (measure : MeasureId) : Option Quantity := do
   if !validCapacityWindow start end_ then
     none
-  else if !capacityEffectiveEvidenceComplete capacity effective then
-    none
-  else
-    let quanta ← capacity.movements.foldlM
-      (fun total movement => do
-        let effectiveOn ← effective.findByMovementId? movement.id
-        if inHalfOpen start end_ effectiveOn && movement.measure = measure then
-          return total + (movement.quantityAt coordinate).quanta
-        else
-          return total)
-      0
-    return Quantity.ofQuanta quanta
+  let evidence ← Loam.CapacityEvidence.ofParts? capacity effective
+  capacityAtAdmittedEffectiveWindow? evidence start end_ coordinate measure
 
-/-- Current elapsed Entitlement includes both endpoints; incomplete evidence fails closed. -/
-def entitlementAtEffectiveThrough?
-    (capacity : CapacityMemory)
-    (effective : CapacityEffectiveMemory Time)
+/-- Current elapsed Entitlement from already-admitted Capacity evidence. -/
+def entitlementAtAdmittedEffectiveThrough?
+    (evidence : Loam.CapacityEvidence Time)
     (start observedAt : Time)
     (purpose : PurposeId)
     (measure : MeasureId) : Option Quantity := do
-  if !validCurrentWindow start observedAt || !capacityEffectiveEvidenceComplete capacity effective then
+  if !validCurrentWindow start observedAt then
     none
   else
-    let quanta ← capacity.movements.foldlM
+    let quanta ← evidence.movements.movements.foldlM
       (fun total movement => do
-        let effectiveOn ← effective.findByMovementId? movement.id
+        let effectiveOn ← evidence.effective.findByMovementId? movement.id
         if inClosed start observedAt effectiveOn && movement.measure = measure then
           return total + (movement.quantityAt (.purpose purpose)).quanta
         else
           return total)
       0
     return Quantity.ofQuanta quanta
+
+/-- Current elapsed Entitlement from raw memories; incomplete evidence fails closed. -/
+def entitlementAtEffectiveThrough?
+    (capacity : CapacityMemory)
+    (effective : CapacityEffectiveMemory Time)
+    (start observedAt : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCurrentWindow start observedAt then
+    none
+  let evidence ← Loam.CapacityEvidence.ofParts? capacity effective
+  entitlementAtAdmittedEffectiveThrough? evidence start observedAt purpose measure
+
+/-- Household-facing Entitlement from already-admitted Capacity evidence. -/
+def entitlementAtAdmittedEffectiveWindow?
+    (evidence : Loam.CapacityEvidence Time)
+    (start end_ : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity :=
+  capacityAtAdmittedEffectiveWindow? evidence start end_ (.purpose purpose) measure
 
 /-- Household-facing Entitlement selected by Purpose and half-open time window. -/
 def entitlementAtEffectiveWindow?
@@ -162,6 +191,20 @@ def consumptionAtCorrectionFrontierThrough?
     (inClosed start observedAt)
     (fun event validOn => eventConsumptionAt event validOn routing purpose measure)
 
+/-- Initial-aware current elapsed-window Consumption from an already-selected Event memory. -/
+def consumptionAtRecordedEffectiveRoutingThrough?
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId (RoutingEffective Time))
+    (start observedAt : Time)
+    (purpose : PurposeId)
+    (measure : MeasureId) : Option Quantity := do
+  if !validCurrentWindow start observedAt then none else
+  foldRecordedConsumptionWhere? events validities
+    (inClosed start observedAt)
+    (fun event validOn =>
+      eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
+
 /-- Initial-aware production variant of current elapsed-window Consumption. -/
 def consumptionAtCorrectionFrontierEffectiveRoutingThrough?
     (events : EventMemory)
@@ -173,10 +216,8 @@ def consumptionAtCorrectionFrontierEffectiveRoutingThrough?
     (measure : MeasureId) : Option Quantity := do
   if !validCurrentWindow start observedAt then none else
   let frontier ← correctionFrontierMemory? events corrections
-  foldRecordedConsumptionWhere? frontier validities
-    (inClosed start observedAt)
-    (fun event validOn =>
-      eventConsumptionAtEffectiveRouting event validOn routing purpose measure)
+  consumptionAtRecordedEffectiveRoutingThrough?
+    frontier validities routing start observedAt purpose measure
 
 /--
 Remaining is a projection, not retained state:
