@@ -210,6 +210,12 @@ theorem global_done_matches_representative_decisions :
     (globalDoneDetector merging).acyclic = acyclic merging := by
   native_decide
 
+private def subsets {α : Type} : List α → List (List α)
+  | [] => [[]]
+  | item :: rest =>
+      let tail := subsets rest
+      tail ++ tail.map (fun subset => item :: subset)
+
 private def smallEdgeUniverse : List (Edge Nat) :=
   (List.range 3).flatMap fun source =>
     (List.range 3).map fun successor =>
@@ -225,7 +231,7 @@ general proof, but it substantially widens the observation beyond hand-picked
 fixtures while staying independent of any HashMap representation.
 -/
 theorem global_done_matches_all_small_endpoint_unique_graphs :
-    smallEdgeUniverse.powerset.all (fun edges =>
+    (subsets smallEdgeUniverse).all (fun edges =>
       if endpointUnique edges then
         (globalDoneDetector edges).acyclic == acyclic edges
       else
