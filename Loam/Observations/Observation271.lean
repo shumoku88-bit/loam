@@ -28,7 +28,7 @@ currently recomputed broadly by downstream readers.
 structure ReadImage where
   evidence : ActualEvidence
   admitted :
-    Loam.Persistence.admitActualEvidence? evidence = some evidence
+    (Loam.Persistence.admitActualEvidence? evidence).isSome = true
   currentEvents : EventMemory
   currentValidities : ActualValidityMemory String
   currentEvents_admitted :
@@ -42,24 +42,21 @@ namespace ReadImage
 def ofEvidence? (evidence : ActualEvidence) : Option ReadImage :=
   match hAdmitted : Loam.Persistence.admitActualEvidence? evidence with
   | none => none
-  | some admittedEvidence =>
-      if hSame : admittedEvidence = evidence then
-        match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
-        | none => none
-        | some currentEvents =>
-            match hValidity : admittedActualValidityMemory? evidence.validity with
-            | none => none
-            | some currentValidities =>
-                some {
-                  evidence := evidence
-                  admitted := by simpa [hSame] using hAdmitted
-                  currentEvents := currentEvents
-                  currentValidities := currentValidities
-                  currentEvents_admitted := hFrontier
-                  currentValidities_admitted := hValidity
-                }
-      else
-        none
+  | some _ =>
+      match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
+      | none => none
+      | some currentEvents =>
+          match hValidity : admittedActualValidityMemory? evidence.validity with
+          | none => none
+          | some currentValidities =>
+              some {
+                evidence := evidence
+                admitted := by simp [hAdmitted]
+                currentEvents := currentEvents
+                currentValidities := currentValidities
+                currentEvents_admitted := hFrontier
+                currentValidities_admitted := hValidity
+              }
 
 /--
 Any quantity projected from the carried current Event memory is exactly the
