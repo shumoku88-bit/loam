@@ -1,8 +1,8 @@
 # Actual admitted read image promotion audit — 2026-09
 
-Status: **STAGE A IMPLEMENTED ON BRANCH; READER MIGRATION DEFERRED**
+Status: **STAGE A MERGED; STAGE B-1 IMPLEMENTED ON BRANCH**
 
-Baseline main: `1c9c574cd09daf31a4e99cd2b122d63b9345aed0`.
+Stage A merged as `805a13726a646e55b68df117cb6e00b82ed5099c`.
 
 ## Question
 
@@ -52,6 +52,42 @@ Stage A answers only the first. A later Stage B should migrate readers in small 
 Likely first candidates are ActualReview + JournalExport, BalanceReview + DailyQuantity + EffectiveCli, then BudgetWindow + CurrentCoverage.
 
 RoleBalance should follow only after BalanceReview exposes an admitted-basis entrance, because it composes correction-aware zero-origin, opening, and current-anchor paths with distinct local obligations.
+
+## Stage B-1
+
+The first reader migration is deliberately limited to ActualReview and JournalExport.
+
+### ActualReview
+
+Canonical loading now uses `ActualAuthority.loadImageFile?`.
+
+ActualReview cannot simply replace its retained Event list with `currentEvents`:
+the review intentionally keeps superseded historical Events so users can inspect
+correction provenance. Therefore the image path:
+
+- keeps `image.evidence.events` for the historical record list;
+- reuses `image.currentValidities` instead of rebuilding validity admission;
+- relies on full image admission for correction-topology safety;
+- derives currentness exactly as before from outgoing replacement presence.
+
+The raw `recordsFromActualEvidence?` API remains unchanged for arbitrary
+in-memory evidence and continues to fail closed on its own.
+
+### JournalExport
+
+Journal export is a current readable journal rather than a retained-history
+review. It therefore consumes both carried projections directly:
+
+- `image.currentEvents`;
+- `image.currentValidities`.
+
+The former explicit calls to `correctionFrontierMemory?` and
+`admittedActualValidityMemory?` are removed from the canonical path.
+
+### B-1 invariant
+
+Stage B-1 does not weaken raw testing entrances. It removes duplicate admission
+only after the caller has crossed the normalized ActualAuthority image boundary.
 
 ## Non-goals
 
