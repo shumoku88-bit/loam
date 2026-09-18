@@ -27,33 +27,60 @@ private def source? : Option (ScheduledOccurrence String) := do
 
 def main : IO Unit := do
   let some source := source? | throw (IO.userError "cycle-fill source fixture")
-  let window : Loam.BoundaryPresetConfig.CurrentWindow := {
+  let currentWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
     source := "Pension"
     start := "2026-08-14"
-    endExclusive := "2026-12-15"
+    endExclusive := "2026-10-15"
     hasFollowingBoundary := true
   }
-  let state := Loam.Tui.ScheduledCycleFill.initial source window "2026-08-14"
-  let text := widgetText (Loam.Tui.ScheduledCycleFill.view state)
+  let nextWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
+    source := "Pension"
+    start := "2026-10-15"
+    endExclusive := "2026-12-15"
+    hasFollowingBoundary := false
+  }
+  let state :=
+    Loam.Tui.ScheduledCycleFill.initial
+      source currentWindow (some nextWindow) "2026-09-18"
+  let scopeText := widgetText (Loam.Tui.ScheduledCycleFill.view state)
+  expect (contains "Current cycle" scopeText && contains "Next cycle" scopeText)
+    "cycle-fill target-window choices were not visible"
+  expect (contains "2026-10-15 <= due < 2026-12-15" scopeText)
+    "cycle-fill target-window choice did not expose the explicit following boundaries"
+
+  let nextScope := Loam.Tui.ScheduledCycleFill.update state .right
+  let scoped := Loam.Tui.ScheduledCycleFill.update nextScope.state .enter
+  expect (scoped.state.scope == .following &&
+      scoped.state.window.start == "2026-10-15" &&
+      scoped.state.window.endExclusive == "2026-12-15")
+    "cycle-fill did not preserve explicit Next cycle selection"
+
+  let text := widgetText (Loam.Tui.ScheduledCycleFill.view scoped.state)
   expect (contains "Monthly" text && contains "Every 2 months" text && contains "Yearly" text)
-    "cycle-fill cadence choices were not visible"
+    "cycle-fill cadence choices were not visible after target selection"
   expect (contains "no recurrence authority is retained" text)
     "cycle-fill view did not explain construction-only cadence"
 
-  let twoMonth := Loam.Tui.ScheduledCycleFill.update state .right
+  let twoMonth := Loam.Tui.ScheduledCycleFill.update scoped.state .right
   let chosen := Loam.Tui.ScheduledCycleFill.update twoMonth.state .enter
   expect (decide (chosen.cadence = some .everyTwoMonths))
     "cycle-fill cadence selection did not preserve explicit input choice"
 
+  let noFollowing :=
+    Loam.Tui.ScheduledCycleFill.initial source currentWindow none "2026-09-18"
+  let noFollowingText := widgetText (Loam.Tui.ScheduledCycleFill.view noFollowing)
+  expect (contains "Monthly" noFollowingText && !contains "Choose which explicit boundary window" noFollowingText)
+    "cycle-fill invented a Next cycle choice without an explicit following boundary"
+
   let draft1 : Loam.ScheduledCreationPublisher.Draft := {
-    scheduledOn := "2026-09-15"
+    scheduledOn := "2026-10-15"
     movement := source.movement
   }
   let draft2 : Loam.ScheduledCreationPublisher.Draft := {
-    scheduledOn := "2026-10-16"
+    scheduledOn := "2026-11-15"
     movement := source.movement
   }
-  let preview := Loam.Tui.ScheduledCycleFill.withDrafts state .monthly [draft1, draft2]
+  let preview := Loam.Tui.ScheduledCycleFill.withDrafts scoped.state .monthly [draft1, draft2]
   let previewText := widgetText (Loam.Tui.ScheduledCycleFill.view preview)
   expect (contains "2026-09-15" previewText && contains "2026-10-16" previewText)
     "cycle-fill final review did not show individually edited dates"
@@ -148,4 +175,4 @@ def main : IO Unit := do
   expect (contains "Expected effects:" reviewText && contains "6000 jpy" reviewText)
     "cycle-fill awareness Review did not show retained movement evidence"
 
-  IO.println "TUI Scheduled cycle fill: cadence, final review, and existing-plan awareness passed."
+  IO.println "TUI Scheduled cycle fill: target cycle, cadence, final review, and existing-plan awareness passed."
