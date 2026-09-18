@@ -25,7 +25,7 @@ private def expectPlan
       expect (dates == expected)
         s!"{label}: expected {repr expected}, got {repr dates}"
 
-def main : IO Unit := do
+def run : IO Unit := do
   expectPlan "monthly wifi inside current cycle"
     "2026-09-08" "2026-09-08" .monthly ["2026-10-08"]
 
@@ -76,3 +76,6 @@ def main : IO Unit := do
   IO.println "Scheduled current-cycle generation checks succeeded."
 
 end Loam.Tests.ScheduledCycleFill
+
+def main : IO Unit :=
+  Loam.Tests.ScheduledCycleFill.run
