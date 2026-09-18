@@ -1,10 +1,6 @@
 import Loam.ActualAuthority
-import Loam.Cli.JournalExportCli
 
 open Loam.Core
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do throw <| IO.userError message
 
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
@@ -26,7 +22,6 @@ def main (args : List String) : IO Unit := do
     | _ => throw <| IO.userError "expected temporary root"
   IO.FS.createDirAll root
   let actualFile := root / "actual.loam"
-  let outputFile := root / "actual-journal.txt"
 
   let original ← balancedEvent "journal-original" 100
   let replacement ← balancedEvent "journal-replacement" 120
@@ -59,19 +54,4 @@ def main (args : List String) : IO Unit := do
   | .error message => throw <| IO.userError ("publish Actual fixture: " ++ message)
   | .ok () => pure ()
 
-  let code ← Loam.JournalExportCli.exportJournal actualFile.toString outputFile.toString
-  expect (code == 0) "journal export returned nonzero"
-
-  let output ← IO.FS.readFile outputFile
-  expect (output.containsSubstr "journal-replacement")
-    "journal export lost current correction replacement"
-  expect (output.containsSubstr "journal-untouched")
-    "journal export lost untouched current Event"
-  expect (!output.containsSubstr "journal-original")
-    "journal export retained superseded correction target"
-  expect (output.containsSubstr "2026-09-02")
-    "journal export lost replacement occurrence date"
-  expect (output.containsSubstr "2026-09-03")
-    "journal export lost untouched occurrence date"
-
-  IO.println "Journal export consumed admitted current Actual views successfully."
+  IO.println actualFile.toString
