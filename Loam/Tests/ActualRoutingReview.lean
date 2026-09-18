@@ -1,8 +1,8 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.ActualRoutingReview
+import Loam.CapacityAuthority
 import Loam.Core.Capacity
-import Loam.Persistence.CapacityPersistence
 
 open Loam.Core
 
@@ -93,8 +93,17 @@ def main (args : List String) : IO Unit := do
     "savings capacity allocation"
   let capacity ← requireSome
     (CapacityMemory.ofMovements? [allocation1, allocation2, allocation3]) "Capacity memory"
-  expect (← Loam.Persistence.saveCapacityMemory? (dataDir / "capacity.loam") capacity)
-    "save Capacity authority"
+  let effective ← requireSome
+    (CapacityEffectiveMemory.ofEntries?
+      [{ movement := allocation1.id, effectiveOn := "2026-09-01" },
+       { movement := allocation2.id, effectiveOn := "2026-09-01" },
+       { movement := allocation3.id, effectiveOn := "2026-09-01" }])
+    "Capacity effective memory"
+  let evidence ← requireSome (Loam.CapacityEvidence.ofParts? capacity effective)
+    "complete Capacity evidence"
+  match ← Loam.CapacityAuthority.publishImage? (dataDir / "capacity.loam") evidence with
+  | .ok _ => pure ()
+  | .error message => throw (IO.userError message)
 
   let snapshot ←
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-09-09" with
