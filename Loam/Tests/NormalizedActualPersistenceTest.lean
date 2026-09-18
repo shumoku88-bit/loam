@@ -200,9 +200,11 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n" ++
     "TX\tev-1\t2026-09-02\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? dupEvent) "admitted duplicate EventId"
 
@@ -221,6 +223,7 @@ def main : IO Unit := do
     "TX\tev-repl\t2026-09-01\tNODESC\n" ++
     "REPLACES\tmissing-target\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? openCorrection) "admitted open correction"
 
@@ -230,6 +233,7 @@ def main : IO Unit := do
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "DATE-REV\trev-1\t2026-09-02\tREPLACES\tREV\tmissing-rev\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidDateRev) "admitted invalid date revision"
 
@@ -238,6 +242,7 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "KEYED-EFFECT\tk-1\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "RELATION\trel-1\tSOURCE\tmissing-key\texternal:f\thousehold\t50\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? unresRelSource) "admitted unresolved relation source"
@@ -247,6 +252,7 @@ def main : IO Unit := do
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
     "DISCHARGE\tmissing-rel\t50\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? unknownDischarge) "admitted unknown discharge target"
@@ -255,11 +261,13 @@ def main : IO Unit := do
   let overDischarge :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
     "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
     "KEYED-EFFECT\tk-1\tbank\tjpy\t100\n" ++
     "RELATION\trel-1\tSOURCE\tk-1\texternal:f\thousehold\t100\n" ++
     "ENDTX\n" ++
     "TX\tev-2\t2026-09-02\tNODESC\n" ++
     "EFFECT\twallet\tjpy\t150\n" ++
+    "EFFECT\tbank\tjpy\t-150\n" ++
     "DISCHARGE\trel-1\t150\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? overDischarge) "admitted over-discharge"
