@@ -54,4 +54,4 @@ def main (args : List String) : IO Unit := do
   | .error message => throw <| IO.userError ("publish Actual fixture: " ++ message)
   | .ok () => pure ()
 
-  IO.println actualFile.toString
+  IO.println "Journal export canonical fixture written."
