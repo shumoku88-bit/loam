@@ -41,6 +41,9 @@ def main : IO Unit := do
   expectPlan "monthly fill can generate multiple explicit current-cycle dates"
     "2026-08-14" "2026-08-14" .monthly ["2026-09-14", "2026-10-14"]
 
+  expectPlan "two-month cadence is a distinct input choice"
+    "2026-08-14" "2026-08-14" .everyTwoMonths ["2026-10-14"]
+
   expectPlan "already-past candidates are not recreated"
     "2026-09-18" "2026-08-14" .monthly ["2026-10-14"]
 
