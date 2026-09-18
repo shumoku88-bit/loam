@@ -89,7 +89,9 @@ def main : IO Unit := do
     | throw (IO.userError "cycle-fill exact-date awareness refused")
   expect (overlaps.map (fun record => record.id.token) == ["already-planned"])
     "cycle-fill awareness did not surface same-date same-positive-Locus retained plan"
-  expect (overlaps[0]!.movement.changes.any fun change =>
+  let some overlap := overlaps.head?
+    | throw (IO.userError "cycle-fill awareness overlap unexpectedly missing")
+  expect (overlap.movement.changes.any fun change =>
       change.coordinate.token == "gpt-plus" && change.quantity.quanta == 6000)
     "cycle-fill awareness incorrectly required equal amounts"
 
