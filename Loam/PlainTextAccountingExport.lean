@@ -55,8 +55,8 @@ private def accountName
     throw ("PTA account export requires a whitespace-free Locus token: " ++ locus.token)
   match roles.roleOf? locus with
   | some role =>
-      let prefix := rolePrefix role
-      let typedPrefix := prefix ++ ":"
+      let accountPrefix := rolePrefix role
+      let typedPrefix := accountPrefix ++ ":"
       if typedPrefix.isPrefixOf locus.token then
         pure locus.token
       else
