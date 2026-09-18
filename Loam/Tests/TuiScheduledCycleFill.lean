@@ -27,50 +27,48 @@ private def source? : Option (ScheduledOccurrence String) := do
 
 def main : IO Unit := do
   let some source := source? | throw (IO.userError "cycle-fill source fixture")
-  let currentWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
-    source := "Pension"
-    start := "2026-08-14"
-    endExclusive := "2026-10-15"
-    hasFollowingBoundary := true
-  }
-  let nextWindow : Loam.BoundaryPresetConfig.CurrentWindow := {
-    source := "Pension"
-    start := "2026-10-15"
-    endExclusive := "2026-12-15"
-    hasFollowingBoundary := false
-  }
-  let state :=
-    Loam.Tui.ScheduledCycleFill.initial
-      source currentWindow (some nextWindow) "2026-09-18"
-  let scopeText := widgetText (Loam.Tui.ScheduledCycleFill.view state)
-  expect (contains "Current cycle" scopeText && contains "Next cycle" scopeText)
-    "cycle-fill target-window choices were not visible"
-  expect (contains "2026-10-15 <= due < 2026-12-15" scopeText)
-    "cycle-fill target-window choice did not expose the explicit following boundaries"
+  let horizons : List Loam.BoundaryPresetConfig.ExplicitHorizon :=
+    [ { source := "Pension", start := "2026-08-14", endExclusive := "2026-10-15" }
+    , { source := "Pension", start := "2026-08-14", endExclusive := "2026-12-15" }
+    , { source := "Pension", start := "2026-08-14", endExclusive := "2027-02-15" }
+    ]
+  let some state :=
+      Loam.Tui.ScheduledCycleFill.initial? source horizons "2026-09-18"
+    | throw (IO.userError "cycle-fill horizon state fixture")
+  let horizonText := widgetText (Loam.Tui.ScheduledCycleFill.view state)
+  expect (contains "through boundary 2026-10-15" horizonText &&
+      contains "through boundary 2026-12-15" horizonText &&
+      contains "through boundary 2027-02-15" horizonText)
+    "cycle-fill did not show every explicit fill-through horizon"
+  expect (contains "no cycle or recurrence fact is stored" horizonText)
+    "cycle-fill horizon view implied retained cycle or recurrence identity"
 
-  let nextScope := Loam.Tui.ScheduledCycleFill.update state .right
-  let selectedScope := Loam.Tui.ScheduledCycleFill.update nextScope.state .enter
-  expect (selectedScope.state.scope == .following &&
-      selectedScope.state.window.start == "2026-10-15" &&
-      selectedScope.state.window.endExclusive == "2026-12-15")
-    "cycle-fill did not preserve explicit Next cycle selection"
+  let horizon2 := Loam.Tui.ScheduledCycleFill.update state .down
+  let horizon3 := Loam.Tui.ScheduledCycleFill.update horizon2.state .down
+  let selectedHorizon := Loam.Tui.ScheduledCycleFill.update horizon3.state .enter
+  expect (selectedHorizon.state.horizon.start == "2026-08-14" &&
+      selectedHorizon.state.horizon.endExclusive == "2027-02-15")
+    "cycle-fill did not preserve the selected far explicit horizon"
 
-  let text := widgetText (Loam.Tui.ScheduledCycleFill.view selectedScope.state)
+  let text := widgetText (Loam.Tui.ScheduledCycleFill.view selectedHorizon.state)
   expect (contains "Monthly" text && contains "Every 2 months" text && contains "Yearly" text)
-    "cycle-fill cadence choices were not visible after target selection"
+    "cycle-fill cadence choices were not visible after horizon selection"
   expect (contains "no recurrence authority is retained" text)
     "cycle-fill view did not explain construction-only cadence"
 
-  let twoMonth := Loam.Tui.ScheduledCycleFill.update selectedScope.state .right
+  let twoMonth := Loam.Tui.ScheduledCycleFill.update selectedHorizon.state .right
   let chosen := Loam.Tui.ScheduledCycleFill.update twoMonth.state .enter
   expect (decide (chosen.cadence = some .everyTwoMonths))
     "cycle-fill cadence selection did not preserve explicit input choice"
 
-  let noFollowing :=
-    Loam.Tui.ScheduledCycleFill.initial source currentWindow none "2026-09-18"
-  let noFollowingText := widgetText (Loam.Tui.ScheduledCycleFill.view noFollowing)
-  expect (contains "Monthly" noFollowingText && !contains "Choose which explicit boundary window" noFollowingText)
-    "cycle-fill invented a Next cycle choice without an explicit following boundary"
+  let oneHorizon : List Loam.BoundaryPresetConfig.ExplicitHorizon :=
+    [{ source := "Pension", start := "2026-08-14", endExclusive := "2026-10-15" }]
+  let some directCadence :=
+      Loam.Tui.ScheduledCycleFill.initial? source oneHorizon "2026-09-18"
+    | throw (IO.userError "single-horizon cycle-fill state fixture")
+  let directText := widgetText (Loam.Tui.ScheduledCycleFill.view directCadence)
+  expect (contains "Monthly" directText && !contains "Choose how far to fill" directText)
+    "single explicit horizon added an unnecessary horizon-choice step"
 
   let draft1 : Loam.ScheduledCreationPublisher.Draft := {
     scheduledOn := "2026-10-15"
@@ -80,7 +78,7 @@ def main : IO Unit := do
     scheduledOn := "2026-11-15"
     movement := source.movement
   }
-  let preview := Loam.Tui.ScheduledCycleFill.withDrafts selectedScope.state .monthly [draft1, draft2]
+  let preview := Loam.Tui.ScheduledCycleFill.withDrafts selectedHorizon.state .monthly [draft1, draft2]
   let previewText := widgetText (Loam.Tui.ScheduledCycleFill.view preview)
   expect (contains "2026-10-15" previewText && contains "2026-11-15" previewText)
     "cycle-fill final review did not show individually edited dates"
@@ -175,4 +173,4 @@ def main : IO Unit := do
   expect (contains "Expected effects:" reviewText && contains "6000 jpy" reviewText)
     "cycle-fill awareness Review did not show retained movement evidence"
 
-  IO.println "TUI Scheduled cycle fill: target cycle, cadence, final review, and existing-plan awareness passed."
+  IO.println "TUI Scheduled fill: explicit horizon, cadence, final review, and existing-plan awareness passed."
