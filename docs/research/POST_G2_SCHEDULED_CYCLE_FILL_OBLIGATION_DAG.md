@@ -237,7 +237,7 @@ Locus match is evidence to **ask**, not evidence to silently suppress publicatio
 
 ## Production candidate — PR #1065
 
-Status: **UNDER QUALIFICATION**
+Status: **QUALIFIED**
 
 The smallest production candidate reuses the existing Scheduled Review boundary
 instead of introducing recurrence or series semantics.
@@ -281,9 +281,15 @@ the corresponding regenerated draft can be published again. A routing failure
 after creation remains an explicit independent-routing outcome; the awareness
 match does not claim enough identity to repair routing automatically.
 
+
+Qualification on PR #1065 passed the focused current-cycle fill interaction,
+the full Production TUI workflow, selected live Lean observations, compression
+audit, and the shared Scheduled creation / terminal / replacement publisher
+workflows.
+
 ## Verdict
 
-**RESIDUAL AWARENESS PRESSURE CONFIRMED; MINIMAL FIX UNDER QUALIFICATION.**
+**RESIDUAL AWARENESS PRESSURE CONFIRMED; MINIMAL FIX QUALIFIED.**
 
 The Trivet-style decomposition was useful: most apparent risk closed
 deterministically from existing code and types, leaving one narrow semantic
