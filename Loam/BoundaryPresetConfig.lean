@@ -155,11 +155,11 @@ def explicitHorizonsFor?
   if !Loam.ActualDate.validIsoDate observedAt then
     .error "current date is not a real YYYY-MM-DD calendar date"
   else
-    let matches := presets.filterMap fun preset =>
+    let candidates := presets.filterMap fun preset =>
       (adjacentWindowWithTail? observedAt preset.boundaries).map fun
         (start, endExclusive, rest) =>
           (preset.name, start, endExclusive :: rest)
-    match matches with
+    match candidates with
     | [(name, start, ends)] => .ok (horizonsFromTail name start ends)
     | [] => .error "no configured boundary preset contains the current date"
     | _ => .error "multiple configured boundary presets contain the current date"
