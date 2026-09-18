@@ -27,7 +27,7 @@ private def source? : Option (ScheduledOccurrence String) := do
 
 def main : IO Unit := do
   let some source := source? | throw (IO.userError "cycle-fill source fixture")
-  let horizons : List Loam.BoundaryPresetConfig.ExplicitHorizon :=
+  let horizons : List Loam.BoundaryPresetConfig.HorizonSuggestion :=
     [ { source := "Pension", start := "2026-08-14", endExclusive := "2026-10-15" }
     , { source := "Pension", start := "2026-08-14", endExclusive := "2026-12-15" }
     , { source := "Pension", start := "2026-08-14", endExclusive := "2027-02-15" }
@@ -39,7 +39,7 @@ def main : IO Unit := do
   expect (contains "through boundary 2026-10-15" horizonText &&
       contains "through boundary 2026-12-15" horizonText &&
       contains "through boundary 2027-02-15" horizonText)
-    "cycle-fill did not show every explicit fill-through horizon"
+    "cycle-fill did not show every boundary horizon suggestion"
   expect (contains "no cycle or recurrence fact is stored" horizonText)
     "cycle-fill horizon view implied retained cycle or recurrence identity"
 
@@ -61,7 +61,7 @@ def main : IO Unit := do
   expect (decide (chosen.cadence = some .everyTwoMonths))
     "cycle-fill cadence selection did not preserve explicit input choice"
 
-  let oneHorizon : List Loam.BoundaryPresetConfig.ExplicitHorizon :=
+  let oneHorizon : List Loam.BoundaryPresetConfig.HorizonSuggestion :=
     [{ source := "Pension", start := "2026-08-14", endExclusive := "2026-10-15" }]
   let some directCadence :=
       Loam.Tui.ScheduledCycleFill.initial? source oneHorizon "2026-09-18"
