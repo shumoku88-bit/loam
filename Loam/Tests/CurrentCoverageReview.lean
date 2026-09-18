@@ -167,6 +167,52 @@ def main (args : List String) : IO Unit := do
   expect (generalRow.commitment.quanta == 0) "general Commitment"
   expect (generalRow.headroom.quanta == 50) "general Headroom"
 
+  -- Replace the observed Actual Event and verify current Consumption uses the
+  -- admitted Actual image while Scheduled reference checks still retain all IDs.
+  let replacementActual ← requireSome
+    (Event.ofEffects? ⟨"actual-1-r1"⟩
+      [effect "r1-pay" "paypay" (-45), effect "r1-use" "expenses:food" 45])
+    "replacement Actual fixture"
+  let correctedEvents ← requireSome
+    (EventMemory.ofEvents? (world.events.events ++ [replacementActual]))
+    "corrected CurrentCoverage Event memory"
+  let correctedValidity : ActualValidityHistory String := {
+    facts := [
+      .base ⟨"actual-old"⟩ "2026-08-14",
+      .base ⟨"actual-1"⟩ "2026-09-08",
+      .base ⟨"actual-future"⟩ "2026-09-09",
+      .base ⟨"actual-1-r1"⟩ "2026-09-08"
+    ]
+    factRefNodup := by decide
+    corrections := []
+    correctionIdNodup := by simp
+  }
+  let correctedCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := ⟨"actual-1"⟩, replacement := ⟨"actual-1-r1"⟩ }])
+    "corrected CurrentCoverage correction memory"
+  let correctedActual : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := correctedEvents
+      validity := correctedValidity
+      corrections := correctedCorrections
+  }
+  let .ok _ ← Loam.ActualAuthority.publishActualFile?
+      (Loam.ActualAuthority.actualPath actualRoot) correctedActual
+    | throw (IO.userError "publish corrected CurrentCoverage Actual image")
+  let .ok correctedSnapshot ←
+      Loam.CurrentCoverageReview.loadSnapshotAt
+        root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    | throw (IO.userError "current coverage refused corrected Actual image")
+  let correctedFood ← requireSome (findRow? correctedSnapshot "food")
+    "missing corrected CurrentCoverage food row"
+  expect (correctedFood.consumption.quanta == 45)
+    "CurrentCoverage did not consume the admitted current Event frontier"
+  expect (correctedFood.remaining.quanta == 55)
+    "CurrentCoverage Remaining did not follow corrected Consumption"
+  expect (correctedFood.headroom.quanta == 20)
+    "CurrentCoverage Headroom did not preserve Scheduled pressure after correction"
+
   match snapshot.scheduledFrontier with
   | none => throw (IO.userError "missing Scheduled frontier")
   | some frontier =>
