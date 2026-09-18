@@ -110,7 +110,10 @@ def body (state : State) : List Widget :=
      , line ("Observed " ++ snapshot.observedAt ++ "   " ++
          match Loam.ActualDate.daysBetween? snapshot.observedAt window.endExclusive with
          | some days => toString days ++ " days to next boundary"
-         | none => "Boundary distance unavailable") ]) ++
+         | none => "Boundary distance unavailable") ] ++
+     (if window.hasFollowingBoundary then [] else
+       [muted ("Boundary horizon: " ++ window.endExclusive ++
+         " is the last explicitly configured boundary.")])) ++
   fundingLines snapshot ++
   [line "Physical balances (display selection; not total budget backing)"] ++
   (match snapshot.physical with

@@ -33,6 +33,27 @@ def main : IO Unit := do
     | none => throw (IO.userError "Pension preset was not retained")
   expectWindow pension "2026-09-08" "2026-08-15" "2026-10-15"
   expectWindow pension "2026-08-15" "2026-08-15" "2026-10-15"
+  match Loam.BoundaryPresetConfig.currentWindowFor? [pension] "2026-09-08" with
+  | .error message => throw (IO.userError message)
+  | .ok window =>
+      expect (!window.hasFollowingBoundary)
+        "terminal explicit Pension window incorrectly claimed a following boundary"
+
+  let salary ←
+    match presets.find? (fun preset => preset.name == "Salary") with
+    | some preset => pure preset
+    | none => throw (IO.userError "Salary preset was not retained")
+  match Loam.BoundaryPresetConfig.currentWindowFor? [salary] "2026-09-08" with
+  | .error message => throw (IO.userError message)
+  | .ok window =>
+      expect window.hasFollowingBoundary
+        "first Salary window failed to expose its explicitly configured successor"
+  match Loam.BoundaryPresetConfig.currentWindowFor? [salary] "2026-10-01" with
+  | .error message => throw (IO.userError message)
+  | .ok window =>
+      expect (!window.hasFollowingBoundary)
+        "last Salary window incorrectly claimed a following boundary"
+
   expectNone (Loam.BoundaryPresetConfig.windowForDate? pension "2026-10-15")
     "preset invented a later boundary after its explicit evidence ended"
   expectNone (Loam.BoundaryPresetConfig.windowForDate? pension "2026-08-14")

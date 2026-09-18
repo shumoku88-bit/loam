@@ -12,7 +12,11 @@ private def q := Quantity.ofQuanta
 
 private def fixture : Loam.CycleBudgetReview.Snapshot :=
   { observedAt := "2026-09-08"
-    window := .ok { source := "Pension", start := "2026-08-14", endExclusive := "2026-10-15" }
+    window := .ok {
+      source := "Pension"
+      start := "2026-08-14"
+      endExclusive := "2026-10-15"
+      hasFollowingBoundary := false }
     coverage := .ok {
       currentWindowStart := "2026-08-14"
       observedAt := "2026-09-08"
@@ -35,12 +39,23 @@ def main : IO Unit := do
   for value in ["Budget / Pension Cycle", "2026-08-14 -> 2026-10-15", "Observed 2026-09-08",
       "37 days to next boundary", "111", "222", "-111", "333", "-444", "食費:ストック",
       "76389", "47068", "29321", "4810", "1234", "2345", "Residual before unresolved",
+      "Boundary horizon: 2026-10-15 is the last explicitly configured boundary.",
       "Unresolved future pressure", "Unrouted future pressure", "Unmanaged future pressure",
       "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]"] do
     expect (contains value rendered) ("missing supplied answer: " ++ value)
   expect (!(contains "Safe to spend" rendered) && !(contains "Available" rendered))
     "residual was promoted to spending permission"
   expect (!(contains "Capacity/actions" rendered)) "retired Budget Capacity detour still rendered"
+  let continued : Loam.Tui.CycleBudget.State := {
+    snapshot := { fixture with
+      window := .ok {
+        source := "Pension"
+        start := "2026-08-14"
+        endExclusive := "2026-10-15"
+        hasFollowingBoundary := true } } }
+  let continuedText := text (Loam.Tui.CycleBudget.view bounds continued)
+  expect (!(contains "Boundary horizon:" continuedText))
+    "Budget warned despite an explicitly configured following boundary"
   expect (!(contains "read only" rendered)) "writable Budget still claims read only"
   let missing : Loam.Tui.CycleBudget.State := { snapshot := { fixture with
     selection := .error "not configured", funding := .error "not configured" } }

@@ -76,37 +76,48 @@ def load? (path : System.FilePath) : IO (Option (List Preset)) := do
   else
     return some []
 
-private def adjacentWindow? (selected : String) : List String → Option (String × String)
+private def adjacentWindowWithHorizon?
+    (selected : String) : List String → Option (String × String × Bool)
   | start :: endExclusive :: rest =>
       if start <= selected then
         if selected < endExclusive then
-          some (start, endExclusive)
+          some (start, endExclusive, !rest.isEmpty)
         else
-          adjacentWindow? selected (endExclusive :: rest)
+          adjacentWindowWithHorizon? selected (endExclusive :: rest)
       else
         none
   | _ => none
 
-/-- Resolve only an explicitly represented adjacent window around `selected`. -/
-def windowForDate? (preset : Preset) (selected : String) : Option (String × String) :=
+private def explicitWindowForDate?
+    (preset : Preset) (selected : String) : Option (String × String × Bool) :=
   if Loam.ActualDate.validIsoDate selected then
-    adjacentWindow? selected preset.boundaries
+    adjacentWindowWithHorizon? selected preset.boundaries
   else
     none
+
+/-- Resolve only an explicitly represented adjacent window around `selected`. -/
+def windowForDate? (preset : Preset) (selected : String) : Option (String × String) := do
+  let (start, endExclusive, _) ← explicitWindowForDate? preset selected
+  some (start, endExclusive)
 
 /-- Presentation/query coordinates shared by current Capacity and Budget. -/
 structure CurrentWindow where
   source : String
   start : String
   endExclusive : String
+  /-- True only when this preset explicitly contains another boundary after this window. -/
+  hasFollowingBoundary : Bool
   deriving Repr, DecidableEq
 
 /-- No inference or priority among presets: exactly one must contain observedAt. -/
 def currentWindowFor?
     (presets : List Preset) (observedAt : String) : Except String CurrentWindow :=
   let windows := presets.filterMap fun preset =>
-    (windowForDate? preset observedAt).map fun (start, endExclusive) =>
-      ({ source := preset.name, start := start, endExclusive := endExclusive } : CurrentWindow)
+    (explicitWindowForDate? preset observedAt).map fun (start, endExclusive, hasFollowingBoundary) =>
+      ({ source := preset.name
+         start := start
+         endExclusive := endExclusive
+         hasFollowingBoundary := hasFollowingBoundary } : CurrentWindow)
   match windows with
   | [window] => .ok window
   | [] => .error "no configured boundary preset contains the current date"
