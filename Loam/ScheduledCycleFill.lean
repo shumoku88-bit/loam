@@ -84,53 +84,56 @@ inductive Candidate where
   | needsDate (year month nominalDay : Nat)
   deriving Repr, DecidableEq
 
-/-- Whether one human-resolved date remains inside the current-cycle horizon. -/
+/-- Whether one human-resolved date remains inside one explicit construction horizon. -/
+def validResolvedDateThrough
+    (horizon : Loam.BoundaryPresetConfig.ExplicitHorizon)
+    (observedAt date : String) : Bool :=
+  Loam.ActualDate.validIsoDate date &&
+    decide (horizon.start <= date ∧ observedAt <= date ∧ date < horizon.endExclusive)
+
+/-- Backward-compatible single-window validation. -/
 def validResolvedDate
     (window : Loam.BoundaryPresetConfig.CurrentWindow)
     (observedAt date : String) : Bool :=
-  Loam.ActualDate.validIsoDate date &&
-    decide (window.start <= date ∧ observedAt <= date ∧ date < window.endExclusive)
+  validResolvedDateThrough
+    { source := window.source
+      start := window.start
+      endExclusive := window.endExclusive }
+    observedAt date
 
 /--
-Generate construction candidates for one explicit target boundary window.
+Generate construction candidates through one explicitly configured horizon.
 
-The selected source anchor may precede the target window. This permits a
-retained Scheduled occurrence from the previous cycle to seed construction for
-the current or explicitly following cycle without turning that source into
-recurrence authority.
+The source anchor may precede the current boundary. The horizon itself is
+derived from boundaries already present in configuration, so extending the
+construction farther into the future never invents a new cycle or recurrence.
 
-The cadence remains input intent only. Valid calendar dates are proposed
-directly. A missing nominal calendar day is surfaced as `needsDate` rather than
-silently clamped, skipped, or persisted as recurrence policy.
-
-Unresolved candidates are permitted in the same calendar month as the exclusive
-cycle boundary because only the human-selected concrete date can determine
-whether that slot finally lies before the boundary. Final publication must call
-`validResolvedDate`.
+The cadence remains one-shot input. Missing nominal calendar days stay
+`needsDate` until a human supplies an explicit date.
 -/
-def planCandidatesForWindow
-    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+def planCandidatesThrough
+    (horizon : Loam.BoundaryPresetConfig.ExplicitHorizon)
     (observedAt : String)
     (request : Request) : Except String (List Candidate) := do
-  if !Loam.ActualDate.validIsoDate window.start ||
-      !Loam.ActualDate.validIsoDate window.endExclusive ||
+  if !Loam.ActualDate.validIsoDate horizon.start ||
+      !Loam.ActualDate.validIsoDate horizon.endExclusive ||
       !Loam.ActualDate.validIsoDate observedAt ||
       !Loam.ActualDate.validIsoDate request.anchor then
     throw "loam: Scheduled cycle fill requires valid ISO calendar dates"
-  if !(decide (window.start < window.endExclusive)) then
-    throw "loam: Scheduled cycle fill target window is invalid"
-  if !(decide (observedAt < window.endExclusive)) then
-    throw "loam: Scheduled cycle fill observation is not before the target window end"
-  if !(decide (request.anchor < window.endExclusive)) then
-    throw "loam: Scheduled cycle fill anchor is not before the target window end"
+  if !(decide (horizon.start < horizon.endExclusive)) then
+    throw "loam: Scheduled cycle fill horizon is invalid"
+  if !(decide (observedAt < horizon.endExclusive)) then
+    throw "loam: Scheduled cycle fill observation is not before the selected horizon"
+  if !(decide (request.anchor < horizon.endExclusive)) then
+    throw "loam: Scheduled cycle fill anchor is not before the selected horizon"
 
   let some anchorMonth := monthIndex? request.anchor
     | throw "loam: Scheduled cycle fill anchor is invalid"
   let some observedMonth := monthIndex? observedAt
     | throw "loam: Scheduled cycle fill observation is invalid"
-  let some startMonth := monthIndex? window.start
+  let some startMonth := monthIndex? horizon.start
     | throw "loam: Scheduled cycle fill start boundary is invalid"
-  let some endMonth := monthIndex? window.endExclusive
+  let some endMonth := monthIndex? horizon.endExclusive
     | throw "loam: Scheduled cycle fill end boundary is invalid"
 
   let stepMonths := request.cadence.months
@@ -147,11 +150,27 @@ def planCandidatesForWindow
     if startMonth <= targetMonth && observedMonth <= targetMonth then
       match Loam.ActualDate.shiftMonthsSameDay? request.anchor offset with
       | some date =>
-          if validResolvedDate window observedAt date then
+          if validResolvedDateThrough horizon observedAt date then
             candidates := candidates ++ [.dated date]
       | none =>
           candidates := candidates ++ [.needsDate year month nominalDay]
   return candidates
+
+/--
+Generate construction candidates for one explicit target boundary window.
+
+This remains as the narrower compatibility entrance introduced before the
+fill-through-horizon generalization.
+-/
+def planCandidatesForWindow
+    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+    (observedAt : String)
+    (request : Request) : Except String (List Candidate) :=
+  planCandidatesThrough
+    { source := window.source
+      start := window.start
+      endExclusive := window.endExclusive }
+    observedAt request
 
 /--
 Backward-compatible current-window entrance.
@@ -177,6 +196,18 @@ Headless callers that cannot ask a human to resolve a missing nominal calendar
 day still fail closed. Interactive callers should use `planCandidatesAfter`
 and collect an explicit date for every `needsDate` candidate before publication.
 -/
+def planThrough
+    (horizon : Loam.BoundaryPresetConfig.ExplicitHorizon)
+    (observedAt : String)
+    (request : Request) : Except String (List String) := do
+  let candidates ← planCandidatesThrough horizon observedAt request
+  candidates.mapM fun
+    | .dated date => pure date
+    | .needsDate _ _ _ =>
+        throw
+          ("loam: " ++ request.cadence.label ++
+           " cycle fill reaches a month without the anchor day; choose an explicit date policy")
+
 def planForWindow
     (window : Loam.BoundaryPresetConfig.CurrentWindow)
     (observedAt : String)
