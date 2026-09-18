@@ -123,11 +123,11 @@ structure CurrentWindow where
 
 
 /--
-One explicit construction horizon beginning at the current boundary and ending
-at a boundary already present in the same preset.
+One presentation suggestion beginning at the current boundary and ending at a
+boundary already present in the same preset.
 
-This is replaceable query/construction configuration only. It is not retained
-cycle identity, recurrence evidence, or a Scheduled series fact.
+This is replaceable query configuration only. It is not Scheduled construction
+semantics, retained cycle identity, recurrence evidence, or a series fact.
 -/
 structure HorizonSuggestion where
   source : String
