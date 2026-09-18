@@ -1,6 +1,4 @@
 import Loam.ActualAuthority
-import Loam.Application.ActualValidityFrontier
-import Loam.Application.CorrectionFrontier
 import Loam.Persistence.SiblingStage
 import Loam.WriterOwnership
 
@@ -76,7 +74,7 @@ private def conflictsWithCanonicalPath
   outputPath == actualPath
 
 /--
-Regenerate one human-readable Actual journal from normalized Actual evidence.
+Regenerate one human-readable Actual journal from one fully admitted normalized Actual image.
 -/
 def exportJournal
     (actualPath outputPath : String) : IO UInt32 := do
@@ -87,33 +85,23 @@ def exportJournal
   let actualFile := System.FilePath.mk actualPath
   let outputFile := System.FilePath.mk outputPath
 
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActualFile? actualFile with
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualFile with
     | .error message =>
         IO.eprintln message
         return 2
-    | .ok ev => pure ev
+    | .ok image => pure image
 
-  match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
-  | none =>
-      IO.eprintln "loam: corrections do not justify one current Event frontier"
+  match journalEntries?
+      image.currentValidities image.evidence.descriptions image.currentEvents.events with
+  | .error message =>
+      IO.eprintln ("loam: " ++ message)
       return 2
-  | some frontier =>
-      match Loam.Application.admittedActualValidityMemory? evidence.validity with
-      | none =>
-          IO.eprintln
-            "loam: actual-validity corrections do not justify one current date per event"
-          return 2
-      | some validities =>
-          match journalEntries? validities evidence.descriptions frontier.events with
-          | .error message =>
-              IO.eprintln ("loam: " ++ message)
-              return 2
-          | .ok entries =>
-              Loam.Persistence.replaceTextViaSiblingStage
-                outputFile (renderJournal (sortEntries entries))
-              IO.println ("Regenerated readable Actual journal: " ++ outputPath)
-              return 0
+  | .ok entries =>
+      Loam.Persistence.replaceTextViaSiblingStage
+        outputFile (renderJournal (sortEntries entries))
+      IO.println ("Regenerated readable Actual journal: " ++ outputPath)
+      return 0
 
 end Loam.JournalExportCli
 
