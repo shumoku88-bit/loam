@@ -1,6 +1,6 @@
 # Scheduled Coverage — Trivet-style obligation scaffold
 
-Status: **experiment — residual policy only**
+Status: **qualified adoption example — residual policy only**
 
 Baseline:
 
@@ -28,8 +28,12 @@ deterministic scaffold
     +--> R  genuinely residual policy or proof question
 ```
 
-This is intentionally a small experiment in proof-work allocation. It does not
-introduce a dependency on Trivet, AXLE, or another proof orchestrator.
+This audit began as a small experiment in proof-work allocation. Its result
+qualified the D / P / R obligation scaffold for adoption as the default LOAM
+method for non-trivial semantic audits. The reusable method is documented in
+[`../OBLIGATION_SCAFFOLD_METHOD.md`](../OBLIGATION_SCAFFOLD_METHOD.md).
+
+It does not introduce a dependency on Trivet, AXLE, or another proof orchestrator.
 
 ## Root question
 
