@@ -66,6 +66,30 @@ def shiftDays? (text : String) (offset : Int) : Option String := do
       (fun date _ => step date) (year, month, day)
     pure (padded 4 year ++ "-" ++ padded 2 month ++ "-" ++ padded 2 day)
 
+
+/--
+Shift an explicit ISO date by whole calendar months while preserving its nominal
+day. If the target month has no such day, return `none`; callers must choose an
+explicit generation policy rather than silently clamping to month end.
+
+This is construction-time calendar arithmetic only. It does not retain a
+recurrence, series, cycle, or household scheduling authority.
+-/
+def shiftMonthsSameDay? (text : String) (months : Nat) : Option String := do
+  if !validIsoDate text then none else do
+    let [y, m, d] := text.splitOn "-" | none
+    let year ← y.toNat?
+    let month ← m.toNat?
+    let day ← d.toNat?
+    let zeroBased := (month - 1) + months
+    let targetYear := year + zeroBased / 12
+    let targetMonth := zeroBased % 12 + 1
+    if targetYear > 9999 then none else do
+      let limit ← daysInMonth? targetYear targetMonth
+      if day > limit then none
+      else
+        pure (padded 4 targetYear ++ "-" ++ padded 2 targetMonth ++ "-" ++ padded 2 day)
+
 /-- Signed calendar-day distance, for presentation only (not retained cycle state). -/
 def daysBetween? (start end_ : String) : Option Int := do
   let ordinal := fun text => do
@@ -149,5 +173,9 @@ example : validIsoDate "2024-02-29" = true := by native_decide
 example : validIsoDate "2026-02-29" = false := by native_decide
 example : validIsoDate "2026-13-01" = false := by native_decide
 example : validIsoDate "26-09-03" = false := by native_decide
+example : shiftMonthsSameDay? "2026-09-15" 1 = some "2026-10-15" := by native_decide
+example : shiftMonthsSameDay? "2026-12-31" 1 = some "2027-01-31" := by native_decide
+example : shiftMonthsSameDay? "2026-01-31" 1 = none := by native_decide
+example : shiftMonthsSameDay? "2026-01-31" 2 = some "2026-03-31" := by native_decide
 
 end Loam.ActualDate
