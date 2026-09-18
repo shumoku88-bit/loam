@@ -37,6 +37,7 @@ def main : IO Unit := do
   expect (contains "Balances" menuText) "Reports menu lost evidence-aware Balances"
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
+  expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
   expect (initial.window.form.start == "2026-09-01")
     "Reports did not seed the selected-day calendar month start"
   expect (initial.window.form.endExclusive == "2026-10-01")
@@ -50,6 +51,20 @@ def main : IO Unit := do
     "Reports menu q did not return Home"
   expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
     "retired Reports b Home alias survived"
+
+  let coverageStep := Loam.Tui.Reports.update initial (.input 'c')
+  expect (match coverageStep.state.mode with | .scheduledCoverage => true | _ => false)
+    "Reports direct Scheduled Coverage key did not enter the coverage surface"
+  match coverageStep.query with
+  | some (.scheduledCoverage observedAt) =>
+      expect (observedAt == "2026-09-07")
+        "Scheduled Coverage query did not retain the selected Home date as its explicit observation coordinate"
+  | _ => throw (IO.userError "Scheduled Coverage surface did not request its shared read-side projection")
+  let coverageText := widgetText (Loam.Tui.Reports.view coverageStep.state)
+  expect (contains "Reports / Scheduled Coverage" coverageText)
+    "Scheduled Coverage heading was not rendered"
+  expect (contains "replaceable read-side config" coverageText)
+    "Scheduled Coverage surface promoted monitoring rules into Scheduled authority"
 
   let balancesStep := Loam.Tui.Reports.update initial (.input 'r')
   expect (match balancesStep.state.mode with | .balances => true | _ => false)
