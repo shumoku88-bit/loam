@@ -216,6 +216,21 @@ Visible query coordinates are the coordinates sent to the shared Review boundary
 Calendar-month defaults are presentation conveniences only; they do not establish a
 retained Month, BudgetCycle, cadence, or canonical current window.
 
+Scheduled Coverage is a separate read-only future-plan lens. It compares current-open
+Scheduled evidence with optional `config/scheduled-coverage.tsv` monitoring rules:
+
+```text
+<rule-token><TAB><anchor-date><TAB><every-months><TAB><positive-locus[,positive-locus...]>
+```
+
+The grid starts with the month after the selected Home date and currently shows eight
+months. `●` means an expected month has an explicit matching Scheduled occurrence,
+`!` means the configured expectation has no explicit matching occurrence, `·`
+means the rule does not expect that month, and `+` means explicit evidence exists
+outside the configured month pattern. These are coverage diagnostics only. The rules
+do not create Scheduled occurrences, retain Series identity, or promote absence into
+a canonical NotDue claim.
+
 ## Write boundary
 
 No TUI surface may publish by mutating canonical files directly or by copying a
