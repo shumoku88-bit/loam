@@ -63,12 +63,16 @@ def ofEntries?
 @[simp] theorem ofEntries?_nil :
     ofEntries? ([] : List (ActualValidity Time)) =
       some { entries := [], eventNodup := by simp } := by
-  simp [ofEntries?]
+  simp only [ofEntries?, List.map_nil]
+  rw [hashNodupBy?_nil]
+  rfl
 
 /-- Single validity entry is valid. -/
 @[simp] theorem ofEntries?_singleton (entry : ActualValidity Time) :
     ofEntries? [entry] = some { entries := [entry], eventNodup := by simp } := by
-  simp [ofEntries?]
+  simp only [ofEntries?, List.map_singleton]
+  rw [hashNodupBy?_singleton]
+  rfl
 
 /--
 Find the valid coordinate for an EventId.
