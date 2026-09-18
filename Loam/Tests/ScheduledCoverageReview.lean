@@ -62,8 +62,10 @@ def main : IO Unit := do
   let rendered := widgetText (Loam.Tui.ScheduledCoveragePane.lines snapshot)
   expect (contains "gpt-plus" rendered && contains "pension" rendered)
     "Scheduled coverage pane did not render configured rules"
-  expect (contains "first gap 2026-12" rendered && contains "first gap 2027-01" rendered)
-    "Scheduled coverage pane did not render first-gap diagnostics"
+  expect (contains "through 2026-11" rendered && contains "next gap 2026-12" rendered)
+    "monthly Scheduled coverage pane did not render entered-through and next-gap diagnostics"
+  expect (contains "through 2026-11" rendered && contains "next gap 2027-01" rendered)
+    "bimonthly Scheduled coverage pane did not render entered-through and next-gap diagnostics"
   expect (contains "explicit off-pattern" rendered)
     "Scheduled coverage pane lost the explicit off-pattern distinction"
   expect (contains "do not create recurrence authority" rendered)
