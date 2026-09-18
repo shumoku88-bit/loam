@@ -188,6 +188,7 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
         (fun id : EventId => id.token) eventIdToken_injective [event.id, event.id]
       some ({ events := [event, event], idNodup := h.proof } : EventMemory)) = none
   rw [hashNodupBy?_repeat]
+  rfl
 
 theorem add?_singleton_distinct
     (existing added : Event) (h : existing.id ≠ added.id) :
