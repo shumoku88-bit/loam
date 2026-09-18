@@ -94,8 +94,8 @@ private def projectPurposeFromFrontier?
     (purpose : PurposeId) : Option Row := do
   let yen : MeasureId := ⟨"jpy"⟩
   let entitlement ←
-    entitlementAtEffectiveWindow?
-      evidence.capacity evidence.effective start end_ purpose yen
+    entitlementAtAdmittedEffectiveWindow?
+      evidence.capacity start end_ purpose yen
   let consumption ←
     consumptionAtRecordedEffectiveRoutingWindow?
       frontier evidence.validities evidence.routing start end_ purpose yen
