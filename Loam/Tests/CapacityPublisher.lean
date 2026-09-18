@@ -265,10 +265,10 @@ private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
   expect (rowQuanta? freshSnapshot.rows "stock" == some 8180) "rebalanced stock"
   expect (rowQuanta? freshSnapshot.rows "living" == some 24166) "rebalanced living"
 
-  let some memory ← Loam.Persistence.loadCapacityMemory? capacityFile
-    | throw (IO.userError "reload memory")
-  expect (memory.movements.length == 4) "memory should contain exactly 4 movements (3 seed + 1 rebalance)"
-  let some lastMovement := memory.findById? movementId
+  let .ok image ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "reload normalized Capacity image")
+  expect (image.movements.movements.length == 4) "memory should contain exactly 4 movements (3 seed + 1 rebalance)"
+  let some lastMovement := image.movements.findById? movementId
     | throw (IO.userError "last movement not found")
   expect (lastMovement.movement.changes.length == 3) "atomic movement should contain exactly 3 changes"
 
@@ -325,10 +325,10 @@ private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
   expectError (← Loam.CapacityPublisher.publishBalanced capacityFile.toString zeroChangesDraft)
     "all-zero changes should be refused"
 
-  -- Verify memory was not mutated by any of the refused attempts
-  let some memoryAfterRefusals ← Loam.Persistence.loadCapacityMemory? capacityFile
-    | throw (IO.userError "reload memory after refusals")
-  expect (memoryAfterRefusals.movements.length == 4) "refusals should not mutate memory"
+  -- Verify the normalized image was not mutated by any refused attempt.
+  let .ok imageAfterRefusals ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "reload normalized image after refusals")
+  expect (imageAfterRefusals.movements.movements.length == 4) "refusals should not mutate memory"
 
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
