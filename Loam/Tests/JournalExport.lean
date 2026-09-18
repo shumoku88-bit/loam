@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.Persistence.AccountingRolePersistence
 
 open Loam.Core
 
@@ -22,6 +23,7 @@ def main (args : List String) : IO Unit := do
     | _ => throw <| IO.userError "expected temporary root"
   IO.FS.createDirAll root
   let actualFile := root / "actual.loam"
+  let roleFile := root / "accounting-role.loam"
 
   let original ← balancedEvent "journal-original" 100
   let replacement ← balancedEvent "journal-replacement" 120
@@ -53,5 +55,14 @@ def main (args : List String) : IO Unit := do
   match ← Loam.ActualAuthority.publishActualFile? actualFile evidence with
   | .error message => throw <| IO.userError ("publish Actual fixture: " ++ message)
   | .ok () => pure ()
+
+  let roles ← requireSome
+    (AccountingRoleMap.ofAssignments?
+      [ { locus := ⟨"wallet"⟩, role := .asset }
+      , { locus := ⟨"food"⟩, role := .expense }
+      ])
+    "AccountingRole fixture admission failed"
+  unless ← Loam.Persistence.saveAccountingRoleMap? roleFile roles do
+    throw <| IO.userError "save AccountingRole fixture"
 
   IO.println "Journal export canonical fixture written."
