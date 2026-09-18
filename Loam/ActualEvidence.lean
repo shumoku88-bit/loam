@@ -13,7 +13,12 @@ open Loam.Core
 set_option autoImplicit false
 
 /--
-Persistence-neutral aggregate of admitted Actual evidence.
+Persistence-neutral aggregate of retained Actual evidence.
+
+This aggregate is intentionally not itself a proof that every cross-family
+semantic law has been admitted. Some members, notably Relation and Discharge,
+remain raw retained provenance until an Application or persistence admission
+boundary qualifies the question being asked.
 
 This is not a new semantic family or a second semantic engine. It is an acquired
 view of existing production evidence types that can be produced either from the

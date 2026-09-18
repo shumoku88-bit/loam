@@ -24,8 +24,13 @@ current evidence is unresolved and must not be mistaken for absence.
 -/
 
 /--
-One relation unit after its source Effect has resolved and its current semantic
-shape has passed admission.
+One relation unit produced by this module after its source Effect has resolved
+and its current semantic shape has passed admission.
+
+This is an admission-produced read view, not a proof-carrying capability type:
+the public structure constructor does not itself prove EventMemory membership or
+the admission predicates. Production constructors in this repository obtain the
+value through `admitRelationUnit?` / frontier projection.
 
 The source Effect is retained in the read-only result so callers can obtain the
 existing `MeasureId` without duplicating measure identity in `RelationUnit`.

@@ -25,7 +25,14 @@ checked by `currentRelationState?`, while unrelated pre-Event relation residue
 remains inert exactly as qualified by the existing source-local frontier.
 -/
 
-/-- One discharge after both its later Event and current target relation resolve. -/
+/--
+One discharge produced by this module after both its later Event and current
+target relation resolve.
+
+Like `AdmittedRelationUnit`, this is an admission-produced read view rather
+than a standalone proof-carrying capability. Production construction remains
+inside the target-local admission path below.
+-/
 structure AdmittedRelationDischarge where
   discharge : RelationDischarge
   event : Event

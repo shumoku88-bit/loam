@@ -5,6 +5,26 @@
 **Auditor**: Leanstral
 **Repository**: shumoku88-bit/loam
 
+> **Current-status note — 2026-09-19**
+>
+> This audit remains useful as falsification evidence, but its original type
+> inventory predates later hardening and read-image promotion.
+>
+> - `LocusAdmissionVocabulary` is now proof-carrying with
+>   `nodup : approved.Nodup`; it is not a raw Category-C collection.
+> - `AdmittedActualImage` is now the production Actual read image and carries
+>   proof fields tying `currentEvents` and `currentValidities` to retained
+>   evidence. Full normalized admission still happens at its constructor path.
+> - `AdmittedRelationUnit`, `AdmittedRelationDischarge`, and
+>   `MovementAdmission.Admitted` remain public plain structures, but repository
+>   reachability finds no production constructor bypass around their admission
+>   functions. Canonical Actual publication is re-admitted before authority
+>   switch.
+>
+> Therefore "plain/forgeable Lean structure" alone is not classified as a
+> production semantic gap. The relevant question is whether a forged value can
+> cross a trusted production boundary without re-admission.
+
 ---
 
 ## Audit Methodology
