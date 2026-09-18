@@ -160,10 +160,10 @@ private def publishAdmittedMovement
   let updatedEffective := effective.addFresh effectiveEntry (by
     simpa [effectiveEntry] using hFreshSplit.2)
 
-  let image : Loam.CapacityAuthority.Image := {
-    movements := updated
-    effective := updatedEffective
-  }
+  let image ←
+    match Loam.CapacityEvidence.ofParts? updated updatedEffective with
+    | some image => pure image
+    | none => return .error "loam: updated Capacity evidence is not cross-family complete"
   match ← Loam.CapacityAuthority.publishImage? capacityFile image with
   | .ok _ => return .ok movementId
   | .error message => return .error message
