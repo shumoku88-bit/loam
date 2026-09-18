@@ -129,18 +129,18 @@ at a boundary already present in the same preset.
 This is replaceable query/construction configuration only. It is not retained
 cycle identity, recurrence evidence, or a Scheduled series fact.
 -/
-structure ExplicitHorizon where
+structure HorizonSuggestion where
   source : String
   start : String
   endExclusive : String
   deriving Repr, DecidableEq
 
 private def horizonsFromTail
-    (source start : String) (ends : List String) : List ExplicitHorizon :=
+    (source start : String) (ends : List String) : List HorizonSuggestion :=
   ends.map fun endExclusive => { source, start, endExclusive }
 
 /--
-Return every explicitly configured fill horizon available from the current
+Return every boundary-derived horizon suggestion available from the current
 window, shortest first.
 
 For boundaries A < B < C < D and an observation inside [A,B), the answer is:
@@ -149,9 +149,9 @@ For boundaries A < B < C < D and an observation inside [A,B), the answer is:
 
 No boundary is extrapolated beyond the preset.
 -/
-def explicitHorizonsFor?
+def horizonSuggestionsFor?
     (presets : List Preset) (observedAt : String) :
-    Except String (List ExplicitHorizon) :=
+    Except String (List HorizonSuggestion) :=
   if !Loam.ActualDate.validIsoDate observedAt then
     .error "current date is not a real YYYY-MM-DD calendar date"
   else
@@ -221,12 +221,12 @@ def loadFollowingWindow (dataDir : System.FilePath) (observedAt : String) :
     | some presets => return followingWindowFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
 
-def loadExplicitHorizons (dataDir : System.FilePath) (observedAt : String) :
-    IO (Except String (List ExplicitHorizon)) := do
+def loadHorizonSuggestions (dataDir : System.FilePath) (observedAt : String) :
+    IO (Except String (List HorizonSuggestion)) := do
   try
     match ← load? (dataDir / "config" / "boundary-presets.tsv") with
     | none => return .error "boundary preset config is malformed"
-    | some presets => return explicitHorizonsFor? presets observedAt
+    | some presets => return horizonSuggestionsFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
 
 end Loam.BoundaryPresetConfig
