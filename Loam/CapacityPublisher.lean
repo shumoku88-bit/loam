@@ -19,14 +19,14 @@ This module owns the surface-independent practical write boundary for one dated
 JPY Capacity movement. It deliberately stores no grant / transfer / return kind:
 those remain interpretations of the two typed endpoints.
 
-Publication preserves the existing fail-closed ordering used by the practical
-CLI: effective-coordinate evidence is published first, then Capacity authority.
-If the second publication fails, the effective entry is inert because no
-Capacity movement with that identity exists; later writes refuse incomplete
-evidence and require explicit recovery rather than guessing the missing movement.
+Publication now constructs both retained semantic families in memory and hands one
+complete `CapacityEvidence` image to `CapacityAuthority`. The authority stages,
+typed-decodes, and atomically renames that single normalized image, so no
+effective-first orphan state is exposed by a successful production write.
 
-Physical companion placement is owned by `CapacityAuthority`; this publisher
-operates only on the two retained semantic families returned by that boundary.
+Legacy two-file placement is a read-side migration concern owned entirely by
+`CapacityAuthority`; this publisher operates only on the complete image returned
+by that boundary.
 -/
 
 structure Draft where
@@ -110,14 +110,6 @@ def validateDraft (draft : Draft) : Except String Unit := do
   if !coordinatePersistable draft.source || !coordinatePersistable draft.destination then
     throw "Capacity movement coordinate contains an invalid Purpose token."
 
-private def effectiveEvidenceComplete
-    (memory : CapacityMemory)
-    (effective : CapacityEffectiveMemory String) : Bool :=
-  memory.movements.all
-      (fun movement => (effective.findByMovementId? movement.id).isSome) &&
-    effective.entries.all
-      (fun entry => (memory.findById? entry.movement).isSome)
-
 private def usedCapacityIds
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String) : List CapacityMovementId :=
@@ -168,13 +160,13 @@ private def publishAdmittedMovement
   let updatedEffective := effective.addFresh effectiveEntry (by
     simpa [effectiveEntry] using hFreshSplit.2)
 
-  if !(← Loam.CapacityAuthority.saveEffective? capacityFile updatedEffective) then
-    return .error "Capacity effective evidence could not be published."
-  if !(← Loam.CapacityAuthority.saveMovements? capacityFile updated) then
-    return .error
-      "Capacity authority was not published; already-published effective evidence is inert and requires explicit recovery."
-
-  return .ok movementId
+  let image : Loam.CapacityAuthority.Image := {
+    movements := updated
+    effective := updatedEffective
+  }
+  match ← Loam.CapacityAuthority.publishImage? capacityFile image with
+  | .ok _ => return .ok movementId
+  | .error message => return .error message
 
 private def publishUnlocked
     (capacityFile : System.FilePath) (draft : Draft) : IO (Except String CapacityMovementId) := do
@@ -188,10 +180,6 @@ private def publishUnlocked
     | .error message => return .error message
   let memory := image.movements
   let effective := image.effective
-
-  if !effectiveEvidenceComplete memory effective then
-    return .error
-      "Capacity authority and effective evidence are incomplete; explicit recovery is required."
 
   if !canMoveCapacityFrom memory.movements draft.source ⟨"jpy"⟩ draft.quanta then
     return .error "Capacity source has insufficient current entitlement."
@@ -208,9 +196,9 @@ private def publishUnlocked
 /--
 Publish one dated JPY Capacity movement under Capacity writer ownership.
 
-The shared boundary re-reads both retained streams under the lock, rejects
-incomplete evidence, checks named-source entitlement, allocates fresh identity,
-and publishes effective evidence before the Capacity authority image.
+The shared boundary re-reads one admitted Capacity image under the lock, checks
+named-source entitlement, allocates fresh identity, and atomically publishes one
+normalized image containing both retained semantic families.
 -/
 def publish
     (capacityPath : String) (draft : Draft) : IO (Except String CapacityMovementId) := do
@@ -231,10 +219,6 @@ private def publishBalancedUnlocked
   let memory := image.movements
   let effective := image.effective
 
-  if !effectiveEvidenceComplete memory effective then
-    return .error
-      "Capacity authority and effective evidence are incomplete; explicit recovery is required."
-
   for change in draft.changes do
     match change.coordinate with
     | .purpose purpose =>
@@ -254,8 +238,8 @@ private def publishBalancedUnlocked
 Publish one dated multi-coordinate JPY Capacity movement under Capacity writer ownership.
 
 Atomic publication checks that each Purpose entitlement remains non-negative,
-allocates one fresh CapacityMovementId, and publishes effective evidence before
-Capacity authority.
+allocates one fresh CapacityMovementId, and publishes one normalized Capacity
+image containing both movement and effective evidence.
 -/
 def publishBalanced
     (capacityPath : String) (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
