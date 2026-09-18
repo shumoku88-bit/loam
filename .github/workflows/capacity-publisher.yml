@@ -5,13 +5,16 @@ on:
     paths:
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
+      - 'Loam/CapacityEvidence.lean'
       - 'Loam/Application/CapacityInspection.lean'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/CapacityEffective.lean'
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Persistence/CapacityEffectivePersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - '.github/workflows/capacity-publisher.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -23,13 +26,16 @@ on:
     paths:
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
+      - 'Loam/CapacityEvidence.lean'
       - 'Loam/Application/CapacityInspection.lean'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/CapacityEffective.lean'
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Persistence/CapacityEffectivePersistence.lean'
       - 'Loam/Persistence/CapacityPersistence.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - '.github/workflows/capacity-publisher.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -52,7 +58,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.CapacityPublisher Loam.CapacityReview
+          build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityPublisher Loam.CapacityReview
           test: false
           lint: false
           use-mathlib-cache: false
@@ -61,3 +67,5 @@ jobs:
           use-github-cache: true
       - name: Verify shared Capacity publication
         run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
+      - name: Verify normalized Capacity round trip
+        run: lake env lean --run Loam/Tests/NormalizedCapacityPersistence.lean
