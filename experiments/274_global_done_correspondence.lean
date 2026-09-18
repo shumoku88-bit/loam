@@ -557,7 +557,7 @@ private def memoWalk {Id : Type} [DecidableEq Id]
       if current ∈ done then
         some done
       else
-        match hNext : nextFn current with
+        match nextFn current with
         | none => some (current :: done)
         | some next =>
             match memoWalk nextFn fuel next done with
@@ -609,7 +609,8 @@ private theorem memoWalk_success_preserves_termination
         exact ⟨hDone, hDone current hMem⟩
       · cases hNext : nextFn current with
         | none =>
-            simp [memoWalk, hMem, hNext] at hWalk
+            have hEq : done' = current :: done := by
+              simpa [memoWalk, hMem, hNext] using hWalk.symm
             subst done'
             have hCurrent : Terminates nextFn current :=
               ⟨0, current, by simp [advance?], hNext⟩
@@ -625,7 +626,8 @@ private theorem memoWalk_success_preserves_termination
             | none =>
                 simp [memoWalk, hMem, hNext, hTail] at hWalk
             | some tailDone =>
-                simp [memoWalk, hMem, hNext, hTail] at hWalk
+                have hEq : done' = current :: tailDone := by
+                  simpa [memoWalk, hMem, hNext, hTail] using hWalk.symm
                 subst done'
                 rcases ih next done tailDone hDone hTail with
                   ⟨hTailDone, hNextTerminates⟩
@@ -745,12 +747,6 @@ private def shadowStartReturnAcyclic {Id : Type} [DecidableEq Id]
   !(edges.any fun edge =>
     returnsWithin (next? edges) edge.source edges.length edge.source)
 
-private theorem shadow_eq_production
-    {Id : Type} [DecidableEq Id]
-    (edges : List (Edge Id)) :
-    shadowStartReturnAcyclic edges = acyclic edges := by
-  rfl
-
 private theorem globalDone_true_of_shadow_true
     {Id : Type} [DecidableEq Id]
     (edges : List (Edge Id))
@@ -763,8 +759,13 @@ private theorem globalDone_true_of_shadow_true
     simpa [shadowStartReturnAcyclic] using hShadow
   have hNoReturn :
       ∀ edge ∈ edges,
-        returnsWithin (next? edges) edge.source edges.length edge.source = false :=
-    List.any_eq_false.mp hAny
+        returnsWithin (next? edges) edge.source edges.length edge.source = false := by
+    intro edge hEdge
+    have hNotTrue := (List.any_eq_false.mp hAny) edge hEdge
+    cases hValue :
+        returnsWithin (next? edges) edge.source edges.length edge.source with
+    | false => rfl
+    | true => exact False.elim (hNotTrue hValue)
   have hInjective :
       ∀ {left right endpoint : Id},
         next? edges left = some endpoint →
@@ -776,7 +777,7 @@ private theorem globalDone_true_of_shadow_true
         reachesTerminal (next? edges) (edges.length + 1) source = true := by
     intro source hSource
     rcases List.mem_map.mp hSource with ⟨edge, hEdge, rfl⟩
-    exact reachesTerminal_of_no_return_finite
+    have hTerminal := reachesTerminal_of_no_return_finite
       (next? edges)
       (edges.map Edge.source)
       (next?_domain edges)
@@ -784,6 +785,7 @@ private theorem globalDone_true_of_shadow_true
       edge.source
       (by
         simpa using hNoReturn edge hEdge)
+    simpa using hTerminal
   rcases memoScan_succeeds_of_reachesTerminal
     (next? edges)
     (edges.length + 1)
@@ -827,29 +829,36 @@ private theorem shadow_true_of_globalDone_true
       have hAny :
           edges.any (fun edge =>
             returnsWithin
-              (next? edges) edge.source edges.length edge.source) = false :=
-        List.any_eq_false.mpr hNoReturn
+              (next? edges) edge.source edges.length edge.source) = false := by
+        apply List.any_eq_false.mpr
+        intro edge hEdge hTrue
+        have hFalse := hNoReturn edge hEdge
+        rw [hFalse] at hTrue
+        simp at hTrue
       simp [shadowStartReturnAcyclic, hAny]
 
 /--
 For every finite one-to-one replacement relation, the fuel-bounded global-done
-candidate makes exactly the same cycle decision as production
-`ReplacementFrontier.acyclic`.
+candidate makes exactly the same cycle decision as the bounded start-return
+semantics used by production `ReplacementFrontier.acyclic`.
 
-Only successor uniqueness is needed by the optimized-vs-current cycle proof.
-Production `endpointUnique` also keeps source uniqueness because replacement
-semantics independently refuse branching.
+Observation 273 already pins the executable production/shadow shape on concrete
+fixtures. This theorem closes the general optimized-vs-bounded-start-return
+correspondence without importing theorem-heavy machinery into Application.
+
+Only successor uniqueness is needed by the proof. Production `endpointUnique`
+also keeps source uniqueness because replacement semantics independently refuse
+branching.
 -/
-theorem globalDoneAcyclic_eq_production_of_endpointUnique
+theorem globalDoneAcyclic_eq_startReturn_of_endpointUnique
     {Id : Type} [DecidableEq Id]
     (edges : List (Edge Id))
     (hUnique : endpointUnique edges = true) :
-    globalDoneAcyclic edges = acyclic edges := by
+    globalDoneAcyclic edges = shadowStartReturnAcyclic edges := by
   have hNodup :
       (edges.map Edge.source).Nodup ∧
         (edges.map Edge.successor).Nodup := by
     simpa [endpointUnique] using hUnique
-  rw [← shadow_eq_production edges]
   cases hShadow : shadowStartReturnAcyclic edges with
   | false =>
       cases hGlobal : globalDoneAcyclic edges with
@@ -870,7 +879,7 @@ private def chain : List (Edge Nat) :=
 example : endpointUnique chain = true := by
   native_decide
 
-example : globalDoneAcyclic chain = acyclic chain :=
-  globalDoneAcyclic_eq_production_of_endpointUnique chain (by native_decide)
+example : globalDoneAcyclic chain = shadowStartReturnAcyclic chain :=
+  globalDoneAcyclic_eq_startReturn_of_endpointUnique chain (by native_decide)
 
 end Loam.Experiments.Observation274GlobalDoneCorrespondence
