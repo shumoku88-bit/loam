@@ -66,6 +66,30 @@ def ofEvents? (events : List Event) : Option EventMemory := do
   rfl
 
 /--
+A successful runtime admission preserves exactly the supplied Event list.
+
+This theorem exposes the stable observation callers need without exposing the
+duplicate-checking implementation used inside `ofEvents?`.
+-/
+theorem ofEvents?_some_events
+    (events : List Event)
+    (memory : EventMemory)
+    (h : ofEvents? events = some memory) :
+    memory.events = events := by
+  unfold ofEvents? at h
+  cases hAdmission :
+      hashNodupBy?
+        (fun id : EventId => id.token)
+        eventIdToken_injective
+        (events.map Event.id) with
+  | none =>
+      simp [hAdmission] at h
+  | some witness =>
+      simp [hAdmission] at h
+      cases h
+      rfl
+
+/--
 Find one remembered Event by its stable identity.
 
 This lookup observes `EventId` only. It does not expose or assign meaning to the
