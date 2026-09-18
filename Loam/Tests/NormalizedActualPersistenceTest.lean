@@ -421,6 +421,22 @@ def main : IO Unit := do
   requireNone (decodeNormalizedActual? correctionRelationOverlap)
     "admitted Correction of an Event that remains a retained Relation source"
 
+  -- 6t. A Reversal target may not also remain the source Event of retained Relation evidence.
+  let reversalRelationOverlap :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-related\t2026-09-01\tNODESC\n" ++
+    "KEYED-EFFECT\tk-related\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "RELATION\trel-related\tSOURCE\tk-related\thousehold\texternal:friend\t50\n" ++
+    "ENDTX\n" ++
+    "TX\tev-reversal\t2026-09-02\tNODESC\n" ++
+    "REVERSAL-OF\tev-related\n" ++
+    "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? reversalRelationOverlap)
+    "admitted Reversal of an Event that remains a retained Relation source"
+
   -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
   let balancedUsd :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
