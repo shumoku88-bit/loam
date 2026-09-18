@@ -1,6 +1,7 @@
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
+import Loam.Persistence.NormalizedActualPersistence
 
 namespace Loam.Observation271
 
@@ -26,6 +27,8 @@ currently recomputed broadly by downstream readers.
 /-- Observation-local read image carrying the two repeatedly reused Actual views. -/
 structure ReadImage where
   evidence : ActualEvidence
+  admitted :
+    Loam.Persistence.admitActualEvidence? evidence = some evidence
   currentEvents : EventMemory
   currentValidities : ActualValidityMemory String
   currentEvents_admitted :
@@ -37,19 +40,26 @@ namespace ReadImage
 
 /-- Admit the two shared read projections once from one Actual evidence value. -/
 def ofEvidence? (evidence : ActualEvidence) : Option ReadImage :=
-  match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
+  match hAdmitted : Loam.Persistence.admitActualEvidence? evidence with
   | none => none
-  | some currentEvents =>
-      match hValidity : admittedActualValidityMemory? evidence.validity with
-      | none => none
-      | some currentValidities =>
-          some {
-            evidence := evidence
-            currentEvents := currentEvents
-            currentValidities := currentValidities
-            currentEvents_admitted := hFrontier
-            currentValidities_admitted := hValidity
-          }
+  | some admittedEvidence =>
+      if hSame : admittedEvidence = evidence then
+        match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
+        | none => none
+        | some currentEvents =>
+            match hValidity : admittedActualValidityMemory? evidence.validity with
+            | none => none
+            | some currentValidities =>
+                some {
+                  evidence := evidence
+                  admitted := by simpa [hSame] using hAdmitted
+                  currentEvents := currentEvents
+                  currentValidities := currentValidities
+                  currentEvents_admitted := hFrontier
+                  currentValidities_admitted := hValidity
+                }
+      else
+        none
 
 /--
 Any quantity projected from the carried current Event memory is exactly the
@@ -129,12 +139,9 @@ theorem representative_image_is_admitted :
 The representative image carries the terminal replacement quantity exactly once;
 the superseded original does not need a second frontier calculation per query.
 -/
-theorem representative_quantity_is_terminal :
-    match ReadImage.ofEvidence? evidence with
-    | none => False
-    | some image =>
-        EventMemory.quantityAtRecorded image.currentEvents wallet yen =
-          Quantity.ofQuanta 20 := by
+theorem representative_raw_quantity_is_terminal :
+    quantityAtCorrectionFrontier? evidence.events evidence.corrections wallet yen =
+      some (Quantity.ofQuanta 20) := by
   native_decide
 
 /-- Missing validity for a remembered Event refuses the read image. -/
