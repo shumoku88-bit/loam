@@ -48,20 +48,19 @@ private def routingNotice
 inductive PromptMode where
   | choice
   | review
-  deriving Repr, DecidableEq
+  deriving Repr, DecidableEq, BEq
 
 inductive PromptAction where
   | keep
   | add
   | done
-  deriving Repr, DecidableEq
+  deriving Repr, DecidableEq, BEq
 
 structure PromptState where
   candidate : Option Loam.ScheduledReview.Record
   additionalCount : Nat := 0
   mode : PromptMode := .choice
   choice : Nat := 0
-  deriving Repr, DecidableEq
 
 structure PromptStep where
   state : PromptState
