@@ -75,28 +75,30 @@ private def currentValidityIndex
     {}
 
 /--
+Check the exact signed total for one Measure without mixing dimensional units.
+-/
+private def normalizedMeasureBalanced
+    (effects : List Effect) (measure : MeasureId) : Bool :=
+  let changes :=
+    (effects.filter fun effect => decide (effect.measure = measure)).map fun effect =>
+      ({ coordinate := effect.locus, quantity := effect.quantity } :
+        MovementChange LocusId)
+  (BalancedMovement.ofChanges? measure changes).isSome
+
+/--
 Normalized Actual V1 is measure-neutral, but retained quantity-bearing Events
 must still preserve the practical movement law that admitted them: every
-represented Effect is nonzero, one Event uses one Measure, and its exact signed
-total closes to zero.
+represented Effect is nonzero and the exact signed total closes to zero
+independently within each represented Measure.
 
 The neutral Core Event type deliberately remains more general. Empty-effect
 Events stay admissible here so purpose-only or revision-only Events are not
 precluded by the persistence boundary.
 -/
 private def normalizedEventEffectsAdmissible (event : Event) : Bool :=
-  match event.effects with
-  | [] => true
-  | first :: _ =>
-      let sameMeasureAndNonzero :=
-        event.effects.all fun effect =>
-          decide (effect.measure = first.measure) && effect.quantity.quanta != 0
-      let changes :=
-        event.effects.map fun effect =>
-          ({ coordinate := effect.locus, quantity := effect.quantity } :
-            MovementChange LocusId)
-      sameMeasureAndNonzero &&
-        (BalancedMovement.ofChanges? first.measure changes).isSome
+  event.effects.all fun effect =>
+    effect.quantity.quanta != 0 &&
+      normalizedMeasureBalanced event.effects effect.measure
 
 /--
 Occurrence-date strings become production calendar evidence at this boundary,
