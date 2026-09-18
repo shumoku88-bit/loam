@@ -1,0 +1,39 @@
+name: Actual Read Empty-Correction Experiment
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/actual-read-empty-correction-experiment.yml'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'tools/benchmark-actual-read.py'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Compare empty-correction fast paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build production review entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Measure 1k 5k 10k Events
+        run: python3 tools/benchmark-actual-read.py --sizes 1000 5000 10000 --repeat 2 --timeout 240 --no-build
+
+      - name: Measure 50k Events once
+        run: python3 tools/benchmark-actual-read.py --sizes 50000 --repeat 1 --timeout 300 --no-build
