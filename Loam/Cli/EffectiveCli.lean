@@ -1,4 +1,3 @@
-import Loam.Application.QuantityInspection
 import Loam.ActualAuthority
 import Std
 
@@ -17,45 +16,16 @@ private def quantityLine
   "  " ++ coordinate.locus.token ++ ": " ++
     toString quantity.quanta ++ " " ++ coordinate.measure.token
 
-/--
-Print answers under the already-selected no-correction presentation heading.
-Presentation provenance comes from the supplied correction evidence rather than
-being repeated in the Application success constructor.
--/
-private def printRecorded
-    (memory : Loam.Core.EventMemory)
-    (corrections : Loam.Core.EventCorrectionMemory)
-    (coordinates : List Loam.Core.EffectCoordinate) : IO Bool := do
+/-- Print nonzero quantities from one already-admitted current Event basis. -/
+private def printCurrent
+    (basis : Loam.Core.EventMemory)
+    (coordinates : List Loam.Core.EffectCoordinate) : IO Unit := do
   for coordinate in coordinates do
-    match Loam.Application.inspectQuantity
-        memory corrections coordinate.locus coordinate.measure with
-    | .quantity quantity =>
-        if quantity.quanta ≠ 0 then
-          IO.println (quantityLine coordinate quantity)
-    | _ => return false
-  return true
-
-/--
-Collect correction-frontier answers before printing anything. The frontier
-admission decision is coordinate-independent, but collecting first keeps the CLI
-from producing a partial human-facing view if an unexpected refusal is ever
-introduced between the inspection and frontier boundaries.
--/
-private def frontierLines?
-    (memory : Loam.Core.EventMemory)
-    (corrections : Loam.Core.EventCorrectionMemory) :
-    List Loam.Core.EffectCoordinate → Option (List String)
-  | [] => some []
-  | coordinate :: rest => do
-      match Loam.Application.inspectQuantity
-          memory corrections coordinate.locus coordinate.measure with
-      | .quantity quantity =>
-          let later ← frontierLines? memory corrections rest
-          if quantity.quanta ≠ 0 then
-            return quantityLine coordinate quantity :: later
-          else
-            return later
-      | _ => none
+    let quantity :=
+      Loam.Core.EventMemory.quantityAtRecorded
+        basis coordinate.locus coordinate.measure
+    if quantity.quanta ≠ 0 then
+      IO.println (quantityLine coordinate quantity)
 
 /--
 Show the narrow practical effective-quantity projection already earned by the
@@ -70,41 +40,19 @@ shapes fail closed as unsupported frontier topology.
 -/
 def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActualFile? actualFile with
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualFile with
     | .error message =>
         IO.eprintln message
         return 2
-    | .ok ev => pure ev
-  let memory := evidence.events
-  let corrections := evidence.corrections
-  let coordinates := recordedCoordinates memory
-  match corrections.corrections with
-            | [] =>
-                IO.println "Effective quantities (zero coordinates omitted):"
-                if ← printRecorded memory corrections coordinates then
-                  return 0
-                else
-                  IO.eprintln "loam: application quantity inspection refused recorded mode"
-                  return 2
-            | _ =>
-                if !Loam.Application.correctionReferencesClosed memory corrections then
-                  IO.eprintln "loam: correction references are not closed in event memory"
-                  return 2
-                else if !Loam.Application.correctionFrontierAdmissible memory corrections then
-                  IO.eprintln
-                    "loam: effective quantities unavailable: corrections do not justify one current frontier"
-                  return 1
-                else
-                  match frontierLines? memory corrections coordinates with
-                  | none =>
-                      IO.eprintln "loam: application quantity inspection refused admitted frontier"
-                      return 2
-                  | some lines =>
-                      IO.println
-                        "Effective quantities (correction-frontier projection; zero coordinates omitted):"
-                      for line in lines do
-                        IO.println line
-                      return 0
+    | .ok image => pure image
+  let coordinates := recordedCoordinates image.currentEvents
+  if image.evidence.corrections.corrections.isEmpty then
+    IO.println "Effective quantities (zero coordinates omitted):"
+  else
+    IO.println
+      "Effective quantities (correction-frontier projection; zero coordinates omitted):"
+  printCurrent image.currentEvents coordinates
+  return 0
 
 end Loam.EffectiveCli
