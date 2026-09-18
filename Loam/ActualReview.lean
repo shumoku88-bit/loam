@@ -5,7 +5,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence.TextEscape
 import Loam.Persistence.TokenSyntax
-import Std.HashMap
+import Std.Data.HashMap
 
 namespace Loam.ActualReview
 
