@@ -79,7 +79,7 @@ def lines (snapshot : Loam.ScheduledCoverageReview.Snapshot) : List Widget :=
     ] ++
     snapshot.rows.flatMap rowLines ++
     [ muted "● explicit expected slot   ! expected but not explicit   · not expected   + explicit off-pattern"
-    , muted "Coverage rules are read-side monitoring expectations only; they do not create recurrence authority."
+    , muted "Coverage rules match signed Locus shape for monitoring only; they do not create recurrence authority."
     ]
 
 end Loam.Tui.ScheduledCoveragePane
