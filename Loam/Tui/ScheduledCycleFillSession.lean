@@ -2,6 +2,7 @@ import Loam.BoundaryPresetConfig
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.ScheduledCycleFill
+import Loam.ScheduledReview
 import Loam.Tui.Kernel
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
@@ -68,6 +69,151 @@ private def allDatesValid
   drafts.all fun draft =>
     Loam.ScheduledCycleFill.validResolvedDate window observedAt draft.scheduledOn
 
+inductive AwarenessMode where
+  | choice
+  | review
+  deriving Repr, DecidableEq, BEq
+
+inductive AwarenessAction where
+  | keepExisting
+  | addAnother
+  deriving Repr, DecidableEq, BEq
+
+structure AwarenessPromptState where
+  draft : Loam.ScheduledCreationPublisher.Draft
+  candidate : Loam.ScheduledReview.Record
+  additionalCount : Nat := 0
+  mode : AwarenessMode := .choice
+  choice : Nat := 0
+
+structure AwarenessPromptStep where
+  state : AwarenessPromptState
+  action : Option AwarenessAction := none
+
+def initialAwarenessPrompt?
+    (draft : Loam.ScheduledCreationPublisher.Draft)
+    (candidates : List Loam.ScheduledReview.Record) : Option AwarenessPromptState :=
+  match candidates with
+  | [] => none
+  | first :: rest =>
+      some { draft, candidate := first, additionalCount := rest.length }
+
+private def moveAwarenessChoice
+    (state : AwarenessPromptState) (back : Bool) : AwarenessPromptState :=
+  let next :=
+    if back then (state.choice + 2) % 3
+    else (state.choice + 1) % 3
+  { state with choice := next }
+
+def updateAwarenessPrompt
+    (state : AwarenessPromptState)
+    (key : Loam.Tui.Terminal.Key) : AwarenessPromptStep :=
+  match state.mode with
+  | .review =>
+      match key with
+      | .enter | .escape =>
+          { state := { state with mode := .choice } }
+      | _ => { state }
+  | .choice =>
+      match key with
+      | .escape =>
+          { state, action := some .keepExisting }
+      | .tab | .right | .down =>
+          { state := moveAwarenessChoice state false }
+      | .shiftTab | .left | .up =>
+          { state := moveAwarenessChoice state true }
+      | .enter =>
+          match state.choice % 3 with
+          | 0 => { state, action := some .keepExisting }
+          | 1 => { state, action := some .addAnother }
+          | _ => { state := { state with mode := .review } }
+      | _ => { state }
+
+private def awarenessLine (text : String) : Widget := .row [span text]
+
+private def awarenessOption (selected : Bool) (text : String) : Span :=
+  span ("[" ++ text ++ "] ") (if selected then .selected else .normal)
+
+private def awarenessChoiceView (state : AwarenessPromptState) : Widget :=
+  .column <|
+    [ awarenessLine "Scheduled / Fill Current Cycle / Existing Plan"
+    , awarenessLine ("Fill draft due: " ++ state.draft.scheduledOn)
+    , awarenessLine ("Existing Scheduled: " ++ state.candidate.id.token)
+    , awarenessLine ("Existing expected: " ++ Loam.ScheduledReview.summary state.candidate)
+    ] ++
+    (if state.additionalCount = 0 then [] else
+      [awarenessLine ("Also found " ++ toString state.additionalCount ++
+        " more current-open plan(s) with the same date and positive Locus set.")]) ++
+    [ awarenessLine ""
+    , awarenessLine "Match basis: same explicit date and same positive Locus set."
+    , awarenessLine "LOAM does not claim this is the same series, contract, or obligation."
+    , awarenessLine "Keep the existing plan, add another explicit Scheduled, or review it."
+    , .row
+        [ awarenessOption (state.choice % 3 = 0) "Keep existing"
+        , awarenessOption (state.choice % 3 = 1) "Add another"
+        , awarenessOption (state.choice % 3 = 2) "Review"
+        ]
+    , awarenessLine "Tab / arrows select   Enter confirm   Esc keep existing"
+    ]
+
+private def awarenessReviewView (state : AwarenessPromptState) : Widget :=
+  .column <|
+    [ awarenessLine "Scheduled / Fill Current Cycle / Existing Plan / Review"
+    , awarenessLine ("Identity: " ++ state.candidate.id.token)
+    , awarenessLine ("Due: " ++ state.candidate.scheduledOn)
+    , awarenessLine ("Summary: " ++ Loam.ScheduledReview.summary state.candidate)
+    , awarenessLine "Expected effects:"
+    ] ++
+    (state.candidate.movement.changes.map fun change =>
+      awarenessLine ("  " ++ change.coordinate.token ++ "  " ++
+        toString change.quantity.quanta ++ " " ++ state.candidate.measure.token)) ++
+    [ awarenessLine ""
+    , awarenessLine "This is retained Scheduled evidence, not a same-series claim."
+    , awarenessLine "Enter / Esc back"
+    ]
+
+def awarenessPromptView (state : AwarenessPromptState) : Widget :=
+  match state.mode with
+  | .choice => awarenessChoiceView state
+  | .review => awarenessReviewView state
+
+partial def runAwarenessPrompt
+    (bounds : Bounds)
+    (state : AwarenessPromptState)
+    (frame : CompiledWidget) : IO AwarenessAction := do
+  let step := updateAwarenessPrompt state (← Loam.Tui.Terminal.readKey)
+  match step.action with
+  | some action => return action
+  | none =>
+      let nextFrame := compileWidget (awarenessPromptView step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      runAwarenessPrompt bounds step.state nextFrame
+
+private partial def resolveDraftAwareness
+    (bounds : Bounds)
+    (snapshot : Loam.ScheduledReview.EvidenceSnapshot)
+    (drafts : List Loam.ScheduledCreationPublisher.Draft)
+    (acc : List Loam.ScheduledCreationPublisher.Draft := []) :
+    IO (Except String (List Loam.ScheduledCreationPublisher.Draft)) := do
+  match drafts with
+  | [] => return .ok acc
+  | draft :: rest =>
+      match Loam.ScheduledReview.sameDateSimilarOpenRecords
+          snapshot draft.scheduledOn draft.movement with
+      | .error message => return .error message
+      | .ok [] =>
+          resolveDraftAwareness bounds snapshot rest (acc ++ [draft])
+      | .ok candidates =>
+          let some prompt := initialAwarenessPrompt? draft candidates
+            | return .error "loam: Scheduled awareness candidates unexpectedly disappeared"
+          let frame := compileWidget (awarenessPromptView prompt)
+          Loam.Tui.Terminal.redrawFromBlank bounds frame
+          match ← runAwarenessPrompt bounds prompt frame with
+          | .keepExisting =>
+              resolveDraftAwareness bounds snapshot rest acc
+          | .addAnother =>
+              resolveDraftAwareness bounds snapshot rest (acc ++ [draft])
+
 private partial def publishDraftsFrom
     (root : System.FilePath)
     (source : Loam.Tui.Main.ScheduledRecord)
@@ -120,7 +266,22 @@ partial def reviewAndPublish
             "Current-cycle Scheduled fill not published: every edited due date must remain " ++
             "inside the current cycle and not precede the observation date."
         else
-          publishDrafts root step.state.source step.state.observedAt drafts
+          match ← Loam.ScheduledReview.loadHouseholdEvidence root root with
+          | .error message =>
+              pure <|
+                "Current-cycle Scheduled fill not published: existing Scheduled inspection " ++
+                "is unavailable: " ++ message
+          | .ok snapshot =>
+              match ← resolveDraftAwareness bounds snapshot drafts with
+              | .error message =>
+                  pure <|
+                    "Current-cycle Scheduled fill not published: existing Scheduled awareness " ++
+                    "failed: " ++ message
+              | .ok [] =>
+                  pure <|
+                    "No new Scheduled occurrences published; existing matching plan(s) were kept."
+              | .ok approved =>
+                  publishDrafts root step.state.source step.state.observedAt approved
     | .cadence _ =>
         pure "Current-cycle Scheduled fill reached an invalid preview state."
   else
