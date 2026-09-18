@@ -45,7 +45,7 @@ private def decodeRow? (row : String) : Option Rule := do
   if Loam.Persistence.validToken name &&
       Loam.ActualDate.validIsoDate anchor &&
       decide (everyMonths > 0) &&
-      decide (!loci.isEmpty) &&
+      !loci.isEmpty &&
       loci.all Loam.Persistence.validToken &&
       decide (loci.eraseDups.length = loci.length) then
     some {
