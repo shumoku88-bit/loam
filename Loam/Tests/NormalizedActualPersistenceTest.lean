@@ -65,6 +65,17 @@ def main : IO Unit := do
   -- 1. Decode valid fixture
   let evidence1 ← requireSome (decodeNormalizedActual? validFixtureWire)
     "valid normalized actual fixture failed to decode"
+  let image1 ← requireSome (decodeNormalizedActualImage? validFixtureWire)
+    "valid normalized actual image failed to decode"
+  expect ((image1.currentEvents.findById? ⟨"ev-corr-r2"⟩).isSome)
+    "admitted Actual image lost current terminal correction Event"
+  expect ((image1.currentEvents.findById? ⟨"ev-corr-target"⟩).isNone)
+    "admitted Actual image retained superseded correction target"
+  let imageRootDate ← requireSome
+    (image1.currentValidities.findByEventId? ⟨"ev-root"⟩)
+    "admitted Actual image lost current root occurrence date"
+  expect (imageRootDate == "2026-09-03")
+    "admitted Actual image did not carry revised current occurrence date"
 
   -- 1a. Merchant evidence preserves the unresolved / merchant / nonmerchant distinction.
   match evidence1.merchants.findDisposition? ⟨"ev-root"⟩ with
