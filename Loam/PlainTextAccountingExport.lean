@@ -62,7 +62,9 @@ private def accountName
 private def normalizedDescription (text : String) : String :=
   text.foldl (fun acc char =>
     match char with
-    | '\n' | '\r' | '\t' => acc.push ' '
+    | '\n' => acc.push ' '
+    | '\r' => acc.push ' '
+    | '\t' => acc.push ' '
     | ';' => acc.push ','
     | other => acc.push other) ""
 
