@@ -5,6 +5,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence.TextEscape
 import Loam.Persistence.TokenSyntax
+import Std.Data.HashMap
 
 namespace Loam.ActualReview
 
@@ -131,6 +132,12 @@ def recordsFromActualEvidence?
           replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
         })
 
+private def currentValidityIndex
+    (validities : ActualValidityMemory String) : Std.HashMap String String :=
+  validities.entries.foldl
+    (fun index entry => index.insert entry.event.token entry.validOn)
+    {}
+
 /--
 Project review records from one fully admitted normalized Actual image.
 
@@ -142,9 +149,10 @@ normalized admission, so no second frontier check is performed here.
 def recordsFromActualImage
     (image : Loam.ActualAuthority.Image) : List Record :=
   let evidence := image.evidence
+  let validities := currentValidityIndex image.currentValidities
   evidence.events.events.map fun event => {
     event := event
-    date := image.currentValidities.findByEventId? event.id
+    date := validities[event.id.token]?
     description := (evidence.descriptions.findText? event.id).getD ""
     replacement :=
       (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
