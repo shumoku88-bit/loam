@@ -27,6 +27,9 @@ def main : IO Unit := do
     (AccountingRoleMap.ofAssignments?
       [ { locus := ⟨"smbc"⟩, role := .asset }
       , { locus := ⟨"gpt-plus"⟩, role := .expense }
+      , { locus := ⟨"pension"⟩, role := .income }
+      , { locus := ⟨"debt-friend-k"⟩, role := .liability }
+      , { locus := ⟨"equity:opening-balances"⟩, role := .equity }
       ])
     "role fixture"
 
@@ -47,6 +50,46 @@ def main : IO Unit := do
     "Asset role did not project to assets: account prefix"
   expect (contains "    expenses:gpt-plus  3000 jpy" rendered)
     "Expense role did not project to expenses: account prefix"
+
+  let incomeEvent ← balancedEvent "event-income" "pension" "smbc" "jpy" (-1000)
+  let incomeEntry : Loam.ActualJournalProjection.Entry := {
+    event := incomeEvent
+    validOn := "2026-09-15"
+    description := some "income"
+  }
+  let .ok incomeRendered := Loam.PlainTextAccountingExport.render? roles [incomeEntry]
+    | throw (IO.userError "income PTA export refused")
+  expect (contains "    income:pension  -1000 jpy" incomeRendered)
+    "Income sign was rewritten instead of preserving LOAM quantity"
+  expect (contains "    assets:smbc  1000 jpy" incomeRendered)
+    "Asset side of income Event changed sign"
+
+  let liabilityEvent ← balancedEvent "event-liability" "smbc" "debt-friend-k" "jpy" 500
+  let liabilityEntry : Loam.ActualJournalProjection.Entry := {
+    event := liabilityEvent
+    validOn := "2026-09-15"
+    description := some "repayment"
+  }
+  let .ok liabilityRendered :=
+      Loam.PlainTextAccountingExport.render? roles [liabilityEntry]
+    | throw (IO.userError "liability PTA export refused")
+  expect (contains "    liabilities:debt-friend-k  500 jpy" liabilityRendered)
+    "Liability sign was rewritten instead of preserving LOAM quantity"
+
+  let openingEvent ← balancedEvent
+    "event-opening" "equity:opening-balances" "smbc" "jpy" (-100)
+  let openingEntry : Loam.ActualJournalProjection.Entry := {
+    event := openingEvent
+    validOn := "2026-09-15"
+    description := some "opening"
+  }
+  let .ok openingRendered :=
+      Loam.PlainTextAccountingExport.render? roles [openingEntry]
+    | throw (IO.userError "opening PTA export refused")
+  expect (contains "    equity:opening-balances  -100 jpy" openingRendered)
+    "already role-prefixed Locus was prefixed twice"
+  expect (!contains "equity:equity:opening-balances" openingRendered)
+    "explicit role prefix duplicated in PTA account name"
 
   let unresolved ← balancedEvent "event-2" "smbc" "legacy-bucket" "jpy" 500
   let unresolvedEntry : Loam.ActualJournalProjection.Entry := {
