@@ -6,7 +6,9 @@ import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.RoleFlowReview
 import Loam.RoleBalanceReview
+import Loam.ScheduledCoverageReview
 import Loam.Tui.RoleBalances
+import Loam.Tui.ScheduledCoveragePane
 import Loam.Tui.ReportWindow
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
@@ -41,6 +43,7 @@ inductive Mode where
   | balances
   | liquidity
   | budgetWindow
+  | scheduledCoverage
   deriving Repr, DecidableEq
 
 structure LiquidityForm where
@@ -55,11 +58,12 @@ inductive Query where
   | roleBalances
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
+  | scheduledCoverage (observedAt : String)
   deriving Repr, DecidableEq
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 6 := ⟨0, by decide⟩
+  menuIndex : Fin 7 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   liquidityForm : LiquidityForm := {}
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
@@ -68,6 +72,7 @@ structure State where
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
+  scheduledCoverageSnapshot : Option Loam.ScheduledCoverageReview.Snapshot := none
   notice : String := ""
   scroll : Nat := 0
 
@@ -141,6 +146,11 @@ def withBudgetSnapshot
   { state with budgetSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
+def withScheduledCoverageSnapshot
+    (state : State) (snapshot : Loam.ScheduledCoverageReview.Snapshot) : State :=
+  { state with scheduledCoverageSnapshot := some snapshot, notice := "", scroll := 0 }
+
+
 def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
@@ -149,6 +159,7 @@ def withError (state : State) (message : String) : State :=
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
+      scheduledCoverageSnapshot := none
       notice := message
       scroll := 0 }
 
@@ -160,6 +171,7 @@ private def clearResults (state : State) : State :=
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
+      scheduledCoverageSnapshot := none
       scroll := 0 }
 
 
@@ -170,7 +182,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 5) % 6 else (state.menuIndex.val + 1) % 6
+  let next := if back then (state.menuIndex.val + 6) % 7 else (state.menuIndex.val + 1) % 7
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -228,13 +240,16 @@ private def selectMenuMode (state : State) : State :=
     | 2 => Mode.incomeExpense
     | 3 => Mode.balances
     | 4 => Mode.liquidity
-    | _ => Mode.budgetWindow
+    | 5 => Mode.budgetWindow
+    | _ => Mode.scheduledCoverage
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
   let next := selectMenuMode state
   match next.mode with
   | .balances => { state := next, query := some .roleBalances }
+  | .scheduledCoverage =>
+      { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
   | _ => { state := next }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
@@ -256,6 +271,9 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
   | .input 'w' | .input 'W' =>
       { state := { state with mode := .budgetWindow, notice := "", scroll := 0 } }
+  | .input 'c' | .input 'C' =>
+      let next := { state with mode := .scheduledCoverage, notice := "", scroll := 0 }
+      { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
   | _ => { state }
 
 private def queryForMode (state : State) : Option Query :=
@@ -365,6 +383,19 @@ private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step 
   | .enter => { state, query := some .roleBalances }
   | _ => { state }
 
+private def updateScheduledCoverage
+    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  match key with
+  | .escape | .input 'q' | .input 'Q' =>
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
+  | .enter =>
+      { state, query := some (.scheduledCoverage state.window.calendarAnchor) }
+  | _ => { state }
+
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
@@ -406,6 +437,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .incomeExpense => updateWindowReport state key
   | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
+  | .scheduledCoverage => updateScheduledCoverage state key
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
@@ -457,8 +489,9 @@ private def menuView (state : State) : Widget :=
     , menuRow state 3 "Balances" "evidence-aware current accounting projections"
     , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
+    , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c direct"
     , muted "q / Esc home"
     , line state.notice
     ]
@@ -801,6 +834,22 @@ private def budgetView (state : State) : Widget :=
     , line state.notice
     ]
 
+private def scheduledCoverageView (state : State) : Widget :=
+  .column <|
+    [ line "Reports / Scheduled Coverage"
+    , muted "Which monitored future months already have explicit current-open Scheduled evidence?"
+    , muted "The grid starts after the selected Home date; monitoring rules are replaceable read-side config."
+    , blank
+    ] ++
+    (match state.scheduledCoverageSnapshot with
+     | none => [muted "Coverage has not been loaded yet; press Enter to refresh."]
+     | some snapshot => Loam.Tui.ScheduledCoveragePane.lines snapshot) ++
+    [ blank
+    , muted "Enter refresh   ↑/↓ scroll"
+    , muted "q / Esc Reports menu"
+    , line state.notice
+    ]
+
 
 private def fullView (state : State) (bounds : Option Bounds := none) : Widget :=
   match state.mode with
@@ -811,6 +860,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
+  | .scheduledCoverage => scheduledCoverageView state
 
 /-- Number of existing trailing notice/help rows kept outside the scrolling body. -/
 private def fixedFooterSize : Mode → Nat
@@ -821,6 +871,7 @@ private def fixedFooterSize : Mode → Nat
   | .balances => 4
   | .liquidity => 3
   | .budgetWindow => 4
+  | .scheduledCoverage => 4
 
 private def viewParts (state : State) (bounds : Option Bounds := none) : List Widget × List Widget :=
   match fullView state bounds with
@@ -849,7 +900,7 @@ private def scrollPositionLine
 private def requestedOffset (state : State) (page : Nat) : Nat :=
   match state.mode with
   | .menu =>
-      -- The six menu rows follow four heading/context rows in `menuView`.
+      -- The seven menu rows follow four heading/context rows in `menuView`.
       (4 + state.menuIndex.val + 1) - page
   | .transactionsFlow =>
     if state.transactions.detail then
