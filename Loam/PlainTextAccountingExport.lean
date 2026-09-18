@@ -53,11 +53,16 @@ private def accountName
     (roles : AccountingRoleMap) (locus : LocusId) : Except String String := do
   if !accountTokenSafe locus.token then
     throw ("PTA account export requires a whitespace-free Locus token: " ++ locus.token)
-  let prefix :=
-    match roles.roleOf? locus with
-    | some role => rolePrefix role
-    | none => "unclassified"
-  pure (prefix ++ ":" ++ locus.token)
+  match roles.roleOf? locus with
+  | some role =>
+      let prefix := rolePrefix role
+      let typedPrefix := prefix ++ ":"
+      if typedPrefix.isPrefixOf locus.token then
+        pure locus.token
+      else
+        pure (typedPrefix ++ locus.token)
+  | none =>
+      pure ("unclassified:" ++ locus.token)
 
 private def normalizedDescription (text : String) : String :=
   text.foldl (fun acc char =>
