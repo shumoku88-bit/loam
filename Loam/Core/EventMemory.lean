@@ -1,5 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -21,15 +22,24 @@ structure EventMemory where
 
 namespace EventMemory
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 /--
 Admit a runtime Event collection only when Event identity is not repeated.
 Representation order is retained but does not become semantic history.
 -/
-def ofEvents? (events : List Event) : Option EventMemory :=
-  if h : (events.map Event.id).Nodup then
-    some { events := events, idNodup := h }
-  else
-    none
+def ofEvents? (events : List Event) : Option EventMemory := do
+  let h ← hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (events.map Event.id)
+  some { events := events, idNodup := h }
 
 /-- Empty Event memory is valid. -/
 @[simp] theorem ofEvents?_nil :
