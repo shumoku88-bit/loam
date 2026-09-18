@@ -83,16 +83,23 @@ end ReadImage
 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def wallet : LocusId := ⟨"o271-wallet"⟩
+private def counter : LocusId := ⟨"o271-counter"⟩
 
 private def original : Event := {
   id := ⟨"o271-original"⟩
-  effects := [Effect.ofAnonymousQuantity wallet yen (Quantity.ofQuanta 10)]
+  effects := [
+    Effect.ofAnonymousQuantity wallet yen (Quantity.ofQuanta 10),
+    Effect.ofAnonymousQuantity counter yen (Quantity.ofQuanta (-10))
+  ]
   keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
 }
 
 private def replacement : Event := {
   id := ⟨"o271-replacement"⟩
-  effects := [Effect.ofAnonymousQuantity wallet yen (Quantity.ofQuanta 20)]
+  effects := [
+    Effect.ofAnonymousQuantity wallet yen (Quantity.ofQuanta 20),
+    Effect.ofAnonymousQuantity counter yen (Quantity.ofQuanta (-20))
+  ]
   keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
 }
 
