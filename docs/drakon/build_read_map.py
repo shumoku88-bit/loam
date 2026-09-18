@@ -47,15 +47,15 @@ READ_FLOW_DIAGRAMS = {
         ],
     },
     "07.7.1 Current Coverage Read Boundary": {
-        "description": "Production CurrentCoverageReview.loadSnapshotAt after the Scheduled-pressure single-partition refactor.",
+        "description": "Production CurrentCoverageReview.loadSnapshotAt after admitted Actual read-image migration.",
         "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
-        "audit": "Scheduled lifecycle selection and routing/role classification now happen once per snapshot. Query-global frontiers and actionable rows are projected once from that partition; Purpose rows read only managed Commitment from the shared partition. No per-Purpose frontier copies or consistency repair remain.",
+        "audit": "Scheduled lifecycle selection and routing/role classification happen once per snapshot. Actual quantity/date projection reuses the current Event frontier and current validity memory carried by ActualAuthority.Image, while Scheduled reference closure deliberately sees the retained raw Event identity set. No report-local Correction/ActualValidity re-admission or per-Purpose Scheduled frontier copies remain.",
         "nodes": [
             ("decision", "Current window coordinates are valid and ordered?", "Refuse\ninvalid current coverage coordinates"),
             ("insertion", "Load CapacityAuthority\nmovements + effective evidence"),
             ("decision", "Capacity effective evidence complete?", "Refuse\nincomplete Capacity evidence"),
-            ("insertion", "Load authoritative ActualEvidence\nand admit validity frontier"),
-            ("decision", "One current date per Event justified?", "Refuse\ninvalid Actual validity frontier"),
+            ("insertion", "Load admitted ActualAuthority.Image\ncurrentEvents + currentValidities"),
+            ("decision", "Full normalized Actual admission succeeded?", "Refuse\nmalformed or unsupported Actual evidence"),
             ("insertion", "Load Actual routing + Scheduled lifecycle\n+ Scheduled routing + AccountingRole"),
             ("decision", "All required read authorities decode?", "Refuse\nmalformed or unsupported evidence"),
             ("insertion", "currentScheduledPressurePartition?\nselect + classify Scheduled ONCE"),
@@ -74,7 +74,7 @@ READ_FLOW_DIAGRAMS = {
         "nodes": [
             ("action", "Select one Purpose + JPY\ninside explicit current elapsed window"),
             ("insertion", "managedFor shared Scheduled partition\nPurpose-local Commitment only"),
-            ("insertion", "Consumption\ncorrection frontier + historical Actual routing"),
+            ("insertion", "Consumption\ncarried currentEvents/currentValidities + historical Actual routing"),
             ("decision", "Consumption justified?", "No per-Purpose projection"),
             ("insertion", "Entitlement\neffective Capacity through observedAt"),
             ("decision", "Entitlement justified?", "No per-Purpose projection"),

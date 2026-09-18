@@ -114,6 +114,50 @@ def main (args : List String) : IO Unit := do
   expect (generalRow.consumption.quanta == 0) "general consumption"
   expect (generalRow.remaining.quanta == 50) "general remaining"
 
+  -- Canonical BudgetWindow must reuse the admitted Actual image. Replace the
+  -- inside-window Event and verify Consumption follows the current frontier.
+  let replacementEvent ← requireSome
+    (Event.ofEffects? ⟨"actual-inside-r1"⟩
+      [effect "inside-r1-pay" "paypay" (-40),
+       effect "inside-r1-use" "expenses:food" 40])
+    "replacement event"
+  let correctedEvents ← requireSome
+    (EventMemory.ofEvents? (world.events.events ++ [replacementEvent]))
+    "corrected Event memory"
+  let correctedValidity : ActualValidityHistory String := {
+    facts := [
+      .base ⟨"actual-old"⟩ "2026-08-16",
+      .base ⟨"actual-inside"⟩ "2026-08-18",
+      .base ⟨"actual-inside-r1"⟩ "2026-08-19"
+    ]
+    factRefNodup := by decide
+    corrections := []
+    correctionIdNodup := by simp
+  }
+  let correctedCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := ⟨"actual-inside"⟩, replacement := ⟨"actual-inside-r1"⟩ }])
+    "corrected Event correction memory"
+  let correctedActual : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := correctedEvents
+      validity := correctedValidity
+      corrections := correctedCorrections
+  }
+  let .ok _ ← Loam.ActualAuthority.publishActualFile?
+      (Loam.ActualAuthority.actualPath actualRoot) correctedActual
+    | throw (IO.userError "publish corrected Actual image")
+  let .ok correctedSnapshot ←
+      Loam.BudgetWindowReview.loadSnapshot
+        root actualRoot "2026-08-17" "2026-10-15"
+    | throw (IO.userError "budget-window review refused corrected Actual image")
+  let correctedFood ← requireSome (findRow? correctedSnapshot "food")
+    "missing corrected food row"
+  expect (correctedFood.consumption.quanta == 40)
+    "Budget Window did not consume the admitted current Event frontier"
+  expect (correctedFood.remaining.quanta == 60)
+    "Budget Window Remaining did not follow corrected Consumption"
+
   let invalid ←
     Loam.BudgetWindowReview.loadSnapshot
       root actualRoot "2026-10-15" "2026-08-17"

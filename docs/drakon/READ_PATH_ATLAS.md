@@ -76,11 +76,18 @@ source/successor-unique replacement paths. Currentness remains exactly
 `replacement.isNone`; the admitted current Event frontier is not substituted for
 the historical record list.
 
-`CurrentCoverageReview.loadSnapshotAt` now resolves and classifies current-open
+`CurrentCoverageReview.loadSnapshotAt` resolves and classifies current-open
 Scheduled pressure once at the snapshot level. Query-global pressure frontiers
-and actionable rows are projected once from that shared partition. Each Purpose
-projection receives only its managed Commitment, then composes it with current
-Capacity and correction-aware Actual Consumption.
+and actionable rows are projected once from that shared partition. Actual
+Consumption now reuses `ActualAuthority.Image.currentEvents` and
+`currentValidities` directly, so the report no longer rebuilds Correction or
+ActualValidity admission. Each Purpose receives only its managed Scheduled
+Commitment and combines it with admitted Capacity and Actual read views.
+
+Scheduled pressure still receives the retained raw Event identity set from
+`image.evidence.events`. This intentionally preserves reference closure for
+Scheduled-to-Actual evidence even when an Event is superseded for current
+quantity projection.
 
 The old per-Purpose Scheduled-frontier copies and their consistency repair are
 gone. `CurrentCoverageView` also retains only Entitlement, Consumption, and
