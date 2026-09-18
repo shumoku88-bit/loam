@@ -196,6 +196,40 @@ PR #776 removed repeated calls to full `correctionFrontierMemory?` from Correcti
 
 G2-012 therefore does not uncover an unexamined accidental duplication. It confirms the stop point reached by the earlier compression work from a different visual instrument.
 
+## Semantic robustness follow-up — Reversal × RelationDischarge
+
+The current Reversal guard against retained Relation/Discharge provenance is a
+**writer qualification**, not a new canonical persistence invariant.
+
+Observation 178 explicitly left discharge correction/reversal semantics
+unqualified, and Observation 182 promoted only Event-last activation for fresh
+discharge publication. Therefore the present safe operation boundary is:
+
+```text
+retained RelationDischarge(event = E)
+        |
+        +--> canonical retained evidence may coexist with other independent facts
+        |
+        `--> new Reversal(target = E)
+                refused by ActualReversalPublisher
+                until discharge-reversal meaning is qualified
+```
+
+The lower-level `relationOutstandingQuantity?` projection deliberately receives
+only Event, RelationUnit, and RelationDischarge evidence. It does not interpret
+ActualReversal. Repository reachability currently shows no production
+user-facing consumer of that numeric helper; its live uses are admission/
+persistence qualification plus tests. Do not broaden that helper or make
+normalized Actual reject cross-family coexistence merely to encode the current
+writer refusal.
+
+A production regression in `Loam/Tests/ActualReversalPublisher.lean` pins the
+actual safety property: a valid partial-discharge later Event is refused by the
+Reversal writer without mutating Actual authority.
+
+Revisit this boundary only when a production query or writer earns explicit
+discharge correction/reversal semantics.
+
 ## Verdict
 
 ```text
