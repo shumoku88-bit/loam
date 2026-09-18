@@ -1,0 +1,30 @@
+name: Observation 274 Global Done Correspondence
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/274_global_done_correspondence.lean'
+      - 'experiments/cslib_semantic_correspondence_002.lean'
+      - '.github/workflows/observation-274-global-done-correspondence.yml'
+      - 'Loam/Application/ReplacementFrontier.lean'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check Observation 274 correspondence
+        run: lake env lean experiments/274_global_done_correspondence.lean
