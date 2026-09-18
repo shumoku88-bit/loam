@@ -33,10 +33,11 @@ Application quantity-inspection boundary. Zero-valued coordinates remain part
 of the computed projection but are omitted from this ordinary human-facing
 view.
 
-Zero corrections use the recorded presentation. Any nonempty correction set
-uses the same Correction frontier, independent of correction count. Missing
-references retain their specific diagnostic; branching, merging and cyclic
-shapes fail closed as unsupported frontier topology.
+Zero corrections use the recorded presentation heading. Any nonempty correction
+set uses the admitted current Event basis carried by ActualAuthority.Image,
+independent of correction count. Missing references, branching, merging and
+cyclic correction shapes already fail closed while that normalized image is
+loaded; this CLI does not re-admit the same topology per coordinate.
 -/
 def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
