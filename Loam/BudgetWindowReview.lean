@@ -1,6 +1,5 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
-import Loam.Application.ActualValidityFrontier
 import Loam.Application.CapacityWindowInspection
 import Loam.CapacityAuthority
 import Loam.CapacityReview
@@ -46,9 +45,7 @@ structure Snapshot where
 
 private structure Evidence where
   capacity : Loam.CapacityAuthority.Image
-  events : EventMemory
-  corrections : EventCorrectionMemory
-  validities : ActualValidityMemory String
+  actual : Loam.ActualAuthority.Image
   routing : Loam.Persistence.ActualRoutingHistory
 
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
@@ -63,6 +60,12 @@ private def validateWindow (start end_ : String) : Except String Unit :=
   else
     .ok ()
 
+/--
+Project one Purpose from already-admitted Capacity and Actual read images.
+Capacity cross-family completeness, the current Event frontier, and current
+ActualValidity memory are all carried by their authority images rather than
+reconstructed inside the report.
+-/
 private def projectPurpose?
     (evidence : Evidence)
     (start end_ : String)
@@ -72,45 +75,21 @@ private def projectPurpose?
     entitlementAtAdmittedEffectiveWindow?
       evidence.capacity start end_ purpose yen
   let consumption ←
-    consumptionAtCorrectionFrontierEffectiveRoutingWindow?
-      evidence.events evidence.corrections evidence.validities evidence.routing
-      start end_ purpose yen
-  some {
-    purpose := purpose
-    entitlement := entitlement
-    consumption := consumption
-  }
-
-/--
-Project one Purpose after the query-global correction frontier has already been
-admitted. Entitlement remains Purpose-local, while Capacity cross-family
-completeness is carried by the already-admitted authority image and is not
-rescanned per Purpose.
--/
-private def projectPurposeFromFrontier?
-    (evidence : Evidence)
-    (frontier : EventMemory)
-    (start end_ : String)
-    (purpose : PurposeId) : Option Row := do
-  let yen : MeasureId := ⟨"jpy"⟩
-  let entitlement ←
-    entitlementAtAdmittedEffectiveWindow?
-      evidence.capacity start end_ purpose yen
-  let consumption ←
     consumptionAtRecordedEffectiveRoutingWindow?
-      frontier evidence.validities evidence.routing start end_ purpose yen
+      evidence.actual.currentEvents evidence.actual.currentValidities
+      evidence.routing start end_ purpose yen
   some {
     purpose := purpose
     entitlement := entitlement
     consumption := consumption
   }
 
-private def loadActualEvidence
-    (actualRoot : System.FilePath) : IO (Except String Loam.ActualEvidence) :=
+private def loadActualImage
+    (actualRoot : System.FilePath) : IO (Except String Loam.ActualAuthority.Image) :=
   if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then
-    Loam.ActualAuthority.loadActualFile? actualRoot
+    Loam.ActualAuthority.loadImageFile? actualRoot
   else
-    Loam.ActualAuthority.loadActual? actualRoot
+    Loam.ActualAuthority.loadImage? actualRoot
 
 private def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
@@ -125,17 +104,10 @@ private def loadEvidence
   | .error message => return .error message
   | .ok _ => pure ()
 
-  let actualEvidence ←
-    match ← loadActualEvidence actualRoot with
-    | .ok ev => pure ev
+  let actualImage ←
+    match ← loadActualImage actualRoot with
+    | .ok image => pure image
     | .error message => return .error message
-
-  let validities ←
-    match admittedActualValidityMemory? actualEvidence.validity with
-    | some memory => pure memory
-    | none =>
-        return .error
-          "loam: Actual validity corrections do not justify one current date per Event"
   let routing ←
     match ← Loam.Persistence.loadActualRoutingHistory? routingPath with
     | some history => pure history
@@ -143,9 +115,7 @@ private def loadEvidence
 
   return .ok {
     capacity := capacityImage
-    events := actualEvidence.events
-    corrections := actualEvidence.corrections
-    validities := validities
+    actual := actualImage
     routing := routing
   }
 
@@ -178,11 +148,10 @@ def loadPurposeRow
 Load one immutable production evidence snapshot and answer an explicit JPY
 `[start, end)` query for every Purpose represented by retained Capacity evidence.
 
-An empty Purpose set remains an empty successful answer without forcing an
-otherwise irrelevant correction-world obligation. For a non-empty set, the
-first Purpose keeps the existing Entitlement-before-Consumption refusal order;
-after that gate succeeds, one correction frontier is admitted and shared by all
-Purpose-local Consumption projections.
+An empty Purpose set remains an empty successful answer. For a non-empty set,
+every Purpose reuses the current Event frontier and current ActualValidity memory
+already carried by the admitted Actual authority image. No report-local
+Correction or ActualValidity admission is repeated.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
@@ -196,26 +165,14 @@ def loadSnapshot
   | [] =>
       return .ok { start := start, endExclusive := end_, rows := [] }
   | first :: rest =>
-      let yen : MeasureId := ⟨"jpy"⟩
-      let some firstEntitlement :=
-          entitlementAtAdmittedEffectiveWindow?
-            evidence.capacity start end_ first yen
-        | return .error "loam: canonical evidence does not justify this budget-window projection"
-      let some frontier := correctionFrontierMemory? evidence.events evidence.corrections
-        | return .error "loam: canonical evidence does not justify this budget-window projection"
-      let some firstConsumption :=
-          consumptionAtRecordedEffectiveRoutingWindow?
-            frontier evidence.validities evidence.routing start end_ first yen
-        | return .error "loam: canonical evidence does not justify this budget-window projection"
-      let firstRow : Row := {
-        purpose := first
-        entitlement := firstEntitlement
-        consumption := firstConsumption
-      }
-      match rest.mapM (projectPurposeFromFrontier? evidence frontier start end_) with
+      match projectPurpose? evidence start end_ first with
       | none =>
           return .error "loam: canonical evidence does not justify this budget-window projection"
-      | some later =>
-          return .ok { start := start, endExclusive := end_, rows := firstRow :: later }
+      | some firstRow =>
+          match rest.mapM (projectPurpose? evidence start end_) with
+          | none =>
+              return .error "loam: canonical evidence does not justify this budget-window projection"
+          | some later =>
+              return .ok { start := start, endExclusive := end_, rows := firstRow :: later }
 
 end Loam.BudgetWindowReview
