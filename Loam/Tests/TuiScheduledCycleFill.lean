@@ -40,7 +40,7 @@ def main : IO Unit := do
 
   let twoMonth := Loam.Tui.ScheduledCycleFill.update state .right
   let chosen := Loam.Tui.ScheduledCycleFill.update twoMonth.state .enter
-  expect (chosen.cadence == some .everyTwoMonths)
+  expect (decide (chosen.cadence = some .everyTwoMonths))
     "cycle-fill cadence selection did not preserve explicit input choice"
 
   let draft1 : Loam.ScheduledCreationPublisher.Draft := {
