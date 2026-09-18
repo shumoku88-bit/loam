@@ -38,10 +38,9 @@ def main (args : List String) : IO Unit := do
     [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
   expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero)
     "save zero-origin"
-  IO.FS.writeFile (root / "capacity.loam")
-    "LOAM-CAPACITY-MEMORY\t1\nMOVEMENT\tcapacity-1\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t100\n"
-  IO.FS.writeFile (root / "capacity.loam.effective")
-    "LOAM-CAPACITY-EFFECTIVE\t1\nEFFECTIVE\tcapacity-1\t2026-09-08\n"
+  let capacityFixture :=
+    "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t100\nENDMOVEMENT\n"
+  IO.FS.writeFile (root / "capacity.loam") capacityFixture
   IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
   IO.FS.writeFile (root / "scheduled-routing.loam") "LOAM-SCHEDULED-ROUTING\t1\n"
   IO.FS.writeFile (root / "accounting-role.loam") "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
@@ -72,12 +71,11 @@ def main (args : List String) : IO Unit := do
   let displayBad ← load
   expect (!displayBad.physical.isOk && displayBad.funding.isOk) "funding depended on display config"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\nyucho\tjpy\n"
-  IO.FS.removeFile (root / "capacity.loam.effective")
+  IO.FS.removeFile (root / "capacity.loam")
   let unavailable ← load
   expect (!unavailable.coverage.isOk && !unavailable.funding.isOk && unavailable.physical.isOk)
     "missing CurrentCoverage did not refuse Funding independently"
-  IO.FS.writeFile (root / "capacity.loam.effective")
-    "LOAM-CAPACITY-EFFECTIVE\t1\nEFFECTIVE\tcapacity-1\t2026-09-08\n"
+  IO.FS.writeFile (root / "capacity.loam") capacityFixture
   -- Filesystem exceptions also degrade, rather than escape the optional read layer.
   IO.FS.removeFile fundingPath
   IO.FS.createDirAll fundingPath

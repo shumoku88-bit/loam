@@ -1,5 +1,6 @@
 import Loam.Application.CapacityInspection
-import Loam.Persistence.CapacityPersistence
+import Loam.CapacityEvidence
+import Loam.Persistence.NormalizedCapacityPersistence
 
 open Loam.Core
 open Loam.Application
@@ -70,20 +71,32 @@ def main : IO Unit := do
   expect (!(canMoveCapacityFrom memory.movements (.purpose food) yen 61))
     "purpose could overdraw its post-reallocation entitlement"
 
-  let encoded ← requireSome
-    (Loam.Persistence.encodeCapacityMemory? memory)
-    "capacity memory could not be encoded"
-  let decoded ← requireSome
-    (Loam.Persistence.decodeCapacityMemory? encoded)
-    "encoded capacity memory could not be decoded"
+  let effective ← requireSome
+    (CapacityEffectiveMemory.ofEntries?
+      [{ movement := allocation.id, effectiveOn := "2026-08-17" },
+       { movement := reallocation.id, effectiveOn := "2026-08-29" }])
+    "capacity effective memory was rejected"
+  let evidence ← requireSome
+    (Loam.CapacityEvidence.ofParts? memory effective)
+    "capacity evidence was rejected"
 
-  expect ((entitlementAt decoded.movements food yen).quanta == 60)
-    "capacity persistence round-trip changed entitlement"
+  let encoded ← requireSome
+    (Loam.Persistence.encodeNormalizedCapacity? evidence)
+    "normalized capacity evidence could not be encoded"
+  let decoded ← requireSome
+    (Loam.Persistence.decodeNormalizedCapacity? encoded)
+    "encoded normalized capacity evidence could not be decoded"
+
+  expect ((entitlementAt decoded.movements.movements food yen).quanta == 60)
+    "normalized capacity persistence round-trip changed entitlement"
+  expect (decoded.effective.findByMovementId? allocation.id == some "2026-08-17")
+    "normalized capacity persistence round-trip changed effective date"
 
   let malformedUnbalanced :=
-    "LOAM-CAPACITY-MEMORY\t1\n" ++
-    "MOVEMENT\tcapacity-9\tjpy\n" ++
+    "LOAM-NORMALIZED-CAPACITY\t1\n" ++
+    "MOVEMENT\tcapacity-9\t2026-08-17\tjpy\n" ++
     "CHANGE\tUNALLOCATED\t-100\n" ++
-    "CHANGE\tPURPOSE\tfood\t90\n"
-  expect (Loam.Persistence.decodeCapacityMemory? malformedUnbalanced).isNone
-    "capacity persistence admitted an unbalanced movement"
+    "CHANGE\tPURPOSE\tfood\t90\n" ++
+    "ENDMOVEMENT\n"
+  expect (Loam.Persistence.decodeNormalizedCapacity? malformedUnbalanced).isNone
+    "normalized capacity persistence admitted an unbalanced movement"

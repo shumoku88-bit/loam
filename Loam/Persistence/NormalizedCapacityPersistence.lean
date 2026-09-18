@@ -11,14 +11,14 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Normalized Capacity persistence experiment
+# Normalized Capacity persistence
 
-Candidate single-document wire representation for CapacityMovement and
-CapacityEffective. The two meanings remain distinct after decoding; only their
-physical publication unit is normalized.
+Single-document wire representation for CapacityMovement and CapacityEffective.
+The two meanings remain distinct after decoding; only their physical publication
+unit is normalized.
 -/
 
-/-- Header for the experimental normalized Capacity document. -/
+/-- Header for the normalized Capacity document. -/
 def normalizedCapacityHeader : String := "LOAM-NORMALIZED-CAPACITY\t1"
 
 private def encodeChangeRow? (change : MovementChange CapacityCoordinate) : Option String :=
