@@ -51,8 +51,12 @@ private def buildHashNodup?
           nodup := List.nodup_cons.mpr ⟨hFresh, built.nodup⟩
           seen_iff := by
             intro key
-            simp [Std.HashSet.mem_insert, built.seen_iff]
+            simp [Std.HashSet.mem_insert, built.seen_iff, eq_comm]
         }
+
+/-- Successful hash-backed duplicate admission carrying the existing proof proposition. -/
+structure HashNodupWitness {Item : Type} (items : List Item) where
+  proof : items.Nodup
 
 /--
 Admit list uniqueness using a HashSet-backed duplicate check while returning the
@@ -66,8 +70,8 @@ def hashNodupBy?
     [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
     (keyOf : Item → Key)
     (_keyInjective : Function.Injective keyOf)
-    (items : List Item) : Option items.Nodup := do
+    (items : List Item) : Option (HashNodupWitness items) := do
   let built ← buildHashNodup? keyOf items
-  some built.nodup
+  some { proof := built.nodup }
 
 end Loam.Core
