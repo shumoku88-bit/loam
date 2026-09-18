@@ -86,7 +86,51 @@ def run : IO Unit := do
       expect (dates == ["2026-03-31"])
         s!"two-month day-31 fill changed target: {repr dates}"
 
-  IO.println "Scheduled current-cycle generation checks succeeded."
+  let pensionPreset : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension"
+    boundaries := ["2026-08-14", "2026-10-15", "2026-12-15", "2027-02-15"]
+  }
+  let nextWindow ←
+    match Loam.BoundaryPresetConfig.followingWindowFor? [pensionPreset] "2026-09-18" with
+    | .error message => throw (IO.userError ("following cycle lookup refused: " ++ message))
+    | .ok none => throw (IO.userError "following cycle lookup lost explicit next window")
+    | .ok (some window) => pure window
+  expect (nextWindow.start == "2026-10-15" &&
+      nextWindow.endExclusive == "2026-12-15" &&
+      nextWindow.hasFollowingBoundary)
+    "following cycle lookup did not preserve explicit adjacent boundaries"
+
+  match Loam.ScheduledCycleFill.planForWindow nextWindow "2026-09-18"
+      { anchor := "2026-08-15", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("next-cycle prefill refused previous-cycle source: " ++ message))
+  | .ok dates =>
+      expect (dates == ["2026-10-15", "2026-11-15"])
+        s!"next-cycle prefill did not stay inside explicit following window: {repr dates}"
+
+  let switchedCurrent : Loam.BoundaryPresetConfig.CurrentWindow := {
+    source := "Pension"
+    start := "2026-10-15"
+    endExclusive := "2026-12-15"
+    hasFollowingBoundary := true
+  }
+  match Loam.ScheduledCycleFill.planForWindow switchedCurrent "2026-10-16"
+      { anchor := "2026-09-15", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("post-switch fill refused previous-cycle source: " ++ message))
+  | .ok dates =>
+      expect (dates == ["2026-11-15"])
+        s!"post-switch fill recreated past/boundary dates or missed current target: {repr dates}"
+
+  match Loam.BoundaryPresetConfig.followingWindowFor? [pensionPreset] "2027-01-15" with
+  | .error message =>
+      throw (IO.userError ("terminal cycle lookup unexpectedly refused: " ++ message))
+  | .ok (some window) =>
+      throw (IO.userError ("terminal cycle lookup invented a following window: " ++
+        window.start ++ " .. " ++ window.endExclusive))
+  | .ok none => pure ()
+
+  IO.println "Scheduled current/next-cycle generation checks succeeded."
 
 end Loam.Tests.ScheduledCycleFill
 
