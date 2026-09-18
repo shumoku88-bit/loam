@@ -90,6 +90,28 @@ def run : IO Unit := do
     name := "Pension"
     boundaries := ["2026-08-14", "2026-10-15", "2026-12-15", "2027-02-15"]
   }
+
+  let horizons ←
+    match Loam.BoundaryPresetConfig.explicitHorizonsFor? [pensionPreset] "2026-09-18" with
+    | .error message => throw (IO.userError ("fill horizon lookup refused: " ++ message))
+    | .ok horizons => pure horizons
+  expect (horizons.map (fun horizon => horizon.endExclusive) ==
+      ["2026-10-15", "2026-12-15", "2027-02-15"])
+    "fill horizons did not expose every explicit future boundary"
+  expect (horizons.all fun horizon => horizon.start == "2026-08-14")
+    "fill horizons did not retain the current boundary as their common start"
+
+  let farHorizon ←
+    match horizons.reverse.head? with
+    | none => throw (IO.userError "fill horizon list unexpectedly empty")
+    | some horizon => pure horizon
+  match Loam.ScheduledCycleFill.planThrough farHorizon "2026-09-18"
+      { anchor := "2026-08-15", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("fill-through horizon refused previous-cycle source: " ++ message))
+  | .ok dates =>
+      expect (dates == ["2026-10-15", "2026-11-15", "2026-12-15", "2027-01-15"])
+        s!"fill-through horizon skipped or invented explicit monthly slots: {repr dates}"
   let nextWindow ←
     match Loam.BoundaryPresetConfig.followingWindowFor? [pensionPreset] "2026-09-18" with
     | .error message => throw (IO.userError ("following cycle lookup refused: " ++ message))
@@ -130,7 +152,7 @@ def run : IO Unit := do
         window.start ++ " .. " ++ window.endExclusive))
   | .ok none => pure ()
 
-  IO.println "Scheduled current/next-cycle generation checks succeeded."
+  IO.println "Scheduled fill-through explicit horizon generation checks succeeded."
 
 end Loam.Tests.ScheduledCycleFill
 
