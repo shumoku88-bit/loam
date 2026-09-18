@@ -153,7 +153,7 @@ theorem opening_anchor_overlap_is_rejected :
     (SupportEvidence.ofParts? ZeroOriginCoverage.empty openingB anchorB).isNone = true := by
   native_decide
 
-/--
+/-
 The aggregate proves only cross-family separation. It does not prove that an
 OpeningSupport Event survives the current correction frontier, nor that an
 anchor's reflected roots are valid in the current Actual world.
