@@ -3,6 +3,7 @@ name: Shared Capacity Publisher
 on:
   pull_request:
     paths:
+      - 'Loam/CapacityAuthority.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/CapacityEvidence.lean'
@@ -24,6 +25,7 @@ on:
       - main
       - feat/tui
     paths:
+      - 'Loam/CapacityAuthority.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/CapacityEvidence.lean'
@@ -58,7 +60,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityPublisher Loam.CapacityReview
+          build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityAuthority Loam.CapacityPublisher Loam.CapacityReview
           test: false
           lint: false
           use-mathlib-cache: false
