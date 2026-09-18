@@ -230,6 +230,35 @@ Reversal writer without mutating Actual authority.
 Revisit this boundary only when a production query or writer earns explicit
 discharge correction/reversal semantics.
 
+## Semantic robustness follow-up — Correction × RelationDischarge
+
+The current Correction guard against retained Relation/Discharge provenance is
+also a **writer qualification**, not a canonical persistence law.
+
+Observation 178 explicitly leaves discharge correction semantics unqualified,
+and Observation 182 does not promote Scheduled/correction/historical discharge
+qualification. The present safe boundary is therefore:
+
+```text
+retained RelationDischarge(event = E)
+        |
+        +--> canonical retained evidence remains representable
+        |
+        `--> new Correction(target = E)
+                refused by CorrectionPublisher
+                until discharge-correction meaning is qualified
+```
+
+The regression in `Loam/Tests/CorrectionPublisher.lean` isolates the discharge
+side of the shared Relation/Discharge membership guard: the Correction target is
+the later discharge Event, not the source Event of the RelationUnit. The writer
+must refuse without changing `actual.loam`, appending correction provenance, or
+altering retained discharge evidence.
+
+Do not turn this writer-local stop condition into a normalized-Actual decode
+restriction merely because the current operation cannot yet preserve the intended
+discharge meaning across replacement.
+
 ## Verdict
 
 ```text
