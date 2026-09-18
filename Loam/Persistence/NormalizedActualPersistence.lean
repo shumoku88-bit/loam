@@ -303,36 +303,48 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         let mut relations : List RelationUnit := []
         let mut discharges : List RelationDischarge := []
 
+        -- Accumulate in reverse so decoding remains linear in retained row count.
+        -- The final reversals below restore the canonical persistence representation order.
         for tx in txs do
           let event ← Event.ofEffects? tx.event tx.effects
-          events := events ++ [event]
-          facts := facts ++ [.base tx.event tx.baseValidOn]
+          events := event :: events
+          facts := .base tx.event tx.baseValidOn :: facts
 
           if let some descText := tx.description then
-            descriptions := descriptions ++ [{ event := tx.event, text := descText }]
+            descriptions := { event := tx.event, text := descText } :: descriptions
 
           if let some disposition := tx.merchant then
-            merchants := merchants ++ [{ event := tx.event, disposition := disposition }]
+            merchants := { event := tx.event, disposition := disposition } :: merchants
 
           if let some target := tx.replaces then
-            corrections := corrections ++ [{ target := target, replacement := tx.event }]
+            corrections := { target := target, replacement := tx.event } :: corrections
 
           if let some target := tx.reversalOf then
-            reversals := reversals ++ [{ target := target, reversal := tx.event }]
+            reversals := { target := target, reversal := tx.event } :: reversals
 
           for (revId, date, targetRef) in tx.dateRevisions do
-            facts := facts ++ [.revision revId tx.event date]
-            valCorrections := valCorrections ++ [{ target := targetRef, replacement := revId }]
+            facts := .revision revId tx.event date :: facts
+            valCorrections := { target := targetRef, replacement := revId } :: valCorrections
 
-          relations := relations ++ tx.relations
-          discharges := discharges ++ tx.discharges
+          relations := tx.relations.foldl (fun acc relation => relation :: acc) relations
+          discharges := tx.discharges.foldl (fun acc discharge => discharge :: acc) discharges
 
-        let eventMemory ← EventMemory.ofEvents? events
-        let validityHistory ← ActualValidityHistory.ofParts? facts valCorrections
-        let descMemory ← EventDescriptionMemory.ofEntries? descriptions
-        let merchantMemory ← EventMerchantEvidenceMemory.ofEntries? merchants
-        let corrMemory ← EventCorrectionMemory.ofCorrections? corrections
-        let revMemory ← ActualReversalMemory.ofReversals? reversals
+        let orderedEvents := events.reverse
+        let orderedFacts := facts.reverse
+        let orderedValCorrections := valCorrections.reverse
+        let orderedDescriptions := descriptions.reverse
+        let orderedMerchants := merchants.reverse
+        let orderedCorrections := corrections.reverse
+        let orderedReversals := reversals.reverse
+        let orderedRelations := relations.reverse
+        let orderedDischarges := discharges.reverse
+
+        let eventMemory ← EventMemory.ofEvents? orderedEvents
+        let validityHistory ← ActualValidityHistory.ofParts? orderedFacts orderedValCorrections
+        let descMemory ← EventDescriptionMemory.ofEntries? orderedDescriptions
+        let merchantMemory ← EventMerchantEvidenceMemory.ofEntries? orderedMerchants
+        let corrMemory ← EventCorrectionMemory.ofCorrections? orderedCorrections
+        let revMemory ← ActualReversalMemory.ofReversals? orderedReversals
 
         let rawEvidence : ActualEvidence := {
           events := eventMemory
@@ -341,8 +353,8 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
           merchants := merchantMemory
           corrections := corrMemory
           reversals := revMemory
-          relations := relations
-          discharges := discharges
+          relations := orderedRelations
+          discharges := orderedDischarges
         }
 
         admitActualImage? rawEvidence
