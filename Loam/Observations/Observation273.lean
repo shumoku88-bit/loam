@@ -210,6 +210,28 @@ theorem global_done_matches_representative_decisions :
     (globalDoneDetector merging).acyclic = acyclic merging := by
   native_decide
 
+private def smallEdgeUniverse : List (Edge Nat) :=
+  (List.range 3).flatMap fun source =>
+    (List.range 3).map fun successor =>
+      { source := source, successor := successor }
+
+/--
+Across every edge subset on three identities, whenever the production
+replacement premise `endpointUnique` holds, the global-done candidate agrees
+with the production cycle decision.
+
+This is a bounded exhaustive check over 2^9 represented edge sets. It is not a
+general proof, but it substantially widens the observation beyond hand-picked
+fixtures while staying independent of any HashMap representation.
+-/
+theorem global_done_matches_all_small_endpoint_unique_graphs :
+    smallEdgeUniverse.powerset.all (fun edges =>
+      if endpointUnique edges then
+        (globalDoneDetector edges).acyclic == acyclic edges
+      else
+        true) = true := by
+  native_decide
+
 /--
 On an ascending chain, the current detector repeatedly re-walks already-known
 suffixes. Counting only linear `next?` source comparisons, global-done pays for
