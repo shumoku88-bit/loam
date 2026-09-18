@@ -136,7 +136,7 @@ def ofParts?
       (correction.target, correction.replacement)).Nodup then
     some {
       facts := facts
-      factRefNodup := hFacts
+      factRefNodup := hFacts.proof
       corrections := corrections
       correctionIdNodup := hCorrections
     }
