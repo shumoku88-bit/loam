@@ -87,6 +87,10 @@ def findByTarget? (memory : ActualReversalMemory) (target : EventId) : Option Ac
 def findByReversal? (memory : ActualReversalMemory) (reversal : EventId) : Option ActualReversal :=
   memory.reversals.find? fun relation => decide (relation.reversal = reversal)
 
+/-- Whether one Event participates as either endpoint of retained Reversal evidence. -/
+def mentionsEvent (memory : ActualReversalMemory) (event : EventId) : Bool :=
+  (memory.findByTarget? event).isSome || (memory.findByReversal? event).isSome
+
 /-- Append one relation only when both endpoint-functional invariants remain true. -/
 def add? (memory : ActualReversalMemory) (relation : ActualReversal) : Option ActualReversalMemory :=
   ofReversals? (memory.reversals ++ [relation])
