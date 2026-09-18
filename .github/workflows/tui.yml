@@ -312,6 +312,9 @@ jobs:
       - name: Build shared Scheduled creation publisher boundary
         run: lake build Loam.ScheduledCreationPublisher
 
+      - name: Build construction-only current-cycle Scheduled generation
+        run: lake build Loam.ScheduledCycleFill
+
       - name: Verify construction-only current-cycle Scheduled generation
         run: lake env lean --run Loam/Tests/ScheduledCycleFill.lean
 
