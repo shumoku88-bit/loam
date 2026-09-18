@@ -1,5 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -38,27 +39,50 @@ namespace ActualValidityMemory
 
 variable {Time : Type}
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 /--
 Admit a collection of validity evidence only when no EventId is repeated.
 Duplicate valid coordinates for the same EventId are rejected (fail closed).
 -/
 def ofEntries?
-    (entries : List (ActualValidity Time)) : Option (ActualValidityMemory Time) :=
-  if h : (entries.map ActualValidity.event).Nodup then
-    some { entries := entries, eventNodup := h }
-  else
-    none
+    (entries : List (ActualValidity Time)) : Option (ActualValidityMemory Time) := do
+  let h ← hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (entries.map ActualValidity.event)
+  some { entries := entries, eventNodup := h.proof }
 
 /-- Empty validity memory is valid. -/
 @[simp] theorem ofEntries?_nil :
     ofEntries? ([] : List (ActualValidity Time)) =
       some { entries := [], eventNodup := by simp } := by
-  simp [ofEntries?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective []
+      some ({ entries := [], eventNodup := h.proof } : ActualValidityMemory Time)) =
+    some ({ entries := [], eventNodup := by simp } : ActualValidityMemory Time)
+  rw [hashNodupBy?_nil]
+  rfl
 
 /-- Single validity entry is valid. -/
 @[simp] theorem ofEntries?_singleton (entry : ActualValidity Time) :
     ofEntries? [entry] = some { entries := [entry], eventNodup := by simp } := by
-  simp [ofEntries?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective [entry.event]
+      some ({ entries := [entry], eventNodup := h.proof } : ActualValidityMemory Time)) =
+    some ({ entries := [entry], eventNodup := by simp } : ActualValidityMemory Time)
+  rw [hashNodupBy?_singleton]
+  rfl
 
 /--
 Find the valid coordinate for an EventId.

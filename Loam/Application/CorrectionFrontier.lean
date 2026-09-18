@@ -227,12 +227,12 @@ theorem correctionFrontierMemory?_mem_iff
       | cons head tail => simp [hList] at hEmpty
     simp [hNoCorrections]
   · split at hFrontier
-    · unfold EventMemory.ofEvents? at hFrontier
-      split at hFrontier
-      · simp only [Option.some.injEq] at hFrontier
-        subst frontier
-        simp [frontierEvents, targetsEvent_false_iff]
-      · simp at hFrontier
+    · have hEvents :
+          frontier.events = frontierEvents events corrections :=
+        EventMemory.ofEvents?_some_events
+          (frontierEvents events corrections) frontier hFrontier
+      rw [hEvents]
+      simp [frontierEvents, targetsEvent_false_iff]
     · simp at hFrontier
 
 /--

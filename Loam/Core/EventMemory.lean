@@ -1,5 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -21,25 +22,72 @@ structure EventMemory where
 
 namespace EventMemory
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 /--
 Admit a runtime Event collection only when Event identity is not repeated.
 Representation order is retained but does not become semantic history.
 -/
-def ofEvents? (events : List Event) : Option EventMemory :=
-  if h : (events.map Event.id).Nodup then
-    some { events := events, idNodup := h }
-  else
-    none
+def ofEvents? (events : List Event) : Option EventMemory := do
+  let h ← hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (events.map Event.id)
+  some { events := events, idNodup := h.proof }
 
 /-- Empty Event memory is valid. -/
 @[simp] theorem ofEvents?_nil :
     ofEvents? [] = some { events := [], idNodup := by simp } := by
-  simp [ofEvents?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective []
+      some ({ events := [], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [], idNodup := by simp } : EventMemory)
+  rw [hashNodupBy?_nil]
+  rfl
 
 /-- One Event always has unique identity within a memory. -/
 @[simp] theorem ofEvents?_singleton (event : Event) :
     ofEvents? [event] = some { events := [event], idNodup := by simp } := by
-  simp [ofEvents?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective [event.id]
+      some ({ events := [event], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [event], idNodup := by simp } : EventMemory)
+  rw [hashNodupBy?_singleton]
+  rfl
+
+/--
+A successful runtime admission preserves exactly the supplied Event list.
+
+This theorem exposes the stable observation callers need without exposing the
+duplicate-checking implementation used inside `ofEvents?`.
+-/
+theorem ofEvents?_some_events
+    (events : List Event)
+    (memory : EventMemory)
+    (h : ofEvents? events = some memory) :
+    memory.events = events := by
+  unfold ofEvents? at h
+  cases hAdmission :
+      hashNodupBy?
+        (fun id : EventId => id.token)
+        eventIdToken_injective
+        (events.map Event.id) with
+  | none =>
+      simp [hAdmission] at h
+  | some witness =>
+      simp [hAdmission] at h
+      cases h
+      rfl
 
 /--
 Find one remembered Event by its stable identity.
@@ -152,17 +200,39 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
 @[simp] theorem add?_empty (event : Event) :
     add? { events := [], idNodup := by simp } event =
       some { events := [event], idNodup := by simp } := by
-  simp [add?, ofEvents?]
+  simp [add?]
 
 @[simp] theorem add?_singleton_duplicate (event : Event) :
     add? { events := [event], idNodup := by simp } event = none := by
-  simp [add?, ofEvents?]
+  change ofEvents? [event, event] = none
+  unfold ofEvents?
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective [event.id, event.id]
+      some ({ events := [event, event], idNodup := h.proof } : EventMemory)) = none
+  rw [hashNodupBy?_repeat]
+  rfl
 
 theorem add?_singleton_distinct
     (existing added : Event) (h : existing.id ≠ added.id) :
     add? { events := [existing], idNodup := by simp } added =
       some { events := [existing, added], idNodup := by simp [h] } := by
-  simp [add?, ofEvents?, h]
+  have hToken : existing.id.token ≠ added.id.token := by
+    intro hEq
+    exact h (eventIdToken_injective hEq)
+  change ofEvents? [existing, added] =
+    some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
+  unfold ofEvents?
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective [existing.id, added.id]
+      some ({ events := [existing, added], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
+  rw [hashNodupBy?_pair_of_key_ne
+    (fun id : EventId => id.token) eventIdToken_injective existing.id added.id hToken]
+  rfl
 
 end EventMemory
 

@@ -1,5 +1,6 @@
 import Loam.Core.ActualValidity
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -95,21 +96,50 @@ namespace ActualValidityHistory
 
 variable {Time : Type}
 
+private def refHashKey : ActualValidityRef → Bool × String
+  | .root event => (false, event.token)
+  | .revision id => (true, id.token)
+
+private theorem refHashKey_injective : Function.Injective refHashKey := by
+  intro left right h
+  cases left with
+  | root leftEvent =>
+      cases right with
+      | root rightEvent =>
+          simp [refHashKey] at h
+          cases leftEvent
+          cases rightEvent
+          cases h
+          rfl
+      | revision rightId =>
+          simp [refHashKey] at h
+  | revision leftId =>
+      cases right with
+      | root rightEvent =>
+          simp [refHashKey] at h
+      | revision rightId =>
+          simp [refHashKey] at h
+          cases leftId
+          cases rightId
+          cases h
+          rfl
+
 /-- Admit raw history only when fact references and exact correction edges are unique. -/
 def ofParts?
     (facts : List (ActualValidityFact Time))
-    (corrections : List ActualValidityCorrection) : Option (ActualValidityHistory Time) :=
-  if hFacts : (facts.map ActualValidityFact.ref).Nodup then
-    if hCorrections : (corrections.map fun correction =>
-        (correction.target, correction.replacement)).Nodup then
-      some {
-        facts := facts
-        factRefNodup := hFacts
-        corrections := corrections
-        correctionIdNodup := hCorrections
-      }
-    else
-      none
+    (corrections : List ActualValidityCorrection) : Option (ActualValidityHistory Time) := do
+  let hFacts ← hashNodupBy?
+    refHashKey
+    refHashKey_injective
+    (facts.map ActualValidityFact.ref)
+  if hCorrections : (corrections.map fun correction =>
+      (correction.target, correction.replacement)).Nodup then
+    some {
+      facts := facts
+      factRefNodup := hFacts.proof
+      corrections := corrections
+      correctionIdNodup := hCorrections
+    }
   else
     none
 
@@ -152,7 +182,23 @@ def addCorrection?
         corrections := []
         correctionIdNodup := by simp
       } := by
-  simp [ofParts?]
+  change
+    (do
+      let hFacts ← hashNodupBy? refHashKey refHashKey_injective []
+      some ({
+        facts := []
+        factRefNodup := hFacts.proof
+        corrections := []
+        correctionIdNodup := by simp
+      } : ActualValidityHistory Time)) =
+    some ({
+      facts := []
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp
+    } : ActualValidityHistory Time)
+  rw [hashNodupBy?_nil]
+  rfl
 
 end ActualValidityHistory
 
