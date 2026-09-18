@@ -161,7 +161,7 @@ private def cadenceView (state : State) (choice : Nat) : Widget :=
         ]
     , line ""
     , line "Cadence is construction input only; no recurrence authority is retained."
-    , line "A source from an earlier cycle may seed every explicit slot through this horizon."
+    , line "An older source may seed every explicit slot through this horizon."
     , line "Each generated occurrence will be editable before the final publish review."
     , line "Arrows / Tab select   Enter continue   Esc cancel"
     , line state.notice
