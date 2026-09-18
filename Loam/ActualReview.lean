@@ -28,8 +28,11 @@ structure Record where
 
 /--
 A review record is current exactly when no admitted Correction leaves its Event.
-`recordsFromActualEvidence?` first admits the correction relation, so the retained
-replacement edge is the unique local witness needed for this read-side status.
+Raw in-memory callers use `recordsFromActualEvidence?`, which performs its own
+admission. Canonical authority callers use `recordsFromActualImage`, where full
+normalized admission has already established that the retained correction relation
+is usable. In both cases the replacement edge is the unique local witness needed
+for this read-side status.
 -/
 def Record.isCurrent (record : Record) : Bool :=
   record.replacement.isNone
@@ -129,6 +132,25 @@ def recordsFromActualEvidence?
         })
 
 /--
+Project review records from one fully admitted normalized Actual image.
+
+Historical/superseded Events remain visible because Actual Review is a record
+review, not a current-frontier-only report. Only the current validity projection
+is reused from the image; correction admissibility is already guaranteed by full
+normalized admission, so no second frontier check is performed here.
+-/
+def recordsFromActualImage
+    (image : Loam.ActualAuthority.Image) : List Record :=
+  let evidence := image.evidence
+  evidence.events.events.map fun event => {
+    event := event
+    date := image.currentValidities.findByEventId? event.id
+    description := (evidence.descriptions.findText? event.id).getD ""
+    replacement :=
+      (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
+  }
+
+/--
 Load authoritative review records from the normalized Actual authority file.
 -/
 def loadRecordsFromActual
@@ -136,9 +158,9 @@ def loadRecordsFromActual
   let path :=
     if root.fileName == some Loam.ActualAuthority.actualFileName then root
     else Loam.ActualAuthority.actualPath root
-  match ← Loam.ActualAuthority.loadActualFile? path with
+  match ← Loam.ActualAuthority.loadImageFile? path with
   | .error message => return .error message
-  | .ok evidence => return recordsFromActualEvidence? evidence
+  | .ok image => return .ok (recordsFromActualImage image)
 
 /-- Load records from a repository root or explicit `actual.loam` path. -/
 def loadRecords (path : String) : IO (Except String (List Record)) :=

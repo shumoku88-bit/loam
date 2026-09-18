@@ -1,4 +1,5 @@
 import Loam.Cli.ReviewCli
+import Loam.Persistence.NormalizedActualPersistence
 
 open Loam.Core Loam.ActualReview Loam.ReviewCli
 
@@ -99,4 +100,36 @@ def main : IO Unit := do
   | .ok _ =>
       throw <| IO.userError "Actual review accepted branching correction topology"
 
-  IO.println "Record review projection, calendar checks and admission-only correction guard passed."
+  -- Canonical normalized readers should consume the already-admitted Actual image
+  -- without repeating Correction or ActualValidity admission.
+  let some linearCorrections := EventCorrectionMemory.ofCorrections?
+      [{ target := branchRoot.id, replacement := branchLeft.id }]
+    | throw <| IO.userError "linear correction fixture storage admission failed"
+  let some canonicalValidity := Loam.Core.ActualValidityHistory.ofParts?
+      [ .base branchRoot.id "2026-09-01"
+      , .base branchLeft.id "2026-09-02"
+      , .base branchRight.id "2026-09-03"
+      ] []
+    | throw <| IO.userError "canonical validity fixture admission failed"
+  let canonicalEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := branchEvents
+      validity := canonicalValidity
+      corrections := linearCorrections }
+  let some image := Loam.Persistence.admitActualImage? canonicalEvidence
+    | throw <| IO.userError "canonical Actual image admission failed"
+  let imageRows := recordsFromActualImage image
+  expect (imageRows.length == 3)
+    "admitted Actual image review lost historical Events"
+  let some imageRoot := imageRows.find? fun row => row.event.id = branchRoot.id
+    | throw <| IO.userError "admitted Actual image lost correction target record"
+  expect (imageRoot.replacement == some branchLeft.id)
+    "admitted Actual image lost correction replacement witness"
+  expect (imageRoot.date == some "2026-09-01")
+    "admitted Actual image lost retained target occurrence date"
+  expect ((select imageRows (.day "2026-09-01")).isEmpty)
+    "admitted Actual image review displayed a superseded target as current"
+  expect ((select imageRows (.day "2026-09-02")).map (·.event.id.token) == ["branch-left"])
+    "admitted Actual image review did not expose the current replacement"
+
+  IO.println "Record review projection, calendar checks and admitted-image correction guard passed."
