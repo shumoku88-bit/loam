@@ -1,6 +1,6 @@
 # Actual admitted read image promotion audit — 2026-09
 
-Status: **STAGE A + B-1 + B-2 MERGED; STAGE B-3 IMPLEMENTED ON BRANCH**
+Status: **STAGE A + B-1 + B-2 + B-3 MERGED; STAGE B-4 IMPLEMENTED ON BRANCH**
 
 Stage A merged as `805a13726a646e55b68df117cb6e00b82ed5099c`.
 
@@ -190,6 +190,76 @@ verify that Consumption follows the replacement Event quantity:
 
 CurrentCoverage additionally verifies Scheduled commitment remains unchanged
 across the Actual correction.
+
+## Stage B-4
+
+The fourth reader migration is deliberately limited to the Actual-derived part of
+RoleBalanceReview.
+
+Role Balance composes several independent obligations:
+
+- ordinary current correction frontier;
+- zero-origin coverage;
+- opening support;
+- current quantity anchors;
+- AccountingRole evidence.
+
+Only the first of those is owned by the admitted Actual read image. Stage B-4
+therefore does not merge support families or redesign Role Balance.
+
+### BalanceReview admitted entrance
+
+BalanceReview now exposes `projectImage`, which accepts a full
+`ActualAuthority.Image` rather than a bare `EventMemory`.
+
+That distinction is the provenance boundary G2-006 previously lacked:
+`image.currentEvents` carries a proof tying it to the retained Events and
+Corrections. Canonical readers can therefore reuse the already-admitted basis
+without creating a generic "trust this EventMemory" bypass.
+
+The raw `BalanceReview.project` entrance remains unchanged and continues to
+admit arbitrary in-memory Events + Corrections fail-closed.
+
+### RoleBalance canonical path
+
+`RoleBalanceReview.loadSnapshot` now loads one `ActualAuthority.Image` directly.
+
+Its ordinary current world uses `image.currentEvents` for:
+
+- opening-support witness validation;
+- current candidate coordinate discovery;
+- opening-supported quantities;
+- zero-origin quantities through `BalanceReview.projectImage`.
+
+This removes the canonical RoleBalance call to
+`correctionFrontierMemory?` and the nested zero-origin re-admission through
+raw `BalanceReview.project`.
+
+### CurrentQuantityAnchor stays separate
+
+Current quantity anchors still consume:
+
+- `image.evidence.events`;
+- `image.evidence.corrections`.
+
+That is intentional. Anchor semantics derive a reflected-root delta frontier,
+not the ordinary current frontier carried by the image. Replacing that delta
+world with `image.currentEvents` would double-count roots already reflected by
+the reconciliation observation.
+
+### Raw boundary and qualification
+
+`RoleBalanceReview.project` remains a raw/in-memory entrance. It still admits
+its ordinary correction frontier and delegates zero-origin rows to raw
+`BalanceReview.project`.
+
+A correction-bearing fixture now constructs one admitted Actual image and pins:
+
+- the corrected Role Balance quantity;
+- equality between admitted-image projection and raw projection.
+
+Stage B-4 therefore deletes duplicate production admission without weakening
+fail-closed diagnostic/test entrances or collapsing the anchor world.
 
 ## Non-goals
 
