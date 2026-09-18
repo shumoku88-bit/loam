@@ -17,6 +17,12 @@ open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
+/-- Presentation suggestion adapter: only the exclusive date enters generation semantics. -/
+private def fillLimitOfSuggestion
+    (suggestion : Loam.BoundaryPresetConfig.HorizonSuggestion) :
+    Loam.ScheduledCycleFill.FillLimit :=
+  { endExclusive := suggestion.endExclusive }
+
 private def candidateNotice : Loam.ScheduledCycleFill.Candidate → String
   | .dated date =>
       "Generated candidate " ++ date ++
@@ -68,7 +74,7 @@ private def allDatesValid
     (drafts : List Loam.ScheduledCreationPublisher.Draft) : Bool :=
   drafts.all fun draft =>
     Loam.ScheduledCycleFill.validResolvedDate
-      { endExclusive := horizon.endExclusive } observedAt draft.scheduledOn
+      (fillLimitOfSuggestion horizon) observedAt draft.scheduledOn
 
 inductive AwarenessMode where
   | choice
@@ -307,7 +313,7 @@ partial def chooseCadence
       chooseCadence bounds root known catalog step.state nextFrame
   | some cadence =>
       match Loam.ScheduledCycleFill.planCandidates
-          { endExclusive := state.horizon.endExclusive } state.observedAt
+          (fillLimitOfSuggestion state.horizon) state.observedAt
           { anchor := state.source.scheduledOn, cadence := cadence } with
       | .error message => pure ("Scheduled plan fill unavailable: " ++ message)
       | .ok [] =>
@@ -337,7 +343,7 @@ def run
   | .ok horizons =>
       let some state :=
           Loam.Tui.ScheduledCycleFill.initial? source horizons observedAt
-        | return "Scheduled plan fill unavailable: no explicit fill horizon is configured."
+        | return "Scheduled plan fill unavailable: no boundary horizon suggestion is configured."
       let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
       Loam.Tui.Terminal.redrawFromBlank bounds frame
       chooseCadence bounds root known catalog state frame
