@@ -50,34 +50,63 @@ structure Request where
   cadence : GenerationCadence
   deriving Repr, DecidableEq
 
-private def monthIndex? (text : String) : Option Nat := do
+private def parseDateParts? (text : String) : Option (Nat × Nat × Nat) := do
   if !Loam.ActualDate.validIsoDate text then none else do
-    let [yearText, monthText, _] := text.splitOn "-" | none
+    let [yearText, monthText, dayText] := text.splitOn "-" | none
     let year ← yearText.toNat?
     let month ← monthText.toNat?
-    pure (year * 12 + (month - 1))
+    let day ← dayText.toNat?
+    pure (year, month, day)
+
+private def monthIndex? (text : String) : Option Nat := do
+  let (year, month, _) ← parseDateParts? text
+  pure (year * 12 + (month - 1))
+
+private def shiftedNominalParts?
+    (text : String) (months : Nat) : Option (Nat × Nat × Nat) := do
+  let (year, month, day) ← parseDateParts? text
+  let zeroBased := (month - 1) + months
+  let targetYear := year + zeroBased / 12
+  let targetMonth := zeroBased % 12 + 1
+  if targetYear > 9999 then none
+  else pure (targetYear, targetMonth, day)
 
 /--
-Generate later explicit due dates inside one already-resolved current window.
+One construction-time candidate.
 
-Only dates satisfying
-
-```text
-window.start <= date
-observedAt   <= date
-date         <  window.endExclusive
-```
-
-are returned. The anchor itself is never returned.
-
-A missing nominal day fails the whole construction request. For example,
-Monthly from January 31 does not silently invent February 28/29. The inputter
-must choose a different explicit policy or date instead.
+`dated` carries an ordinary generated calendar date. `needsDate` preserves a
+nominal cadence slot whose calendar day does not exist, such as February 29 in a
+non-leap year or day 31 in a shorter month. The latter is deliberately unresolved
+until a human chooses an explicit real date.
 -/
-def planAfter
+inductive Candidate where
+  | dated (date : String)
+  | needsDate (year month nominalDay : Nat)
+  deriving Repr, DecidableEq
+
+/-- Whether one human-resolved date remains inside the current-cycle horizon. -/
+def validResolvedDate
+    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+    (observedAt date : String) : Bool :=
+  Loam.ActualDate.validIsoDate date &&
+    decide (window.start <= date ∧ observedAt <= date ∧ date < window.endExclusive)
+
+/--
+Generate construction candidates after one explicit anchor.
+
+The cadence remains input intent only. Valid calendar dates are proposed
+directly. A missing nominal calendar day is surfaced as `needsDate` rather than
+silently clamped, skipped, or persisted as recurrence policy.
+
+Unresolved candidates are permitted in the same calendar month as the exclusive
+cycle boundary because only the human-selected concrete date can determine
+whether that slot finally lies before the boundary. Final publication must call
+`validResolvedDate`.
+-/
+def planCandidatesAfter
     (window : Loam.BoundaryPresetConfig.CurrentWindow)
     (observedAt : String)
-    (request : Request) : Except String (List String) := do
+    (request : Request) : Except String (List Candidate) := do
   if !Loam.ActualDate.validIsoDate window.start ||
       !Loam.ActualDate.validIsoDate window.endExclusive ||
       !Loam.ActualDate.validIsoDate observedAt ||
@@ -90,6 +119,8 @@ def planAfter
 
   let some anchorMonth := monthIndex? request.anchor
     | throw "loam: Scheduled cycle fill anchor is invalid"
+  let some observedMonth := monthIndex? observedAt
+    | throw "loam: Scheduled cycle fill observation is invalid"
   let some endMonth := monthIndex? window.endExclusive
     | throw "loam: Scheduled cycle fill end boundary is invalid"
 
@@ -98,15 +129,38 @@ def planAfter
     if endMonth < anchorMonth then 0
     else (endMonth - anchorMonth) / stepMonths
 
-  let mut dates : List String := []
+  let mut candidates : List Candidate := []
   for index in List.range steps do
     let offset := (index + 1) * stepMonths
-    let some date := Loam.ActualDate.shiftMonthsSameDay? request.anchor offset
-      | throw
+    let some (year, month, nominalDay) := shiftedNominalParts? request.anchor offset
+      | throw "loam: Scheduled cycle fill exceeds the supported calendar range"
+    let targetMonth := year * 12 + (month - 1)
+    if observedMonth <= targetMonth then
+      match Loam.ActualDate.shiftMonthsSameDay? request.anchor offset with
+      | some date =>
+          if validResolvedDate window observedAt date then
+            candidates := candidates ++ [.dated date]
+      | none =>
+          candidates := candidates ++ [.needsDate year month nominalDay]
+  return candidates
+
+/--
+Generate only already-resolved explicit due dates.
+
+Headless callers that cannot ask a human to resolve a missing nominal calendar
+day still fail closed. Interactive callers should use `planCandidatesAfter`
+and collect an explicit date for every `needsDate` candidate before publication.
+-/
+def planAfter
+    (window : Loam.BoundaryPresetConfig.CurrentWindow)
+    (observedAt : String)
+    (request : Request) : Except String (List String) := do
+  let candidates ← planCandidatesAfter window observedAt request
+  candidates.mapM fun
+    | .dated date => pure date
+    | .needsDate _ _ _ =>
+        throw
           ("loam: " ++ request.cadence.label ++
            " cycle fill reaches a month without the anchor day; choose an explicit date policy")
-    if decide (window.start <= date ∧ observedAt <= date ∧ date < window.endExclusive) then
-      dates := dates ++ [date]
-  return dates
 
 end Loam.ScheduledCycleFill
