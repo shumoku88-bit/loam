@@ -52,11 +52,6 @@ private def targetCurrent?
     throw "loam: selected Actual is no longer current"
   pure targetEvent
 
-private def worldRelationsMentionEvent
-    (evidence : ActualEvidence) (event : EventId) : Bool :=
-  evidence.relations.any (fun relation => decide (relation.sourceEvent = event)) ||
-    evidence.discharges.any (fun discharge => decide (discharge.event = event))
-
 private def scheduledCompletionMentionsEvent
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage) (event : EventId) : Bool :=
   (lifecycle.terminals.completionSourceForActual? event).isSome
@@ -81,7 +76,7 @@ private def admit?
     throw "loam: reversal-of-reversal chains are not yet qualified"
   if (evidence.reversals.findByTarget? draft.target).isSome then
     throw "loam: selected Actual is already reversed"
-  if worldRelationsMentionEvent evidence draft.target then
+  if evidence.relationEvidenceMentionsEvent draft.target then
     throw "loam: reversal of an Actual referenced by retained relation/discharge evidence is not yet qualified"
   if scheduledCompletionMentionsEvent lifecycle draft.target then
     throw "loam: reversal of a Scheduled-completion Actual is not yet qualified"

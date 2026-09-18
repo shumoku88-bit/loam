@@ -30,6 +30,18 @@ structure ActualEvidence where
   relations : List RelationUnit
   discharges : List RelationDischarge
 
+/--
+Whether retained Relation or Discharge provenance names one Event directly.
+
+This is a raw membership query over already-retained evidence. It does not decide
+whether an operation may change that Event; publishers and canonical admission
+remain the owners of those operation-specific rules.
+-/
+def ActualEvidence.relationEvidenceMentionsEvent
+    (evidence : ActualEvidence) (event : EventId) : Bool :=
+  evidence.relations.any (fun relation => decide (relation.sourceEvent = event)) ||
+    evidence.discharges.any (fun discharge => decide (discharge.event = event))
+
 /-- The empty Actual evidence aggregate. -/
 def ActualEvidence.empty : ActualEvidence := {
   events := { events := [], idNodup := by simp }
