@@ -55,6 +55,14 @@ Effect list order is deliberately absent from semantic observation. Duplicate Ef
 at the same `(LocusId, MeasureId)` coordinate remain legal, and only an Effect actually
 used as Relation source needs a stable key.
 
+A practical writer may impose a narrower qualification than canonical retained
+meaning. In particular, a writer-local refusal to create a new cross-family
+combination does not by itself make that combination a normalized-wire decoding
+error. Correction, Reversal, Relation, and Discharge remain independently retained
+facts unless a separate canonical invariant has been qualified. This distinction
+prevents operation policy from silently shrinking the representable historical
+evidence space.
+
 ## Synthetic qualification
 
 `tools/test_normalized_actual.py` exercises one admitted world containing all of:

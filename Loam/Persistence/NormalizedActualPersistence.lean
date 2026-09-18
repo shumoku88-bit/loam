@@ -154,19 +154,6 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
               evidence.events evidence.merchants then
             none
 
-          -- Correction targets may not retain independent provenance that
-          -- current Correction publication explicitly refuses to supersede.
-          for correction in evidence.corrections.corrections do
-            if evidence.relationEvidenceMentionsEvent correction.target then
-              none
-
-          -- Correction and Reversal are independent provenance families.
-          -- A Correction target may not simultaneously remain a Reversal endpoint;
-          -- the qualified writers already refuse that combined world.
-          for correction in evidence.corrections.corrections do
-            if evidence.reversals.mentionsEvent correction.target then
-              none
-
           -- Reversals: target and reversal must exist, exact physical inverse,
           -- and reversal-of-reversal chains remain refused.
           for reversal in evidence.reversals.reversals do
