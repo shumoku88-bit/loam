@@ -44,16 +44,12 @@ def ofEvents? (events : List Event) : Option EventMemory := do
 /-- Empty Event memory is valid. -/
 @[simp] theorem ofEvents?_nil :
     ofEvents? [] = some { events := [], idNodup := by simp } := by
-  unfold ofEvents?
-  rw [hashNodupBy?_nil]
-  rfl
+  simp [ofEvents?]
 
 /-- One Event always has unique identity within a memory. -/
 @[simp] theorem ofEvents?_singleton (event : Event) :
     ofEvents? [event] = some { events := [event], idNodup := by simp } := by
-  unfold ofEvents?
-  rw [hashNodupBy?_singleton]
-  rfl
+  simp [ofEvents?]
 
 /--
 Find one remembered Event by its stable identity.
@@ -170,9 +166,7 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
 
 @[simp] theorem add?_singleton_duplicate (event : Event) :
     add? { events := [event], idNodup := by simp } event = none := by
-  unfold add? ofEvents?
-  rw [hashNodupBy?_repeat]
-  rfl
+  simp [add?, ofEvents?]
 
 theorem add?_singleton_distinct
     (existing added : Event) (h : existing.id ≠ added.id) :
@@ -181,10 +175,7 @@ theorem add?_singleton_distinct
   have hToken : existing.id.token ≠ added.id.token := by
     intro hEq
     exact h (eventIdToken_injective hEq)
-  unfold add? ofEvents?
-  rw [hashNodupBy?_pair_of_key_ne
-    (fun id : EventId => id.token) eventIdToken_injective existing.id added.id hToken]
-  rfl
+  simp [add?, ofEvents?, hashNodupBy?_pair_of_key_ne, hToken]
 
 end EventMemory
 
