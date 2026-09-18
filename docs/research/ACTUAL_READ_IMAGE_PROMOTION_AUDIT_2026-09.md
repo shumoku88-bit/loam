@@ -1,6 +1,6 @@
 # Actual admitted read image promotion audit — 2026-09
 
-Status: **STAGE A + B-1 MERGED; STAGE B-2 IMPLEMENTED ON BRANCH**
+Status: **STAGE A + B-1 + B-2 MERGED; STAGE B-3 IMPLEMENTED ON BRANCH**
 
 Stage A merged as `805a13726a646e55b68df117cb6e00b82ed5099c`.
 
@@ -138,6 +138,58 @@ current quantities are checked across:
 - `loam effective`.
 
 This pins observational agreement while removing duplicate canonical admission.
+
+## Stage B-3
+
+The third reader migration targets the two windowed Actual-consumption reports:
+
+- BudgetWindowReview;
+- CurrentCoverageReview.
+
+Both reports had already compressed repeated per-Purpose work to one query-global
+Correction frontier. After Stage A that intermediate admission itself became
+redundant because normalized Actual loading already carries:
+
+- `currentEvents`;
+- `currentValidities`.
+
+### BudgetWindow
+
+The local Evidence shape now carries `ActualAuthority.Image` instead of separate
+raw Events, Corrections, and re-admitted validities.
+
+Every Purpose computes Consumption from:
+
+```text
+image.currentEvents
+image.currentValidities
+ActualRouting
+explicit [start, end)
+```
+
+The report no longer calls `correctionFrontierMemory?` or
+`admittedActualValidityMemory?`.
+
+### CurrentCoverage
+
+Current elapsed Consumption likewise uses the carried current Event and validity
+views.
+
+Scheduled pressure deliberately still receives `image.evidence.events`, not
+`image.currentEvents`. Scheduled completion/reference checks may need identities
+of retained superseded Events, so correction-aware quantity projection and
+retained identity reference closure remain distinct observations.
+
+### Qualification
+
+Both report tests now republish correction-bearing canonical Actual images and
+verify that Consumption follows the replacement Event quantity:
+
+- BudgetWindow: 30 -> 40;
+- CurrentCoverage: 30 -> 45.
+
+CurrentCoverage additionally verifies Scheduled commitment remains unchanged
+across the Actual correction.
 
 ## Non-goals
 
