@@ -1,5 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -38,16 +39,25 @@ namespace ActualValidityMemory
 
 variable {Time : Type}
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 /--
 Admit a collection of validity evidence only when no EventId is repeated.
 Duplicate valid coordinates for the same EventId are rejected (fail closed).
 -/
 def ofEntries?
-    (entries : List (ActualValidity Time)) : Option (ActualValidityMemory Time) :=
-  if h : (entries.map ActualValidity.event).Nodup then
-    some { entries := entries, eventNodup := h }
-  else
-    none
+    (entries : List (ActualValidity Time)) : Option (ActualValidityMemory Time) := do
+  let h ← hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (entries.map ActualValidity.event)
+  some { entries := entries, eventNodup := h }
 
 /-- Empty validity memory is valid. -/
 @[simp] theorem ofEntries?_nil :
