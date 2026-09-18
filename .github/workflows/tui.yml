@@ -83,9 +83,13 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
+      - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/PlainTextAccountingExport.lean'
+      - 'Loam/Cli/PlainTextAccountingExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/Tests/PlainTextAccountingExport.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
@@ -188,9 +192,13 @@ on:
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
+      - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/PlainTextAccountingExport.lean'
+      - 'Loam/Cli/PlainTextAccountingExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
       - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/Tests/PlainTextAccountingExport.lean'
       - 'Loam/Tests/AttentionPersistence.lean'
       - 'Loam/Tests/BalanceReview.lean'
       - 'Loam/Tests/CapacityReview.lean'
@@ -231,7 +239,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamTui Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamPtaExport loamTui Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
@@ -274,6 +282,25 @@ jobs:
           grep -Fq "2026-09-03"$'\t'"journal-untouched" "$root/actual-journal.txt"
           if grep -q "journal-original" "$root/actual-journal.txt"; then
             echo "superseded correction target leaked into current journal" >&2
+            exit 1
+          fi
+      - name: Verify Plain Text Accounting export
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/pta-export"
+          lake env lean --run Loam/Tests/PlainTextAccountingExport.lean
+          lake env lean --run Loam/Tests/JournalExport.lean "$root"
+          ./.lake/build/bin/loamPtaExport \
+            "$root/actual.loam" \
+            "$root/accounting-role.loam" \
+            "$root/actual.journal"
+          grep -Fq "2026-09-02 LOAM event journal-replacement" "$root/actual.journal"
+          grep -Fq "    assets:wallet  -120 jpy" "$root/actual.journal"
+          grep -Fq "    expenses:food  120 jpy" "$root/actual.journal"
+          grep -Fq "    ; loam-event-id: journal-untouched" "$root/actual.journal"
+          if grep -q "journal-original" "$root/actual.journal"; then
+            echo "superseded correction target leaked into PTA journal" >&2
             exit 1
           fi
 

@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.ActualJournalProjection
 import Loam.Persistence.SiblingStage
 import Loam.WriterOwnership
 
@@ -8,56 +9,11 @@ open Loam.Core
 
 set_option autoImplicit false
 
-private structure JournalEntry where
-  event : Event
-  validOn : String
-  description : Option String
-
-private def journalEntry?
-    (validities : ActualValidityMemory String)
-    (descriptions : EventDescriptionMemory)
-    (event : Event) : Except String JournalEntry :=
-  match ActualValidityMemory.findByEventId? validities event.id with
-  | none =>
-      Except.error
-        ("effective Event is missing current Actual occurrence date: " ++ event.id.token)
-  | some validOn =>
-      Except.ok {
-        event := event
-        validOn := validOn
-        description := EventDescriptionMemory.findText? descriptions event.id
-      }
-
-private def journalEntries?
-    (validities : ActualValidityMemory String)
-    (descriptions : EventDescriptionMemory) :
-    List Event → Except String (List JournalEntry)
-  | [] => Except.ok []
-  | event :: rest => do
-      let entry ← journalEntry? validities descriptions event
-      let entries ← journalEntries? validities descriptions rest
-      pure (entry :: entries)
-
-private def entryOrdering (left right : JournalEntry) : Ordering :=
-  match compare left.validOn right.validOn with
-  | .eq => compare left.event.id.token right.event.id.token
-  | other => other
-
-private def insertEntry (entry : JournalEntry) : List JournalEntry → List JournalEntry
-  | [] => [entry]
-  | current :: rest =>
-      match entryOrdering entry current with
-      | .gt => current :: insertEntry entry rest
-      | _ => entry :: current :: rest
-
-private def sortEntries (entries : List JournalEntry) : List JournalEntry :=
-  entries.foldl (fun acc entry => insertEntry entry acc) []
-
 private def renderEffect (effect : Effect) : String :=
   "  " ++ effect.coordinate.locus.token ++ "\t" ++
     toString effect.quantity.quanta ++ "\t" ++ effect.coordinate.measure.token
 
-private def renderEntry (entry : JournalEntry) : List String :=
+private def renderEntry (entry : Loam.ActualJournalProjection.Entry) : List String :=
   let heading :=
     entry.validOn ++ "\t" ++ entry.event.id.token ++
       match entry.description with
@@ -65,7 +21,7 @@ private def renderEntry (entry : JournalEntry) : List String :=
       | none => ""
   heading :: entry.event.effects.map renderEffect
 
-private def renderJournal (entries : List JournalEntry) : String :=
+private def renderJournal (entries : List Loam.ActualJournalProjection.Entry) : String :=
   let lines := entries.flatMap renderEntry
   if lines.isEmpty then "" else String.intercalate "\n" lines ++ "\n"
 
@@ -92,14 +48,13 @@ def exportJournal
         return 2
     | .ok image => pure image
 
-  match journalEntries?
-      image.currentValidities image.evidence.descriptions image.currentEvents.events with
+  match Loam.ActualJournalProjection.fromImage? image with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2
   | .ok entries =>
       Loam.Persistence.replaceTextViaSiblingStage
-        outputFile (renderJournal (sortEntries entries))
+        outputFile (renderJournal entries)
       IO.println ("Regenerated readable Actual journal: " ++ outputPath)
       return 0
 
