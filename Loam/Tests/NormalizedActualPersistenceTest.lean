@@ -385,6 +385,26 @@ def main : IO Unit := do
   let _ ← requireSome (decodeNormalizedActual? emptyEvent)
     "normalized Actual incorrectly rejected a neutral empty-effect Event"
 
+  -- 6r. Correction and Reversal may not claim the same retained target Event.
+  let correctionReversalOverlap :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-target\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n" ++
+    "TX\tev-reversal\t2026-09-02\tNODESC\n" ++
+    "REVERSAL-OF\tev-target\n" ++
+    "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "ENDTX\n" ++
+    "TX\tev-correction\t2026-09-03\tNODESC\n" ++
+    "REPLACES\tev-target\n" ++
+    "EFFECT\twallet\tjpy\t-120\n" ++
+    "EFFECT\tbank\tjpy\t120\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? correctionReversalOverlap)
+    "admitted one Event as both Correction target and Reversal target"
+
   -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
   let balancedUsd :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++

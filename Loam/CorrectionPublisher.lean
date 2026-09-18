@@ -18,10 +18,6 @@ structure Draft where
   effects : List Effect
   description : Option String := none
 
-private def reversalMentionsEvent
-    (reversals : ActualReversalMemory) (id : EventId) : Bool :=
-  (reversals.findByTarget? id).isSome || (reversals.findByReversal? id).isSome
-
 private def relationsMentionEvent
     (evidence : ActualEvidence) (id : EventId) : Bool :=
   evidence.relations.any (fun relation => decide (relation.sourceEvent = id)) ||
@@ -60,7 +56,7 @@ private def admit?
     throw "loam: selected Actual is outside the practical balanced-JPY correction entrance"
   if relationsMentionEvent evidence draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"
-  if reversalMentionsEvent evidence.reversals draft.target then
+  if evidence.reversals.mentionsEvent draft.target then
     throw "loam: correction of an Actual participating in Reversal evidence is not yet qualified"
 
   let currentFacts := Loam.Application.actualValidityFrontierFacts evidence.validity
