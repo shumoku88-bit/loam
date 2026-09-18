@@ -82,7 +82,7 @@ private partial def parseMovements : List String → Option (List ParsedMovement
       | _ => none
 
 /-- Decode a complete candidate normalized Capacity image, failing closed. -/
-def decodeNormalizedCapacity? (input : String) : Option CapacityEvidence := do
+def decodeNormalizedCapacity? (input : String) : Option (CapacityEvidence String) := do
   if !input.endsWith "\n" then none
   let lines := (input.dropEnd 1).toString.splitOn "\n"
   match lines with
@@ -102,11 +102,10 @@ def decodeNormalizedCapacity? (input : String) : Option CapacityEvidence := do
         CapacityEvidence.ofParts? movementMemory effectiveMemory
 
 /-- Encode one admitted Capacity image as one normalized document. -/
-def encodeNormalizedCapacity? (evidence : CapacityEvidence) : Option String := do
-  let admitted ← CapacityEvidence.ofParts? evidence.movements evidence.effective
+def encodeNormalizedCapacity? (evidence : CapacityEvidence String) : Option String := do
   let mut rows : List String := [normalizedCapacityHeader]
-  for movement in admitted.movements.movements do
-    let effectiveOn ← admitted.effective.findByMovementId? movement.id
+  for movement in evidence.movements.movements do
+    let effectiveOn ← evidence.effective.findByMovementId? movement.id
     if !validToken movement.id.token || !validToken movement.measure.token ||
         !Loam.ActualDate.validIsoDate effectiveOn then
       none
