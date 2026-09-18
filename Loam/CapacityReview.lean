@@ -1,5 +1,5 @@
 import Loam.Application.CapacityInspection
-import Loam.Persistence.CapacityPersistence
+import Loam.CapacityAuthority
 
 namespace Loam.CapacityReview
 
@@ -12,10 +12,11 @@ set_option autoImplicit false
 # Shared Capacity review
 
 This module is a surface-independent all-retained Capacity read boundary for the
-production TUI and future frontends. It preserves the existing practical line
-Capacity policy that an absent Capacity stream means no retained movements yet,
-and delegates Entitlement itself to the same Application `entitlementAt`
-projection used by the line CLI.
+production TUI and future frontends. It preserves the practical policy that an
+absent Capacity authority means no retained movements yet, while delegated
+loading accepts either the normalized single-file image or a complete historical
+two-file pair during migration. Entitlement itself remains the same Application
+`entitlementAt` projection used by the line CLI.
 
 It does not choose a cycle or time window. Windowed household questions remain
 explicit callers of `CapacityWindowInspection`.
@@ -58,16 +59,11 @@ Capacity entrance/view policy and is the empty retained movement history;
 malformed configured evidence still refuses.
 -/
 def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) := do
-  let memory ←
-    if ← path.pathExists then
-      match ← Loam.Persistence.loadCapacityMemory? path with
-      | some memory => pure memory
-      | none => return .error "loam: malformed or unsupported capacity file"
-    else
-      match CapacityMemory.ofMovements? [] with
-      | some memory => pure memory
-      | none => return .error "loam: internal empty Capacity memory refusal"
-  return .ok (snapshot memory)
+  let image ←
+    match ← Loam.CapacityAuthority.loadOrEmpty path with
+    | .ok image => pure image
+    | .error message => return .error message
+  return .ok (snapshot image.movements)
 
 /--
 Load canonical Capacity evidence from one household root. High-level frontends
