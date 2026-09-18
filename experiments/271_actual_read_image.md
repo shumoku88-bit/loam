@@ -41,6 +41,7 @@ Can one read-side value carry only the two repeatedly reused Actual views:
 
 ```text
 raw ActualEvidence
++ full Actual admission success
 + admitted current Event frontier
 + admitted current validity memory
 ```
@@ -88,8 +89,9 @@ was found for those families.
 If the Lean probe succeeds, the smallest production candidate is not a giant
 proof-carrying `ActualEvidence`.
 
-It is a read image produced at normalized decode/authority load that carries the
-already-computed current Event frontier and current validity memory.
+It is a read image produced only after full normalized Actual admission. The
+image carries that full-admission success together with the already-computed
+current Event frontier and current validity memory.
 
 Raw `ActualEvidence` should remain available to mutation/admission code because
 writers create new candidates that must be requalified after change.
