@@ -1,7 +1,9 @@
+import Loam.CapacityAuthority
 import Loam.CapacityPublisher
 import Loam.CapacityReview
 import Loam.Persistence.CapacityEffectivePersistence
 import Loam.Persistence.CapacityPersistence
+import Loam.Persistence.NormalizedCapacityPersistence
 
 open Loam.Core
 
@@ -103,29 +105,75 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
       quanta := 1 })
     "Capacity publisher admitted a non-persistable Purpose coordinate"
 
-  let some memory ← Loam.Persistence.loadCapacityMemory? capacityFile
-    | throw (IO.userError "reload Capacity authority")
-  let some effective ← Loam.Persistence.loadCapacityEffectiveMemory? effectiveFile
-    | throw (IO.userError "reload Capacity effective evidence")
-  expect (memory.movements.length == 3 && effective.entries.length == 3)
+  let .ok image ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "reload normalized Capacity authority")
+  expect (image.movements.movements.length == 3 && image.effective.entries.length == 3)
     "refused Capacity drafts changed retained evidence"
+  expect (!(← effectiveFile.pathExists))
+    "single-file Capacity publication created a legacy effective sidecar"
 
-  let some orphanedEffective := CapacityEffectiveMemory.ofEntries?
-      (effective.entries ++ [{ movement := ⟨"capacity-4"⟩, effectiveOn := "2026-09-11" }])
-    | throw (IO.userError "construct orphan Capacity effective evidence")
-  expect (← Loam.Persistence.saveCapacityEffectiveMemory? effectiveFile orphanedEffective)
-    "seed orphan Capacity effective evidence"
+  let retainedBefore ← IO.FS.readFile capacityFile
   expectError (← Loam.CapacityPublisher.publish capacityFile.toString {
       effectiveOn := "2026-09-11"
-      source := .unallocated
+      source := .purpose ⟨"food"⟩
       destination := .purpose ⟨"buffer"⟩
-      quanta := 100 })
-    "Capacity publisher guessed through incomplete effective evidence"
+      quanta := 4000 })
+    "Capacity publisher admitted a source overdraft after normalized cutover"
+  let retainedAfter ← IO.FS.readFile capacityFile
+  expect (retainedAfter == retainedBefore)
+    "refused Capacity publication changed the normalized authority"
 
-  let some finalMemory ← Loam.Persistence.loadCapacityMemory? capacityFile
-    | throw (IO.userError "reload final Capacity authority")
-  expect (finalMemory.movements.length == 3)
-    "fail-closed incomplete-evidence refusal appended Capacity authority"
+private def testLegacyCutover (dataDir : System.FilePath) : IO Unit := do
+  IO.FS.createDirAll dataDir
+  let capacityFile := dataDir / "capacity.loam"
+  let effectiveFile := Loam.Persistence.capacityEffectivePathForMemory capacityFile
+
+  let some balanced := BalancedMovement.ofChanges? ⟨"jpy"⟩ [
+      { coordinate := .unallocated, quantity := Quantity.ofQuanta (-5000) },
+      { coordinate := .purpose ⟨"food"⟩, quantity := Quantity.ofQuanta 5000 } ]
+    | throw (IO.userError "construct legacy Capacity movement")
+  let movement : CapacityMovement := { id := ⟨"capacity-1"⟩, movement := balanced }
+  let some memory := CapacityMemory.ofMovements? [movement]
+    | throw (IO.userError "construct legacy Capacity memory")
+  let some effective := CapacityEffectiveMemory.ofEntries?
+      [{ movement := movement.id, effectiveOn := "2026-09-08" }]
+    | throw (IO.userError "construct legacy effective memory")
+  expect (← Loam.Persistence.saveCapacityMemory? capacityFile memory)
+    "seed legacy Capacity movement authority"
+  expect (← Loam.Persistence.saveCapacityEffectiveMemory? effectiveFile effective)
+    "seed legacy Capacity effective evidence"
+
+  let .ok legacyImage ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "legacy Capacity pair was not accepted during migration")
+  expect (legacyImage.movements.movements.length == 1 && legacyImage.effective.entries.length == 1)
+    "legacy Capacity pair decoded with the wrong cardinality"
+
+  let .ok migratedId ← Loam.CapacityPublisher.publish capacityFile.toString {
+      effectiveOn := "2026-09-09"
+      source := .purpose ⟨"food"⟩
+      destination := .purpose ⟨"rent"⟩
+      quanta := 2000 }
+    | throw (IO.userError "first normalized publication from legacy pair failed")
+  expect (migratedId.token == "capacity-2")
+    "legacy cutover did not preserve the fresh Capacity identity namespace"
+
+  let normalizedText ← IO.FS.readFile capacityFile
+  expect ((Loam.Persistence.decodeNormalizedCapacity? normalizedText).isSome)
+    "first post-legacy publication did not replace the primary authority with normalized Capacity"
+  expect (← effectiveFile.pathExists)
+    "migration unexpectedly deleted the compatibility sidecar during atomic primary publication"
+
+  IO.FS.writeFile effectiveFile "stale compatibility artifact\n"
+  let .ok normalizedImage ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "normalized Capacity still depended on the stale legacy sidecar")
+  expect (normalizedImage.movements.movements.length == 2 && normalizedImage.effective.entries.length == 2)
+    "normalized Capacity cutover lost retained evidence"
+
+  IO.FS.removeFile effectiveFile
+  let .ok sidecarFreeImage ← Loam.CapacityAuthority.loadRequired capacityFile
+    | throw (IO.userError "normalized Capacity required a removed legacy sidecar")
+  expect (sidecarFreeImage.movements.movements.length == 2)
+    "sidecar-free normalized Capacity changed retained movements"
 
 private def testProposalPure : IO Unit := do
   let emptyProp := Loam.CapacityPublisher.Proposal.empty
@@ -287,7 +335,8 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
 
   testBinaryPublisher (dataDir / "binary")
+  testLegacyCutover (dataDir / "legacy-cutover")
   testProposalPure
   testBalancedPublisher (dataDir / "balanced")
 
-  IO.println "Capacity Publisher: binary transfer, proposal pure laws, balanced 3-purpose rebalance, refusal boundaries and atomic movement passed."
+  IO.println "Capacity Publisher: normalized atomic publication, legacy cutover, proposal laws, balanced rebalance and refusal boundaries passed."
