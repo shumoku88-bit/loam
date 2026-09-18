@@ -42,6 +42,9 @@ lean_exe loamScheduledSuppression where
 lean_exe loamJournalExport where
   root := `Loam.Cli.JournalExportCli
 
+lean_exe loamPtaExport where
+  root := `Loam.Cli.PlainTextAccountingExportCli
+
 lean_exe loamShadowAudit where
   root := `Loam.Cli.ShadowAuditCli
 
