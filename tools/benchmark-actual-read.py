@@ -40,12 +40,12 @@ def fixture_text(events: int) -> str:
     return "\n".join(rows) + "\n"
 
 
-def measure(path: Path, repeat: int, timeout: float) -> list[float]:
+def measure(root: Path, repeat: int, timeout: float) -> list[float]:
     samples: list[float] = []
     for _ in range(repeat):
         started = time.perf_counter()
         completed = subprocess.run(
-            [str(BINARY), "review", str(path), "t"],
+            [str(BINARY), "review", str(root), "t"],
             cwd=ROOT,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
@@ -101,10 +101,12 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="loam-actual-bench-") as tmp:
         tmpdir = Path(tmp)
         for size in args.sizes:
-            path = tmpdir / f"actual-{size}.loam"
+            case_root = tmpdir / f"case-{size}"
+            case_root.mkdir()
+            path = case_root / "actual.loam"
             path.write_text(fixture_text(size), encoding="utf-8")
             try:
-                samples = measure(path, args.repeat, args.timeout)
+                samples = measure(case_root, args.repeat, args.timeout)
             except subprocess.TimeoutExpired:
                 print(f"{size}\t{path.stat().st_size}\tTIMEOUT\t-\t-\t-")
                 return 2
