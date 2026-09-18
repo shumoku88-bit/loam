@@ -1,5 +1,7 @@
 import Loam.ActualEvidence
+import Loam.ActualDate
 import Loam.Core.Event
+import Loam.Core.BalancedMovement
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
@@ -73,6 +75,40 @@ private def currentValidityIndex
     {}
 
 /--
+Normalized Actual V1 is measure-neutral, but retained quantity-bearing Events
+must still preserve the practical movement law that admitted them: every
+represented Effect is nonzero, one Event uses one Measure, and its exact signed
+total closes to zero.
+
+The neutral Core Event type deliberately remains more general. Empty-effect
+Events stay admissible here so purpose-only or revision-only Events are not
+precluded by the persistence boundary.
+-/
+private def normalizedEventEffectsAdmissible (event : Event) : Bool :=
+  match event.effects with
+  | [] => true
+  | first :: _ =>
+      let sameMeasureAndNonzero :=
+        event.effects.all fun effect =>
+          decide (effect.measure = first.measure) && effect.quantity.quanta != 0
+      let changes :=
+        event.effects.map fun effect =>
+          ({ coordinate := effect.locus, quantity := effect.quantity } :
+            MovementChange LocusId)
+      sameMeasureAndNonzero &&
+        (BalancedMovement.ofChanges? first.measure changes).isSome
+
+/--
+Occurrence-date strings become production calendar evidence at this boundary,
+so every retained base date and revision date must denote a real ISO calendar
+date rather than merely fit in one text token.
+-/
+private def normalizedValidityDatesAdmissible
+    (history : ActualValidityHistory String) : Bool :=
+  history.facts.all fun fact =>
+    Loam.ActualDate.validIsoDate fact.validOn
+
+/--
 Validate that an ActualEvidence aggregate satisfies referential closure and
 semantic admission using existing Core and Application boundaries, while
 retaining the two derived read views that are otherwise recomputed downstream.
@@ -80,7 +116,11 @@ retaining the two derived read views that are otherwise recomputed downstream.
 This performs no second engine semantics: it calls existing frontiers and checks
 that references among the co-published fact families resolve within the generation.
 -/
-def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :=
+def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage := do
+  if !evidence.events.events.all normalizedEventEffectsAdmissible then
+    none
+  if !normalizedValidityDatesAdmissible evidence.validity then
+    none
   match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
   | none => none
   | some currentEvents =>
