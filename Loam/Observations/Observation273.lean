@@ -10,20 +10,21 @@ set_option autoImplicit false
 /-!
 # Observation 273 — replacement-frontier cycle traversal cost
 
-Production `ReplacementFrontier.acyclic` intentionally uses a bounded
-whole-domain start-return detector whose semantic correspondence to ordinary
-finite-relation acyclicity was already qualified by Observation 218 and CSA-002.
+Production historically used a bounded whole-domain start-return detector whose
+semantic correspondence to ordinary finite-relation acyclicity was qualified by
+Observation 218 and CSA-002. Observation 274 subsequently proved the general
+global-done correspondence used by the production cutover.
 
 The adversarial persistence audit raised a different question:
 
 > Can the same cycle decision avoid re-walking an already-qualified suffix?
 
-This observation does not modify production. It compares two list-only shadows
+This observation records the pre-cutover comparison between two list-only shadows
 that require no `Hashable` instance and therefore preserve the current
 `[DecidableEq Id]` abstraction boundary:
 
-1. the current bounded start-return traversal;
-2. a global-done traversal that remembers nodes whose suffix has already reached
+1. the historical bounded start-return traversal;
+2. the global-done candidate that motivated the cutover that remembers nodes whose suffix has already reached
    a terminal or an already-qualified suffix.
 
 The cost counter measures only source comparisons performed by linear successor
@@ -184,8 +185,10 @@ private def merging : List (Edge Nat) :=
   ]
 
 /--
-The shadow of the current detector agrees with the production executable
-decision on representative acyclic and cyclic shapes.
+The historical start-return shadow agrees with the production executable
+decision on representative acyclic and cyclic shapes. After the cutover this
+acts as a regression check for preserved answers, including malformed fallback
+shapes.
 -/
 theorem start_return_shadow_matches_production :
     (startReturnDetector (chain 8)).acyclic = acyclic (chain 8) ∧
@@ -239,7 +242,7 @@ theorem global_done_matches_all_small_endpoint_unique_graphs :
   native_decide
 
 /--
-On an ascending chain, the current detector repeatedly re-walks already-known
+On an ascending chain, the historical detector repeatedly re-walks already-known
 suffixes. Counting only linear `next?` source comparisons, global-done pays for
 the full suffix once.
 
