@@ -14,9 +14,9 @@ private def widgetText (widgets : List Widget) : String :=
     widget.lines.map fun cells => String.ofList (cells.map Cell.glyph)
 
 private def occurrence?
-    (id date positive : String) : Option (ScheduledOccurrence String) := do
+    (id date negative positive : String) : Option (ScheduledOccurrence String) := do
   let movement ← BalancedMovement.ofChanges? ⟨"jpy"⟩
-    [ { coordinate := ⟨"cash"⟩, quantity := Quantity.ofQuanta (-1000) }
+    [ { coordinate := ⟨negative⟩, quantity := Quantity.ofQuanta (-1000) }
     , { coordinate := ⟨positive⟩, quantity := Quantity.ofQuanta 1000 } ]
   pure { id := ⟨id⟩, scheduledOn := date, movement := movement }
 
@@ -25,21 +25,23 @@ def main : IO Unit := do
     name := "gpt-plus"
     anchor := "2026-08-15"
     everyMonths := 1
+    negativeLoci := ["cash"]
     positiveLoci := ["gpt-plus"]
   }
   let bimonthly : Loam.ScheduledCoverageConfig.Rule := {
     name := "pension"
     anchor := "2026-09-15"
     everyMonths := 2
-    positiveLoci := ["pension"]
+    negativeLoci := ["pension"]
+    positiveLoci := ["cash"]
   }
-  let some octGpt := occurrence? "scheduled-1" "2026-10-15" "gpt-plus"
+  let some octGpt := occurrence? "scheduled-1" "2026-10-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture oct gpt")
-  let some novGpt := occurrence? "scheduled-2" "2026-11-15" "gpt-plus"
+  let some novGpt := occurrence? "scheduled-2" "2026-11-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture nov gpt")
-  let some novPension := occurrence? "scheduled-3" "2026-11-15" "pension"
+  let some novPension := occurrence? "scheduled-3" "2026-11-15" "pension" "cash"
     | throw (IO.userError "fixture nov pension")
-  let some decPension := occurrence? "scheduled-4" "2026-12-15" "pension"
+  let some decPension := occurrence? "scheduled-4" "2026-12-15" "pension" "cash"
     | throw (IO.userError "fixture off-pattern pension")
 
   let snapshot ←
@@ -72,15 +74,16 @@ def main : IO Unit := do
     "Scheduled coverage pane overstated read-side monitoring rules"
 
   let goodConfig :=
-    "gpt-plus\t2026-08-15\t1\tgpt-plus\n" ++
-    "pension\t2026-09-15\t2\tpension\n"
+    "gpt-plus\t2026-08-15\t1\tcash\tgpt-plus\n" ++
+    "pension\t2026-09-15\t2\tpension\tcash\n" ++
+    "support\t2026-09-15\t2\tsupport\tcash\n"
   expect (Loam.ScheduledCoverageConfig.decode? goodConfig).isSome
     "Scheduled coverage config rejected valid monthly/bimonthly rules"
   expect (Loam.ScheduledCoverageConfig.decode?
-      "bad\t2026-09-15\t0\tpension\n").isNone
+      "bad\t2026-09-15\t0\tpension\tcash\n").isNone
     "Scheduled coverage config accepted zero month cadence"
   expect (Loam.ScheduledCoverageConfig.decode?
-      "one\t2026-09-15\t1\tpension\ntwo\t2026-10-15\t2\tpension\n").isNone
-    "Scheduled coverage config accepted an ambiguous duplicate positive-Locus selector"
+      "one\t2026-09-15\t1\tpension\tcash\ntwo\t2026-10-15\t2\tpension\tcash\n").isNone
+    "Scheduled coverage config accepted an ambiguous duplicate signed-Locus selector"
 
   IO.println "Scheduled coverage: monthly/bimonthly grid, first-gap detection, off-pattern evidence, config validation, and TUI rendering passed."
