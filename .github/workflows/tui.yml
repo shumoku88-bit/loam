@@ -47,6 +47,7 @@ on:
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
+      - 'Loam/Tests/TuiScheduledContinuation.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
@@ -151,6 +152,7 @@ on:
       - 'Loam/Tests/TuiScheduled.lean'
       - 'Loam/Tests/TuiScheduledCreate.lean'
       - 'Loam/Tests/TuiScheduledTerminal.lean'
+      - 'Loam/Tests/TuiScheduledContinuation.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
@@ -331,6 +333,9 @@ jobs:
 
       - name: Verify selected-day Scheduled completion and cancellation
         run: lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal"
+
+      - name: Verify post-completion Scheduled awareness
+        run: lake env lean --run Loam/Tests/TuiScheduledContinuation.lean
 
       - name: Verify selected-day Actual and Scheduled composition
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
