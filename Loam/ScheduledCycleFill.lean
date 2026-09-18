@@ -85,6 +85,8 @@ def planAfter
     throw "loam: Scheduled cycle fill requires valid ISO calendar dates"
   if !(decide (window.start <= observedAt ∧ observedAt < window.endExclusive)) then
     throw "loam: Scheduled cycle fill observation must lie inside the current window"
+  if !(decide (window.start <= request.anchor ∧ request.anchor < window.endExclusive)) then
+    throw "loam: Scheduled cycle fill anchor must lie inside the current window"
 
   let some anchorMonth := monthIndex? request.anchor
     | throw "loam: Scheduled cycle fill anchor is invalid"
