@@ -15,13 +15,13 @@ set_option autoImplicit false
 /-!
 # Scheduled fill-through-horizon presentation
 
-This is process-local interaction state only. The selected explicit horizon and
+This is process-local interaction state only. The selected boundary suggestion and
 cadence are meaningful construction input, but neither is retained after
 ordinary Scheduled occurrences are published.
 -/
 
 abbrev Draft := Loam.ScheduledCreationPublisher.Draft
-abbrev Horizon := Loam.BoundaryPresetConfig.ExplicitHorizon
+abbrev Horizon := Loam.BoundaryPresetConfig.HorizonSuggestion
 
 inductive Mode where
   | horizon (choice : Nat)
@@ -65,7 +65,7 @@ private def cadenceAt (choice : Nat) : Loam.ScheduledCycleFill.GenerationCadence
 private def chooseHorizon (state : State) (choice : Nat) : State :=
   let count := state.horizons.length
   if count = 0 then
-    { state with notice := "No explicit fill horizon is available." }
+    { state with notice := "No boundary horizon suggestion is available." }
   else
     match state.horizons[choice % count]? with
     | some horizon =>
