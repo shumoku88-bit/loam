@@ -48,8 +48,8 @@ def ofEvents? (events : List Event) : Option EventMemory := do
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective []
-      some { events := [], idNodup := h.proof }) =
-    some { events := [], idNodup := by simp }
+      some ({ events := [], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [], idNodup := by simp } : EventMemory)
   rw [hashNodupBy?_nil]
   rfl
 
@@ -60,8 +60,8 @@ def ofEvents? (events : List Event) : Option EventMemory := do
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective [event.id]
-      some { events := [event], idNodup := h.proof }) =
-    some { events := [event], idNodup := by simp }
+      some ({ events := [event], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [event], idNodup := by simp } : EventMemory)
   rw [hashNodupBy?_singleton]
   rfl
 
@@ -180,11 +180,13 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
 
 @[simp] theorem add?_singleton_duplicate (event : Event) :
     add? { events := [event], idNodup := by simp } event = none := by
+  change ofEvents? [event, event] = none
+  unfold ofEvents?
   change
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective [event.id, event.id]
-      some { events := [event, event], idNodup := h.proof }) = none
+      some ({ events := [event, event], idNodup := h.proof } : EventMemory)) = none
   rw [hashNodupBy?_repeat]
 
 theorem add?_singleton_distinct
@@ -194,12 +196,15 @@ theorem add?_singleton_distinct
   have hToken : existing.id.token ≠ added.id.token := by
     intro hEq
     exact h (eventIdToken_injective hEq)
+  change ofEvents? [existing, added] =
+    some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
+  unfold ofEvents?
   change
     (do
       let h ← hashNodupBy?
         (fun id : EventId => id.token) eventIdToken_injective [existing.id, added.id]
-      some { events := [existing, added], idNodup := h.proof }) =
-    some { events := [existing, added], idNodup := by simp [h] }
+      some ({ events := [existing, added], idNodup := h.proof } : EventMemory)) =
+    some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
   rw [hashNodupBy?_pair_of_key_ne
     (fun id : EventId => id.token) eventIdToken_injective existing.id added.id hToken]
   rfl
