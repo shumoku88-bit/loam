@@ -37,6 +37,49 @@ private def collectorLocalEffects
   , Effect.ofQuantity ⟨"collector-temp"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
   ]
 
+private def dischargeWorld : IO Loam.MovementAdmission.World := do
+  let sourceEffects :=
+    [ Effect.ofQuantity ⟨"source-effect"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
+    , Effect.ofAnonymousQuantity ⟨"coffee"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 700)
+    ]
+  let dischargeEffects :=
+    [ Effect.ofAnonymousQuantity ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 400)
+    , Effect.ofAnonymousQuantity ⟨"coffee"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-400))
+    ]
+  let some source := Event.ofEffects? ⟨"actual-source"⟩ sourceEffects
+    | throw (IO.userError "Relation source Event")
+  let some dischargeEvent := Event.ofEffects? ⟨"actual-discharge"⟩ dischargeEffects
+    | throw (IO.userError "Relation discharge Event")
+  let some events := EventMemory.ofEvents? [source, dischargeEvent]
+    | throw (IO.userError "Relation discharge Event memory")
+  let relation : RelationUnit := {
+    id := ⟨"relation-1"⟩
+    sourceEvent := source.id
+    sourceEffect := ⟨"source-effect"⟩
+    debtor := .external ⟨"friend"⟩
+    creditor := .household
+    quantity := Quantity.ofQuanta 700 }
+  let discharge : RelationDischarge := {
+    event := dischargeEvent.id
+    target := relation.id
+    quantity := Quantity.ofQuanta 400 }
+  let some validity := ActualValidityHistory.ofParts?
+      [
+        .base source.id "2026-09-06",
+        .base dischargeEvent.id "2026-09-07"
+      ] []
+    | throw (IO.userError "Relation discharge validity history")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"paypay"⟩, ⟨"coffee"⟩]
+    | throw (IO.userError "Relation discharge Locus vocabulary")
+  return {
+    events := events
+    validity := validity
+    descriptions := .empty
+    relations := [relation]
+    discharges := [discharge]
+    locusAdmission := vocabulary }
+
 private def recordDraft : Loam.MovementAdmission.Draft := {
   validOn := "2026-09-07"
   description := some "before"
@@ -120,4 +163,27 @@ def main (args : List String) : IO Unit := do
     root.toString correctionDraft
   expect (!staleRetry.isOk) "already-completed correction target was accepted again"
 
-  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, append-only relation, replacement and fresh review passed."
+  let dischargeRoot := root / "relation-discharge-guard"
+  IO.FS.createDirAll dischargeRoot
+  let retainedDischargeWorld ← dischargeWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? dischargeRoot retainedDischargeWorld
+    | throw (IO.userError "publish Relation-discharge Actual world")
+  let dischargeCorrection : Loam.CorrectionPublisher.Draft := {
+    target := ⟨"actual-discharge"⟩
+    effects := collectorLocalEffects "paypay" "coffee" 410
+    description := some "corrected discharge occurrence" }
+  let beforeDischargeRefusal ← IO.FS.readFile (dischargeRoot / "actual.loam")
+  let blockedDischarge ← Loam.CorrectionPublisher.publishCorrection
+    dischargeRoot.toString dischargeCorrection
+  expect (!blockedDischarge.isOk)
+    "Relation-discharge Event was accepted by the correction entrance before discharge correction semantics were qualified"
+  expect ((← IO.FS.readFile (dischargeRoot / "actual.loam")) == beforeDischargeRefusal)
+    "refused Relation-discharge correction changed Actual authority"
+  let .ok afterDischargeBlocked ← Loam.ActualAuthority.loadActual? dischargeRoot
+    | throw (IO.userError "reload Actual after refused Relation-discharge correction")
+  expect (!(afterDischargeBlocked.corrections.targetsEvent ⟨"actual-discharge"⟩))
+    "refused Relation-discharge correction retained correction provenance"
+  expect (afterDischargeBlocked.discharges.length == 1)
+    "refused Relation-discharge correction changed retained discharge evidence"
+
+  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, Relation-discharge refusal, append-only relation, replacement and fresh review passed."

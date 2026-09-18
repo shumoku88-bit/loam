@@ -421,6 +421,27 @@ def main : IO Unit := do
   let _ ← requireSome (decodeNormalizedActual? correctionRelationOverlap)
     "canonical Actual incorrectly collapsed writer-local Correction/Relation qualification into a global admission law"
 
+  -- 6t. Canonical Actual may retain Correction and Discharge provenance independently.
+  let correctionDischargeOverlap :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-source\t2026-09-01\tNODESC\n" ++
+    "KEYED-EFFECT\tk-source\tpaypay\tjpy\t-700\n" ++
+    "EFFECT\tcoffee\tjpy\t700\n" ++
+    "RELATION\trel-1\tSOURCE\tk-source\texternal:friend\thousehold\t700\n" ++
+    "ENDTX\n" ++
+    "TX\tev-discharge\t2026-09-02\tNODESC\n" ++
+    "EFFECT\tpaypay\tjpy\t400\n" ++
+    "EFFECT\tcoffee\tjpy\t-400\n" ++
+    "DISCHARGE\trel-1\t400\n" ++
+    "ENDTX\n" ++
+    "TX\tev-correction\t2026-09-03\tNODESC\n" ++
+    "REPLACES\tev-discharge\n" ++
+    "EFFECT\tpaypay\tjpy\t410\n" ++
+    "EFFECT\tcoffee\tjpy\t-410\n" ++
+    "ENDTX\n"
+  let _ ← requireSome (decodeNormalizedActual? correctionDischargeOverlap)
+    "canonical Actual incorrectly collapsed writer-local Correction/Discharge qualification into a global admission law"
+
   -- 7. Persistence remains measure-neutral; JPY is a practical operation contract.
   let balancedUsd :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
