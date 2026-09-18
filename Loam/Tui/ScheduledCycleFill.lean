@@ -86,7 +86,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
 private def line (text : String) : Widget := .row [span text]
 
 private def option
-    (selected : Bool) (label : String) : Cell :=
+    (selected : Bool) (label : String) : Span :=
   span ("[" ++ label ++ "] ") (if selected then .selected else .normal)
 
 private def cadenceView (state : State) (choice : Nat) : Widget :=
