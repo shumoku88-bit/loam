@@ -50,15 +50,14 @@ partial def collectDrafts
   match candidates with
   | [] => return .ok (some acc)
   | candidate :: rest =>
-      let editor ←
-        match editorForCandidate source catalog candidate with
-        | .ok editor => pure editor
-        | .error message => return .error message
-      let frame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
-      Loam.Tui.Terminal.redrawFromBlank bounds frame
-      match ← Loam.Tui.ScheduledCreationSession.collectDraft bounds known editor frame with
-      | none => return .ok none
-      | some draft => collectDrafts bounds known catalog source rest (acc ++ [draft])
+      match editorForCandidate source catalog candidate with
+      | .error message => return .error message
+      | .ok editor =>
+          let frame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+          Loam.Tui.Terminal.redrawFromBlank bounds frame
+          match ← Loam.Tui.ScheduledCreationSession.collectDraft bounds known editor frame with
+          | none => return .ok none
+          | some draft => collectDrafts bounds known catalog source rest (acc ++ [draft])
 
 private def allDatesValid
     (window : Loam.BoundaryPresetConfig.CurrentWindow)
@@ -157,14 +156,13 @@ def run
     (catalog : Loam.LocusCatalog.Catalog)
     (source : Loam.Tui.Main.ScheduledRecord)
     (observedAt : String) : IO String := do
-  let window ←
-    match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
-    | .ok window => pure window
-    | .error message =>
-        return "Current-cycle Scheduled fill unavailable: " ++ message
-  let state := Loam.Tui.ScheduledCycleFill.initial source window observedAt
-  let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
-  Loam.Tui.Terminal.redrawFromBlank bounds frame
-  chooseCadence bounds root known catalog state frame
+  match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
+  | .error message =>
+      return "Current-cycle Scheduled fill unavailable: " ++ message
+  | .ok window =>
+      let state := Loam.Tui.ScheduledCycleFill.initial source window observedAt
+      let frame := compileWidget (Loam.Tui.ScheduledCycleFill.view state)
+      Loam.Tui.Terminal.redrawFromBlank bounds frame
+      chooseCadence bounds root known catalog state frame
 
 end Loam.Tui.ScheduledCycleFillSession
