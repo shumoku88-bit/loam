@@ -13,12 +13,12 @@ This is read-side application configuration, not retained Scheduled authority.
 Each TSV row declares one monitoring expectation:
 
 ```text
-<rule-token><TAB><anchor-date><TAB><every-months><TAB><positive-locus[,positive-locus...]>
+<rule-token><TAB><anchor-date><TAB><every-months><TAB><negative-locus[,negative-locus...]><TAB><positive-locus[,positive-locus...]>
 ```
 
 The rule says only which calendar months a coverage report should expect to find
-an explicit current-open Scheduled occurrence matching the exact positive-Locus
-set. It does not create occurrences, retain recurrence or Series identity, prove
+an explicit current-open Scheduled occurrence matching the exact negative- and
+positive-Locus sets. It does not create occurrences, retain recurrence or Series identity, prove
 contract identity, or change Scheduled lifecycle semantics.
 -/
 
@@ -26,6 +26,7 @@ structure Rule where
   name : String
   anchor : String
   everyMonths : Nat
+  negativeLoci : List String
   positiveLoci : List String
   deriving Repr, DecidableEq
 
@@ -39,20 +40,25 @@ private def normalizedLoci (text : String) : List String :=
   (text.splitOn ",").mergeSort fun left right => left <= right
 
 private def decodeRow? (row : String) : Option Rule := do
-  let [name, anchor, stepText, lociText] := row.splitOn "\t" | none
+  let [name, anchor, stepText, negativeText, positiveText] := row.splitOn "\t" | none
   let everyMonths ← stepText.toNat?
-  let loci := normalizedLoci lociText
+  let negativeLoci := normalizedLoci negativeText
+  let positiveLoci := normalizedLoci positiveText
   if Loam.Persistence.validToken name &&
       Loam.ActualDate.validIsoDate anchor &&
       decide (everyMonths > 0) &&
-      !loci.isEmpty &&
-      loci.all Loam.Persistence.validToken &&
-      decide (loci.eraseDups.length = loci.length) then
+      !negativeLoci.isEmpty &&
+      !positiveLoci.isEmpty &&
+      negativeLoci.all Loam.Persistence.validToken &&
+      positiveLoci.all Loam.Persistence.validToken &&
+      decide (negativeLoci.eraseDups.length = negativeLoci.length) &&
+      decide (positiveLoci.eraseDups.length = positiveLoci.length) then
     some {
       name := name
       anchor := anchor
       everyMonths := everyMonths
-      positiveLoci := loci
+      negativeLoci := negativeLoci
+      positiveLoci := positiveLoci
     }
   else
     none
@@ -61,7 +67,9 @@ private def uniqueRows : List Rule → Bool
   | [] => true
   | rule :: rest =>
       !(rest.any fun other =>
-        other.name == rule.name || other.positiveLoci == rule.positiveLoci) &&
+        other.name == rule.name ||
+          (other.negativeLoci == rule.negativeLoci &&
+           other.positiveLoci == rule.positiveLoci)) &&
       uniqueRows rest
 
 /-- Decode one complete current coverage configuration, failing closed on bad rows. -/
