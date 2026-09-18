@@ -31,8 +31,9 @@ explicit future `endExclusive` horizon.
 `currentWindowStart` is retained from the selected boundary preset rather than
 being discarded. Scheduled lifecycle state is current-open only; it is not
 replayed into the past. Capacity movement and effective-coordinate meanings are
-loaded through one local `CapacityAuthority` handle so this review does not know
-their physical companion topology.
+loaded through one proof-carrying `CapacityAuthority` image. For a non-empty
+Purpose set, the ordinary Actual correction frontier is admitted once and shared
+by every Purpose projection.
 
 Scheduled selection and routing/role classification are performed once for the
 whole query. Purpose rows project only their managed Commitment from that shared
@@ -81,11 +82,9 @@ private def requireFile (path : System.FilePath) (label : String) : IO (Except S
   if ← path.pathExists then return .ok ()
   return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
 
-private def projectPurpose?
-    (capacity : CapacityMemory)
-    (effective : CapacityEffectiveMemory String)
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
+private def projectPurposeFromFrontier?
+    (capacity : Loam.CapacityAuthority.Image)
+    (frontier : EventMemory)
     (validities : ActualValidityMemory String)
     (actualRouting : Loam.Persistence.ActualRoutingHistory)
     (pressure : ScheduledPressurePartition String)
@@ -93,15 +92,17 @@ private def projectPurpose?
     (purpose : PurposeId) : Option Row := do
   let yen : MeasureId := ⟨"jpy"⟩
   let commitment := ScheduledPressurePartition.managedFor pressure purpose
-  let view ←
-    currentCoverageAtCorrectionFrontierEffectiveRoutingWithCommitment?
-      capacity effective events corrections validities actualRouting
-      purpose yen currentWindowStart observedAt commitment
+  let consumption ←
+    consumptionAtRecordedEffectiveRoutingThrough?
+      frontier validities actualRouting currentWindowStart observedAt purpose yen
+  let entitlement ←
+    entitlementAtAdmittedEffectiveThrough?
+      capacity currentWindowStart observedAt purpose yen
   return {
     purpose := purpose
-    entitlement := view.entitlement
-    consumption := view.consumption
-    commitment := view.commitment
+    entitlement := entitlement
+    consumption := consumption
+    commitment := commitment
   }
 
 /--
@@ -148,9 +149,6 @@ def loadSnapshotAt
   | .ok _ => pure ()
 
   let capacity := capacityImage.movements
-  let effective := capacityImage.effective
-  if !capacityEffectiveEvidenceComplete capacity effective then
-    return .error "loam: incomplete Capacity effective evidence"
   let path :=
     if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
     else Loam.ActualAuthority.actualPath actualRoot
@@ -195,23 +193,36 @@ def loadSnapshotAt
     unresolvedEligibility := ScheduledPressurePartition.unresolvedEligibility pressure
   }
   let purposes := Loam.CapacityReview.rememberedPurposes capacity
-  match purposes.mapM (projectPurpose?
-      capacity effective actualEvidence.events actualEvidence.corrections validities actualRouting
-      pressure currentWindowStart observedAt) with
-  | none =>
-      return .error "loam: canonical evidence does not justify this current coverage projection"
-  | some rows =>
+  match purposes with
+  | [] =>
       return .ok {
         currentWindowStart := currentWindowStart
         observedAt := observedAt
         endExclusive := endExclusive
-        rows := rows
-        scheduledFrontier :=
-          match purposes with
-          | [] => none
-          | _ => some frontier
+        rows := []
+        scheduledFrontier := none
         unresolvedScheduled := unresolvedScheduled
       }
+  | _ =>
+      let actualFrontier ←
+        match correctionFrontierMemory? actualEvidence.events actualEvidence.corrections with
+        | some admitted => pure admitted
+        | none =>
+            return .error "loam: canonical evidence does not justify this current coverage projection"
+      match purposes.mapM (projectPurposeFromFrontier?
+          capacityImage actualFrontier validities actualRouting
+          pressure currentWindowStart observedAt) with
+      | none =>
+          return .error "loam: canonical evidence does not justify this current coverage projection"
+      | some rows =>
+          return .ok {
+            currentWindowStart := currentWindowStart
+            observedAt := observedAt
+            endExclusive := endExclusive
+            rows := rows
+            scheduledFrontier := some frontier
+            unresolvedScheduled := unresolvedScheduled
+          }
 
 /-- Production wrapper resolving only the current local observation date. -/
 def loadSnapshot
