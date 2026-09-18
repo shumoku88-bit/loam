@@ -115,8 +115,10 @@ Validate that an ActualEvidence aggregate satisfies referential closure and
 semantic admission using existing Core and Application boundaries, while
 retaining the two derived read views that are otherwise recomputed downstream.
 
-This performs no second engine semantics: it calls existing frontiers and checks
-that references among the co-published fact families resolve within the generation.
+This remains a re-admission boundary rather than a second semantic engine:
+it reuses the existing balanced-movement algebra and calendar-date admission,
+then calls the existing frontiers and checks that references among the
+co-published fact families resolve within the generation.
 -/
 def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage := do
   if !evidence.events.events.all normalizedEventEffectsAdmissible then
