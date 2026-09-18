@@ -5,6 +5,34 @@
 **Auditor**: Leanstral
 **Repository**: shumoku88-bit/loam
 
+> **Supersession note — 2026-09-19**
+>
+> This document is historical audit evidence, not a current verdict sheet.
+> Subsequent production work materially changed several conclusions:
+>
+> - normalized Actual now re-admits nonzero, per-Measure balanced retained Effects
+>   and real calendar dates (#1073);
+> - Correction/Reversal coexistence with Relation/Discharge evidence is **not**
+>   a canonical decoding error merely because current writers refuse to create
+>   those combinations (#1077);
+> - the current writer-local safety policy is pinned directly for
+>   Reversal × Discharge (#1078), Correction × Discharge (#1079), and the
+>   Relation-source Correction/Reversal cases added after those PRs.
+>
+> In particular, older adversarial classifications of
+> Relation-source/Discharge + Correction/Reversal as a persistence-layer
+> "CRITICAL GAP" are superseded. The qualified boundary is:
+>
+> ```text
+> intrinsically malformed retained state -> canonical admission refuses
+> independently retainable history       -> canonical admission preserves
+> unqualified mutation semantics          -> practical writer refuses
+> reader meaning not yet qualified        -> do not invent a numeric answer
+> ```
+>
+> Do not reintroduce a global normalized-Actual rejection solely to mirror a
+> writer-local "not yet qualified" guard.
+
 ---
 
 ## Summary

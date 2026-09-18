@@ -259,6 +259,30 @@ Do not turn this writer-local stop condition into a normalized-Actual decode
 restriction merely because the current operation cannot yet preserve the intended
 discharge meaning across replacement.
 
+## Semantic robustness closure — Relation/Discharge mutation guards
+
+The adversarial matrix that originally classified these cases as persistence
+gaps is now closed with a narrower, qualified interpretation.
+
+| Retained provenance on target | New operation | Canonical history | Practical writer |
+| --- | --- | --- | --- |
+| Relation source | Correction | representable | refuse |
+| Relation source | Reversal | representable | refuse |
+| RelationDischarge later Event | Correction | representable | refuse |
+| RelationDischarge later Event | Reversal | representable | refuse |
+
+The Discharge rows are pinned by #1078/#1079. The Relation-source rows are pinned
+by dedicated publisher regressions that target `relation.sourceEvent` rather
+than the discharge Event, and require refusal with no authority mutation.
+
+This closes the old A/B/C "zombie debt / zombie discharge" finding as a
+**classification correction**, not by making normalized persistence imitate
+writer reachability. Relation and Discharge remain append-only retained
+provenance. If a future user-facing query needs current outstanding debt in a
+world containing later Correction/Reversal facts, that reader must earn explicit
+cross-family answerability instead of silently treating retained provenance as
+current or deleting it at decode.
+
 ## Verdict
 
 ```text

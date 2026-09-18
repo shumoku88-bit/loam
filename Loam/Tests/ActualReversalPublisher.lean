@@ -230,6 +230,23 @@ def main (args : List String) : IO Unit := do
   expect (afterDischargeBlocked.events.events.length == 2)
     "refused Relation-discharge reversal mutated retained Event memory"
 
+  let relationSourceDraft : Loam.ActualReversalPublisher.Draft := {
+    target := ⟨"actual-source"⟩
+    validOn := "2026-09-08" }
+  let beforeRelationRefusal ← IO.FS.readFile (dischargeRoot / "actual.loam")
+  let blockedRelation ← Loam.ActualReversalPublisher.publishReversal
+    dischargeScheduledFile.toString dischargeRoot.toString relationSourceDraft
+  expect (!blockedRelation.isOk)
+    "Relation source Event was accepted by the reversal entrance before relation-reversal semantics were qualified"
+  expect ((← IO.FS.readFile (dischargeRoot / "actual.loam")) == beforeRelationRefusal)
+    "refused Relation-source reversal changed Actual authority"
+  let .ok afterRelationBlocked ← Loam.ActualAuthority.loadActual? dischargeRoot
+    | throw (IO.userError "reload Actual after refused Relation-source reversal")
+  expect ((afterRelationBlocked.reversals.findByTarget? relationSourceDraft.target).isNone)
+    "refused Relation-source reversal retained reversal provenance"
+  expect (afterRelationBlocked.relations.length == 1)
+    "refused Relation-source reversal changed retained relation evidence"
+
   let completionRoot := dataDir / "scheduled-completion-guard"
   IO.FS.createDirAll completionRoot
   let completionScheduledFile := completionRoot / "scheduled.loam"
@@ -251,4 +268,4 @@ def main (args : List String) : IO Unit := do
   expect ((afterBlocked.reversals.findByTarget? draft.target).isNone)
     "refused Scheduled-completion reversal retained a reversal relation"
 
-  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + date-correction independence + cross-writer Correction refusal + Relation-discharge refusal + Scheduled-completion refusal + fail-closed repeat passed."
+  IO.println "Actual reversal publisher: retained target + exact inverse + explicit provenance + date-correction independence + cross-writer Correction refusal + Relation-source/Discharge refusal + Scheduled-completion refusal + fail-closed repeat passed."

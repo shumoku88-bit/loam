@@ -186,4 +186,27 @@ def main (args : List String) : IO Unit := do
   expect (afterDischargeBlocked.discharges.length == 1)
     "refused Relation-discharge correction changed retained discharge evidence"
 
-  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, Relation-discharge refusal, append-only relation, replacement and fresh review passed."
+  let relationRoot := root / "relation-source-guard"
+  IO.FS.createDirAll relationRoot
+  let retainedRelationWorld ← dischargeWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? relationRoot retainedRelationWorld
+    | throw (IO.userError "publish Relation-source Actual world")
+  let relationCorrection : Loam.CorrectionPublisher.Draft := {
+    target := ⟨"actual-source"⟩
+    effects := collectorLocalEffects "paypay" "coffee" 710
+    description := some "corrected relation source" }
+  let beforeRelationRefusal ← IO.FS.readFile (relationRoot / "actual.loam")
+  let blockedRelation ← Loam.CorrectionPublisher.publishCorrection
+    relationRoot.toString relationCorrection
+  expect (!blockedRelation.isOk)
+    "Relation source Event was accepted by the correction entrance before relation-correction semantics were qualified"
+  expect ((← IO.FS.readFile (relationRoot / "actual.loam")) == beforeRelationRefusal)
+    "refused Relation-source correction changed Actual authority"
+  let .ok afterRelationBlocked ← Loam.ActualAuthority.loadActual? relationRoot
+    | throw (IO.userError "reload Actual after refused Relation-source correction")
+  expect (!(afterRelationBlocked.corrections.targetsEvent ⟨"actual-source"⟩))
+    "refused Relation-source correction retained correction provenance"
+  expect (afterRelationBlocked.relations.length == 1)
+    "refused Relation-source correction changed retained relation evidence"
+
+  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
