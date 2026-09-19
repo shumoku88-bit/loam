@@ -245,6 +245,29 @@ comments should state this explicitly.
 
 This is documentation clarification only, not a semantic or runtime change.
 
+### R4 / empirical — repeated relation admission inside canonical load
+
+Normalized Actual admission first qualifies the whole Relation frontier and then
+asks the target-local Discharge frontier once for every retained RelationUnit.
+
+The target-local call deliberately rechecks Relation currentness because it is a
+standalone Application boundary. Therefore canonical loading repeats some
+Relation work after whole-family admission has already succeeded.
+
+This is a plausible optimization seam, not a semantic gap.
+
+Removing the repeated work cleanly would require either:
+
+- a batch Relation/Discharge admission boundary; or
+- a trusted way to consume an already-admitted Relation target without turning
+  the current plain `AdmittedRelationUnit` read view into a forgeable capability
+  entrance.
+
+No measured production performance pressure currently justifies either
+abstraction.
+
+**Decision: MEASURE BEFORE OPTIMIZING.**
+
 ## D/P/R result
 
 ```text
@@ -267,8 +290,10 @@ R
 │    -> no production consumer, keep unresolved
 ├─ policy: general Relation known-none completeness
 │    -> no completeness authority, keep unknown
-└─ terminology: "later" is not calendar ordering
-     -> clarify comments only
+├─ terminology: "later" is not calendar ordering
+│    -> clarify comments only
+└─ empirical: canonical load repeats some Relation admission work
+     -> measure before adding a batch/trusted-target abstraction
 ```
 
 ## Verdict
@@ -276,8 +301,8 @@ R
 **KEEP CURRENT BOUNDARIES.**
 
 The scaffold does not justify another proof field, another cross-family runtime
-check, a generic Relation mutation framework, or a user-facing outstanding-debt
-feature.
+check, a generic Relation mutation framework, a batch admission abstraction
+without measured pressure, or a user-facing outstanding-debt feature.
 
 This is a useful negative result: the recent hardening did not leave an obvious
 production semantic gap, and the remaining unanswered questions have no current
