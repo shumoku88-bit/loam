@@ -50,11 +50,8 @@ def physicalEffects (effects : List Effect) : List PhysicalEffect :=
 
 @[simp] theorem inversePhysical_involutive (effect : PhysicalEffect) :
     inversePhysical (inversePhysical effect) = effect := by
-  cases effect with
-  | mk locus measure quantity =>
-      cases quantity with
-      | mk quanta =>
-          simp [inversePhysical, Quantity.neg]
+  cases effect
+  simp [inversePhysical]
 
 /--
 Check whether two Effect collections are exact physical inverses.
@@ -90,10 +87,10 @@ theorem exactPhysicalInverse?_symm (target reversal : List Effect) :
   constructor
   · intro h
     have hMapped := h.symm.map inversePhysical
-    simpa [List.map_map] using hMapped
+    simpa [List.map_map, Function.comp_def] using hMapped
   · intro h
     have hMapped := h.symm.map inversePhysical
-    simpa [List.map_map] using hMapped
+    simpa [List.map_map, Function.comp_def] using hMapped
 
 /--
 Flatten retained reversal relations to their endpoint identities.
