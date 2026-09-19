@@ -35,6 +35,13 @@ def main : IO Unit := do
     negativeLoci := ["pension"]
     positiveLoci := ["cash"]
   }
+  let emptyMonthly : Loam.ScheduledCoverageConfig.Rule := {
+    name := "utilities"
+    anchor := "2026-08-15"
+    everyMonths := 1
+    negativeLoci := ["cash"]
+    positiveLoci := ["utilities"]
+  }
   let some octGpt := occurrence? "scheduled-1" "2026-10-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture oct gpt")
   let some novGpt := occurrence? "scheduled-2" "2026-11-15" "cash" "gpt-plus"
@@ -46,7 +53,7 @@ def main : IO Unit := do
 
   let snapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [monthly, bimonthly] [octGpt, novGpt, novPension, decPension]
+        [monthly, bimonthly, emptyMonthly] [octGpt, novGpt, novPension, decPension]
         "2026-09-18" 4 with
     | .error message => throw (IO.userError message)
     | .ok snapshot => pure snapshot
@@ -65,7 +72,9 @@ def main : IO Unit := do
   expect (contains "gpt-plus" rendered && contains "pension" rendered)
     "Scheduled coverage pane did not render configured rules"
   expect (contains "Attention" rendered &&
-    contains "gpt-plus: next gap 2026-12" rendered)
+    contains "utilities: no expected explicit plan in view; next gap 2026-10" rendered)
+    "Scheduled coverage pane did not surface an empty future monitor first-class"
+  expect (contains "gpt-plus: next gap 2026-12" rendered)
     "Scheduled coverage pane did not surface the nearest monthly gap in Attention"
   expect (contains "pension: next gap 2027-01; explicit off-pattern plan also exists" rendered)
     "Scheduled coverage pane did not combine gap and off-pattern diagnostics"
@@ -76,6 +85,8 @@ def main : IO Unit := do
   expect (contains "2026-11" rendered && contains "2026-12" rendered &&
     contains "gap" rendered)
     "monthly Scheduled coverage table lost through/next-gap/status values"
+  expect (contains "utilities" rendered && contains "empty" rendered)
+    "Scheduled coverage table did not distinguish a monitor with no expected explicit plan in view"
   expect (contains "gap+off" rendered && contains "explicit off-pattern" rendered)
     "Scheduled coverage pane lost the explicit off-pattern distinction"
   expect (contains "do not create recurrence authority" rendered)
