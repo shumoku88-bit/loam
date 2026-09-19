@@ -1,6 +1,7 @@
 import Init.Data.Order
 import Loam.Application.ConsumptionInspection
 import Loam.Application.CorrectionFrontier
+import Loam.Core.AccountingRole
 import Loam.Core.RoutingEffective
 
 namespace Loam.Application
@@ -27,6 +28,60 @@ The quantity arithmetic remains owned by `ConsumptionInspection`; this module is
 only the composition boundary between ordinary Actual validity and the
 routing-specific effective coordinate selected by Observation 156.
 -/
+
+/-- One explicit current-window Effect whose Locus has no visible Actual route. -/
+structure UnroutedActualRow (Time : Type) where
+  event : EventId
+  validOn : Time
+  locus : LocusId
+  measure : MeasureId
+  quantity : Quantity
+  role : Option AccountingRole
+deriving Repr, DecidableEq
+
+private def inClosed (start observedAt value : Time) : Bool :=
+  decide (start ≤ value) && decide (value ≤ observedAt)
+
+/--
+Derive every nonzero Effect in one Measure whose Locus is unrouted at the
+Event's current valid coordinate inside the closed current window.
+
+The row preserves signed quantity and optional AccountingRole only as evidence.
+This function does not decide whether the row should block or warn at a higher
+household surface.
+-/
+def unroutedActualRows?
+    (events : EventMemory)
+    (validities : ActualValidityMemory Time)
+    (routing : RoutingHistory LocusId (RoutingEffective Time))
+    (roles : AccountingRoleMap)
+    (start observedAt : Time)
+    (measure : MeasureId) : Option (List (UnroutedActualRow Time)) := do
+  if !(decide (start ≤ observedAt)) then
+    none
+  else
+    events.events.foldlM
+      (fun rows event => do
+        let validOn ← validities.findByEventId? event.id
+        if !inClosed start observedAt validOn then
+          return rows
+        let eventRows :=
+          event.effects.filterMap fun effect =>
+            if effect.measure != measure || effect.quantity.quanta == 0 then
+              none
+            else if routing.statusAt effect.locus (.dated validOn) != .unrouted then
+              none
+            else
+              some {
+                event := event.id
+                validOn := validOn
+                locus := effect.locus
+                measure := effect.measure
+                quantity := effect.quantity
+                role := roles.roleOf? effect.locus
+              }
+        return rows ++ eventRows)
+      []
 
 /-- Project one Event's Consumption while preserving an explicit initial route. -/
 def eventConsumptionAtEffectiveRouting
