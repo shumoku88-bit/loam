@@ -203,6 +203,95 @@ def admitActualEvidence? (evidence : ActualEvidence) : Option ActualEvidence := 
   let image ← admitActualImage? evidence
   some image.evidence
 
+/-- Machine-readable reason for a syntax or wire-level parse failure. -/
+inductive NormalizedActualParseErrorReason where
+  | missingFinalNewline
+  | emptyDocument
+  | invalidHeader (found : String)
+  | malformedTxRow (detail : String)
+  | malformedRow (rowType : String) (detail : String)
+  | unknownRowType (rowType : String)
+  | missingEndTx (event : EventId) (txLine : Nat)
+  | invalidToken (token : String)
+  | invalidInteger (value : String)
+  | duplicateMerchant
+  | duplicateOperation
+  | duplicateReplaces
+  | duplicateReversalOf
+deriving Repr, DecidableEq
+
+/-- A structured parse error with a 1-indexed line number in the document. -/
+structure NormalizedActualParseError where
+  line : Nat
+  reason : NormalizedActualParseErrorReason
+deriving Repr, DecidableEq
+
+/-- Human-readable description of a parse error. -/
+def NormalizedActualParseError.message (err : NormalizedActualParseError) : String :=
+  let reasonMsg := match err.reason with
+    | .missingFinalNewline => "document must end with a newline"
+    | .emptyDocument => "empty document"
+    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeader}'"
+    | .malformedTxRow detail => s!"malformed TX row: {detail}"
+    | .malformedRow rowType detail => s!"malformed {rowType} row: {detail}"
+    | .unknownRowType rowType => s!"unknown row type: '{rowType}'"
+    | .missingEndTx event txLine => s!"missing ENDTX for transaction '{event.token}' (opened at line {txLine})"
+    | .invalidToken token => s!"invalid token: '{token}'"
+    | .invalidInteger value => s!"invalid integer quantity: '{value}'"
+    | .duplicateMerchant => "duplicate MERCHANT or NONMERCHANT row in transaction"
+    | .duplicateOperation => "duplicate OPERATION row in transaction"
+    | .duplicateReplaces => "duplicate REPLACES row in transaction"
+    | .duplicateReversalOf => "duplicate REVERSAL-OF row in transaction"
+  s!"line {err.line}: {reasonMsg}"
+
+instance : ToString NormalizedActualParseError where
+  toString := NormalizedActualParseError.message
+
+/-- Failure during construction of Core domain aggregate memories from parsed transactions. -/
+inductive NormalizedActualConstructionError where
+  | eventEffects (event : EventId)
+  | eventMemory
+  | validityHistory
+  | descriptionMemory
+  | merchantMemory
+  | movementOperationMemory
+  | correctionMemory
+  | reversalMemory
+deriving Repr, DecidableEq
+
+/-- Human-readable description of an aggregate construction error. -/
+def NormalizedActualConstructionError.message : NormalizedActualConstructionError → String
+  | .eventEffects ev => s!"failed to construct Event '{ev.token}': invalid or duplicate effect keys"
+  | .eventMemory => "failed to construct EventMemory: duplicate EventId found"
+  | .validityHistory => "failed to construct ActualValidityHistory: duplicate revision or invalid validity parts"
+  | .descriptionMemory => "failed to construct EventDescriptionMemory: duplicate description for event"
+  | .merchantMemory => "failed to construct EventMerchantEvidenceMemory: duplicate merchant disposition for event"
+  | .movementOperationMemory => "failed to construct MovementOperationEvidenceMemory: duplicate operation or event mapping"
+  | .correctionMemory => "failed to construct EventCorrectionMemory: duplicate replacement event"
+  | .reversalMemory => "failed to construct ActualReversalMemory: duplicate reversal"
+
+instance : ToString NormalizedActualConstructionError where
+  toString := NormalizedActualConstructionError.message
+
+/--
+High-level diagnostic error during normalized Actual document decoding.
+Distinguishes syntax/parse failures, memory construction failures, and semantic re-admission failures.
+-/
+inductive NormalizedActualDecodeError where
+  | parse (err : NormalizedActualParseError)
+  | construction (err : NormalizedActualConstructionError)
+  | admission
+deriving Repr, DecidableEq
+
+/-- Human-readable description of a decoding error. -/
+def NormalizedActualDecodeError.message : NormalizedActualDecodeError → String
+  | .parse err => err.message
+  | .construction err => err.message
+  | .admission => "semantic admission failed: aggregates violate ledger invariants or referential closure"
+
+instance : ToString NormalizedActualDecodeError where
+  toString := NormalizedActualDecodeError.message
+
 /--
 Intermediate per-transaction parsing state during normalized Actual decoding.
 -/
@@ -220,6 +309,8 @@ private structure ParsedTx where
   discharges : List RelationDischarge
 
 private def parseTxRows
+    (txLine : Nat)
+    (lastLine : Nat)
     (event : EventId)
     (baseValidOn : String)
     (description : Option String)
@@ -231,11 +322,12 @@ private def parseTxRows
     (dateRevisions : List (ActualValidityRevisionId × String × ActualValidityRef))
     (relations : List RelationUnit)
     (discharges : List RelationDischarge) :
-    List String → Option (ParsedTx × List String)
-  | [] => none
-  | row :: rest => do
+    List (Nat × String) → Except NormalizedActualParseError (ParsedTx × List (Nat × String))
+  | [] =>
+      Except.error { line := lastLine, reason := .missingEndTx event txLine }
+  | (lineNo, row) :: rest => do
       if row == "ENDTX" then
-        some ({
+        Except.ok ({
           event := event
           baseValidOn := baseValidOn
           description := description
@@ -248,126 +340,218 @@ private def parseTxRows
           relations := relations
           discharges := discharges
         }, rest)
+      else if row.startsWith "TX\t" || row == "TX" then
+        Except.error { line := lineNo, reason := .missingEndTx event txLine }
       else
         let fields := row.splitOn "\t"
         match fields with
         | ["MERCHANT", partyToken] =>
-            if merchant.isSome || !validToken partyToken then none
+            if merchant.isSome then
+              Except.error { line := lineNo, reason := .duplicateMerchant }
+            else if !validToken partyToken then
+              Except.error { line := lineNo, reason := .invalidToken partyToken }
             else
-              parseTxRows event baseValidOn description (some (.merchant ⟨partyToken⟩))
+              parseTxRows txLine lineNo event baseValidOn description (some (.merchant ⟨partyToken⟩))
                 movementOperation replaces reversalOf effects dateRevisions relations discharges rest
         | ["NONMERCHANT"] =>
-            if merchant.isSome then none
+            if merchant.isSome then
+              Except.error { line := lineNo, reason := .duplicateMerchant }
             else
-              parseTxRows event baseValidOn description (some .nonmerchant)
+              parseTxRows txLine lineNo event baseValidOn description (some .nonmerchant)
                 movementOperation replaces reversalOf effects dateRevisions relations discharges rest
         | ["OPERATION", operationToken] =>
-            if movementOperation.isSome || !validToken operationToken then none
+            if movementOperation.isSome then
+              Except.error { line := lineNo, reason := .duplicateOperation }
+            else if !validToken operationToken then
+              Except.error { line := lineNo, reason := .invalidToken operationToken }
             else
-              parseTxRows event baseValidOn description merchant
+              parseTxRows txLine lineNo event baseValidOn description merchant
                 (some ⟨operationToken⟩) replaces reversalOf
                 effects dateRevisions relations discharges rest
         | ["REPLACES", target] =>
-            if replaces.isSome || !validToken target then none
+            if replaces.isSome then
+              Except.error { line := lineNo, reason := .duplicateReplaces }
+            else if !validToken target then
+              Except.error { line := lineNo, reason := .invalidToken target }
             else
-              parseTxRows event baseValidOn description merchant movementOperation (some ⟨target⟩) reversalOf
+              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation (some ⟨target⟩) reversalOf
                 effects dateRevisions relations discharges rest
         | ["REVERSAL-OF", target] =>
-            if reversalOf.isSome || !validToken target then none
+            if reversalOf.isSome then
+              Except.error { line := lineNo, reason := .duplicateReversalOf }
+            else if !validToken target then
+              Except.error { line := lineNo, reason := .invalidToken target }
             else
-              parseTxRows event baseValidOn description merchant movementOperation replaces (some ⟨target⟩)
+              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces (some ⟨target⟩)
                 effects dateRevisions relations discharges rest
         | ["EFFECT", locus, measure, quantityStr] => do
-            let quanta ← quantityStr.toInt?
-            if !validToken locus || !validToken measure then none
-            else
-              let effect := Effect.ofAnonymousQuantity ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
-                (effects ++ [effect]) dateRevisions relations discharges rest
+            match quantityStr.toInt? with
+            | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
+            | some quanta =>
+                if !validToken locus then
+                  Except.error { line := lineNo, reason := .invalidToken locus }
+                else if !validToken measure then
+                  Except.error { line := lineNo, reason := .invalidToken measure }
+                else
+                  let effect := Effect.ofAnonymousQuantity ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
+                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
+                    (effects ++ [effect]) dateRevisions relations discharges rest
         | ["KEYED-EFFECT", key, locus, measure, quantityStr] => do
-            let quanta ← quantityStr.toInt?
-            if !validToken key || !validToken locus || !validToken measure then none
-            else
-              let effect := Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
-                (effects ++ [effect]) dateRevisions relations discharges rest
+            match quantityStr.toInt? with
+            | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
+            | some quanta =>
+                if !validToken key then
+                  Except.error { line := lineNo, reason := .invalidToken key }
+                else if !validToken locus then
+                  Except.error { line := lineNo, reason := .invalidToken locus }
+                else if !validToken measure then
+                  Except.error { line := lineNo, reason := .invalidToken measure }
+                else
+                  let effect := Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
+                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
+                    (effects ++ [effect]) dateRevisions relations discharges rest
         | ["DATE-REV", revId, date, "REPLACES", "ROOT"] =>
-            if !validToken revId || !validToken date then none
+            if !validToken revId then
+              Except.error { line := lineNo, reason := .invalidToken revId }
+            else if !validToken date then
+              Except.error { line := lineNo, reason := .invalidToken date }
             else
               let item := (⟨revId⟩, date, ActualValidityRef.root event)
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
+              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
                 effects (dateRevisions ++ [item]) relations discharges rest
         | ["DATE-REV", revId, date, "REPLACES", "REV", prior] =>
-            if !validToken revId || !validToken date || !validToken prior then none
+            if !validToken revId then
+              Except.error { line := lineNo, reason := .invalidToken revId }
+            else if !validToken date then
+              Except.error { line := lineNo, reason := .invalidToken date }
+            else if !validToken prior then
+              Except.error { line := lineNo, reason := .invalidToken prior }
             else
               let item := (⟨revId⟩, date, ActualValidityRef.revision ⟨prior⟩)
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
+              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
                 effects (dateRevisions ++ [item]) relations discharges rest
         | ["RELATION", relId, "SOURCE", key, debtorStr, creditorStr, quantityStr] => do
-            let quanta ← quantityStr.toInt?
-            if !validToken relId || !validToken key then none
-            else
-              let debtor ← parseEndpoint? debtorStr
-              let creditor ← parseEndpoint? creditorStr
-              let rel : RelationUnit := {
-                id := ⟨relId⟩
-                sourceEvent := event
-                sourceEffect := ⟨key⟩
-                debtor := debtor
-                creditor := creditor
-                quantity := Quantity.ofQuanta quanta
-              }
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
-                effects dateRevisions (relations ++ [rel]) discharges rest
+            match quantityStr.toInt? with
+            | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
+            | some quanta =>
+                if !validToken relId then
+                  Except.error { line := lineNo, reason := .invalidToken relId }
+                else if !validToken key then
+                  Except.error { line := lineNo, reason := .invalidToken key }
+                else
+                  let debtor ← match parseEndpoint? debtorStr with
+                    | some d => Except.ok d
+                    | none => Except.error { line := lineNo, reason := .malformedRow "RELATION" s!"invalid debtor endpoint '{debtorStr}'" }
+                  let creditor ← match parseEndpoint? creditorStr with
+                    | some c => Except.ok c
+                    | none => Except.error { line := lineNo, reason := .malformedRow "RELATION" s!"invalid creditor endpoint '{creditorStr}'" }
+                  let rel : RelationUnit := {
+                    id := ⟨relId⟩
+                    sourceEvent := event
+                    sourceEffect := ⟨key⟩
+                    debtor := debtor
+                    creditor := creditor
+                    quantity := Quantity.ofQuanta quanta
+                  }
+                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
+                    effects dateRevisions (relations ++ [rel]) discharges rest
         | ["DISCHARGE", relId, quantityStr] => do
-            let quanta ← quantityStr.toInt?
-            if !validToken relId then none
+            match quantityStr.toInt? with
+            | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
+            | some quanta =>
+                if !validToken relId then
+                  Except.error { line := lineNo, reason := .invalidToken relId }
+                else
+                  let discharge : RelationDischarge := {
+                    event := event
+                    target := ⟨relId⟩
+                    quantity := Quantity.ofQuanta quanta
+                  }
+                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
+                    effects dateRevisions relations (discharges ++ [discharge]) rest
+        | _ =>
+            let head := fields.head?
+            if head == some "MERCHANT" then
+              Except.error { line := lineNo, reason := .malformedRow "MERCHANT" s!"expected 2 fields, got {fields.length}" }
+            else if head == some "NONMERCHANT" then
+              Except.error { line := lineNo, reason := .malformedRow "NONMERCHANT" s!"expected 1 field, got {fields.length}" }
+            else if head == some "OPERATION" then
+              Except.error { line := lineNo, reason := .malformedRow "OPERATION" s!"expected 2 fields, got {fields.length}" }
+            else if head == some "REPLACES" then
+              Except.error { line := lineNo, reason := .malformedRow "REPLACES" s!"expected 2 fields, got {fields.length}" }
+            else if head == some "REVERSAL-OF" then
+              Except.error { line := lineNo, reason := .malformedRow "REVERSAL-OF" s!"expected 2 fields, got {fields.length}" }
+            else if head == some "EFFECT" then
+              Except.error { line := lineNo, reason := .malformedRow "EFFECT" s!"expected 4 fields, got {fields.length}" }
+            else if head == some "KEYED-EFFECT" then
+              Except.error { line := lineNo, reason := .malformedRow "KEYED-EFFECT" s!"expected 5 fields, got {fields.length}" }
+            else if head == some "DATE-REV" then
+              Except.error { line := lineNo, reason := .malformedRow "DATE-REV" "invalid DATE-REV pattern" }
+            else if head == some "RELATION" then
+              Except.error { line := lineNo, reason := .malformedRow "RELATION" "expected RELATION <id> SOURCE <key> <debtor> <creditor> <quantity>" }
+            else if head == some "DISCHARGE" then
+              Except.error { line := lineNo, reason := .malformedRow "DISCHARGE" "expected DISCHARGE <relId> <quantity>" }
             else
-              let discharge : RelationDischarge := {
-                event := event
-                target := ⟨relId⟩
-                quantity := Quantity.ofQuanta quanta
-              }
-              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
-                effects dateRevisions relations (discharges ++ [discharge]) rest
-        | _ => none
+              Except.error { line := lineNo, reason := .unknownRowType (head.getD "") }
 
-private partial def parseTxs : List String → Option (List ParsedTx)
-  | [] => some []
-  | line :: rest =>
+private partial def parseTxs :
+    List (Nat × String) → Except NormalizedActualParseError (List ParsedTx)
+  | [] => Except.ok []
+  | (lineNo, line) :: rest =>
       let fields := line.splitOn "\t"
       match fields with
       | ["TX", eventToken, baseDate, "NODESC"] => do
-          if !validToken eventToken || !validToken baseDate then none
-          match parseTxRows ⟨eventToken⟩ baseDate none none none none none [] [] [] [] rest with
-          | some (tx, remaining) =>
-              let tail ← parseTxs remaining
-              some (tx :: tail)
-          | none => none
+          if !validToken eventToken then
+            Except.error { line := lineNo, reason := .invalidToken eventToken }
+          else if !validToken baseDate then
+            Except.error { line := lineNo, reason := .invalidToken baseDate }
+          else
+            let (tx, remaining) ← parseTxRows lineNo lineNo ⟨eventToken⟩ baseDate none none none none none [] [] [] [] rest
+            let tail ← parseTxs remaining
+            Except.ok (tx :: tail)
       | "TX" :: eventToken :: baseDate :: "DESC" :: descFields => do
-          if !validToken eventToken || !validToken baseDate then none
-          let descText := String.intercalate "\t" descFields
-          if descText.isEmpty || descText.contains '\n' || descText.contains '\r' then none
-          match parseTxRows ⟨eventToken⟩ baseDate (some descText) none none none none [] [] [] [] rest with
-          | some (tx, remaining) =>
+          if !validToken eventToken then
+            Except.error { line := lineNo, reason := .invalidToken eventToken }
+          else if !validToken baseDate then
+            Except.error { line := lineNo, reason := .invalidToken baseDate }
+          else
+            let descText := String.intercalate "\t" descFields
+            if descText.isEmpty || descText.contains '\n' || descText.contains '\r' then
+              Except.error { line := lineNo, reason := .malformedTxRow "invalid description text" }
+            else
+              let (tx, remaining) ← parseTxRows lineNo lineNo ⟨eventToken⟩ baseDate (some descText) none none none none [] [] [] [] rest
               let tail ← parseTxs remaining
-              some (tx :: tail)
-          | none => none
-      | _ => none
+              Except.ok (tx :: tail)
+      | _ =>
+          if fields.head? == some "TX" then
+            Except.error { line := lineNo, reason := .malformedTxRow "expected TX <event> <date> [NODESC|DESC <text>]" }
+          else
+            Except.error { line := lineNo, reason := .unknownRowType (fields.head?.getD "") }
 
 /--
-Decode a complete normalized Actual document into persistence-neutral ActualEvidence.
-Fails closed (`none`) on any syntax error, unknown row, missing header, or semantic violation.
+Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.
+Returns machine-readable and human-formattable error on syntax, construction, or semantic failure.
 -/
-def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage := do
-  if !input.endsWith "\n" then none
+def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActualDecodeError AdmittedActualImage := do
+  if input.isEmpty then
+    throw (NormalizedActualDecodeError.parse { line := 1, reason := .emptyDocument })
+  if !input.endsWith "\n" then
+    let lineCount := (input.splitOn "\n").length
+    throw (NormalizedActualDecodeError.parse { line := lineCount, reason := .missingFinalNewline })
   let lines := (input.dropEnd 1).toString.splitOn "\n"
   match lines with
-  | [] => none
+  | [] =>
+      throw (NormalizedActualDecodeError.parse { line := 1, reason := .emptyDocument })
   | header :: rowLines =>
-      if header != normalizedActualHeader then none
+      if header != normalizedActualHeader then
+        throw (NormalizedActualDecodeError.parse { line := 1, reason := .invalidHeader header })
       else
-        let txs ← parseTxs rowLines
+        let indexedRows : List (Nat × String) :=
+          rowLines.mapIdx fun idx row => (idx + 2, row)
+        let txs ← match parseTxs indexedRows with
+          | .ok txs => pure txs
+          | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
+
         -- Construct Core Event instances
         let mut events : List Event := []
         let mut facts : List (ActualValidityFact String) := []
@@ -383,7 +567,9 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         -- Accumulate in reverse so decoding remains linear in retained row count.
         -- The final reversals below restore the canonical persistence representation order.
         for tx in txs do
-          let event ← Event.ofEffects? tx.event tx.effects
+          let event ← match Event.ofEffects? tx.event tx.effects with
+            | some ev => pure ev
+            | none => throw (NormalizedActualDecodeError.construction (.eventEffects tx.event))
           events := event :: events
           facts := .base tx.event tx.baseValidOn :: facts
 
@@ -421,14 +607,28 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         let orderedRelations := relations.reverse
         let orderedDischarges := discharges.reverse
 
-        let eventMemory ← EventMemory.ofEvents? orderedEvents
-        let validityHistory ← ActualValidityHistory.ofParts? orderedFacts orderedValCorrections
-        let descMemory ← EventDescriptionMemory.ofEntries? orderedDescriptions
-        let merchantMemory ← EventMerchantEvidenceMemory.ofEntries? orderedMerchants
+        let eventMemory ← match EventMemory.ofEvents? orderedEvents with
+          | some m => pure m
+          | none => throw (NormalizedActualDecodeError.construction .eventMemory)
+        let validityHistory ← match ActualValidityHistory.ofParts? orderedFacts orderedValCorrections with
+          | some v => pure v
+          | none => throw (NormalizedActualDecodeError.construction .validityHistory)
+        let descMemory ← match EventDescriptionMemory.ofEntries? orderedDescriptions with
+          | some d => pure d
+          | none => throw (NormalizedActualDecodeError.construction .descriptionMemory)
+        let merchantMemory ← match EventMerchantEvidenceMemory.ofEntries? orderedMerchants with
+          | some m => pure m
+          | none => throw (NormalizedActualDecodeError.construction .merchantMemory)
         let movementOperationMemory ←
-          MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations
-        let corrMemory ← EventCorrectionMemory.ofCorrections? orderedCorrections
-        let revMemory ← ActualReversalMemory.ofReversals? orderedReversals
+          match MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations with
+          | some m => pure m
+          | none => throw (NormalizedActualDecodeError.construction .movementOperationMemory)
+        let corrMemory ← match EventCorrectionMemory.ofCorrections? orderedCorrections with
+          | some c => pure c
+          | none => throw (NormalizedActualDecodeError.construction .correctionMemory)
+        let revMemory ← match ActualReversalMemory.ofReversals? orderedReversals with
+          | some r => pure r
+          | none => throw (NormalizedActualDecodeError.construction .reversalMemory)
 
         let rawEvidence : ActualEvidence := {
           events := eventMemory
@@ -442,15 +642,36 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
           discharges := orderedDischarges
         }
 
-        admitActualImage? rawEvidence
+        match admitActualImage? rawEvidence with
+        | some image => pure image
+        | none => throw NormalizedActualDecodeError.admission
+
+/--
+Decode a complete normalized Actual document into an admitted image.
+Compatibility wrapper delegating to detailed decoding.
+-/
+def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :=
+  match decodeNormalizedActualImageDetailed input with
+  | .ok image => some image
+  | .error _ => none
+
+/--
+Detailed decoding of normalized Actual wire representation into retained ActualEvidence.
+-/
+def decodeNormalizedActualDetailed
+    (input : String) :
+    Except NormalizedActualDecodeError ActualEvidence := do
+  let image ← decodeNormalizedActualImageDetailed input
+  pure image.evidence
 
 /--
 Decode only the retained ActualEvidence compatibility view.
 Read-side authority consumers should prefer the richer admitted image.
 -/
-def decodeNormalizedActual? (input : String) : Option ActualEvidence := do
-  let image ← decodeNormalizedActualImage? input
-  some image.evidence
+def decodeNormalizedActual? (input : String) : Option ActualEvidence :=
+  match decodeNormalizedActualDetailed input with
+  | .ok evidence => some evidence
+  | .error _ => none
 
 /--
 Encode persistence-neutral ActualEvidence into normalized Actual wire representation.

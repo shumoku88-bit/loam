@@ -12,7 +12,9 @@ on:
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Core/MovementOperationEvidence.lean'
       - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
+      - 'Loam/Tests/MovementOperationEvidence.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -32,7 +34,9 @@ on:
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Core/MovementOperationEvidence.lean'
       - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
+      - 'Loam/Tests/MovementOperationEvidence.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -63,6 +67,8 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Verify Movement operation evidence contract
+        run: lake env lean --run Loam/Tests/MovementOperationEvidence.lean
       - name: Verify normalized Actual persistence
         run: lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
       - name: Verify Actual-backed occurrence-date publication

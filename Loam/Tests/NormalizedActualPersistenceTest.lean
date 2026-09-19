@@ -509,4 +509,101 @@ def main : IO Unit := do
   let _ ← requireSome (decodeNormalizedActual? balancedUsd)
     "normalized Actual incorrectly imposed the practical JPY operation contract"
 
+  -- 8. Structured diagnostic parsing tests (detailed decoders)
+
+  -- 8a. Unknown row inside transaction reports correct line and reason
+  let unknownRowWire :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++     -- line 1
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++   -- line 2
+    "FOOBAR\tsomething\n" ++              -- line 3
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed unknownRowWire with
+  | .error (.parse { line := 3, reason := .unknownRowType "FOOBAR" }) => pure ()
+  | .error err => throw <| IO.userError s!"expected unknownRowType at line 3, got: {err}"
+  | .ok _ => throw <| IO.userError "expected unknownRowType at line 3, got unexpected success"
+  requireNone (decodeNormalizedActual? unknownRowWire)
+    "legacy decodeNormalizedActual? must fail closed on unknown row"
+
+  -- 8b. Malformed quantity reports correct line and reason
+  let malformedQuantaWire :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++     -- line 1
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++   -- line 2
+    "EFFECT\twallet\tjpy\tnot-a-number\n" ++ -- line 3
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed malformedQuantaWire with
+  | .error (.parse { line := 3, reason := .invalidInteger "not-a-number" }) => pure ()
+  | .error err => throw <| IO.userError s!"expected invalidInteger at line 3, got: {err}"
+  | .ok _ => throw <| IO.userError "expected invalidInteger at line 3, got unexpected success"
+  requireNone (decodeNormalizedActual? malformedQuantaWire)
+    "legacy decodeNormalizedActual? must fail closed on malformed quantity"
+
+  -- 8c. Duplicate OPERATION within a transaction produces dedicated duplicateOperation reason
+  let dupOpWire :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++     -- line 1
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++   -- line 2
+    "OPERATION\top-1\n" ++                -- line 3
+    "OPERATION\top-2\n" ++                -- line 4
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed dupOpWire with
+  | .error (.parse { line := 4, reason := .duplicateOperation }) => pure ()
+  | .error err => throw <| IO.userError s!"expected duplicateOperation at line 4, got: {err}"
+  | .ok _ => throw <| IO.userError "expected duplicateOperation at line 4, got unexpected success"
+  requireNone (decodeNormalizedActual? dupOpWire)
+    "legacy decodeNormalizedActual? must fail closed on duplicate OPERATION"
+
+  -- 8d. Missing ENDTX before EOF is identified with transaction context
+  let missingEndTxWire :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++     -- line 1
+    "TX\tev-unclosed\t2026-09-01\tNODESC\n" ++ -- line 2
+    "EFFECT\twallet\tjpy\t-100\n"        -- line 3
+  match decodeNormalizedActualImageDetailed missingEndTxWire with
+  | .error (.parse { line := 3, reason := .missingEndTx ⟨"ev-unclosed"⟩ 2 }) => pure ()
+  | .error err => throw <| IO.userError s!"expected missingEndTx for ev-unclosed, got: {err}"
+  | .ok _ => throw <| IO.userError "expected missingEndTx for ev-unclosed, got unexpected success"
+  requireNone (decodeNormalizedActual? missingEndTxWire)
+    "legacy decodeNormalizedActual? must fail closed on missing ENDTX"
+
+  -- 8e. Invalid header is identified at line 1
+  let invalidHeaderWire :=
+    "LOAM-NORMALIZED-ACTUAL\t999\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed invalidHeaderWire with
+  | .error (.parse { line := 1, reason := .invalidHeader "LOAM-NORMALIZED-ACTUAL\t999" }) => pure ()
+  | .error err => throw <| IO.userError s!"expected invalidHeader at line 1, got: {err}"
+  | .ok _ => throw <| IO.userError "expected invalidHeader at line 1, got unexpected success"
+  requireNone (decodeNormalizedActual? invalidHeaderWire)
+    "legacy decodeNormalizedActual? must fail closed on invalid header"
+
+  -- 8f. Missing final newline is identified
+  let noNewlineWire :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "ENDTX"
+  match decodeNormalizedActualImageDetailed noNewlineWire with
+  | .error (.parse { line := 3, reason := .missingFinalNewline }) => pure ()
+  | .error err => throw <| IO.userError s!"expected missingFinalNewline, got: {err}"
+  | .ok _ => throw <| IO.userError "expected missingFinalNewline, got unexpected success"
+  requireNone (decodeNormalizedActual? noNewlineWire)
+    "legacy decodeNormalizedActual? must fail closed on missing final newline"
+
+  -- 8g. Distinction between syntax failure, construction failure, and semantic admission failure
+  -- 8g-1. Cross-transaction duplicate OPERATION identity produces construction error (not syntax error)
+  match decodeNormalizedActualImageDetailed duplicateOperationIdentity with
+  | .error (.construction .movementOperationMemory) => pure ()
+  | .error err => throw <| IO.userError s!"expected construction .movementOperationMemory, got: {err}"
+  | .ok _ => throw <| IO.userError "expected construction .movementOperationMemory, got unexpected success"
+
+  -- 8g-2. Unbalanced quantity produces semantic admission failure (not syntax or construction error)
+  match decodeNormalizedActualImageDetailed unbalancedEvent with
+  | .error .admission => pure ()
+  | .error err => throw <| IO.userError s!"expected admission failure for unbalancedEvent, got: {err}"
+  | .ok _ => throw <| IO.userError "expected admission failure for unbalancedEvent, got unexpected success"
+
+  -- 8h. decodeNormalizedActualDetailed consistency
+  match decodeNormalizedActualDetailed unknownRowWire with
+  | .error (.parse { line := 3, reason := .unknownRowType "FOOBAR" }) => pure ()
+  | .error err => throw <| IO.userError s!"expected decodeNormalizedActualDetailed to report parse error, got: {err}"
+  | .ok _ => throw <| IO.userError "expected decodeNormalizedActualDetailed to report parse error, got unexpected success"
+
   IO.println "All NormalizedActualPersistence tests passed successfully!"
