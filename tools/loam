@@ -20,6 +20,26 @@ run_target() {
   fi
 }
 
+run_web() {
+  local data_dir="${1:-${LOAM_DATA_DIR:-../loam-data}}"
+  local output_dir="$root/.lake/loam-web"
+  local build_log
+
+  mkdir -p "$output_dir"
+  build_log="$(mktemp -t loam-web-build.XXXXXX)"
+  if ! lake build loamWeb >"$build_log" 2>&1; then
+    cat "$build_log" >&2
+    rm -f "$build_log"
+    return 1
+  fi
+  rm -f "$build_log"
+
+  "$root/.lake/build/bin/loamWeb" "$data_dir" "$output_dir/index.html"
+  echo "LOAM Web: http://127.0.0.1:8765"
+  echo "read-only snapshot; restart this command to refresh"
+  exec python3 -m http.server 8765 --bind 127.0.0.1 --directory "$output_dir"
+}
+
 print_help() {
   cat <<'EOF'
 LOAM practical dogfood
@@ -27,6 +47,10 @@ LOAM practical dogfood
 Open the production TUI (also the default with no arguments):
   ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
+
+Open the read-only local Web frontend:
+  ./tools/loam web [LOAM_DATA_DIR]
+  Serves one shared-Review snapshot at http://127.0.0.1:8765.
 
 Diagnose whether the New-only production startup read boundary is coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
@@ -81,6 +105,11 @@ fi
 if [[ "${1:-}" == "tui" ]]; then
   shift
   run_target loamTui "$@"
+fi
+
+if [[ "${1:-}" == "web" ]]; then
+  shift
+  run_web "$@"
 fi
 
 if [[ "${1:-}" == "doctor" ]]; then
