@@ -95,7 +95,8 @@ def applyOperation
     (event : Event) :
     applyOperation emptyWorld operation event =
       (singletonWorld operation event, .applied event.id) := by
-  simp [applyOperation, emptyWorld, singletonWorld, findAppliedEvent?,
+  simp [applyOperation, emptyWorld, singletonWorld,
+    AppliedOperationMemory.empty, findAppliedEvent?,
     AppliedOperationMemory.add?, AppliedOperationMemory.ofEntries?]
 
 /--
@@ -116,7 +117,8 @@ theorem repeated_operation_does_not_add_event
     (first retryProposal : Event) :
     (applyOperation (singletonWorld operation first) operation retryProposal).1.events.events =
       [first] := by
-  simp
+  rw [repeated_operation_is_idempotent]
+  rfl
 
 /-- Retry returns the EventId established by the first successful application. -/
 theorem repeated_operation_returns_original_event
@@ -136,7 +138,8 @@ theorem first_success_contains_both_facts
     (applyOperation emptyWorld operation event).1.events.events = [event] ∧
       (applyOperation emptyWorld operation event).1.operations.entries =
         [{ operation := operation, event := event.id }] := by
-  simp
+  rw [first_application_succeeds]
+  constructor <;> rfl
 
 /--
 If Event admission fails, operation evidence is not appended either. Here a
