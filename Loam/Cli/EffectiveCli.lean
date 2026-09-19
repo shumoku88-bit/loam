@@ -42,9 +42,9 @@ loaded; this CLI does not re-admit the same topology per coordinate.
 def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
   let actualFile := System.FilePath.mk actualPath
   let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualFile with
-    | .error message =>
-        IO.eprintln message
+    match ← Loam.ActualAuthority.loadImageFileDetailed actualFile with
+    | .error err =>
+        IO.eprintln err.message
         return 2
     | .ok image => pure image
   let coordinates := recordedCoordinates image.currentEvents

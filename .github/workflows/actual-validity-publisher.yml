@@ -15,6 +15,8 @@ on:
       - 'Loam/Core/MovementOperationEvidence.lean'
       - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
       - 'Loam/Tests/MovementOperationEvidence.lean'
+      - 'Loam/Cli/EffectiveCli.lean'
+      - 'Loam/Tests/ActualAuthorityDetailed.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -37,6 +39,8 @@ on:
       - 'Loam/Core/MovementOperationEvidence.lean'
       - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
       - 'Loam/Tests/MovementOperationEvidence.lean'
+      - 'Loam/Cli/EffectiveCli.lean'
+      - 'Loam/Tests/ActualAuthorityDetailed.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
@@ -60,7 +64,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
           test: false
           lint: false
           use-mathlib-cache: false
@@ -71,5 +75,7 @@ jobs:
         run: lake env lean --run Loam/Tests/MovementOperationEvidence.lean
       - name: Verify normalized Actual persistence
         run: lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
+      - name: Verify ActualAuthority detailed diagnostics
+        run: lake env lean --run Loam/Tests/ActualAuthorityDetailed.lean
       - name: Verify Actual-backed occurrence-date publication
         run: lake env lean --run Loam/Tests/ActualValidityPublisher.lean "$(mktemp -d)/actual-validity-publisher"
