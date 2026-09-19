@@ -68,6 +68,29 @@ structure ScheduledFrontier where
   unresolvedEligibility : Quantity
   deriving Repr, DecidableEq
 
+/--
+Current-window Actual routing uncertainty relevant to the default routing
+administration policy.
+
+Known non-Expense unrouted rows stay outside this frontier: existing Actual
+routing administration treats them as optional human choices rather than default
+Purpose obligations.
+-/
+structure ActualRoutingFrontier where
+  unroutedExpense : List (UnroutedActualRow String)
+  unresolvedRole : List (UnroutedActualRow String)
+  deriving Repr, DecidableEq
+
+def ActualRoutingFrontier.empty : ActualRoutingFrontier :=
+  { unroutedExpense := [], unresolvedRole := [] }
+
+private def actualRoutingFrontier
+    (rows : List (UnroutedActualRow String)) : ActualRoutingFrontier :=
+  {
+    unroutedExpense := rows.filter fun row => row.role == some .expense
+    unresolvedRole := rows.filter fun row => row.role.isNone
+  }
+
 structure Snapshot where
   currentWindowStart : String
   observedAt : String
@@ -75,6 +98,7 @@ structure Snapshot where
   rows : List Row
   scheduledFrontier : Option ScheduledFrontier
   unresolvedScheduled : List (UnresolvedScheduledPressureRow String) := []
+  actualRoutingFrontier : ActualRoutingFrontier := .empty
   deriving Repr, DecidableEq
 
 private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
@@ -172,6 +196,16 @@ def loadSnapshotAt
     | some roleMap => pure roleMap
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
+  let actualUnrouted ←
+    match unroutedActualRows?
+        actualImage.currentEvents actualImage.currentValidities actualRouting roles
+        currentWindowStart observedAt ⟨"jpy"⟩ with
+    | some rows => pure rows
+    | none =>
+        return .error
+          "loam: canonical evidence does not justify the current Actual routing frontier"
+  let actualRoutingFrontier := actualRoutingFrontier actualUnrouted
+
   let pressure ←
     match currentScheduledPressurePartition?
         scheduled.scheduled scheduled.terminals actualImage.evidence.events roles scheduledRouting
@@ -195,6 +229,7 @@ def loadSnapshotAt
         rows := []
         scheduledFrontier := none
         unresolvedScheduled := unresolvedScheduled
+        actualRoutingFrontier := actualRoutingFrontier
       }
   | _ =>
       match purposes.mapM (projectPurposeFromImage?
@@ -210,6 +245,7 @@ def loadSnapshotAt
             rows := rows
             scheduledFrontier := some frontier
             unresolvedScheduled := unresolvedScheduled
+            actualRoutingFrontier := actualRoutingFrontier
           }
 
 /-- Production wrapper resolving only the current local observation date. -/
