@@ -6,6 +6,7 @@ import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.EventMerchantEvidence
+import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
 import Loam.Core.OpenRelation
@@ -154,6 +155,11 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
               evidence.events evidence.merchants then
             none
 
+          -- Movement operation evidence: every mapped Event must exist.
+          if !MovementOperationEvidenceMemory.referencesOnlyKnownEvents
+              evidence.events evidence.movementOperations then
+            none
+
           -- Reversals: target and reversal must exist, exact physical inverse,
           -- and reversal-of-reversal chains remain refused.
           for reversal in evidence.reversals.reversals do
@@ -205,6 +211,7 @@ private structure ParsedTx where
   baseValidOn : String
   description : Option String
   merchant : Option MerchantDisposition
+  movementOperation : Option MovementOperationId
   replaces : Option EventId
   reversalOf : Option EventId
   effects : List Effect
@@ -217,6 +224,7 @@ private def parseTxRows
     (baseValidOn : String)
     (description : Option String)
     (merchant : Option MerchantDisposition)
+    (movementOperation : Option MovementOperationId)
     (replaces : Option EventId)
     (reversalOf : Option EventId)
     (effects : List Effect)
@@ -232,6 +240,7 @@ private def parseTxRows
           baseValidOn := baseValidOn
           description := description
           merchant := merchant
+          movementOperation := movementOperation
           replaces := replaces
           reversalOf := reversalOf
           effects := effects
@@ -246,47 +255,53 @@ private def parseTxRows
             if merchant.isSome || !validToken partyToken then none
             else
               parseTxRows event baseValidOn description (some (.merchant ⟨partyToken⟩))
-                replaces reversalOf effects dateRevisions relations discharges rest
+                movementOperation replaces reversalOf effects dateRevisions relations discharges rest
         | ["NONMERCHANT"] =>
             if merchant.isSome then none
             else
               parseTxRows event baseValidOn description (some .nonmerchant)
-                replaces reversalOf effects dateRevisions relations discharges rest
+                movementOperation replaces reversalOf effects dateRevisions relations discharges rest
+        | ["OPERATION", operationToken] =>
+            if movementOperation.isSome || !validToken operationToken then none
+            else
+              parseTxRows event baseValidOn description merchant
+                (some ⟨operationToken⟩) replaces reversalOf
+                effects dateRevisions relations discharges rest
         | ["REPLACES", target] =>
             if replaces.isSome || !validToken target then none
             else
-              parseTxRows event baseValidOn description merchant (some ⟨target⟩) reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation (some ⟨target⟩) reversalOf
                 effects dateRevisions relations discharges rest
         | ["REVERSAL-OF", target] =>
             if reversalOf.isSome || !validToken target then none
             else
-              parseTxRows event baseValidOn description merchant replaces (some ⟨target⟩)
+              parseTxRows event baseValidOn description merchant movementOperation replaces (some ⟨target⟩)
                 effects dateRevisions relations discharges rest
         | ["EFFECT", locus, measure, quantityStr] => do
             let quanta ← quantityStr.toInt?
             if !validToken locus || !validToken measure then none
             else
               let effect := Effect.ofAnonymousQuantity ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 (effects ++ [effect]) dateRevisions relations discharges rest
         | ["KEYED-EFFECT", key, locus, measure, quantityStr] => do
             let quanta ← quantityStr.toInt?
             if !validToken key || !validToken locus || !validToken measure then none
             else
               let effect := Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 (effects ++ [effect]) dateRevisions relations discharges rest
         | ["DATE-REV", revId, date, "REPLACES", "ROOT"] =>
             if !validToken revId || !validToken date then none
             else
               let item := (⟨revId⟩, date, ActualValidityRef.root event)
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 effects (dateRevisions ++ [item]) relations discharges rest
         | ["DATE-REV", revId, date, "REPLACES", "REV", prior] =>
             if !validToken revId || !validToken date || !validToken prior then none
             else
               let item := (⟨revId⟩, date, ActualValidityRef.revision ⟨prior⟩)
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 effects (dateRevisions ++ [item]) relations discharges rest
         | ["RELATION", relId, "SOURCE", key, debtorStr, creditorStr, quantityStr] => do
             let quanta ← quantityStr.toInt?
@@ -302,7 +317,7 @@ private def parseTxRows
                 creditor := creditor
                 quantity := Quantity.ofQuanta quanta
               }
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 effects dateRevisions (relations ++ [rel]) discharges rest
         | ["DISCHARGE", relId, quantityStr] => do
             let quanta ← quantityStr.toInt?
@@ -313,7 +328,7 @@ private def parseTxRows
                 target := ⟨relId⟩
                 quantity := Quantity.ofQuanta quanta
               }
-              parseTxRows event baseValidOn description merchant replaces reversalOf
+              parseTxRows event baseValidOn description merchant movementOperation replaces reversalOf
                 effects dateRevisions relations (discharges ++ [discharge]) rest
         | _ => none
 
@@ -324,7 +339,7 @@ private partial def parseTxs : List String → Option (List ParsedTx)
       match fields with
       | ["TX", eventToken, baseDate, "NODESC"] => do
           if !validToken eventToken || !validToken baseDate then none
-          match parseTxRows ⟨eventToken⟩ baseDate none none none none [] [] [] [] rest with
+          match parseTxRows ⟨eventToken⟩ baseDate none none none none none [] [] [] [] rest with
           | some (tx, remaining) =>
               let tail ← parseTxs remaining
               some (tx :: tail)
@@ -333,7 +348,7 @@ private partial def parseTxs : List String → Option (List ParsedTx)
           if !validToken eventToken || !validToken baseDate then none
           let descText := String.intercalate "\t" descFields
           if descText.isEmpty || descText.contains '\n' || descText.contains '\r' then none
-          match parseTxRows ⟨eventToken⟩ baseDate (some descText) none none none [] [] [] [] rest with
+          match parseTxRows ⟨eventToken⟩ baseDate (some descText) none none none none [] [] [] [] rest with
           | some (tx, remaining) =>
               let tail ← parseTxs remaining
               some (tx :: tail)
@@ -359,6 +374,7 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         let mut valCorrections : List ActualValidityCorrection := []
         let mut descriptions : List EventDescription := []
         let mut merchants : List EventMerchantEvidence := []
+        let mut movementOperations : List MovementOperationEvidence := []
         let mut corrections : List EventCorrection := []
         let mut reversals : List ActualReversal := []
         let mut relations : List RelationUnit := []
@@ -376,6 +392,10 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
 
           if let some disposition := tx.merchant then
             merchants := { event := tx.event, disposition := disposition } :: merchants
+
+          if let some operation := tx.movementOperation then
+            movementOperations :=
+              { operation := operation, event := tx.event } :: movementOperations
 
           if let some target := tx.replaces then
             corrections := { target := target, replacement := tx.event } :: corrections
@@ -395,6 +415,7 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         let orderedValCorrections := valCorrections.reverse
         let orderedDescriptions := descriptions.reverse
         let orderedMerchants := merchants.reverse
+        let orderedMovementOperations := movementOperations.reverse
         let orderedCorrections := corrections.reverse
         let orderedReversals := reversals.reverse
         let orderedRelations := relations.reverse
@@ -404,6 +425,8 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
         let validityHistory ← ActualValidityHistory.ofParts? orderedFacts orderedValCorrections
         let descMemory ← EventDescriptionMemory.ofEntries? orderedDescriptions
         let merchantMemory ← EventMerchantEvidenceMemory.ofEntries? orderedMerchants
+        let movementOperationMemory ←
+          MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations
         let corrMemory ← EventCorrectionMemory.ofCorrections? orderedCorrections
         let revMemory ← ActualReversalMemory.ofReversals? orderedReversals
 
@@ -412,6 +435,7 @@ def decodeNormalizedActualImage? (input : String) : Option AdmittedActualImage :
           validity := validityHistory
           descriptions := descMemory
           merchants := merchantMemory
+          movementOperations := movementOperationMemory
           corrections := corrMemory
           reversals := revMemory
           relations := orderedRelations
@@ -458,6 +482,12 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
     | some (.merchant party) =>
         if !validToken party.token then none
         rows := rows ++ [s!"MERCHANT\t{party.token}"]
+
+    match evidence.movementOperations.findOperation? event.id with
+    | none => pure ()
+    | some operation =>
+        if !validToken operation.token then none
+        rows := rows ++ [s!"OPERATION\t{operation.token}"]
 
     if let some corr := evidence.corrections.corrections.find? fun c => decide (c.replacement = event.id) then
       rows := rows ++ [s!"REPLACES\t{corr.target.token}"]

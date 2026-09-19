@@ -27,6 +27,7 @@ def validFixtureWire : String :=
   "LOAM-NORMALIZED-ACTUAL\t1\n" ++
   "TX\tev-root\t2026-09-01\tDESC\tRoot transaction with mixed effects\n" ++
   "MERCHANT\tmerchant-grocery\n" ++
+  "OPERATION\tproposal-root\n" ++
   "EFFECT\twallet\tjpy\t-1000\n" ++
   "EFFECT\twallet\tjpy\t-500\n" ++
   "KEYED-EFFECT\tk-source\tbank\tjpy\t1500\n" ++
@@ -88,6 +89,14 @@ def main : IO Unit := do
   expect ((evidence1.merchants.findDisposition? ⟨"ev-reversal"⟩).isNone)
     "missing Merchant row did not remain unresolved"
 
+  -- 1aa. Movement operation evidence preserves the idempotency key -> Event mapping.
+  expect (evidence1.movementOperations.findEvent? ⟨"proposal-root"⟩ ==
+      some ⟨"ev-root"⟩)
+    "Movement operation identity did not resolve to ev-root"
+  expect (evidence1.movementOperations.findOperation? ⟨"ev-root"⟩ ==
+      some ⟨"proposal-root"⟩)
+    "ev-root did not resolve back to its Movement operation identity"
+
   -- 1b. Aggregate validity facts must not name Events outside the generation.
   let orphanValidity ← requireSome
     (evidence1.validity.addFact? (.base ⟨"orphan-event"⟩ "2026-09-10"))
@@ -109,6 +118,18 @@ def main : IO Unit := do
     "admitted Merchant evidence for an absent Event"
   requireNone (encodeNormalizedActual? orphanMerchantEvidence)
     "encoded orphan Merchant evidence by silently dropping it"
+
+  -- 1d. Movement operation evidence must remain referentially closed over retained Events.
+  let orphanOperations ← requireSome
+    (MovementOperationEvidenceMemory.ofEntries? [
+      { operation := ⟨"orphan-operation"⟩, event := ⟨"orphan-event"⟩ }
+    ])
+    "could not construct orphan Movement operation regression fixture"
+  let orphanOperationEvidence := { evidence1 with movementOperations := orphanOperations }
+  requireNone (admitActualEvidence? orphanOperationEvidence)
+    "admitted Movement operation evidence for an absent Event"
+  requireNone (encodeNormalizedActual? orphanOperationEvidence)
+    "encoded orphan Movement operation evidence by silently dropping it"
 
   -- 2. Verify identity sparsity: anonymous effects are none, keyed is some
   let rootEv ← requireSome (evidence1.events.findById? ⟨"ev-root"⟩)
@@ -171,6 +192,8 @@ def main : IO Unit := do
     "encoded wire lost Merchant identity evidence"
   expect ((encodedWire.splitOn "NONMERCHANT").length == 2)
     "encoded wire lost explicit nonmerchant evidence"
+  expect ((encodedWire.splitOn "OPERATION\tproposal-root").length == 2)
+    "encoded wire lost Movement operation evidence"
 
   -- 5. Decode again and verify semantic round-trip
   let evidence2 ← requireSome (decodeNormalizedActual? encodedWire)
@@ -179,6 +202,9 @@ def main : IO Unit := do
     "round trip changed event count"
   expect (evidence1.merchants.entries.length == evidence2.merchants.entries.length)
     "round trip changed Merchant evidence count"
+  expect (evidence1.movementOperations.entries.length ==
+      evidence2.movementOperations.entries.length)
+    "round trip changed Movement operation evidence count"
   expect (evidence1.relations.length == evidence2.relations.length)
     "round trip changed relation count"
   expect (evidence1.discharges.length == evidence2.discharges.length)
@@ -192,6 +218,9 @@ def main : IO Unit := do
     "round trip changed Merchant identity"
   expect (evidence2.merchants.findDisposition? ⟨"ev-discharge"⟩ == some .nonmerchant)
     "round trip changed explicit nonmerchant disposition"
+  expect (evidence2.movementOperations.findEvent? ⟨"proposal-root"⟩ ==
+      some ⟨"ev-root"⟩)
+    "round trip changed Movement operation mapping"
 
   -- 6. Fail-closed tests on invalid fixtures
 
@@ -318,6 +347,34 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidMerchantToken)
     "admitted malformed Merchant identity token"
+
+  -- 6ka. One Event may retain at most one Movement operation identity.
+  let duplicateOperationRow :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "OPERATION\top-1\n" ++
+    "OPERATION\top-2\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? duplicateOperationRow)
+    "admitted two Movement operation identities for one Event"
+
+  -- 6kb. One Movement operation identity may not produce two different Events.
+  let duplicateOperationIdentity :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-1\t2026-09-01\tNODESC\n" ++
+    "OPERATION\tsame-operation\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n" ++
+    "TX\tev-2\t2026-09-02\tNODESC\n" ++
+    "OPERATION\tsame-operation\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? duplicateOperationIdentity)
+    "admitted one Movement operation identity for two Events"
 
   -- 6l. Quantity-bearing Events must close to zero at persistence re-admission.
   let unbalancedEvent :=
