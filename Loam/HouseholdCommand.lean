@@ -57,6 +57,18 @@ def record
     IO (Except String Loam.Core.EventId) :=
   Loam.MovementPublisher.publishDraft root.toString draft
 
+/--
+Record one Actual Movement through the normalized Actual publisher under a
+stable logical operation identity. Retrying the same identity returns the first
+Event without publishing another Event.
+-/
+def recordIdempotent
+    (root : System.FilePath)
+    (operation : Loam.Core.MovementOperationId)
+    (draft : Loam.MovementAdmission.Draft) :
+    IO (Except String Loam.MovementPublisher.IdempotentResult) :=
+  Loam.MovementPublisher.publishDraftIdempotent root.toString operation draft
+
 /-- Correct one retained Actual Movement. -/
 def correctActual
     (root : System.FilePath)
