@@ -9,9 +9,25 @@ namespace Loam.PlainTextAccountingExportCli
 
 set_option autoImplicit false
 
+/--
+Return true when an existing output path resolves to either input authority.
+
+Comparing the raw CLI strings is insufficient: `actual.loam`,
+`./actual.loam`, `dir/../actual.loam`, and a symbolic link may all name the
+same file. `IO.FS.realPath` resolves those aliases before the one-way export is
+allowed to replace its target.
+
+A non-existing output cannot already be either existing input authority, so it
+needs no identity comparison.
+-/
 private def conflictsWithSource
-    (actualPath rolePath outputPath : String) : Bool :=
-  outputPath == actualPath || outputPath == rolePath
+    (actualPath rolePath outputPath : System.FilePath) : IO Bool := do
+  if !(← outputPath.pathExists) then
+    return false
+  let actualResolved ← IO.FS.realPath actualPath
+  let roleResolved ← IO.FS.realPath rolePath
+  let outputResolved ← IO.FS.realPath outputPath
+  return outputResolved == actualResolved || outputResolved == roleResolved
 
 /--
 Regenerate one hledger/Ledger-compatible accounting journal from current LOAM
@@ -19,10 +35,6 @@ Actual evidence plus explicit AccountingRole evidence.
 -/
 def exportJournal
     (actualPath rolePath outputPath : String) : IO UInt32 := do
-  if conflictsWithSource actualPath rolePath outputPath then
-    IO.eprintln "loam: PTA output must not replace Actual or AccountingRole authority"
-    return 2
-
   let actualFile := System.FilePath.mk actualPath
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
@@ -37,6 +49,11 @@ def exportJournal
   if !(← roleFile.pathExists) then
     IO.eprintln "loam: AccountingRole authority file is missing"
     return 2
+
+  if ← conflictsWithSource actualFile roleFile outputFile then
+    IO.eprintln "loam: PTA output must not replace Actual or AccountingRole authority"
+    return 2
+
   let roles ←
     match ← Loam.Persistence.loadAccountingRoleMap? roleFile with
     | some roles => pure roles
