@@ -42,23 +42,69 @@ def actualFileName : String := "actual.loam"
 def actualPath (root : System.FilePath) : System.FilePath :=
   root / actualFileName
 
-/-- Load one fully admitted Actual image from an explicit file path. -/
-def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
-  if !(← path.pathExists) then
-    return .error s!"loam: actual authority not found: {path}"
-  let text ← IO.FS.readFile path
-  match Loam.Persistence.decodeNormalizedActualImage? text with
-  | some image => return .ok image
-  | none => return .error s!"loam: actual authority is malformed or unsupported: {path}"
+/--
+Detailed load error preserving structured persistence diagnostics and file context.
+-/
+inductive LoadError where
+  | fileNotFound (path : System.FilePath)
+  | decode (path : System.FilePath) (err : Loam.Persistence.NormalizedActualDecodeError)
+deriving Repr, DecidableEq
 
-/-- Load one fully admitted Actual image from the repository root. -/
+/-- Human-readable formatting for authority load errors. -/
+def LoadError.message : LoadError → String
+  | .fileNotFound path =>
+      s!"loam: actual authority not found: {path}"
+  | .decode path err =>
+      s!"failed to load Actual: {path}\n{err}"
+
+instance : ToString LoadError where
+  toString := LoadError.message
+
+/-- Load one fully admitted Actual image from an explicit file path with structured diagnostics. -/
+def loadImageFileDetailed (path : System.FilePath) : IO (Except LoadError Image) := do
+  if !(← path.pathExists) then
+    return .error (.fileNotFound path)
+  let text ← IO.FS.readFile path
+  match Loam.Persistence.decodeNormalizedActualImageDetailed text with
+  | .ok image => return .ok image
+  | .error err => return .error (.decode path err)
+
+/-- Load one fully admitted Actual image from the repository root with structured diagnostics. -/
+def loadImageDetailed (root : System.FilePath) : IO (Except LoadError Image) :=
+  loadImageFileDetailed (actualPath root)
+
+/-- Detailed loader exposing retained ActualEvidence with structured diagnostics. -/
+def loadActualFileDetailed (path : System.FilePath) : IO (Except LoadError ActualEvidence) := do
+  match ← loadImageFileDetailed path with
+  | .ok image => return .ok image.evidence
+  | .error err => return .error err
+
+/-- Detailed root loader exposing retained ActualEvidence with structured diagnostics. -/
+def loadActualDetailed (root : System.FilePath) : IO (Except LoadError ActualEvidence) := do
+  match ← loadImageDetailed root with
+  | .ok image => return .ok image.evidence
+  | .error err => return .error err
+
+/--
+Compatibility loader returning legacy formatted String error.
+Preserves existing error message prefixes for downstream callers.
+-/
+def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
+  match ← loadImageFileDetailed path with
+  | .ok image => return .ok image
+  | .error (.fileNotFound path) =>
+      return .error s!"loam: actual authority not found: {path}"
+  | .error (.decode path _) =>
+      return .error s!"loam: actual authority is malformed or unsupported: {path}"
+
+/-- Load one fully admitted Actual image from the repository root (compatibility wrapper). -/
 def loadImage? (root : System.FilePath) : IO (Except String Image) :=
   loadImageFile? (actualPath root)
 
 /--
 Compatibility loader exposing only retained ActualEvidence.
 Read-side callers that need current Event or validity views should prefer
-`loadImageFile?` so normalized admission is not recomputed downstream.
+`loadImageFileDetailed` so normalized admission is not recomputed downstream.
 -/
 def loadActualFile? (path : System.FilePath) : IO (Except String ActualEvidence) := do
   match ← loadImageFile? path with
