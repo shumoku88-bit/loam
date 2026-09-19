@@ -154,7 +154,7 @@ theorem target_and_reversal_cancel_at
     coordinateTotal movement.changes coordinate +
       coordinateTotal (negateChanges movement.changes) coordinate = 0
   rw [coordinateTotal_negated]
-  simp
+  exact Int.add_right_neg _
 
 /-!
 ## Finding
