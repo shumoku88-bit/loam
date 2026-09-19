@@ -73,7 +73,12 @@ structure RelationUnit where
 deriving Repr, DecidableEq
 
 /--
-One raw exact discharge correspondence from a later Event to a retained relation.
+One raw exact discharge correspondence from a discharge occurrence Event to a
+retained relation.
+
+"Later" in the supporting observations means the Event that carries the
+fulfillment occurrence relative to the source relation. This raw Core shape does
+not assert calendar ordering between their current occurrence dates.
 
 This is fulfillment provenance, not a revision or retraction of the target
 relation. The target relation remains valid history while later projection can
