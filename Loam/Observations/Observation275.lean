@@ -4,6 +4,7 @@ import Loam.Core.AccountingRole
 namespace Loam.Observation275
 
 open Loam.Core
+open Loam.Application
 
 set_option autoImplicit false
 
@@ -24,64 +25,6 @@ question:
 
 The row projection is read-only and introduces no retained state.
 -/
-
-variable {Time : Type}
-  [LE Time]
-  [DecidableRel (· ≤ · : Time → Time → Prop)]
-  [Std.IsLinearOrder Time]
-
-structure UnroutedActualRow (Time : Type) where
-  event : EventId
-  validOn : Time
-  locus : LocusId
-  measure : MeasureId
-  quantity : Quantity
-  role : Option AccountingRole
-deriving Repr, DecidableEq
-
-private def inClosed (start observedAt value : Time) : Bool :=
-  decide (start ≤ value) && decide (value ≤ observedAt)
-
-/--
-Derive every nonzero Effect in the requested Measure whose Locus has no routing
-evidence visible at the Event's current valid coordinate.
-
-Every retained current Event still needs validity evidence, matching current
-Consumption's fail-closed membership rule. AccountingRole is retained only as
-an explicit optional annotation; it does not decide whether the row matters.
--/
-def unroutedActualRows?
-    (events : EventMemory)
-    (validities : ActualValidityMemory Time)
-    (routing : RoutingHistory LocusId (RoutingEffective Time))
-    (roles : AccountingRoleMap)
-    (start observedAt : Time)
-    (measure : MeasureId) : Option (List (UnroutedActualRow Time)) := do
-  if !(decide (start ≤ observedAt)) then
-    none
-  else
-    events.events.foldlM
-      (fun rows event => do
-        let validOn ← validities.findByEventId? event.id
-        if !inClosed start observedAt validOn then
-          return rows
-        let eventRows :=
-          event.effects.filterMap fun effect =>
-            if effect.measure != measure || effect.quantity.quanta == 0 then
-              none
-            else if routing.statusAt effect.locus (.dated validOn) != .unrouted then
-              none
-            else
-              some {
-                event := event.id
-                validOn := validOn
-                locus := effect.locus
-                measure := effect.measure
-                quantity := effect.quantity
-                role := roles.roleOf? effect.locus
-              }
-        return rows ++ eventRows)
-      []
 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def food : PurposeId := ⟨"food"⟩

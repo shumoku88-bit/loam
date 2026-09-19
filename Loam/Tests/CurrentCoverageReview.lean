@@ -166,6 +166,52 @@ def main (args : List String) : IO Unit := do
   expect (generalRow.remaining.quanta == 50) "general Remaining"
   expect (generalRow.commitment.quanta == 0) "general Commitment"
   expect (generalRow.headroom.quanta == 50) "general Headroom"
+  expect (snapshot.actualRoutingFrontier.unroutedExpense.isEmpty)
+    "baseline invented unrouted Actual Expense rows"
+  expect (snapshot.actualRoutingFrontier.unresolvedRole.isEmpty)
+    "baseline invented role-unresolved Actual rows"
+
+  -- A route that starts after the Actual occurrence must not rewrite history.
+  -- CurrentCoverage keeps its numeric Purpose answer but now exposes the exact
+  -- current-window Expense row that remains unrouted at its valid coordinate.
+  let delayedActualRouting ← requireSome
+    (RoutingHistory.ofEntries?
+      [{ subject := (⟨"expenses:food"⟩ : LocusId),
+         effectiveOn := RoutingEffective.dated "2026-09-09",
+         purpose := some ⟨"food"⟩ }])
+    "delayed Actual routing history"
+  expect (← Loam.Persistence.saveActualRoutingHistory?
+      (root / "actual-routing.loam") delayedActualRouting)
+    "save delayed Actual routing"
+  let .ok delayedSnapshot ←
+      Loam.CurrentCoverageReview.loadSnapshotAt
+        root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    | throw (IO.userError "current coverage refused delayed routing fixture")
+  let delayedFood ← requireSome (findRow? delayedSnapshot "food")
+    "missing delayed-routing food row"
+  expect (delayedFood.consumption.quanta == 0)
+    "future route was applied backward to earlier Actual Consumption"
+  expect (delayedFood.remaining.quanta == 100)
+    "delayed-routing Remaining did not preserve current Purpose evidence"
+  expect (delayedSnapshot.actualRoutingFrontier.unroutedExpense.length == 1)
+    "current-window unrouted Expense row was not surfaced"
+  let delayedGap ← requireSome delayedSnapshot.actualRoutingFrontier.unroutedExpense.head?
+    "missing delayed-routing frontier row"
+  expect (delayedGap.event.token == "actual-1")
+    "wrong Event surfaced in Actual routing frontier"
+  expect (delayedGap.validOn == "2026-09-08")
+    "Actual routing frontier lost current validity coordinate"
+  expect (delayedGap.locus.token == "expenses:food" &&
+      delayedGap.quantity.quanta == 30 &&
+      delayedGap.role == some .expense)
+    "Actual routing frontier lost Expense row evidence"
+  expect delayedSnapshot.actualRoutingFrontier.unresolvedRole.isEmpty
+    "known Expense routing gap leaked into unresolved-role frontier"
+
+  -- Restore the baseline route before correction-currentness assertions below.
+  expect (← Loam.Persistence.saveActualRoutingHistory?
+      (root / "actual-routing.loam") actualRouting)
+    "restore initial Actual routing"
 
   -- Replace the observed Actual Event and verify current Consumption uses the
   -- admitted Actual image while Scheduled reference checks still retain all IDs.

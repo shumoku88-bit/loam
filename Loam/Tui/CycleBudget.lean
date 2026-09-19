@@ -84,6 +84,22 @@ private def futurePressureLines (snapshot : Loam.CycleBudgetReview.Snapshot) : L
       , amount "Unrouted future pressure" frontier.unrouted
       , amount "Unmanaged future pressure" frontier.unmanaged ]
 
+private def actualRoutingFrontierLines
+    (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
+  match snapshot.coverage with
+  | .error _ => []
+  | .ok coverage =>
+      let expenseCount := coverage.actualRoutingFrontier.unroutedExpense.length
+      let unresolvedRoleCount := coverage.actualRoutingFrontier.unresolvedRole.length
+      if expenseCount == 0 && unresolvedRoleCount == 0 then
+        []
+      else
+        [ line "Actual routing frontier"
+        , muted "Purpose coverage excludes still-unresolved current-window Actual interpretation."
+        , line ("Unrouted Actual Expense rows: " ++ toString expenseCount)
+        , line ("Role-unresolved Actual rows: " ++ toString unresolvedRoleCount)
+        ]
+
 private def fundingLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
   [line "Funding"] ++
   (match snapshot.selection with
@@ -115,6 +131,7 @@ def body (state : State) : List Widget :=
        [muted ("Boundary horizon: " ++ window.endExclusive ++
          " is the last explicitly configured boundary.")])) ++
   fundingLines snapshot ++
+  actualRoutingFrontierLines snapshot ++
   [line "Physical balances (display selection; not total budget backing)"] ++
   (match snapshot.physical with
    | .error message => [line ("Physical balances unavailable: " ++ message)]
