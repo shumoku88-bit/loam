@@ -33,9 +33,31 @@ private def showRecorded
   IO.println "[ok] proposal transport parsed"
   IO.println "[ok] authoritative Movement admission re-run under writer ownership"
   IO.println "[ok] canonical Actual publication complete"
-  IO.println "source continuity and duplicate detection are not claimed"
+  IO.println "version 1 carries no retry identity; duplicate detection is not claimed"
 
-/--
+private def showIdempotent
+    (proposalPath : String)
+    (operation : Loam.Core.MovementOperationId)
+    (draft : Loam.MovementAdmission.Draft)
+    (eventId : Loam.Core.EventId)
+    (replayed : Bool) : IO Unit := do
+  IO.println "LOAM idempotent Movement proposal publication"
+  IO.println ("source: " ++ proposalPath)
+  IO.println ("operation: " ++ operation.token)
+  IO.println ("date: " ++ draft.validOn)
+  IO.println ("effects: " ++ toString draft.effects.length)
+  IO.println ("movement: " ++ toString draft.total ++ " jpy")
+  match draft.description with
+  | some text => IO.println ("description: " ++ text)
+  | none => pure ()
+  IO.println ("event: " ++ eventId.token)
+  IO.println "[ok] proposal transport v2 parsed"
+  if replayed then
+    IO.println "[ok] operation already applied; original Event reused"
+  else
+    IO.println "[ok] Event and operation evidence atomically published"
+
+ /--
 Record one machine-readable Movement proposal through the canonical household
 writer.
 
@@ -50,26 +72,41 @@ def recordFile (proposalPath rootPath : String) : IO UInt32 := do
     IO.eprintln "loam: Movement proposal file not found"
     return 2
   let text ← IO.FS.readFile source
-  match Loam.MovementProposal.parse? text with
+  match Loam.MovementProposal.parseRecord? text with
   | .error message =>
       IO.eprintln message
       IO.eprintln "loam: proposal transport refused; no LOAM persistence was written"
       return 2
-  | .ok draft =>
-      match ← Loam.HouseholdCommand.record (System.FilePath.mk rootPath) draft with
-      | .error message =>
-          IO.eprintln message
-          IO.eprintln "loam: Movement proposal publication refused"
-          return 2
-      | .ok eventId =>
-          showRecorded proposalPath draft eventId
-          return 0
+  | .ok parsed =>
+      match parsed.operation with
+      | none =>
+          match ← Loam.HouseholdCommand.record (System.FilePath.mk rootPath) parsed.draft with
+          | .error message =>
+              IO.eprintln message
+              IO.eprintln "loam: Movement proposal publication refused"
+              return 2
+          | .ok eventId =>
+              showRecorded proposalPath parsed.draft eventId
+              return 0
+      | some operation =>
+          match ← Loam.HouseholdCommand.recordIdempotent
+              (System.FilePath.mk rootPath) operation parsed.draft with
+          | .error message =>
+              IO.eprintln message
+              IO.eprintln "loam: idempotent Movement proposal publication refused"
+              return 2
+          | .ok (.applied eventId) =>
+              showIdempotent proposalPath operation parsed.draft eventId false
+              return 0
+          | .ok (.alreadyApplied eventId) =>
+              showIdempotent proposalPath operation parsed.draft eventId true
+              return 0
 
 private def usage : String :=
   "Record one machine-readable Movement proposal through canonical publication:\n" ++
   "  ./tools/loam movement-proposal-record PROPOSAL_FILE [LOAM_DATA_DIR]\n\n" ++
   "Invocation is an explicit write request. The writer re-reads current authority and may refuse even after an earlier read-only review.\n" ++
-  "No external source identity, duplicate detection, or source-to-LOAM mapping is retained."
+  "Format v1 remains identity-free. Format v2 requires operation<TAB>ID and retries that identity idempotently."
 
 def run (args : List String) : IO UInt32 := do
   match args with
