@@ -1,0 +1,47 @@
+name: Read-only Web Frontend
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Web/**'
+      - 'Loam/Tests/WebSnapshot.lean'
+      - 'Loam/ActualReview.lean'
+      - 'Loam/ScheduledReview.lean'
+      - 'Loam/AttentionReview.lean'
+      - 'Loam/CapacityReview.lean'
+      - 'tools/loam'
+      - 'lakefile.lean'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: read-only-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lean:
+    name: Build read-only Web frontend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build Web frontend
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamWeb
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify presentation-only Web snapshot
+        run: lake env lean --run Loam/Tests/WebSnapshot.lean
