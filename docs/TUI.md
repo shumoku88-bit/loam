@@ -231,15 +231,24 @@ direct file editing remains an implementation detail rather than the normal TUI 
 <rule-token><TAB><anchor-date><TAB><every-months><TAB><negative-locus[,negative-locus...]><TAB><positive-locus[,positive-locus...]>
 ```
 
-The grid starts with the month after the selected Home date and currently shows eight
-months. `●` means an expected month has an explicit matching Scheduled occurrence,
-`!` means the configured expectation has no explicit matching occurrence, `·`
-means the rule does not expect that month, and `+` means explicit evidence exists
-outside the configured month pattern. Matching uses the exact negative- and
-positive-Locus sets while deliberately ignoring amounts, so incoming plans such as
-pension and support remain distinguishable even when both land in the same asset.
-These are coverage diagnostics only. The rules do not create Scheduled occurrences,
-retain Series identity, or promote absence into a canonical NotDue claim.
+The report starts with a compact Attention summary and then renders one row per
+monitored plan. Each row keeps the user-facing answer together: Pace, continuously
+covered-through month, next expected gap, diagnostic Status, and an eight-month grid
+starting with the month after the selected Home date. Rows needing attention are
+shown first, ordered by the nearest missing expected month.
+
+`●` means an expected month has an explicit matching Scheduled occurrence, `!`
+means the configured expectation has no explicit matching occurrence, `·` means
+the rule does not expect that month, and `+` means explicit evidence exists outside
+the configured month pattern. `empty` means no expected explicit plan exists in the
+displayed future window; `gap` means an expected future month is missing;
+`gap+off` additionally records explicit off-pattern evidence.
+
+Matching uses the exact negative- and positive-Locus sets while deliberately ignoring
+amounts, so incoming plans such as pension and support remain distinguishable even
+when both land in the same asset. These are coverage diagnostics only. The rules do
+not create Scheduled occurrences, retain Series identity, or promote absence into a
+canonical NotDue claim.
 
 ## Write boundary
 
