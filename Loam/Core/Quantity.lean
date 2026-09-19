@@ -72,8 +72,10 @@ instance : Sub Quantity := ⟨sub⟩
 /-- Exact additive inversion is involutive. -/
 @[simp] theorem neg_neg (quantity : Quantity) :
     -(-quantity) = quantity := by
-  apply Quantity.ext
-  simp
+  cases quantity with
+  | mk quanta =>
+      change ofQuanta (-(-quanta)) = ofQuanta quanta
+      simp
 
 end Quantity
 end Loam.Core
