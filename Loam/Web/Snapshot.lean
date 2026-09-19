@@ -51,7 +51,7 @@ private def renderRows (rows : List String) : String :=
       String.intercalate "\n" (rows.map fun row => "  <li>" ++ row ++ "</li>") ++
       "\n</ul>"
 
-private def section (title body : String) : String :=
+private def renderCard (title body : String) : String :=
   "<section class=\"card\">\n" ++
   "  <h2>" ++ escapeHtml title ++ "</h2>\n" ++
   body ++ "\n" ++
@@ -130,10 +130,10 @@ def render (snapshot : Snapshot) : String :=
     , "  <div class=\"subtitle\">read-only household web snapshot · observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
     , "</header>"
     , "<main class=\"grid\">"
-    , section "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
-    , section "Current-open Scheduled" (renderScheduled snapshot.scheduled)
-    , section "Open Attention" (renderAttention snapshot.attention)
-    , section "Capacity" (renderCapacity snapshot.capacity)
+    , renderCard "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
+    , renderCard "Current-open Scheduled" (renderScheduled snapshot.scheduled)
+    , renderCard "Open Attention" (renderAttention snapshot.attention)
+    , renderCard "Capacity" (renderCapacity snapshot.capacity)
     , "</main>"
     , "<p class=\"footer\">Presentation only. This page does not own household authority and performs no writes.</p>"
     , "</body>"
