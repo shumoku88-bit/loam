@@ -325,10 +325,10 @@ def main : IO Unit := do
     "ENDTX\n"
   match decodeNormalizedActualImageDetailed selfReversal with
   | .error (.construction .reversalMemory) => pure ()
-  | .error err => throw <| IO.userError
-      s!"expected construction .reversalMemory for self-reversal, got: {err}"
-  | .ok _ => throw <| IO.userError
-      "expected self-reversal to fail while constructing ActualReversalMemory"
+  | .error err =>
+      throw <| IO.userError s!"expected construction .reversalMemory for self-reversal, got: {err}"
+  | .ok _ =>
+      throw <| IO.userError "expected self-reversal to fail while constructing ActualReversalMemory"
   requireNone (decodeNormalizedActual? selfReversal)
     "admitted self-reversal after endpoint uniqueness moved into Core memory"
 
@@ -351,10 +351,10 @@ def main : IO Unit := do
     "ENDTX\n"
   match decodeNormalizedActualImageDetailed reversalChain with
   | .error (.construction .reversalMemory) => pure ()
-  | .error err => throw <| IO.userError
-      s!"expected construction .reversalMemory for reversal chain, got: {err}"
-  | .ok _ => throw <| IO.userError
-      "expected reversal chain to fail while constructing ActualReversalMemory"
+  | .error err =>
+      throw <| IO.userError s!"expected construction .reversalMemory for reversal chain, got: {err}"
+  | .ok _ =>
+      throw <| IO.userError "expected reversal chain to fail while constructing ActualReversalMemory"
   requireNone (decodeNormalizedActual? reversalChain)
     "admitted reversal chain after endpoint uniqueness moved into Core memory"
 
