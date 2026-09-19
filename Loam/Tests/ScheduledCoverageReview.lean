@@ -86,4 +86,29 @@ def main : IO Unit := do
       "one\t2026-09-15\t1\tpension\tcash\ntwo\t2026-10-15\t2\tpension\tcash\n").isNone
     "Scheduled coverage config accepted an ambiguous duplicate signed-Locus selector"
 
+  let changedMonthly := { monthly with anchor := "2026-10-15", everyMonths := 3 }
+  let updated ←
+    match Loam.ScheduledCoverageConfig.upsertRule [monthly, bimonthly] changedMonthly with
+    | .error message => throw (IO.userError message)
+    | .ok rules => pure rules
+  let some updatedGpt := updated.find? (fun rule => rule.name == "gpt-plus")
+    | throw (IO.userError "Scheduled coverage upsert lost existing rule")
+  expect (updatedGpt.anchor == "2026-10-15" && updatedGpt.everyMonths == 3 &&
+    updated.length == 2)
+    "Scheduled coverage upsert did not replace the matching signed-Locus monitor in place"
+  expect (Loam.ScheduledCoverageConfig.encode? updated).isSome
+    "Scheduled coverage writer could not encode its updated rule set"
+
+  let conflictingName : Loam.ScheduledCoverageConfig.Rule := {
+    name := "gpt-plus"
+    anchor := "2026-10-15"
+    everyMonths := 1
+    negativeLoci := ["other-source"]
+    positiveLoci := ["other-target"]
+  }
+  match Loam.ScheduledCoverageConfig.upsertRule [monthly] conflictingName with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError
+      "Scheduled coverage upsert silently reused a display name for a different plan shape")
+
   IO.println "Scheduled coverage: monthly/bimonthly grid, first-gap detection, off-pattern evidence, config validation, and TUI rendering passed."
