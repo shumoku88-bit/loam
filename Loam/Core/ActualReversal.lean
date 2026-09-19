@@ -119,7 +119,15 @@ def add? (memory : ActualReversalMemory) (relation : ActualReversal) : Option Ac
     some {
       reversals := relation :: memory.reversals
       endpointNodup := by
-        simp [ActualReversal.endpointIds, hSelf, hTarget, hReversal, memory.endpointNodup]
+        change
+          (relation.target :: relation.reversal ::
+            ActualReversal.endpointIds memory.reversals).Nodup
+        have hTargetFresh :
+            relation.target ∉
+              relation.reversal :: ActualReversal.endpointIds memory.reversals := by
+          simp [hSelf, hTarget]
+        simpa using
+          And.intro hTargetFresh (And.intro hReversal memory.endpointNodup)
     }
 
 end ActualReversalMemory
