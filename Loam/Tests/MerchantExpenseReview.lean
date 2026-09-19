@@ -54,6 +54,10 @@ def main : IO Unit := do
     effect "l-wallet" "wallet" "jpy" (-500),
     effect "l-rent" "rent" "jpy" 500
   ]
+  let transfer ← makeEvent "transfer" [
+    effect "t-wallet" "wallet" "jpy" (-25),
+    effect "t-savings" "savings" "jpy" 25
+  ]
   let unresolvedMerchant ← makeEvent "unresolved-merchant" [
     effect "u-wallet" "wallet" "jpy" (-10),
     effect "u-food" "food" "jpy" 10
@@ -64,9 +68,10 @@ def main : IO Unit := do
     record refund "2026-09-02" "refund",
     record other "2026-09-03" "other merchant",
     record rent "2026-09-04" "rent",
-    record unresolvedMerchant "2026-09-05" "coverage gap"
+    record transfer "2026-09-05" "self transfer",
+    record unresolvedMerchant "2026-09-06" "coverage gap"
   ]
-  let .ok flow := Loam.TransactionsFlowReview.project records "2026-09-01" "2026-09-06"
+  let .ok flow := Loam.TransactionsFlowReview.project records "2026-09-01" "2026-09-07"
     | throw (IO.userError "TransactionsFlow fixture refused")
 
   let shop : ExternalPartyId := ⟨"shop"⟩
@@ -84,6 +89,7 @@ def main : IO Unit := do
 
   let partialRoles ← makeRoles [
     { locus := ⟨"wallet"⟩, role := .asset },
+    { locus := ⟨"savings"⟩, role := .asset },
     { locus := ⟨"food"⟩, role := .expense },
     { locus := ⟨"tobacco"⟩, role := .expense }
   ]
@@ -94,8 +100,9 @@ def main : IO Unit := do
   let jpy : MeasureId := ⟨"jpy"⟩
   let incompleteMerchant :=
     Loam.MerchantExpenseReview.project flow partialMerchants partialRoles shop jpy
-  expect (incompleteMerchant.unresolvedMerchantEvents.length == 1)
-    "one unresolved Event Merchant witness was not retained"
+  expect (incompleteMerchant.unresolvedMerchantEvents.map (·.event) ==
+      [unresolvedMerchant.id])
+    "Merchant coverage did not ignore an unclassified Event proven non-Expense for this query"
   expect (incompleteMerchant.unresolvedRoleEffects.length == 1)
     "target Merchant role gap was not retained independently"
   expect (incompleteMerchant.knownTotal.quanta == 70)
@@ -134,13 +141,17 @@ def main : IO Unit := do
     "different Merchant leaked into target Merchant total"
   expect (findContribution? exact rent.id).isNone
     "explicit nonmerchant Event leaked into target Merchant total"
+  expect (findContribution? exact transfer.id).isNone
+    "unclassified non-Expense Event leaked into target Merchant total"
   expect exact.exactTotal?.isSome
     "unresolved roles on other-Merchant/nonmerchant Events blocked target exactness"
 
   let points :=
-    Loam.MerchantExpenseReview.project flow completeMerchants partialRoles shop ⟨"points"⟩
+    Loam.MerchantExpenseReview.project flow partialMerchants partialRoles shop ⟨"points"⟩
+  expect points.unresolvedMerchantEvents.isEmpty
+    "other-Measure query was blocked by unrelated Merchant classification gaps"
   let some pointsTotal := points.exactTotal?
-    | throw (IO.userError "other-Measure query was blocked by unrelated role evidence")
+    | throw (IO.userError "other-Measure query was blocked by unrelated evidence")
   expect (pointsTotal.quanta == 0)
     "other-Measure Merchant query did not derive exact zero"
 
