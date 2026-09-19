@@ -315,6 +315,49 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? invalidReversal) "admitted invalid reversal"
 
+  -- 6ha. Self-reversal is rejected while constructing proof-carrying reversal memory.
+  let selfReversal :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-self\t2026-09-01\tNODESC\n" ++
+    "REVERSAL-OF\tev-self\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed selfReversal with
+  | .error (.construction .reversalMemory) => pure ()
+  | .error err => throw <| IO.userError
+      s!"expected construction .reversalMemory for self-reversal, got: {err}"
+  | .ok _ => throw <| IO.userError
+      "expected self-reversal to fail while constructing ActualReversalMemory"
+  requireNone (decodeNormalizedActual? selfReversal)
+    "admitted self-reversal after endpoint uniqueness moved into Core memory"
+
+  -- 6hb. Reversal-of-reversal chains are rejected by the same endpoint uniqueness invariant.
+  let reversalChain :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-a\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n" ++
+    "TX\tev-b\t2026-09-02\tNODESC\n" ++
+    "REVERSAL-OF\tev-a\n" ++
+    "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "ENDTX\n" ++
+    "TX\tev-c\t2026-09-03\tNODESC\n" ++
+    "REVERSAL-OF\tev-b\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed reversalChain with
+  | .error (.construction .reversalMemory) => pure ()
+  | .error err => throw <| IO.userError
+      s!"expected construction .reversalMemory for reversal chain, got: {err}"
+  | .ok _ => throw <| IO.userError
+      "expected reversal chain to fail while constructing ActualReversalMemory"
+  requireNone (decodeNormalizedActual? reversalChain)
+    "admitted reversal chain after endpoint uniqueness moved into Core memory"
+
   -- 6i. Invalid Effect coordinate token is rejected at canonical decode.
   let invalidLocusToken :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
