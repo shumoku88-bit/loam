@@ -57,20 +57,41 @@ canonical evidence.
 
 ## Current surface
 
-The page shows four read-only sections:
+The page currently shows five read-only sections:
 
 - recent Actual;
 - current-open Scheduled;
+- Current Budget;
 - open Attention;
-- all-retained Capacity.
+- Raw Capacity (all retained).
 
-The Web frontend does not reconstruct those meanings. It consumes:
+Current Budget consumes the same `CycleBudgetReview` boundary as the production TUI.
+The Web layer does not recompute budget arithmetic. It presents the shared answers,
+including:
+
+```text
+Cap
+Spent
+Now
+Known future
+After-known
+```
+
+together with shared Funding and unresolved-pressure answers.
+
+Raw Capacity remains separately visible because it answers a different question:
+all-retained Capacity entitlement. It is explicitly labelled so it cannot be mistaken
+for current-cycle Budget.
+
+The Web frontend currently consumes:
 
 ```text
 ActualReview
 ScheduledReview
+CycleBudgetReview
 AttentionReview
 CapacityReview
+PurposeCatalog presentation metadata
 ```
 
 and performs presentation only.
@@ -120,6 +141,27 @@ remove rich CSS / optional JavaScript
 If a rich layer requires a second household model, duplicated calculations, or
 browser-owned canonical state, it has crossed the LOAM frontend boundary.
 
+## Planned order
+
+The second frontend is being expanded in semantic-pressure order rather than by
+copying every TUI screen mechanically:
+
+```text
+read-only household answers
+  Current Budget
+  Reports
+        |
+        v
+small existing write boundary
+        |
+        v
+richer Safari presentation
+```
+
+Actual, Scheduled, Attention, and Capacity already have first read-only projections.
+Current Budget is the first parity step because it exposed the difference between
+current-cycle answers and all-retained Capacity.
+
 ## What this experiment does not claim
 
 This first slice does not establish that:
@@ -140,6 +182,5 @@ The experiment succeeds when the same useful household document works in a
 lightweight browser and a modern browser while all semantic answers still come from
 existing shared Review boundaries and no Web-specific retained meaning is introduced.
 
-Only after that boundary is stable should a later experiment consider richer Safari
-presentation and then one small write path through an existing presentation-neutral
-HouseholdCommand/publisher boundary.
+Only after that boundary is stable should later experiments add Reports, one small
+existing write path, and richer Safari presentation.
