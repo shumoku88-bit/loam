@@ -111,9 +111,10 @@ private def uniqueDischargeEvents : List RelationDischarge → Bool
 /--
 Admit one activated raw discharge against an already-current relation target.
 
-The later Event remains Event-scoped, as qualified by Observation 166. The
-quantity is raw signed Core `Quantity`; this boundary gives it positive-discharge
-meaning. One discharge cannot point back to the Event that established the target
+The discharge occurrence remains Event-scoped, as qualified by Observation 166.
+No calendar-order law is asserted here; current occurrence dates remain an
+independent Actual coordinate. The quantity is raw signed Core `Quantity`; this
+boundary gives it positive-discharge meaning. One discharge cannot point back to the Event that established the target
 relation, and one row cannot exceed the target quantity by itself.
 -/
 private def admitRelationDischargeForTarget?
