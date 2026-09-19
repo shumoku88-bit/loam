@@ -367,3 +367,171 @@ Coverage              = future read-side projection
 
 No recurrence, series identity, persisted cadence, persisted fill horizon, or
 cycle-owned Scheduled semantics were introduced.
+
+
+## Formal D/P/R recheck after method adoption — 2026-09-19
+
+Baseline:
+
+```text
+57939546059bbb6993ef7d295355ea97b0a5b479
+docs(audit): scaffold Relation/Discharge obligations (#1085)
+```
+
+This follow-up applies the adopted `docs/OBLIGATION_SCAFFOLD_METHOD.md` vocabulary
+to the final post-#1067 Scheduled generation path without reopening the already
+qualified cycle-fill history.
+
+### D — deterministic closure
+
+The following obligations remain mechanically closed:
+
+- `ScheduledGeneration` imports no cycle, preset, persistence, routing, TUI, or
+  lifecycle authority;
+- cadence and fill limit are process-local construction inputs only;
+- generated candidates are ordinary explicit dates or explicit `needsDate`
+  holes;
+- edited due dates are revalidated against `observedAt` and the selected
+  exclusive fill limit immediately before publication;
+- every approved draft still passes through
+  `HouseholdCommand.createScheduled -> ScheduledCreationPublisher`;
+- the publisher re-reads lifecycle, Actual, Locus admission, and allocates fresh
+  Scheduled identity under the existing ownership boundary;
+- retained-plan awareness uses a freshly loaded current-open Scheduled snapshot
+  and never calls a writer;
+- exact-date + positive-Locus similarity remains advisory and requires explicit
+  Keep / Add / Review choice.
+
+No deterministic evidence suggests that cadence, fill horizon, or boundary
+preset data has become canonical Scheduled authority.
+
+### P — previously earned boundaries
+
+The recheck reuses these qualified meanings rather than re-proving them:
+
+- `ScheduledReview.currentOpenRecords` owns current-open lifecycle projection;
+- `sameDateSimilarOpenRecords` owns advisory retained-plan similarity;
+- `ScheduledCreationPublisher` owns durable Scheduled creation;
+- `ScheduledContinuationRouting` owns independent routing inheritance;
+- `ScheduledRoutingHistory.statusAt ... observedAt` means routing administration
+  as observed at the query coordinate, not routing that becomes active only on
+  the Scheduled due date.
+
+The use of the generation session's `observedAt` for inherited routing is
+therefore consistent with current Commitment / Headroom readers, which also
+classify Scheduled routing at `observedAt`.
+
+### R1 / policy — pending drafts do not see one another
+
+The retained-plan awareness pass compares every edited draft against one fresh
+snapshot of already-retained current-open Scheduled evidence.
+
+Drafts collected in the same still-unpublished generation session are not part of
+that snapshot.
+
+Therefore two independently edited pending drafts may converge to:
+
+```text
+same explicit date
++
+same positive Locus set
+```
+
+without receiving the same Keep / Add / Review prompt that an already-retained
+match would receive.
+
+This is **not** a duplicate-identity or authority bug:
+
+- ordinary Scheduled creation permits independent occurrences with equal dates;
+- equal positive-Locus shape does not establish series, contract, or obligation
+  identity;
+- the user explicitly edited and reviewed each draft before final publication.
+
+It is nevertheless an awareness asymmetry.
+
+**Decision: KEEP AS R / POLICY.**
+
+Do not silently deduplicate pending drafts. Reopen only if real use shows that
+multi-draft editing commonly creates accidental same-date / same-positive-Locus
+collisions. The smallest future change would be another advisory Ask step, not a
+new Scheduled uniqueness law.
+
+### R2 / policy — routing failure repair remains separate
+
+Generation publishes one occurrence, then attempts routing inheritance. A routing
+failure can therefore leave:
+
+```text
+Scheduled occurrence created
++
+routing inheritance incomplete
+```
+
+A retry can see the retained occurrence through Scheduled awareness and default
+to keeping it, but that awareness intentionally does not fabricate or repair
+routing evidence.
+
+This remains the correct separation:
+
+```text
+Scheduled identity authority
+!=
+Scheduled routing authority
+```
+
+The session reports the failure and stops. Automatic retry/repair is not earned
+by current evidence.
+
+**Decision: KEEP SEPARATE.**
+
+### R3 / concurrency — awareness is advisory, not a lock-held uniqueness check
+
+The fresh awareness snapshot is loaded before publication, while each later
+Scheduled creation acquires its ordinary writer ownership independently.
+
+Another process could therefore publish a similar Scheduled occurrence after the
+awareness snapshot and before one draft is published.
+
+Because same-date / same-positive-Locus similarity is only presentation guidance,
+this does not violate a canonical uniqueness invariant. The creation publisher
+must not start rejecting such worlds merely to make the advisory snapshot act
+like a transaction.
+
+**Decision: NO NEW LOCK SCOPE.**
+
+Revisit only if the product later promotes similarity from advisory evidence into
+a real uniqueness/series constraint.
+
+### D/P/R result
+
+```text
+D
+├─ cycle-free calendar construction
+├─ explicit date validation
+├─ construction-only cadence / horizon
+├─ ordinary Scheduled publication
+└─ fresh retained-plan awareness snapshot
+
+P
+├─ current-open Scheduled review
+├─ advisory same-date / positive-Locus matching
+├─ Scheduled creation authority
+├─ independent routing authority
+└─ observedAt-based historical routing semantics
+
+R
+├─ policy: pending drafts do not prompt against one another
+├─ policy: routing repair remains explicit after partial outcome
+└─ concurrency: advisory snapshot is not a uniqueness transaction
+```
+
+### Verdict
+
+**KEEP CURRENT PRODUCTION DESIGN.**
+
+This recheck found no new production semantic gap and no reason to add recurrence,
+series identity, batch atomicity, a wider lock, or pending-draft uniqueness.
+
+The only new pressure is the pending-draft awareness asymmetry. It remains
+explicitly documented as a presentation-policy residual rather than being
+promoted into canonical Scheduled semantics.
