@@ -119,9 +119,24 @@ private theorem coordinateTotal_negated
   | nil =>
       rfl
   | cons change rest ih =>
+      rw [show
+        negateChanges (change :: rest) =
+          ({ coordinate := change.coordinate, quantity := -change.quantity } :
+            MovementChange Coordinate) :: negateChanges rest by
+              rfl]
+      change
+        (if change.coordinate = coordinate then
+            (-change.quantity).quanta + coordinateTotal (negateChanges rest) coordinate
+          else
+            coordinateTotal (negateChanges rest) coordinate) =
+          -(if change.coordinate = coordinate then
+              change.quantity.quanta + coordinateTotal rest coordinate
+            else
+              coordinateTotal rest coordinate)
+      rw [ih]
       by_cases h : change.coordinate = coordinate
-      · simp [coordinateTotal, negateChanges, h, ih, Int.neg_add]
-      · simp [coordinateTotal, negateChanges, h, ih]
+      · simp [h, Int.neg_add]
+      · simp [h]
 
 /--
 At every coordinate, target plus reversal contributes exact zero.
@@ -139,7 +154,7 @@ theorem target_and_reversal_cancel_at
     coordinateTotal movement.changes coordinate +
       coordinateTotal (negateChanges movement.changes) coordinate = 0
   rw [coordinateTotal_negated]
-  exact Int.add_neg_cancel _
+  simp
 
 /-!
 ## Finding
