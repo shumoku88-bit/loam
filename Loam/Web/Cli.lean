@@ -2,6 +2,8 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.AttentionReview
 import Loam.CapacityReview
+import Loam.CycleBudgetReview
+import Loam.PurposeCatalog
 import Loam.ScheduledReview
 import Loam.Web.Snapshot
 
@@ -27,6 +29,12 @@ private def loadScheduled
   | .error message => return .error message
   | .ok evidence => return Loam.ScheduledReview.currentOpenRecords evidence
 
+private def currentPurposeMetadata
+    (dataDir : System.FilePath) : IO (List Loam.PurposeCatalog.Metadata) := do
+  match ← Loam.PurposeCatalog.loadMetadata dataDir with
+  | .ok metadata => return metadata
+  | .error _ => return []
+
 private def renderTo
     (dataDir output : System.FilePath) : IO UInt32 := do
   let some observedAt ← Loam.ActualDate.todayIso?
@@ -36,14 +44,18 @@ private def renderTo
   let actual ← Loam.ActualReview.loadRecordsFromActual dataDir
   let scheduled ← loadScheduled dataDir
   let attention ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
+  let budget ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir observedAt
   let capacity ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
+  let purposeMetadata ← currentPurposeMetadata dataDir
 
   let snapshot : Loam.Web.Snapshot.Snapshot := {
     observedAt := observedAt
     actual := actual
     scheduled := scheduled
     attention := attention
+    budget := budget
     capacity := capacity
+    purposeMetadata := purposeMetadata
   }
 
   try
