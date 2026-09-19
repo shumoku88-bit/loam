@@ -91,9 +91,26 @@ def findByReversal? (memory : ActualReversalMemory) (reversal : EventId) : Optio
 def mentionsEvent (memory : ActualReversalMemory) (event : EventId) : Bool :=
   (memory.findByTarget? event).isSome || (memory.findByReversal? event).isSome
 
-/-- Append one relation only when both endpoint-functional invariants remain true. -/
+/--
+Insert one relation without revalidating the already-proven memory.
+
+List order is representation only, so successful insertion prepends the relation.
+Only the two new endpoints are checked against their corresponding retained
+endpoint lists; the existing Nodup proofs are reused constructively.
+-/
 def add? (memory : ActualReversalMemory) (relation : ActualReversal) : Option ActualReversalMemory :=
-  ofReversals? (memory.reversals ++ [relation])
+  if hTarget : relation.target ∈ memory.reversals.map ActualReversal.target then
+    none
+  else if hReversal : relation.reversal ∈ memory.reversals.map ActualReversal.reversal then
+    none
+  else
+    some {
+      reversals := relation :: memory.reversals
+      targetNodup := by
+        simpa using And.intro hTarget memory.targetNodup
+      reversalNodup := by
+        simpa using And.intro hReversal memory.reversalNodup
+    }
 
 end ActualReversalMemory
 
