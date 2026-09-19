@@ -30,6 +30,14 @@ private def ordinaryProposal : String :=
   "effect\t-\tpaypay\tjpy\t-2470\n" ++
   "effect\t-\tbooks\tjpy\t2470\n"
 
+private def idempotentProposal : String :=
+  "LOAM-MOVEMENT-PROPOSAL\t2\n" ++
+  "operation\tai-proposal-20260916-1\n" ++
+  "date\t2026-09-16\n" ++
+  "description\tidempotent proposal\n" ++
+  "effect\t-\tpaypay\tjpy\t-300\n" ++
+  "effect\t-\tbooks\tjpy\t300\n"
+
 private def overlayProposal : String :=
   "LOAM-MOVEMENT-PROPOSAL\t1\n" ++
   "date\t2026-09-16\n" ++
@@ -65,9 +73,23 @@ def main (args : List String) : IO Unit := do
   expect (overlayKeys == ["effect-1", "effect-2"])
     "explicit proposal EffectKeys were not preserved for overlay references"
 
-  expect (!(Loam.MovementProposal.parse?
+  let .ok idempotent := Loam.MovementProposal.parseRecord? idempotentProposal
+    | throw (IO.userError "parse idempotent proposal")
+  expect (idempotent.operation == some ⟨"ai-proposal-20260916-1"⟩)
+    "v2 proposal lost explicit Movement operation identity"
+  expect (idempotent.draft.total == 300)
+    "v2 proposal changed Movement draft semantics"
+  let .ok reviewedIdempotent := Loam.MovementProposal.parse? idempotentProposal
+    | throw (IO.userError "read-only parse idempotent proposal")
+  expect (reviewedIdempotent.total == 300)
+    "read-only v2 review did not preserve Movement draft"
+
+  expect (!(Loam.MovementProposal.parseRecord?
     "LOAM-MOVEMENT-PROPOSAL\t2\ndate\t2026-09-16\neffect\t-\tpaypay\tjpy\t-1\neffect\t-\tbooks\tjpy\t1\n").isOk)
-    "unsupported proposal version was accepted"
+    "v2 proposal without operation identity was accepted"
+  expect (!(Loam.MovementProposal.parseRecord?
+    (ordinaryProposal ++ "operation\tunearned-in-v1\n")).isOk)
+    "v1 proposal unexpectedly accepted operation identity"
   expect (!(Loam.MovementProposal.parse?
     (ordinaryProposal ++ "total\t2470\n")).isOk)
     "derived Movement total was accepted as duplicated transport input"
@@ -86,4 +108,4 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile (root / "actual.loam")) == before)
     "proposal review changed Actual authority"
 
-  IO.println "Movement proposal transport: versioned parsing, derived total, explicit overlay references and read-only current-world review passed."
+  IO.println "Movement proposal transport: v1 compatibility, explicit v2 operation identity, derived total, overlay references and read-only review passed."

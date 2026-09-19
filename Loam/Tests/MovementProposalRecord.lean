@@ -29,6 +29,14 @@ private def ordinaryProposal : String :=
   "effect\t-\tpaypay\tjpy\t-2470\n" ++
   "effect\t-\tbooks\tjpy\t2470\n"
 
+private def idempotentProposal : String :=
+  "LOAM-MOVEMENT-PROPOSAL\t2\n" ++
+  "operation\tai-book-20260917-1\n" ++
+  "date\t2026-09-17\n" ++
+  "description\tAI idempotent book purchase\n" ++
+  "effect\t-\tpaypay\tjpy\t-500\n" ++
+  "effect\t-\tbooks\tjpy\t500\n"
+
 private def unadmittedLocusProposal : String :=
   "LOAM-MOVEMENT-PROPOSAL\t1\n" ++
   "date\t2026-09-16\n" ++
@@ -72,6 +80,43 @@ def main (args : List String) : IO Unit := do
   expect (afterRecorded.descriptions.entries.length == 1)
     "proposal record did not publish description evidence"
 
+  IO.FS.writeFile proposalFile idempotentProposal
+  let firstIdempotent ← IO.Process.output {
+    cmd := ".lake/build/bin/loamMovementProposalRecord"
+    args := #[proposalFile.toString, root.toString]
+  }
+  expect (firstIdempotent.exitCode == 0)
+    s!"first idempotent proposal failed with code {firstIdempotent.exitCode}: {firstIdempotent.stderr}"
+  expect (firstIdempotent.stdout.contains "[ok] Event and operation evidence atomically published")
+    "first idempotent proposal did not report a new atomic publication"
+
+  let .ok afterFirstIdempotent ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload first idempotent proposal")
+  expect (afterFirstIdempotent.events.events.length == 2)
+    "first idempotent proposal did not add exactly one Event"
+  let some idempotentEvent :=
+      afterFirstIdempotent.movementOperations.findEvent? ⟨"ai-book-20260917-1"⟩
+    | throw (IO.userError "idempotent proposal operation mapping missing")
+  expect (idempotentEvent.token == "record-2")
+    "first idempotent proposal did not retain the produced Event identity"
+
+  let secondIdempotent ← IO.Process.output {
+    cmd := ".lake/build/bin/loamMovementProposalRecord"
+    args := #[proposalFile.toString, root.toString]
+  }
+  expect (secondIdempotent.exitCode == 0)
+    s!"idempotent retry failed with code {secondIdempotent.exitCode}: {secondIdempotent.stderr}"
+  expect (secondIdempotent.stdout.contains "[ok] operation already applied; original Event reused")
+    "idempotent retry did not report reuse of the original Event"
+
+  let .ok afterSecondIdempotent ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload idempotent retry")
+  expect (afterSecondIdempotent.events.events.length == 2)
+    "idempotent retry published a duplicate Event"
+  expect (afterSecondIdempotent.movementOperations.findEvent? ⟨"ai-book-20260917-1"⟩ ==
+      some idempotentEvent)
+    "idempotent retry changed the retained OperationId to EventId mapping"
+
   let actualPath := root / "actual.loam"
   let acceptedSnapshot ← IO.FS.readFile actualPath
 
@@ -87,4 +132,4 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile actualPath) == acceptedSnapshot)
     "refused proposal modified canonical Actual authority"
 
-  IO.println "Movement proposal record: explicit write entrance, canonical writer reread, sparse identity, and refusal atomicity passed."
+  IO.println "Movement proposal record: v1 compatibility, v2 idempotent retry, canonical writer reread, sparse identity, and refusal atomicity passed."
