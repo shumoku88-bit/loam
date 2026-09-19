@@ -310,6 +310,23 @@ jobs:
             exit 1
           fi
 
+          if ./.lake/build/bin/loamPtaExport \
+              "$root/actual.loam" \
+              "$root/accounting-role.loam" \
+              "$root/./actual.loam"; then
+            echo "PTA export accepted a dot-path alias of Actual authority" >&2
+            exit 1
+          fi
+
+          ln -s "$root/accounting-role.loam" "$root/accounting-role-alias.loam"
+          if ./.lake/build/bin/loamPtaExport \
+              "$root/actual.loam" \
+              "$root/accounting-role.loam" \
+              "$root/accounting-role-alias.loam"; then
+            echo "PTA export accepted a symlink alias of AccountingRole authority" >&2
+            exit 1
+          fi
+
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
 
