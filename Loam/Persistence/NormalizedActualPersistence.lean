@@ -160,15 +160,11 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
               evidence.events evidence.movementOperations then
             none
 
-          -- Reversals: target and reversal must exist, exact physical inverse,
-          -- and reversal-of-reversal chains remain refused.
+          -- Reversals: Core memory already proves global endpoint uniqueness.
+          -- Persistence therefore owns only referential closure and exact physical inversion.
           for reversal in evidence.reversals.reversals do
             let targetEvent ← retainedEvents[reversal.target.token]?
             let reversalEvent ← retainedEvents[reversal.reversal.token]?
-            if reversal.target = reversal.reversal then
-              none
-            if (evidence.reversals.findByReversal? reversal.target).isSome then
-              none
             if !ActualReversal.exactPhysicalInverse?
                 targetEvent.effects reversalEvent.effects then
               none
@@ -268,7 +264,7 @@ def NormalizedActualConstructionError.message : NormalizedActualConstructionErro
   | .merchantMemory => "failed to construct EventMerchantEvidenceMemory: duplicate merchant disposition for event"
   | .movementOperationMemory => "failed to construct MovementOperationEvidenceMemory: duplicate operation or event mapping"
   | .correctionMemory => "failed to construct EventCorrectionMemory: duplicate replacement event"
-  | .reversalMemory => "failed to construct ActualReversalMemory: duplicate reversal"
+  | .reversalMemory => "failed to construct ActualReversalMemory: reversal endpoint identity reused"
 
 instance : ToString NormalizedActualConstructionError where
   toString := NormalizedActualConstructionError.message
