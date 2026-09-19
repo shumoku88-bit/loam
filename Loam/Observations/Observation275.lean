@@ -125,23 +125,38 @@ private def baseRowsWith
   let roles ← roles?
   unroutedActualRows? events validities routing roles 1 2 yen
 
+private def noRouteWitness : Bool :=
+  match emptyRouting? with
+  | none => false
+  | some routing =>
+      match baseRowsWith routing with
+      | none => false
+      | some rows =>
+          decide
+            (rows.map (fun row => (row.locus, row.quantity.quanta, row.role)) =
+              [ (paypay, -30, some .asset)
+              , (groceries, 30, some .expense)
+              ])
+
 /--
 With no route evidence, both sides of one balanced Actual remain visible as
 signed unrouted rows. The row layer does not prematurely decide that only the
 Expense side is actionable.
 -/
 theorem no_route_preserves_signed_asset_and_expense_rows :
-    match emptyRouting? with
-    | none => false
-    | some routing =>
-        match baseRowsWith routing with
-        | none => false
-        | some rows =>
-            rows.map (fun row => (row.locus, row.quantity.quanta, row.role)) ==
-              [ (paypay, -30, some .asset)
-              , (groceries, 30, some .expense)
-              ] = true := by
+    noRouteWitness = true := by
   native_decide
+
+private def routedExpenseWitness : Bool :=
+  match foodRouting? with
+  | none => false
+  | some routing =>
+      match baseRowsWith routing with
+      | none => false
+      | some rows =>
+          decide
+            (rows.map (fun row => (row.locus, row.quantity.quanta, row.role)) =
+              [(paypay, -30, some .asset)])
 
 /--
 Adding only the groceries -> food route removes only the groceries row. The
@@ -149,51 +164,51 @@ unrouted Asset source remains visible, showing why "any unrouted Actual blocks
 Coverage" would be too strong.
 -/
 theorem routing_expense_removes_only_that_unrouted_row :
-    match foodRouting? with
-    | none => false
-    | some routing =>
-        match baseRowsWith routing with
-        | none => false
-        | some rows =>
-            rows.map (fun row => (row.locus, row.quantity.quanta, row.role)) ==
-              [(paypay, -30, some .asset)] = true := by
+    routedExpenseWitness = true := by
   native_decide
+
+private def refundWitness : Bool :=
+  match refundEvent?, emptyRouting?, roles? with
+  | some event, some routing, some roles =>
+      match EventMemory.ofEvents? [event],
+          ActualValidityMemory.ofEntries? [{ event := event.id, validOn := 2 }] with
+      | some events, some validities =>
+          match unroutedActualRows? events validities routing roles 1 2 yen with
+          | some rows =>
+              decide
+                (rows.map (fun row => (row.locus, row.quantity.quanta)) =
+                  [(paypay, 10), (groceries, -10)])
+          | none => false
+      | _, _ => false
+  | _, _, _ => false
 
 /--
 Signed refund direction is preserved instead of being collapsed into a positive
 "unrouted spending" total before product policy is qualified.
 -/
 theorem refund_sign_survives_unrouted_projection :
-    match refundEvent?, emptyRouting?, roles? with
-    | some event, some routing, some roles =>
-        match EventMemory.ofEvents? [event],
-            ActualValidityMemory.ofEntries? [{ event := event.id, validOn := 2 }] with
-        | some events, some validities =>
-            match unroutedActualRows? events validities routing roles 1 2 yen with
-            | some rows =>
-                rows.map (fun row => (row.locus, row.quantity.quanta)) ==
-                  [(paypay, 10), (groceries, -10)]
-            | none => false
-        | _, _ => false
-    | _, _, _ => false := by
+    refundWitness = true := by
   native_decide
+
+private def missingRoleWitness : Bool :=
+  match baseEvent?, emptyRouting? with
+  | some event, some routing =>
+      match EventMemory.ofEvents? [event],
+          ActualValidityMemory.ofEntries? [{ event := event.id, validOn := 2 }] with
+      | some events, some validities =>
+          match unroutedActualRows?
+              events validities routing AccountingRoleMap.empty 1 2 yen with
+          | some rows => rows.all (fun row => row.role.isNone)
+          | none => false
+      | _, _ => false
+  | _, _ => false
 
 /--
 Missing AccountingRole remains explicit metadata on the unresolved row; this
 observation does not guess a role from sign or Locus spelling.
 -/
 theorem missing_role_remains_unresolved :
-    match baseEvent?, emptyRouting? with
-    | some event, some routing =>
-        match EventMemory.ofEvents? [event],
-            ActualValidityMemory.ofEntries? [{ event := event.id, validOn := 2 }] with
-        | some events, some validities =>
-            match unroutedActualRows?
-                events validities routing AccountingRoleMap.empty 1 2 yen with
-            | some rows => rows.all (fun row => row.role.isNone) = true
-            | none => false
-        | _, _ => false
-    | _, _ => false := by
+    missingRoleWitness = true := by
   native_decide
 
 end Loam.Observation275
