@@ -19,9 +19,9 @@ This read boundary composes only evidence already owned elsewhere:
 - explicit `AccountingRole` classification for Effect Loci.
 
 It does not retain a Merchant amount. A total is derived only when Merchant
-coverage is complete for every selected Event in the requested window and every
-nonzero Effect in the requested Measure on the selected Merchant's Events has an
-explicit AccountingRole.
+coverage is complete for every selected Event that could change the requested
+Measure's Expense answer, and every nonzero Effect in the requested Measure on
+the selected Merchant's Events has an explicit AccountingRole.
 
 Missing Merchant evidence and missing AccountingRole evidence remain separate
 witnesses. Neither is converted to zero, `nonmerchant`, or a default role.
@@ -74,13 +74,31 @@ private def isTargetMerchant
   | some (.merchant retained) => decide (retained = party)
   | _ => false
 
+private def eventCouldAffectMerchantExpense
+    (roles : AccountingRoleMap)
+    (measure : MeasureId)
+    (column : Loam.TransactionsFlowReview.Column) : Bool :=
+  column.event.effects.any fun effect =>
+    if effect.measure != measure || effect.quantity.quanta == 0 then
+      false
+    else
+      match roles.roleOf? effect.locus with
+      | some role => decide (role = .expense)
+      | none => true
+
 private def merchantCoverageGaps
     (flow : Loam.TransactionsFlowReview.Snapshot)
-    (merchants : EventMerchantEvidenceMemory) : List UnresolvedMerchantEvent :=
+    (merchants : EventMerchantEvidenceMemory)
+    (roles : AccountingRoleMap)
+    (measure : MeasureId) : List UnresolvedMerchantEvent :=
   flow.columns.filterMap fun column =>
     match merchants.findDisposition? column.event.id with
     | some _ => none
-    | none => some { event := column.event.id, date := column.date }
+    | none =>
+        if eventCouldAffectMerchantExpense roles measure column then
+          some { event := column.event.id, date := column.date }
+        else
+          none
 
 private def unresolvedRoleEffects
     (flow : Loam.TransactionsFlowReview.Snapshot)
@@ -143,7 +161,7 @@ def project
     party := party
     measure := measure
     contributions := flow.columns.filterMap (contributionFor? merchants roles party measure)
-    unresolvedMerchantEvents := merchantCoverageGaps flow merchants
+    unresolvedMerchantEvents := merchantCoverageGaps flow merchants roles measure
     unresolvedRoleEffects := unresolvedRoleEffects flow merchants roles party measure
   }
 
@@ -155,10 +173,13 @@ def Snapshot.knownTotal (snapshot : Snapshot) : Quantity :=
 /--
 Return a Merchant total only when both independent completeness boundaries close.
 
-Merchant coverage is intentionally strict: every Event selected into the window
-must have either `merchant ...` or explicit `nonmerchant` disposition. After that,
-only the requested Merchant's nonzero Effects in the requested Measure can block
-on missing AccountingRole evidence.
+Merchant coverage is query-relative. An unclassified Event blocks exactness only
+when it has a nonzero Effect in the requested Measure whose AccountingRole is
+either `expense` or still unresolved. Events that provably cannot change this
+Merchant/Measure Expense answer do not require an unrelated Merchant disposition.
+
+For Events already classified as the requested Merchant, every nonzero Effect in
+the requested Measure still requires explicit AccountingRole evidence.
 -/
 def Snapshot.exactTotal? (snapshot : Snapshot) : Option Quantity :=
   if snapshot.unresolvedMerchantEvents.isEmpty && snapshot.unresolvedRoleEffects.isEmpty then
