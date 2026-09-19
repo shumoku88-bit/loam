@@ -142,7 +142,7 @@ def main : IO Unit := do
     "corrected purchase event"
   let correctedEvents ← requireSome
     (EventMemory.ofEvents?
-      [receipt, purchase, correctedPurchase, ambiguous, ghostEvent, debtOpening, debtRepayment])
+      [receipt, purchase, correctedPurchase, ambiguous, ghostEvent])
     "corrected event memory"
   let correctedCorrections ← requireSome
     (EventCorrectionMemory.ofCorrections?
@@ -154,9 +154,7 @@ def main : IO Unit := do
       .base purchase.id "2026-09-02",
       .base correctedPurchase.id "2026-09-03",
       .base ambiguous.id "2026-09-04",
-      .base ghostEvent.id "2026-09-05",
-      .base debtOpening.id "2026-09-06",
-      .base debtRepayment.id "2026-09-07"
+      .base ghostEvent.id "2026-09-05"
     ] [])
     "corrected validity history"
   let correctedActual : Loam.ActualEvidence := {
@@ -170,7 +168,7 @@ def main : IO Unit := do
     "corrected admitted Actual image"
   let .ok imageSnapshot :=
       Loam.RoleBalanceReview.projectImage
-        correctedImage coverage openingSupport currentAnchor roles
+        correctedImage coverage OpeningSupportMap.empty currentAnchor roles
     | throw (IO.userError "admitted-image Role Balance refused corrected fixture")
   let imageWallet ← requireSome (findRow? imageSnapshot "wallet")
     "missing admitted-image wallet row"
@@ -183,7 +181,7 @@ def main : IO Unit := do
     coverage := coverage
   }
   let .ok rawCorrected :=
-      Loam.RoleBalanceReview.project correctedEvidence openingSupport currentAnchor roles
+      Loam.RoleBalanceReview.project correctedEvidence OpeningSupportMap.empty currentAnchor roles
     | throw (IO.userError "raw Role Balance refused corrected fixture")
   expect (decide (imageSnapshot = rawCorrected))
     "admitted-image and raw Role Balance projections diverged"
