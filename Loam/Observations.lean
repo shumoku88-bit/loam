@@ -46,6 +46,7 @@ import Loam.Observations.Observation271
 import Loam.Observations.Observation272
 import Loam.Observations.Observation273
 import Loam.Observations.Observation275
+import Loam.Observations.Observation276
 import Loam.Observations.StructuralS003
 import Loam.Observations.StructuralS008
 
