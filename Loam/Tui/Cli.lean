@@ -22,6 +22,7 @@ import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
+import Loam.Tui.ScheduledCoverageSetupSession
 import Loam.ScheduledCoverageReview
 import Loam.Tui.Attention
 import Loam.Tui.Balances
@@ -183,6 +184,7 @@ def hraScheduledEventOfKey
   | .input 'f' | .input 'F' => .cycleFilter
   | .input 'n' | .input 'N' => .createScheduled
   | .input 'g' | .input 'G' => .fillCurrentCycle
+  | .input 'm' | .input 'M' => .monitorCoverage
   | .input 'c' | .input 'C' => .completeScheduled
   | .enter =>
       match pane with
@@ -375,6 +377,20 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds fresh next)
           Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
           hraScheduledLoop bounds dataDir root fresh next nextFrame
+  | .monitorCoverage =>
+      match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice :=
+            "No current-open Scheduled occurrence is selected for monitoring." }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          let notice ← Loam.Tui.ScheduledCoverageSetupSession.run bounds dataDir record
+          let next := { step.state with notice := notice }
+          let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          hraScheduledLoop bounds dataDir root snapshot next nextFrame
   | .completeScheduled =>
       match Loam.Tui.HraScheduled.selectedRecord? snapshot step.state with
       | none =>

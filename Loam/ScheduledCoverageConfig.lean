@@ -89,4 +89,79 @@ def load? (path : System.FilePath) : IO (Option (List Rule)) := do
   else
     return some []
 
+
+private def encodeRule (rule : Rule) : String :=
+  rule.name ++ "\t" ++ rule.anchor ++ "\t" ++ toString rule.everyMonths ++ "\t" ++
+    String.intercalate "," rule.negativeLoci ++ "\t" ++
+    String.intercalate "," rule.positiveLoci
+
+/-- Encode one complete monitoring configuration. The emitted image must decode again. -/
+def encode? (rules : List Rule) : Option String := do
+  let text :=
+    if rules.isEmpty then ""
+    else String.intercalate "\n" (rules.map encodeRule) ++ "\n"
+  let _ ← decode? text
+  some text
+
+private def sameShape (left right : Rule) : Bool :=
+  left.negativeLoci == right.negativeLoci &&
+    left.positiveLoci == right.positiveLoci
+
+/--
+Insert or replace one read-side monitoring rule.
+
+An existing signed-Locus selector keeps its stable display name while its anchor
+and cadence may be changed. A duplicate display name for a different selector is
+rejected instead of silently renaming household vocabulary.
+-/
+def upsertRule (rules : List Rule) (rule : Rule) : Except String (List Rule) :=
+  match rules.find? (fun existing => sameShape existing rule) with
+  | some existing =>
+      let replacement := { rule with name := existing.name }
+      .ok <| rules.map fun current =>
+        if sameShape current existing then replacement else current
+  | none =>
+      if rules.any (fun existing => existing.name == rule.name) then
+        .error ("loam: Scheduled coverage name already monitors a different plan: " ++ rule.name)
+      else
+        .ok (rules ++ [rule])
+
+/--
+Publish a complete read-side monitoring image through staging, typed re-decoding,
+and one filesystem rename. This writes monitoring configuration only; it never
+publishes Scheduled evidence.
+-/
+def save (path : System.FilePath) (rules : List Rule) : IO (Except String Unit) := do
+  let text ←
+    match encode? rules with
+    | some text => pure text
+    | none => return .error "loam: Scheduled coverage encoder rejected monitoring rules"
+  if let some parent := path.parent then
+    IO.FS.createDirAll parent
+  let stage := System.FilePath.mk (path.toString ++ ".loam-stage")
+  IO.FS.writeFile stage text
+  let staged ← IO.FS.readFile stage
+  if staged != text then
+    return .error ("loam: staged Scheduled coverage mismatch: " ++ stage.toString)
+  match decode? staged with
+  | none => return .error "loam: staged Scheduled coverage failed typed decoding"
+  | some _ => pure ()
+  IO.FS.rename stage path
+  return .ok ()
+
+/-- Load, upsert, and safely republish one monitoring rule. -/
+def upsertAt (path : System.FilePath) (rule : Rule) : IO (Except String Unit) := do
+  try
+    let rules ←
+      match ← load? path with
+      | none => return .error "loam: Scheduled coverage config is malformed"
+      | some rules => pure rules
+    let next ←
+      match upsertRule rules rule with
+      | .error message => return .error message
+      | .ok next => pure next
+    save path next
+  catch error =>
+    return .error ("loam: Scheduled coverage config update failed: " ++ error.toString)
+
 end Loam.ScheduledCoverageConfig

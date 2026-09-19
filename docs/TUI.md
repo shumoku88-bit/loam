@@ -119,7 +119,11 @@ Focus Day and All Current-Open scopes (`f`).
 
 Like the selected-day Scheduled pane, object-local actions include Scheduled
 creation (`n`), completion (`c` / `Enter`), supersede/replacement (`r`), and
-cancellation (`x`). The surface collects intent and delegates execution to shared
+cancellation (`x`). The Scheduled workspace also exposes `m` for plan-monitoring
+setup. Monitoring starts from the selected current-open occurrence, derives its
+anchor and exact signed-Locus shape, and asks only for the expected month cadence.
+It updates replaceable read-side coverage configuration and never creates a
+Scheduled occurrence or retains recurrence authority. The surface collects intent and delegates execution to shared
 publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
 `ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
 
@@ -217,7 +221,11 @@ Calendar-month defaults are presentation conveniences only; they do not establis
 retained Month, BudgetCycle, cadence, or canonical current window.
 
 Scheduled Coverage is a separate read-only future-plan lens. It compares current-open
-Scheduled evidence with optional `config/scheduled-coverage.tsv` monitoring rules:
+Scheduled evidence with optional `config/scheduled-coverage.tsv` monitoring rules.
+Users normally create or update those rules from the Scheduled workspace with `m`;
+direct file editing remains an implementation detail rather than the normal TUI path:
+
+
 
 ```text
 <rule-token><TAB><anchor-date><TAB><every-months><TAB><negative-locus[,negative-locus...]><TAB><positive-locus[,positive-locus...]>
