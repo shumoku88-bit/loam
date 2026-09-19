@@ -208,7 +208,7 @@ def main : IO Unit := do
     | .ok rule => pure rule
   expect (monitorRule.anchor == selectedForMonitor.scheduledOn &&
     monitorRule.everyMonths == 1 &&
-    monitorRule.name == "paypay")
+    monitorRule.name == "food")
     "Scheduled monitoring setup did not derive anchor/cadence/display identity from the selected occurrence"
 
   let backStep := Loam.Tui.HraScheduled.update snapshot occPane .back
