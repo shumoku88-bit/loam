@@ -15,6 +15,10 @@ set_option autoImplicit false
 This module is deliberately presentation-only. It consumes the same shared Review
 answers used by existing frontends and renders one static HTML document.
 
+The first Web slice intentionally targets a conservative HTML 4.01 / CSS 2.1-style
+baseline so lightweight browsers can render the same semantic document without
+JavaScript. Richer browser presentation must remain progressive enhancement.
+
 It owns no household semantics, persistence, publication, recurrence, account
 classification, or authority selection.
 -/
@@ -52,10 +56,10 @@ private def renderRows (rows : List String) : String :=
       "\n</ul>"
 
 private def renderCard (title body : String) : String :=
-  "<section class=\"card\">\n" ++
+  "<div class=\"card\">\n" ++
   "  <h2>" ++ escapeHtml title ++ "</h2>\n" ++
   body ++ "\n" ++
-  "</section>"
+  "</div>"
 
 private def renderActual
     (observedAt : String)
@@ -102,40 +106,38 @@ private def renderCapacity
 
 def render (snapshot : Snapshot) : String :=
   String.intercalate "\n"
-    [ "<!doctype html>"
+    [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"
     , "<html lang=\"en\">"
     , "<head>"
-    , "  <meta charset=\"utf-8\">"
-    , "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+    , "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
     , "  <title>LOAM Web</title>"
-    , "  <style>"
-    , "    :root { color-scheme: light dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }"
-    , "    body { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 4rem; line-height: 1.45; }"
-    , "    header { margin-bottom: 1.5rem; }"
-    , "    h1 { margin-bottom: .25rem; }"
-    , "    .subtitle, .footer, .empty { opacity: .72; }"
-    , "    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; }"
-    , "    .card { border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 12px; padding: 1rem 1.1rem; }"
-    , "    .card h2 { margin-top: 0; font-size: 1rem; }"
-    , "    ul { margin: 0; padding-left: 1.2rem; }"
-    , "    li + li { margin-top: .55rem; }"
-    , "    .coordinate { font-weight: 700; }"
-    , "    .unavailable { border-left: 3px solid currentColor; padding-left: .75rem; }"
-    , "    .footer { margin-top: 1.5rem; font-size: .9rem; }"
+    , "  <style type=\"text/css\">"
+    , "    body { font-family: monospace; margin: 0; padding: 1em; line-height: 1.4; color: #111; background: #fff; }"
+    , "    #page { max-width: 70em; margin: 0 auto; }"
+    , "    #header { border-bottom: 1px solid #888; margin-bottom: 1em; padding-bottom: .5em; }"
+    , "    h1 { font-size: 1.5em; margin: 0 0 .25em 0; }"
+    , "    .subtitle, .footer, .empty { color: #555; }"
+    , "    .card { border: 1px solid #999; margin: 0 0 1em 0; padding: .75em 1em; }"
+    , "    .card h2 { font-size: 1.1em; margin: 0 0 .5em 0; }"
+    , "    ul { margin: .25em 0; padding-left: 1.5em; }"
+    , "    li { margin: .3em 0; }"
+    , "    .coordinate { font-weight: bold; }"
+    , "    .unavailable { border-left: .25em solid #666; padding-left: .75em; }"
+    , "    .footer { border-top: 1px solid #aaa; margin-top: 1.5em; padding-top: .75em; font-size: .9em; }"
     , "  </style>"
     , "</head>"
     , "<body>"
-    , "<header>"
+    , "<div id=\"page\">"
+    , "<div id=\"header\">"
     , "  <h1>LOAM</h1>"
-    , "  <div class=\"subtitle\">read-only household web snapshot · observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
-    , "</header>"
-    , "<main class=\"grid\">"
+    , "  <div class=\"subtitle\">read-only household web snapshot | observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
+    , "</div>"
     , renderCard "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
     , renderCard "Current-open Scheduled" (renderScheduled snapshot.scheduled)
     , renderCard "Open Attention" (renderAttention snapshot.attention)
     , renderCard "Capacity" (renderCapacity snapshot.capacity)
-    , "</main>"
     , "<p class=\"footer\">Presentation only. This page does not own household authority and performs no writes.</p>"
+    , "</div>"
     , "</body>"
     , "</html>"
     ]
