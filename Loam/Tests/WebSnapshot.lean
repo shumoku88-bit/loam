@@ -17,6 +17,8 @@ def main (_args : List String) : IO Unit := do
 
   let html := Loam.Web.Snapshot.render snapshot
 
+  expect (contains html "HTML 4.01")
+    "Web snapshot did not retain the lightweight-browser HTML baseline"
   expect (contains html "<title>LOAM Web</title>")
     "Web snapshot did not render its document identity"
   expect (contains html "Recent Actual")
@@ -36,4 +38,19 @@ def main (_args : List String) : IO Unit := do
   expect (contains html "Presentation only.")
     "Web snapshot did not state its authority boundary"
 
-  IO.println "Web snapshot: presentation-only sections, explicit unavailability, and HTML escaping passed."
+  expect (!contains html "<main")
+    "Web snapshot introduced an HTML5-only main wrapper into the baseline"
+  expect (!contains html "<section")
+    "Web snapshot introduced HTML5 section elements into the baseline"
+  expect (!contains html "<header")
+    "Web snapshot introduced HTML5 header elements into the baseline"
+  expect (!contains html "display: grid")
+    "Web snapshot introduced CSS Grid before progressive enhancement"
+  expect (!contains html "color-mix(")
+    "Web snapshot introduced modern color mixing into the baseline"
+  expect (!contains html ":root")
+    "Web snapshot introduced a modern root styling dependency into the baseline"
+  expect (!contains html "border-radius")
+    "Web snapshot introduced rounded-corner CSS into the baseline"
+
+  IO.println "Web snapshot: lightweight HTML baseline, explicit unavailability, and HTML escaping passed."
