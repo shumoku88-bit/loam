@@ -64,7 +64,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
           test: false
           lint: false
           use-mathlib-cache: false
