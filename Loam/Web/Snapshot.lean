@@ -190,10 +190,10 @@ private def renderCapacity
   | .error message => unavailable message
   | .ok snapshot =>
       "<p class=\"note\">All-retained Capacity entitlement. This is not the current-cycle budget.</p>\n" ++
-      renderRows <| snapshot.rows.map fun row =>
+      (renderRows <| snapshot.rows.map fun row =>
         "<span class=\"coordinate\">" ++
         escapeHtml (Loam.PurposeCatalog.labelFor metadata row.purpose) ++ "</span> " ++
-        quantityText row.entitlement
+        quantityText row.entitlement)
 
 def render (snapshot : Snapshot) : String :=
   String.intercalate "\n"
