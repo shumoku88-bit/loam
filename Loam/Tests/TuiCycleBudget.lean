@@ -22,7 +22,25 @@ private def fixture : Loam.CycleBudgetReview.Snapshot :=
       observedAt := "2026-09-08"
       endExclusive := "2026-10-15"
       rows := [{ purpose := ⟨"食費:ストック"⟩, entitlement := q 111, consumption := q 222, commitment := q 333 }]
-      scheduledFrontier := some { unmanaged := q 1234, unrouted := q 2345, unresolvedEligibility := q 4810 } }
+      scheduledFrontier := some { unmanaged := q 1234, unrouted := q 2345, unresolvedEligibility := q 4810 }
+      actualRoutingFrontier := {
+        unroutedExpense := [
+          { event := ⟨"actual-1"⟩
+            validOn := "2026-09-05"
+            locus := ⟨"shipping"⟩
+            measure := ⟨"jpy"⟩
+            quantity := q 720
+            role := some .expense }
+        ]
+        unresolvedRole := [
+          { event := ⟨"actual-2"⟩
+            validOn := "2026-09-06"
+            locus := ⟨"mystery"⟩
+            measure := ⟨"jpy"⟩
+            quantity := q 10
+            role := none }
+        ]
+      } }
     physical := .ok { rows := [
       { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, quantity := q 909 },
       { coordinate := ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩, quantity := q 555 }] }
@@ -41,6 +59,8 @@ def main : IO Unit := do
       "76389", "47068", "29321", "4810", "1234", "2345", "Residual before unresolved",
       "Boundary horizon: 2026-10-15 is the last explicitly configured boundary.",
       "Unresolved future pressure", "Unrouted future pressure", "Unmanaged future pressure",
+      "Actual routing frontier", "Unrouted Actual Expense rows: 1", "Role-unresolved Actual rows: 1",
+      "Purpose coverage excludes still-unresolved current-window Actual interpretation.",
       "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]"] do
     expect (contains value rendered) ("missing supplied answer: " ++ value)
   expect (!(contains "Safe to spend" rendered) && !(contains "Available" rendered))
