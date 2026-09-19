@@ -368,3 +368,61 @@ Do not yet:
 
 The residual is a read-side visibility question, not a reason to enlarge
 canonical routing state.
+
+
+## Production closure follow-up — Observation 275
+
+Observation 275 qualified the smallest read-side representation before any
+Current Coverage policy change:
+
+```text
+current Event
++ current valid coordinate
++ historical Actual routing
++ AccountingRole?
+  ->
+explicit signed unrouted Actual rows
+```
+
+The row retains Event, valid coordinate, Locus, Measure, signed Quantity, and
+optional AccountingRole. Machine-checked witnesses pin that:
+
+- an unrouted balanced Event may contain both Asset and Expense rows;
+- routing only the Expense Locus removes only that row;
+- refund sign is preserved;
+- missing AccountingRole remains unresolved.
+
+Production Current Coverage now consumes that projection and exposes only the
+default Actual-routing administration obligations:
+
+```text
+unrouted Expense rows
+role-unresolved rows
+```
+
+Known non-Expense rows remain outside the default frontier, matching
+`ActualRoutingReview` where Asset / Income / Liability / Equity routing is an
+optional human choice rather than an automatic Purpose obligation.
+
+Cycle Budget renders only row counts. It does not:
+
+- aggregate unresolved Actual quantities;
+- backdate routing;
+- infer a Purpose;
+- fail all Purpose rows;
+- change canonical routing evidence.
+
+A regression pins the temporal seam directly: a route effective after one
+Actual occurrence must not rewrite that occurrence's historical Consumption,
+while the still-unrouted Expense row becomes visible in the answerability
+frontier.
+
+Updated verdict:
+
+```text
+HistoricalRouting algebra        KEEP
+Consumption arithmetic           KEEP
+Actual routing administration    KEEP
+Current Coverage visibility      QUALIFIED / PROMOTED
+canonical state                  NO CHANGE
+```
