@@ -47,37 +47,45 @@ def exactPhysicalInverse? (target reversal : List Effect) : Bool :=
         | none => false
   matchAll target reversal
 
+/--
+Flatten retained reversal relations to their endpoint identities.
+
+The order is representation only: each relation contributes its target followed
+by its reversal endpoint.
+-/
+def endpointIds (reversals : List ActualReversal) : List EventId :=
+  reversals.flatMap fun relation => [relation.target, relation.reversal]
+
 end ActualReversal
 
 /--
 Complete retained Actual-reversal relation evidence.
 
-List order is representation only. One target may be reversed at most once and
-one reversal Event may explain at most one target. Referential closure and exact
-inverse-Effect validation remain publisher/read admission obligations because
-relation-first interrupted publication may temporarily name an absent reversal
-Event.
+List order is representation only. Every retained endpoint identity is globally
+unique across both roles: one Event cannot be used twice as a target, twice as a
+reversal, or once in each role. This excludes self-reversal, reversal chains,
+and reversal cycles at the Core memory boundary.
+
+Referential closure and exact inverse-Effect validation remain publisher/read
+admission obligations because relation-first interrupted publication may
+temporarily name an absent reversal Event.
 -/
 structure ActualReversalMemory where
   reversals : List ActualReversal
-  targetNodup : (reversals.map ActualReversal.target).Nodup
-  reversalNodup : (reversals.map ActualReversal.reversal).Nodup
+  endpointNodup : (ActualReversal.endpointIds reversals).Nodup
 
 namespace ActualReversalMemory
 
-/-- Admit only endpoint-functional raw reversal evidence. -/
+/-- Admit only raw reversal evidence whose endpoint identities are globally unique. -/
 def ofReversals? (reversals : List ActualReversal) : Option ActualReversalMemory :=
-  if hTarget : (reversals.map ActualReversal.target).Nodup then
-    if hReversal : (reversals.map ActualReversal.reversal).Nodup then
-      some { reversals := reversals, targetNodup := hTarget, reversalNodup := hReversal }
-    else
-      none
+  if hEndpoints : (ActualReversal.endpointIds reversals).Nodup then
+    some { reversals := reversals, endpointNodup := hEndpoints }
   else
     none
 
 /-- Empty reversal authority is valid explicit evidence. -/
 def empty : ActualReversalMemory :=
-  { reversals := [], targetNodup := by simp, reversalNodup := by simp }
+  { reversals := [], endpointNodup := by simp [ActualReversal.endpointIds] }
 
 /-- Find the unique retained relation for one target Actual. -/
 def findByTarget? (memory : ActualReversalMemory) (target : EventId) : Option ActualReversal :=
@@ -95,21 +103,31 @@ def mentionsEvent (memory : ActualReversalMemory) (event : EventId) : Bool :=
 Insert one relation without revalidating the already-proven memory.
 
 List order is representation only, so successful insertion prepends the relation.
-Only the two new endpoints are checked against their corresponding retained
-endpoint lists; the existing Nodup proofs are reused constructively.
+The two new endpoint identities are checked against the retained endpoint list;
+the existing global endpoint uniqueness proof is then reused constructively.
 -/
 def add? (memory : ActualReversalMemory) (relation : ActualReversal) : Option ActualReversalMemory :=
-  if hTarget : relation.target ∈ memory.reversals.map ActualReversal.target then
+  if hSelf : relation.target = relation.reversal then
     none
-  else if hReversal : relation.reversal ∈ memory.reversals.map ActualReversal.reversal then
+  else if hTarget :
+      relation.target ∈ ActualReversal.endpointIds memory.reversals then
+    none
+  else if hReversal :
+      relation.reversal ∈ ActualReversal.endpointIds memory.reversals then
     none
   else
     some {
       reversals := relation :: memory.reversals
-      targetNodup := by
-        simpa using And.intro hTarget memory.targetNodup
-      reversalNodup := by
-        simpa using And.intro hReversal memory.reversalNodup
+      endpointNodup := by
+        change
+          (relation.target :: relation.reversal ::
+            ActualReversal.endpointIds memory.reversals).Nodup
+        have hTargetFresh :
+            relation.target ∉
+              relation.reversal :: ActualReversal.endpointIds memory.reversals := by
+          simp [hSelf, hTarget]
+        simpa using
+          And.intro hTargetFresh (And.intro hReversal memory.endpointNodup)
     }
 
 end ActualReversalMemory
