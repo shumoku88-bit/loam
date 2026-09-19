@@ -62,3 +62,6 @@ lean_exe loamTui where
 
 lean_exe loamAttention where
   root := `Loam.Tui.AttentionMain
+
+lean_exe loamWeb where
+  root := `Loam.Web.Cli
