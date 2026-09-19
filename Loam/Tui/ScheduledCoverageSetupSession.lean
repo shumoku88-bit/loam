@@ -37,11 +37,10 @@ private partial def loop
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               loop bounds dataDir next nextFrame
           | .ok _ =>
-              return
-                ("Monitoring " ++ rule.name ++ ": " ++
-                  Loam.Tui.ScheduledCoverageSetup.cadenceLabel months ++
-                  " from " ++ rule.anchor ++
-                  ". No Scheduled occurrence was created.")
+              return ("Monitoring " ++ rule.name ++ ": " ++
+                Loam.Tui.ScheduledCoverageSetup.cadenceLabel months ++
+                " from " ++ rule.anchor ++
+                ". No Scheduled occurrence was created.")
   | none =>
       let nextFrame := compileWidget (Loam.Tui.ScheduledCoverageSetup.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
