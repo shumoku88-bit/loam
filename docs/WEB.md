@@ -1,8 +1,8 @@
 # LOAM Web
 
-Status: **first read-only second-frontend experiment**
+Status: **read-only second-frontend experiment**
 
-LOAM Web tests one narrow architectural claim:
+LOAM Web tests one architectural claim:
 
 > Can a human-facing frontend other than the production TUI present useful
 > household answers without owning household semantics or authority?
@@ -14,7 +14,7 @@ with a rich Web application.
 
 ```text
 Level 0  semantic HTML + conservative CSS
-         Dillo / NetSurf target
+         Dillo target
 
 Level 1  progressive visual enhancement
          Safari and other modern browsers
@@ -28,9 +28,8 @@ requirements, HTML5-only structural elements, and client-side household state.
 A browser may ignore styling and the document must still preserve the same household
 answers and explicit unavailability.
 
-Dillo and NetSurf are compatibility targets for the first slice. Browser-specific
-visual polish is intentionally deferred until the plain document has been exercised
-locally in those browsers.
+Dillo is the first lightweight-browser compatibility target. Browser-specific visual
+polish is intentionally deferred until the plain document remains useful by itself.
 
 ## Run
 
@@ -43,17 +42,50 @@ From the repository root:
 The command:
 
 1. builds the `loamWeb` Lean executable;
-2. loads shared Review answers from the selected household root;
-3. renders one static HTML snapshot to `.lake/loam-web/index.html`;
-4. serves that file on `http://127.0.0.1:8765`.
+2. starts a localhost-only standard-library HTTP server on `127.0.0.1:8765`;
+3. on every GET, invokes `loamWeb` against the selected household root;
+4. re-reads the shared Review boundaries and renders a fresh semantic HTML document.
 
-The server binds only to localhost.
+The server does not retain household answers between requests.
 
-Open the same URL in Dillo, NetSurf, or Safari. The household meaning must not depend
-on which browser renders it.
+Open the same URL in Dillo or Safari:
 
-The first slice is intentionally snapshot-on-start. Restart the command to refresh
-canonical evidence.
+```text
+http://127.0.0.1:8765
+```
+
+Reloading the page re-reads canonical evidence. No JavaScript is required for this
+freshness boundary.
+
+## Request-on-read
+
+The Web frontend deliberately treats freshness as a server/read-boundary concern:
+
+```text
+browser GET / reload
+        |
+        v
+localhost transport
+        |
+        v
+loamWeb
+        |
+        v
+shared Review boundaries
+        |
+        v
+fresh semantic HTML
+```
+
+The Python server owns HTTP transport only. It does not parse household persistence,
+recompute Budget, classify accounting roles, or hold canonical state.
+
+The Lean renderer can also write the current HTML document directly to stdout by
+using `-` as the output path. This keeps the server from needing to understand the
+document format beyond serving the bytes returned by LOAM.
+
+Responses are marked non-cacheable so a browser reload reaches the current read
+boundary rather than silently reusing an old document.
 
 ## Current surface
 
@@ -96,6 +128,32 @@ PurposeCatalog presentation metadata
 
 and performs presentation only.
 
+## Reports
+
+Web is a useful home for reports because long tables, multiple lenses, links,
+printing, and side-by-side reading fit a document interface well. That does not mean
+LOAM should add every conventional accounting report.
+
+A report earns a place when it answers a distinct practical question from an existing
+shared semantic projection. The Web renderer should present that answer rather than
+creating a Web-only arithmetic or classification path.
+
+The intended next read-only report pressure is:
+
+```text
+Stock-Flow
+    -> why did the current stock become what it is?
+
+Transactions Flow
+    -> where did value come from and where did it go?
+
+Scheduled Coverage
+    -> how far are expected future occurrences explicitly covered?
+```
+
+Additional reports should remain projections over retained evidence rather than new
+canonical household state.
+
 ## Authority boundary
 
 The Web frontend has no publisher, writer, canonical storage, recurrence model,
@@ -113,20 +171,17 @@ Loam.Web.Snapshot
         v
 semantic HTML
         |
-        +--> Dillo / NetSurf
+        +--> Dillo
         |
         +--> Safari / modern browser
 ```
-
-The Python standard-library HTTP server only serves the generated file. It does
-not parse household data or call LOAM semantics.
 
 Missing or refused evidence remains visibly unavailable. The Web layer must not
 turn missing authority into zero, empty, false, or NotDue.
 
 ## Progressive-enhancement rule
 
-A later Safari-rich layer may add layout, typography, responsive cards, timelines,
+A later Safari-rich layer may add layout, typography, responsive tables, timelines,
 or optional partial-page interaction. It must not become required to understand the
 page or to recover household meaning.
 
@@ -147,40 +202,37 @@ The second frontend is being expanded in semantic-pressure order rather than by
 copying every TUI screen mechanically:
 
 ```text
-read-only household answers
-  Current Budget
-  Reports
+request-on-read freshness
         |
         v
-small existing write boundary
+read-only Reports
         |
         v
-richer Safari presentation
+one small existing write boundary
+        |
+        v
+optional Safari progressive enhancement
 ```
-
-Actual, Scheduled, Attention, and Capacity already have first read-only projections.
-Current Budget is the first parity step because it exposed the difference between
-current-cycle answers and all-retained Capacity.
 
 ## What this experiment does not claim
 
-This first slice does not establish that:
+This slice does not establish that:
 
 - every TUI capability is presentation-neutral;
 - Web writes are safe or qualified;
-- the frontend is live-updating;
-- the page is a general HTTP API;
+- the browser receives pushed updates without a request;
+- the page is a general remote HTTP API;
 - browser presentation is a new household authority;
-- LOAM is ready for remote hosting;
-- CI has visually qualified every lightweight browser implementation.
+- LOAM is ready for remote hosting.
 
-In particular, this experiment deliberately adds no write path.
+Request-on-read means a reload gets a fresh answer. It is deliberately different from
+browser-side polling, Server-Sent Events, or a pushed live dashboard.
 
 ## Success criterion
 
-The experiment succeeds when the same useful household document works in a
-lightweight browser and a modern browser while all semantic answers still come from
-existing shared Review boundaries and no Web-specific retained meaning is introduced.
+The experiment succeeds when lightweight and modern browsers can request the same
+fresh household answers while all semantics still come from existing shared Review
+boundaries and no Web-specific retained meaning is introduced.
 
-Only after that boundary is stable should later experiments add Reports, one small
-existing write path, and richer Safari presentation.
+Only after that boundary remains stable should later experiments add report lenses,
+one small existing write path, and richer Safari presentation.

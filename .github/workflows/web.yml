@@ -14,6 +14,7 @@ on:
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/PurposeCatalog.lean'
       - 'tools/loam'
+      - 'tools/loam_web_server.py'
       - 'lakefile.lean'
       - '.github/workflows/web.yml'
   workflow_dispatch:
@@ -49,3 +50,46 @@ jobs:
 
       - name: Verify presentation-only Web snapshot
         run: lake env lean --run Loam/Tests/WebSnapshot.lean
+
+      - name: Verify stdout document mode
+        run: |
+          .lake/build/bin/loamWeb /tmp/loam-web-missing - > /tmp/loam-web.html
+          grep -q '<title>LOAM Web</title>' /tmp/loam-web.html
+          grep -q '<!DOCTYPE HTML PUBLIC' /tmp/loam-web.html
+
+      - name: Check request-on-read server syntax
+        run: python3 -m py_compile tools/loam_web_server.py
+
+      - name: Verify each GET regenerates the document
+        run: |
+          tmpdir="$(mktemp -d)"
+          counter="$tmpdir/counter"
+          cat > "$tmpdir/fake-loam-web" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+          counter="$counter"
+          n=0
+          if [[ -f "\$counter" ]]; then
+            n="\$(cat "\$counter")"
+          fi
+          n="\$((n + 1))"
+          printf '%s' "\$n" > "\$counter"
+          printf '<!DOCTYPE html><html><body>render-%s</body></html>' "\$n"
+          EOF
+          chmod +x "$tmpdir/fake-loam-web"
+
+          python3 tools/loam_web_server.py "$tmpdir/fake-loam-web" "$tmpdir/data"             >"$tmpdir/server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for _ in 1 2 3 4 5; do
+            if curl -fsS http://127.0.0.1:8765/ > "$tmpdir/first.html"; then
+              break
+            fi
+            sleep 0.2
+          done
+          curl -fsS http://127.0.0.1:8765/ > "$tmpdir/second.html"
+
+          grep -q 'render-1' "$tmpdir/first.html"
+          grep -q 'render-2' "$tmpdir/second.html"
+          test "$(cat "$counter")" = "2"

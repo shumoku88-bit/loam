@@ -35,11 +35,10 @@ private def currentPurposeMetadata
   | .ok metadata => return metadata
   | .error _ => return []
 
-private def renderTo
-    (dataDir output : System.FilePath) : IO UInt32 := do
+private def renderCurrent
+    (dataDir : System.FilePath) : IO (Except String String) := do
   let some observedAt ← Loam.ActualDate.todayIso?
-    | IO.eprintln "loam: could not determine the local date"
-      return 2
+    | return .error "loam: could not determine the local date"
 
   let actual ← Loam.ActualReview.loadRecordsFromActual dataDir
   let scheduled ← loadScheduled dataDir
@@ -58,19 +57,31 @@ private def renderTo
     purposeMetadata := purposeMetadata
   }
 
-  try
-    IO.FS.writeFile output (Loam.Web.Snapshot.render snapshot)
-    IO.println ("LOAM Web snapshot: " ++ output.toString)
-    IO.println "read-only; restart the web entrance to refresh canonical evidence"
-    return 0
-  catch error =>
-    IO.eprintln ("loam: could not write Web snapshot: " ++ error.toString)
-    return 2
+  return .ok (Loam.Web.Snapshot.render snapshot)
+
+private def renderTo
+    (dataDir output : System.FilePath) : IO UInt32 := do
+  match ← renderCurrent dataDir with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok html =>
+      if output.toString = "-" then
+        IO.print html
+        return 0
+      try
+        IO.FS.writeFile output html
+        IO.println ("LOAM Web snapshot: " ++ output.toString)
+        return 0
+      catch error =>
+        IO.eprintln ("loam: could not write Web snapshot: " ++ error.toString)
+        return 2
 
 private def usage : String :=
   "Render the read-only LOAM Web frontend:\n" ++
   "  loamWeb [LOAM_DATA_DIR] [OUTPUT_HTML]\n\n" ++
   "Defaults: LOAM_DATA_DIR or ../loam-data; output ./loam-web.html.\n" ++
+  "Use OUTPUT_HTML '-' to write only the current HTML document to stdout.\n" ++
   "The page consumes shared Review boundaries and performs no writes."
 
 def run (args : List String) : IO UInt32 := do
