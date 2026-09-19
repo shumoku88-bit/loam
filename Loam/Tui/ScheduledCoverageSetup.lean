@@ -112,9 +112,9 @@ private def muted (text : String) : Widget := .row [span text .muted]
 
 private def choiceLine (state : State) (index : Nat) : Option Widget := do
   let choice ← choices[index]?
-  let prefix := if index = state.selection then "> " else "  "
+  let marker := if index = state.selection then "> " else "  "
   some <| .row
-    [ span (prefix ++ choice.label)
+    [ span (marker ++ choice.label)
         (if index = state.selection then .selected else .normal) ]
 
 def view (state : State) : Widget :=
