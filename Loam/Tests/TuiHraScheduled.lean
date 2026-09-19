@@ -1,5 +1,6 @@
 import Loam.Tui.Main
 import Loam.Tui.HraScheduled
+import Loam.Tui.ScheduledCoverageSetup
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -194,6 +195,22 @@ def main : IO Unit := do
   expect (fillStep.command == .fillCurrentCycle)
     "HRA Scheduled fillCurrentCycle event did not emit fillCurrentCycle command"
 
+  let monitorStep := Loam.Tui.HraScheduled.update snapshot occPane .monitorCoverage
+  expect (monitorStep.command == .monitorCoverage)
+    "HRA Scheduled monitorCoverage event did not emit monitorCoverage command"
+
+  let selectedForMonitor ← requireSome
+    (Loam.Tui.HraScheduled.selectedRecord? snapshot occPane)
+    "HRA Scheduled monitoring source disappeared"
+  let monitorRule ←
+    match Loam.Tui.ScheduledCoverageSetup.ruleFor? selectedForMonitor 1 with
+    | .error message => throw (IO.userError message)
+    | .ok rule => pure rule
+  expect (monitorRule.anchor == selectedForMonitor.scheduledOn &&
+    monitorRule.everyMonths == 1 &&
+    monitorRule.name == "food")
+    "Scheduled monitoring setup did not derive anchor/cadence/display identity from the selected occurrence"
+
   let backStep := Loam.Tui.HraScheduled.update snapshot occPane .back
   expect (backStep.command == .back)
     "HRA Scheduled back event did not emit back command"
@@ -207,6 +224,9 @@ def main : IO Unit := do
   let lociFillStep := Loam.Tui.HraScheduled.update snapshot toLoci .fillCurrentCycle
   expect (lociFillStep.command == .stay && contains "Scheduled pane" lociFillStep.state.notice)
     "HRA Scheduled cycle fill from loci pane was not refused with guidance"
+  let lociMonitorStep := Loam.Tui.HraScheduled.update snapshot toLoci .monitorCoverage
+  expect (lociMonitorStep.command == .stay && contains "Scheduled pane" lociMonitorStep.state.notice)
+    "HRA Scheduled monitoring from loci pane was not refused with guidance"
 
   -- 8. Startup refusal remains explicit and blocks Scheduled writes.
   let unavailable : Loam.Tui.Main.Snapshot :=
@@ -224,5 +244,9 @@ def main : IO Unit := do
   expect (unavailableFill.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableFill.state.notice)
     "HRA Scheduled emitted cycle-fill intent while Scheduled evidence was unavailable"
+  let unavailableMonitor := Loam.Tui.HraScheduled.update unavailable start .monitorCoverage
+  expect (unavailableMonitor.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailableMonitor.state.notice)
+    "HRA Scheduled emitted monitoring intent while Scheduled evidence was unavailable"
 
   IO.println "TUI Scheduled: HRA Scheduled workspace mechanics and startup unavailability passed."
