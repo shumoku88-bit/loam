@@ -132,7 +132,6 @@ MovementOperationId used only by the idempotent publication entrance.
 structure ParsedProposal where
   operation : Option MovementOperationId
   draft : Loam.MovementAdmission.Draft
-deriving Repr
 
 private inductive ProposalVersion where
   | v1
