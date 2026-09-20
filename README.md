@@ -63,6 +63,8 @@ Select one Measure for the movement (default `jpy`; scripted callers may set `LO
 
 Purchases, transfers, income, split payments, and other same-Measure value flows use this entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. A cross-Measure exchange such as JPY -> USD is deliberately not inferred by this entrance; it requires separately qualified exchange / valuation semantics. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
+For adding another ordinary currency Measure, choosing its decimal scale, and understanding the boundary between currency setup and exchange semantics, see [`docs/ADDING_CURRENCY.md`](docs/ADDING_CURRENCY.md).
+
 ### Household Actual authority
 
 The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. The selected directory is the Actual authority root, and `actual.loam` is the normalized production Actual file.
