@@ -186,7 +186,7 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
               for effect in targetEvent.effects do
                 let some targetMovement :=
                     normalizedMovementForMeasure? targetEvent.effects effect.measure
-                  | none => none
+                  | none
                 let _derivedReversal : BalancedMovement LocusId := {
                   measure := effect.measure
                   changes :=
