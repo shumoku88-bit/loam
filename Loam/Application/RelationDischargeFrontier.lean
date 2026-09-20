@@ -164,6 +164,31 @@ private def admittedForCurrentTarget?
       some admitted
 
 /--
+Validate all target-local discharge frontiers against one already-admitted whole
+RelationUnit frontier.
+
+The equality proof ties the supplied admitted values to this exact EventMemory
+and raw RelationUnit collection. It is proof-only authority: callers cannot use
+an arbitrary manually constructed `AdmittedRelationUnit` list to bypass relation
+admission. At runtime, the already-admitted targets are traversed directly, so
+this path does not re-enter `currentRelationState?` or repeat whole-family
+RelationUnit admission for every target.
+
+This boundary intentionally does not own persistence reference closure for raw
+discharge rows. A persistence caller that requires every raw discharge Event and
+target to exist must establish that generation-level property separately.
+-/
+def admitRelationDischargesForFrontier?
+    (events : EventMemory)
+    (relations : List RelationUnit)
+    (frontier : List AdmittedRelationUnit)
+    (_hFrontier : admittedRelationFrontier? events relations = some frontier)
+    (discharges : List RelationDischarge) : Option Unit := do
+  for target in frontier do
+    let _ ← admittedForCurrentTarget? events target discharges
+  some ()
+
+/--
 Return the admitted discharge rows for one currently admitted RelationUnit.
 
 Rows targeting other RelationUnits are irrelevant to this target-local query.
