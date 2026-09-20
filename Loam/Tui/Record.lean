@@ -1,4 +1,5 @@
 import Loam.LocusCatalog
+import Loam.MeasurePresentation
 import Loam.MovementAdmission
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
@@ -38,6 +39,8 @@ structure State where
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   /-- Presentation-only cursor within the currently filtered Locus candidates. -/
   candidateIndex : Nat := 0
+  /-- Optional exact fixed-point rendering/parsing convention per Measure. -/
+  measurePresentation : List Loam.MeasurePresentation.Metadata := []
 
 structure Step where
   state : State
@@ -46,9 +49,14 @@ structure Step where
 
 def initial (date : String) : State := { form := { date := date } }
 
-/-- Attach replaceable display metadata without granting any write permission. -/
+/-- Attach replaceable Locus display metadata without granting any write permission. -/
 def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
   { state with candidateCatalog := catalog, candidateIndex := 0 }
+
+/-- Attach an optional fixed-point Measure presentation convention. -/
+def withMeasurePresentation
+    (state : State) (metadata : List Loam.MeasurePresentation.Metadata) : State :=
+  { state with measurePresentation := metadata }
 
 def moveFocus (form : Form) (back : Bool) : Form :=
   let count := 3 + form.rows.size * 2 + 4
@@ -154,19 +162,25 @@ def acceptCandidateAndAdvance (state : State) : State :=
   | none =>
       { state with form := moveFocus state.form false, candidateIndex := 0 }
 
-/-- Parse local signed posting syntax; semantic validation remains shared production code. -/
-def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
+private def draftUsingPresentation?
+    (metadata : List Loam.MeasurePresentation.Metadata)
+    (form : Form) : Except String Loam.MovementAdmission.Draft := do
   if !Loam.Persistence.validToken form.measure then
     throw "Enter a nonempty single-line Measure token."
   let measure : Loam.Core.MeasureId := ⟨form.measure⟩
+  let scale := Loam.MeasurePresentation.scaleFor metadata measure
   let mut effects := []
   let mut total := 0
   for index in List.range form.rows.size do
     let row := form.rows[index]!
-    let some amount := row.amount.toInt?
-      | throw ("Enter a nonzero signed integer " ++ form.measure ++ " amount for every posting.")
+    let some amount := Loam.MeasurePresentation.parseQuanta? metadata measure row.amount
+      | throw
+          ("Enter a nonzero signed " ++ form.measure ++ " amount with at most " ++
+            toString scale ++ " decimal places for every posting.")
     if amount = 0 then
-      throw ("Enter a nonzero signed integer " ++ form.measure ++ " amount for every posting.")
+      throw
+        ("Enter a nonzero signed " ++ form.measure ++ " amount with at most " ++
+          toString scale ++ " decimal places for every posting.")
     effects := effects ++ [Loam.Core.Effect.ofQuantity
       ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ measure
       (Loam.Core.Quantity.ofQuanta amount)]
@@ -178,8 +192,18 @@ def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
   Loam.MovementAdmission.validateDraft draft
   pure draft
 
+/-- Historical scale-0 parser retained for low-level callers and tests. -/
+def draft? (form : Form) : Except String Loam.MovementAdmission.Draft :=
+  draftUsingPresentation? [] form
+
+/-- Parse local signed posting syntax under one explicit Measure presentation convention. -/
+def draftWithPresentation?
+    (metadata : List Loam.MeasurePresentation.Metadata)
+    (form : Form) : Except String Loam.MovementAdmission.Draft :=
+  draftUsingPresentation? metadata form
+
 def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
-  match draft? state.form with
+  match draftWithPresentation? state.measurePresentation state.form with
   | .error message => { state with notice := message }
   | .ok draft =>
       match Loam.MovementAdmission.admit? world draft with
@@ -307,7 +331,7 @@ def view (_known : List String) (state : State) : Widget :=
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal)),
          line "Locus catalog:"] ++ candidateLines ++ helpLine ++
-        [line ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order."),
+        [line ("Posting " ++ form.measure ++ " is signed; decimal input follows the Measure presentation scale."),
          line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
          line "Up / Down choose candidate   Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
@@ -319,9 +343,13 @@ def view (_known : List String) (state : State) : Widget :=
         line (draft.description.getD "(no description)")] ++
         (draft.effects.take 12).map (fun effect =>
           line (Loam.Tui.Layout.padRight 20 effect.locus.token ++
-            Loam.Tui.Layout.padLeft 10 (toString effect.quantity.quanta) ++
+            Loam.Tui.Layout.padLeft 10
+              (Loam.MeasurePresentation.formatQuanta
+                state.measurePresentation effect.measure effect.quantity.quanta) ++
             " " ++ effect.measure.token)) ++
-        [line ("Balanced total: " ++ toString draft.total ++ " " ++ measure.token),
+        [line ("Balanced total: " ++
+            Loam.MeasurePresentation.formatQuanta
+              state.measurePresentation measure draft.total ++ " " ++ measure.token),
          line "Publication rechecks current evidence and Locus admission.",
          .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
            span ("[" ++ label ++ "] ") (if choice.val = index then .selected else .normal)),
