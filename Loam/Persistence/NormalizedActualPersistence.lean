@@ -9,6 +9,7 @@ import Loam.Core.EventMerchantEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
+import Loam.Core.ActualReversalBalance
 import Loam.Core.OpenRelation
 import Loam.Application.CorrectionFrontier
 import Loam.Application.ActualValidityFrontier
@@ -76,30 +77,34 @@ private def currentValidityIndex
     {}
 
 /--
-Check the exact signed total for one Measure without mixing dimensional units.
+Construct the proof-carrying movement projection for one represented Measure.
 -/
+private def normalizedMovementForMeasure?
+    (effects : List Effect) (measure : MeasureId) :
+    Option (BalancedMovement LocusId) :=
+  BalancedMovement.ofChanges? measure <|
+    ActualReversalBalance.movementChangesForMeasure measure effects
+
+/-- Check the exact signed total for one Measure without mixing dimensional units. -/
 private def normalizedMeasureBalanced
     (effects : List Effect) (measure : MeasureId) : Bool :=
-  let changes :=
-    (effects.filter fun effect => decide (effect.measure = measure)).map fun effect =>
-      ({ coordinate := effect.locus, quantity := effect.quantity } :
-        MovementChange LocusId)
-  (BalancedMovement.ofChanges? measure changes).isSome
+  (normalizedMovementForMeasure? effects measure).isSome
+
+/-- Every retained quantity-bearing Effect must remain nonzero. -/
+private def normalizedEventEffectsNonzero (event : Event) : Bool :=
+  event.effects.all fun effect =>
+    effect.quantity.quanta != 0
 
 /--
-Normalized Actual V1 is measure-neutral, but retained quantity-bearing Events
-must still preserve the practical movement law that admitted them: every
-represented Effect is nonzero and the exact signed total closes to zero
-independently within each represented Measure.
+Check that every represented Measure closes independently for one Event.
 
-The neutral Core Event type deliberately remains more general. Empty-effect
-Events stay admissible here so purpose-only or revision-only Events are not
-precluded by the persistence boundary.
+Reversal endpoints may defer this check to exact-reversal admission: the target
+is admitted once there and the reversal side is then derived from the exact
+inverse proof rather than admitted a second time.
 -/
-private def normalizedEventEffectsAdmissible (event : Event) : Bool :=
+private def normalizedEventEffectsBalanced (event : Event) : Bool :=
   event.effects.all fun effect =>
-    effect.quantity.quanta != 0 &&
-      normalizedMeasureBalanced event.effects effect.measure
+    normalizedMeasureBalanced event.effects effect.measure
 
 /--
 Occurrence-date strings become production calendar evidence at this boundary,
@@ -122,7 +127,16 @@ then calls the existing frontiers and checks that references among the
 co-published fact families resolve within the generation.
 -/
 def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage := do
-  if !evidence.events.events.all normalizedEventEffectsAdmissible then
+  -- Nonzero physical evidence remains a direct persistence obligation for every Event.
+  if !evidence.events.events.all normalizedEventEffectsNonzero then
+    none
+  -- Ordinary Events retain direct per-Measure balance admission. Reversal endpoints
+  -- are deferred to the relation loop below so one target admission can prove both sides.
+  if !evidence.events.events.all (fun event =>
+      if evidence.reversals.mentionsEvent event.id then
+        true
+      else
+        normalizedEventEffectsBalanced event) then
     none
   if !normalizedValidityDatesAdmissible evidence.validity then
     none
@@ -161,12 +175,34 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
             none
 
           -- Reversals: Core memory already proves global endpoint uniqueness.
-          -- Persistence therefore owns only referential closure and exact physical inversion.
+          -- Persistence admits target balance once, proves exact physical inversion,
+          -- and derives reversal balance from those proofs without a second runtime check.
           for reversal in evidence.reversals.reversals do
             let targetEvent ← retainedEvents[reversal.target.token]?
             let reversalEvent ← retainedEvents[reversal.reversal.token]?
-            if !ActualReversal.exactPhysicalInverse?
-                targetEvent.effects reversalEvent.effects then
+            if hExact :
+                ActualReversal.exactPhysicalInverse?
+                    targetEvent.effects reversalEvent.effects = true then
+              for effect in targetEvent.effects do
+                let some targetMovement :=
+                    normalizedMovementForMeasure? targetEvent.effects effect.measure
+                  | none => none
+                let _derivedReversal : BalancedMovement LocusId := {
+                  measure := effect.measure
+                  changes :=
+                    ActualReversalBalance.movementChangesForMeasure
+                      effect.measure reversalEvent.effects
+                  balanced :=
+                    ActualReversalBalance
+                      .reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
+                        targetEvent.effects
+                        reversalEvent.effects
+                        effect.measure
+                        targetMovement.balanced
+                        hExact
+                }
+                pure ()
+            else
               none
 
           -- Relations: whole-family frontier owns source resolution, shape,
