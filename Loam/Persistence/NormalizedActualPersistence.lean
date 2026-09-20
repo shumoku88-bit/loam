@@ -193,13 +193,12 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
                     ActualReversalBalance.movementChangesForMeasure
                       effect.measure reversalEvent.effects
                   balanced :=
-                    ActualReversalBalance
-                      .reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
-                        targetEvent.effects
-                        reversalEvent.effects
-                        effect.measure
-                        targetMovement.balanced
-                        hExact
+                    ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
+                      targetEvent.effects
+                      reversalEvent.effects
+                      effect.measure
+                      targetMovement.balanced
+                      hExact
                 }
                 pure ()
             else
