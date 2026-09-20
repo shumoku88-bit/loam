@@ -40,6 +40,16 @@ def main (args : List String) : IO Unit := do
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
   expect (draft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
     "signed postings did not preserve their quantities"
+  let usdForm : Form := {
+    readyForm with
+    measure := "usd"
+    rows := #[
+      { locus := "paypay", amount := "-25" },
+      { locus := "books", amount := "25" }] }
+  let .ok usdDraft := draft? usdForm
+    | throw (IO.userError "USD form parsing")
+  expect (usdDraft.effects.all fun effect => effect.measure == ⟨"usd"⟩)
+    "TUI Record did not preserve selected Measure"
   let editor := preview w { form := readyForm }
   expect ((update w [] editor .enter).publish.isSome) "preview must produce explicit intent"
   expect ((update w [] editor .escape).publish.isNone) "cancel must not publish"
@@ -47,7 +57,7 @@ def main (args : List String) : IO Unit := do
   expect (edited.state.form.description == readyForm.description) "Edit lost description"
   expect (edited.state.form.rows == readyForm.rows) "Edit lost rows"
 
-  let finalAmountForm := { readyForm with focus := ⟨5, by decide⟩ }
+  let finalAmountForm := { readyForm with focus := ⟨6, by decide⟩ }
   let directPreview := update w [] { form := finalAmountForm } .enter
   match directPreview.state.mode with
   | .preview _ choice => expect (choice.val == 0) "direct preview did not select Publish"
@@ -56,18 +66,18 @@ def main (args : List String) : IO Unit := do
   expect ((update w [] directPreview.state .enter).publish.isSome)
     "direct preview did not preserve explicit publish confirmation"
   let finalAmountTab := update w [] { form := finalAmountForm } .tab
-  expect (finalAmountTab.state.form.focus.val == 6)
+  expect (finalAmountTab.state.form.focus.val == 7)
     "Tab from final amount reaches Preview action"
-  let previewActionForm := { readyForm with focus := ⟨6, by decide⟩ }
+  let previewActionForm := { readyForm with focus := ⟨7, by decide⟩ }
   let previewed := update w [] { form := previewActionForm } .enter
   match previewed.state.mode with
   | .preview _ choice => expect (choice.val == 0) "Preview action did not open preview"
   | .editing => throw (IO.userError "Preview action did not open preview")
 
-  let addPostingForm := { readyForm with focus := ⟨7, by decide⟩ }
+  let addPostingForm := { readyForm with focus := ⟨8, by decide⟩ }
   let added := update w [] { form := addPostingForm } .enter
   expect (added.state.form.rows.size == 3) "Add posting did not append one row"
-  expect (added.state.form.focus.val == 6) "Add posting did not focus the new Locus"
+  expect (added.state.form.focus.val == 7) "Add posting did not focus the new Locus"
   expect (added.state.form.rows[2]!.locus.isEmpty && added.state.form.rows[2]!.amount.isEmpty)
     "Add posting did not append one neutral row"
 
@@ -100,7 +110,7 @@ def main (args : List String) : IO Unit := do
     rows := #[
       { locus := "", amount := "-2470" },
       { locus := "books", amount := "2470" }]
-    focus := ⟨2, by decide⟩ }
+    focus := ⟨3, by decide⟩ }
   let pickerKnown := ["paypay", "books", "point"]
   let pickerStart : State := { form := blankCandidateForm }
   let pickerDown := (update w pickerKnown pickerStart .down).state
@@ -126,7 +136,7 @@ def main (args : List String) : IO Unit := do
     rows := #[
       { locus := "food", amount := "170" },
       { locus := "paypay", amount := "-170" }]
-    focus := ⟨2, by decide⟩ }
+    focus := ⟨3, by decide⟩ }
   let exactKnown := ["food", "food-stock"]
   let exactStart : State := { form := exactTypedForm }
   let exactPrepared := (update foodWorld exactKnown exactStart .other).state
@@ -137,12 +147,12 @@ def main (args : List String) : IO Unit := do
   let exactEnter := (update foodWorld exactKnown exactStart .enter).state
   expect (exactEnter.form.rows[0]!.locus == "food")
     "Enter substituted exact typed Locus with another candidate"
-  expect (exactEnter.form.focus.val == 3)
+  expect (exactEnter.form.focus.val == 4)
     "Enter from Locus did not advance to Amount field"
   let exactRight := (update foodWorld exactKnown exactStart .right).state
   expect (exactRight.form.rows[0]!.locus == "food")
     "Right substituted exact typed Locus with another candidate"
-  expect (exactRight.form.focus.val == 3)
+  expect (exactRight.form.focus.val == 4)
     "Right from Locus did not advance to Amount field"
   let exactDown := (update foodWorld exactKnown exactStart .down).state
   expect ((selectedCatalogCandidate? exactDown).map (fun entry => entry.locus.token) == some "food-stock")
