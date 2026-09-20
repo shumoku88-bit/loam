@@ -1,3 +1,4 @@
+import Loam.MeasurePresentation
 import Loam.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Record
@@ -29,10 +30,12 @@ structure Step where
   publish : Option Loam.ScheduledTerminalPublisher.CompletionDraft := none
 
 private def rowsFromScheduled
+    (metadata : List Loam.MeasurePresentation.Metadata)
     (record : Loam.Tui.Main.ScheduledRecord) : Array Loam.Tui.Record.Row :=
   (record.movement.changes.map fun change =>
     ({ locus := change.coordinate.token,
-       amount := toString change.quantity.quanta } : Loam.Tui.Record.Row)).toArray
+       amount := Loam.MeasurePresentation.formatQuanta
+         metadata record.measure change.quantity.quanta } : Loam.Tui.Record.Row)).toArray
 
 /--
 Seed an editable Actual draft from one visible current-open Scheduled occurrence.
@@ -41,10 +44,11 @@ The single-Measure Scheduled value and the six-row bound are editor
 representability checks only. They do not admit completion. Expected values
 remain editable conveniences, never authority.
 -/
-def initial?
+def initialWithPresentation?
+    (metadata : List Loam.MeasurePresentation.Metadata)
     (record : Loam.Tui.Main.ScheduledRecord)
     (actualDate : String) : Except String State := do
-  let rows := rowsFromScheduled record
+  let rows := rowsFromScheduled metadata record
   if rows.size < 2 then
     throw "This Scheduled occurrence is outside the practical balanced-Movement completion editor."
   if rows.size > 6 then
@@ -59,8 +63,14 @@ def initial?
   pure {
     target := record.id
     expectedOn := record.scheduledOn
-    editor := { form := form }
+    editor := { form := form, measurePresentation := metadata }
   }
+
+/-- Scale-0 compatibility entrance for callers without presentation metadata. -/
+def initial?
+    (record : Loam.Tui.Main.ScheduledRecord)
+    (actualDate : String) : Except String State :=
+  initialWithPresentation? [] record actualDate
 
 private def publisherDraft
     (target : ScheduledId)
@@ -131,10 +141,14 @@ def view (_known : List String) (state : State) : Widget :=
         ] ++
         (draft.effects.take 12).map (fun effect =>
           Loam.Tui.Record.line
-            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++
+            (effect.locus.token ++ "  " ++
+              Loam.MeasurePresentation.formatQuanta
+                state.editor.measurePresentation effect.measure effect.quantity.quanta ++
               " " ++ effect.measure.token)) ++
         [ Loam.Tui.Record.line
-            ("Actual positive total: " ++ toString (positiveTotal draft) ++
+            ("Actual positive total: " ++
+              Loam.MeasurePresentation.formatQuanta
+                state.editor.measurePresentation measure (positiveTotal draft) ++
               " " ++ measure.token)
         , Loam.Tui.Record.line
             "Publish appends an Actual Event plus explicit Scheduled completion relation."
