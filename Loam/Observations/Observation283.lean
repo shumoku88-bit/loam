@@ -168,8 +168,8 @@ later evidence. Equal quantity projections therefore do not justify replacing
 one observed occurrence with two invented occurrences.
 -/
 theorem split_does_not_preserve_provider_occurrence_identity :
-    providerMemory.findById? providerEventId = some providerEvent ∧
-    splitMemory.findById? providerEventId = none ∧
+    (providerMemory.findById? providerEventId).isSome = true ∧
+    (splitMemory.findById? providerEventId).isNone = true ∧
     providerMemory.events.length = 1 ∧
     splitMemory.events.length = 2 := by
   native_decide
