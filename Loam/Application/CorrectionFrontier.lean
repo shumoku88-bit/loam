@@ -155,14 +155,29 @@ private theorem targetIdentityIndex_mem_iff
   | nil =>
       simp [targetIdentityIndex]
   | cons correction rest ih =>
-      simp [targetIdentityIndex, Std.HashSet.mem_insert, ih, eq_comm]
+      rw [targetIdentityIndex, Std.HashSet.mem_insert, ih]
+      constructor
+      · intro h
+        cases h with
+        | inl hEq =>
+            exact ⟨correction, by simp, hEq.symm⟩
+        | inr hRest =>
+            rcases hRest with ⟨found, hFound, hToken⟩
+            exact ⟨found, by simp [hFound], hToken⟩
+      · rintro ⟨found, hFound, hToken⟩
+        simp only [List.mem_cons] at hFound
+        cases hFound with
+        | inl hEq =>
+            subst found
+            exact Or.inl hToken.symm
+        | inr hRest =>
+            exact Or.inr ⟨found, hRest, hToken⟩
 
-private theorem targetIdentityIndex_contains_false_iff
+private theorem targetIdentityIndex_not_mem_iff
     (corrections : List EventCorrection)
     (id : EventId) :
-    (targetIdentityIndex corrections).contains id.token = false ↔
+    id.token ∉ targetIdentityIndex corrections ↔
       ∀ correction ∈ corrections, correction.target ≠ id := by
-  rw [Std.HashSet.contains_eq_false_iff_not_mem]
   constructor
   · intro hNot correction hCorrection hEq
     apply hNot
@@ -302,7 +317,7 @@ theorem correctionFrontierMemory?_mem_iff
     split at hFrontier
     · simp only [Option.some.injEq] at hFrontier
       subst frontier
-      simp [frontierEvents, targetIdentityIndex_contains_false_iff]
+      simp [frontierEvents, targetIdentityIndex_not_mem_iff]
     · simp at hFrontier
 
 /--
