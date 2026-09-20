@@ -37,14 +37,13 @@ private def rowsFromScheduled
 /--
 Seed an editable Actual draft from one visible current-open Scheduled occurrence.
 
-JPY and the six-row bound are editor representability checks only. They do not
-admit completion. Expected values remain editable conveniences, never authority.
+The single-Measure Scheduled value and the six-row bound are editor
+representability checks only. They do not admit completion. Expected values
+remain editable conveniences, never authority.
 -/
 def initial?
     (record : Loam.Tui.Main.ScheduledRecord)
     (actualDate : String) : Except String State := do
-  if record.measure != ⟨"jpy"⟩ then
-    throw "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY completion editor."
   let rows := rowsFromScheduled record
   if rows.size < 2 then
     throw "This Scheduled occurrence is outside the practical balanced-Movement completion editor."
@@ -53,6 +52,7 @@ def initial?
   let form : Loam.Tui.Record.Form := {
     date := actualDate
     description := ""
+    measure := record.measure.token
     rows := rows
     focus := ⟨0, by omega⟩
   }
@@ -107,10 +107,11 @@ def view (_known : List String) (state : State) : Widget :=
             ("Target: " ++ state.target.token ++ "   Expected: " ++ state.expectedOn)
         , Loam.Tui.Record.field form 0 "Actual date" form.date
         , Loam.Tui.Record.field form 1 "Description" form.description
+        , Loam.Tui.Record.field form 2 "Measure" form.measure
         ] ++ rowLines ++
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
-              (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal))
+              (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
         , Loam.Tui.Record.line ("Candidate: " ++ candidate)
         , Loam.Tui.Record.line
             "Expected postings are editable defaults; Actual evidence is independent."
@@ -120,6 +121,7 @@ def view (_known : List String) (state : State) : Widget :=
         , Loam.Tui.Record.line state.editor.notice
         ]
   | .preview draft choice =>
+      let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <|
         [ Loam.Tui.Record.line "Scheduled / Complete / Preview Actual"
         , Loam.Tui.Record.line
@@ -129,9 +131,11 @@ def view (_known : List String) (state : State) : Widget :=
         ] ++
         (draft.effects.take 12).map (fun effect =>
           Loam.Tui.Record.line
-            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++ " jpy")) ++
+            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++
+              " " ++ effect.measure.token)) ++
         [ Loam.Tui.Record.line
-            ("Actual positive total: " ++ toString (positiveTotal draft) ++ " jpy")
+            ("Actual positive total: " ++ toString (positiveTotal draft) ++
+              " " ++ measure.token)
         , Loam.Tui.Record.line
             "Publish appends an Actual Event plus explicit Scheduled completion relation."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
