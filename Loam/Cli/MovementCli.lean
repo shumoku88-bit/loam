@@ -40,6 +40,30 @@ private def practicalDescription : IO (Option String) := do
       else
         return none
 
+
+/--
+Select one Measure for the practical movement entrance.
+
+JPY remains the no-configuration default. Interactive callers may replace it,
+and scripted callers may set `LOAM_MEASURE`. This selects quantity identity
+only; it does not imply currency, valuation, FX, or display-scale semantics.
+-/
+private def practicalMeasure : IO (Except String Loam.Core.MeasureId) := do
+  let selected ←
+    match ← IO.getEnv "LOAM_MEASURE" with
+    | some token => pure token
+    | none =>
+        let stdin ← IO.getStdin
+        let stdout ← IO.getStdout
+        if (← stdin.isTty) && (← stdout.isTty) then
+          let entered ← promptLine "Measure [jpy]: "
+          pure (if entered.isEmpty then "jpy" else entered)
+        else
+          pure "jpy"
+  if !Loam.Persistence.validToken selected then
+    return .error "loam: Measure must be a nonempty single-line token"
+  return .ok ⟨selected⟩
+
 private structure RunOptions where
   rootPath : String
   dryRun : Bool
@@ -84,7 +108,9 @@ private def preflightForDraft (rootPath : String) : IO (Except String Unit) := d
   | .error message => return .error message
   | .ok _ => return .ok ()
 
-private def showDraftProgress (progress : Loam.MovementUi.Progress) : IO Unit := do
+private def showDraftProgress
+    (progress : Loam.MovementUi.Progress)
+    (measure : Option Loam.Core.MeasureId := none) : IO Unit := do
   IO.println ""
   IO.println "Movement draft"
   match progress.validOn with
@@ -92,7 +118,9 @@ private def showDraftProgress (progress : Loam.MovementUi.Progress) : IO Unit :=
   | some validOn => IO.println ("  [ok] occurrence date: " ++ validOn)
   match progress.movementTotal with
   | none => IO.println "  [?] balanced FROM / TO movement"
-  | some total => IO.println ("  [ok] balanced movement: " ++ toString total ++ " jpy")
+  | some total =>
+      let unit := (measure.map fun item => " " ++ item.token).getD ""
+      IO.println ("  [ok] balanced movement: " ++ toString total ++ unit)
   match Loam.MovementUi.obligations progress with
   | [] => IO.println "  ready to request admission"
   | pending =>
@@ -122,14 +150,18 @@ private def collectMovementDraft
           let afterDate : Loam.MovementUi.Progress := { validOn := some validOn }
           showDraftProgress afterDate
           let description ← practicalDescription
-          match ← Loam.MovementEntry.collectMovementEffects with
+          let measure ←
+            match ← practicalMeasure with
+            | .ok measure => pure measure
+            | .error message => return .error message
+          match ← Loam.MovementEntry.collectMovementEffects measure with
           | .error message => return .error message
           | .ok (effects, total) =>
               let ready : Loam.MovementUi.Progress := {
                 validOn := some validOn
                 movementTotal := some total
               }
-              showDraftProgress ready
+              showDraftProgress ready (some measure)
               match ← Loam.MovementRelationEntry.collect effects with
               | .error message => return .error message
               | .ok relations =>
@@ -151,6 +183,7 @@ Relation and discharge evidence remain separate from signed Movement Effects; no
 sign-based or automatic settlement interpretation is introduced.
 -/
 private def showAdmissionResult
+    (measure : Loam.Core.MeasureId)
     (total : Int)
     (validOn : String)
     (description : Option String)
@@ -159,7 +192,7 @@ private def showAdmissionResult
     (eventId : Loam.Core.EventId) : IO Unit := do
   IO.println ""
   IO.println "Admission result"
-  IO.println ("  movement: " ++ toString total ++ " jpy")
+  IO.println ("  movement: " ++ toString total ++ " " ++ measure.token)
   IO.println ("  date: " ++ validOn)
   match description with
   | some text => IO.println ("  description: " ++ text)
@@ -182,7 +215,8 @@ private def showAdmissionResult
 private def showDryRunResult (draft : Loam.MovementAdmission.Draft) : IO Unit := do
   IO.println ""
   IO.println "Movement proposal"
-  IO.println ("  movement: " ++ toString draft.total ++ " jpy")
+  let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
+  IO.println ("  movement: " ++ toString draft.total ++ " " ++ measure.token)
   IO.println ("  date: " ++ draft.validOn)
   match draft.description with
   | some text => IO.println ("  description: " ++ text)
@@ -193,7 +227,7 @@ private def showDryRunResult (draft : Loam.MovementAdmission.Draft) : IO Unit :=
   IO.println "  proposal only; a later publication must re-check current authority"
 
 /--
-Record one balanced human-facing JPY movement with one occurrence date, optional
+Record one balanced human-facing single-Measure movement with one occurrence date, optional
 human-recognition description, zero or more explicit open relations, and zero or
 more explicit relation discharges against the New-only canonical data directory.
 -/
@@ -208,12 +242,13 @@ def recordMovement (rootPath : String) : IO UInt32 := do
           IO.eprintln message
           return 2
       | .ok eventId =>
+          let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
           showAdmissionResult
-            draft.total draft.validOn draft.description
+            measure draft.total draft.validOn draft.description
             draft.relations.length draft.discharges.length eventId
           IO.println
-            ("Recorded movement: " ++ toString draft.total ++
-              " jpy. Date: " ++ draft.validOn ++ ".")
+            ("Recorded movement: " ++ toString draft.total ++ " " ++
+              measure.token ++ ". Date: " ++ draft.validOn ++ ".")
           return 0
 
 /--
@@ -236,13 +271,13 @@ def reviewMovement (rootPath : String) : IO UInt32 := do
           return 0
 
 private def usage : String :=
-  "Record or review one balanced JPY movement:\n" ++
+  "Record or review one balanced single-Measure movement:\n" ++
   "  ./tools/loam movement [LOAM_DATA_DIR]\n" ++
   "  ./tools/loam movement --dry-run [LOAM_DATA_DIR]\n\n" ++
   "Dry-run uses the same draft and admission rules but writes no LOAM persistence and reserves no EventId.\n" ++
   "If LOAM_DATA_DIR is omitted, the LOAM_DATA_DIR environment variable is used, then ../loam-data.\n" ++
   "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation and relation discharge evidence.\n" ++
-  "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
+  "Scripted recording: set LOAM_OCCURRENCE_DATE=YYYY-MM-DD, optional LOAM_MEASURE (default jpy), LOAM_DESCRIPTION, and optionally LOAM_RELATIONS / LOAM_DISCHARGES.\n" ++
   "LOAM_RELATIONS rows: EFFECT_KEY<TAB>E2H|H2E<TAB>EXTERNAL_ID<TAB>POSITIVE_QUANTITY.\n" ++
   "LOAM_DISCHARGES rows: RELATION_ID<TAB>POSITIVE_QUANTITY.\n" ++
   "Enter one or more FROM loci and amounts, blank the next FROM locus, then\n" ++

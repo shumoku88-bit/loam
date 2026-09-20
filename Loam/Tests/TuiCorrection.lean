@@ -42,7 +42,7 @@ private def recordDraft : Loam.MovementAdmission.Draft := {
   discharges := []
   total := 640 }
 
-private def nonJpyRecord? : Option Loam.Tui.Main.ReviewRecord := do
+private def usdRecord? : Option Loam.Tui.Main.ReviewRecord := do
   let event ← Event.ofEffects? ⟨"non-jpy"⟩
     [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-1))
     , Effect.ofQuantity ⟨"effect-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 1)
@@ -71,12 +71,15 @@ def main (args : List String) : IO Unit := do
   expect (editor.target == recorded) "Correction editor lost selected target identity"
   expect (editor.editor.form.date == "2026-09-07") "Correction editor lost fixed occurrence date"
   expect (editor.editor.form.description == "before") "Correction editor did not prefill description"
+  expect (editor.editor.form.measure == "jpy") "Correction editor did not prefill Measure"
   expect (editor.editor.form.rows.map (fun row => row.amount) == #["-640", "640"])
     "Correction editor did not prefill signed Effects"
 
-  let nonJpy ← requireSome nonJpyRecord? "non-JPY fixture was not admitted"
-  expect ((Loam.Tui.Correction.initial? nonJpy).isOk == false)
-    "JPY editor silently relabelled a non-JPY Actual"
+  let usd ← requireSome usdRecord? "USD fixture was not admitted"
+  let .ok usdEditor := Loam.Tui.Correction.initial? usd
+    | throw (IO.userError "Correction editor refused balanced USD Actual")
+  expect (usdEditor.editor.form.measure == "usd")
+    "Correction editor did not preserve the selected Actual Measure"
 
   let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
@@ -100,6 +103,7 @@ def main (args : List String) : IO Unit := do
   let correctedForm : Loam.Tui.Record.Form := {
     date := editor.editor.form.date
     description := "after"
+    measure := editor.editor.form.measure
     rows := correctedRows
     focus := ⟨1, by omega⟩ }
   let .ok replacementDraft := Loam.Tui.Record.draft? correctedForm
@@ -138,4 +142,4 @@ def main (args : List String) : IO Unit := do
   let stale ← Loam.CorrectionPublisher.publishCorrection root.toString correctionDraft
   expect (!stale.isOk) "stale TUI correction intent bypassed shared publisher re-checks"
 
-  IO.println "TUI Correction: fixed date, prefill, representability, explicit Reversal independence, shared intent, publication and fresh reload passed."
+  IO.println "TUI Correction: fixed date, JPY/USD Measure prefill, representability, explicit Reversal independence, shared intent, publication and fresh reload passed."

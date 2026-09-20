@@ -38,4 +38,17 @@ def ofEffects?
         ({ coordinate := effect.locus, quantity := effect.quantity } :
           MovementChange LocusId)
 
+/--
+Recognize a practical balanced Movement when the caller does not already know
+its Measure.
+
+The first Effect supplies only the candidate Measure identity. `ofEffects?`
+then proves that every retained Effect uses exactly that Measure, that every
+quantity is nonzero, and that the signed total closes to zero.
+-/
+def ofSingleMeasureEffects?
+    (effects : List Effect) : Option (BalancedMovement LocusId) := do
+  let first ← effects.head?
+  ofEffects? first.measure effects
+
 end Loam.PracticalMovement

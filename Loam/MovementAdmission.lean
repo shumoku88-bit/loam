@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.Core.BalancedMovement
+import Loam.PracticalMovement
 import Loam.Core.OpenRelation
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
@@ -216,21 +216,21 @@ def canonicalizeDraft (draft : Draft) : Draft :=
   { draft with
     effects := Loam.SparseEffectIdentity.canonicalizeEffects referenced draft.effects }
 
-/-- Shared practical draft validation. Balanced JPY is an entrance contract,
-not a global law imposed on neutral Core Events. All publishers call admit?. -/
+/-- Shared practical draft validation. One balanced Measure is an entrance
+contract, not a global law imposed on neutral Core Events. All publishers call
+`admit?`. Cross-Measure exchange remains a separate semantic question rather
+than being inferred from quantity ratios here. -/
 def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.validOn then
     throw "loam: date must be a real calendar date in YYYY-MM-DD form"
   if !draft.effects.all (fun effect =>
       retainedEffectKeyPersistable effect &&
       Loam.Persistence.validToken effect.locus.token &&
-      decide (effect.measure = ⟨"jpy"⟩) && effect.quantity.quanta != 0) then
-    throw "loam: movement requires valid effect tokens and nonzero JPY quantities"
-  let changes := draft.effects.map fun effect =>
-    ({ coordinate := effect.locus, quantity := effect.quantity } :
-      Loam.Core.MovementChange Loam.Core.LocusId)
-  if (Loam.Core.BalancedMovement.ofChanges? ⟨"jpy"⟩ changes).isNone then
-    throw "loam: movement totals differ"
+      Loam.Persistence.validToken effect.measure.token &&
+      effect.quantity.quanta != 0) then
+    throw "loam: movement requires valid effect tokens, one valid Measure token, and nonzero quantities"
+  if (Loam.PracticalMovement.ofSingleMeasureEffects? draft.effects).isNone then
+    throw "loam: movement must be one balanced nonzero Measure"
   let positive := draft.effects.foldl
     (fun total effect => total + max 0 effect.quantity.quanta) 0
   if positive <= 0 || draft.total != positive then

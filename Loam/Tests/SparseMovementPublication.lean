@@ -104,6 +104,43 @@ def main (args : List String) : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "Relation with missing source Effect was admitted")
 
+  -- The practical entrance is Measure-neutral once one exact Measure is selected.
+  let usd : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-12"
+    description := some "USD movement"
+    effects := [
+      Effect.ofQuantity ⟨"usd-left"⟩ ⟨"cash"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-25)),
+      Effect.ofQuantity ⟨"usd-right"⟩ ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 25)]
+    relations := []
+    discharges := []
+    total := 25
+  }
+  let .ok usdEventId ← Loam.MovementPublisher.publishDraft root.toString usd
+    | throw (IO.userError "balanced USD movement was refused")
+  let .ok afterUsd ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload USD movement")
+  let usdEvent ← requireSome (afterUsd.events.findById? usdEventId)
+    "USD event missing after publication"
+  expect (usdEvent.effects.all fun effect => effect.measure == ⟨"usd"⟩)
+    "USD movement lost its Measure identity"
+
+  -- Ordinary Movement must still refuse cross-Measure exchange-like shapes.
+  -- A future exchange boundary must earn its own semantics instead of inferring
+  -- valuation from unlike quantities here.
+  let mixed : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-12"
+    description := some "not yet a qualified exchange"
+    effects := [
+      Effect.ofQuantity ⟨"mixed-jpy"⟩ ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-15000)),
+      Effect.ofQuantity ⟨"mixed-usd"⟩ ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 100)]
+    relations := []
+    discharges := []
+    total := 100
+  }
+  match Loam.MovementAdmission.admit? world mixed with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "cross-Measure exchange-like Movement was admitted without exchange semantics")
+
   -- Collector-local keys on an ordinary movement must not become canonical identity.
   let ordinary : Loam.MovementAdmission.Draft := {
     validOn := "2026-09-12"
@@ -151,4 +188,4 @@ def main (args : List String) : IO Unit := do
   expect (relatedEvent.effects.filterMap (fun effect => effect.key) == [sourceKey])
     "publication retained more EffectKeys than Relation semantics require"
 
-  IO.println "Sparse Movement publication: admission canonicalization, relation-earned identity, missing-source refusal, anonymous ordinary Effects and relation-only key promotion passed."
+  IO.println "Sparse Movement publication: admission canonicalization, USD publication, cross-Measure refusal, relation-earned identity, missing-source refusal, anonymous ordinary Effects and relation-only key promotion passed."

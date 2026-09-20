@@ -1,4 +1,5 @@
 import Loam.CorrectionPublisher
+import Loam.PracticalMovement
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Lean.Elab.Tactic.Omega
@@ -31,17 +32,21 @@ private def rowsFromRecord (record : Loam.Tui.Main.ReviewRecord) : Array Loam.Tu
 /--
 Seed one replacement editor from visible current Actual evidence.
 
-The JPY and six-row checks are presentation representability checks only. They do
-not authorize correction publication; the shared publisher still re-reads current
-canonical evidence and applies the qualified correction entrance.
+The single-Measure and six-row checks are presentation representability checks
+only. They do not authorize correction publication; the shared publisher still
+re-reads current canonical evidence and applies the qualified correction
+entrance.
 -/
 def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
   let date ←
     match record.date with
     | some date => pure date
     | none => throw "This Actual has no current occurrence date and cannot use the day correction editor."
-  if !record.event.effects.all (fun effect => decide (effect.measure = ⟨"jpy"⟩)) then
-    throw "This Actual uses a non-JPY measure and cannot be represented by the JPY correction editor."
+  let movement ←
+    match Loam.PracticalMovement.ofSingleMeasureEffects? record.event.effects with
+    | some movement => pure movement
+    | none =>
+        throw "This Actual is outside the practical balanced single-Measure correction editor."
   let rows := rowsFromRecord record
   if rows.size < 2 then
     throw "This Actual is outside the practical balanced-Movement correction editor."
@@ -50,6 +55,7 @@ def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
   let form : Loam.Tui.Record.Form := {
     date := date
     description := record.description
+    measure := movement.measure.token
     rows := rows
     focus := ⟨1, by omega⟩
   }
@@ -109,19 +115,21 @@ def view (_known : List String) (state : State) : Widget :=
         , Loam.Tui.Record.line ("Target: " ++ state.target.token)
         , Loam.Tui.Record.line ("Date (kept): " ++ form.date)
         , Loam.Tui.Record.field form 1 "Description" form.description
+        , Loam.Tui.Record.field form 2 "Measure" form.measure
         ] ++ rowLines ++
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
-              (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal))
+              (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
         , Loam.Tui.Record.line ("Candidate: " ++ candidate)
         , Loam.Tui.Record.line
-            "Posting JPY is signed; negative and positive rows may appear in any order."
+            ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order.")
         , Loam.Tui.Record.line
             "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate"
         , Loam.Tui.Record.line "Esc cancel   Date is retained from the selected Actual"
         , Loam.Tui.Record.line state.editor.notice
         ]
   | .preview draft choice =>
+      let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <|
         [ Loam.Tui.Record.line "Correction / Preview"
         , Loam.Tui.Record.line ("Target remains retained: " ++ state.target.token)
@@ -130,9 +138,11 @@ def view (_known : List String) (state : State) : Widget :=
         ] ++
         (draft.effects.take 12).map (fun effect =>
           Loam.Tui.Record.line
-            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++ " jpy")) ++
+            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++
+              " " ++ effect.measure.token)) ++
         [ Loam.Tui.Record.line
-            ("Replacement positive total: " ++ toString (replacementTotal draft) ++ " jpy")
+            ("Replacement positive total: " ++ toString (replacementTotal draft) ++
+              " " ++ measure.token)
         , Loam.Tui.Record.line
             "Publish appends an explicit Correction and replacement Event; it does not rewrite the original."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>

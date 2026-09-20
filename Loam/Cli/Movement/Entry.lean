@@ -15,13 +15,14 @@ private def promptLine (prompt : String) : IO String := do
   return (← stdin.getLine).trimAsciiEnd.toString
 
 private def movementEffect
+    (measure : Loam.Core.MeasureId)
     (index : Nat)
     (locusToken : String)
     (negative : Bool)
     (amount : Int) : Loam.Core.Effect :=
   let signedAmount := if negative then -amount else amount
   Loam.Core.Effect.ofQuantity
-    ⟨"effect-" ++ toString index⟩ ⟨locusToken⟩ ⟨"jpy"⟩
+    ⟨"effect-" ++ toString index⟩ ⟨locusToken⟩ measure
     (Loam.Core.Quantity.ofQuanta signedAmount)
 
 /--
@@ -32,6 +33,7 @@ by this entrance. No source/destination role is retained in Core beyond the
 ordinary signed quantity Effects themselves.
 -/
 private partial def collectSide
+    (measure : Loam.Core.MeasureId)
     (label : String)
     (negative : Bool)
     (nextIndex : Nat)
@@ -56,32 +58,36 @@ private partial def collectSide
         if amount <= 0 then
           return Except.error "loam: movement amount must be a positive integer"
         else
-          let effect := movementEffect nextIndex locusToken negative amount
-          collectSide label negative (nextIndex + 1)
+          let effect := movementEffect measure nextIndex locusToken negative amount
+          collectSide measure label negative (nextIndex + 1)
             (effects ++ [effect]) (total + amount) (count + 1)
 
 /--
-Collect the shared human-facing shape for one balanced JPY movement.
+Collect the shared human-facing shape for one balanced single-Measure movement.
 
 Ordinary recording and movement correction use this adapter so they cannot drift
 into different FROM/TO conventions. Equality is still only an entrance rule.
-The returned Core Effects retain signed quantities, not source/destination roles.
+The returned Core Effects retain signed quantities and explicit Measure identity,
+not source/destination roles.
 This module deliberately has no executable `main`; callers keep their own
 application entrances separate.
 -/
-def collectMovementEffects : IO (Except String (List Loam.Core.Effect × Int)) := do
-  match ← collectSide "From" true 1 [] 0 0 with
+def collectMovementEffects
+    (measure : Loam.Core.MeasureId) :
+    IO (Except String (List Loam.Core.Effect × Int)) := do
+  match ← collectSide measure "From" true 1 [] 0 0 with
   | Except.error message =>
       return Except.error message
   | Except.ok (nextIndex, fromEffects, fromTotal) =>
-      match ← collectSide "To" false nextIndex fromEffects 0 0 with
+      match ← collectSide measure "To" false nextIndex fromEffects 0 0 with
       | Except.error message =>
           return Except.error message
       | Except.ok (_, effects, toTotal) =>
           if fromTotal != toTotal then
             return Except.error
               ("loam: movement totals differ: from " ++ toString fromTotal ++
-                " jpy, to " ++ toString toTotal ++ " jpy")
+                " " ++ measure.token ++ ", to " ++ toString toTotal ++
+                " " ++ measure.token)
           else
             return Except.ok (effects, fromTotal)
 
