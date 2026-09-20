@@ -188,6 +188,18 @@ private def usedCoordinates
     entry.event.effects.map fun effect =>
       (effect.locus, effect.measure)).eraseDups
 
+private def usedLoci
+    (entries : List Loam.ActualJournalProjection.Entry) : List LocusId :=
+  ((usedCoordinates entries).map fun coordinate => coordinate.1).eraseDups
+
+private def missingRoleLoci
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) : List LocusId :=
+  (usedLoci entries).filter fun locus =>
+    match roles.roleOf? locus with
+    | some _ => false
+    | none => true
+
 private def resolvedCoordinates
     (roles : AccountingRoleMap)
     (entries : List Loam.ActualJournalProjection.Entry) :
@@ -270,6 +282,12 @@ def render?
     Except String String := do
   for entry in entries do
     validateEvent entry.event
+
+  let missingRoles := missingRoleLoci roles entries
+  if !missingRoles.isEmpty then
+    throw
+      ("Beancount export requires explicit AccountingRole for Loci: " ++
+        String.intercalate ", " (missingRoles.map fun locus => locus.token))
 
   let coordinates ← resolvedCoordinates roles entries
   validateCoordinateNames coordinates
