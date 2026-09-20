@@ -25,13 +25,21 @@ ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / ".lake" / "build" / "bin" / "loam"
 
 
-def fixture_text(events: int) -> str:
+def fixture_text(events: int, shape: str) -> str:
     rows = ["LOAM-NORMALIZED-ACTUAL\t1"]
     for index in range(events):
         event_id = f"bench-{index:08d}"
+        if shape == "described":
+            tx = f"TX\t{event_id}\t2026-01-01\tDESC\tbenchmark description {index:08d}"
+        else:
+            tx = f"TX\t{event_id}\t2026-01-01\tNODESC"
+        rows.append(tx)
+
+        if shape == "corrected" and index % 2 == 1:
+            rows.append(f"REPLACES\tbench-{index - 1:08d}")
+
         rows.extend(
             [
-                f"TX\t{event_id}\t2026-01-01\tNODESC",
                 "EFFECT\tcash\tjpy\t-1",
                 "EFFECT\texpense\tjpy\t1",
                 "ENDTX",
@@ -75,6 +83,16 @@ def main() -> int:
     )
     parser.add_argument("--repeat", type=int, default=3)
     parser.add_argument(
+        "--shape",
+        choices=["plain", "described", "corrected"],
+        default="plain",
+        help=(
+            "synthetic history shape: plain has no descriptions/corrections; "
+            "described gives every Event a description; corrected makes every "
+            "odd Event replace the preceding Event"
+        ),
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=300.0,
@@ -95,6 +113,7 @@ def main() -> int:
     if not BINARY.is_file():
         raise SystemExit("loam binary is missing; run lake build loam first")
 
+    print(f"shape\t{args.shape}")
     print("events\tbytes\tmedian_s\tmin_s\tmax_s\tratio_to_previous")
     previous_median: float | None = None
 
@@ -104,7 +123,7 @@ def main() -> int:
             case_root = tmpdir / f"case-{size}"
             case_root.mkdir()
             path = case_root / "actual.loam"
-            path.write_text(fixture_text(size), encoding="utf-8")
+            path.write_text(fixture_text(size, args.shape), encoding="utf-8")
             try:
                 samples = measure(case_root, args.repeat, args.timeout)
             except subprocess.TimeoutExpired:

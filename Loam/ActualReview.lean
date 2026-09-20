@@ -138,6 +138,12 @@ private def currentValidityIndex
     (fun index entry => index.insert entry.event.token entry.validOn)
     {}
 
+private def descriptionIndex
+    (descriptions : EventDescriptionMemory) : Std.HashMap String String :=
+  descriptions.entries.foldl
+    (fun index entry => index.insert entry.event.token entry.text)
+    {}
+
 /--
 Project review records from one fully admitted normalized Actual image.
 
@@ -150,10 +156,11 @@ def recordsFromActualImage
     (image : Loam.ActualAuthority.Image) : List Record :=
   let evidence := image.evidence
   let validities := currentValidityIndex image.currentValidities
+  let descriptions := descriptionIndex evidence.descriptions
   evidence.events.events.map fun event => {
     event := event
     date := validities[event.id.token]?
-    description := (evidence.descriptions.findText? event.id).getD ""
+    description := descriptions[event.id.token]?.getD ""
     replacement :=
       (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
   }
