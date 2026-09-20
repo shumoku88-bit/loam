@@ -113,6 +113,12 @@ Historically, a private whole-file dogfood run crossed this boundary successfull
 
 Generic read-only shadow tools remain only where they answer an independent research question. They are not operational bridges, migration authority, or compatibility layers for HRA / h-kernel.
 
+### Disposable Beancount / Fava projection
+
+LOAM provides an explicit, disposable projection into Beancount format for viewing transactions, balance sheets, and income statements in [Fava](https://beancount.github.io/fava/) without compromising LOAM's authority.
+
+See [`docs/BEANCOUNT_FAVA.md`](docs/BEANCOUNT_FAVA.md) for full documentation, mode comparison (`--suspense`, `--partial`, strict), and instructions for launching Fava.
+
 ## Current household use
 
 LOAM is the current day-to-day household system. Ordinary real-life recording is now done in LOAM rather than in a parallel HRA workflow.
