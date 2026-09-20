@@ -195,14 +195,6 @@ private def sourceRelationUnits
     (sourceEffect : EffectKey) : List RelationUnit :=
   relations.filter (sameRawSource sourceEvent sourceEffect)
 
-private def sourceCurrentUnitsAdmissible
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (sourceEvent : EventId)
-    (sourceEffect : EffectKey) : Bool :=
-  (sourceRelationUnits relations sourceEvent sourceEffect).all
-    fun relation => (admitRelationUnit? events relation).isSome
-
 private def currentCoverageFor
     (current : List RelationUnit)
     (sourceRelation : RelationUnit) : Int :=
