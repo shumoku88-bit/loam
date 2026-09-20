@@ -53,6 +53,66 @@ def physicalEffects (effects : List Effect) : List PhysicalEffect :=
   cases effect
   simp [inversePhysical]
 
+/-- Exact quanta observed at one physical locus / measure coordinate. -/
+private def physicalQuantaAt
+    (effects : List PhysicalEffect)
+    (locus : LocusId) (measure : MeasureId) : Int :=
+  effects.foldr
+    (fun effect total =>
+      if effect.locus = locus ∧ effect.measure = measure then
+        effect.quantity.quanta + total
+      else
+        total)
+    0
+
+/--
+Project an Effect collection to exact quanta at one physical coordinate.
+
+Effect identity and list position are ignored; repeated matching Effects remain
+additive evidence at the coordinate.
+-/
+def physicalQuantityQuantaAt
+    (effects : List Effect)
+    (locus : LocusId) (measure : MeasureId) : Int :=
+  physicalQuantaAt (physicalEffects effects) locus measure
+
+private theorem physicalQuantaAt_perm
+    {left right : List PhysicalEffect}
+    (hPerm : left.Perm right)
+    (locus : LocusId) (measure : MeasureId) :
+    physicalQuantaAt left locus measure =
+      physicalQuantaAt right locus measure := by
+  induction hPerm with
+  | nil =>
+      rfl
+  | cons effect h ih =>
+      unfold physicalQuantaAt at ih ⊢
+      simp only [List.foldr_cons]
+      rw [ih]
+  | swap x y rest =>
+      unfold physicalQuantaAt
+      simp only [List.foldr_cons]
+      by_cases hx : x.locus = locus ∧ x.measure = measure
+      <;> by_cases hy : y.locus = locus ∧ y.measure = measure
+      <;> simp [hx, hy, Int.add_comm, Int.add_left_comm]
+  | trans hLeft hRight ihLeft ihRight =>
+      exact ihLeft.trans ihRight
+
+@[simp] theorem physicalQuantaAt_inversePhysical
+    (effects : List PhysicalEffect)
+    (locus : LocusId) (measure : MeasureId) :
+    physicalQuantaAt (effects.map inversePhysical) locus measure =
+      -physicalQuantaAt effects locus measure := by
+  induction effects with
+  | nil =>
+      rfl
+  | cons effect rest ih =>
+      unfold physicalQuantaAt at ih ⊢
+      simp only [List.map_cons, List.foldr_cons]
+      by_cases hCoordinate : effect.locus = locus ∧ effect.measure = measure
+      · simp [inversePhysical, hCoordinate, ih, Int.neg_add]
+      · simp [inversePhysical, hCoordinate, ih]
+
 /--
 Check whether two Effect collections are exact physical inverses.
 
@@ -71,6 +131,28 @@ theorem exactPhysicalInverse?_eq_true_iff
       (physicalEffects target).Perm
         ((physicalEffects reversal).map inversePhysical) := by
   simp [exactPhysicalInverse?]
+
+/--
+Exact physical inversion cancels at every physical coordinate.
+
+This is stronger than zero total: each retained (locus, measure) projection of
+the target and reversal sums independently to exact zero.
+-/
+theorem coordinateNetZero_of_exactPhysicalInverse
+    (target reversal : List Effect)
+    (hExact : exactPhysicalInverse? target reversal = true)
+    (locus : LocusId) (measure : MeasureId) :
+    physicalQuantityQuantaAt target locus measure +
+        physicalQuantityQuantaAt reversal locus measure =
+      0 := by
+  have hPerm :=
+    (exactPhysicalInverse?_eq_true_iff target reversal).mp hExact
+  have hProjected :=
+    physicalQuantaAt_perm hPerm locus measure
+  rw [physicalQuantaAt_inversePhysical] at hProjected
+  unfold physicalQuantityQuantaAt
+  rw [hProjected]
+  exact Int.add_left_neg _
 
 /--
 Exact physical inversion is symmetric.
