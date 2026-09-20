@@ -96,15 +96,26 @@ private def normalizedEventEffectsNonzero (event : Event) : Bool :=
     effect.quantity.quanta != 0
 
 /--
-Check that every represented Measure closes independently for one Event.
+The distinct dimensional Measures represented by one Effect collection.
+
+Balance is a property of the whole selected Measure projection, so repeated
+Effects in the same Measure must not trigger repeated admission of that same
+projection.
+-/
+private def representedMeasures (effects : List Effect) : List MeasureId :=
+  (effects.map Effect.measure).eraseDups
+
+/--
+Check that every represented Measure closes independently for one Event, exactly
+once per represented Measure.
 
 Reversal endpoints may defer this check to exact-reversal admission: the target
 is admitted once there and the reversal side is then derived from the exact
 inverse proof rather than admitted a second time.
 -/
 private def normalizedEventEffectsBalanced (event : Event) : Bool :=
-  event.effects.all fun effect =>
-    normalizedMeasureBalanced event.effects effect.measure
+  (representedMeasures event.effects).all fun measure =>
+    normalizedMeasureBalanced event.effects measure
 
 /--
 Occurrence-date strings become production calendar evidence at this boundary,
@@ -183,21 +194,21 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
             if hExact :
                 ActualReversal.exactPhysicalInverse?
                     targetEvent.effects reversalEvent.effects = true then
-              for effect in targetEvent.effects do
+              for measure in representedMeasures targetEvent.effects do
                 let targetChanges :=
                   ActualReversalBalance.movementChangesForMeasure
-                    effect.measure targetEvent.effects
+                    measure targetEvent.effects
                 if hTarget : movementTotalQuanta targetChanges = 0 then
                   let _derivedReversal : BalancedMovement LocusId := {
-                    measure := effect.measure
+                    measure := measure
                     changes :=
                       ActualReversalBalance.movementChangesForMeasure
-                        effect.measure reversalEvent.effects
+                        measure reversalEvent.effects
                     balanced :=
                       ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
                         targetEvent.effects
                         reversalEvent.effects
-                        effect.measure
+                        measure
                         hTarget
                         hExact
                   }
