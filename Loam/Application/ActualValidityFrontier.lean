@@ -1,4 +1,5 @@
 import Loam.Core.ActualValidityHistory
+import Loam.Core.HashNodup
 import Loam.Application.ReplacementFrontier
 
 namespace Loam.Application
@@ -34,11 +35,20 @@ def actualValidityFrontierFacts
   ReplacementFrontier.frontier
     ActualValidityFact.ref history.facts (correctionEdges history)
 
-private def uniqueFrontierEvents : List (ActualValidityFact Time) → Bool
-  | [] => true
-  | fact :: rest =>
-      !(rest.any fun other => decide (other.event = fact.event)) &&
-        uniqueFrontierEvents rest
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
+private def uniqueFrontierEvents
+    (facts : List (ActualValidityFact Time)) : Bool :=
+  (hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (facts.map ActualValidityFact.event)).isSome
 
 /--
 Admit only disjoint closed same-Event correction paths with one current fact per Event.

@@ -1,4 +1,5 @@
 import Loam.Application.OpenRelationFrontier
+import Loam.Core.HashNodup
 
 namespace Loam.Application
 
@@ -102,11 +103,20 @@ private def activatedTargetDischarges
   (targetDischarges discharges id).filter fun discharge =>
     (EventMemory.findById? events discharge.event).isSome
 
-private def uniqueDischargeEvents : List RelationDischarge → Bool
-  | [] => true
-  | discharge :: rest =>
-      !(rest.any fun other => decide (other.event = discharge.event)) &&
-        uniqueDischargeEvents rest
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
+private def uniqueDischargeEvents
+    (discharges : List RelationDischarge) : Bool :=
+  (hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (discharges.map RelationDischarge.event)).isSome
 
 /--
 Admit one activated raw discharge against an already-current relation target.
