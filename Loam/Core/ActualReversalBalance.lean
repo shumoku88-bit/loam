@@ -101,22 +101,45 @@ private theorem movementTotalQuanta_changesForMeasure
   | nil =>
       rfl
   | cons effect rest ih =>
+      have ihFold :
+          (movementChangesForMeasure measure rest).foldr
+              (fun change total => change.quantity.quanta + total) 0 =
+            physicalMeasureQuanta (physicalEffects rest) measure := by
+        simpa [movementTotalQuanta] using ih
       by_cases hMeasure : effect.measure = measure
       · simp [movementChangesForMeasure, physicalEffects, physicalEffect,
-          physicalMeasureQuanta, movementTotalQuanta, hMeasure, ih]
+          physicalMeasureQuanta, movementTotalQuanta, hMeasure, ihFold]
       · simp [movementChangesForMeasure, physicalEffects, physicalEffect,
-          physicalMeasureQuanta, movementTotalQuanta, hMeasure, ih]
+          physicalMeasureQuanta, movementTotalQuanta, hMeasure, ihFold]
+
+private theorem movementFoldr_eq_total_add_initial
+    {Coordinate : Type}
+    (changes : List (MovementChange Coordinate))
+    (initial : Int) :
+    changes.foldr
+        (fun change total => change.quantity.quanta + total)
+        initial =
+      movementTotalQuanta changes + initial := by
+  induction changes with
+  | nil =>
+      simp [movementTotalQuanta]
+  | cons change rest ih =>
+      simp only [List.foldr_cons]
+      rw [ih]
+      simp [movementTotalQuanta, Int.add_assoc]
 
 private theorem movementTotalQuanta_append
     {Coordinate : Type}
     (left right : List (MovementChange Coordinate)) :
     movementTotalQuanta (left ++ right) =
       movementTotalQuanta left + movementTotalQuanta right := by
-  induction left with
-  | nil =>
-      simp [movementTotalQuanta]
-  | cons change rest ih =>
-      simp [movementTotalQuanta, ih, Int.add_assoc]
+  change
+    (left ++ right).foldr
+        (fun change total => change.quantity.quanta + total) 0 =
+      movementTotalQuanta left + movementTotalQuanta right
+  rw [List.foldr_append]
+  simpa [movementTotalQuanta] using
+    (movementFoldr_eq_total_add_initial left (movementTotalQuanta right))
 
 /--
 Exact physical inverse evidence implies zero total independently in every Measure.
