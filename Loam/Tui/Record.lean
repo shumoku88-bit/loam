@@ -1,5 +1,6 @@
 import Loam.LocusCatalog
 import Loam.MovementAdmission
+import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
@@ -20,9 +21,10 @@ structure Row where
 structure Form where
   date : String
   description : String := ""
+  measure : String := "jpy"
   rows : Array Row := #[{}, {}]
-  -- Date, description, two fields per row, then four actions.
-  focus : Fin (2 + rows.size * 2 + 4) := ⟨0, by omega⟩
+  -- Date, description, Measure, two fields per row, then four actions.
+  focus : Fin (3 + rows.size * 2 + 4) := ⟨0, by omega⟩
 
 inductive Mode where
   | editing
@@ -49,7 +51,7 @@ def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
   { state with candidateCatalog := catalog, candidateIndex := 0 }
 
 def moveFocus (form : Form) (back : Bool) : Form :=
-  let count := 2 + form.rows.size * 2 + 4
+  let count := 3 + form.rows.size * 2 + 4
   have hcount : 0 < count := by
     dsimp [count]
     omega
@@ -64,23 +66,25 @@ def moveFocus (form : Form) (back : Bool) : Form :=
   { form with focus := ⟨next, by simpa [count] using hnext⟩ }
 
 def replaceRows (form : Form) (rows : Array Row) : Form :=
-  { date := form.date, description := form.description, rows := rows,
-    focus := ⟨0, by omega⟩ }
+  { date := form.date, description := form.description, measure := form.measure,
+    rows := rows, focus := ⟨0, by omega⟩ }
 
 /-- Append one neutral posting row and put focus directly on its Locus field. -/
 def appendRow (form : Form) : Form :=
   let rows := form.rows.push {}
-  { date := form.date, description := form.description, rows := rows,
-    focus := ⟨2 + form.rows.size * 2, by simp [rows]; omega⟩ }
+  { date := form.date, description := form.description, measure := form.measure,
+    rows := rows,
+    focus := ⟨3 + form.rows.size * 2, by simp [rows]; omega⟩ }
 
 def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus.val = 0 then { form with date := edit form.date }
   else if form.focus.val = 1 then { form with description := edit form.description }
+  else if form.focus.val = 2 then { form with measure := edit form.measure }
   else
-    let index := (form.focus.val - 2) / 2
+    let index := (form.focus.val - 3) / 2
     if h : index < form.rows.size then
       let row := form.rows[index]
-      let row := if (form.focus.val - 2) % 2 = 0
+      let row := if (form.focus.val - 3) % 2 = 0
         then { row with locus := edit row.locus }
         else { row with amount := edit row.amount }
       { form with
@@ -89,8 +93,8 @@ def editActive (form : Form) (edit : String → String) : Form :=
     else form
 
 def activeLocus? (form : Form) : Option String := do
-  if form.focus.val < 2 || (form.focus.val - 2) % 2 != 0 then none else do
-    let row ← form.rows[(form.focus.val - 2) / 2]?
+  if form.focus.val < 3 || (form.focus.val - 3) % 2 != 0 then none else do
+    let row ← form.rows[(form.focus.val - 3) / 2]?
     some row.locus
 
 /-- Current human-facing candidates for the focused Locus. Empty text lists all admitted entries. -/
@@ -152,15 +156,19 @@ def acceptCandidateAndAdvance (state : State) : State :=
 
 /-- Parse local signed posting syntax; semantic validation remains shared production code. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft := do
+  if !Loam.Persistence.validToken form.measure then
+    throw "Enter a nonempty single-line Measure token."
+  let measure : Loam.Core.MeasureId := ⟨form.measure⟩
   let mut effects := []
   let mut total := 0
   for index in List.range form.rows.size do
     let row := form.rows[index]!
     let some amount := row.amount.toInt?
-      | throw "Enter a nonzero signed integer JPY amount for every posting."
-    if amount = 0 then throw "Enter a nonzero signed integer JPY amount for every posting."
+      | throw ("Enter a nonzero signed integer " ++ form.measure ++ " amount for every posting.")
+    if amount = 0 then
+      throw ("Enter a nonzero signed integer " ++ form.measure ++ " amount for every posting.")
     effects := effects ++ [Loam.Core.Effect.ofQuantity
-      ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ ⟨"jpy"⟩
+      ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ measure
       (Loam.Core.Quantity.ofQuanta amount)]
     if amount > 0 then total := total + amount
   let draft : Loam.MovementAdmission.Draft := {
@@ -228,7 +236,7 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .down => { state := moveCandidate state false }
         | .right => { state := acceptCandidateAndAdvance state }
         | .enter =>
-            let firstAction := 2 + state.form.rows.size * 2
+            let firstAction := 3 + state.form.rows.size * 2
             let focus := state.form.focus.val
             if activeLocus? state.form != none then
               { state := acceptCandidateAndAdvance state }
@@ -252,7 +260,7 @@ theorem cancel_never_publishes (world : Loam.MovementAdmission.World)
     (update world known state .escape).publish = none := by rfl
 
 theorem focus_always_exists (form : Form) :
-    form.focus.val < 2 + form.rows.size * 2 + 4 := form.focus.isLt
+    form.focus.val < 3 + form.rows.size * 2 + 4 := form.focus.isLt
 
 theorem preview_edit_preserves_form (world : Loam.MovementAdmission.World)
     (known : List String) (state : State) (draft : Loam.MovementAdmission.Draft) :
@@ -266,12 +274,12 @@ def field (form : Form) (index : Nat) (label text : String) : Widget :=
 
 /-- Render the bounded signed-posting field window shared by Record-shaped editors. -/
 def postingFieldLines (form : Form) : List Widget :=
-  let activeRow := (form.focus.val - 2) / 2
+  let activeRow := (form.focus.val - 3) / 2
   let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
   ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
     let row := form.rows[index]!
-    [ field form (2 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
-    , field form (3 + index * 2) "  JPY" row.amount
+    [ field form (3 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
+    , field form (4 + index * 2) ("  " ++ form.measure) row.amount
     ]
 
 def view (_known : List String) (state : State) : Widget :=
@@ -293,23 +301,27 @@ def view (_known : List String) (state : State) : Widget :=
         | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
         | none => []
       .column <| [line "Record / Edit", field form 0 "Date" form.date,
-        field form 1 "Description" form.description] ++ rowLines ++
+        field form 1 "Description" form.description,
+        field form 2 "Measure" form.measure] ++ rowLines ++
         [.row ((actions.zipIdx).map fun (label, index) =>
           span ("[" ++ label ++ "] ")
-            (if form.focus.val = 2 + form.rows.size * 2 + index then .selected else .normal)),
+            (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal)),
          line "Locus catalog:"] ++ candidateLines ++ helpLine ++
-        [line "Posting JPY is signed; negative and positive rows may appear in any order.",
+        [line ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order."),
          line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
          line "Up / Down choose candidate   Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>
+      let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <| [line "Record / Preview", line draft.validOn,
+        line ("Measure: " ++ measure.token),
         line (draft.description.getD "(no description)")] ++
         (draft.effects.take 12).map (fun effect =>
           line (Loam.Tui.Layout.padRight 20 effect.locus.token ++
-            Loam.Tui.Layout.padLeft 10 (toString effect.quantity.quanta) ++ " jpy")) ++
-        [line ("Balanced total: " ++ toString draft.total ++ " jpy"),
+            Loam.Tui.Layout.padLeft 10 (toString effect.quantity.quanta) ++
+            " " ++ effect.measure.token)) ++
+        [line ("Balanced total: " ++ toString draft.total ++ " " ++ measure.token),
          line "Publication rechecks current evidence and Locus admission.",
          .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
            span ("[" ++ label ++ "] ") (if choice.val = index then .selected else .normal)),
