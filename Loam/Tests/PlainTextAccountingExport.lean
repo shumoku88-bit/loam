@@ -91,6 +91,22 @@ def main : IO Unit := do
   expect (!contains "equity:equity:opening-balances" openingRendered)
     "explicit role prefix duplicated in PTA account name"
 
+  let usdEvent ← balancedEvent "event-usd" "smbc" "gpt-plus" "usd" 1234
+  let usdEntry : Loam.ActualJournalProjection.Entry := {
+    event := usdEvent
+    validOn := "2026-09-15"
+    description := some "USD charge"
+  }
+  let presentation : List Loam.MeasurePresentation.Metadata :=
+    [{ measure := ⟨"usd"⟩, scale := 2 }]
+  let .ok usdRendered :=
+      Loam.PlainTextAccountingExport.renderWithPresentation? presentation roles [usdEntry]
+    | throw (IO.userError "scaled USD PTA export refused")
+  expect (contains "    assets:smbc  -12.34 usd" usdRendered)
+    "PTA asset posting did not preserve USD scale"
+  expect (contains "    expenses:gpt-plus  12.34 usd" usdRendered)
+    "PTA expense posting did not preserve USD scale"
+
   let unresolved ← balancedEvent "event-2" "smbc" "legacy-bucket" "jpy" 500
   let unresolvedEntry : Loam.ActualJournalProjection.Entry := {
     event := unresolved
