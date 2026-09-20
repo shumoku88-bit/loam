@@ -162,6 +162,21 @@ theorem measureNetZero_of_exactPhysicalInverse
   exact Int.add_left_neg _
 
 /--
+If the target already closes to zero in one Measure, an exact physical inverse
+closes to zero in that Measure without a second runtime balance admission.
+-/
+theorem reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
+    (target reversal : List Effect)
+    (measure : MeasureId)
+    (hTarget :
+      movementTotalQuanta (movementChangesForMeasure measure target) = 0)
+    (hExact : exactPhysicalInverse? target reversal = true) :
+    movementTotalQuanta (movementChangesForMeasure measure reversal) = 0 := by
+  have hNet :=
+    measureNetZero_of_exactPhysicalInverse target reversal hExact measure
+  simpa [hTarget] using hNet
+
+/--
 Construct the balanced single-Measure view of one exact reversal pair directly
 from proof evidence.
 
