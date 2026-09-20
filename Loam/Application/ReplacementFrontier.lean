@@ -129,23 +129,6 @@ def acyclic {Id : Type} [DecidableEq Id]
   else
     acyclicStartReturn edges
 
-/--
-Admit a replacement frontier when endpoint uniqueness has already been proved by
-an upstream boundary.
-
-The proofs are semantic capabilities, not cached state. This entrance skips only
-the repeated executable uniqueness decision; reference closure and cycle
-admission remain the same shared mechanics.
--/
-def structurallyAdmissibleOfEndpointUnique
-    {Id : Type} [DecidableEq Id]
-    (present : Id → Bool)
-    (edges : List (Edge Id))
-    (_sourceNodup : (edges.map Edge.source).Nodup)
-    (_successorNodup : (edges.map Edge.successor).Nodup) : Bool :=
-  referencesClosed present edges &&
-    acyclicGlobalDone edges
-
 def structurallyAdmissible {Id : Type} [DecidableEq Id]
     (present : Id → Bool) (edges : List (Edge Id)) : Bool :=
   endpointUnique edges &&
