@@ -1,5 +1,6 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
+import Std.Data.HashSet
 
 namespace Loam.Application
 
@@ -56,10 +57,16 @@ private def correctionEdges
   corrections.corrections.map fun correction =>
     { source := correction.target, successor := correction.replacement }
 
-private def eventPresent
-    (events : EventMemory)
+private def eventIdentityIndex
+    (events : EventMemory) : Std.HashSet String :=
+  events.events.foldl
+    (fun index event => index.insert event.id.token)
+    {}
+
+private def eventPresentIn
+    (index : Std.HashSet String)
     (id : EventId) : Bool :=
-  (EventMemory.findById? events id).isSome
+  index.contains id.token
 
 /--
 Whether every retained correction endpoint is represented by an Event.
@@ -72,8 +79,9 @@ all effective quantity calculation.
 def correctionReferencesClosed
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
+  let index := eventIdentityIndex events
   ReplacementFrontier.referencesClosed
-    (eventPresent events) (correctionEdges corrections)
+    (eventPresentIn index) (correctionEdges corrections)
 
 /--
 Whether the retained correction facts justify one order-free frontier using
@@ -94,8 +102,9 @@ beyond the explicit correction relation itself.
 def correctionFrontierAdmissible
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
+  let index := eventIdentityIndex events
   ReplacementFrontier.structurallyAdmissible
-    (eventPresent events) (correctionEdges corrections)
+    (eventPresentIn index) (correctionEdges corrections)
 
 /-- A singleton self-correction is one cycle and therefore never a current frontier. -/
 @[simp] theorem correctionFrontierAdmissible_singleton_self
