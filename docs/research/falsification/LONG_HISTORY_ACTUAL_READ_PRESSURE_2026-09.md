@@ -165,6 +165,86 @@ Likely contributors include:
 Correction-heavy history has different semantic obligations from description
 lookup and deserves a separate measured change.
 
+## Correction-heavy follow-up: no production optimization earned yet
+
+Issue #1134 followed this pressure with a staged experiment.
+
+Several narrow candidates were tried independently:
+
+1. hash-backed duplicate admission for raw Correction edges while retaining the
+   same `List.Nodup` proof;
+2. a transient target-to-replacement index for canonical Actual Review;
+3. a transient Event-identity index for Correction reference closure;
+4. proof-carrying reuse of already-established source/successor uniqueness at
+   the replacement-frontier boundary.
+
+Individual GitHub-hosted-runner measurements appeared to improve substantially.
+One sequence reported the 10k correction-heavy case moving from 4.436 s through
+3.200 s, 3.089 s and 2.733 s to 1.109 s.
+
+A follow-up repetition showed that this apparent progression was not sufficiently
+stable to qualify the production changes.
+
+A later baseline rerun measured:
+
+| Events | Baseline rerun |
+| ---: | ---: |
+| 1,000 | 0.052 s |
+| 5,000 | 0.514 s |
+| 10,000 | 2.164 s |
+
+The best-candidate code was then rerun twice. The 10k medians were about:
+
+```text
+2.296 s
+2.328 s
+```
+
+Those runs do not establish a reliable improvement over the rerun baseline.
+The earlier 1.109 s result is therefore treated as runner variation rather than
+proof of a production speedup.
+
+A separate target-indexed frontier-filter candidate also failed to earn
+promotion: its selected 10k run was 1.514 s versus 1.109 s in the immediately
+preceding run, and the broader rerun evidence made absolute cross-run comparison
+too noisy to justify keeping either change on that basis.
+
+All experimental production changes and the temporary CI workflow were
+withdrawn.
+
+### Methodological finding
+
+For performance work at this scale, independent GitHub-hosted workflow runs are
+not a strong enough comparison instrument when the expected improvement is of
+the same order as runner variance.
+
+A future Correction optimization should therefore qualify itself with a
+**paired baseline/candidate benchmark on the same runner**, ideally in one job,
+before changing production code.
+
+The semantic constraints remain unchanged:
+
+```text
+Correction evidence
+    -> fail-closed partial-injective frontier
+    -> current Event projection
+
+transient indexes may accelerate that proof/admission path
+    but may not become household authority
+```
+
+Static inspection still identifies the list-based replacement traversal
+(`next?`, done membership, and related frontier work) as a plausible remaining
+source of superlinear growth. Observation 273/274 already proves important
+correspondence for the current global-done algorithm, so replacing that traversal
+with an indexed successor representation would require a correspondingly strong
+proof that the transient index denotes exactly the admitted replacement
+relation.
+
+Until such a same-runner measurement and proof boundary are available, issue
+#1134 remains a measured open performance question rather than an earned
+production rewrite.
+
 ## Architectural finding
 
 This pressure test supports the existing boundary:
