@@ -109,6 +109,34 @@ config/measure-presentation.tsv
 This file does not admit a Measure or a Locus. It only defines exact human
 fixed-point representation for an already-used Measure identity.
 
+Once a Measure has retained household quantities under one scale, changing that
+scale is **not** an ordinary presentation tweak. It changes the human
+interpretation of every retained quantum for that Measure and therefore requires
+an explicit qualified migration / reinterpretation decision.
+
+For example, after `usd -> 2` has been used:
+
+```text
+1234 quanta = 12.34 USD
+```
+
+silently changing the row to `usd -> 0` would reinterpret the same retained
+quantity as `1234 USD`. Canonical household operation must not do that.
+
+The practical rule is therefore:
+
+```text
+unused Measure
+    -> scale may still be chosen
+
+Measure with retained household quantity
+    -> scale is stable
+    -> changing it requires an explicit migration
+```
+
+Version control preserves the historical choice, but repository history is not
+a substitute for an explicit migration if the convention ever needs to change.
+
 ## Still deliberately separate
 
 Operational multi-currency does not imply cross-Measure exchange.
