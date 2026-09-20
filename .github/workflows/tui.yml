@@ -88,6 +88,7 @@ on:
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
       - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/MeasurePresentation.lean'
       - 'Loam/PlainTextAccountingExport.lean'
       - 'Loam/Cli/PlainTextAccountingExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
@@ -200,6 +201,7 @@ on:
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
       - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Cli/JournalExportCli.lean'
+      - 'Loam/MeasurePresentation.lean'
       - 'Loam/PlainTextAccountingExport.lean'
       - 'Loam/Cli/PlainTextAccountingExportCli.lean'
       - 'Loam/Tests/RecordReview.lean'
@@ -304,6 +306,10 @@ jobs:
           grep -Fq "2026-09-02 LOAM event journal-replacement" "$root/actual.journal"
           grep -Fq "    assets:wallet  -120 jpy" "$root/actual.journal"
           grep -Fq "    expenses:food  120 jpy" "$root/actual.journal"
+          grep -Fq "    assets:wallet  -12.34 usd" "$root/actual.journal"
+          grep -Fq "    expenses:food  12.34 usd" "$root/actual.journal"
+          grep -Fq "    assets:wallet  -27.90 ils" "$root/actual.journal"
+          grep -Fq "    expenses:food  27.90 ils" "$root/actual.journal"
           grep -Fq "    ; loam-event-id: journal-untouched" "$root/actual.journal"
           if grep -q "journal-original" "$root/actual.journal"; then
             echo "superseded correction target leaked into PTA journal" >&2
@@ -315,6 +321,14 @@ jobs:
               "$root/accounting-role.loam" \
               "$root/./actual.loam"; then
             echo "PTA export accepted a dot-path alias of Actual authority" >&2
+            exit 1
+          fi
+
+          if ./.lake/build/bin/loamPtaExport \
+              "$root/actual.loam" \
+              "$root/accounting-role.loam" \
+              "$root/config/measure-presentation.tsv"; then
+            echo "PTA export accepted the Measure presentation input as output" >&2
             exit 1
           fi
 
