@@ -66,12 +66,26 @@ def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory
 /-- Empty Event-description memory is always valid. -/
 @[simp] theorem ofEntries?_nil :
     ofEntries? [] = some { entries := [], eventNodup := by simp } := by
-  simp [ofEntries?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective []
+      some ({ entries := [], eventNodup := h.proof } : EventDescriptionMemory)) =
+    some ({ entries := [], eventNodup := by simp } : EventDescriptionMemory)
+  rw [hashNodupBy?_nil]
+  rfl
 
 /-- Single entry memory is always valid. -/
 @[simp] theorem ofEntries?_singleton (entry : EventDescription) :
     ofEntries? [entry] = some { entries := [entry], eventNodup := by simp } := by
-  simp [ofEntries?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun id : EventId => id.token) eventIdToken_injective [entry.event]
+      some ({ entries := [entry], eventNodup := h.proof } : EventDescriptionMemory)) =
+    some ({ entries := [entry], eventNodup := by simp } : EventDescriptionMemory)
+  rw [hashNodupBy?_singleton]
+  rfl
 
 /-- Empty Event-description memory constructor. -/
 def empty : EventDescriptionMemory :=
