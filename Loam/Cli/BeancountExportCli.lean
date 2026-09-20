@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.BeancountExport
+import Loam.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.SiblingStage
 import Loam.WriterOwnership
@@ -38,6 +39,7 @@ def exportBeancount
   let actualFile := System.FilePath.mk actualPath
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
+  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
 
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualFile with
@@ -50,9 +52,10 @@ def exportBeancount
     IO.eprintln "loam: AccountingRole authority file is missing"
     return 2
 
-  if ← conflictsWithSource actualFile roleFile outputFile then
+  if (← conflictsWithSource actualFile roleFile outputFile) ||
+     (← pathsConflict presentationFile outputFile) then
     IO.eprintln
-      "loam: Beancount output must not replace Actual or AccountingRole authority"
+      "loam: Beancount output must not replace Actual, AccountingRole, or Measure presentation input"
     return 2
 
   let roles ←
@@ -63,6 +66,13 @@ def exportBeancount
           "loam: AccountingRole authority is malformed or unsupported"
         return 2
 
+  let presentation ←
+    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
+    | .ok metadata => pure metadata
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
+        return 2
+
   let entries ←
     match Loam.ActualJournalProjection.fromImage? image with
     | .error message =>
@@ -70,7 +80,7 @@ def exportBeancount
         return 2
     | .ok entries => pure entries
 
-  match Loam.BeancountExport.render? roles entries with
+  match Loam.BeancountExport.renderWithPresentation? presentation roles entries with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2
@@ -103,9 +113,11 @@ def exportPartialBeancount
 
   if (← conflictsWithSource actualFile roleFile outputFile) ||
      (← conflictsWithSource actualFile roleFile reportFile) ||
+     (← pathsConflict presentationFile outputFile) ||
+     (← pathsConflict presentationFile reportFile) ||
      (← pathsConflict outputFile reportFile) then
     IO.eprintln
-      "loam: Beancount output and report must not replace Actual or AccountingRole authority, or conflict with each other"
+      "loam: Beancount output and report must not replace Actual, AccountingRole, or Measure presentation input, or conflict with each other"
     return 2
 
   let roles ←
@@ -116,6 +128,13 @@ def exportPartialBeancount
           "loam: AccountingRole authority is malformed or unsupported"
         return 2
 
+  let presentation ←
+    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
+    | .ok metadata => pure metadata
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
+        return 2
+
   let entries ←
     match Loam.ActualJournalProjection.fromImage? image with
     | .error message =>
@@ -123,7 +142,7 @@ def exportPartialBeancount
         return 2
     | .ok entries => pure entries
 
-  match Loam.BeancountExport.renderPartial? roles entries with
+  match Loam.BeancountExport.renderPartialWithPresentation? presentation roles entries with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2
@@ -158,9 +177,11 @@ def exportSuspenseBeancount
 
   if (← conflictsWithSource actualFile roleFile outputFile) ||
      (← conflictsWithSource actualFile roleFile reportFile) ||
+     (← pathsConflict presentationFile outputFile) ||
+     (← pathsConflict presentationFile reportFile) ||
      (← pathsConflict outputFile reportFile) then
     IO.eprintln
-      "loam: Beancount output and report must not replace Actual or AccountingRole authority, or conflict with each other"
+      "loam: Beancount output and report must not replace Actual, AccountingRole, or Measure presentation input, or conflict with each other"
     return 2
 
   let roles ←
@@ -171,6 +192,13 @@ def exportSuspenseBeancount
           "loam: AccountingRole authority is malformed or unsupported"
         return 2
 
+  let presentation ←
+    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
+    | .ok metadata => pure metadata
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
+        return 2
+
   let entries ←
     match Loam.ActualJournalProjection.fromImage? image with
     | .error message =>
@@ -178,7 +206,7 @@ def exportSuspenseBeancount
         return 2
     | .ok entries => pure entries
 
-  match Loam.BeancountExport.renderSuspense? roles entries with
+  match Loam.BeancountExport.renderSuspenseWithPresentation? presentation roles entries with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2
