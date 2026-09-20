@@ -67,6 +67,7 @@ jobs:
             "$root/accounting-role.loam" \
             "$root/actual.beancount"
 
+          grep -Fq 'option "operating_currency" "JPY"' "$root/actual.beancount"
           grep -Fq "open Assets:Loam-wallet JPY" "$root/actual.beancount"
           grep -Fq "open Expenses:Loam-food JPY" "$root/actual.beancount"
           grep -Fq 'loam_event_id: "journal-replacement"' "$root/actual.beancount"
@@ -108,6 +109,7 @@ jobs:
             "$partial_root/partial.beancount" \
             "$partial_root/partial-report.txt"
 
+          grep -Fq 'option "operating_currency" "JPY"' "$partial_root/partial.beancount"
           grep -Fq "open Assets:Loam-wallet JPY" "$partial_root/partial.beancount"
           grep -Fq "open Expenses:Loam-food JPY" "$partial_root/partial.beancount"
           grep -Fq 'loam_event_id: "event-food"' "$partial_root/partial.beancount"

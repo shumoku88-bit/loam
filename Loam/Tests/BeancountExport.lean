@@ -44,6 +44,8 @@ def main : IO Unit := do
   let .ok rendered := Loam.BeancountExport.render? roles [entry]
     | throw (IO.userError "balanced Beancount export refused")
 
+  expect (contains "option \"operating_currency\" \"JPY\"" rendered)
+    "operating_currency option missing in strict export"
   expect (contains "2026-09-15 open Assets:Loam-smbc JPY" rendered)
     "Asset Open directive missing"
   expect (contains "2026-09-15 open Expenses:Loam-food JPY" rendered)
@@ -151,6 +153,8 @@ def main : IO Unit := do
     "partial export skippedCount should be 2"
 
   -- Beancount output should contain exported transaction but NOT skipped ones
+  expect (contains "option \"operating_currency\" \"JPY\"" partialRes.beancount)
+    "operating_currency option missing in partial export"
   expect (contains "loam_event_id: \"event-split\"" partialRes.beancount)
     "partial beancount should contain split event"
   expect (!contains "event-unresolved" partialRes.beancount)
@@ -203,5 +207,35 @@ def main : IO Unit := do
       expect (contains "target account collision" message)
         "partial mode must enforce target account collision refusal"
 
+  -- Multi-currency operating_currency determinism and completeness test
+  let multiCurrencyRoles ← requireSome
+    (AccountingRoleMap.ofAssignments?
+      [ { locus := ⟨"smbc"⟩, role := .asset }
+      , { locus := ⟨"food"⟩, role := .expense }
+      , { locus := ⟨"wise_usd"⟩, role := .asset }
+      , { locus := ⟨"book_usd"⟩, role := .expense }
+      , { locus := ⟨"book"⟩, role := .expense }
+      ])
+    "multi-currency roles"
+  let usdEvent ← eventOf "event-usd"
+    [ Effect.ofAnonymousQuantity
+        ⟨"wise_usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-50))
+    , Effect.ofAnonymousQuantity
+        ⟨"book_usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 50)
+    ]
+  let usdEntry : Loam.ActualJournalProjection.Entry := {
+    event := usdEvent
+    validOn := "2026-09-15"
+    description := none
+  }
+  let multiRendered ←
+    match Loam.BeancountExport.render? multiCurrencyRoles [entry, usdEntry] with
+    | .ok rendered => pure rendered
+    | .error message => throw (IO.userError ("multi-currency export failed: " ++ message))
+  expect (contains "option \"operating_currency\" \"JPY\"" multiRendered)
+    "JPY operating_currency missing in multi-currency export"
+  expect (contains "option \"operating_currency\" \"USD\"" multiRendered)
+    "USD operating_currency missing in multi-currency export"
+
   IO.println
-    "Beancount export: split postings, metadata, quoting, role refusal, balance refusal, target collision, and partial export checks passed."
+    "Beancount export: split postings, metadata, quoting, role refusal, balance refusal, target collision, partial export, and operating_currency checks passed."

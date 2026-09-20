@@ -267,6 +267,33 @@ private def renderEntry
     , "  loam_event_id: \"" ++ eventId ++ "\""
     ] ++ postings
 
+private def operatingCurrencies
+    (coordinates : List ResolvedCoordinate) : List String :=
+  ((coordinates.map (·.commodity)).eraseDups).mergeSort (· < ·)
+
+private def renderOperatingCurrency (commodity : String) : String :=
+  "option \"operating_currency\" \"" ++ commodity ++ "\""
+
+private def renderHeader
+    (coordinates : List ResolvedCoordinate)
+    (isPartial : Bool) : List String :=
+  let modeNote :=
+    if isPartial then
+      "; Generated from LOAM current Actual projection (partial mode)."
+    else
+      "; Generated from LOAM current Actual projection."
+  let base :=
+    [ modeNote
+    , "; LOAM remains authoritative; this Beancount file is disposable."
+    , "; Open dates below are target scaffolding, not source account-open facts."
+    ]
+  let currencyOptions :=
+    (operatingCurrencies coordinates).map renderOperatingCurrency
+  if currencyOptions.isEmpty then
+    base
+  else
+    base ++ [""] ++ currencyOptions
+
 /--
 Render deterministic current Actual entries as one standalone disposable
 Beancount file.
@@ -292,20 +319,16 @@ def render?
   let coordinates ← resolvedCoordinates roles entries
   validateCoordinateNames coordinates
 
-  let header :=
-    [ "; Generated from LOAM current Actual projection."
-    , "; LOAM remains authoritative; this Beancount file is disposable."
-    , "; Open dates below are target scaffolding, not source account-open facts."
-    ]
+  let headerLines := renderHeader coordinates false
 
   match earliestDate? entries with
   | none =>
-      pure (String.intercalate "\n" header ++ "\n")
+      pure (String.intercalate "\n" headerLines ++ "\n")
   | some openDate =>
       let openings := coordinates.map (renderOpen openDate)
       let transactions ← entries.mapM (renderEntry roles)
       let body :=
-        header ++ [""] ++ openings ++
+        headerLines ++ [""] ++ openings ++
           (if transactions.isEmpty then [] else [""] ++
             [String.intercalate "\n\n" transactions])
       pure (String.intercalate "\n" body ++ "\n")
@@ -398,20 +421,16 @@ def renderPartial?
 
   let transactions ← exportedEntries.mapM (renderEntry roles)
 
-  let header :=
-    [ "; Generated from LOAM current Actual projection (partial mode)."
-    , "; LOAM remains authoritative; this Beancount file is disposable."
-    , "; Open dates below are target scaffolding, not source account-open facts."
-    ]
+  let headerLines := renderHeader coordinates true
 
   let beancount :=
     match earliestDate? exportedEntries with
     | none =>
-        String.intercalate "\n" header ++ "\n"
+        String.intercalate "\n" headerLines ++ "\n"
     | some openDate =>
         let openings := coordinates.map (renderOpen openDate)
         let body :=
-          header ++ [""] ++ openings ++
+          headerLines ++ [""] ++ openings ++
             (if transactions.isEmpty then [] else [""] ++
               [String.intercalate "\n\n" transactions])
         String.intercalate "\n" body ++ "\n"
