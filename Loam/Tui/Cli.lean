@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
+import Loam.MeasurePresentation
 import Loam.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
@@ -98,6 +99,17 @@ private def currentPurposeMetadata
   match ← Loam.PurposeCatalog.loadMetadata dataDir with
   | .ok metadata => return metadata
   | .error _ => return []
+
+/--
+Measure scale changes how typed decimal text becomes exact quanta. A malformed
+configured convention therefore refuses the editor instead of silently falling
+back to a different numeric interpretation.
+-/
+private def currentMeasurePresentation
+    (dataDir : System.FilePath) : IO (List Loam.MeasurePresentation.Metadata) := do
+  match ← Loam.MeasurePresentation.loadMetadata dataDir with
+  | .ok metadata => return metadata
+  | .error message => throw (IO.userError message)
 
 private def currentLocusCatalog
     (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :
@@ -311,8 +323,11 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
       let catalog ← currentLocusCatalog dataDir world
-      let editor := Loam.Tui.Record.withCatalog
-        (Loam.Tui.Record.initial state.focusDate) catalog
+      let measurePresentation ← currentMeasurePresentation dataDir
+      let editor := Loam.Tui.Record.withMeasurePresentation
+        (Loam.Tui.Record.withCatalog
+          (Loam.Tui.Record.initial state.focusDate) catalog)
+        measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
@@ -399,7 +414,9 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           hraScheduledLoop bounds dataDir root snapshot next nextFrame
       | some record =>
-          match Loam.Tui.ScheduledCompletion.initial? record snapshot.actual.today with
+          let measurePresentation ← currentMeasurePresentation dataDir
+          match Loam.Tui.ScheduledCompletion.initialWithPresentation?
+              measurePresentation record snapshot.actual.today with
           | .error message =>
               let next := { step.state with notice := message }
               let nextFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot next)
@@ -517,7 +534,9 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           selectedDayLoop bounds dataDir root snapshot next nextFrame
       | some record =>
-          match Loam.Tui.ScheduledCompletion.initial? record snapshot.actual.today with
+          let measurePresentation ← currentMeasurePresentation dataDir
+          match Loam.Tui.ScheduledCompletion.initialWithPresentation?
+              measurePresentation record snapshot.actual.today with
           | .error message =>
               let next := { step.state with notice := message }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
@@ -659,7 +678,8 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           selectedDayLoop bounds dataDir root snapshot next nextFrame
       | some record =>
-          match Loam.Tui.Correction.initial? record with
+          let measurePresentation ← currentMeasurePresentation dataDir
+          match Loam.Tui.Correction.initialWithPresentation? measurePresentation record with
           | .error message =>
               let next := { step.state with notice := message }
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
@@ -714,8 +734,11 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
       let catalog ← currentLocusCatalog dataDir world
-      let editor := Loam.Tui.Record.withCatalog
-        (Loam.Tui.Record.initial state.focusDate) catalog
+      let measurePresentation ← currentMeasurePresentation dataDir
+      let editor := Loam.Tui.Record.withMeasurePresentation
+        (Loam.Tui.Record.withCatalog
+          (Loam.Tui.Record.initial state.focusDate) catalog)
+        measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
@@ -1103,8 +1126,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       | .ok world => pure world
     let known := world.locusAdmission.approved.map (fun locus => locus.token)
     let catalog ← currentLocusCatalog dataDir world
-    let editor := Loam.Tui.Record.withCatalog
-      (Loam.Tui.Record.initial state.selectedDate) catalog
+    let measurePresentation ← currentMeasurePresentation dataDir
+    let editor := Loam.Tui.Record.withMeasurePresentation
+      (Loam.Tui.Record.withCatalog
+        (Loam.Tui.Record.initial state.selectedDate) catalog)
+      measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
