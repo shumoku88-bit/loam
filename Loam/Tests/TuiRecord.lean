@@ -50,6 +50,34 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "USD form parsing")
   expect (usdDraft.effects.all fun effect => effect.measure == ⟨"usd"⟩)
     "TUI Record did not preserve selected Measure"
+
+  let decimalPresentation : List Loam.MeasurePresentation.Metadata :=
+    [ { measure := ⟨"usd"⟩, scale := 2 }
+    , { measure := ⟨"ils"⟩, scale := 2 }
+    ]
+  let decimalUsdForm : Form := {
+    readyForm with
+    measure := "usd"
+    rows := #[
+      { locus := "paypay", amount := "-12.34" },
+      { locus := "books", amount := "12.34" }] }
+  let .ok decimalUsdDraft := draftWithPresentation? decimalPresentation decimalUsdForm
+    | throw (IO.userError "decimal USD form parsing")
+  expect
+    (decimalUsdDraft.effects.map (fun effect => effect.quantity.quanta) == [-1234, 1234])
+    "decimal USD input did not map exactly to quanta"
+  expect
+    (Loam.MeasurePresentation.formatQuanta decimalPresentation ⟨"usd"⟩ (-5) == "-0.05")
+    "decimal USD formatting did not zero-pad exact quanta"
+  expect
+    ((draftWithPresentation? decimalPresentation
+      { decimalUsdForm with rows := #[
+          { locus := "paypay", amount := "-12.345" },
+          { locus := "books", amount := "12.345" }] }).isOk == false)
+    "decimal input accepted more fractional digits than the configured scale"
+  expect
+    (Loam.MeasurePresentation.parseQuanta? decimalPresentation ⟨"ils"⟩ "27.9" == some 2790)
+    "ILS scale did not right-pad a shorter exact fractional input"
   let editor := preview w { form := readyForm }
   expect ((update w [] editor .enter).publish.isSome) "preview must produce explicit intent"
   expect ((update w [] editor .escape).publish.isNone) "cancel must not publish"
