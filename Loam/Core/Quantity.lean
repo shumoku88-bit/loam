@@ -69,5 +69,13 @@ instance : Sub Quantity := ⟨sub⟩
     (left - right).quanta = left.quanta - right.quanta :=
   rfl
 
+/-- Exact additive inversion is involutive. -/
+@[simp] theorem neg_neg (quantity : Quantity) :
+    -(-quantity) = quantity := by
+  cases quantity with
+  | mk quanta =>
+      change ofQuanta (-(-quanta)) = ofQuanta quanta
+      simp
+
 end Quantity
 end Loam.Core

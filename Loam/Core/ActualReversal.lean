@@ -20,32 +20,77 @@ deriving Repr, DecidableEq
 
 namespace ActualReversal
 
-/-- Remove the first physical match (locus, measure, quantity) from an Effect list. -/
-private def removeFirstPhysicalMatch
-    (locus : LocusId) (measure : MeasureId) (quantity : Quantity) :
-    List Effect → Option (List Effect)
-  | [] => none
-  | e :: rest =>
-      if e.locus = locus ∧ e.measure = measure ∧ e.quantity = quantity then
-        some rest
-      else
-        match removeFirstPhysicalMatch locus measure quantity rest with
-        | some tail => some (e :: tail)
-        | none => none
+/--
+The physical part of one Effect used by reversal semantics.
+
+EffectKey is intentionally excluded: exact physical inversion concerns locus,
+measure, and exact signed quantity only.
+-/
+structure PhysicalEffect where
+  locus : LocusId
+  measure : MeasureId
+  quantity : Quantity
+deriving Repr, DecidableEq
+
+/-- Forget Effect identity while retaining its physical coordinates and quantity. -/
+def physicalEffect (effect : Effect) : PhysicalEffect :=
+  {
+    locus := effect.locus
+    measure := effect.measure
+    quantity := effect.quantity
+  }
+
+/-- Exact additive inverse of one physical Effect. -/
+def inversePhysical (effect : PhysicalEffect) : PhysicalEffect :=
+  { effect with quantity := -effect.quantity }
+
+/-- Project an Effect list to the physical multiset represented by list permutation. -/
+def physicalEffects (effects : List Effect) : List PhysicalEffect :=
+  effects.map physicalEffect
+
+@[simp] theorem inversePhysical_involutive (effect : PhysicalEffect) :
+    inversePhysical (inversePhysical effect) = effect := by
+  cases effect
+  simp [inversePhysical]
 
 /--
-Check whether the physical Effects of two Events form an exact inverse multiset
-of (locus, measure, quantity) triples. EffectKey and list ordering are ignored.
+Check whether two Effect collections are exact physical inverses.
+
+The relation is equality of physical multisets up to additive inversion:
+EffectKey and list ordering are ignored, while duplicate multiplicity is retained.
 -/
 def exactPhysicalInverse? (target reversal : List Effect) : Bool :=
-  let rec matchAll (remainingTarget : List Effect) (remainingReversal : List Effect) : Bool :=
-    match remainingTarget with
-    | [] => remainingReversal.isEmpty
-    | e :: rest =>
-        match removeFirstPhysicalMatch e.locus e.measure (-e.quantity) remainingReversal with
-        | some updatedReversal => matchAll rest updatedReversal
-        | none => false
-  matchAll target reversal
+  decide (
+    (physicalEffects target).Perm
+      ((physicalEffects reversal).map inversePhysical))
+
+/-- Logical characterization of the executable exact-inverse check. -/
+theorem exactPhysicalInverse?_eq_true_iff
+    (target reversal : List Effect) :
+    exactPhysicalInverse? target reversal = true ↔
+      (physicalEffects target).Perm
+        ((physicalEffects reversal).map inversePhysical) := by
+  simp [exactPhysicalInverse?]
+
+/--
+Exact physical inversion is symmetric.
+
+If reversal is the physical inverse of target, then target is the physical
+inverse of reversal; the executable check therefore gives the same Bool in
+either direction.
+-/
+theorem exactPhysicalInverse?_symm (target reversal : List Effect) :
+    exactPhysicalInverse? target reversal =
+      exactPhysicalInverse? reversal target := by
+  rw [Bool.eq_iff_iff]
+  simp only [exactPhysicalInverse?_eq_true_iff]
+  constructor
+  · intro h
+    have hMapped := h.symm.map inversePhysical
+    simpa [List.map_map, Function.comp_def] using hMapped
+  · intro h
+    have hMapped := h.symm.map inversePhysical
+    simpa [List.map_map, Function.comp_def] using hMapped
 
 /--
 Flatten retained reversal relations to their endpoint identities.
