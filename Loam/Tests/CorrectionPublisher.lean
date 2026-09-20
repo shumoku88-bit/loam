@@ -163,6 +163,39 @@ def main (args : List String) : IO Unit := do
     root.toString correctionDraft
   expect (!staleRetry.isOk) "already-completed correction target was accepted again"
 
+  -- A non-JPY single-Measure Actual uses the same correction semantics.
+  let usdRoot := root / "usd-correction"
+  IO.FS.createDirAll usdRoot
+  let usdWorld ← emptyWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? usdRoot usdWorld
+    | throw (IO.userError "initialize USD correction world")
+  let usdRecord : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-08"
+    description := some "USD before"
+    effects := [
+      Effect.ofQuantity ⟨"usd-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-20)),
+      Effect.ofQuantity ⟨"usd-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 20)]
+    relations := []
+    discharges := []
+    total := 20 }
+  let .ok usdTarget ← Loam.MovementPublisher.publishDraft usdRoot.toString usdRecord
+    | throw (IO.userError "publish USD correction target")
+  let usdCorrection : Loam.CorrectionPublisher.Draft := {
+    target := usdTarget
+    effects := [
+      Effect.ofQuantity ⟨"usd-new-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-21)),
+      Effect.ofQuantity ⟨"usd-new-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 21)]
+    description := some "USD after" }
+  let .ok () ← Loam.CorrectionPublisher.publishCorrection usdRoot.toString usdCorrection
+    | throw (IO.userError "balanced USD correction was refused")
+  let .ok usdRecords ← Loam.ActualReview.loadRecordsFromActual usdRoot
+    | throw (IO.userError "reload USD correction")
+  let usdCurrent := Loam.ActualReview.select usdRecords (.day "2026-09-08")
+  expect (usdCurrent.any fun record =>
+      record.description == "USD after" &&
+      record.event.effects.all fun effect => effect.measure == ⟨"usd"⟩)
+    "USD correction did not preserve Measure identity"
+
   let dischargeRoot := root / "relation-discharge-guard"
   IO.FS.createDirAll dischargeRoot
   let retainedDischargeWorld ← dischargeWorld
@@ -209,4 +242,4 @@ def main (args : List String) : IO Unit := do
   expect (afterRelationBlocked.relations.length == 1)
     "refused Relation-source correction changed retained relation evidence"
 
-  IO.println "Correction Publisher: Actual re-read, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
+  IO.println "Correction Publisher: Actual re-read, USD replacement, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
