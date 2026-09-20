@@ -220,24 +220,31 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
 
           -- Relations: whole-family frontier owns source resolution, shape,
           -- quantity bounds, aggregate coverage, and stable identity uniqueness.
-          let _ ← admittedRelationFrontier? evidence.events evidence.relations
+          match hRelations :
+              admittedRelationFrontier? evidence.events evidence.relations with
+          | none => none
+          | some admittedRelations => do
+              -- Discharges: persistence owns same-generation reference closure.
+              for discharge in evidence.discharges do
+                let _ ← retainedEvents[discharge.event.token]?
+                let _ ← evidence.relations.find? fun r => r.id = discharge.target
 
-          -- Discharges: persistence owns same-generation reference closure.
-          for discharge in evidence.discharges do
-            let _ ← retainedEvents[discharge.event.token]?
-            let _ ← evidence.relations.find? fun r => r.id = discharge.target
+              -- Reuse the already-admitted whole RelationUnit frontier. Target-local
+              -- discharge admission must not re-enter whole-family relation admission.
+              let _ ← admitRelationDischargesForFrontier?
+                evidence.events
+                evidence.relations
+                admittedRelations
+                hRelations
+                evidence.discharges
 
-          for relation in evidence.relations do
-            let _ ← admittedRelationDischargesFor?
-              evidence.events evidence.relations evidence.discharges relation.id
-
-          some {
-            evidence := evidence
-            currentEvents := currentEvents
-            currentValidities := admittedDates
-            currentEvents_admitted := hFrontier
-            currentValidities_admitted := hValidity
-          }
+              some {
+                evidence := evidence
+                currentEvents := currentEvents
+                currentValidities := admittedDates
+                currentEvents_admitted := hFrontier
+                currentValidities_admitted := hValidity
+              }
 
 /--
 Compatibility entrance returning only retained ActualEvidence.
