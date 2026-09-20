@@ -228,21 +228,39 @@ def effectValidOn?
       else
         effectValidOn? events rest event effect
 
+private def bankDate : EffectValidity := {
+  event := transferId
+  effect := bankSide
+  validOn := "2026-09-20"
+}
+
+private def leftWalletDate : EffectValidity := {
+  event := transferId
+  effect := walletSide
+  validOn := "2026-09-21"
+}
+
+private def rightWalletDate : EffectValidity := {
+  event := transferId
+  effect := walletSide
+  validOn := "2026-09-22"
+}
+
 private def leftSideDates : List EffectValidity := [
-  { event := transferId, effect := bankSide, validOn := "2026-09-20" },
-  { event := transferId, effect := walletSide, validOn := "2026-09-21" }
+  bankDate,
+  leftWalletDate
 ]
 
 private def rightSideDates : List EffectValidity := [
-  { event := transferId, effect := bankSide, validOn := "2026-09-20" },
-  { event := transferId, effect := walletSide, validOn := "2026-09-22" }
+  bankDate,
+  rightWalletDate
 ]
 
 /-- Both selected side claims refer to real retained Effects. -/
 theorem side_local_date_evidence_is_structurally_admissible :
-    effectValidityAdmitted? transferMemory leftSideDates[0]! = true ∧
-    effectValidityAdmitted? transferMemory leftSideDates[1]! = true ∧
-    effectValidityAdmitted? transferMemory rightSideDates[1]! = true := by
+    effectValidityAdmitted? transferMemory bankDate = true ∧
+    effectValidityAdmitted? transferMemory leftWalletDate = true ∧
+    effectValidityAdmitted? transferMemory rightWalletDate = true := by
   native_decide
 
 /--
