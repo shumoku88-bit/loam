@@ -285,7 +285,8 @@ theorem correctionFrontierMemory?_mem_iff
       | nil => rfl
       | cons head tail => simp [hList] at hEmpty
     simp [hNoCorrections]
-  · split at hFrontier
+  · dsimp only at hFrontier
+    split at hFrontier
     · simp only [Option.some.injEq] at hFrontier
       subst frontier
       simp [frontierEvents, targetsEvent_false_iff]
