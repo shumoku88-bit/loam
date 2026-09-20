@@ -1,7 +1,5 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
-import Loam.Core.HashNodup
-import Std.Data.HashSet
 
 namespace Loam.Application
 
@@ -58,47 +56,10 @@ private def correctionEdges
   corrections.corrections.map fun correction =>
     { source := correction.target, successor := correction.replacement }
 
-private def eventIdentityIndex
-    (events : EventMemory) : Std.HashSet String :=
-  events.events.foldl
-    (fun index event => index.insert event.id.token)
-    {}
-
-private def eventPresentIn
-    (index : Std.HashSet String)
+private def eventPresent
+    (events : EventMemory)
     (id : EventId) : Bool :=
-  index.contains id.token
-
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
-private def correctionFrontierAdmissibleWithIndex
-    (index : Std.HashSet String)
-    (corrections : EventCorrectionMemory) : Bool :=
-  let edges := correctionEdges corrections
-  let sources := edges.map ReplacementFrontier.Edge.source
-  let successors := edges.map ReplacementFrontier.Edge.successor
-  match
-      hashNodupBy?
-        (fun id : EventId => id.token)
-        eventIdToken_injective
-        sources,
-      hashNodupBy?
-        (fun id : EventId => id.token)
-        eventIdToken_injective
-        successors with
-  | some sourceWitness, some successorWitness =>
-      ReplacementFrontier.structurallyAdmissibleOfEndpointUnique
-        (eventPresentIn index)
-        edges
-        sourceWitness.proof
-        successorWitness.proof
-  | _, _ => false
+  (EventMemory.findById? events id).isSome
 
 /--
 Whether every retained correction endpoint is represented by an Event.
@@ -111,9 +72,8 @@ all effective quantity calculation.
 def correctionReferencesClosed
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
-  let index := eventIdentityIndex events
   ReplacementFrontier.referencesClosed
-    (eventPresentIn index) (correctionEdges corrections)
+    (eventPresent events) (correctionEdges corrections)
 
 /--
 Whether the retained correction facts justify one order-free frontier using
@@ -134,9 +94,8 @@ beyond the explicit correction relation itself.
 def correctionFrontierAdmissible
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
-  let index := eventIdentityIndex events
   ReplacementFrontier.structurallyAdmissible
-    (eventPresentIn index) (correctionEdges corrections)
+    (eventPresent events) (correctionEdges corrections)
 
 /-- A singleton self-correction is one cycle and therefore never a current frontier. -/
 @[simp] theorem correctionFrontierAdmissible_singleton_self
@@ -195,15 +154,13 @@ def correctionFrontierMemory?
     (corrections : EventCorrectionMemory) : Option EventMemory :=
   if corrections.corrections.isEmpty then
     some events
+  else if correctionFrontierAdmissible events corrections then
+    some {
+      events := frontierEvents events corrections
+      idNodup := frontierEvents_idNodup events corrections
+    }
   else
-    let index := eventIdentityIndex events
-    if correctionFrontierAdmissibleWithIndex index corrections then
-      some {
-        events := frontierEvents events corrections
-        idNodup := frontierEvents_idNodup events corrections
-      }
-    else
-      none
+    none
 
 /--
 Return the stable correction root together with its current terminal Event for
@@ -285,8 +242,7 @@ theorem correctionFrontierMemory?_mem_iff
       | nil => rfl
       | cons head tail => simp [hList] at hEmpty
     simp [hNoCorrections]
-  · dsimp only at hFrontier
-    split at hFrontier
+  · split at hFrontier
     · simp only [Option.some.injEq] at hFrontier
       subst frontier
       simp [frontierEvents, targetsEvent_false_iff]
