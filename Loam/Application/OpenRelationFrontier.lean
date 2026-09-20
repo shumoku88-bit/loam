@@ -173,8 +173,12 @@ private theorem admitAll?_isSome_eq_currentUnitsAdmissible
         currentUnitsAdmissible events relations
   | [] => by rfl
   | relation :: rest => by
-      simp [admitAll?, currentUnitsAdmissible,
-        admitAll?_isSome_eq_currentUnitsAdmissible events rest]
+      cases hAdmission : admitRelationUnit? events relation with
+      | none =>
+          simp [admitAll?, currentUnitsAdmissible, hAdmission]
+      | some admitted =>
+          simp [admitAll?, currentUnitsAdmissible, hAdmission,
+            admitAll?_isSome_eq_currentUnitsAdmissible events rest]
 
 private def sameRelationSource (left right : RelationUnit) : Bool :=
   decide
