@@ -159,6 +159,27 @@ private def currentUnitsAdmissible
   relations.all fun relation =>
     (admitRelationUnit? events relation).isSome
 
+/--
+Whole-list admission succeeds exactly when every retained RelationUnit succeeds
+under the existing single-unit admission boundary.
+
+This connects the public Bool predicate to the value-producing admission pass so
+frontier construction can reuse that pass instead of checking every unit twice.
+-/
+private theorem admitAll?_isSome_eq_currentUnitsAdmissible
+    (events : EventMemory) :
+    ∀ relations : List RelationUnit,
+      (admitAll? events relations).isSome =
+        currentUnitsAdmissible events relations
+  | [] => by rfl
+  | relation :: rest => by
+      cases hAdmission : admitRelationUnit? events relation with
+      | none =>
+          simp [admitAll?, currentUnitsAdmissible, hAdmission]
+      | some admitted =>
+          simp [admitAll?, currentUnitsAdmissible, hAdmission, Option.isSome_bind,
+            admitAll?_isSome_eq_currentUnitsAdmissible events rest]
+
 private def sameRelationSource (left right : RelationUnit) : Bool :=
   decide
     (left.sourceEvent = right.sourceEvent ∧
@@ -177,14 +198,6 @@ private def sourceRelationUnits
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : List RelationUnit :=
   relations.filter (sameRawSource sourceEvent sourceEffect)
-
-private def sourceCurrentUnitsAdmissible
-    (events : EventMemory)
-    (relations : List RelationUnit)
-    (sourceEvent : EventId)
-    (sourceEffect : EffectKey) : Bool :=
-  (sourceRelationUnits relations sourceEvent sourceEffect).all
-    fun relation => (admitRelationUnit? events relation).isSome
 
 private def currentCoverageFor
     (current : List RelationUnit)
@@ -260,7 +273,8 @@ source Event appears; source-specific queries use a narrower projection below.
 def admittedRelationFrontier?
     (events : EventMemory)
     (relations : List RelationUnit) : Option (List AdmittedRelationUnit) :=
-  if relationFrontierAdmissible events relations then
+  if relationFrontierStructurallyAdmissible relations &&
+      currentRelationCoverageBounded events relations then
     admitAll? events relations
   else
     none
@@ -281,8 +295,6 @@ private def admittedRelationSourceFrontier?
     (sourceEvent : EventId)
     (sourceEffect : EffectKey) : Option (List AdmittedRelationUnit) :=
   if relationFrontierStructurallyAdmissible relations &&
-      sourceCurrentUnitsAdmissible
-        events relations sourceEvent sourceEffect &&
       sourceRelationCoverageBounded
         events relations sourceEvent sourceEffect then
     admitAll? events
