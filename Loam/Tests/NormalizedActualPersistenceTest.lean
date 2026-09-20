@@ -358,6 +358,40 @@ def main : IO Unit := do
   requireNone (decodeNormalizedActual? reversalChain)
     "admitted reversal chain after endpoint uniqueness moved into Core memory"
 
+  -- 6hc. Exact inverse does not excuse an unbalanced target Event.
+  -- Reversal balance may be derived, but the target side must still pass runtime admission once.
+  let exactInverseOfUnbalancedTarget :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-unbalanced-target\t2026-09-01\tNODESC\n" ++
+    "EFFECT\tcash\tjpy\t50000\n" ++
+    "ENDTX\n" ++
+    "TX\tev-unbalanced-reversal\t2026-09-02\tNODESC\n" ++
+    "REVERSAL-OF\tev-unbalanced-target\n" ++
+    "EFFECT\tcash\tjpy\t-50000\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? exactInverseOfUnbalancedTarget)
+    "exact inverse incorrectly bypassed target balance admission"
+
+  -- 6hd. A valid exact reversal may span multiple Measures; each target Measure is
+  -- admitted once and the reversal-side balance is proof-derived independently.
+  let multiMeasureReversal :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\tev-multi-target\t2026-09-01\tNODESC\n" ++
+    "EFFECT\twallet\tjpy\t-100\n" ++
+    "EFFECT\tbank\tjpy\t100\n" ++
+    "EFFECT\tasset\tusd\t-5\n" ++
+    "EFFECT\treserve\tusd\t5\n" ++
+    "ENDTX\n" ++
+    "TX\tev-multi-reversal\t2026-09-02\tNODESC\n" ++
+    "REVERSAL-OF\tev-multi-target\n" ++
+    "EFFECT\twallet\tjpy\t100\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "EFFECT\tasset\tusd\t5\n" ++
+    "EFFECT\treserve\tusd\t-5\n" ++
+    "ENDTX\n"
+  let _ ← requireSome (decodeNormalizedActual? multiMeasureReversal)
+    "proof-derived reversal balance rejected a valid multi-Measure exact inverse"
+
   -- 6i. Invalid Effect coordinate token is rejected at canonical decode.
   let invalidLocusToken :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
