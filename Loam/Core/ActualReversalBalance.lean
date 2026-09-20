@@ -167,10 +167,10 @@ closes to zero in that Measure without a second runtime balance admission.
 -/
 theorem reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
     (target reversal : List Effect)
+    (measure : MeasureId)
     (hTarget :
       movementTotalQuanta (movementChangesForMeasure measure target) = 0)
-    (hExact : exactPhysicalInverse? target reversal = true)
-    (measure : MeasureId) :
+    (hExact : exactPhysicalInverse? target reversal = true) :
     movementTotalQuanta (movementChangesForMeasure measure reversal) = 0 := by
   have hNet :=
     measureNetZero_of_exactPhysicalInverse target reversal hExact measure
