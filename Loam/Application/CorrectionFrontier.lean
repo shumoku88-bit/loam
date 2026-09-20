@@ -20,6 +20,14 @@ does not reinterpret branching or merging correction shapes as if they had a
 winner. Multi-parent settlement remains outside the current production Core.
 -/
 
+private def targetsEvent : List EventCorrection → EventId → Bool
+  | [], _ => false
+  | correction :: rest, id =>
+      if correction.target = id then
+        true
+      else
+        targetsEvent rest id
+
 private def replacesEvent : List EventCorrection → EventId → Bool
   | [], _ => false
   | correction :: rest, id =>
@@ -140,61 +148,24 @@ def correctionFrontierAdmissible
         idNodup := by simp } = false := by
   simp [correctionFrontierAdmissible, correctionEdges]
 
-private def targetIdentityIndex :
-    List EventCorrection → Std.HashSet String
-  | [] => {}
-  | correction :: rest =>
-      (targetIdentityIndex rest).insert correction.target.token
-
-private theorem targetIdentityIndex_mem_iff
-    (corrections : List EventCorrection)
-    (token : String) :
-    token ∈ targetIdentityIndex corrections ↔
-      ∃ correction ∈ corrections, correction.target.token = token := by
-  induction corrections with
-  | nil =>
-      simp [targetIdentityIndex]
-  | cons correction rest ih =>
-      rw [targetIdentityIndex, Std.HashSet.mem_insert, ih]
-      simp only [beq_iff_eq]
-      constructor
-      · intro h
-        cases h with
-        | inl hEq =>
-            exact ⟨correction, by simp, hEq⟩
-        | inr hRest =>
-            rcases hRest with ⟨found, hFound, hToken⟩
-            exact ⟨found, by simp [hFound], hToken⟩
-      · rintro ⟨found, hFound, hToken⟩
-        simp only [List.mem_cons] at hFound
-        cases hFound with
-        | inl hEq =>
-            subst found
-            exact Or.inl hToken
-        | inr hRest =>
-            exact Or.inr ⟨found, hRest, hToken⟩
-
-private theorem targetIdentityIndex_not_mem_iff
-    (corrections : List EventCorrection)
-    (id : EventId) :
-    id.token ∉ targetIdentityIndex corrections ↔
-      ∀ correction ∈ corrections, correction.target ≠ id := by
-  constructor
-  · intro hNot correction hCorrection hEq
-    apply hNot
-    exact (targetIdentityIndex_mem_iff corrections id.token).2
-      ⟨correction, hCorrection, congrArg (fun eventId : EventId => eventId.token) hEq⟩
-  · intro hNo hMem
-    rcases (targetIdentityIndex_mem_iff corrections id.token).1 hMem with
-      ⟨correction, hCorrection, hToken⟩
-    exact hNo correction hCorrection (eventIdToken_injective hToken)
-
 private def frontierEvents
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : List Event :=
-  let targets := targetIdentityIndex corrections.corrections
   events.events.filter fun event =>
-    !(targets.contains event.id.token)
+    !(targetsEvent corrections.corrections event.id)
+
+private theorem targetsEvent_false_iff
+    (corrections : List EventCorrection)
+    (id : EventId) :
+    targetsEvent corrections id = false ↔
+      ∀ correction ∈ corrections, correction.target ≠ id := by
+  induction corrections with
+  | nil =>
+      simp [targetsEvent]
+  | cons correction rest ih =>
+      by_cases hTarget : correction.target = id
+      · simp [targetsEvent, hTarget]
+      · simp [targetsEvent, hTarget, ih]
 
 /--
 Filtering an already-admitted EventMemory cannot introduce a repeated EventId.
@@ -318,7 +289,7 @@ theorem correctionFrontierMemory?_mem_iff
     split at hFrontier
     · simp only [Option.some.injEq] at hFrontier
       subst frontier
-      simp [frontierEvents, targetIdentityIndex_not_mem_iff]
+      simp [frontierEvents, targetsEvent_false_iff]
     · simp at hFrontier
 
 /--
