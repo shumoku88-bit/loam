@@ -1,5 +1,4 @@
 import Loam.Core.EventCorrection
-import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -23,36 +22,13 @@ structure EventCorrectionMemory where
 
 namespace EventCorrectionMemory
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
-private theorem correctionPairToken_injective :
-    Function.Injective (fun pair : EventId × EventId =>
-      (pair.1.token, pair.2.token)) := by
-  intro left right h
-  apply Prod.ext
-  · exact eventIdToken_injective (congrArg Prod.fst h)
-  · exact eventIdToken_injective (congrArg Prod.snd h)
-
-/--
-Admit raw correction facts while refusing duplicate semantic edges.
-
-The HashSet used during admission is transient. The retained Core authority is
-still the same `List.Nodup` proof over exact target/replacement pairs.
--/
-def ofCorrections? (corrections : List EventCorrection) : Option EventCorrectionMemory := do
-  let pairs := corrections.map fun correction =>
-    (correction.target, correction.replacement)
-  let h ← hashNodupBy?
-    (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-    correctionPairToken_injective
-    pairs
-  some { corrections := corrections, idNodup := h.proof }
+/-- Admit raw correction facts while refusing duplicate semantic edges. -/
+def ofCorrections? (corrections : List EventCorrection) : Option EventCorrectionMemory :=
+  if h : (corrections.map fun correction =>
+      (correction.target, correction.replacement)).Nodup then
+    some { corrections := corrections, idNodup := h }
+  else
+    none
 
 /-- Whether any retained raw correction explicitly targets this Event identity. -/
 def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
@@ -71,47 +47,18 @@ def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
 /-- Empty correction memory is valid. -/
 @[simp] theorem ofCorrections?_nil :
     ofCorrections? [] = some { corrections := [], idNodup := by simp } := by
-  change
-    (do
-      let h ← hashNodupBy?
-        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-        correctionPairToken_injective
-        []
-      some ({ corrections := [], idNodup := h.proof } : EventCorrectionMemory)) =
-    some ({ corrections := [], idNodup := by simp } : EventCorrectionMemory)
-  rw [hashNodupBy?_nil]
-  rfl
+  simp [ofCorrections?]
 
 /-- One correction edge is always unique within a correction memory. -/
 @[simp] theorem ofCorrections?_singleton (correction : EventCorrection) :
     ofCorrections? [correction] =
       some { corrections := [correction], idNodup := by simp } := by
-  change
-    (do
-      let h ← hashNodupBy?
-        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-        correctionPairToken_injective
-        [(correction.target, correction.replacement)]
-      some ({ corrections := [correction], idNodup := h.proof } :
-        EventCorrectionMemory)) =
-    some ({ corrections := [correction], idNodup := by simp } :
-      EventCorrectionMemory)
-  rw [hashNodupBy?_singleton]
-  rfl
+  simp [ofCorrections?]
 
 /-- Repeating one exact correction edge is rejected rather than ordered. -/
 @[simp] theorem ofCorrections?_duplicate (correction : EventCorrection) :
     ofCorrections? [correction, correction] = none := by
-  change
-    (do
-      let h ← hashNodupBy?
-        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-        correctionPairToken_injective
-        [(correction.target, correction.replacement),
-          (correction.target, correction.replacement)]
-      some ({ corrections := [correction, correction], idNodup := h.proof } :
-        EventCorrectionMemory)) = none
-  simp [hashNodupBy?_repeat]
+  simp [ofCorrections?]
 
 /--
 Add one complete raw correction relation, rejecting an exact duplicate edge.
@@ -128,11 +75,11 @@ def add?
 @[simp] theorem add?_empty (correction : EventCorrection) :
     add? { corrections := [], idNodup := by simp } correction =
       some { corrections := [correction], idNodup := by simp } := by
-  simpa [add?] using ofCorrections?_singleton correction
+  simp [add?, ofCorrections?]
 
 @[simp] theorem add?_singleton_duplicate (correction : EventCorrection) :
     add? { corrections := [correction], idNodup := by simp } correction = none := by
-  simpa [add?] using ofCorrections?_duplicate correction
+  simp [add?, ofCorrections?]
 
 theorem add?_singleton_distinct
     (existing added : EventCorrection)
@@ -140,33 +87,7 @@ theorem add?_singleton_distinct
       (added.target, added.replacement)) :
     add? { corrections := [existing], idNodup := by simp } added =
       some { corrections := [existing, added], idNodup := by simp [h] } := by
-  have hKey :
-      (existing.target.token, existing.replacement.token) ≠
-        (added.target.token, added.replacement.token) := by
-    intro hEq
-    exact h (correctionPairToken_injective hEq)
-  change ofCorrections? [existing, added] =
-    some ({ corrections := [existing, added], idNodup := by simp [h] } :
-      EventCorrectionMemory)
-  unfold ofCorrections?
-  change
-    (do
-      let witness ← hashNodupBy?
-        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-        correctionPairToken_injective
-        [(existing.target, existing.replacement),
-          (added.target, added.replacement)]
-      some ({ corrections := [existing, added], idNodup := witness.proof } :
-        EventCorrectionMemory)) =
-    some ({ corrections := [existing, added], idNodup := by simp [h] } :
-      EventCorrectionMemory)
-  rw [hashNodupBy?_pair_of_key_ne
-    (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
-    correctionPairToken_injective
-    (existing.target, existing.replacement)
-    (added.target, added.replacement)
-    hKey]
-  rfl
+  simp [add?, ofCorrections?, h]
 
 end EventCorrectionMemory
 
