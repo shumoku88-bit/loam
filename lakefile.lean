@@ -45,6 +45,9 @@ lean_exe loamJournalExport where
 lean_exe loamPtaExport where
   root := `Loam.Cli.PlainTextAccountingExportCli
 
+lean_exe loamBeancountExport where
+  root := `Loam.Cli.BeancountExportCli
+
 lean_exe loamShadowAudit where
   root := `Loam.Cli.ShadowAuditCli
 
