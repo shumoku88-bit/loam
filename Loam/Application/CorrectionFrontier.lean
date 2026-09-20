@@ -156,11 +156,12 @@ private theorem targetIdentityIndex_mem_iff
       simp [targetIdentityIndex]
   | cons correction rest ih =>
       rw [targetIdentityIndex, Std.HashSet.mem_insert, ih]
+      simp only [beq_iff_eq]
       constructor
       · intro h
         cases h with
         | inl hEq =>
-            exact ⟨correction, by simp, hEq.symm⟩
+            exact ⟨correction, by simp, hEq⟩
         | inr hRest =>
             rcases hRest with ⟨found, hFound, hToken⟩
             exact ⟨found, by simp [hFound], hToken⟩
@@ -169,7 +170,7 @@ private theorem targetIdentityIndex_mem_iff
         cases hFound with
         | inl hEq =>
             subst found
-            exact Or.inl hToken.symm
+            exact Or.inl hToken
         | inr hRest =>
             exact Or.inr ⟨found, hRest, hToken⟩
 
