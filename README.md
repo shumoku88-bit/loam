@@ -59,9 +59,9 @@ Household recording has one explicit line-CLI entrance:
 
 If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
 
-Enter one or more FROM loci and positive JPY amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
+Select one Measure for the movement (default `jpy`; scripted callers may set `LOAM_MEASURE`), enter one or more FROM loci and positive amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly in that same Measure before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
-Purchases, transfers, income, split payments, and other value flows use this same entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
+Purchases, transfers, income, split payments, and other same-Measure value flows use this entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. A cross-Measure exchange such as JPY -> USD is deliberately not inferred by this entrance; it requires separately qualified exchange / valuation semantics. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
 ### Household Actual authority
 
