@@ -177,7 +177,7 @@ private theorem admitAll?_isSome_eq_currentUnitsAdmissible
       | none =>
           simp [admitAll?, currentUnitsAdmissible, hAdmission]
       | some admitted =>
-          simp [admitAll?, currentUnitsAdmissible, hAdmission,
+          simp [admitAll?, currentUnitsAdmissible, hAdmission, Option.isSome_bind,
             admitAll?_isSome_eq_currentUnitsAdmissible events rest]
 
 private def sameRelationSource (left right : RelationUnit) : Bool :=
