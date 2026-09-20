@@ -1,5 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.FiniteKeyed
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -40,15 +41,27 @@ deriving Repr
 
 namespace EventDescriptionMemory
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 /--
 Admit a collection of Event descriptions only if no EventId is repeated.
 Duplicate descriptions for the same EventId are rejected (fail closed).
+
+The HashSet is a transient duplicate-detection accelerator only. The retained
+Core authority is still the same `List.Nodup` proof over Event identities.
 -/
-def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory :=
-  if h : (entries.map EventDescription.event).Nodup then
-    some { entries := entries, eventNodup := h }
-  else
-    none
+def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory := do
+  let h ← hashNodupBy?
+    (fun id : EventId => id.token)
+    eventIdToken_injective
+    (entries.map EventDescription.event)
+  some { entries := entries, eventNodup := h.proof }
 
 /-- Empty Event-description memory is always valid. -/
 @[simp] theorem ofEntries?_nil :
