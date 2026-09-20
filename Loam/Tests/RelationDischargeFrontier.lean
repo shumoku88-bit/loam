@@ -267,4 +267,20 @@ example :
       List.length = some 2 := by
   native_decide
 
+/--
+A successfully admitted whole relation frontier can be reused directly for all
+target-local discharge checks without re-entering relation admission.
+-/
+example :
+    (match hFrontier : admittedRelationFrontier? events [relationA, relationB] with
+    | none => false
+    | some frontier =>
+        (admitRelationDischargesForFrontier?
+          events
+          [relationA, relationB]
+          frontier
+          hFrontier
+          [partialA, remainderA, fullBFromSameReceipt]).isSome) = true := by
+  native_decide
+
 end Loam.Tests.RelationDischargeFrontier
