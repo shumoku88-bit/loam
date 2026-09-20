@@ -33,6 +33,8 @@ Using every tool is not a goal. If two tools answer the same question in the sam
 
 For non-trivial semantic changes and audits, LOAM first decomposes the question into deterministic, previously-earned, and genuinely residual obligations before adding proofs or asking AI to reason over the whole subsystem. See [`docs/OBLIGATION_SCAFFOLD_METHOD.md`](docs/OBLIGATION_SCAFFOLD_METHOD.md).
 
+For long-horizon AI-assisted development, [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is a deliberately small shared map of the meaning that should remain stable across many work sessions and pull requests. Use it as an outer drift review around the local obligation scaffold; it is not a new persistence or proof authority.
+
 Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
 
 For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
