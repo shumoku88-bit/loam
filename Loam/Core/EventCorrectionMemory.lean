@@ -71,18 +71,47 @@ def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
 /-- Empty correction memory is valid. -/
 @[simp] theorem ofCorrections?_nil :
     ofCorrections? [] = some { corrections := [], idNodup := by simp } := by
-  simp [ofCorrections?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+        correctionPairToken_injective
+        []
+      some ({ corrections := [], idNodup := h.proof } : EventCorrectionMemory)) =
+    some ({ corrections := [], idNodup := by simp } : EventCorrectionMemory)
+  rw [hashNodupBy?_nil]
+  rfl
 
 /-- One correction edge is always unique within a correction memory. -/
 @[simp] theorem ofCorrections?_singleton (correction : EventCorrection) :
     ofCorrections? [correction] =
       some { corrections := [correction], idNodup := by simp } := by
-  simp [ofCorrections?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+        correctionPairToken_injective
+        [(correction.target, correction.replacement)]
+      some ({ corrections := [correction], idNodup := h.proof } :
+        EventCorrectionMemory)) =
+    some ({ corrections := [correction], idNodup := by simp } :
+      EventCorrectionMemory)
+  rw [hashNodupBy?_singleton]
+  rfl
 
 /-- Repeating one exact correction edge is rejected rather than ordered. -/
 @[simp] theorem ofCorrections?_duplicate (correction : EventCorrection) :
     ofCorrections? [correction, correction] = none := by
-  simp [ofCorrections?]
+  change
+    (do
+      let h ← hashNodupBy?
+        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+        correctionPairToken_injective
+        [(correction.target, correction.replacement),
+          (correction.target, correction.replacement)]
+      some ({ corrections := [correction, correction], idNodup := h.proof } :
+        EventCorrectionMemory)) = none
+  rw [hashNodupBy?_repeat]
 
 /--
 Add one complete raw correction relation, rejecting an exact duplicate edge.
@@ -99,11 +128,11 @@ def add?
 @[simp] theorem add?_empty (correction : EventCorrection) :
     add? { corrections := [], idNodup := by simp } correction =
       some { corrections := [correction], idNodup := by simp } := by
-  simp [add?, ofCorrections?]
+  simpa [add?] using ofCorrections?_singleton correction
 
 @[simp] theorem add?_singleton_duplicate (correction : EventCorrection) :
     add? { corrections := [correction], idNodup := by simp } correction = none := by
-  simp [add?, ofCorrections?]
+  simpa [add?] using ofCorrections?_duplicate correction
 
 theorem add?_singleton_distinct
     (existing added : EventCorrection)
@@ -111,7 +140,33 @@ theorem add?_singleton_distinct
       (added.target, added.replacement)) :
     add? { corrections := [existing], idNodup := by simp } added =
       some { corrections := [existing, added], idNodup := by simp [h] } := by
-  simp [add?, ofCorrections?, h]
+  have hKey :
+      (existing.target.token, existing.replacement.token) ≠
+        (added.target.token, added.replacement.token) := by
+    intro hEq
+    exact h (correctionPairToken_injective hEq)
+  change ofCorrections? [existing, added] =
+    some ({ corrections := [existing, added], idNodup := by simp [h] } :
+      EventCorrectionMemory)
+  unfold ofCorrections?
+  change
+    (do
+      let witness ← hashNodupBy?
+        (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+        correctionPairToken_injective
+        [(existing.target, existing.replacement),
+          (added.target, added.replacement)]
+      some ({ corrections := [existing, added], idNodup := witness.proof } :
+        EventCorrectionMemory)) =
+    some ({ corrections := [existing, added], idNodup := by simp [h] } :
+      EventCorrectionMemory)
+  rw [hashNodupBy?_pair_of_key_ne
+    (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+    correctionPairToken_injective
+    (existing.target, existing.replacement)
+    (added.target, added.replacement)
+    hKey]
+  rfl
 
 end EventCorrectionMemory
 
