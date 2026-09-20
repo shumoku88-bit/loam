@@ -135,7 +135,8 @@ def correctionFrontierAdmissible
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
   let index := eventIdentityIndex events
-  correctionFrontierAdmissibleWithIndex index corrections
+  ReplacementFrontier.structurallyAdmissible
+    (eventPresentIn index) (correctionEdges corrections)
 
 /-- A singleton self-correction is one cycle and therefore never a current frontier. -/
 @[simp] theorem correctionFrontierAdmissible_singleton_self
@@ -194,13 +195,15 @@ def correctionFrontierMemory?
     (corrections : EventCorrectionMemory) : Option EventMemory :=
   if corrections.corrections.isEmpty then
     some events
-  else if correctionFrontierAdmissible events corrections then
-    some {
-      events := frontierEvents events corrections
-      idNodup := frontierEvents_idNodup events corrections
-    }
   else
-    none
+    let index := eventIdentityIndex events
+    if correctionFrontierAdmissibleWithIndex index corrections then
+      some {
+        events := frontierEvents events corrections
+        idNodup := frontierEvents_idNodup events corrections
+      }
+    else
+      none
 
 /--
 Return the stable correction root together with its current terminal Event for
