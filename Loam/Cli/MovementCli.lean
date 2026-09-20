@@ -150,7 +150,9 @@ private def collectMovementDraft
           let afterDate : Loam.MovementUi.Progress := { validOn := some validOn }
           showDraftProgress afterDate
           let description ← practicalDescription
-          let .ok measure ← practicalMeasure
+          let measure ←
+            match ← practicalMeasure with
+            | .ok measure => pure measure
             | .error message => return .error message
           match ← Loam.MovementEntry.collectMovementEffects measure with
           | .error message => return .error message
