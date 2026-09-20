@@ -195,7 +195,7 @@ private def resolvedCoordinates
   (usedCoordinates entries).mapM fun coordinate =>
     resolveCoordinate roles coordinate.1 coordinate.2
 
-private def firstDuplicate? [DecidableEq α] : List α → Option α
+private def firstDuplicate? {α : Type} [DecidableEq α] : List α → Option α
   | [] => none
   | item :: rest =>
       if rest.contains item then
