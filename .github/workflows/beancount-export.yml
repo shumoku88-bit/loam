@@ -1,0 +1,317 @@
+name: Beancount Export
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/BeancountExport.lean'
+      - 'Loam/Cli/BeancountExportCli.lean'
+      - 'Loam/Tests/BeancountExport.lean'
+      - 'Loam/Tests/BeancountExportFixture.lean'
+      - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/ActualJournalProjection.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/beancount-export.yml'
+  push:
+    branches:
+      - 'feat/beancount-export'
+    paths:
+      - 'Loam/BeancountExport.lean'
+      - 'Loam/Cli/BeancountExportCli.lean'
+      - 'Loam/Tests/BeancountExport.lean'
+      - 'Loam/Tests/BeancountExportFixture.lean'
+      - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/ActualJournalProjection.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'lakefile.lean'
+      - '.github/workflows/beancount-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: LOAM Beancount export and Fava
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build exporter and fixtures
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamBeancountExport Loam.Tests.BeancountExport Loam.Tests.JournalExport Loam.Tests.BeancountExportFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify pure Beancount projection boundary
+        run: lake env lean --run Loam/Tests/BeancountExport.lean
+
+      - name: Generate strict exported fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/beancount-export"
+          echo "$root" > /tmp/loam-beancount-root
+          lake env lean --run Loam/Tests/JournalExport.lean "$root"
+          ./.lake/build/bin/loamBeancountExport \
+            "$root/actual.loam" \
+            "$root/accounting-role.loam" \
+            "$root/actual.beancount"
+
+          grep -Fq 'option "operating_currency" "JPY"' "$root/actual.beancount"
+          grep -Fq "open Assets:Loam-wallet JPY" "$root/actual.beancount"
+          grep -Fq "open Expenses:Loam-food JPY" "$root/actual.beancount"
+          grep -Fq 'loam_event_id: "journal-replacement"' "$root/actual.beancount"
+          grep -Fq 'loam_event_id: "journal-untouched"' "$root/actual.beancount"
+          if grep -q "journal-original" "$root/actual.beancount"; then
+            echo "superseded correction target leaked into Beancount projection" >&2
+            exit 1
+          fi
+
+          if ./.lake/build/bin/loamBeancountExport \
+              "$root/actual.loam" \
+              "$root/accounting-role.loam" \
+              "$root/./actual.loam"; then
+            echo "Beancount export accepted an alias of Actual authority" >&2
+            exit 1
+          fi
+
+      - name: Verify partial Beancount export and failure boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          partial_root="$(mktemp -d)/beancount-partial-export"
+          echo "$partial_root" > /tmp/loam-beancount-partial-root
+          lake env lean --run Loam/Tests/BeancountExportFixture.lean "$partial_root"
+
+          # Strict mode must fail-closed when any Locus is unresolved
+          if ./.lake/build/bin/loamBeancountExport \
+              "$partial_root/actual.loam" \
+              "$partial_root/accounting-role.loam" \
+              "$partial_root/strict.beancount"; then
+            echo "Strict export accepted unresolved Locus" >&2
+            exit 1
+          fi
+
+          # Partial mode succeeds and writes both beancount view and report
+          ./.lake/build/bin/loamBeancountExport --partial \
+            "$partial_root/actual.loam" \
+            "$partial_root/accounting-role.loam" \
+            "$partial_root/partial.beancount" \
+            "$partial_root/partial-report.txt"
+
+          grep -Fq 'option "operating_currency" "JPY"' "$partial_root/partial.beancount"
+          grep -Fq "open Assets:Loam-wallet JPY" "$partial_root/partial.beancount"
+          grep -Fq "open Expenses:Loam-food JPY" "$partial_root/partial.beancount"
+          grep -Fq 'loam_event_id: "event-food"' "$partial_root/partial.beancount"
+          if grep -q "event-unknown" "$partial_root/partial.beancount"; then
+            echo "unresolved event leaked into partial Beancount projection" >&2
+            exit 1
+          fi
+          if grep -q "unknown_locus" "$partial_root/partial.beancount"; then
+            echo "unresolved locus leaked into partial Beancount projection" >&2
+            exit 1
+          fi
+
+          grep -Fq "Exported current Events: 1" "$partial_root/partial-report.txt"
+          grep -Fq "Skipped current Events: 1" "$partial_root/partial-report.txt"
+          grep -Fq "unknown_locus: 1 Events" "$partial_root/partial-report.txt"
+          grep -Fq 'event-unknown (2026-09-02): unknown_locus' "$partial_root/partial-report.txt"
+
+          # Collision checks
+          if ./.lake/build/bin/loamBeancountExport --partial \
+              "$partial_root/actual.loam" \
+              "$partial_root/accounting-role.loam" \
+              "$partial_root/actual.loam" \
+              "$partial_root/partial-report.txt"; then
+            echo "Beancount partial export accepted output alias of Actual authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --partial \
+              "$partial_root/actual.loam" \
+              "$partial_root/accounting-role.loam" \
+              "$partial_root/partial.beancount" \
+              "$partial_root/accounting-role.loam"; then
+            echo "Beancount partial export accepted report alias of AccountingRole authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --partial \
+              "$partial_root/actual.loam" \
+              "$partial_root/accounting-role.loam" \
+              "$partial_root/same.txt" \
+              "$partial_root/same.txt"; then
+            echo "Beancount partial export accepted conflicting output and report paths" >&2
+            exit 1
+          fi
+
+      - name: Verify suspense Beancount export and failure boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          suspense_root="$(mktemp -d)/beancount-suspense-export"
+          echo "$suspense_root" > /tmp/loam-beancount-suspense-root
+          lake env lean --run Loam/Tests/BeancountExportFixture.lean "$suspense_root"
+
+          # Suspense mode succeeds and projects unresolved effects to Equity:Loam-Unresolved
+          ./.lake/build/bin/loamBeancountExport --suspense \
+            "$suspense_root/actual.loam" \
+            "$suspense_root/accounting-role.loam" \
+            "$suspense_root/suspense.beancount" \
+            "$suspense_root/suspense-report.txt"
+
+          grep -Fq 'option "operating_currency" "JPY"' "$suspense_root/suspense.beancount"
+          grep -Fq "open Assets:Loam-wallet JPY" "$suspense_root/suspense.beancount"
+          grep -Fq "open Expenses:Loam-food JPY" "$suspense_root/suspense.beancount"
+          grep -Fq "open Equity:Loam-Unresolved JPY" "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_event_id: "event-food"' "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_event_id: "event-unknown"' "$suspense_root/suspense.beancount"
+          grep -Fq 'Equity:Loam-Unresolved  200 JPY' "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_unresolved_locus: "unknown_locus"' "$suspense_root/suspense.beancount"
+
+          grep -Fq "Exported current Events: 2" "$suspense_root/suspense-report.txt"
+          grep -Fq "Unresolved Effects projected to suspense: 1" "$suspense_root/suspense-report.txt"
+          grep -Fq "unknown_locus: 1 Effects" "$suspense_root/suspense-report.txt"
+
+          # Collision checks
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/suspense-report.txt"; then
+            echo "Beancount suspense export accepted output alias of Actual authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/suspense.beancount" \
+              "$suspense_root/accounting-role.loam"; then
+            echo "Beancount suspense export accepted report alias of AccountingRole authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/same.txt" \
+              "$suspense_root/same.txt"; then
+            echo "Beancount suspense export accepted conflicting output and report paths" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Beancount and Fava
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "beancount==3.2.3" "fava==1.30.14"
+
+      - name: Validate generated Beancount with real parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat /tmp/loam-beancount-root)"
+          partial_root="$(cat /tmp/loam-beancount-partial-root)"
+          suspense_root="$(cat /tmp/loam-beancount-suspense-root)"
+          bean-check "$root/actual.beancount"
+          bean-check "$partial_root/partial.beancount"
+          bean-check "$suspense_root/suspense.beancount"
+
+      - name: Smoke-test generated projection in Fava
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat /tmp/loam-beancount-root)"
+          fava "$root/actual.beancount" >/tmp/fava.log 2>&1 &
+          fava_pid=$!
+          trap 'kill "$fava_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:5000/ >/tmp/fava-index.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$fava_pid" 2>/dev/null; then
+              cat /tmp/fava.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/fava.log
+            exit 1
+          fi
+
+          test -s /tmp/fava-index.html
+          kill "$fava_pid" 2>/dev/null || true
+
+      - name: Smoke-test partial projection in Fava
+        shell: bash
+        run: |
+          set -euo pipefail
+          partial_root="$(cat /tmp/loam-beancount-partial-root)"
+          fava "$partial_root/partial.beancount" >/tmp/fava-partial.log 2>&1 &
+          fava_pid=$!
+          trap 'kill "$fava_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:5000/ >/tmp/fava-partial-index.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$fava_pid" 2>/dev/null; then
+              cat /tmp/fava-partial.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/fava-partial.log
+            exit 1
+          fi
+
+          test -s /tmp/fava-partial-index.html
+          kill "$fava_pid" 2>/dev/null || true
+
+      - name: Smoke-test suspense projection in Fava
+        shell: bash
+        run: |
+          set -euo pipefail
+          suspense_root="$(cat /tmp/loam-beancount-suspense-root)"
+          fava "$suspense_root/suspense.beancount" >/tmp/fava-suspense.log 2>&1 &
+          fava_pid=$!
+          trap 'kill "$fava_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:5000/ >/tmp/fava-suspense-index.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$fava_pid" 2>/dev/null; then
+              cat /tmp/fava-suspense.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/fava-suspense.log
+            exit 1
+          fi
+
+          test -s /tmp/fava-suspense-index.html
