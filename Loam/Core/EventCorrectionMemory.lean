@@ -111,7 +111,7 @@ def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
           (correction.target, correction.replacement)]
       some ({ corrections := [correction, correction], idNodup := h.proof } :
         EventCorrectionMemory)) = none
-  rw [hashNodupBy?_repeat]
+  simp [hashNodupBy?_repeat]
 
 /--
 Add one complete raw correction relation, rejecting an exact duplicate edge.
