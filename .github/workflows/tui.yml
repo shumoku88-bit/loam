@@ -51,6 +51,7 @@ on:
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
@@ -164,6 +165,7 @@ on:
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttention.lean'
+      - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
@@ -404,14 +406,17 @@ jobs:
       - name: Verify selected-day Actual and Scheduled composition
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
 
-      - name: Build shared Attention review boundary
-        run: lake build Loam.AttentionReview
+      - name: Build Attention review boundary
+        run: lake build Loam.AttentionReview Loam.Tui.Attention Loam.Tui.AttentionAdministration
 
       - name: Verify shared Attention persistence and review boundary
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
 
       - name: Verify read-only Attention workspace
         run: lake env lean --run Loam/Tests/TuiAttention.lean
+
+      - name: Verify Attention administration interaction
+        run: lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
 
       - name: Build Actual-backed Balance review boundary
         run: lake build Loam.BalanceReview

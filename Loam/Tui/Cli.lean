@@ -25,7 +25,8 @@ import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
 import Loam.Tui.ScheduledCoverageSetupSession
 import Loam.ScheduledCoverageReview
-import Loam.Tui.Attention
+import Loam.Tui.AttentionAdministration
+import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
 import Loam.Tui.CycleBudget
@@ -753,18 +754,6 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       selectedDayLoop bounds dataDir root snapshot step.state nextFrame
 
-/-- Read-only Attention session; q/Esc returns to Home. -/
-partial def attentionLoop (bounds : Bounds)
-    (state : Loam.Tui.Attention.State) (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
-  let back := key = .escape || key = .input 'q' || key = .input 'Q'
-  match Loam.Tui.Attention.update state back with
-  | .back => return ()
-  | .stay next =>
-      let nextFrame := compileWidget (Loam.Tui.Attention.view next)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      attentionLoop bounds next nextFrame
-
 /-- Read-only balance-view session; q/Esc returns to Home. -/
 partial def balancesLoop (bounds : Bounds)
     (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
@@ -1008,17 +997,17 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'i' || key = .input 'I') then
-    match ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam") with
+    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
     | .error message =>
         let home := { state with notice := unavailableNotice "Attention" message }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         loop bounds dataDir root snapshot home nextFrame
     | .ok evidence =>
-        let attention := Loam.Tui.Attention.initial evidence
-        let attentionFrame := compileWidget (Loam.Tui.Attention.view attention)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame attentionFrame
-        attentionLoop bounds attention attentionFrame
+        let admin := Loam.Tui.AttentionAdministration.initial evidence snapshot.actual.today
+        let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.view admin)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
+        Loam.Tui.AttentionAdministrationSession.run bounds root admin adminFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
