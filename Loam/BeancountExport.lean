@@ -310,4 +310,121 @@ def render?
             [String.intercalate "\n\n" transactions])
       pure (String.intercalate "\n" body ++ "\n")
 
+structure SkippedEvent where
+  eventId : EventId
+  validOn : String
+  unresolvedLoci : List LocusId
+deriving Repr, DecidableEq
+
+structure PartialExportResult where
+  beancount : String
+  report : String
+  exportedCount : Nat
+  skippedCount : Nat
+  skippedEvents : List SkippedEvent
+deriving Repr
+
+def renderPartialReport
+    (exportedCount : Nat)
+    (skippedEvents : List SkippedEvent) : String :=
+  let distinctLoci : List LocusId :=
+    (skippedEvents.flatMap (·.unresolvedLoci)).eraseDups.mergeSort
+      (fun a b => a.token < b.token)
+  let locusCounts := distinctLoci.map fun locus =>
+    let count := (skippedEvents.filter fun s => s.unresolvedLoci.contains locus).length
+    s!"  {locus.token}: {count} Events"
+  let locusSummary :=
+    if locusCounts.isEmpty then ["  (none)"] else locusCounts
+  let eventLines :=
+    if skippedEvents.isEmpty then
+      ["  (none)"]
+    else
+      skippedEvents.map fun s =>
+        let sortedTokens := (s.unresolvedLoci.map (·.token)).mergeSort (· < ·)
+        let loci := String.intercalate ", " sortedTokens
+        s!"  {s.eventId.token} ({s.validOn}): {loci}"
+  let sections :=
+    [ "Beancount partial projection"
+    , ""
+    , s!"Exported current Events: {exportedCount}"
+    , s!"Skipped current Events: {skippedEvents.length}"
+    , ""
+    , "Skipped because AccountingRole is unresolved:"
+    ] ++ locusSummary ++
+    [ ""
+    , "Skipped Events:"
+    ] ++ eventLines ++
+    [ ""
+    , "Result:"
+    , "  output is intentionally incomplete"
+    , "  LOAM remains authoritative"
+    ]
+  String.intercalate "\n" sections ++ "\n"
+
+/--
+Render deterministic current Actual entries as one standalone disposable
+partial Beancount file plus human-readable report.
+
+Events containing one or more unresolved Loci are skipped entirely so that
+no partially exported split leaks and destroys balance.
+-/
+def renderPartial?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    Except String PartialExportResult := do
+  let mut exportedEntries : List Loam.ActualJournalProjection.Entry := []
+  let mut skippedEvents : List SkippedEvent := []
+
+  for entry in entries do
+    let missing :=
+      (entry.event.effects.map (·.locus)).eraseDups.filter fun locus =>
+        roles.roleOf? locus == none
+    if missing.isEmpty then
+      validateEvent entry.event
+      exportedEntries := entry :: exportedEntries
+    else
+      let sortedMissing := missing.mergeSort (fun a b => a.token < b.token)
+      skippedEvents := {
+        eventId := entry.event.id
+        validOn := entry.validOn
+        unresolvedLoci := sortedMissing
+      } :: skippedEvents
+
+  exportedEntries := exportedEntries.reverse
+  skippedEvents := skippedEvents.reverse
+
+  let coordinates ← resolvedCoordinates roles exportedEntries
+  validateCoordinateNames coordinates
+
+  let transactions ← exportedEntries.mapM (renderEntry roles)
+
+  let header :=
+    [ "; Generated from LOAM current Actual projection (partial mode)."
+    , "; LOAM remains authoritative; this Beancount file is disposable."
+    , "; Open dates below are target scaffolding, not source account-open facts."
+    ]
+
+  let beancount :=
+    match earliestDate? exportedEntries with
+    | none =>
+        String.intercalate "\n" header ++ "\n"
+    | some openDate =>
+        let openings := coordinates.map (renderOpen openDate)
+        let body :=
+          header ++ [""] ++ openings ++
+            (if transactions.isEmpty then [] else [""] ++
+              [String.intercalate "\n\n" transactions])
+        String.intercalate "\n" body ++ "\n"
+
+  let report := renderPartialReport exportedEntries.length skippedEvents
+
+  pure {
+    beancount := beancount
+    report := report
+    exportedCount := exportedEntries.length
+    skippedCount := skippedEvents.length
+    skippedEvents := skippedEvents
+  }
+
 end Loam.BeancountExport
+

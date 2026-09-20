@@ -126,5 +126,82 @@ def main : IO Unit := do
       expect (contains "target account collision" message)
         "target collision refusal did not explain the boundary"
 
+  -- Partial export tests
+  let multiUnresolved ← eventOf "event-multi-unresolved"
+    [ Effect.ofAnonymousQuantity
+        ⟨"smbc"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-200))
+    , Effect.ofAnonymousQuantity
+        ⟨"zebra_unknown"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+    , Effect.ofAnonymousQuantity
+        ⟨"alpha_unknown"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+    ]
+  let multiUnresolvedEntry : Loam.ActualJournalProjection.Entry := {
+    event := multiUnresolved
+    validOn := "2026-09-19"
+    description := some "Secret household transfer detail 12345"
+  }
+
+  let partialEntries := [entry, unresolvedEntry, multiUnresolvedEntry]
+  let .ok partialRes := Loam.BeancountExport.renderPartial? roles partialEntries
+    | throw (IO.userError "partial export failed")
+
+  expect (partialRes.exportedCount == 1)
+    "partial export exportedCount should be 1"
+  expect (partialRes.skippedCount == 2)
+    "partial export skippedCount should be 2"
+
+  -- Beancount output should contain exported transaction but NOT skipped ones
+  expect (contains "loam_event_id: \"event-split\"" partialRes.beancount)
+    "partial beancount should contain split event"
+  expect (!contains "event-unresolved" partialRes.beancount)
+    "partial beancount must not contain unresolved event"
+  expect (!contains "event-multi-unresolved" partialRes.beancount)
+    "partial beancount must not contain multi-unresolved event"
+  expect (!contains "alpha_unknown" partialRes.beancount)
+    "partial beancount must not contain unresolved accounts"
+
+  -- Report assertions
+  expect (contains "Exported current Events: 1" partialRes.report)
+    "report should include exported count"
+  expect (contains "Skipped current Events: 2" partialRes.report)
+    "report should include skipped count"
+  expect (contains "  alpha_unknown: 1 Events" partialRes.report)
+    "report should include alpha_unknown"
+  expect (contains "  unknown: 1 Events" partialRes.report)
+    "report should include unknown"
+  expect (contains "  zebra_unknown: 1 Events" partialRes.report)
+    "report should include zebra_unknown"
+
+  -- Privacy verification: report must not leak description or amounts
+  expect (!contains "Secret household transfer detail" partialRes.report)
+    "report must not leak transaction description"
+  expect (!contains "12345" partialRes.report)
+    "report must not leak amounts or identifiers"
+
+  -- In skippedEvents, loci must be sorted
+  match partialRes.skippedEvents with
+  | [s1, s2] =>
+      expect (s1.eventId == ⟨"event-unresolved"⟩) "first skipped event id"
+      expect (s2.eventId == ⟨"event-multi-unresolved"⟩) "second skipped event id"
+      expect (s2.unresolvedLoci == [⟨"alpha_unknown"⟩, ⟨"zebra_unknown"⟩])
+        "unresolved loci within skipped event must be sorted"
+  | _ => throw (IO.userError "expected 2 skipped events in result")
+
+  -- Partial mode must still reject unbalanced events
+  match Loam.BeancountExport.renderPartial? roles [unbalancedEntry] with
+  | .ok _ =>
+      throw (IO.userError "partial mode silently accepted unbalanced Event")
+  | .error message =>
+      expect (contains "per-Measure balance" message)
+        "partial mode must enforce balance"
+
+  -- Partial mode must still reject target account collisions for exported events
+  match Loam.BeancountExport.renderPartial? collisionRoles [collisionEntry] with
+  | .ok _ =>
+      throw (IO.userError "partial mode silently accepted collision")
+  | .error message =>
+      expect (contains "target account collision" message)
+        "partial mode must enforce target account collision refusal"
+
   IO.println
-    "Beancount export: split postings, metadata, quoting, role refusal, balance refusal, and target collision checks passed."
+    "Beancount export: split postings, metadata, quoting, role refusal, balance refusal, target collision, and partial export checks passed."
