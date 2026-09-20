@@ -127,14 +127,27 @@ private theorem targetsEvent_false_iff
       · simp [targetsEvent, hTarget, ih]
 
 /--
+Filtering an already-admitted EventMemory cannot introduce a repeated EventId.
+
+The runtime collection therefore inherits its identity invariant directly from
+the retained EventMemory instead of rechecking the filtered list with a second
+hash-backed admission pass.
+-/
+private theorem frontierEvents_idNodup
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) :
+    ((frontierEvents events corrections).map Event.id).Nodup := by
+  unfold frontierEvents
+  exact events.idNodup.sublist (List.filter_sublist.map Event.id)
+
+/--
 Derive the retained Event frontier when correction facts justify disjoint finite
 paths. Superseded targets are filtered out; terminal replacements and untouched
 Events remain.
 
-The result is re-admitted through `EventMemory.ofEvents?` rather than constructing
-an unchecked collection. Filtering a valid EventMemory cannot invent duplicate
-identity, but the runtime re-admission keeps this boundary fail-closed without
-adding a second quantity implementation or a proof-only constructor path.
+Filtering preserves the already-proved EventId uniqueness invariant, so the
+frontier is constructed from that proof directly. No second runtime hash-backed
+duplicate admission is required after the correction topology has been admitted.
 -/
 def correctionFrontierMemory?
     (events : EventMemory)
@@ -142,7 +155,10 @@ def correctionFrontierMemory?
   if corrections.corrections.isEmpty then
     some events
   else if correctionFrontierAdmissible events corrections then
-    EventMemory.ofEvents? (frontierEvents events corrections)
+    some {
+      events := frontierEvents events corrections
+      idNodup := frontierEvents_idNodup events corrections
+    }
   else
     none
 
@@ -227,11 +243,8 @@ theorem correctionFrontierMemory?_mem_iff
       | cons head tail => simp [hList] at hEmpty
     simp [hNoCorrections]
   · split at hFrontier
-    · have hEvents :
-          frontier.events = frontierEvents events corrections :=
-        EventMemory.ofEvents?_some_events
-          (frontierEvents events corrections) frontier hFrontier
-      rw [hEvents]
+    · simp only [Option.some.injEq] at hFrontier
+      subst frontier
       simp [frontierEvents, targetsEvent_false_iff]
     · simp at hFrontier
 
