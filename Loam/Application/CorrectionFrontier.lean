@@ -1,5 +1,6 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
+import Loam.Core.HashNodup
 import Std.Data.HashSet
 
 namespace Loam.Application
@@ -68,6 +69,37 @@ private def eventPresentIn
     (id : EventId) : Bool :=
   index.contains id.token
 
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
+private def correctionFrontierAdmissibleWithIndex
+    (index : Std.HashSet String)
+    (corrections : EventCorrectionMemory) : Bool :=
+  let edges := correctionEdges corrections
+  let sources := edges.map ReplacementFrontier.Edge.source
+  let successors := edges.map ReplacementFrontier.Edge.successor
+  match
+      hashNodupBy?
+        (fun id : EventId => id.token)
+        eventIdToken_injective
+        sources,
+      hashNodupBy?
+        (fun id : EventId => id.token)
+        eventIdToken_injective
+        successors with
+  | some sourceWitness, some successorWitness =>
+      ReplacementFrontier.structurallyAdmissibleOfEndpointUnique
+        (eventPresentIn index)
+        edges
+        sourceWitness.proof
+        successorWitness.proof
+  | _, _ => false
+
 /--
 Whether every retained correction endpoint is represented by an Event.
 
@@ -103,8 +135,7 @@ def correctionFrontierAdmissible
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Bool :=
   let index := eventIdentityIndex events
-  ReplacementFrontier.structurallyAdmissible
-    (eventPresentIn index) (correctionEdges corrections)
+  correctionFrontierAdmissibleWithIndex index corrections
 
 /-- A singleton self-correction is one cycle and therefore never a current frontier. -/
 @[simp] theorem correctionFrontierAdmissible_singleton_self
