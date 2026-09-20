@@ -92,7 +92,7 @@ private theorem physicalMeasureQuanta_perm
 /--
 The MovementChange projection preserves the exact total of the selected Measure.
 -/
-theorem movementTotalQuanta_changesForMeasure
+private theorem movementTotalQuanta_changesForMeasure
     (measure : MeasureId)
     (effects : List Effect) :
     movementTotalQuanta (movementChangesForMeasure measure effects) =
