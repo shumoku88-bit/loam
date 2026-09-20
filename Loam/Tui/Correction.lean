@@ -1,4 +1,5 @@
 import Loam.CorrectionPublisher
+import Loam.MeasurePresentation
 import Loam.PracticalMovement
 import Loam.Tui.Main
 import Loam.Tui.Record
@@ -25,9 +26,13 @@ structure Step where
   cancel : Bool := false
   publish : Option Loam.CorrectionPublisher.Draft := none
 
-private def rowsFromRecord (record : Loam.Tui.Main.ReviewRecord) : Array Loam.Tui.Record.Row :=
+private def rowsFromRecord
+    (metadata : List Loam.MeasurePresentation.Metadata)
+    (record : Loam.Tui.Main.ReviewRecord) : Array Loam.Tui.Record.Row :=
   (record.event.effects.map fun effect =>
-    ({ locus := effect.locus.token, amount := toString effect.quantity.quanta } : Loam.Tui.Record.Row)).toArray
+    ({ locus := effect.locus.token,
+       amount := Loam.MeasurePresentation.formatQuanta
+         metadata effect.measure effect.quantity.quanta } : Loam.Tui.Record.Row)).toArray
 
 /--
 Seed one replacement editor from visible current Actual evidence.
@@ -37,7 +42,9 @@ only. They do not authorize correction publication; the shared publisher still
 re-reads current canonical evidence and applies the qualified correction
 entrance.
 -/
-def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
+def initialWithPresentation?
+    (metadata : List Loam.MeasurePresentation.Metadata)
+    (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
   let date ←
     match record.date with
     | some date => pure date
@@ -47,7 +54,7 @@ def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
     | some movement => pure movement
     | none =>
         throw "This Actual is outside the practical balanced single-Measure correction editor."
-  let rows := rowsFromRecord record
+  let rows := rowsFromRecord metadata record
   if rows.size < 2 then
     throw "This Actual is outside the practical balanced-Movement correction editor."
   if rows.size > 6 then
@@ -59,7 +66,14 @@ def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
     rows := rows
     focus := ⟨1, by omega⟩
   }
-  pure { target := record.event.id, editor := { form := form } }
+  pure {
+    target := record.event.id
+    editor := { form := form, measurePresentation := metadata }
+  }
+
+/-- Scale-0 compatibility entrance for callers without presentation metadata. -/
+def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State :=
+  initialWithPresentation? [] record
 
 /-- Date is a fixed coordinate for this editor, so cycling focus skips field 0. -/
 private def skipDateFocus
@@ -138,10 +152,14 @@ def view (_known : List String) (state : State) : Widget :=
         ] ++
         (draft.effects.take 12).map (fun effect =>
           Loam.Tui.Record.line
-            (effect.locus.token ++ "  " ++ toString effect.quantity.quanta ++
+            (effect.locus.token ++ "  " ++
+              Loam.MeasurePresentation.formatQuanta
+                state.editor.measurePresentation effect.measure effect.quantity.quanta ++
               " " ++ effect.measure.token)) ++
         [ Loam.Tui.Record.line
-            ("Replacement positive total: " ++ toString (replacementTotal draft) ++
+            ("Replacement positive total: " ++
+              Loam.MeasurePresentation.formatQuanta
+                state.editor.measurePresentation measure (replacementTotal draft) ++
               " " ++ measure.token)
         , Loam.Tui.Record.line
             "Publish appends an explicit Correction and replacement Event; it does not rewrite the original."
