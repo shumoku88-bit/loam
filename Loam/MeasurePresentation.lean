@@ -130,10 +130,17 @@ def formatQuanta (metadata : List Metadata) (measure : MeasureId) (quanta : Int)
     let sign := if quanta < 0 then "-" else ""
     sign ++ toString whole ++ "." ++ zeroPadLeft scale (toString fractional)
 
+def configFileName : String := "measure-presentation.tsv"
+
+/-- Canonical presentation path next to one household Actual file. -/
+def configPathForActualFile (actualFile : System.FilePath) : System.FilePath :=
+  let dataDir := actualFile.parent.getD (System.FilePath.mk ".")
+  dataDir / "config" / configFileName
+
 /-- Load optional Measure presentation metadata. Missing configuration is scale-0 compatibility. -/
 def loadMetadata
     (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
-  let path := dataDir / "config" / "measure-presentation.tsv"
+  let path := dataDir / "config" / configFileName
   try
     if ← path.pathExists then
       match decode? (← IO.FS.readFile path) with
@@ -143,5 +150,11 @@ def loadMetadata
       return .ok []
   catch error =>
     return .error ("measure presentation config unreadable: " ++ error.toString)
+
+/-- Load the presentation convention associated with one Actual file path. -/
+def loadForActualFile
+    (actualFile : System.FilePath) : IO (Except String (List Metadata)) := do
+  let dataDir := actualFile.parent.getD (System.FilePath.mk ".")
+  loadMetadata dataDir
 
 end Loam.MeasurePresentation

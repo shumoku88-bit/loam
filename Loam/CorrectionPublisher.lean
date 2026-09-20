@@ -42,15 +42,24 @@ private def admit?
   let effects := Loam.SparseEffectIdentity.canonicalizeEffects [] draft.effects
   if !effects.all (fun effect =>
       Loam.Persistence.validToken effect.locus.token &&
-      Loam.Persistence.validToken effect.measure.token) ||
-      (Loam.PracticalMovement.ofSingleMeasureEffects? effects).isNone then
-    throw "loam: correction replacement must be one balanced nonzero single-Measure Movement"
+      Loam.Persistence.validToken effect.measure.token) then
+    throw "loam: correction replacement must use valid Locus and Measure tokens"
+  let replacementMovement ←
+    match Loam.PracticalMovement.ofSingleMeasureEffects? effects with
+    | some movement => pure movement
+    | none =>
+        throw "loam: correction replacement must be one balanced nonzero single-Measure Movement"
   if !locusAdmission.admitsEffects effects then
     throw "loam: correction replacement uses a Locus not approved for new publication"
 
   let target ← targetCurrent? evidence.events evidence.corrections draft.target
-  if (Loam.PracticalMovement.ofSingleMeasureEffects? target.effects).isNone then
-    throw "loam: selected Actual is outside the practical balanced single-Measure correction entrance"
+  let targetMovement ←
+    match Loam.PracticalMovement.ofSingleMeasureEffects? target.effects with
+    | some movement => pure movement
+    | none =>
+        throw "loam: selected Actual is outside the practical balanced single-Measure correction entrance"
+  if replacementMovement.measure != targetMovement.measure then
+    throw "loam: correction must preserve the target Measure; cross-Measure change requires separate exchange semantics"
   if evidence.relationEvidenceMentionsEvent draft.target then
     throw "loam: correction of an Event already referenced by relation/discharge evidence is not yet qualified"
   if evidence.reversals.mentionsEvent draft.target then

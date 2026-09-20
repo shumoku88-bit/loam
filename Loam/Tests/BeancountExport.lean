@@ -207,35 +207,43 @@ def main : IO Unit := do
       expect (contains "target account collision" message)
         "partial mode must enforce target account collision refusal"
 
-  -- Multi-currency operating_currency determinism and completeness test
+  -- Multi-currency scale and one-Locus/many-Measure account test
   let multiCurrencyRoles ← requireSome
     (AccountingRoleMap.ofAssignments?
       [ { locus := ⟨"smbc"⟩, role := .asset }
       , { locus := ⟨"food"⟩, role := .expense }
       , { locus := ⟨"wise_usd"⟩, role := .asset }
-      , { locus := ⟨"book_usd"⟩, role := .expense }
       , { locus := ⟨"book"⟩, role := .expense }
       ])
     "multi-currency roles"
   let usdEvent ← eventOf "event-usd"
     [ Effect.ofAnonymousQuantity
-        ⟨"wise_usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-50))
+        ⟨"wise_usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-1234))
     , Effect.ofAnonymousQuantity
-        ⟨"book_usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 50)
+        ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 1234)
     ]
   let usdEntry : Loam.ActualJournalProjection.Entry := {
     event := usdEvent
     validOn := "2026-09-15"
     description := none
   }
+  let presentation : List Loam.MeasurePresentation.Metadata :=
+    [{ measure := ⟨"usd"⟩, scale := 2 }]
   let multiRendered ←
-    match Loam.BeancountExport.render? multiCurrencyRoles [entry, usdEntry] with
+    match Loam.BeancountExport.renderWithPresentation?
+        presentation multiCurrencyRoles [entry, usdEntry] with
     | .ok rendered => pure rendered
     | .error message => throw (IO.userError ("multi-currency export failed: " ++ message))
   expect (contains "option \"operating_currency\" \"JPY\"" multiRendered)
     "JPY operating_currency missing in multi-currency export"
   expect (contains "option \"operating_currency\" \"USD\"" multiRendered)
     "USD operating_currency missing in multi-currency export"
+  expect (contains "open Expenses:Loam-food JPY,USD" multiRendered)
+    "one LOAM Locus did not open one Beancount account for both Measures"
+  expect (contains "  Assets:Loam-wise-usd  -12.34 USD" multiRendered)
+    "USD quanta were not rendered through scale 2"
+  expect (contains "  Expenses:Loam-food  12.34 USD" multiRendered)
+    "shared food Locus lost exact USD presentation"
 
   -- Suspense mode tests
   let .ok suspenseRes := Loam.BeancountExport.renderSuspense? roles partialEntries

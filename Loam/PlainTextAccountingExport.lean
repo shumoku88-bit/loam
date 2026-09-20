@@ -1,5 +1,6 @@
 import Loam.ActualJournalProjection
 import Loam.Core.AccountingRole
+import Loam.MeasurePresentation
 import Loam.Persistence.TextEscape
 
 namespace Loam.PlainTextAccountingExport
@@ -115,6 +116,7 @@ private def validateEvent (event : Event) : Except String Unit := do
   | none => pure ()
 
 private def renderEffect
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap) (effect : Effect) : Except String String := do
   let account ← accountName roles effect.locus
   if !measureTokenSafe effect.measure.token then
@@ -122,14 +124,17 @@ private def renderEffect
       ("PTA amount export requires a whitespace-free Measure token: " ++
         effect.measure.token)
   pure
-    ("    " ++ account ++ "  " ++ toString effect.quantity.quanta ++
+    ("    " ++ account ++ "  " ++
+      Loam.MeasurePresentation.formatQuanta
+        presentation effect.measure effect.quantity.quanta ++
       " " ++ effect.measure.token)
 
 private def renderEntry
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entry : Loam.ActualJournalProjection.Entry) : Except String String := do
   validateEvent entry.event
-  let postings ← entry.event.effects.mapM (renderEffect roles)
+  let postings ← entry.event.effects.mapM (renderEffect presentation roles)
   let eventId := Loam.Persistence.escapeText entry.event.id.token
   pure <| String.intercalate "\n" <|
     [ entry.validOn ++ " " ++ transactionDescription entry
@@ -141,10 +146,11 @@ Render deterministic current Actual entries using only the common hledger/Ledger
 core transaction syntax. No directives, inferred amounts, costs, lots, virtual
 postings, recurrence, Scheduled evidence, or Capacity evidence are emitted.
 -/
-def render?
+def renderWithPresentation?
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entries : List Loam.ActualJournalProjection.Entry) : Except String String := do
-  let transactions ← entries.mapM (renderEntry roles)
+  let transactions ← entries.mapM (renderEntry presentation roles)
   let header :=
     [ "; Generated from LOAM current Actual projection."
     , "; LOAM remains authoritative; this file is a one-way accounting view."
@@ -154,5 +160,11 @@ def render?
     if transactions.isEmpty then header
     else header ++ [""] ++ [String.intercalate "\n\n" transactions]
   pure (String.intercalate "\n" body ++ "\n")
+
+/-- Scale-0 compatibility renderer. -/
+def render?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) : Except String String :=
+  renderWithPresentation? [] roles entries
 
 end Loam.PlainTextAccountingExport

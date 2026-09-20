@@ -1,5 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualJournalProjection
+import Loam.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.SiblingStage
 import Loam.PlainTextAccountingExport
@@ -8,6 +9,15 @@ import Loam.WriterOwnership
 namespace Loam.PlainTextAccountingExportCli
 
 set_option autoImplicit false
+
+private def pathsConflict (pathA pathB : System.FilePath) : IO Bool := do
+  if pathA == pathB then
+    return true
+  if (← pathA.pathExists) && (← pathB.pathExists) then
+    let resA ← IO.FS.realPath pathA
+    let resB ← IO.FS.realPath pathB
+    return resA == resB
+  return false
 
 /--
 Return true when an existing output path resolves to either input authority.
@@ -38,6 +48,7 @@ def exportJournal
   let actualFile := System.FilePath.mk actualPath
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
+  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
 
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualFile with
@@ -50,8 +61,10 @@ def exportJournal
     IO.eprintln "loam: AccountingRole authority file is missing"
     return 2
 
-  if ← conflictsWithSource actualFile roleFile outputFile then
-    IO.eprintln "loam: PTA output must not replace Actual or AccountingRole authority"
+  if (← conflictsWithSource actualFile roleFile outputFile) ||
+     (← pathsConflict presentationFile outputFile) then
+    IO.eprintln
+      "loam: PTA output must not replace Actual, AccountingRole, or Measure presentation input"
     return 2
 
   let roles ←
@@ -61,6 +74,13 @@ def exportJournal
         IO.eprintln "loam: AccountingRole authority is malformed or unsupported"
         return 2
 
+  let presentation ←
+    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
+    | .ok metadata => pure metadata
+    | .error message =>
+        IO.eprintln ("loam: " ++ message)
+        return 2
+
   let entries ←
     match Loam.ActualJournalProjection.fromImage? image with
     | .error message =>
@@ -68,7 +88,7 @@ def exportJournal
         return 2
     | .ok entries => pure entries
 
-  match Loam.PlainTextAccountingExport.render? roles entries with
+  match Loam.PlainTextAccountingExport.renderWithPresentation? presentation roles entries with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2

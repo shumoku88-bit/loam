@@ -186,6 +186,21 @@ def main (args : List String) : IO Unit := do
       Effect.ofQuantity ⟨"usd-new-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-21)),
       Effect.ofQuantity ⟨"usd-new-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 21)]
     description := some "USD after" }
+
+  let crossMeasureCorrection : Loam.CorrectionPublisher.Draft := {
+    target := usdTarget
+    effects := [
+      Effect.ofQuantity ⟨"ils-new-1"⟩ ⟨"paypay"⟩ ⟨"ils"⟩ (Quantity.ofQuanta (-21)),
+      Effect.ofQuantity ⟨"ils-new-2"⟩ ⟨"coffee"⟩ ⟨"ils"⟩ (Quantity.ofQuanta 21)]
+    description := some "not a correction" }
+  let beforeCrossMeasureRefusal ← IO.FS.readFile (usdRoot / "actual.loam")
+  let refusedCrossMeasure ← Loam.CorrectionPublisher.publishCorrection
+    usdRoot.toString crossMeasureCorrection
+  expect (!refusedCrossMeasure.isOk)
+    "correction silently changed USD evidence into another Measure"
+  expect ((← IO.FS.readFile (usdRoot / "actual.loam")) == beforeCrossMeasureRefusal)
+    "cross-Measure correction refusal changed Actual authority"
+
   let .ok () ← Loam.CorrectionPublisher.publishCorrection usdRoot.toString usdCorrection
     | throw (IO.userError "balanced USD correction was refused")
   let .ok usdRecords ← Loam.ActualReview.loadRecordsFromActual usdRoot
@@ -242,4 +257,4 @@ def main (args : List String) : IO Unit := do
   expect (afterRelationBlocked.relations.length == 1)
     "refused Relation-source correction changed retained relation evidence"
 
-  IO.println "Correction Publisher: Actual re-read, USD replacement, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
+  IO.println "Correction Publisher: Actual re-read, Measure-preserving USD replacement, cross-Measure refusal, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."

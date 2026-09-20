@@ -1,5 +1,6 @@
 import Loam.ActualJournalProjection
 import Loam.Core.AccountingRole
+import Loam.MeasurePresentation
 
 namespace Loam.BeancountExport
 
@@ -217,12 +218,13 @@ private def firstDuplicate? {α : Type} [DecidableEq α] : List α → Option α
 
 private def validateCoordinateNames
     (coordinates : List ResolvedCoordinate) : Except String Unit := do
-  match firstDuplicate? (coordinates.map fun coordinate => coordinate.account) with
-  | some account =>
+  for coordinate in coordinates do
+    if coordinates.any fun other =>
+        other.account == coordinate.account && other.locus != coordinate.locus then
       throw
         ("Beancount target account collision after LOAM normalization: " ++
-          account)
-  | none => pure ()
+          coordinate.account)
+  pure ()
 
 private def earliestDate?
     (entries : List Loam.ActualJournalProjection.Entry) : Option String :=
@@ -237,12 +239,17 @@ private def earliestDate?
             earliest)
         first.validOn
 
-private def renderOpen
+private def renderOpenings
     (openDate : String)
-    (coordinate : ResolvedCoordinate) : String :=
-  openDate ++ " open " ++ coordinate.account ++ " " ++ coordinate.commodity
+    (pairs : List (String × String)) : List String :=
+  let accounts := (pairs.map (·.1)).eraseDups.mergeSort (· < ·)
+  accounts.map fun account =>
+    let commodities :=
+      (pairs.filter (fun pair => pair.1 == account) |>.map (·.2)).eraseDups.mergeSort (· < ·)
+    openDate ++ " open " ++ account ++ " " ++ String.intercalate "," commodities
 
 private def renderEffect
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (effect : Effect) : Except String String := do
   let coordinate ← resolveCoordinate roles effect.locus effect.measure
@@ -250,16 +257,18 @@ private def renderEffect
   let measure := escapeQuoted effect.measure.token
   pure <| String.intercalate "\n"
     [ "  " ++ coordinate.account ++ "  " ++
-        toString effect.quantity.quanta ++ " " ++ coordinate.commodity
+        Loam.MeasurePresentation.formatQuanta
+          presentation effect.measure effect.quantity.quanta ++ " " ++ coordinate.commodity
     , "    loam_locus: \"" ++ locus ++ "\""
     , "    loam_measure: \"" ++ measure ++ "\""
     ]
 
 private def renderEntry
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entry : Loam.ActualJournalProjection.Entry) : Except String String := do
   validateEvent entry.event
-  let postings ← entry.event.effects.mapM (renderEffect roles)
+  let postings ← entry.event.effects.mapM (renderEffect presentation roles)
   let eventId := escapeQuoted entry.event.id.token
   let description := transactionDescription entry
   pure <| String.intercalate "\n" <|
@@ -308,7 +317,8 @@ only as target scaffolding. Source Event identity, Locus identity, and Measure
 identity are retained as Beancount metadata for observation and debugging, but
 they do not become LOAM authority in the target.
 -/
-def render?
+def renderWithPresentation?
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entries : List Loam.ActualJournalProjection.Entry) :
     Except String String := do
@@ -330,13 +340,20 @@ def render?
   | none =>
       pure (String.intercalate "\n" headerLines ++ "\n")
   | some openDate =>
-      let openings := coordinates.map (renderOpen openDate)
-      let transactions ← entries.mapM (renderEntry roles)
+      let openings := renderOpenings openDate (coordinates.map fun c => (c.account, c.commodity))
+      let transactions ← entries.mapM (renderEntry presentation roles)
       let body :=
         headerLines ++ [""] ++ openings ++
           (if transactions.isEmpty then [] else [""] ++
             [String.intercalate "\n\n" transactions])
       pure (String.intercalate "\n" body ++ "\n")
+
+/-- Scale-0 compatibility renderer. -/
+def render?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    Except String String :=
+  renderWithPresentation? [] roles entries
 
 structure SkippedEvent where
   eventId : EventId
@@ -396,7 +413,8 @@ partial Beancount file plus human-readable report.
 Events containing one or more unresolved Loci are skipped entirely so that
 no partially exported split leaks and destroys balance.
 -/
-def renderPartial?
+def renderPartialWithPresentation?
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entries : List Loam.ActualJournalProjection.Entry) :
     Except String PartialExportResult := do
@@ -424,7 +442,7 @@ def renderPartial?
   let coordinates ← resolvedCoordinates roles exportedEntries
   validateCoordinateNames coordinates
 
-  let transactions ← exportedEntries.mapM (renderEntry roles)
+  let transactions ← exportedEntries.mapM (renderEntry presentation roles)
 
   let headerLines := renderHeader (operatingCurrencies coordinates) .partialExport
 
@@ -433,7 +451,7 @@ def renderPartial?
     | none =>
         String.intercalate "\n" headerLines ++ "\n"
     | some openDate =>
-        let openings := coordinates.map (renderOpen openDate)
+        let openings := renderOpenings openDate (coordinates.map fun c => (c.account, c.commodity))
         let body :=
           headerLines ++ [""] ++ openings ++
             (if transactions.isEmpty then [] else [""] ++
@@ -450,9 +468,17 @@ def renderPartial?
     skippedEvents := skippedEvents
   }
 
+/-- Scale-0 compatibility partial renderer. -/
+def renderPartial?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    Except String PartialExportResult :=
+  renderPartialWithPresentation? [] roles entries
+
 def suspenseAccountName : String := "Equity:Loam-Unresolved"
 
 private def renderSuspenseEffect
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (effect : Effect) : Except String String := do
   let locus := escapeQuoted effect.locus.token
@@ -462,7 +488,8 @@ private def renderSuspenseEffect
       let coordinate ← resolveCoordinate roles effect.locus effect.measure
       pure <| String.intercalate "\n"
         [ "  " ++ coordinate.account ++ "  " ++
-            toString effect.quantity.quanta ++ " " ++ coordinate.commodity
+            Loam.MeasurePresentation.formatQuanta
+              presentation effect.measure effect.quantity.quanta ++ " " ++ coordinate.commodity
         , "    loam_locus: \"" ++ locus ++ "\""
         , "    loam_measure: \"" ++ measure ++ "\""
         ]
@@ -476,17 +503,19 @@ private def renderSuspenseEffect
                 effect.measure.token)
       pure <| String.intercalate "\n"
         [ "  " ++ suspenseAccountName ++ "  " ++
-            toString effect.quantity.quanta ++ " " ++ commodity
+            Loam.MeasurePresentation.formatQuanta
+              presentation effect.measure effect.quantity.quanta ++ " " ++ commodity
         , "    loam_locus: \"" ++ locus ++ "\""
         , "    loam_measure: \"" ++ measure ++ "\""
         , "    loam_unresolved_locus: \"" ++ locus ++ "\""
         ]
 
 private def renderSuspenseEntry
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entry : Loam.ActualJournalProjection.Entry) : Except String String := do
   validateEvent entry.event
-  let postings ← entry.event.effects.mapM (renderSuspenseEffect roles)
+  let postings ← entry.event.effects.mapM (renderSuspenseEffect presentation roles)
   let eventId := escapeQuoted entry.event.id.token
   let description := transactionDescription entry
   pure <| String.intercalate "\n" <|
@@ -538,7 +567,8 @@ All current Events are exported. Effects with unresolved AccountingRole
 are projected to the dedicated technical suspense account `Equity:Loam-Unresolved`.
 No source role is inferred.
 -/
-def renderSuspense?
+def renderSuspenseWithPresentation?
+    (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
     (entries : List Loam.ActualJournalProjection.Entry) :
     Except String SuspenseExportResult := do
@@ -582,14 +612,14 @@ def renderSuspense?
     ((resolvedCoords.map (·.commodity)) ++ unresolvedCommodities).eraseDups.mergeSort (· < ·)
 
   let headerLines := renderHeader allCommodities .suspenseExport
-  let transactions ← entries.mapM (renderSuspenseEntry roles)
+  let transactions ← entries.mapM (renderSuspenseEntry presentation roles)
 
   let beancount :=
     match earliestDate? entries with
     | none =>
         String.intercalate "\n" headerLines ++ "\n"
     | some openDate =>
-        let openings := allOpenings.map fun (acc, comm) => s!"{openDate} open {acc} {comm}"
+        let openings := renderOpenings openDate allOpenings
         let body :=
           headerLines ++ [""] ++ openings ++
             (if transactions.isEmpty then [] else [""] ++
@@ -611,6 +641,13 @@ def renderSuspense?
     unresolvedEffectCount := unresolvedEffects.length
     unresolvedLoci := unresolvedCounts
   }
+
+/-- Scale-0 compatibility suspense renderer. -/
+def renderSuspense?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    Except String SuspenseExportResult :=
+  renderSuspenseWithPresentation? [] roles entries
 
 end Loam.BeancountExport
 
