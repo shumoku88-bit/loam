@@ -81,7 +81,7 @@ def main : IO Unit := do
   | .ok _ =>
       throw (IO.userError "unresolved AccountingRole was silently exported")
   | .error message =>
-      expect (contains "explicit AccountingRole for Locus unknown" message)
+      expect (contains "explicit AccountingRole for Loci: unknown" message)
         "unresolved-role refusal did not name the missing Locus"
 
   let unbalanced ← eventOf "event-unbalanced"
