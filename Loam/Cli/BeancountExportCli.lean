@@ -99,6 +99,7 @@ def exportPartialBeancount
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
   let reportFile := System.FilePath.mk reportPath
+  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
 
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualFile with
@@ -163,6 +164,7 @@ def exportSuspenseBeancount
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
   let reportFile := System.FilePath.mk reportPath
+  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
 
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualFile with
