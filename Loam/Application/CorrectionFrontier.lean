@@ -20,14 +20,6 @@ does not reinterpret branching or merging correction shapes as if they had a
 winner. Multi-parent settlement remains outside the current production Core.
 -/
 
-private def targetsEvent : List EventCorrection → EventId → Bool
-  | [], _ => false
-  | correction :: rest, id =>
-      if correction.target = id then
-        true
-      else
-        targetsEvent rest id
-
 private def replacesEvent : List EventCorrection → EventId → Bool
   | [], _ => false
   | correction :: rest, id =>
@@ -148,24 +140,45 @@ def correctionFrontierAdmissible
         idNodup := by simp } = false := by
   simp [correctionFrontierAdmissible, correctionEdges]
 
+private def targetIdentityIndex :
+    List EventCorrection → Std.HashSet String
+  | [] => {}
+  | correction :: rest =>
+      (targetIdentityIndex rest).insert correction.target.token
+
+private theorem targetIdentityIndex_mem_iff
+    (corrections : List EventCorrection)
+    (token : String) :
+    token ∈ targetIdentityIndex corrections ↔
+      ∃ correction ∈ corrections, correction.target.token = token := by
+  induction corrections with
+  | nil =>
+      simp [targetIdentityIndex]
+  | cons correction rest ih =>
+      simp [targetIdentityIndex, Std.HashSet.mem_insert, ih, eq_comm]
+
+private theorem targetIdentityIndex_contains_false_iff
+    (corrections : List EventCorrection)
+    (id : EventId) :
+    (targetIdentityIndex corrections).contains id.token = false ↔
+      ∀ correction ∈ corrections, correction.target ≠ id := by
+  rw [Std.HashSet.contains_eq_false_iff_not_mem]
+  constructor
+  · intro hNot correction hCorrection hEq
+    apply hNot
+    exact (targetIdentityIndex_mem_iff corrections id.token).2
+      ⟨correction, hCorrection, congrArg (fun eventId : EventId => eventId.token) hEq⟩
+  · intro hNo hMem
+    rcases (targetIdentityIndex_mem_iff corrections id.token).1 hMem with
+      ⟨correction, hCorrection, hToken⟩
+    exact hNo correction hCorrection (eventIdToken_injective hToken)
+
 private def frontierEvents
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : List Event :=
+  let targets := targetIdentityIndex corrections.corrections
   events.events.filter fun event =>
-    !(targetsEvent corrections.corrections event.id)
-
-private theorem targetsEvent_false_iff
-    (corrections : List EventCorrection)
-    (id : EventId) :
-    targetsEvent corrections id = false ↔
-      ∀ correction ∈ corrections, correction.target ≠ id := by
-  induction corrections with
-  | nil =>
-      simp [targetsEvent]
-  | cons correction rest ih =>
-      by_cases hTarget : correction.target = id
-      · simp [targetsEvent, hTarget]
-      · simp [targetsEvent, hTarget, ih]
+    !(targets.contains event.id.token)
 
 /--
 Filtering an already-admitted EventMemory cannot introduce a repeated EventId.
@@ -289,7 +302,7 @@ theorem correctionFrontierMemory?_mem_iff
     split at hFrontier
     · simp only [Option.some.injEq] at hFrontier
       subst frontier
-      simp [frontierEvents, targetsEvent_false_iff]
+      simp [frontierEvents, targetIdentityIndex_contains_false_iff]
     · simp at hFrontier
 
 /--
