@@ -1,4 +1,5 @@
 import Loam.Core.EventCorrection
+import Loam.Core.HashNodup
 
 namespace Loam.Core
 
@@ -22,13 +23,36 @@ structure EventCorrectionMemory where
 
 namespace EventCorrectionMemory
 
-/-- Admit raw correction facts while refusing duplicate semantic edges. -/
-def ofCorrections? (corrections : List EventCorrection) : Option EventCorrectionMemory :=
-  if h : (corrections.map fun correction =>
-      (correction.target, correction.replacement)).Nodup then
-    some { corrections := corrections, idNodup := h }
-  else
-    none
+private theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
+private theorem correctionPairToken_injective :
+    Function.Injective (fun pair : EventId × EventId =>
+      (pair.1.token, pair.2.token)) := by
+  intro left right h
+  apply Prod.ext
+  · exact eventIdToken_injective (congrArg Prod.fst h)
+  · exact eventIdToken_injective (congrArg Prod.snd h)
+
+/--
+Admit raw correction facts while refusing duplicate semantic edges.
+
+The HashSet used during admission is transient. The retained Core authority is
+still the same `List.Nodup` proof over exact target/replacement pairs.
+-/
+def ofCorrections? (corrections : List EventCorrection) : Option EventCorrectionMemory := do
+  let pairs := corrections.map fun correction =>
+    (correction.target, correction.replacement)
+  let h ← hashNodupBy?
+    (fun pair : EventId × EventId => (pair.1.token, pair.2.token))
+    correctionPairToken_injective
+    pairs
+  some { corrections := corrections, idNodup := h.proof }
 
 /-- Whether any retained raw correction explicitly targets this Event identity. -/
 def targetsEvent (memory : EventCorrectionMemory) (event : EventId) : Bool :=
