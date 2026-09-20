@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/BeancountExport.lean'
+      - 'Loam/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
@@ -18,6 +19,7 @@ on:
       - 'feat/beancount-export'
     paths:
       - 'Loam/BeancountExport.lean'
+      - 'Loam/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
@@ -68,8 +70,14 @@ jobs:
             "$root/actual.beancount"
 
           grep -Fq 'option "operating_currency" "JPY"' "$root/actual.beancount"
-          grep -Fq "open Assets:Loam-wallet JPY" "$root/actual.beancount"
-          grep -Fq "open Expenses:Loam-food JPY" "$root/actual.beancount"
+          grep -Fq "open Assets:Loam-wallet ILS,JPY,USD" "$root/actual.beancount"
+          grep -Fq "open Expenses:Loam-food ILS,JPY,USD" "$root/actual.beancount"
+          grep -Fq 'option "operating_currency" "USD"' "$root/actual.beancount"
+          grep -Fq 'option "operating_currency" "ILS"' "$root/actual.beancount"
+          grep -Fq 'Assets:Loam-wallet  -12.34 USD' "$root/actual.beancount"
+          grep -Fq 'Expenses:Loam-food  12.34 USD' "$root/actual.beancount"
+          grep -Fq 'Assets:Loam-wallet  -27.90 ILS' "$root/actual.beancount"
+          grep -Fq 'Expenses:Loam-food  27.90 ILS' "$root/actual.beancount"
           grep -Fq 'loam_event_id: "journal-replacement"' "$root/actual.beancount"
           grep -Fq 'loam_event_id: "journal-untouched"' "$root/actual.beancount"
           if grep -q "journal-original" "$root/actual.beancount"; then
