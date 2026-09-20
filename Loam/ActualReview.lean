@@ -144,13 +144,6 @@ private def descriptionIndex
     (fun index entry => index.insert entry.event.token entry.text)
     {}
 
-private def correctionIndex
-    (corrections : EventCorrectionMemory) : Std.HashMap String EventId :=
-  corrections.corrections.foldl
-    (fun index correction =>
-      index.insert correction.target.token correction.replacement)
-    {}
-
 /--
 Project review records from one fully admitted normalized Actual image.
 
@@ -164,12 +157,12 @@ def recordsFromActualImage
   let evidence := image.evidence
   let validities := currentValidityIndex image.currentValidities
   let descriptions := descriptionIndex evidence.descriptions
-  let corrections := correctionIndex evidence.corrections
   evidence.events.events.map fun event => {
     event := event
     date := validities[event.id.token]?
     description := descriptions[event.id.token]?.getD ""
-    replacement := corrections[event.id.token]?
+    replacement :=
+      (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
   }
 
 /--
