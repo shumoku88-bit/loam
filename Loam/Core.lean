@@ -11,6 +11,8 @@ import Loam.Core.ActualValidityHistory
 import Loam.Core.Attention
 import Loam.Core.AttentionMemory
 import Loam.Core.BalancedMovement
+import Loam.Core.ActualReversal
+import Loam.Core.ActualReversalBalance
 import Loam.Core.Capacity
 import Loam.Core.CapacityMemory
 import Loam.Core.CapacityEffective
