@@ -184,23 +184,26 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
                 ActualReversal.exactPhysicalInverse?
                     targetEvent.effects reversalEvent.effects = true then
               for effect in targetEvent.effects do
-                let some targetMovement :=
-                    normalizedMovementForMeasure? targetEvent.effects effect.measure
-                  | none
-                let _derivedReversal : BalancedMovement LocusId := {
-                  measure := effect.measure
-                  changes :=
-                    ActualReversalBalance.movementChangesForMeasure
-                      effect.measure reversalEvent.effects
-                  balanced :=
-                    ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
-                      targetEvent.effects
-                      reversalEvent.effects
-                      effect.measure
-                      targetMovement.balanced
-                      hExact
-                }
-                pure ()
+                let targetChanges :=
+                  ActualReversalBalance.movementChangesForMeasure
+                    effect.measure targetEvent.effects
+                if hTarget : movementTotalQuanta targetChanges = 0 then
+                  let _derivedReversal : BalancedMovement LocusId := {
+                    measure := effect.measure
+                    changes :=
+                      ActualReversalBalance.movementChangesForMeasure
+                        effect.measure reversalEvent.effects
+                    balanced :=
+                      ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
+                        targetEvent.effects
+                        reversalEvent.effects
+                        effect.measure
+                        hTarget
+                        hExact
+                  }
+                  pure ()
+                else
+                  none
             else
               none
 
