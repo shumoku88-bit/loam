@@ -44,8 +44,8 @@ private def recordDraft : Loam.MovementAdmission.Draft := {
 
 private def usdRecord? : Option Loam.Tui.Main.ReviewRecord := do
   let event ← Event.ofEffects? ⟨"non-jpy"⟩
-    [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-1))
-    , Effect.ofQuantity ⟨"effect-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 1)
+    [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-1234))
+    , Effect.ofQuantity ⟨"effect-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 1234)
     ]
   pure {
     event
@@ -76,10 +76,14 @@ def main (args : List String) : IO Unit := do
     "Correction editor did not prefill signed Effects"
 
   let usd ← requireSome usdRecord? "USD fixture was not admitted"
-  let .ok usdEditor := Loam.Tui.Correction.initial? usd
-    | throw (IO.userError "Correction editor refused balanced USD Actual")
+  let usdPresentation : List Loam.MeasurePresentation.Metadata :=
+    [{ measure := ⟨"usd"⟩, scale := 2 }]
+  let .ok usdEditor := Loam.Tui.Correction.initialWithPresentation? usdPresentation usd
+    | throw (IO.userError "Correction editor refused balanced decimal USD Actual")
   expect (usdEditor.editor.form.measure == "usd")
     "Correction editor did not preserve the selected Actual Measure"
+  expect (usdEditor.editor.form.rows.map (fun row => row.amount) == #["-12.34", "12.34"])
+    "Correction editor exposed stored USD quanta instead of the configured decimal presentation"
 
   let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
