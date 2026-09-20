@@ -274,21 +274,26 @@ private def operatingCurrencies
 private def renderOperatingCurrency (commodity : String) : String :=
   "option \"operating_currency\" \"" ++ commodity ++ "\""
 
+inductive ProjectionMode where
+  | strict
+  | partialExport
+  | suspenseExport
+deriving Repr, DecidableEq
+
 private def renderHeader
-    (coordinates : List ResolvedCoordinate)
-    (isPartial : Bool) : List String :=
+    (currencies : List String)
+    (mode : ProjectionMode) : List String :=
   let modeNote :=
-    if isPartial then
-      "; Generated from LOAM current Actual projection (partial mode)."
-    else
-      "; Generated from LOAM current Actual projection."
+    match mode with
+    | .strict => "; Generated from LOAM current Actual projection."
+    | .partialExport => "; Generated from LOAM current Actual projection (partial mode)."
+    | .suspenseExport => "; Generated from LOAM current Actual projection (suspense mode)."
   let base :=
     [ modeNote
     , "; LOAM remains authoritative; this Beancount file is disposable."
     , "; Open dates below are target scaffolding, not source account-open facts."
     ]
-  let currencyOptions :=
-    (operatingCurrencies coordinates).map renderOperatingCurrency
+  let currencyOptions := currencies.map renderOperatingCurrency
   if currencyOptions.isEmpty then
     base
   else
@@ -319,7 +324,7 @@ def render?
   let coordinates ← resolvedCoordinates roles entries
   validateCoordinateNames coordinates
 
-  let headerLines := renderHeader coordinates false
+  let headerLines := renderHeader (operatingCurrencies coordinates) .strict
 
   match earliestDate? entries with
   | none =>
@@ -421,7 +426,7 @@ def renderPartial?
 
   let transactions ← exportedEntries.mapM (renderEntry roles)
 
-  let headerLines := renderHeader coordinates true
+  let headerLines := renderHeader (operatingCurrencies coordinates) .partialExport
 
   let beancount :=
     match earliestDate? exportedEntries with
@@ -443,6 +448,168 @@ def renderPartial?
     exportedCount := exportedEntries.length
     skippedCount := skippedEvents.length
     skippedEvents := skippedEvents
+  }
+
+def suspenseAccountName : String := "Equity:Loam-Unresolved"
+
+private def renderSuspenseEffect
+    (roles : AccountingRoleMap)
+    (effect : Effect) : Except String String := do
+  let locus := escapeQuoted effect.locus.token
+  let measure := escapeQuoted effect.measure.token
+  match roles.roleOf? effect.locus with
+  | some _ =>
+      let coordinate ← resolveCoordinate roles effect.locus effect.measure
+      pure <| String.intercalate "\n"
+        [ "  " ++ coordinate.account ++ "  " ++
+            toString effect.quantity.quanta ++ " " ++ coordinate.commodity
+        , "    loam_locus: \"" ++ locus ++ "\""
+        , "    loam_measure: \"" ++ measure ++ "\""
+        ]
+  | none =>
+      let commodity ←
+        match commodityText? effect.measure with
+        | some commodity => pure commodity
+        | none =>
+            throw
+              ("Beancount export cannot safely encode Measure token " ++
+                effect.measure.token)
+      pure <| String.intercalate "\n"
+        [ "  " ++ suspenseAccountName ++ "  " ++
+            toString effect.quantity.quanta ++ " " ++ commodity
+        , "    loam_locus: \"" ++ locus ++ "\""
+        , "    loam_measure: \"" ++ measure ++ "\""
+        , "    loam_unresolved_locus: \"" ++ locus ++ "\""
+        ]
+
+private def renderSuspenseEntry
+    (roles : AccountingRoleMap)
+    (entry : Loam.ActualJournalProjection.Entry) : Except String String := do
+  validateEvent entry.event
+  let postings ← entry.event.effects.mapM (renderSuspenseEffect roles)
+  let eventId := escapeQuoted entry.event.id.token
+  let description := transactionDescription entry
+  pure <| String.intercalate "\n" <|
+    [ entry.validOn ++ " * \"" ++ description ++ "\""
+    , "  loam_event_id: \"" ++ eventId ++ "\""
+    ] ++ postings
+
+structure SuspenseExportResult where
+  beancount : String
+  report : String
+  exportedCount : Nat
+  unresolvedEffectCount : Nat
+  unresolvedLoci : List (LocusId × Nat)
+deriving Repr
+
+def renderSuspenseReport
+    (exportedCount : Nat)
+    (unresolvedEffects : List Effect) : String :=
+  let distinctLoci : List LocusId :=
+    (unresolvedEffects.map (·.locus)).eraseDups.mergeSort
+      (fun a b => a.token < b.token)
+  let locusCounts := distinctLoci.map fun locus =>
+    let count := (unresolvedEffects.filter fun e => e.locus == locus).length
+    s!"  {locus.token}: {count} Effects"
+  let locusSummary :=
+    if locusCounts.isEmpty then ["  (none)"] else locusCounts
+  let sections :=
+    [ "Beancount suspense projection"
+    , ""
+    , s!"Exported current Events: {exportedCount}"
+    , s!"Unresolved Effects projected to suspense: {unresolvedEffects.length}"
+    , ""
+    , "Unresolved source Loci:"
+    ] ++ locusSummary ++
+    [ ""
+    , "Result:"
+    , "  all current Events retained"
+    , "  unresolved roles were NOT inferred"
+    , "  Equity:Loam-Unresolved is target scaffolding only"
+    , "  LOAM remains authoritative"
+    ]
+  String.intercalate "\n" sections ++ "\n"
+
+/--
+Render deterministic current Actual entries as one standalone disposable
+Beancount file in suspense mode plus human-readable report.
+
+All current Events are exported. Effects with unresolved AccountingRole
+are projected to the dedicated technical suspense account `Equity:Loam-Unresolved`.
+No source role is inferred.
+-/
+def renderSuspense?
+    (roles : AccountingRoleMap)
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    Except String SuspenseExportResult := do
+  for entry in entries do
+    validateEvent entry.event
+
+  let allEffects := entries.flatMap (·.event.effects)
+  let unresolvedEffects :=
+    allEffects.filter fun effect => roles.roleOf? effect.locus == none
+
+  let resolvedCoords ←
+    (usedCoordinates entries).filterMapM fun coord => do
+      if roles.roleOf? coord.1 != none then
+        let res ← resolveCoordinate roles coord.1 coord.2
+        pure (some res)
+      else
+        pure none
+
+  validateCoordinateNames resolvedCoords
+  if resolvedCoords.any (·.account.toLower == suspenseAccountName.toLower) then
+    throw
+      ("Beancount target account collision after LOAM normalization: " ++
+        suspenseAccountName)
+
+  let resolvedOpenings := resolvedCoords.map fun c => (c.account, c.commodity)
+  let unresolvedCommodities ←
+    unresolvedEffects.mapM fun e => do
+      match commodityText? e.measure with
+      | some c => pure c
+      | none =>
+          throw
+            ("Beancount export cannot safely encode Measure token " ++
+              e.measure.token)
+  let suspenseOpenings :=
+    unresolvedCommodities.eraseDups.map fun c => (suspenseAccountName, c)
+  let allOpenings :=
+    (resolvedOpenings ++ suspenseOpenings).eraseDups.mergeSort
+      (fun a b => if a.1 == b.1 then a.2 < b.2 else a.1 < b.1)
+
+  let allCommodities :=
+    ((resolvedCoords.map (·.commodity)) ++ unresolvedCommodities).eraseDups.mergeSort (· < ·)
+
+  let headerLines := renderHeader allCommodities .suspenseExport
+  let transactions ← entries.mapM (renderSuspenseEntry roles)
+
+  let beancount :=
+    match earliestDate? entries with
+    | none =>
+        String.intercalate "\n" headerLines ++ "\n"
+    | some openDate =>
+        let openings := allOpenings.map fun (acc, comm) => s!"{openDate} open {acc} {comm}"
+        let body :=
+          headerLines ++ [""] ++ openings ++
+            (if transactions.isEmpty then [] else [""] ++
+              [String.intercalate "\n\n" transactions])
+        String.intercalate "\n" body ++ "\n"
+
+  let report := renderSuspenseReport entries.length unresolvedEffects
+
+  let distinctUnresolvedLoci :=
+    (unresolvedEffects.map (·.locus)).eraseDups.mergeSort
+      (fun a b => a.token < b.token)
+  let unresolvedCounts := distinctUnresolvedLoci.map fun l =>
+    (l, (unresolvedEffects.filter fun e => e.locus == l).length)
+
+  pure {
+    beancount := beancount
+    report := report
+    exportedCount := entries.length
+    unresolvedEffectCount := unresolvedEffects.length
+    unresolvedLoci := unresolvedCounts
   }
 
 end Loam.BeancountExport

@@ -153,6 +153,60 @@ jobs:
             exit 1
           fi
 
+      - name: Verify suspense Beancount export and failure boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          suspense_root="$(mktemp -d)/beancount-suspense-export"
+          echo "$suspense_root" > /tmp/loam-beancount-suspense-root
+          lake env lean --run Loam/Tests/BeancountExportFixture.lean "$suspense_root"
+
+          # Suspense mode succeeds and projects unresolved effects to Equity:Loam-Unresolved
+          ./.lake/build/bin/loamBeancountExport --suspense \
+            "$suspense_root/actual.loam" \
+            "$suspense_root/accounting-role.loam" \
+            "$suspense_root/suspense.beancount" \
+            "$suspense_root/suspense-report.txt"
+
+          grep -Fq 'option "operating_currency" "JPY"' "$suspense_root/suspense.beancount"
+          grep -Fq "open Assets:Loam-wallet JPY" "$suspense_root/suspense.beancount"
+          grep -Fq "open Expenses:Loam-food JPY" "$suspense_root/suspense.beancount"
+          grep -Fq "open Equity:Loam-Unresolved JPY" "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_event_id: "event-food"' "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_event_id: "event-unknown"' "$suspense_root/suspense.beancount"
+          grep -Fq 'Equity:Loam-Unresolved  200 JPY' "$suspense_root/suspense.beancount"
+          grep -Fq 'loam_unresolved_locus: "unknown_locus"' "$suspense_root/suspense.beancount"
+
+          grep -Fq "Exported current Events: 2" "$suspense_root/suspense-report.txt"
+          grep -Fq "Unresolved Effects projected to suspense: 1" "$suspense_root/suspense-report.txt"
+          grep -Fq "unknown_locus: 1 Effects" "$suspense_root/suspense-report.txt"
+
+          # Collision checks
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/suspense-report.txt"; then
+            echo "Beancount suspense export accepted output alias of Actual authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/suspense.beancount" \
+              "$suspense_root/accounting-role.loam"; then
+            echo "Beancount suspense export accepted report alias of AccountingRole authority" >&2
+            exit 1
+          fi
+          if ./.lake/build/bin/loamBeancountExport --suspense \
+              "$suspense_root/actual.loam" \
+              "$suspense_root/accounting-role.loam" \
+              "$suspense_root/same.txt" \
+              "$suspense_root/same.txt"; then
+            echo "Beancount suspense export accepted conflicting output and report paths" >&2
+            exit 1
+          fi
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -168,8 +222,10 @@ jobs:
           set -euo pipefail
           root="$(cat /tmp/loam-beancount-root)"
           partial_root="$(cat /tmp/loam-beancount-partial-root)"
+          suspense_root="$(cat /tmp/loam-beancount-suspense-root)"
           bean-check "$root/actual.beancount"
           bean-check "$partial_root/partial.beancount"
+          bean-check "$suspense_root/suspense.beancount"
 
       - name: Smoke-test generated projection in Fava
         shell: bash
@@ -229,3 +285,33 @@ jobs:
           fi
 
           test -s /tmp/fava-partial-index.html
+          kill "$fava_pid" 2>/dev/null || true
+
+      - name: Smoke-test suspense projection in Fava
+        shell: bash
+        run: |
+          set -euo pipefail
+          suspense_root="$(cat /tmp/loam-beancount-suspense-root)"
+          fava "$suspense_root/suspense.beancount" >/tmp/fava-suspense.log 2>&1 &
+          fava_pid=$!
+          trap 'kill "$fava_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsSL http://127.0.0.1:5000/ >/tmp/fava-suspense-index.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$fava_pid" 2>/dev/null; then
+              cat /tmp/fava-suspense.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/fava-suspense.log
+            exit 1
+          fi
+
+          test -s /tmp/fava-suspense-index.html
