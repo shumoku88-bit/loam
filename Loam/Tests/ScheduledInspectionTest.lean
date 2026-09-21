@@ -374,7 +374,8 @@ def testFailClosedPriority : IO Unit := do
   -- Priority 1: unknown completion source fires before unknown retirement
   let a ← requireSome (makeScheduled "s1" "2026-09-01") "s1"
   let b ← requireSome (makeScheduled "s2" "2026-09-02") "s2"
-  let sched ← requireSome (ScheduledMemory.ofOccurrences? [a, b]) "sched"
+  let c ← requireSome (makeScheduled "s3" "2026-09-03") "s3"
+  let sched ← requireSome (ScheduledMemory.ofOccurrences? [a, b, c]) "sched"
   let termsPri1 ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
       [{ source := ⟨"unknown-completion"⟩, target := some (.actual ⟨"e1"⟩) },
@@ -393,6 +394,27 @@ def testFailClosedPriority : IO Unit := do
   match currentOpenScheduled sched termsPri2 events with
   | .unknownRetirementScheduled => pure ()
   | _ => throw <| IO.userError "fail-closed priority 2 failed"
+
+  -- Priority 3: unknown replacement endpoint fires before a replacement cycle
+  let termsPri3 ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"unknown-replacement"⟩, target := some (.scheduled ⟨"s3"⟩) },
+       { source := ⟨"s1"⟩, target := some (.scheduled ⟨"s2"⟩) },
+       { source := ⟨"s2"⟩, target := some (.scheduled ⟨"s1"⟩) }]) "termsPri3"
+  match currentOpenScheduled sched termsPri3 events with
+  | .unknownReplacementScheduled => pure ()
+  | _ => throw <| IO.userError "fail-closed priority 3 failed"
+
+  -- Priority 4: a replacement cycle fires before a cross-kind conflict
+  let termsPri4 ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"s1"⟩, target := some (.scheduled ⟨"s2"⟩) },
+       { source := ⟨"s2"⟩, target := some (.scheduled ⟨"s1"⟩) },
+       { source := ⟨"s3"⟩, target := some (.actual ⟨"e3"⟩) },
+       { source := ⟨"s3"⟩, target := none }]) "termsPri4"
+  match currentOpenScheduled sched termsPri4 events with
+  | .invalidReplacementGraph => pure ()
+  | _ => throw <| IO.userError "fail-closed priority 4 failed"
 
 
 end Loam.Tests.ScheduledInspectionTest
