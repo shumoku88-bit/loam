@@ -196,3 +196,104 @@ So the graph hypothesis now survives one-to-one, one-to-many, and many-to-one se
 That substantially strengthens the research hypothesis, but it still does not prove that a LotId is never useful.
 
 The next evidence that would genuinely earn a first-class Lot identity should be a selected query requiring one stable reference that is not equivalent to an acquisition origin, a current physical Effect, or a reconstructable provenance component/path. Examples include an externally supplied stable lot identifier, annotations that must survive graph rewrites, or correction semantics that replace provenance edges while preserving one referenced lot identity.
+
+
+## 9. External stable lot references
+
+The strongest new pressure is not another corporate-action topology.
+
+Some custody / portfolio data interfaces expose a lot identifier as an
+independently observed field.
+
+Examples:
+
+- Goldman Sachs Custody Solutions tax-lot files publish a 35-character
+  `Long Lot ID` and recommend using it for future tax-lot tracking. Their
+  closed-lot files also expose `Closed Lot ID` plus `Open Lot ID Ref`,
+  explicitly linking a closed lot record to the open lot it previously belonged
+  to.
+- BridgeFT's normalized custodial API preserves the old `lot_id` concept as
+  `lot_identifier`.
+
+This creates two worlds with identical:
+
+```text
+physical Effects
+provenance graph
+basis
+quantity
+acquisition date
+```
+
+but different externally reported lot identifiers.
+
+Therefore:
+
+```text
+complete internal provenance graph
+    -/->
+external lot identifier
+```
+
+Observation 292 captures this information boundary.
+
+This is the first selected pressure where "stable lot identity" is independently
+observable even after the graph is fully retained.
+
+However the minimum earned representation is still not necessarily a universal
+LOAM `LotId`.
+
+A source-scoped external identity is smaller:
+
+```text
+(provenance subject)
++
+(custodian, account, external lot id)
+```
+
+The source namespace matters because two providers may reuse the same raw lot-id
+spelling.
+
+Tax law also does not imply one universal lot identifier. IRS specific
+identification rules allow sufficiently specific broker-designated identifiers
+such as purchase date/time or purchase price, provided the selected units can be
+identified for basis and holding-period purposes.
+
+So the new result is:
+
+```text
+stable external lot reference is real
+    !=
+universal internal LotId is already earned
+```
+
+## 10. Updated falsification target
+
+The graph hypothesis is now qualified rather than absolute:
+
+```text
+internal lot-like continuity
+    may be reconstructed from provenance graph
+
+external lot identity
+    must be retained as separate evidence when observed
+```
+
+A first-class LOAM-owned `LotId` becomes independently pressured only when
+LOAM itself needs one stable referent that is not reducible to:
+
+- one acquisition origin;
+- one current physical Effect;
+- a provenance component/path;
+- or one external authority's identifier.
+
+The most useful next examples would be:
+
+- a user annotation intended to follow one lot through transformations;
+- a correction that replaces provenance edges but must preserve the referenced
+  lot subject;
+- several external custodians assigning different IDs to what LOAM judges to be
+  one continuing lot-like subject.
+
+Those cases test whether LOAM needs a stable semantic subject *above* both the
+graph and external identifiers.
