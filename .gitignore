@@ -1,6 +1,12 @@
+# Build outputs
 .lake/
 dist-newstyle/
+
+# Local generated, test, qualification, and dogfood material.
+# This tree is intentionally outside repository history; CI checks this boundary.
 scratch/
+
+# Local interpreter and OS noise
 __pycache__/
 *.py[cod]
 .DS_Store
