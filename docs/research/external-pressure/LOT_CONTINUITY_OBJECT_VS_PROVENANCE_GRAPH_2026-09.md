@@ -519,3 +519,54 @@ pressure without collapsing their domain-specific evidence?
 
 Until that question is qualified and dogfood requires such a subject, the
 production Core should remain unchanged.
+
+
+## 14. Observation 295 — share the identity shape, not one global identity space
+
+Observation 295 tests the cross-domain convergence directly.
+
+The candidate is intentionally smaller than a production Subject object:
+
+```text
+StableSubjectId Domain
+Attached Domain Value
+```
+
+The same typed schema is used for both selected pressures while their evidence
+remains domain-specific.
+
+For the pre-Scheduled case, subject-attached amount/due evidence preserves the
+pairing that identity-free value pools lose.
+
+For the user-created lot-like case, subject identity still distinguishes two
+independently created subjects with identical complete current payload and
+survives a transition from no members to populated membership.
+
+The important negative result is domain erasure.
+
+The raw token `subject-1` can legitimately exist in both the pre-Scheduled and
+lot domains. If a generic implementation erased the semantic domain and kept
+only one global token space, unrelated subjects would become accidentally
+joinable.
+
+So the bounded compression result is:
+
+```text
+shared identity implementation shape
+    YES
+
+shared untyped global identity namespace
+    NO
+
+shared domain-specific evidence payload
+    NO
+```
+
+This is a better fit with SA-010 than either extreme.
+
+An investment-specific `LotId` is not forced by the cross-domain evidence, but
+a universal untyped `SubjectId` would also overstate semantic commonality.
+
+The smallest successful research shape is a domain-indexed stable identity
+schema. Production remains unchanged until two real production domains need the
+lifecycle strongly enough for shared mechanics to pay for themselves.
