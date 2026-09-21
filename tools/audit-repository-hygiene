@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+failed=0
+
+check_no_tracked_root() {
+  local root="$1"
+  local tracked
+  tracked="$(git ls-files -- "$root")"
+  if [[ -n "$tracked" ]]; then
+    echo "::error::repository-local material is tracked under $root/"
+    printf '%s\n' "$tracked"
+    failed=1
+  fi
+}
+
+check_ignored_probe() {
+  local path="$1"
+  if ! git check-ignore --no-index -q -- "$path"; then
+    echo "::error file=.gitignore::expected local path to remain ignored: $path"
+    failed=1
+  fi
+}
+
+check_no_tracked_root ".lake"
+check_no_tracked_root "dist-newstyle"
+check_no_tracked_root "scratch"
+
+tracked_noise="$(git ls-files | grep -E '(^|/)__pycache__/|\.py[cod]$|(^|/)\.DS_Store$' || true)"
+if [[ -n "$tracked_noise" ]]; then
+  echo "::error::generated interpreter or OS files are tracked"
+  printf '%s\n' "$tracked_noise"
+  failed=1
+fi
+
+check_ignored_probe ".lake/.repository-hygiene-probe"
+check_ignored_probe "dist-newstyle/.repository-hygiene-probe"
+check_ignored_probe "scratch/.repository-hygiene-probe"
+check_ignored_probe "__pycache__/repository-hygiene.pyc"
+check_ignored_probe ".DS_Store"
+
+if [[ "$failed" -ne 0 ]]; then
+  exit 1
+fi
+
+echo "repository hygiene boundary: OK"
