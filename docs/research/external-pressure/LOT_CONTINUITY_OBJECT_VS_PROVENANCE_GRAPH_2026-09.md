@@ -640,3 +640,15 @@ This result also protects the Observation 295 insight from expanding into a
 universal identity ontology. `StableSubjectId Domain` is valuable where a new
 cross-domain stable-subject lifecycle is actually earned; it is not a reason to
 rename every existing identity in LOAM.
+
+
+A broader token-wrapper census strengthens this boundary. `LocusId`,
+`MeasureId`, `PurposeId`, `ExternalPartyId`, and
+`MovementOperationId` also share the same thin String representation, while
+some are coordinates or operation/request identities rather than subjects.
+
+So if LOAM ever extracts a generic representation helper across *all* identity
+families, its name and semantics should remain neutral, for example a
+`TypedToken Domain`-shaped helper. Reusing the semantic name
+`StableSubjectId` for every token wrapper would turn an implementation pattern
+into a false ontology.
