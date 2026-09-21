@@ -70,4 +70,24 @@ def main : IO Unit := do
   expect ((Loam.Persistence.decodeNormalizedCapacity? unbalanced).isNone)
     "normalized Capacity admitted unbalanced movement"
 
+  let multiMovementFixture :=
+    "LOAM-NORMALIZED-CAPACITY\t1\n" ++
+    "MOVEMENT\tcapacity-a\t2026-08-01\tjpy\n" ++
+    "CHANGE\tUNALLOCATED\t-100\n" ++
+    "CHANGE\tPURPOSE\tfood\t100\n" ++
+    "ENDMOVEMENT\n" ++
+    "MOVEMENT\tcapacity-b\t2026-08-02\tjpy\n" ++
+    "CHANGE\tUNALLOCATED\t-200\n" ++
+    "CHANGE\tPURPOSE\tfood\t200\n" ++
+    "ENDMOVEMENT\n" ++
+    "MOVEMENT\tcapacity-c\t2026-08-03\tjpy\n" ++
+    "CHANGE\tUNALLOCATED\t-300\n" ++
+    "CHANGE\tPURPOSE\tfood\t300\n" ++
+    "ENDMOVEMENT\n"
+  let some multiDecoded := Loam.Persistence.decodeNormalizedCapacity? multiMovementFixture
+    | throw (IO.userError "multi-movement fixture failed to decode")
+  let movementIds := multiDecoded.movements.movements.map (·.id.token)
+  expect (movementIds == ["capacity-a", "capacity-b", "capacity-c"])
+    "normalized Capacity decoding did not preserve input wire order"
+
   IO.println "Normalized Capacity: single document -> aggregate -> encode/decode round trip preserves both retained meanings and fails closed."

@@ -215,7 +215,7 @@ private def stepTxParser
       if row == "ENDTX" then
         Except.ok {
           current := none
-          completed := state.completed ++ [{
+          completed := {
             event := draft.event
             baseValidOn := draft.baseValidOn
             description := draft.description
@@ -227,7 +227,7 @@ private def stepTxParser
             dateRevisions := draft.dateRevisions
             relations := draft.relations
             discharges := draft.discharges
-          }]
+          } :: state.completed
         }
       else if row.startsWith "TX\t" || row == "TX" then
         Except.error { line := lineNo, reason := .missingEndTx draft.event draft.txLine }
@@ -433,7 +433,7 @@ private def parseTxs (rows : List (Nat × String)) :
   | some draft =>
       Except.error { line := draft.lastLine, reason := .missingEndTx draft.event draft.txLine }
   | none =>
-      Except.ok finalState.completed
+      Except.ok finalState.completed.reverse
 
 /--
 Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.

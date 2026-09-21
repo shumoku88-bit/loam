@@ -71,12 +71,12 @@ private def stepMovementParser
       if row == "ENDMOVEMENT" then
         some {
           current := none
-          completed := state.completed ++ [{
+          completed := {
             id := id
             effectiveOn := effectiveOn
             measure := measure
             changes := changes
-          }]
+          } :: state.completed
         }
       else do
         let change ← decodeChangeRow? row
@@ -88,7 +88,7 @@ private def parseMovements (rows : List String) : Option (List ParsedMovement) :
   let finalState ← rows.foldlM stepMovementParser {}
   match finalState.current with
   | some _ => none
-  | none => some finalState.completed
+  | none => some finalState.completed.reverse
 
 /-- Decode a complete candidate normalized Capacity image, failing closed. -/
 def decodeNormalizedCapacity? (input : String) : Option (CapacityEvidence String) := do
