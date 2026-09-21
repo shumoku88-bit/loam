@@ -138,4 +138,54 @@ example :
         events [validA, duplicateIdOrphan] uncovered eventId effectKey) = true := by
   native_decide
 
+/-- Whole-frontier admission succeeds for clean empty relations. -/
+example :
+    ((admittedRelationFrontier? events []).map List.length) = some 0 := by
+  native_decide
+
+/-- Whole-frontier admission succeeds for valid relations within source magnitude. -/
+example :
+    (admittedRelationFrontier? events [validA, validB]).isSome = true := by
+  native_decide
+
+/-- Whole-frontier admission strictly preserves input relations order. -/
+example :
+    ((admittedRelationFrontier? events [validA, validB]).map (·.map (·.relation.id))) =
+      some [⟨"a"⟩, ⟨"b"⟩] := by
+  native_decide
+
+example :
+    ((admittedRelationFrontier? events [validB, validA]).map (·.map (·.relation.id))) =
+      some [⟨"b"⟩, ⟨"a"⟩] := by
+  native_decide
+
+/-- Whole-frontier admission rejects multiple relations exceeding source magnitude. -/
+example :
+    (admittedRelationFrontier? events [validA, overA]).isNone = true := by
+  native_decide
+
+/-- Whole-frontier admission rejects an orphan relation whose source Event is missing. -/
+example :
+    (admittedRelationFrontier? events [orphan]).isNone = true := by
+  native_decide
+
+/-- Whole-frontier admission rejects non-positive quantity. -/
+example :
+    (admittedRelationFrontier? events [invalidZero]).isNone = true := by
+  native_decide
+
+/-- Whole-frontier admission rejects duplicate RelationUnitId. -/
+example :
+    (admittedRelationFrontier? events [validA, duplicateIdOrphan]).isNone = true := by
+  native_decide
+
+/-- relationFrontierAdmissible matches admittedRelationFrontier?.isSome. -/
+example :
+    relationFrontierAdmissible events [validA, validB] = true := by
+  native_decide
+
+example :
+    relationFrontierAdmissible events [validA, overA] = false := by
+  native_decide
+
 end Loam.Tests.OpenRelationFrontier
