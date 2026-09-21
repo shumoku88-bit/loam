@@ -59,11 +59,12 @@ inductive Query where
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
   | scheduledCoverage (observedAt : String)
+  | favaProjection
   deriving Repr, DecidableEq
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 7 := ⟨0, by decide⟩
+  menuIndex : Fin 8 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   liquidityForm : LiquidityForm := {}
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
@@ -182,7 +183,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 6) % 7 else (state.menuIndex.val + 1) % 7
+  let next := if back then (state.menuIndex.val + 7) % 8 else (state.menuIndex.val + 1) % 8
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -245,12 +246,15 @@ private def selectMenuMode (state : State) : State :=
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
-  let next := selectMenuMode state
-  match next.mode with
-  | .balances => { state := next, query := some .roleBalances }
-  | .scheduledCoverage =>
-      { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
-  | _ => { state := next }
+  if state.menuIndex.val == 7 then
+    { state, query := some .favaProjection }
+  else
+    let next := selectMenuMode state
+    match next.mode with
+    | .balances => { state := next, query := some .roleBalances }
+    | .scheduledCoverage =>
+        { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
+    | _ => { state := next }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
@@ -274,6 +278,8 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .input 'c' | .input 'C' =>
       let next := { state with mode := .scheduledCoverage, notice := "", scroll := 0 }
       { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
+  | .input 'f' | .input 'F' =>
+      { state, query := some .favaProjection }
   | _ => { state }
 
 private def queryForMode (state : State) : Option Query :=
@@ -490,8 +496,9 @@ private def menuView (state : State) : Widget :=
     , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
+    , menuRow state 7 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/f direct"
     , muted "q / Esc home"
     , line state.notice
     ]

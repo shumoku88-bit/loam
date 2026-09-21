@@ -23,7 +23,19 @@ LOAM provides a one-way deterministic projection from its canonical Actual evide
 
 ## Quick Start Guide
 
-### 1. Generate Disposable Beancount View
+### Launch from TUI (One-Touch)
+
+In `loamTui`:
+1. Press `v` to open **Reports**.
+2. Press `f` (or navigate to `Fava Projection` and press `Enter`).
+
+This automatically regenerates `/tmp/loam-fava-household.beancount` in `--suspense` mode, starts the Fava server on port 5001 if not already running, and opens `http://127.0.0.1:5001` in your browser.
+
+---
+
+### Manual CLI Workflow
+
+#### 1. Generate Disposable Beancount View
 
 Run the exporter from the repository root (using `lake exe` or directly calling `./.lake/build/bin/loamBeancountExport`):
 

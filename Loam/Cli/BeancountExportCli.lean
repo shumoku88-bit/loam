@@ -1,34 +1,9 @@
-import Loam.ActualAuthority
-import Loam.ActualJournalProjection
-import Loam.BeancountExport
-import Loam.MeasurePresentation
-import Loam.Persistence.AccountingRolePersistence
-import Loam.Persistence.SiblingStage
+import Loam.BeancountExportPipeline
 import Loam.WriterOwnership
 
 namespace Loam.BeancountExportCli
 
 set_option autoImplicit false
-
-private def pathsConflict (pathA pathB : System.FilePath) : IO Bool := do
-  if pathA == pathB then
-    return true
-  if (← pathA.pathExists) && (← pathB.pathExists) then
-    let resA ← IO.FS.realPath pathA
-    let resB ← IO.FS.realPath pathB
-    return resA == resB
-  return false
-
-private def conflictsWithSource
-    (actualPath rolePath targetPath : System.FilePath) : IO Bool := do
-  if targetPath == actualPath || targetPath == rolePath then
-    return true
-  if !(← targetPath.pathExists) then
-    return false
-  let actualResolved ← IO.FS.realPath actualPath
-  let roleResolved ← IO.FS.realPath rolePath
-  let targetResolved ← IO.FS.realPath targetPath
-  return targetResolved == actualResolved || targetResolved == roleResolved
 
 /--
 Regenerate one disposable Beancount view from current LOAM Actual evidence plus
@@ -39,54 +14,12 @@ def exportBeancount
   let actualFile := System.FilePath.mk actualPath
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
-  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
-
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualFile with
-    | .error message =>
-        IO.eprintln message
-        return 2
-    | .ok image => pure image
-
-  if !(← roleFile.pathExists) then
-    IO.eprintln "loam: AccountingRole authority file is missing"
-    return 2
-
-  if (← conflictsWithSource actualFile roleFile outputFile) ||
-     (← pathsConflict presentationFile outputFile) then
-    IO.eprintln
-      "loam: Beancount output must not replace Actual, AccountingRole, or Measure presentation input"
-    return 2
-
-  let roles ←
-    match ← Loam.Persistence.loadAccountingRoleMap? roleFile with
-    | some roles => pure roles
-    | none =>
-        IO.eprintln
-          "loam: AccountingRole authority is malformed or unsupported"
-        return 2
-
-  let presentation ←
-    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
-    | .ok metadata => pure metadata
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-
-  let entries ←
-    match Loam.ActualJournalProjection.fromImage? image with
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-    | .ok entries => pure entries
-
-  match Loam.BeancountExport.renderWithPresentation? presentation roles entries with
+  match ← Loam.BeancountExportPipeline.exportStrict actualFile roleFile outputFile with
   | .error message =>
-      IO.eprintln ("loam: " ++ message)
+      IO.eprintln s!"loam: {message}"
       return 2
-  | .ok rendered =>
-      Loam.Persistence.replaceTextViaSiblingStage outputFile rendered
-      IO.println ("Regenerated disposable Beancount view: " ++ outputPath)
+  | .ok () =>
+      IO.println s!"Regenerated disposable Beancount view: {outputPath}"
       return 0
 
 /--
@@ -99,59 +32,13 @@ def exportPartialBeancount
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
   let reportFile := System.FilePath.mk reportPath
-  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
-
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualFile with
-    | .error message =>
-        IO.eprintln message
-        return 2
-    | .ok image => pure image
-
-  if !(← roleFile.pathExists) then
-    IO.eprintln "loam: AccountingRole authority file is missing"
-    return 2
-
-  if (← conflictsWithSource actualFile roleFile outputFile) ||
-     (← conflictsWithSource actualFile roleFile reportFile) ||
-     (← pathsConflict presentationFile outputFile) ||
-     (← pathsConflict presentationFile reportFile) ||
-     (← pathsConflict outputFile reportFile) then
-    IO.eprintln
-      "loam: Beancount output and report must not replace Actual, AccountingRole, or Measure presentation input, or conflict with each other"
-    return 2
-
-  let roles ←
-    match ← Loam.Persistence.loadAccountingRoleMap? roleFile with
-    | some roles => pure roles
-    | none =>
-        IO.eprintln
-          "loam: AccountingRole authority is malformed or unsupported"
-        return 2
-
-  let presentation ←
-    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
-    | .ok metadata => pure metadata
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-
-  let entries ←
-    match Loam.ActualJournalProjection.fromImage? image with
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-    | .ok entries => pure entries
-
-  match Loam.BeancountExport.renderPartialWithPresentation? presentation roles entries with
+  match ← Loam.BeancountExportPipeline.exportPartial actualFile roleFile outputFile reportFile with
   | .error message =>
-      IO.eprintln ("loam: " ++ message)
+      IO.eprintln s!"loam: {message}"
       return 2
   | .ok res =>
-      Loam.Persistence.replaceTextViaSiblingStage outputFile res.beancount
-      Loam.Persistence.replaceTextViaSiblingStage reportFile res.report
-      IO.println (s!"Regenerated disposable partial Beancount view ({res.exportedCount} exported, {res.skippedCount} skipped): " ++ outputPath)
-      IO.println ("Generated partial export report: " ++ reportPath)
+      IO.println s!"Regenerated disposable partial Beancount view ({res.exportedCount} exported, {res.skippedCount} skipped): {outputPath}"
+      IO.println s!"Generated partial export report: {reportPath}"
       return 0
 
 /--
@@ -164,59 +51,13 @@ def exportSuspenseBeancount
   let roleFile := System.FilePath.mk rolePath
   let outputFile := System.FilePath.mk outputPath
   let reportFile := System.FilePath.mk reportPath
-  let presentationFile := Loam.MeasurePresentation.configPathForActualFile actualFile
-
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualFile with
-    | .error message =>
-        IO.eprintln message
-        return 2
-    | .ok image => pure image
-
-  if !(← roleFile.pathExists) then
-    IO.eprintln "loam: AccountingRole authority file is missing"
-    return 2
-
-  if (← conflictsWithSource actualFile roleFile outputFile) ||
-     (← conflictsWithSource actualFile roleFile reportFile) ||
-     (← pathsConflict presentationFile outputFile) ||
-     (← pathsConflict presentationFile reportFile) ||
-     (← pathsConflict outputFile reportFile) then
-    IO.eprintln
-      "loam: Beancount output and report must not replace Actual, AccountingRole, or Measure presentation input, or conflict with each other"
-    return 2
-
-  let roles ←
-    match ← Loam.Persistence.loadAccountingRoleMap? roleFile with
-    | some roles => pure roles
-    | none =>
-        IO.eprintln
-          "loam: AccountingRole authority is malformed or unsupported"
-        return 2
-
-  let presentation ←
-    match ← Loam.MeasurePresentation.loadForActualFile actualFile with
-    | .ok metadata => pure metadata
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-
-  let entries ←
-    match Loam.ActualJournalProjection.fromImage? image with
-    | .error message =>
-        IO.eprintln ("loam: " ++ message)
-        return 2
-    | .ok entries => pure entries
-
-  match Loam.BeancountExport.renderSuspenseWithPresentation? presentation roles entries with
+  match ← Loam.BeancountExportPipeline.exportSuspense actualFile roleFile outputFile reportFile with
   | .error message =>
-      IO.eprintln ("loam: " ++ message)
+      IO.eprintln s!"loam: {message}"
       return 2
   | .ok res =>
-      Loam.Persistence.replaceTextViaSiblingStage outputFile res.beancount
-      Loam.Persistence.replaceTextViaSiblingStage reportFile res.report
-      IO.println (s!"Regenerated disposable suspense Beancount view ({res.exportedCount} exported, {res.unresolvedEffectCount} suspense effects): " ++ outputPath)
-      IO.println ("Generated suspense export report: " ++ reportPath)
+      IO.println s!"Regenerated disposable suspense Beancount view ({res.exportedCount} exported, {res.unresolvedEffectCount} suspense effects): {outputPath}"
+      IO.println s!"Generated suspense export report: {reportPath}"
       return 0
 
 end Loam.BeancountExportCli

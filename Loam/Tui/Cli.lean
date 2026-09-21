@@ -40,6 +40,7 @@ import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
+import Loam.Tui.FavaLaunch
 import Loam.BoundaryPresetConfig
 import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
@@ -945,6 +946,9 @@ partial def reportsLoop (bounds : Bounds)
             dataDir root observedAt with
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some .favaProjection =>
+        let notice ← Loam.Tui.FavaLaunch.launch dataDir root
+        pure { step.state with notice := notice }
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
   reportsLoop bounds dataDir root next nextFrame

@@ -38,6 +38,10 @@ def main : IO Unit := do
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
+  expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
+  let favaStep := Loam.Tui.Reports.update initial (.input 'f')
+  expect (favaStep.query == some .favaProjection)
+    "Reports direct Fava key 'f' did not trigger favaProjection query"
   expect (initial.window.form.start == "2026-09-01")
     "Reports did not seed the selected-day calendar month start"
   expect (initial.window.form.endExclusive == "2026-10-01")
