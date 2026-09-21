@@ -1,5 +1,7 @@
 import Loam.Core.EventCorrectionMemory
 import Loam.Application.ReplacementFrontier
+import Std.Data.HashMap
+import Std.Data.HashSet
 
 namespace Loam.Application
 
@@ -18,7 +20,7 @@ does not reinterpret branching or merging correction shapes as if they had a
 winner. Multi-parent settlement remains outside the current production Core.
 -/
 
-private def targetsEvent : List EventCorrection → EventId → Bool
+def targetsEvent : List EventCorrection → EventId → Bool
   | [], _ => false
   | correction :: rest, id =>
       if correction.target = id then
@@ -26,7 +28,7 @@ private def targetsEvent : List EventCorrection → EventId → Bool
       else
         targetsEvent rest id
 
-private def replacesEvent : List EventCorrection → EventId → Bool
+def replacesEvent : List EventCorrection → EventId → Bool
   | [], _ => false
   | correction :: rest, id =>
       if correction.replacement = id then
@@ -34,7 +36,7 @@ private def replacesEvent : List EventCorrection → EventId → Bool
       else
         replacesEvent rest id
 
-private def replacementOf? : List EventCorrection → EventId → Option EventId
+def replacementOf? : List EventCorrection → EventId → Option EventId
   | [], _ => none
   | correction :: rest, id =>
       if correction.target = id then
@@ -42,7 +44,7 @@ private def replacementOf? : List EventCorrection → EventId → Option EventId
       else
         replacementOf? rest id
 
-private def terminalFrom
+def terminalFrom
     (corrections : List EventCorrection) : Nat → EventId → EventId
   | 0, id => id
   | fuel + 1, id =>
@@ -50,13 +52,13 @@ private def terminalFrom
       | none => id
       | some replacement => terminalFrom corrections fuel replacement
 
-private def correctionEdges
+def correctionEdges
     (corrections : EventCorrectionMemory) :
     List (ReplacementFrontier.Edge EventId) :=
   corrections.corrections.map fun correction =>
     { source := correction.target, successor := correction.replacement }
 
-private def eventPresent
+def eventPresent
     (events : EventMemory)
     (id : EventId) : Bool :=
   (EventMemory.findById? events id).isSome
@@ -107,13 +109,13 @@ def correctionFrontierAdmissible
         idNodup := by simp } = false := by
   simp [correctionFrontierAdmissible, correctionEdges]
 
-private def frontierEvents
+def frontierEvents
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : List Event :=
   events.events.filter fun event =>
     !(targetsEvent corrections.corrections event.id)
 
-private theorem targetsEvent_false_iff
+theorem targetsEvent_false_iff
     (corrections : List EventCorrection)
     (id : EventId) :
     targetsEvent corrections id = false ↔
@@ -133,7 +135,7 @@ The runtime collection therefore inherits its identity invariant directly from
 the retained EventMemory instead of rechecking the filtered list with a second
 hash-backed admission pass.
 -/
-private theorem frontierEvents_idNodup
+theorem frontierEvents_idNodup
     (events : EventMemory)
     (corrections : EventCorrectionMemory) :
     ((frontierEvents events corrections).map Event.id).Nodup := by
@@ -262,5 +264,217 @@ def quantityAtCorrectionFrontier?
     (measure : MeasureId) : Option Quantity := do
   let frontier ← correctionFrontierMemory? events corrections
   return EventMemory.quantityAtRecorded frontier locus measure
+
+/-!
+# Phase 3H: Transient Correction Frontier Index
+
+Transient acceleration index for Correction frontier admission and projection.
+Constructed once per admission / review pass from canonical `EventMemory` and
+`EventCorrectionMemory`. It is never serialized or treated as an independent authority.
+-/
+
+/-- EventId token projection is injective, enabling hash-indexed replacement cycle checks. -/
+theorem eventIdToken_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
+/--
+Transient scan state accumulated during the single pass over
+`EventCorrectionMemory.corrections`.
+-/
+private structure CorrectionScanState where
+  targetSet : Std.HashSet String
+  replacementSet : Std.HashSet String
+  replacementByTarget : Std.HashMap String EventId
+  edgesRev : List (ReplacementFrontier.Edge EventId)
+  hasUnknownEndpoint : Bool
+  hasDuplicateTarget : Bool
+  hasDuplicateReplacement : Bool
+
+/--
+Traverse raw corrections in one pass, collecting derived lookup structures and
+evaluating endpoint presence and uniqueness without repeated scanning.
+-/
+private def scanCorrections
+    (eventMap : Std.HashMap String Event)
+    (corrections : List EventCorrection) : CorrectionScanState :=
+  corrections.foldl
+    (fun state c =>
+      let targetToken := c.target.token
+      let replacementToken := c.replacement.token
+      let targetKnown := eventMap.contains targetToken
+      let replacementKnown := eventMap.contains replacementToken
+      let isDupTarget := state.targetSet.contains targetToken
+      let isDupReplacement := state.replacementSet.contains replacementToken
+      let targetByRepl :=
+        if isDupTarget then state.replacementByTarget
+        else state.replacementByTarget.insert targetToken c.replacement
+      let edge : ReplacementFrontier.Edge EventId :=
+        { source := c.target, successor := c.replacement }
+      {
+        targetSet := state.targetSet.insert targetToken
+        replacementSet := state.replacementSet.insert replacementToken
+        replacementByTarget := targetByRepl
+        edgesRev := edge :: state.edgesRev
+        hasUnknownEndpoint := state.hasUnknownEndpoint || !targetKnown || !replacementKnown
+        hasDuplicateTarget := state.hasDuplicateTarget || isDupTarget
+        hasDuplicateReplacement := state.hasDuplicateReplacement || isDupReplacement
+      })
+    {
+      targetSet := {}
+      replacementSet := {}
+      replacementByTarget := {}
+      edgesRev := []
+      hasUnknownEndpoint := false
+      hasDuplicateTarget := false
+      hasDuplicateReplacement := false
+    }
+
+/--
+Transient lookup and acceleration index constructed for one `(EventMemory, EventCorrectionMemory)` pair.
+
+The canonical `EventMemory` and `EventCorrectionMemory` remain the sole proof-carrying authorities.
+This structure is constructed transiently and carries no authority or arrival-order semantics.
+-/
+structure CorrectionFrontierIndex where
+  events : Std.HashMap String Event
+  targetSet : Std.HashSet String
+  replacementSet : Std.HashSet String
+  replacementByTarget : Std.HashMap String EventId
+  edges : List (ReplacementFrontier.Edge EventId)
+  hasUnknownEndpoint : Bool
+  hasDuplicateTarget : Bool
+  hasDuplicateReplacement : Bool
+
+/--
+Construct the transient `CorrectionFrontierIndex` from canonical memories in linear time.
+-/
+def buildCorrectionFrontierIndex
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : CorrectionFrontierIndex :=
+  let eventMap : Std.HashMap String Event :=
+    events.events.foldl
+      (fun map event => map.insert event.id.token event)
+      {}
+  let scan := scanCorrections eventMap corrections.corrections
+  {
+    events := eventMap
+    targetSet := scan.targetSet
+    replacementSet := scan.replacementSet
+    replacementByTarget := scan.replacementByTarget
+    edges := scan.edgesRev.reverse
+    hasUnknownEndpoint := scan.hasUnknownEndpoint
+    hasDuplicateTarget := scan.hasDuplicateTarget
+    hasDuplicateReplacement := scan.hasDuplicateReplacement
+  }
+
+namespace CorrectionFrontierIndex
+
+/-- Find one Event by its identity using the transient hash index. -/
+def findEventById? (index : CorrectionFrontierIndex) (id : EventId) : Option Event :=
+  index.events[id.token]?
+
+/-- Whether one Event is present in the indexed memory snapshot. -/
+def eventPresent (index : CorrectionFrontierIndex) (id : EventId) : Bool :=
+  index.events.contains id.token
+
+/-- Whether any retained correction targets this Event identity. -/
+def targetsEvent (index : CorrectionFrontierIndex) (id : EventId) : Bool :=
+  index.targetSet.contains id.token
+
+/-- Whether any retained correction replaces this Event identity. -/
+def replacesEvent (index : CorrectionFrontierIndex) (id : EventId) : Bool :=
+  index.replacementSet.contains id.token
+
+/-- Return the immediate replacement Event identity if this Event is targeted. -/
+def replacementOf? (index : CorrectionFrontierIndex) (id : EventId) : Option EventId :=
+  index.replacementByTarget[id.token]?
+
+/-- Follow replacements to the terminal Event identity using transient lookup. -/
+def terminalFrom
+    (index : CorrectionFrontierIndex) : Nat → EventId → EventId
+  | 0, id => id
+  | fuel + 1, id =>
+      match index.replacementOf? id with
+      | none => id
+      | some replacement => index.terminalFrom fuel replacement
+
+/-- Whether both sources and successors are pairwise distinct (no branching, no merging). -/
+def endpointUnique (index : CorrectionFrontierIndex) : Bool :=
+  !index.hasDuplicateTarget && !index.hasDuplicateReplacement
+
+/-- Whether every referenced correction endpoint is present in the Event snapshot. -/
+def referencesClosed (index : CorrectionFrontierIndex) : Bool :=
+  !index.hasUnknownEndpoint
+
+/--
+Universal cycle check using Phase 3F indexed cycle admission on `index.edges`.
+-/
+def acyclic (index : CorrectionFrontierIndex) : Bool :=
+  ReplacementFrontier.acyclicIndexedBy
+    (fun (id : EventId) => id.token)
+    eventIdToken_injective
+    index.edges
+
+/--
+Whether retained correction facts justify one order-free frontier, evaluated using
+transient indexed checks.
+-/
+def admissible (index : CorrectionFrontierIndex) : Bool :=
+  index.endpointUnique && index.referencesClosed && index.acyclic
+
+/--
+Filter retained Events to retain only terminal replacements and untouched Events.
+-/
+def frontierEvents (index : CorrectionFrontierIndex) (events : EventMemory) : List Event :=
+  events.events.filter fun event => !(index.targetsEvent event.id)
+
+/-- Preserved identity uniqueness proof for indexed frontier filtering. -/
+theorem frontierEvents_idNodup
+    (index : CorrectionFrontierIndex)
+    (events : EventMemory) :
+    ((index.frontierEvents events).map Event.id).Nodup := by
+  unfold frontierEvents
+  exact events.idNodup.sublist (List.filter_sublist.map Event.id)
+
+end CorrectionFrontierIndex
+
+/--
+Derive the retained Event frontier using an already-constructed `CorrectionFrontierIndex`.
+-/
+def correctionFrontierMemoryIndexed?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (index : CorrectionFrontierIndex) : Option EventMemory :=
+  if corrections.corrections.isEmpty then
+    some events
+  else if index.admissible then
+    some {
+      events := index.frontierEvents events
+      idNodup := index.frontierEvents_idNodup events
+    }
+  else
+    none
+
+/--
+Return stable correction roots with their terminal Events using transient indexed traversal.
+-/
+def correctionRootTerminalEventsIndexed?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (index : CorrectionFrontierIndex) : Option (List (EventId × Event)) := do
+  if !index.admissible then
+    none
+  let roots := events.events.filter fun event =>
+    !(index.replacesEvent event.id)
+  roots.mapM fun root => do
+    let terminalId :=
+      index.terminalFrom (corrections.corrections.length + 1) root.id
+    let terminal ← index.findEventById? terminalId
+    pure (root.id, terminal)
 
 end Loam.Application

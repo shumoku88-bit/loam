@@ -1,0 +1,48 @@
+name: Practical Actual Correction Frontier
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
+      - '.github/workflows/practical-actual-correction-frontier.yml'
+  push:
+    branches:
+      - main
+      - 'perf/indexed-correction-frontier'
+    paths:
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
+      - '.github/workflows/practical-actual-correction-frontier.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Qualify Actual correction frontier index
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Correction frontier
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Application.CorrectionFrontier
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Exercise correction frontier semantic correspondence
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/CorrectionFrontierSemanticTest.lean
