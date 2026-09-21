@@ -312,3 +312,73 @@ The most useful next examples would be:
 
 Those cases test whether LOAM needs a stable semantic subject *above* both the
 graph and external identifiers.
+
+
+## 11. User annotation and several external aliases still do not force LotId
+
+The first post-Observation-292 candidate was durable user annotation.
+
+This is a real product requirement rather than a synthetic one. GnuCash gives a
+Lot its own GUID and exposes editable Lot Title and Notes:
+
+- https://cvs.gnucash.org/docs/STABLE/group__Lot.html
+- https://code.gnucash.org/website/docs/v5/C/gnucash-manual/tool-lots.html
+
+That demonstrates the usefulness of a stable lot-local place to attach human
+meaning.
+
+However LOAM already has two pieces that make this pressure weaker than it first
+appears.
+
+First, retained provenance gives historical Effect anchors that do not disappear
+merely because current quantity moves to a later Effect.
+
+Second, production correction semantics already derive a stable Event root via
+correctionRootTerminalEvents?.
+
+Observation 293 combines those facts with:
+
+- a retained historical Effect anchor;
+- a provenance edge to the current Effect;
+- an Event correction whose current terminal changes;
+- two custodians assigning different source-scoped external lot ids;
+- one user annotation.
+
+The annotation is independently observable evidence. Two worlds can have the
+same provenance and the same external lot aliases while only one contains the
+annotation.
+
+But the annotation can still target the retained historical provenance anchor.
+The two provider ids can target that same anchor as well.
+
+So neither user notes alone nor multiple provider lot ids alone require a new
+LotId.
+
+The stronger current boundary is:
+
+LotId becomes independently pressured only if a stable internal subject is
+required and no retained Effect anchor, canonical provenance component/key, or
+existing correction root can serve as that referent.
+
+This also raises a naming caution. If that boundary is eventually crossed, the
+earned abstraction may be a generic stable semantic subject / annotation target
+rather than an investment-specific LotId.
+
+Observation 293 therefore narrows rather than expands the Core.
+
+### External transfer evidence still points the same way
+
+Current IRS transfer-statement rules require separate transfer information for
+the same security when acquisitions differ by date or price, and require
+adjusted basis / original acquisition information to cross the broker boundary.
+DTCC CBRS likewise transfers associated Tax Lot records between firms and
+supports correction/rejection workflows.
+
+Those systems demonstrate that acquisition distinctions and corrections must be
+retained operationally. They still do not establish one cross-provider universal
+lot identifier that LOAM must adopt.
+
+Primary sources:
+
+- https://www.irs.gov/instructions/i1099b
+- https://www.dtcc.com/products-and-services/clearing-settlement-services/equities-clearing/cost-basis-reporting-service
