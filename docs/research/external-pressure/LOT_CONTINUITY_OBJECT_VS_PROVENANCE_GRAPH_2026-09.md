@@ -465,3 +465,57 @@ survives changes to all derivable/current payload.
 That does not yet imply:
 
 Core.LotId is earned unconditionally.
+
+
+## 13. Cross-domain convergence: Observation 204 already found stable subject pressure
+
+Observation 294 is not the first place in LOAM research where a stable semantic
+subject has appeared.
+
+Earlier Observation 204 asked whether two pre-Scheduled partial-knowledge
+pressures could share one subject-attached carrier. Its bounded result retained
+four separately observable dimensions:
+
+- stable subject identity;
+- known existence;
+- exact quantity evidence;
+- exact temporal evidence.
+
+It also showed that loose identity-free amount and due pools cannot reconstruct
+which values belong to which subject once several subjects exist.
+
+Observation 204 deliberately stopped short of introducing a production Subject
+type. It classified the idea as a research-only conservative-extension
+candidate.
+
+The investment sequence now reaches the same architectural shape from a
+different direction.
+
+Observation 294 starts from a user-created durable lot-like object whose
+membership, aliases, title, and note may all change. If independently created
+objects with identical current payload must remain distinguishable, some stable
+subject identity is required.
+
+The convergence is therefore:
+
+pre-Scheduled partial knowledge
+    -> stable subject needed for attachment correspondence
+
+user-created durable lot-like object
+    -> stable subject needed across changing payload
+
+This weakens the case for an investment-specific Core.LotId and strengthens the
+case for keeping the next research question generic.
+
+There is still no production StableSubjectId or SubjectId on current main, and
+SA-010 explicitly rejected adding a generic Identity ontology without an earned
+semantic reason. That discipline should remain in force.
+
+The next falsification question is therefore not "should LOAM add LotId?" but:
+
+Can one small typed stable-subject abstraction satisfy both the Observation 204
+partial-knowledge pressure and the Observation 294 user-created durable-object
+pressure without collapsing their domain-specific evidence?
+
+Until that question is qualified and dogfood requires such a subject, the
+production Core should remain unchanged.
