@@ -245,5 +245,5 @@ def main : IO Unit := do
 
   IO.println ""
   IO.println "Benchmark complete. growth(a) = after-impl growth ratio, growth(b) = before-impl growth ratio."
-  IO.println "Note: Replacement-heavy (C) includes ReplacementFrontier.acyclic (list-based cycle detector) — non-linear growth in both before/after is expected."
+  IO.println "Note: Replacement-heavy (C) reference includes list-based ReplacementFrontier.acyclic (O(N²)), whereas currentOpenScheduled uses acyclicIndexedBy (linear O(N))."
 

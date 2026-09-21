@@ -127,4 +127,65 @@ theorem hashNodupBy?_pair_of_key_ne
       } : HashNodupWitness [left, right]) := by
   simp [hashNodupBy?, buildHashNodup?, Ne.symm hKey]
 
+private theorem buildHashNodup?_of_nodup
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (items : List Item)
+    (hNodup : items.Nodup) :
+    ∃ built, buildHashNodup? keyOf items = some built := by
+  induction items with
+  | nil =>
+      simp [buildHashNodup?]
+  | cons item rest ih =>
+      rw [List.nodup_cons] at hNodup
+      obtain ⟨hNotMem, hRestNodup⟩ := hNodup
+      obtain ⟨built, hBuilt⟩ := ih hRestNodup
+      by_cases hContains : built.seen.contains (keyOf item) = true
+      · have hMemSeen : keyOf item ∈ built.seen :=
+          Std.HashSet.mem_iff_contains.mpr hContains
+        have hMemMap : keyOf item ∈ rest.map keyOf :=
+          (built.seen_iff (keyOf item)).mp hMemSeen
+        obtain ⟨x, hxRest, hxEq⟩ := List.mem_map.mp hMemMap
+        have : x = item := keyInjective hxEq
+        subst this
+        contradiction
+      · simp only [buildHashNodup?, hBuilt, bind, Option.bind]
+        simp only [hContains]
+        exact ⟨_, rfl⟩
+
+theorem hashNodupBy?_of_nodup
+    {Item Key : Type}
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (items : List Item)
+    (hNodup : items.Nodup) :
+    ∃ witness, hashNodupBy? keyOf keyInjective items = some witness := by
+  obtain ⟨built, hBuilt⟩ := buildHashNodup?_of_nodup keyOf keyInjective items hNodup
+  refine ⟨⟨(), built.nodup⟩, ?_⟩
+  simp [hashNodupBy?, hBuilt]
+
+theorem hashNodupBy?_isSome_iff_nodup
+    {Item Key : Type}
+    [DecidableEq Item]
+    [BEq Key] [Hashable Key] [LawfulBEq Key] [LawfulHashable Key]
+    (keyOf : Item → Key)
+    (keyInjective : Function.Injective keyOf)
+    (items : List Item) :
+    (hashNodupBy? keyOf keyInjective items).isSome = decide items.Nodup := by
+  cases hNodup : decide items.Nodup with
+  | false =>
+      have hNotNodup := of_decide_eq_false hNodup
+      cases hRes : hashNodupBy? keyOf keyInjective items with
+      | none => rfl
+      | some witness =>
+          have := witness.proof
+          contradiction
+  | true =>
+      have hNodup' := of_decide_eq_true hNodup
+      obtain ⟨witness, hW⟩ := hashNodupBy?_of_nodup keyOf keyInjective items hNodup'
+      simp [hW]
+
 end Loam.Core

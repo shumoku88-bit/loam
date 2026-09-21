@@ -178,6 +178,9 @@ private def isCurrentOpenIndexed {Time : Type}
       | some actual => index.eventIds.contains actual.token
       | none => false)
 
+private theorem scheduledIdToken_injective : Function.Injective (fun id : ScheduledId => id.token) := by
+  intro ⟨a⟩ ⟨b⟩ h; cases h; rfl
+
 /--
 Project the complete current-open Scheduled set, or refuse the whole answer when
 retained terminal evidence is structurally inconsistent.
@@ -205,7 +208,7 @@ def currentOpenScheduled {Time : Type}
     .unknownRetirementScheduled
   else if index.hasUnknownReplacementEndpoint then
     .unknownReplacementScheduled
-  else if !ReplacementFrontier.acyclic index.replacementEdges then
+  else if !ReplacementFrontier.acyclicIndexedBy (fun id => id.token) scheduledIdToken_injective index.replacementEdges then
     .invalidReplacementGraph
   else if index.hasCrossKindConflict then
     .conflictingTerminalEvidence
