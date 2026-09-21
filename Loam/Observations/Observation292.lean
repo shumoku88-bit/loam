@@ -18,12 +18,16 @@ Those observations left one deliberate question open:
 > Can a selected query require a stable lot reference that is independently
 > observed rather than reconstructed from the retained provenance graph?
 
-Real custodial data formats provide exactly that pressure. Some brokers/custody
-feeds publish stable tax-lot identifiers and references between open and closed
-lot records.
+A current brokerage API provides exactly that pressure.
 
-This observation does not model any particular vendor format. It tests only the
-information boundary exposed by such formats.
+Public.com's 2026 API exposes unrealized tax lots with a provider-supplied
+`lotSelectionId`, and sell orders can carry tax-lot matching instructions to
+select which lots are sold. That identifier is therefore part of an external
+operational boundary, not a name LOAM can safely regenerate from its own
+provenance graph.
+
+This observation remains vendor-neutral in code. It tests only the information
+boundary exposed by such an interface.
 
 Two worlds retain the exact same:
 
@@ -187,8 +191,9 @@ theorem external_lot_identity_requires_source_namespace :
   native_decide
 
 /--
-Open/closed lifecycle references are also independently observable external
-facts, not consequences of the physical/provenance graph.
+An external system may also publish lifecycle/reference relations among its own
+lot identifiers. Such references, when observed, would likewise be external
+facts rather than consequences of the physical/provenance graph.
 -/
 structure ExternalLotLifecycleEvidence where
   custodian : String
