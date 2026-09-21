@@ -1,0 +1,45 @@
+name: Repository Hygiene
+
+on:
+  pull_request:
+    paths:
+      - '.gitignore'
+      - '.lake/**'
+      - 'dist-newstyle/**'
+      - 'scratch/**'
+      - '**/__pycache__/**'
+      - '**/*.pyc'
+      - '**/*.pyo'
+      - '**/*.pyd'
+      - '**/.DS_Store'
+      - 'tools/audit-repository-hygiene'
+      - '.github/workflows/repository-hygiene.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.gitignore'
+      - '.lake/**'
+      - 'dist-newstyle/**'
+      - 'scratch/**'
+      - '**/__pycache__/**'
+      - '**/*.pyc'
+      - '**/*.pyo'
+      - '**/*.pyd'
+      - '**/.DS_Store'
+      - 'tools/audit-repository-hygiene'
+      - '.github/workflows/repository-hygiene.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    name: Reject repository-local material
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check tracked and ignored boundaries
+        shell: bash
+        run: bash tools/audit-repository-hygiene
