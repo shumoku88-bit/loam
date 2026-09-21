@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - 'perf/indexed-correction-frontier'
+      - 'perf/linearize-actual-correction-admission'
     paths:
       - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Application/CorrectionFrontier.lean'

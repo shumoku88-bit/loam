@@ -73,15 +73,19 @@ private def runCase
   let legacyFrontier := frontierEvents events corrections
   assertEq s!"{caseName}: frontierEvents" (indexedFrontier.map Event.id) (legacyFrontier.map Event.id)
 
-  -- 7. Full correctionFrontierMemoryIndexed? == correctionFrontierMemory?
+  -- 7. Full correctionFrontierMemoryIndexed? == legacy reference == production
   let indexedMem := (correctionFrontierMemoryIndexed? events corrections index).map (fun m => m.events.map Event.id)
-  let legacyMem := (correctionFrontierMemory? events corrections).map (fun m => m.events.map Event.id)
-  assertEq s!"{caseName}: correctionFrontierMemory?" indexedMem legacyMem
+  let legacyMem := (correctionFrontierMemoryLegacy? events corrections).map (fun m => m.events.map Event.id)
+  let prodMem := (correctionFrontierMemory? events corrections).map (fun m => m.events.map Event.id)
+  assertEq s!"{caseName}: correctionFrontierMemoryLegacy?" indexedMem legacyMem
+  assertEq s!"{caseName}: correctionFrontierMemory?" indexedMem prodMem
 
   -- 8. Root terminal events correspondence
   let indexedRoots := (correctionRootTerminalEventsIndexed? events corrections index).map (fun l => l.map fun (rid, ev) => (rid, ev.id))
-  let legacyRoots := (correctionRootTerminalEvents? events corrections).map (fun l => l.map fun (rid, ev) => (rid, ev.id))
-  assertEq s!"{caseName}: correctionRootTerminalEvents?" indexedRoots legacyRoots
+  let legacyRoots := (correctionRootTerminalEventsLegacy? events corrections).map (fun l => l.map fun (rid, ev) => (rid, ev.id))
+  let prodRoots := (correctionRootTerminalEvents? events corrections).map (fun l => l.map fun (rid, ev) => (rid, ev.id))
+  assertEq s!"{caseName}: correctionRootTerminalEventsLegacy?" indexedRoots legacyRoots
+  assertEq s!"{caseName}: correctionRootTerminalEvents?" indexedRoots prodRoots
 
 def runAll : IO Unit := do
   IO.println "Running Phase 3H-1 CorrectionFrontier semantic correspondence tests..."

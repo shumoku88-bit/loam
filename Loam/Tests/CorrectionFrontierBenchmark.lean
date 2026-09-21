@@ -78,7 +78,7 @@ def runAll : IO Unit := do
     let corrections := buildCorrectionMemory n
 
     let (baselineUs, countBase) ← timeMedianUs reps fun _ =>
-      correctionFrontierMemory? events corrections
+      correctionFrontierMemoryLegacy? events corrections
     let (candidateUs, countCand) ← timeMedianUs reps fun _ =>
       let idx := buildCorrectionFrontierIndex events corrections
       correctionFrontierMemoryIndexed? events corrections idx

@@ -142,16 +142,8 @@ theorem frontierEvents_idNodup
   unfold frontierEvents
   exact events.idNodup.sublist (List.filter_sublist.map Event.id)
 
-/--
-Derive the retained Event frontier when correction facts justify disjoint finite
-paths. Superseded targets are filtered out; terminal replacements and untouched
-Events remain.
-
-Filtering preserves the already-proved EventId uniqueness invariant, so the
-frontier is constructed from that proof directly. No second runtime hash-backed
-duplicate admission is required after the correction topology has been admitted.
--/
-def correctionFrontierMemory?
+/-- Reference specification for correction frontier memory admission. -/
+def correctionFrontierMemoryLegacy?
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Option EventMemory :=
   if corrections.corrections.isEmpty then
@@ -164,16 +156,8 @@ def correctionFrontierMemory?
   else
     none
 
-/--
-Return the stable correction root together with its current terminal Event for
-all admitted correction paths and untouched Events.
-
-The root relation is derived only after the same correction-frontier admission
-used by ordinary quantity inspection. Event representation order, occurrence
-date, EventId spelling, and Git history remain irrelevant. Untouched Events are
-their own roots.
--/
-def correctionRootTerminalEvents?
+/-- Reference specification for root terminal Event derivation. -/
+def correctionRootTerminalEventsLegacy?
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : Option (List (EventId × Event)) := do
   if !correctionFrontierAdmissible events corrections then
@@ -185,85 +169,6 @@ def correctionRootTerminalEvents?
       terminalFrom corrections.corrections (corrections.corrections.length + 1) root.id
     let terminal ← EventMemory.findById? events terminalId
     pure (root.id, terminal)
-
-/--
-Derive the explicit stable roots represented by the admitted current Event world.
-This is the smallest root vocabulary needed by current-anchor evidence; it does
-not assign chronology or introduce another Event identity family.
--/
-def correctionRootIds?
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory) : Option (List EventId) := do
-  let rooted ← correctionRootTerminalEvents? events corrections
-  pure (rooted.map Prod.fst)
-
-/--
-Derive the current correction frontier after excluding complete correction roots
-that an external current-quantity observation already reflects.
-
-Filtering occurs by stable root, so later correction or reclassification of a
-covered occurrence remains covered. Quantity arithmetic is intentionally not
-performed here; callers continue to use `EventMemory.quantityAtRecorded` on the
-returned admitted frontier.
--/
-def correctionFrontierExcludingRoots?
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (reflectedRoots : List EventId) : Option EventMemory := do
-  let rooted ← correctionRootTerminalEvents? events corrections
-  let unreflected := rooted.filterMap fun rootedEvent =>
-    if reflectedRoots.contains rootedEvent.1 then none else some rootedEvent.2
-  EventMemory.ofEvents? unreflected
-
-/--
-A successful correction frontier retains exactly the remembered Events that are
-not targeted by any retained correction fact.
-
-This theorem makes explicit a property already present in the implementation:
-once the correction relation passes the fail-closed admission boundary, frontier
-membership depends on target membership rather than path length or list order.
-It adds no new runtime semantics.
--/
-theorem correctionFrontierMemory?_mem_iff
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (frontier : EventMemory)
-    (hFrontier : correctionFrontierMemory? events corrections = some frontier)
-    (event : Event) :
-    event ∈ frontier.events ↔
-      event ∈ events.events ∧
-        ∀ correction ∈ corrections.corrections,
-          correction.target ≠ event.id := by
-  unfold correctionFrontierMemory? at hFrontier
-  split at hFrontier
-  · rename_i hEmpty
-    simp only [Option.some.injEq] at hFrontier
-    subst frontier
-    have hNoCorrections : corrections.corrections = [] := by
-      cases hList : corrections.corrections with
-      | nil => rfl
-      | cons head tail => simp [hList] at hEmpty
-    simp [hNoCorrections]
-  · split at hFrontier
-    · simp only [Option.some.injEq] at hFrontier
-      subst frontier
-      simp [frontierEvents, targetsEvent_false_iff]
-    · simp at hFrontier
-
-/--
-Project one locus/measure quantity from the admitted correction frontier.
-
-Quantity arithmetic is delegated to the recorded EventMemory projection after
-superseded Event identities have been removed. The same path is used for one or
-many corrections; correction count carries no authority.
--/
-def quantityAtCorrectionFrontier?
-    (events : EventMemory)
-    (corrections : EventCorrectionMemory)
-    (locus : LocusId)
-    (measure : MeasureId) : Option Quantity := do
-  let frontier ← correctionFrontierMemory? events corrections
-  return EventMemory.quantityAtRecorded frontier locus measure
 
 /-!
 # Phase 3H: Transient Correction Frontier Index
@@ -476,5 +381,233 @@ def correctionRootTerminalEventsIndexed?
       index.terminalFrom (corrections.corrections.length + 1) root.id
     let terminal ← index.findEventById? terminalId
     pure (root.id, terminal)
+
+/--
+Derive the retained Event frontier when correction facts justify disjoint finite
+paths. Superseded targets are filtered out; terminal replacements and untouched
+Events remain.
+
+Implemented using transient linear-time indexing via `CorrectionFrontierIndex`.
+-/
+def correctionFrontierMemory?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Option EventMemory :=
+  let index := buildCorrectionFrontierIndex events corrections
+  correctionFrontierMemoryIndexed? events corrections index
+
+/--
+Return the stable correction root together with its current terminal Event for
+all admitted correction paths and untouched Events.
+-/
+def correctionRootTerminalEvents?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Option (List (EventId × Event)) := do
+  let index := buildCorrectionFrontierIndex events corrections
+  correctionRootTerminalEventsIndexed? events corrections index
+
+/--
+Derive the explicit stable roots represented by the admitted current Event world.
+This is the smallest root vocabulary needed by current-anchor evidence; it does
+not assign chronology or introduce another Event identity family.
+-/
+def correctionRootIds?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory) : Option (List EventId) := do
+  let rooted ← correctionRootTerminalEvents? events corrections
+  pure (rooted.map Prod.fst)
+
+/--
+Derive the current correction frontier after excluding complete correction roots
+that an external current-quantity observation already reflects.
+
+Filtering occurs by stable root, so later correction or reclassification of a
+covered occurrence remains covered. Quantity arithmetic is intentionally not
+performed here; callers continue to use `EventMemory.quantityAtRecorded` on the
+returned admitted frontier.
+-/
+def correctionFrontierExcludingRoots?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (reflectedRoots : List EventId) : Option EventMemory := do
+  let rooted ← correctionRootTerminalEvents? events corrections
+  let unreflected := rooted.filterMap fun rootedEvent =>
+    if reflectedRoots.contains rootedEvent.1 then none else some rootedEvent.2
+  EventMemory.ofEvents? unreflected
+
+private theorem scanCorrections_targetSet_eq
+    (eventMap : Std.HashMap String Event)
+    (corrections : List EventCorrection) :
+    (scanCorrections eventMap corrections).targetSet =
+      corrections.foldl (fun s c => s.insert c.target.token) {} := by
+  have hGeneral :
+      ∀ (corrections : List EventCorrection) (state : CorrectionScanState),
+        (corrections.foldl
+          (fun s c =>
+            let targetToken := c.target.token
+            let replacementToken := c.replacement.token
+            let targetKnown := eventMap.contains targetToken
+            let replacementKnown := eventMap.contains replacementToken
+            let isDupTarget := s.targetSet.contains targetToken
+            let isDupReplacement := s.replacementSet.contains replacementToken
+            let targetByRepl :=
+              if isDupTarget then s.replacementByTarget
+              else s.replacementByTarget.insert targetToken c.replacement
+            let edge : ReplacementFrontier.Edge EventId :=
+              { source := c.target, successor := c.replacement }
+            {
+              targetSet := s.targetSet.insert targetToken
+              replacementSet := s.replacementSet.insert replacementToken
+              replacementByTarget := targetByRepl
+              edgesRev := edge :: s.edgesRev
+              hasUnknownEndpoint := s.hasUnknownEndpoint || !targetKnown || !replacementKnown
+              hasDuplicateTarget := s.hasDuplicateTarget || isDupTarget
+              hasDuplicateReplacement := s.hasDuplicateReplacement || isDupReplacement
+            }) state).targetSet =
+          corrections.foldl (fun s c => s.insert c.target.token) state.targetSet := by
+    intro corrections
+    induction corrections with
+    | nil =>
+        intro state
+        rfl
+    | cons c rest ih =>
+        intro state
+        simp only [List.foldl_cons]
+        rw [ih]
+  unfold scanCorrections
+  exact hGeneral corrections _
+
+private theorem foldl_insert_contains
+    (corrections : List EventCorrection)
+    (set : Std.HashSet String)
+    (id : EventId) :
+    (corrections.foldl (fun s c => s.insert c.target.token) set).contains id.token = true ↔
+      (set.contains id.token = true ∨ ∃ c ∈ corrections, c.target = id) := by
+  induction corrections generalizing set with
+  | nil =>
+      simp
+  | cons c rest ih =>
+      simp only [List.foldl_cons]
+      rw [ih]
+      rw [Std.HashSet.contains_insert]
+      simp only [Bool.or_eq_true, beq_iff_eq]
+      constructor
+      · intro h
+        rcases h with (hEq | hSet) | ⟨c', hc'Rest, hc'Eq⟩
+        · right
+          have hTargetEq : c.target = id := eventIdToken_injective hEq
+          exact ⟨c, List.mem_cons_self, hTargetEq⟩
+        · left; exact hSet
+        · right
+          exact ⟨c', List.mem_cons_of_mem c hc'Rest, hc'Eq⟩
+      · intro h
+        rcases h with hSet | ⟨c', hc'Cons, hc'Eq⟩
+        · left; right; exact hSet
+        · cases hc'Cons with
+          | head =>
+              left; left
+              subst hc'Eq
+              rfl
+          | tail _ hTail =>
+              right
+              exact ⟨c', hTail, hc'Eq⟩
+
+theorem buildCorrectionFrontierIndex_targetsEvent_iff
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (id : EventId) :
+    (buildCorrectionFrontierIndex events corrections).targetsEvent id = true ↔
+      ∃ c ∈ corrections.corrections, c.target = id := by
+  unfold buildCorrectionFrontierIndex CorrectionFrontierIndex.targetsEvent
+  dsimp only
+  rw [scanCorrections_targetSet_eq]
+  rw [foldl_insert_contains]
+  simp [Std.HashSet.contains_empty]
+
+theorem buildCorrectionFrontierIndex_targetsEvent_eq_false_iff
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (id : EventId) :
+    (buildCorrectionFrontierIndex events corrections).targetsEvent id = false ↔
+      ∀ c ∈ corrections.corrections, c.target ≠ id := by
+  constructor
+  · intro h
+    have hNotSome : ¬((buildCorrectionFrontierIndex events corrections).targetsEvent id = true) := by
+      simp [h]
+    rw [buildCorrectionFrontierIndex_targetsEvent_iff] at hNotSome
+    intro c hc hcEq
+    exact hNotSome ⟨c, hc, hcEq⟩
+  · intro h
+    cases hBool : (buildCorrectionFrontierIndex events corrections).targetsEvent id with
+    | false => rfl
+    | true =>
+        rw [buildCorrectionFrontierIndex_targetsEvent_iff] at hBool
+        obtain ⟨c, hc, hcEq⟩ := hBool
+        exact False.elim (h c hc hcEq)
+
+/--
+A successful correction frontier retains exactly the remembered Events that are
+not targeted by any retained correction fact.
+
+This theorem makes explicit a property already present in the implementation:
+once the correction relation passes the fail-closed admission boundary, frontier
+membership depends on target membership rather than path length or list order.
+It adds no new runtime semantics.
+-/
+theorem correctionFrontierMemory?_mem_iff
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (frontier : EventMemory)
+    (hFrontier : correctionFrontierMemory? events corrections = some frontier)
+    (event : Event) :
+    event ∈ frontier.events ↔
+      event ∈ events.events ∧
+        ∀ correction ∈ corrections.corrections,
+          correction.target ≠ event.id := by
+  unfold correctionFrontierMemory? correctionFrontierMemoryIndexed? at hFrontier
+  dsimp only at hFrontier
+  split at hFrontier
+  · rename_i hEmpty
+    simp only [Option.some.injEq] at hFrontier
+    subst frontier
+    have hNoCorrections : corrections.corrections = [] := by
+      cases hList : corrections.corrections with
+      | nil => rfl
+      | cons head tail => simp [hList] at hEmpty
+    simp [hNoCorrections]
+  · split at hFrontier
+    · simp only [Option.some.injEq] at hFrontier
+      subst frontier
+      simp only [CorrectionFrontierIndex.frontierEvents, List.mem_filter]
+      have hTargetBool :
+          (!(buildCorrectionFrontierIndex events corrections).targetsEvent event.id) = true ↔
+            (buildCorrectionFrontierIndex events corrections).targetsEvent event.id = false := by
+        cases (buildCorrectionFrontierIndex events corrections).targetsEvent event.id <;> decide
+      rw [hTargetBool]
+      rw [buildCorrectionFrontierIndex_targetsEvent_eq_false_iff]
+    · simp at hFrontier
+
+/--
+Universal general correspondence theorem: `correctionFrontierMemoryIndexed?` evaluated
+with `buildCorrectionFrontierIndex` corresponds identically to `correctionFrontierMemory?`.
+-/
+theorem correctionFrontierMemoryIndexed?_eq_correctionFrontierMemory?
+    (events : EventMemory) (corrections : EventCorrectionMemory) :
+    correctionFrontierMemoryIndexed? events corrections (buildCorrectionFrontierIndex events corrections) =
+      correctionFrontierMemory? events corrections := rfl
+
+/--
+Project one locus/measure quantity from the admitted correction frontier.
+
+Quantity arithmetic is delegated to the recorded EventMemory projection after
+superseded Event identities have been removed. The same path is used for one or
+many corrections; correction count carries no authority.
+-/
+def quantityAtCorrectionFrontier?
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (locus : LocusId)
+    (measure : MeasureId) : Option Quantity := do
+  let frontier ← correctionFrontierMemory? events corrections
+  return EventMemory.quantityAtRecorded frontier locus measure
 
 end Loam.Application

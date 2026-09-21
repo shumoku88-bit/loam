@@ -135,9 +135,15 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
     none
   if !normalizedValidityDatesAdmissible evidence.validity then
     none
-  match hFrontier : correctionFrontierMemory? evidence.events evidence.corrections with
+  let corrIndex := buildCorrectionFrontierIndex evidence.events evidence.corrections
+  match hFrontierIndexed :
+      correctionFrontierMemoryIndexed? evidence.events evidence.corrections corrIndex with
   | none => none
   | some currentEvents =>
+      have hFrontier :
+          correctionFrontierMemory? evidence.events evidence.corrections = some currentEvents := by
+        rw [← correctionFrontierMemoryIndexed?_eq_correctionFrontierMemory?]
+        exact hFrontierIndexed
       match hValidity : admittedActualValidityMemory? evidence.validity with
       | none => none
       | some admittedDates => do
