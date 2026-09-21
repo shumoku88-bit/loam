@@ -1,5 +1,4 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
 import Loam.CapacityPublisher
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview

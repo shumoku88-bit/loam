@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.Tui.Correction
 import Loam.MovementPublisher
 import Loam.ActualReview
@@ -85,7 +86,7 @@ def main (args : List String) : IO Unit := do
   expect (usdEditor.editor.form.rows.map (fun row => row.amount) == #["-12.34", "12.34"])
     "Correction editor exposed stored USD quanta instead of the configured decimal presentation"
 
-  let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok world ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
   let known := ["paypay", "coffee"]
   let forcedForm : Loam.Tui.Record.Form := {

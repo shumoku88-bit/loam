@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.AccountingRolePublisher
 import Loam.CurrentQuantityAnchorPublisher
 import Loam.Persistence.CurrentQuantityAnchorPersistence
@@ -170,7 +170,7 @@ def main (args : List String) : IO Unit := do
   expect (decide (anchorAfter = anchor))
     "AccountingRole refusal changed current quantity anchor evidence"
 
-  let .ok loadedWorld ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok loadedWorld ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload Movement authority")
   expect (loadedWorld.events.events.map (fun e => e.id) ==
       w.events.events.map (fun e => e.id))

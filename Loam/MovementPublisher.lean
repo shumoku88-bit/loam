@@ -2,6 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualEvidence
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
+import Loam.MovementWorldAdapter
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.MovementPublisher
@@ -52,7 +53,7 @@ private def publishUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | Except.error message => return Except.error message
     | Except.ok la => pure la
-  let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
+  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
   match Loam.MovementAdmission.admit? world draft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
@@ -85,7 +86,7 @@ private def publishIdempotentUnderOwnership
         match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
         | Except.error message => return Except.error message
         | Except.ok la => pure la
-      let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
+      let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
       match Loam.MovementAdmission.admit? world draft with
       | Except.error message => return Except.error message
       | Except.ok admitted =>

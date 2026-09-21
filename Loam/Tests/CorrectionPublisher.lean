@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.ActualReview
 import Loam.CorrectionPublisher
 import Loam.MovementPublisher
@@ -108,7 +109,7 @@ def main (args : List String) : IO Unit := do
     root.toString unbalanced
   expect (!refusedUnbalanced.isOk) "unbalanced correction replacement was admitted"
 
-  let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok selected ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }
@@ -138,7 +139,7 @@ def main (args : List String) : IO Unit := do
       correction.target == recorded && correction.replacement == replacementId)
     "published correction relation lost its endpoints"
 
-  let .ok world ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok world ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload corrected Actual")
   expect ((EventMemory.findById? world.events recorded).isSome)
     "append-only correction rewrote the original Event"

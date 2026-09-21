@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
+import Loam.MovementWorldAdapter
 
 namespace Loam.MovementDraftReview
 
@@ -42,7 +43,7 @@ def check
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | .error message => return .error message
     | .ok value => pure value
-  let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
+  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
   match Loam.MovementAdmission.admit? world draft with
   | .error message => return .error message
   | .ok _ => return .ok ()

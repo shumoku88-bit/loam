@@ -1,5 +1,5 @@
 import Loam.AccountingRolePublisher
-import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.CurrentQuantityAnchorPublisher
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
@@ -46,7 +46,7 @@ def loadInitialCandidates
   let scheduledFile := dataDir / "scheduled.loam"
   let roleFile := dataDir / "accounting-role.loam"
   let world ←
-    match ← Loam.ActualAuthority.loadSelectedWorld? actualRoot with
+    match ← Loam.MovementWorldLoader.loadSelectedWorld? actualRoot with
     | .ok world => pure world
     | .error message => return .error message
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile

@@ -182,7 +182,7 @@ FLOW_DIAGRAMS = {
     },
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
         "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -191,7 +191,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Actual authority decoded?", "Refuse\nmissing or malformed Actual"),
             ("insertion", "Load current Locus admission policy\nfrom locus-admission.loam"),
             ("decision", "Locus policy decoded?", "Refuse\nmissing or malformed policy"),
-            ("action", "ActualAuthority.movementWorld\nevidence + current policy"),
+            ("action", "MovementWorldAdapter.ofActual\nevidence + current policy"),
             ("insertion", "MovementAdmission.admit?\nagainst authoritative world"),
             ("decision", "Draft admitted?", "Refuse\nsemantic admission failed"),
             ("action", "Build updated ActualEvidence\npreserve correction / reversal evidence"),
@@ -347,7 +347,7 @@ FLOW_DIAGRAMS = {
             ("decision", "Actual authority decoded?", "Refuse\nmissing / malformed Actual"),
             ("insertion", "Load current Locus admission policy"),
             ("decision", "Locus policy decoded?", "Refuse\nmissing / malformed policy"),
-            ("action", "ActualAuthority.movementWorld\nActual evidence + current policy"),
+            ("action", "MovementWorldAdapter.ofActual\nActual evidence + current policy"),
             ("insertion", "findOpen?\nresolve current-open Scheduled target"),
             ("decision", "Scheduled target current-open?", "Refuse\nclosed / unknown / conflicting lifecycle"),
             ("action", "Choose Actual identity\nreuse retained endpoint or deterministic completion id"),

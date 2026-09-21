@@ -274,7 +274,7 @@ The first Record Movement audit produced concrete compression:
 
 1. sparse Effect identity moved from `MovementPublisher` into pure `MovementAdmission`;
 2. `MovementAdmission.Admitted` shrank to `world + eventId`;
-3. `ActualAuthority.movementWorld` became the shared pure representation boundary from Actual evidence plus current Locus policy;
+3. `MovementWorldAdapter.ofActual` became the shared pure representation boundary from Actual evidence plus current Locus policy;
 4. a regression fixed the counterexample that revealed preview/publication draft-shape divergence.
 
 The second audit applied the macro gate to the publisher/frontend boundary:
@@ -291,7 +291,7 @@ The third audit came from comparing Record, Correction, and Scheduled Completion
 3. Correction and current Scheduled Completion erase collector-local EffectKeys because their admitted replacement/plain-Actual paths create no new Relation source;
 4. production-path regressions deliberately reuse one temporary EffectKey across two postings and require successful keyless publication;
 5. interrupted Scheduled completion recovery preserves the stable EventId while still erasing collector-local Effect identity;
-6. Scheduled Completion now reuses `ActualAuthority.movementWorld` instead of hand-assembling the same Actual-plus-policy representation boundary.
+6. Scheduled Completion now reuses `MovementWorldAdapter.ofActual` instead of hand-assembling the same Actual-plus-policy representation boundary.
 
 The fourth audit tightened small local ownership before introducing another large abstraction:
 

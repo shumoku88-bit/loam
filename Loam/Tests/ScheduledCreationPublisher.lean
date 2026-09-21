@@ -1,5 +1,4 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence

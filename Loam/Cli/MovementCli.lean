@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.MovementAdmission
 import Loam.MovementDraftReview
 import Loam.HouseholdCommand
@@ -104,7 +104,7 @@ authority under writer ownership after the draft is complete, so human think
 time does not authorize publication from stale state.
 -/
 private def preflightForDraft (rootPath : String) : IO (Except String Unit) := do
-  match ← Loam.ActualAuthority.loadSelectedWorld? (System.FilePath.mk rootPath) with
+  match ← Loam.MovementWorldLoader.loadSelectedWorld? (System.FilePath.mk rootPath) with
   | .error message => return .error message
   | .ok _ => return .ok ()
 

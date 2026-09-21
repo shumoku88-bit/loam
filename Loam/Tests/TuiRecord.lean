@@ -1,5 +1,4 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
 import Loam.Tui.Record
 import Loam.MovementDraftReview
 import Loam.MovementPublisher
