@@ -382,3 +382,86 @@ Primary sources:
 
 - https://www.irs.gov/instructions/i1099b
 - https://www.dtcc.com/products-and-services/clearing-settlement-services/equities-clearing/cost-basis-reporting-service
+
+
+## 12. The boundary finally moves: independently created durable subjects
+
+Observation 293 eliminated two tempting reasons for a new LotId: user notes
+alone and several provider aliases alone. Both can still attach to a retained
+provenance anchor.
+
+A stronger real design exists.
+
+The current GnuCash Lots Editor can create a new Lot before it is linked to any
+split. The new Lot has a title and notes; free splits can later be linked into
+it or unlinked from it. The engine representation gives the Lot its own GUID.
+
+Primary sources:
+
+- https://www.gnucash.org/docs/v5/C/gnucash-manual/tool-lots.html
+- https://cvs.gnucash.org/docs/STABLE/group__Lot.html
+
+That changes the identity question fundamentally.
+
+A subject that can exist while its member set is empty cannot be identified by
+an acquisition Effect or provenance component at creation time.
+
+If the product also permits:
+
+- title / note edits;
+- membership changes;
+- provider alias changes;
+- two separately created subjects with otherwise identical current payloads;
+
+then current payload is not the object identity.
+
+Observation 294 models exactly that case. Two snapshots can retain identical:
+
+- members;
+- complete lineage;
+- provider-scoped external lot ids;
+- title;
+- note;
+
+while still representing two independently created internal subjects.
+
+A single subject can also persist from an empty pre-provenance state through a
+populated state and then through a different membership state.
+
+This is the first selected pressure in the sequence that earns some
+LOAM-owned stable subject identity, conditional on supporting this user-created
+durable-object workflow.
+
+### But this still does not uniquely earn Core.LotId
+
+The representation question remains open.
+
+GnuCash chooses an opaque GUID-backed Lot object.
+
+hledger's current 2026 lot specification chooses a semantic LotId made from
+acquisition date plus optional label:
+
+- https://hledger.org/SPEC-lots.html
+
+hledger also states that transfers preserve source lot identity and cannot
+rename the lot. Under average pooling, some original cost identity is lossy but
+date and label remain.
+
+So external designs show at least two viable families:
+
+1. opaque durable object identity;
+2. semantic/content-keyed lot identity.
+
+For LOAM there is a third question as well: whether this identity should be
+investment-specific at all. A generic stable semantic subject could also support
+other user-created named groupings.
+
+The refined boundary is therefore:
+
+stable LOAM-owned identity is earned
+only if LOAM promises independently created durable subjects whose identity
+survives changes to all derivable/current payload.
+
+That does not yet imply:
+
+Core.LotId is earned unconditionally.
