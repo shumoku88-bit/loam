@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.Tui.CycleBudget
 import Loam.CurrentCoverageReview
 import Loam.Application.ScheduledCommitmentInspection
@@ -36,7 +36,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "scheduled routing failed")
   let some roles ← Loam.Persistence.loadAccountingRoleMap? (dataDir / "accounting-role.loam")
     | throw (IO.userError "accounting roles failed")
-  let .ok movement ← Loam.ActualAuthority.loadSelectedWorld? dataDir
+  let .ok movement ← Loam.MovementWorldLoader.loadSelectedWorld? dataDir
     | throw (IO.userError "movement authority failed")
   let some unresolvedRows :=
     Loam.Application.currentUnresolvedScheduledPressure?

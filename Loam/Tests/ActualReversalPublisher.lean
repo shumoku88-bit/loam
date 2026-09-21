@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.ActualReversalPublisher
 import Loam.ActualValidityPublisher
 import Loam.Application.ActualValidityFrontier
@@ -133,7 +134,7 @@ def main (args : List String) : IO Unit := do
     | some relation => pure relation
     | none => throw (IO.userError "reversal provenance relation missing")
 
-  let .ok fresh ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok fresh ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected Actual world")
   let target ←
     match EventMemory.findById? fresh.events draft.target with

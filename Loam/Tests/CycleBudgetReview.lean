@@ -1,5 +1,4 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
 import Loam.CycleBudgetReview
 
 open Loam.Core

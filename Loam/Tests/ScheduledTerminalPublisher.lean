@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.ScheduledTerminalPublisher
@@ -189,7 +190,7 @@ def main (args : List String) : IO Unit := do
     scheduledFile.toString root.toString { scheduled := ⟨"scheduled-4"⟩ }
   expect (!refusedCancel.isOk) "cancellation competed with an interrupted completion"
 
-  let .ok selected ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok selected ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "load selected world for policy refusal")
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root
       { selected with locusAdmission := LocusAdmissionVocabulary.empty }

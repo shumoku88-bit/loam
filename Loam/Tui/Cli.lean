@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
@@ -320,7 +321,7 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .recordNew =>
       let world ←
-        match ← Loam.ActualAuthority.loadSelectedWorld? root with
+        match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -354,7 +355,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .createScheduled =>
       let world ←
-        match ← Loam.ActualAuthority.loadSelectedWorld? root with
+        match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -381,7 +382,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
           hraScheduledLoop bounds dataDir root snapshot next nextFrame
       | some record =>
           let world ←
-            match ← Loam.ActualAuthority.loadSelectedWorld? root with
+            match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
             | .error message => throw (IO.userError message)
             | .ok world => pure world
           let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -426,7 +427,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               hraScheduledLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.ActualAuthority.loadSelectedWorld? root with
+                match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -482,7 +483,7 @@ partial def hraScheduledLoop (bounds : Bounds) (dataDir root : System.FilePath)
               hraScheduledLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.ActualAuthority.loadSelectedWorld? root with
+                match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -511,7 +512,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
   | .back => return snapshot
   | .createScheduled =>
       let world ←
-        match ← Loam.ActualAuthority.loadSelectedWorld? root with
+        match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -546,7 +547,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.ActualAuthority.loadSelectedWorld? root with
+                match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -602,7 +603,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.ActualAuthority.loadSelectedWorld? root with
+                match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -689,7 +690,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root snapshot next nextFrame
           | .ok editor =>
               let world ←
-                match ← Loam.ActualAuthority.loadSelectedWorld? root with
+                match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -731,7 +732,7 @@ partial def selectedDayLoop (bounds : Bounds) (dataDir root : System.FilePath)
               selectedDayLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
-        match ← Loam.ActualAuthority.loadSelectedWorld? root with
+        match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
         | .error message => throw (IO.userError message)
         | .ok world => pure world
       let known := world.locusAdmission.approved.map (fun locus => locus.token)
@@ -967,7 +968,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'm' || key = .input 'M') then
     let world ←
-      match ← Loam.ActualAuthority.loadSelectedWorld? root with
+      match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
       | .ok world => pure world
     let catalog ← currentLocusCatalog dataDir world
@@ -1114,7 +1115,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'r' || key = .input 'R') then
     let world ←
-      match ← Loam.ActualAuthority.loadSelectedWorld? root with
+      match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
       | .error message => throw (IO.userError message)
       | .ok world => pure world
     let known := world.locusAdmission.approved.map (fun locus => locus.token)

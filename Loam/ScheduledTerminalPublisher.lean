@@ -3,6 +3,7 @@ import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority
 import Loam.MovementAdmission
+import Loam.MovementWorldAdapter
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledActualOwnership
 import Loam.SparseEffectIdentity
@@ -133,7 +134,7 @@ private def publishCompletionUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | .ok la => pure la
     | .error message => return .error message
-  let world := Loam.ActualAuthority.movementWorld evidence locusAdmission
+  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
   let _ ←
     match findOpen? lifecycle world.events draft.scheduled with
     | .ok occurrence => pure occurrence

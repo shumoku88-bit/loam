@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.LocusAdmissionPublisher
 
 open Loam.Core
@@ -66,7 +66,7 @@ def main (args : List String) : IO Unit := do
     "local authority did not retain the published admission vocabulary"
 
   let loaded ←
-    match ← Loam.ActualAuthority.loadSelectedWorld? root with
+    match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
     | .ok world => pure world
     | .error message => throw (IO.userError message)
   expect (loaded.locusAdmission.approved == policyAfter.approved)

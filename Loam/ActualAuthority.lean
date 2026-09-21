@@ -1,6 +1,4 @@
 import Loam.ActualEvidence
-import Loam.LocusAdmissionAuthority
-import Loam.MovementAdmission
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.WriterOwnership
 
@@ -117,23 +115,6 @@ def loadActual? (root : System.FilePath) : IO (Except String ActualEvidence) := 
   | .ok image => return .ok image.evidence
   | .error message => return .error message
 
-/--
-Construct the Movement admission view from retained Actual evidence and the
-independent current new-write Locus policy.
-
-This is a pure representation boundary. It does not merge the two authorities
-or grant persistence ownership to the semantic `World` type.
--/
-def movementWorld
-    (evidence : ActualEvidence)
-    (locusAdmission : LocusAdmissionVocabulary) : Loam.MovementAdmission.World := {
-  events := evidence.events
-  validity := evidence.validity
-  descriptions := evidence.descriptions
-  relations := evidence.relations
-  discharges := evidence.discharges
-  locusAdmission := locusAdmission
-}
 
 /--
 Publish one complete generation of Actual evidence to an explicit file path.
@@ -172,26 +153,5 @@ def withActualFileOwnership {α : Type} (path : System.FilePath) (action : IO α
 /-- Run an IO action under exclusive writer ownership for the repository root's actual authority. -/
 def withActualOwnership {α : Type} (root : System.FilePath) (action : IO α) : IO α :=
   withActualFileOwnership (actualPath root) action
-
-/--
-Load the full typed MovementAdmission.World by combining authoritative ActualEvidence
-from `actual.loam` and current new-write policy from `locus-admission.loam`.
-The caller-selected root is exact: missing or malformed authority fails closed
-instead of searching parent directories for a different household authority.
--/
-def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
-  let path :=
-    if root.fileName == some actualFileName then root
-    else actualPath root
-  let dataDir := if root.fileName == some actualFileName then root.parent.getD root else root
-  let evidence ←
-    match ← loadActualFile? path with
-    | .ok ev => pure ev
-    | .error msg => return .error msg
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
-    | .ok la => pure la
-    | .error msg => return .error msg
-  return .ok (movementWorld evidence locusAdmission)
 
 end Loam.ActualAuthority

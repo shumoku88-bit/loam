@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.LocusAdmissionAuthority
 import Loam.OperationalContinuity
 
@@ -71,7 +72,7 @@ def main (args : List String) : IO Unit := do
   | .error message => throw (IO.userError message)
   | .ok () => pure ()
 
-  match ← Loam.ActualAuthority.loadSelectedWorld? selectedRoot with
+  match ← Loam.MovementWorldLoader.loadSelectedWorld? selectedRoot with
   | .ok _ =>
       throw (IO.userError "explicit household root silently fell back to parent Actual authority")
   | .error message =>
@@ -82,7 +83,7 @@ def main (args : List String) : IO Unit := do
   match ← Loam.ActualAuthority.publishActual? selectedRoot Loam.ActualEvidence.empty with
   | .error message => throw (IO.userError message)
   | .ok () => pure ()
-  match ← Loam.ActualAuthority.loadSelectedWorld? selectedRoot with
+  match ← Loam.MovementWorldLoader.loadSelectedWorld? selectedRoot with
   | .ok _ =>
       throw (IO.userError "explicit household root silently paired with parent Locus admission authority")
   | .error message =>

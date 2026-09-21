@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
+import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection
 import Loam.ActualReview
 import Loam.CorrectionPublisher
@@ -85,7 +86,7 @@ def main (args : List String) : IO Unit := do
   expect (moved.length == 1 && moved.any fun item => item.event.id == recorded)
     "new date did not expose the moved Actual"
 
-  let .ok worldAfterDate ← Loam.ActualAuthority.loadSelectedWorld? root
+  let .ok worldAfterDate ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload world after date correction")
   expect ((EventMemory.findById? worldAfterDate.events recorded).isSome)
     "date correction rewrote or removed Event payload"

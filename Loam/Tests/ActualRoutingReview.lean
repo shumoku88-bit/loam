@@ -1,5 +1,4 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
 import Loam.ActualRoutingReview
 import Loam.CapacityAuthority
 import Loam.Core.Capacity

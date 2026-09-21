@@ -5,6 +5,8 @@ import Loam.Persistence.TextEscape
 import Loam.ActualEvidence
 import Loam.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.MovementWorldAdapter
+import Loam.MovementWorldLoader
 
 /-!
 # LOAM Lean umbrella
