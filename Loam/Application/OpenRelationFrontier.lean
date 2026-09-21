@@ -1,6 +1,7 @@
 import Loam.Core.EventMemory
 import Loam.Core.HashNodup
 import Loam.Core.OpenRelation
+import Std.Data.HashMap
 
 namespace Loam.Application
 
@@ -219,20 +220,6 @@ private def currentCoverageFor
         total)
     0
 
-/--
-Observation 173 requires relation units to form only a partial partition inside
-the relation plane: several current units may share one source Effect, but their
-combined exact quantity may not exceed that source magnitude.
--/
-private def currentRelationCoverageBounded
-    (events : EventMemory)
-    (relations : List RelationUnit) : Bool :=
-  relations.all fun relation =>
-    match relationSourceEffect? events relation with
-    | none => false
-    | some source =>
-        currentCoverageFor relations relation <= magnitudeQuanta source.quantity
-
 private def sourceRelationCoverageBounded
     (events : EventMemory)
     (relations : List RelationUnit)
@@ -244,6 +231,97 @@ private def sourceRelationCoverageBounded
     | none => false
     | some source =>
         currentCoverageFor current relation <= magnitudeQuanta source.quantity
+
+/--
+Typed key for resolving source Effects and aggregating relation-plane coverage
+without ad-hoc string concatenation.
+-/
+private structure SourceKey where
+  event : EventId
+  effect : EffectKey
+deriving DecidableEq
+
+private instance : BEq SourceKey where
+  beq a b := a == b
+
+private instance : Hashable SourceKey where
+  hash k := mixHash (hash k.event.token) (hash k.effect.token)
+
+/--
+Build a one-pass index mapping `(EventId, EffectKey)` to the retained Effect.
+
+Core invariants guarantee uniqueness:
+- `EventMemory` proves EventId uniqueness (`idNodup`);
+- `Event` proves retained EffectKey uniqueness within that Event (`keyNodup`).
+Every keyed Effect in `EventMemory` therefore resolves to at most one target.
+-/
+private def buildSourceEffectIndex
+    (events : EventMemory) : Std.HashMap SourceKey Effect :=
+  events.events.foldl
+    (fun index event =>
+      event.effects.foldl
+        (fun index' effect =>
+          match effect.key with
+          | some key => index'.insert { event := event.id, effect := key } effect
+          | none => index')
+        index)
+    {}
+
+/--
+Build a one-pass transient aggregate mapping `(EventId, EffectKey)` to total
+relation quantity across all relation units targeting that source.
+-/
+private def buildCoverageIndex
+    (relations : List RelationUnit) : Std.HashMap SourceKey Int :=
+  relations.foldl
+    (fun index relation =>
+      let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
+      let prior := index[key]?.getD 0
+      index.insert key (prior + relation.quantity.quanta))
+    {}
+
+/--
+Transient acceleration context constructed once per whole-frontier admission pass.
+-/
+private structure RelationFrontierIndex where
+  sourceEffects : Std.HashMap SourceKey Effect
+  coverage : Std.HashMap SourceKey Int
+
+private def buildRelationFrontierIndex
+    (events : EventMemory) (relations : List RelationUnit) : RelationFrontierIndex :=
+  {
+    sourceEffects := buildSourceEffectIndex events
+    coverage := buildCoverageIndex relations
+  }
+
+/--
+Admit one relation unit using the transient acceleration context.
+
+Validates in O(1):
+1. Exact source Effect resolution;
+2. Endpoint validity (Household <-> external);
+3. Strictly positive quantity;
+4. Single-unit magnitude bound (`quantity <= source.quantity`);
+5. Aggregate source coverage bound (total coverage across relations sharing this
+   source does not exceed source magnitude, enforcing Observation 173).
+-/
+private def admitRelationUnitIndexed?
+    (index : RelationFrontierIndex)
+    (relation : RelationUnit) : Option AdmittedRelationUnit := do
+  let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
+  let source ← index.sourceEffects[key]?
+  if !relationEndpointsAdmissible relation then
+    none
+  else if relation.quantity.quanta ≤ 0 then
+    none
+  else if relation.quantity.quanta > magnitudeQuanta source.quantity then
+    none
+  else
+    let cov := index.coverage[key]?.getD 0
+    if cov > magnitudeQuanta source.quantity then
+      none
+    else
+      some { relation := relation, source := source }
 
 /--
 Global relation structure that must remain coherent even when some raw relation
@@ -258,6 +336,23 @@ private def relationFrontierStructurallyAdmissible
   uniqueUnitIds relations
 
 /--
+Return the admitted current positive frontier, or `none` when the whole raw
+frontier cannot currently be resolved safely.
+
+Representation list order is strictly preserved from the input `relations` List.
+Transient hash maps are used exclusively for lookups and aggregations; the output
+order is determined by standard list traversal over `relations`.
+-/
+def admittedRelationFrontier?
+    (events : EventMemory)
+    (relations : List RelationUnit) : Option (List AdmittedRelationUnit) :=
+  if !relationFrontierStructurallyAdmissible relations then
+    none
+  else
+    let index := buildRelationFrontierIndex events relations
+    relations.mapM (admitRelationUnitIndexed? index)
+
+/--
 Whether one raw relation collection has one safe append-only frontier.
 
 The whole-frontier boundary rejects repeated relation identity, malformed current
@@ -267,26 +362,7 @@ exact magnitude.
 def relationFrontierAdmissible
     (events : EventMemory)
     (relations : List RelationUnit) : Bool :=
-  relationFrontierStructurallyAdmissible relations &&
-    currentUnitsAdmissible events relations &&
-    currentRelationCoverageBounded events relations
-
-/--
-Return the admitted current positive frontier, or `none` when the whole raw
-frontier cannot currently be resolved safely.
-
-Representation list order is retained only for deterministic output. A pre-Event
-raw relation may therefore make this whole-frontier view unresolved until its
-source Event appears; source-specific queries use a narrower projection below.
--/
-def admittedRelationFrontier?
-    (events : EventMemory)
-    (relations : List RelationUnit) : Option (List AdmittedRelationUnit) :=
-  if relationFrontierStructurallyAdmissible relations &&
-      currentRelationCoverageBounded events relations then
-    admitAll? events relations
-  else
-    none
+  (admittedRelationFrontier? events relations).isSome
 
 /--
 Admit only the current units attached to one queried source while retaining the
