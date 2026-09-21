@@ -126,13 +126,19 @@ private def dueFor?
   pure row.value
 
 /--
-The selected Observation-204 pressure survives: equal loose value pools do not
-recover subject-specific pairing.
+The selected Observation-204 pressure survives: the loose amount values are
+equal, and both worlds contain the same two due values, but subject-specific
+pairing still differs.
+
+The list order is deliberately not treated as semantic authority here. The
+selected witness compares membership in the loose due pool instead.
 -/
 theorem loose_future_pools_do_not_determine_pairing :
     amountPool futureLeft = amountPool futureRight ∧
-      duePool futureLeft = [⟨10⟩, ⟨20⟩] ∧
-      duePool futureRight = [⟨20⟩, ⟨10⟩] ∧
+      (duePool futureLeft).contains ⟨10⟩ = true ∧
+      (duePool futureLeft).contains ⟨20⟩ = true ∧
+      (duePool futureRight).contains ⟨10⟩ = true ∧
+      (duePool futureRight).contains ⟨20⟩ = true ∧
       dueFor? futureLeft scheduledA = some ⟨10⟩ ∧
       dueFor? futureRight scheduledA = some ⟨20⟩ := by
   native_decide
