@@ -202,18 +202,26 @@ The next evidence that would genuinely earn a first-class Lot identity should be
 
 The strongest new pressure is not another corporate-action topology.
 
-Some custody / portfolio data interfaces expose a lot identifier as an
-independently observed field.
+A current brokerage API exposes a lot identifier as independently observed,
+operational data.
 
-Examples:
+Public.com's July 2026 tax-lot API adds:
 
-- Goldman Sachs Custody Solutions tax-lot files publish a 35-character
-  `Long Lot ID` and recommend using it for future tax-lot tracking. Their
-  closed-lot files also expose `Closed Lot ID` plus `Open Lot ID Ref`,
-  explicitly linking a closed lot record to the open lot it previously belonged
-  to.
-- BridgeFT's normalized custodial API preserves the old `lot_id` concept as
-  `lot_identifier`.
+- endpoints that return unrealized tax lots;
+- a provider-supplied `lotSelectionId` on each returned lot;
+- sell-order tax-lot matching instructions that let the caller specify which
+  lots are sold.
+
+Primary sources:
+
+- https://public.com/api/docs/resources/tax-lot-selling/get-unrealized-tax-lots-for-symbol
+- https://public.com/api/docs/resources/order-placement/place-order
+- https://public.com/api/docs/changelog
+
+The important point is not the spelling of Public's field.
+
+It is that the external brokerage boundary has its own lot reference that can be
+observed and used in a later operation.
 
 This creates two worlds with identical:
 
@@ -237,8 +245,8 @@ external lot identifier
 
 Observation 292 captures this information boundary.
 
-This is the first selected pressure where "stable lot identity" is independently
-observable even after the graph is fully retained.
+This is the first selected pressure where a stable lot-like reference is
+independently observable even after the internal graph is fully retained.
 
 However the minimum earned representation is still not necessarily a universal
 LOAM `LotId`.
@@ -248,16 +256,23 @@ A source-scoped external identity is smaller:
 ```text
 (provenance subject)
 +
-(custodian, account, external lot id)
+(provider / account namespace, external lot id)
 ```
 
-The source namespace matters because two providers may reuse the same raw lot-id
-spelling.
+The namespace matters because an external identifier is meaningful under the
+authority that issued it; LOAM must not silently reinterpret one provider's
+identifier as a universal household identity.
 
-Tax law also does not imply one universal lot identifier. IRS specific
-identification rules allow sufficiently specific broker-designated identifiers
-such as purchase date/time or purchase price, provided the selected units can be
-identified for basis and holding-period purposes.
+IRS specific-share rules reinforce the semantic need for distinguishable shares
+without prescribing one universal lot-id scheme. Publication 550 says that a
+taxpayer using specific-share identification must specify the particular shares
+to the broker/agent at sale or transfer and receive confirmation; if the shares
+cannot be identified, FIFO applies. The tax rule therefore requires an adequate
+identification relation, not one globally standardized LotId.
+
+Primary source:
+
+- https://www.irs.gov/publications/p550
 
 So the new result is:
 
