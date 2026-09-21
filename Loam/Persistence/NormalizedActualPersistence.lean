@@ -145,82 +145,153 @@ private structure ParsedTx where
   relations : List RelationUnit
   discharges : List RelationDischarge
 
-private def parseTxRows
-    (txLine : Nat)
-    (lastLine : Nat)
-    (event : EventId)
-    (baseValidOn : String)
-    (description : Option String)
-    (merchant : Option MerchantDisposition)
-    (movementOperation : Option MovementOperationId)
-    (replaces : Option EventId)
-    (reversalOf : Option EventId)
-    (effects : List Effect)
-    (dateRevisions : List (ActualValidityRevisionId × String × ActualValidityRef))
-    (relations : List RelationUnit)
-    (discharges : List RelationDischarge) :
-    List (Nat × String) → Except NormalizedActualParseError (ParsedTx × List (Nat × String))
-  | [] =>
-      Except.error { line := lastLine, reason := .missingEndTx event txLine }
-  | (lineNo, row) :: rest => do
+private structure TxDraft where
+  txLine : Nat
+  lastLine : Nat
+  event : EventId
+  baseValidOn : String
+  description : Option String
+  merchant : Option MerchantDisposition := none
+  movementOperation : Option MovementOperationId := none
+  replaces : Option EventId := none
+  reversalOf : Option EventId := none
+  effects : List Effect := []
+  dateRevisions : List (ActualValidityRevisionId × String × ActualValidityRef) := []
+  relations : List RelationUnit := []
+  discharges : List RelationDischarge := []
+
+private structure TxParserState where
+  current : Option TxDraft := none
+  completed : List ParsedTx := []
+
+private def stepTxParser
+    (state : TxParserState)
+    (item : Nat × String) : Except NormalizedActualParseError TxParserState :=
+  let (lineNo, row) := item
+  match state.current with
+  | none =>
+      let fields := row.splitOn "\t"
+      match fields with
+      | ["TX", eventToken, baseDate, "NODESC"] => do
+          if !validToken eventToken then
+            Except.error { line := lineNo, reason := .invalidToken eventToken }
+          else if !validToken baseDate then
+            Except.error { line := lineNo, reason := .invalidToken baseDate }
+          else
+            Except.ok { state with
+              current := some {
+                txLine := lineNo
+                lastLine := lineNo
+                event := ⟨eventToken⟩
+                baseValidOn := baseDate
+                description := none
+              }
+            }
+      | "TX" :: eventToken :: baseDate :: "DESC" :: descFields => do
+          if !validToken eventToken then
+            Except.error { line := lineNo, reason := .invalidToken eventToken }
+          else if !validToken baseDate then
+            Except.error { line := lineNo, reason := .invalidToken baseDate }
+          else
+            let descText := String.intercalate "\t" descFields
+            if descText.isEmpty || descText.contains '\n' || descText.contains '\r' then
+              Except.error { line := lineNo, reason := .malformedTxRow "invalid description text" }
+            else
+              Except.ok { state with
+                current := some {
+                  txLine := lineNo
+                  lastLine := lineNo
+                  event := ⟨eventToken⟩
+                  baseValidOn := baseDate
+                  description := some descText
+                }
+              }
+      | _ =>
+          if fields.head? == some "TX" then
+            Except.error { line := lineNo, reason := .malformedTxRow "expected TX <event> <date> [NODESC|DESC <text>]" }
+          else
+            Except.error { line := lineNo, reason := .unknownRowType (fields.head?.getD "") }
+  | some draft =>
       if row == "ENDTX" then
-        Except.ok ({
-          event := event
-          baseValidOn := baseValidOn
-          description := description
-          merchant := merchant
-          movementOperation := movementOperation
-          replaces := replaces
-          reversalOf := reversalOf
-          effects := effects
-          dateRevisions := dateRevisions
-          relations := relations
-          discharges := discharges
-        }, rest)
+        Except.ok {
+          current := none
+          completed := {
+            event := draft.event
+            baseValidOn := draft.baseValidOn
+            description := draft.description
+            merchant := draft.merchant
+            movementOperation := draft.movementOperation
+            replaces := draft.replaces
+            reversalOf := draft.reversalOf
+            effects := draft.effects
+            dateRevisions := draft.dateRevisions
+            relations := draft.relations
+            discharges := draft.discharges
+          } :: state.completed
+        }
       else if row.startsWith "TX\t" || row == "TX" then
-        Except.error { line := lineNo, reason := .missingEndTx event txLine }
+        Except.error { line := lineNo, reason := .missingEndTx draft.event draft.txLine }
       else
         let fields := row.splitOn "\t"
         match fields with
         | ["MERCHANT", partyToken] =>
-            if merchant.isSome then
+            if draft.merchant.isSome then
               Except.error { line := lineNo, reason := .duplicateMerchant }
             else if !validToken partyToken then
               Except.error { line := lineNo, reason := .invalidToken partyToken }
             else
-              parseTxRows txLine lineNo event baseValidOn description (some (.merchant ⟨partyToken⟩))
-                movementOperation replaces reversalOf effects dateRevisions relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  merchant := some (.merchant ⟨partyToken⟩)
+                }
+              }
         | ["NONMERCHANT"] =>
-            if merchant.isSome then
+            if draft.merchant.isSome then
               Except.error { line := lineNo, reason := .duplicateMerchant }
             else
-              parseTxRows txLine lineNo event baseValidOn description (some .nonmerchant)
-                movementOperation replaces reversalOf effects dateRevisions relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  merchant := some .nonmerchant
+                }
+              }
         | ["OPERATION", operationToken] =>
-            if movementOperation.isSome then
+            if draft.movementOperation.isSome then
               Except.error { line := lineNo, reason := .duplicateOperation }
             else if !validToken operationToken then
               Except.error { line := lineNo, reason := .invalidToken operationToken }
             else
-              parseTxRows txLine lineNo event baseValidOn description merchant
-                (some ⟨operationToken⟩) replaces reversalOf
-                effects dateRevisions relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  movementOperation := some ⟨operationToken⟩
+                }
+              }
         | ["REPLACES", target] =>
-            if replaces.isSome then
+            if draft.replaces.isSome then
               Except.error { line := lineNo, reason := .duplicateReplaces }
             else if !validToken target then
               Except.error { line := lineNo, reason := .invalidToken target }
             else
-              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation (some ⟨target⟩) reversalOf
-                effects dateRevisions relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  replaces := some ⟨target⟩
+                }
+              }
         | ["REVERSAL-OF", target] =>
-            if reversalOf.isSome then
+            if draft.reversalOf.isSome then
               Except.error { line := lineNo, reason := .duplicateReversalOf }
             else if !validToken target then
               Except.error { line := lineNo, reason := .invalidToken target }
             else
-              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces (some ⟨target⟩)
-                effects dateRevisions relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  reversalOf := some ⟨target⟩
+                }
+              }
         | ["EFFECT", locus, measure, quantityStr] => do
             match quantityStr.toInt? with
             | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
@@ -231,8 +302,12 @@ private def parseTxRows
                   Except.error { line := lineNo, reason := .invalidToken measure }
                 else
                   let effect := Effect.ofAnonymousQuantity ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                    (effects ++ [effect]) dateRevisions relations discharges rest
+                  Except.ok { state with
+                    current := some { draft with
+                      lastLine := lineNo
+                      effects := draft.effects ++ [effect]
+                    }
+                  }
         | ["KEYED-EFFECT", key, locus, measure, quantityStr] => do
             match quantityStr.toInt? with
             | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
@@ -245,17 +320,25 @@ private def parseTxRows
                   Except.error { line := lineNo, reason := .invalidToken measure }
                 else
                   let effect := Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
-                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                    (effects ++ [effect]) dateRevisions relations discharges rest
+                  Except.ok { state with
+                    current := some { draft with
+                      lastLine := lineNo
+                      effects := draft.effects ++ [effect]
+                    }
+                  }
         | ["DATE-REV", revId, date, "REPLACES", "ROOT"] =>
             if !validToken revId then
               Except.error { line := lineNo, reason := .invalidToken revId }
             else if !validToken date then
               Except.error { line := lineNo, reason := .invalidToken date }
             else
-              let item := (⟨revId⟩, date, ActualValidityRef.root event)
-              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                effects (dateRevisions ++ [item]) relations discharges rest
+              let item := (⟨revId⟩, date, ActualValidityRef.root draft.event)
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  dateRevisions := draft.dateRevisions ++ [item]
+                }
+              }
         | ["DATE-REV", revId, date, "REPLACES", "REV", prior] =>
             if !validToken revId then
               Except.error { line := lineNo, reason := .invalidToken revId }
@@ -265,8 +348,12 @@ private def parseTxRows
               Except.error { line := lineNo, reason := .invalidToken prior }
             else
               let item := (⟨revId⟩, date, ActualValidityRef.revision ⟨prior⟩)
-              parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                effects (dateRevisions ++ [item]) relations discharges rest
+              Except.ok { state with
+                current := some { draft with
+                  lastLine := lineNo
+                  dateRevisions := draft.dateRevisions ++ [item]
+                }
+              }
         | ["RELATION", relId, "SOURCE", key, debtorStr, creditorStr, quantityStr] => do
             match quantityStr.toInt? with
             | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
@@ -284,14 +371,18 @@ private def parseTxRows
                     | none => Except.error { line := lineNo, reason := .malformedRow "RELATION" s!"invalid creditor endpoint '{creditorStr}'" }
                   let rel : RelationUnit := {
                     id := ⟨relId⟩
-                    sourceEvent := event
+                    sourceEvent := draft.event
                     sourceEffect := ⟨key⟩
                     debtor := debtor
                     creditor := creditor
                     quantity := Quantity.ofQuanta quanta
                   }
-                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                    effects dateRevisions (relations ++ [rel]) discharges rest
+                  Except.ok { state with
+                    current := some { draft with
+                      lastLine := lineNo
+                      relations := draft.relations ++ [rel]
+                    }
+                  }
         | ["DISCHARGE", relId, quantityStr] => do
             match quantityStr.toInt? with
             | none => Except.error { line := lineNo, reason := .invalidInteger quantityStr }
@@ -300,12 +391,16 @@ private def parseTxRows
                   Except.error { line := lineNo, reason := .invalidToken relId }
                 else
                   let discharge : RelationDischarge := {
-                    event := event
+                    event := draft.event
                     target := ⟨relId⟩
                     quantity := Quantity.ofQuanta quanta
                   }
-                  parseTxRows txLine lineNo event baseValidOn description merchant movementOperation replaces reversalOf
-                    effects dateRevisions relations (discharges ++ [discharge]) rest
+                  Except.ok { state with
+                    current := some { draft with
+                      lastLine := lineNo
+                      discharges := draft.discharges ++ [discharge]
+                    }
+                  }
         | _ =>
             let head := fields.head?
             if head == some "MERCHANT" then
@@ -331,39 +426,14 @@ private def parseTxRows
             else
               Except.error { line := lineNo, reason := .unknownRowType (head.getD "") }
 
-private partial def parseTxs :
-    List (Nat × String) → Except NormalizedActualParseError (List ParsedTx)
-  | [] => Except.ok []
-  | (lineNo, line) :: rest =>
-      let fields := line.splitOn "\t"
-      match fields with
-      | ["TX", eventToken, baseDate, "NODESC"] => do
-          if !validToken eventToken then
-            Except.error { line := lineNo, reason := .invalidToken eventToken }
-          else if !validToken baseDate then
-            Except.error { line := lineNo, reason := .invalidToken baseDate }
-          else
-            let (tx, remaining) ← parseTxRows lineNo lineNo ⟨eventToken⟩ baseDate none none none none none [] [] [] [] rest
-            let tail ← parseTxs remaining
-            Except.ok (tx :: tail)
-      | "TX" :: eventToken :: baseDate :: "DESC" :: descFields => do
-          if !validToken eventToken then
-            Except.error { line := lineNo, reason := .invalidToken eventToken }
-          else if !validToken baseDate then
-            Except.error { line := lineNo, reason := .invalidToken baseDate }
-          else
-            let descText := String.intercalate "\t" descFields
-            if descText.isEmpty || descText.contains '\n' || descText.contains '\r' then
-              Except.error { line := lineNo, reason := .malformedTxRow "invalid description text" }
-            else
-              let (tx, remaining) ← parseTxRows lineNo lineNo ⟨eventToken⟩ baseDate (some descText) none none none none [] [] [] [] rest
-              let tail ← parseTxs remaining
-              Except.ok (tx :: tail)
-      | _ =>
-          if fields.head? == some "TX" then
-            Except.error { line := lineNo, reason := .malformedTxRow "expected TX <event> <date> [NODESC|DESC <text>]" }
-          else
-            Except.error { line := lineNo, reason := .unknownRowType (fields.head?.getD "") }
+private def parseTxs (rows : List (Nat × String)) :
+    Except NormalizedActualParseError (List ParsedTx) := do
+  let finalState ← rows.foldlM stepTxParser {}
+  match finalState.current with
+  | some draft =>
+      Except.error { line := draft.lastLine, reason := .missingEndTx draft.event draft.txLine }
+  | none =>
+      Except.ok finalState.completed.reverse
 
 /--
 Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.

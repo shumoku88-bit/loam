@@ -78,6 +78,10 @@ def main : IO Unit := do
   expect (imageRootDate == "2026-09-03")
     "admitted Actual image did not carry revised current occurrence date"
 
+  let eventOrder := evidence1.events.events.map (·.id.token)
+  expect (eventOrder == ["ev-root", "ev-reversal", "ev-discharge", "ev-corr-target", "ev-corr-r1", "ev-corr-r2"])
+    "normalized Actual decoding did not preserve transaction wire order"
+
   -- 1a. Merchant evidence preserves the unresolved / merchant / nonmerchant distinction.
   match evidence1.merchants.findDisposition? ⟨"ev-root"⟩ with
   | some (.merchant party) =>

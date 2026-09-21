@@ -49,37 +49,46 @@ private structure ParsedMovement where
   measure : MeasureId
   changes : List (MovementChange CapacityCoordinate)
 
-private def parseMovementRows
-    (changes : List (MovementChange CapacityCoordinate)) :
-    List String → Option (List (MovementChange CapacityCoordinate) × List String)
-  | [] => none
-  | row :: rest =>
-      if row == "ENDMOVEMENT" then
-        some (changes, rest)
-      else do
-        let change ← decodeChangeRow? row
-        parseMovementRows (changes ++ [change]) rest
+private structure MovementParserState where
+  current : Option (CapacityMovementId × String × MeasureId × List (MovementChange CapacityCoordinate)) := none
+  completed : List ParsedMovement := []
 
-private partial def parseMovements : List String → Option (List ParsedMovement)
-  | [] => some []
-  | row :: rest => do
+private def stepMovementParser
+    (state : MovementParserState)
+    (row : String) : Option MovementParserState :=
+  match state.current with
+  | none =>
       match row.splitOn "\t" with
       | ["MOVEMENT", idToken, effectiveOn, measureToken] =>
           if !validToken idToken || !validToken measureToken ||
               !Loam.ActualDate.validIsoDate effectiveOn then
             none
           else
-            match parseMovementRows [] rest with
-            | none => none
-            | some (changes, remaining) => do
-                let tail ← parseMovements remaining
-                some ({
-                  id := ⟨idToken⟩
-                  effectiveOn := effectiveOn
-                  measure := ⟨measureToken⟩
-                  changes := changes
-                } :: tail)
+            some { state with
+              current := some (⟨idToken⟩, effectiveOn, ⟨measureToken⟩, []) }
       | _ => none
+  | some (id, effectiveOn, measure, changes) =>
+      if row == "ENDMOVEMENT" then
+        some {
+          current := none
+          completed := {
+            id := id
+            effectiveOn := effectiveOn
+            measure := measure
+            changes := changes
+          } :: state.completed
+        }
+      else do
+        let change ← decodeChangeRow? row
+        some { state with
+          current := some (id, effectiveOn, measure, changes ++ [change])
+        }
+
+private def parseMovements (rows : List String) : Option (List ParsedMovement) := do
+  let finalState ← rows.foldlM stepMovementParser {}
+  match finalState.current with
+  | some _ => none
+  | none => some finalState.completed.reverse
 
 /-- Decode a complete candidate normalized Capacity image, failing closed. -/
 def decodeNormalizedCapacity? (input : String) : Option (CapacityEvidence String) := do
