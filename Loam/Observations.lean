@@ -59,6 +59,16 @@ import Loam.Observations.StructuralS008
 import Loam.Observations.Observation284
 import Loam.Observations.Observation285
 import Loam.Observations.Observation286
+import Loam.Observations.Observation287
+import Loam.Observations.Observation288
+import Loam.Observations.Observation289
+import Loam.Observations.Observation290
+import Loam.Observations.Observation291
+import Loam.Observations.Observation292
+import Loam.Observations.Observation293
+import Loam.Observations.Observation294
+import Loam.Observations.Observation295
+import Loam.Observations.Observation296
 
 /-!
 # Selected live Lean observations
