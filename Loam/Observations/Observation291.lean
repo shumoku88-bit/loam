@@ -328,9 +328,8 @@ One current physical Effect contains quantity descended from two independent
 acquisition origins:
 
 ```text
-origin A --1 unit--\
-                    -> current Effect (+3)
-origin B --2 units--/
+origin A --1 unit--> current Effect (+3)
+origin B --2 units--> current Effect (+3)
 ```
 
 Therefore:
