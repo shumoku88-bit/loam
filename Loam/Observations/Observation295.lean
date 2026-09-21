@@ -38,7 +38,10 @@ This tests a narrower claim than "LOAM should add StableSubjectId to Core".
 
 /-- Semantic domains remain deliberately empty marker types. -/
 inductive PreScheduledDomain
+deriving Repr, DecidableEq
+
 inductive LotDomain
+deriving Repr, DecidableEq
 
 /--
 One stable identity shape indexed by the semantic domain that owns it.
@@ -122,7 +125,7 @@ private def duePool (world : PreScheduledWorld) : List Due :=
 private def dueFor?
     (world : PreScheduledWorld)
     (subject : StableSubjectId PreScheduledDomain) : Option Due := do
-  let row ← world.dues.find? fun item => item.subject = subject
+  let row ← world.dues.find? fun item => decide (item.subject = subject)
   pure row.value
 
 /--
@@ -245,7 +248,7 @@ coordinate.
 private def amountFor?
     (world : PreScheduledWorld)
     (subject : StableSubjectId PreScheduledDomain) : Option Int := do
-  let row ← world.amounts.find? fun item => item.subject = subject
+  let row ← world.amounts.find? fun item => decide (item.subject = subject)
   pure row.value
 
 theorem typed_subject_coordinates_independent_future_evidence :
@@ -260,7 +263,7 @@ PreScheduled subject type.
 private def lotTitle?
     (snapshots : List LotSnapshot)
     (subject : StableSubjectId LotDomain) : Option String := do
-  let row ← snapshots.find? fun item => item.subject = subject
+  let row ← snapshots.find? fun item => decide (item.subject = subject)
   pure row.payload.title
 
 theorem typed_subject_coordinates_lot_evidence :
