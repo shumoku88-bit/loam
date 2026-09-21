@@ -139,6 +139,34 @@ theorem ofCorrections?_some_corrections
       rfl
 
 /--
+Semantic correspondence: hash-accelerated `ofCorrections?` accepts exactly when
+the raw target-replacement pairs have no duplicates according to `List.Nodup`.
+-/
+theorem ofCorrections?_isSome_iff_nodup
+    (corrections : List EventCorrection) :
+    (ofCorrections? corrections).isSome =
+      decide ((corrections.map fun c => (c.target, c.replacement)).Nodup) := by
+  unfold ofCorrections?
+  have hKey :
+      (hashNodupBy?
+        (fun (p : EventId × EventId) => (p.1.token, p.2.token))
+        correctionPairToken_injective
+        (corrections.map fun c => (c.target, c.replacement))).isSome =
+      decide ((corrections.map fun c => (c.target, c.replacement)).Nodup) :=
+    hashNodupBy?_isSome_iff_nodup _ _ _
+  cases hHN : hashNodupBy?
+    (fun (p : EventId × EventId) => (p.1.token, p.2.token))
+    correctionPairToken_injective
+    (corrections.map fun c => (c.target, c.replacement)) with
+  | none =>
+      rw [hHN] at hKey
+      simp [bind, Option.bind]
+      exact of_decide_eq_false hKey.symm
+  | some witness =>
+      simp [bind, Option.bind]
+      exact witness.proof
+
+/--
 Add one complete raw correction relation, rejecting an exact duplicate edge.
 
 This operation deliberately does not inspect `EventMemory`. Referential closure
