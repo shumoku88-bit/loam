@@ -129,7 +129,7 @@ theorem suppress_payment_changes_only_derived_projection :
       baseline := expectedBaseline
       projected := expectedWithoutPayment
     } := by
-  decide
+  native_decide
 
 /-- The comparison baseline is exactly the already-qualified production projection. -/
 theorem baseline_matches_existing_application_projection :
@@ -144,7 +144,7 @@ theorem baseline_matches_existing_application_projection :
       scheduledMemory emptyTerminals emptyEvents
       [coordinate bank, coordinate wallet]
       (4 : Nat) := by
-  decide
+  native_decide
 
 /-- A current-open target outside this horizon remains a valid hypothesis but has no visible effect here. -/
 theorem open_target_outside_horizon_can_equal_baseline :
@@ -158,7 +158,7 @@ theorem open_target_outside_horizon_can_equal_baseline :
       baseline := expectedBaseline
       projected := expectedBaseline
     } := by
-  decide
+  native_decide
 
 /-- An identity that is not in the qualified current-open set is rejected rather than silently becoming a no-op. -/
 theorem non_open_target_is_rejected :
@@ -168,7 +168,7 @@ theorem non_open_target_is_rejected :
       (4 : Nat)
       missingHypothesis =
     .targetNotOpen := by
-  decide
+  native_decide
 
 private def unknownCompletion : ScheduledTerminalMemory :=
   {
@@ -190,7 +190,7 @@ theorem lifecycle_failure_is_not_repaired_by_hypothesis :
       (4 : Nat)
       paymentHypothesis =
     .unknownCompletionScheduled := by
-  decide
+  native_decide
 
 /-!
 Observation 186 earns only this practical slice:

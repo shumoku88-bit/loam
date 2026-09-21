@@ -6,6 +6,7 @@ on:
       - 'Loam/Core/ScheduledTerminal.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - 'Loam/Tests/ScheduledInspectionTest.lean'
       - '.github/workflows/practical-scheduled-replacement-frontier.yml'
   push:
     branches:
@@ -15,6 +16,7 @@ on:
       - 'Loam/Core/ScheduledTerminal.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - 'Loam/Tests/ScheduledInspectionTest.lean'
       - '.github/workflows/practical-scheduled-replacement-frontier.yml'
   workflow_dispatch:
 
@@ -46,3 +48,4 @@ jobs:
         run: |
           set -euo pipefail
           lake env lean --run Loam/Tests/ScheduledReplacementFrontier.lean
+          lake env lean --run Loam/Tests/ScheduledInspectionTest.lean
