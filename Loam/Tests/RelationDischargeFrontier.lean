@@ -116,6 +116,9 @@ private def overA1 : RelationDischarge :=
 private def overA2 : RelationDischarge :=
   discharge receiptBId relationA.id 5
 
+private def singleOverA : RelationDischarge :=
+  discharge receiptAId relationA.id 11
+
 private def duplicateEventA : RelationDischarge :=
   discharge receiptAId relationA.id 3
 
@@ -278,6 +281,67 @@ example :
         (admitRelationDischargesForFrontier?
           events
           [relationA, relationB]
+          frontier
+          hFrontier
+          [partialA, remainderA, fullBFromSameReceipt]).isSome) = true := by
+  native_decide
+
+/-- No discharges produces empty admitted list and full target quantity outstanding. -/
+example :
+    (admittedRelationDischargesFor?
+      events [relationA, relationB] [] relationA.id).map
+      List.length = some 0 := by
+  native_decide
+
+example :
+    relationOutstandingQuantity?
+      events [relationA, relationB] [] relationA.id = q 10 := by
+  native_decide
+
+example :
+    (match hFrontier : admittedRelationFrontier? events [relationA, relationB] with
+    | none => false
+    | some frontier =>
+        (admitRelationDischargesForFrontier?
+          events
+          [relationA, relationB]
+          frontier
+          hFrontier
+          []).isSome) = true := by
+  native_decide
+
+/-- Single discharge exceeding target relation quantity is rejected. -/
+example :
+    relationOutstandingQuantity?
+      events [relationA, relationB] [singleOverA] relationA.id = none := by
+  native_decide
+
+/-- Output order of admitted discharges strictly preserves raw List order. -/
+example :
+    (admittedRelationDischargesFor?
+      events [relationA, relationB] [partialA, remainderA] relationA.id).map
+      (fun l => l.map (fun d => d.discharge.quantity.quanta)) = some [4, 6] := by
+  native_decide
+
+example :
+    (admittedRelationDischargesFor?
+      events [relationA, relationB] [remainderA, partialA] relationA.id).map
+      (fun l => l.map (fun d => d.discharge.quantity.quanta)) = some [6, 4] := by
+  native_decide
+
+/-- Frontier representation order does not alter target-local discharge evaluation. -/
+example :
+    relationOutstandingQuantity?
+      events [relationB, relationA] [partialA, remainderA] relationA.id = q 0 := by
+  native_decide
+
+example :
+    (match hFrontier : admittedRelationFrontier? events [relationB, relationA] with
+    | none => false
+    | some frontier =>
+        (admitRelationDischargesForFrontier?
+          events
+          [relationB, relationA]
           frontier
           hFrontier
           [partialA, remainderA, fullBFromSameReceipt]).isSome) = true := by

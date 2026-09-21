@@ -16,6 +16,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Std.Data.HashMap
+import Std.Data.HashSet
 
 namespace Loam.Persistence
 
@@ -45,6 +46,12 @@ private def retainedEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
   events.events.foldl
     (fun index event => index.insert event.id.token event)
+    {}
+
+private def retainedRelationIdSet
+    (relations : List RelationUnit) : Std.HashSet String :=
+  relations.foldl
+    (fun set relation => set.insert relation.id.token)
     {}
 
 private def currentValidityIndex
@@ -202,9 +209,11 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
           | none => none
           | some admittedRelations => do
               -- Discharges: persistence owns same-generation reference closure.
+              let retainedRelations := retainedRelationIdSet evidence.relations
               for discharge in evidence.discharges do
                 let _ ← retainedEvents[discharge.event.token]?
-                let _ ← evidence.relations.find? fun r => r.id = discharge.target
+                if !retainedRelations.contains discharge.target.token then
+                  none
 
               -- Reuse the already-admitted whole RelationUnit frontier. Target-local
               -- discharge admission must not re-enter whole-family relation admission.

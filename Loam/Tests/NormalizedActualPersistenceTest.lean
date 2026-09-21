@@ -305,6 +305,22 @@ def main : IO Unit := do
     "ENDTX\n"
   requireNone (decodeNormalizedActual? overDischarge) "admitted over-discharge"
 
+  -- 6gg. Raw discharge referencing nonexistent Event fails closed under persistence admission
+  let missingEventDischargeEvidence : ActualEvidence := {
+    evidence1 with
+    discharges := { event := ⟨"nonexistent-event"⟩, target := ⟨"rel-loan"⟩, quantity := Quantity.ofQuanta 100 } :: evidence1.discharges
+  }
+  requireNone (admitActualImage? missingEventDischargeEvidence)
+    "persistence admission must reject raw discharge referencing nonexistent Event"
+
+  -- 6ggg. Raw discharge referencing nonexistent RelationUnit target fails closed under persistence admission
+  let missingTargetDischargeEvidence : ActualEvidence := {
+    evidence1 with
+    discharges := { event := ⟨"ev-discharge"⟩, target := ⟨"nonexistent-relation"⟩, quantity := Quantity.ofQuanta 100 } :: evidence1.discharges
+  }
+  requireNone (admitActualImage? missingTargetDischargeEvidence)
+    "persistence admission must reject raw discharge referencing nonexistent RelationUnit target"
+
   -- 6h. Invalid reversal (effects do not invert target)
   let invalidReversal :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++

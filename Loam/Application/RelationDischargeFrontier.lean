@@ -1,5 +1,6 @@
 import Loam.Application.OpenRelationFrontier
 import Loam.Core.HashNodup
+import Std.Data.HashMap
 
 namespace Loam.Application
 
@@ -78,31 +79,6 @@ def currentAdmittedRelationById?
   | .unknown => none
   | .knownNone => none
 
-private def dischargeTargets
-    (id : RelationUnitId) (discharge : RelationDischarge) : Bool :=
-  decide (discharge.target = id)
-
-private def targetDischarges
-    (discharges : List RelationDischarge)
-    (id : RelationUnitId) : List RelationDischarge :=
-  discharges.filter (dischargeTargets id)
-
-/--
-Select only discharge rows activated by an Event visible in the caller's acquired
-EventMemory snapshot.
-
-Observation 182 qualifies this as the narrow crash-residue boundary: a raw row
-may have been published before its later Event and is then inert. This helper does
-not filter malformed evidence whose Event is already present; such rows proceed
-to ordinary fail-closed admission below.
--/
-private def activatedTargetDischarges
-    (events : EventMemory)
-    (discharges : List RelationDischarge)
-    (id : RelationUnitId) : List RelationDischarge :=
-  (targetDischarges discharges id).filter fun discharge =>
-    (EventMemory.findById? events discharge.event).isSome
-
 private theorem eventIdToken_injective :
     Function.Injective (fun id : EventId => id.token) := by
   intro left right h
@@ -119,6 +95,46 @@ private def uniqueDischargeEvents
     (discharges.map RelationDischarge.event)).isSome
 
 /--
+Transient lookup index for remembered Events.
+-/
+private def buildEventIndex
+    (events : EventMemory) : Std.HashMap String Event :=
+  events.events.foldl
+    (fun index event => index.insert event.id.token event)
+    {}
+
+/--
+Build a target-keyed bucket index from the raw discharge list.
+
+The raw discharges for each target are accumulated in reverse order from
+`discharges.reverse`, so each bucket preserves the exact order in which
+discharges appeared in `discharges`, in overall expected O(D) time without
+allocating intermediate appended lists.
+-/
+private def buildDischargeBuckets
+    (discharges : List RelationDischarge) : Std.HashMap String (List RelationDischarge) :=
+  discharges.reverse.foldl
+    (fun index discharge =>
+      let prior := index[discharge.target.token]?.getD []
+      index.insert discharge.target.token (discharge :: prior))
+    {}
+
+/--
+Transient acceleration context constructed once per whole-frontier admission pass.
+-/
+private structure DischargeFrontierIndex where
+  events : Std.HashMap String Event
+  byTarget : Std.HashMap String (List RelationDischarge)
+
+private def buildDischargeFrontierIndex
+    (events : EventMemory)
+    (discharges : List RelationDischarge) : DischargeFrontierIndex :=
+  {
+    events := buildEventIndex events
+    byTarget := buildDischargeBuckets discharges
+  }
+
+/--
 Admit one activated raw discharge against an already-current relation target.
 
 The discharge occurrence remains Event-scoped, as qualified by Observation 166.
@@ -128,13 +144,13 @@ boundary gives it positive-discharge meaning. One discharge cannot point back to
 relation, and one row cannot exceed the target quantity by itself.
 -/
 private def admitRelationDischargeForTarget?
-    (events : EventMemory)
+    (eventIndex : Std.HashMap String Event)
     (target : AdmittedRelationUnit)
     (discharge : RelationDischarge) : Option AdmittedRelationDischarge := do
   if discharge.target != target.relation.id then
     none
   else
-    let later ← EventMemory.findById? events discharge.event
+    let later ← eventIndex[discharge.event.token]?
     if discharge.event = target.relation.sourceEvent then
       none
     else if discharge.quantity.quanta ≤ 0 then
@@ -145,13 +161,13 @@ private def admitRelationDischargeForTarget?
       some { discharge := discharge, event := later, target := target }
 
 private def admitAllForTarget?
-    (events : EventMemory)
+    (eventIndex : Std.HashMap String Event)
     (target : AdmittedRelationUnit) :
     List RelationDischarge → Option (List AdmittedRelationDischarge)
   | [] => some []
   | discharge :: rest => do
-      let admitted ← admitRelationDischargeForTarget? events target discharge
-      let later ← admitAllForTarget? events target rest
+      let admitted ← admitRelationDischargeForTarget? eventIndex target discharge
+      let later ← admitAllForTarget? eventIndex target rest
       some (admitted :: later)
 
 private def dischargeTotal (admitted : List AdmittedRelationDischarge) : Int :=
@@ -159,19 +175,31 @@ private def dischargeTotal (admitted : List AdmittedRelationDischarge) : Int :=
     (fun total item => total + item.discharge.quantity.quanta)
     0
 
-private def admittedForCurrentTarget?
-    (events : EventMemory)
-    (target : AdmittedRelationUnit)
-    (discharges : List RelationDischarge) : Option (List AdmittedRelationDischarge) := do
-  let active := activatedTargetDischarges events discharges target.relation.id
+/--
+Validate and admit all active discharges for one current target using the
+transient acceleration context.
+-/
+private def admittedForCurrentTargetIndexed?
+    (index : DischargeFrontierIndex)
+    (target : AdmittedRelationUnit) : Option (List AdmittedRelationDischarge) := do
+  let targetDischarges := index.byTarget[target.relation.id.token]?.getD []
+  let active := targetDischarges.filter fun discharge =>
+    index.events.contains discharge.event.token
   if !uniqueDischargeEvents active then
     none
   else
-    let admitted ← admitAllForTarget? events target active
+    let admitted ← admitAllForTarget? index.events target active
     if dischargeTotal admitted > target.relation.quantity.quanta then
       none
     else
       some admitted
+
+private def admittedForCurrentTarget?
+    (events : EventMemory)
+    (target : AdmittedRelationUnit)
+    (discharges : List RelationDischarge) : Option (List AdmittedRelationDischarge) :=
+  let index := buildDischargeFrontierIndex events discharges
+  admittedForCurrentTargetIndexed? index target
 
 /--
 Validate all target-local discharge frontiers against one already-admitted whole
@@ -194,8 +222,9 @@ def admitRelationDischargesForFrontier?
     (frontier : List AdmittedRelationUnit)
     (_hFrontier : admittedRelationFrontier? events relations = some frontier)
     (discharges : List RelationDischarge) : Option Unit := do
+  let index := buildDischargeFrontierIndex events discharges
   for target in frontier do
-    let _ ← admittedForCurrentTarget? events target discharges
+    let _ ← admittedForCurrentTargetIndexed? index target
   some ()
 
 /--
