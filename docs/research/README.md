@@ -52,3 +52,16 @@ Keep executable observation material in `experiments/`, `observations/`, `Loam/O
 Keep a research document at the root only when it is genuinely a repository entrance used to navigate the whole project. Otherwise place it under the narrowest research boundary that owns its meaning.
 
 Existing filenames are intentionally preserved in this move so historical pull requests, commit messages, and discussion can still identify documents without an unrelated rename.
+
+## Observation storage roles
+
+The observation-shaped directories are intentionally different boundaries rather than three interchangeable archives.
+
+| Path | Role | Retention meaning |
+| --- | --- | --- |
+| `observations/` | Prose-only observation records from the earlier research sequence. | Historical project memory; not a production contract. |
+| `experiments/` | Numbered experiment notes and solver/model artifacts such as Alloy, Promela, TLA+, J, and local Lean probes. | Evidence for a question, witness, or result; may remain historical after its law is integrated elsewhere. |
+| `Loam/Observations/` | Lean proof obligations selected to remain executable against the current codebase. | Live only when the proof still justifies an active boundary; `Loam/Observations.lean` is the selected umbrella. |
+| `docs/research/` | Compressed checkpoints, catalogs, surveys, and research navigation. | Current research map, not an observation-by-observation evidence store. |
+
+When an experiment becomes an integrated production law, prefer keeping the smallest current executable obligation and letting detailed historical apparatus remain research evidence or Git history. Do not move files merely to make directory names look uniform.
