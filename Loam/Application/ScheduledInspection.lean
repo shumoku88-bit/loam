@@ -2,6 +2,8 @@ import Loam.Core.EventMemory
 import Loam.Core.ScheduledMemory
 import Loam.Core.ScheduledTerminal
 import Loam.Application.ReplacementFrontier
+import Std.Data.HashMap
+import Std.Data.HashSet
 
 namespace Loam.Application
 
@@ -42,60 +44,139 @@ inductive CurrentOpenScheduledResult (Time : Type) where
   | invalidReplacementGraph
   | conflictingTerminalEvidence
 
-private def scheduledPresent {Time : Type}
+/--
+Transient lookup set for remembered Scheduled occurrence identities.
+-/
+private def buildScheduledIdSet {Time : Type}
+    (scheduledMemory : ScheduledMemory Time) : Std.HashSet String :=
+  scheduledMemory.occurrences.foldl
+    (fun set occ => set.insert occ.id.token)
+    {}
+
+/--
+Transient lookup set for remembered Actual Event identities.
+Existence is sufficient for completion activation; no Event values are cached.
+-/
+private def buildEventIdSet
+    (eventMemory : EventMemory) : Std.HashSet String :=
+  eventMemory.events.foldl
+    (fun set event => set.insert event.id.token)
+    {}
+
+/--
+Transient scan state accumulated during the single pass over
+`ScheduledTerminalMemory.terminals`.
+-/
+private structure TerminalScanState where
+  seenTargetBySource : Std.HashMap String (Option ScheduledTerminalTarget)
+  completionBySource : Std.HashMap String EventId
+  retiredSources : Std.HashSet String
+  replacementBySource : Std.HashMap String ScheduledId
+  replacementEdgesRev : List (ReplacementFrontier.Edge ScheduledId)
+  hasUnknownCompletionSource : Bool
+  hasUnknownRetirementSource : Bool
+  hasUnknownReplacementEndpoint : Bool
+  hasCrossKindConflict : Bool
+
+/--
+Traverse raw terminals in one pass, collecting derived lookup structures and
+evaluating reference closure and cross-kind conflict without repeated scanning.
+-/
+private def scanTerminals
+    (scheduledIds : Std.HashSet String)
+    (terminals : List ScheduledTerminal) : TerminalScanState :=
+  terminals.foldl
+    (fun state terminal =>
+      let sourceToken := terminal.source.token
+      let sourceKnown := scheduledIds.contains sourceToken
+      let crossKind :=
+        match state.seenTargetBySource[sourceToken]? with
+        | some prevTarget =>
+            state.hasCrossKindConflict || decide (prevTarget != terminal.target)
+        | none => state.hasCrossKindConflict
+      let seenTargets := state.seenTargetBySource.insert sourceToken terminal.target
+      match terminal.target with
+      | some (.actual event) =>
+          { state with
+            seenTargetBySource := seenTargets
+            completionBySource := state.completionBySource.insert sourceToken event
+            hasUnknownCompletionSource := state.hasUnknownCompletionSource || !sourceKnown
+            hasCrossKindConflict := crossKind
+          }
+      | none =>
+          { state with
+            seenTargetBySource := seenTargets
+            retiredSources := state.retiredSources.insert sourceToken
+            hasUnknownRetirementSource := state.hasUnknownRetirementSource || !sourceKnown
+            hasCrossKindConflict := crossKind
+          }
+      | some (.scheduled successor) =>
+          let successorKnown := scheduledIds.contains successor.token
+          let edge : ReplacementFrontier.Edge ScheduledId :=
+            { source := terminal.source, successor := successor }
+          { state with
+            seenTargetBySource := seenTargets
+            replacementBySource := state.replacementBySource.insert sourceToken successor
+            replacementEdgesRev := edge :: state.replacementEdgesRev
+            hasUnknownReplacementEndpoint :=
+              state.hasUnknownReplacementEndpoint || !sourceKnown || !successorKnown
+            hasCrossKindConflict := crossKind
+          })
+    {
+      seenTargetBySource := {}
+      completionBySource := {}
+      retiredSources := {}
+      replacementBySource := {}
+      replacementEdgesRev := []
+      hasUnknownCompletionSource := false
+      hasUnknownRetirementSource := false
+      hasUnknownReplacementEndpoint := false
+      hasCrossKindConflict := false
+    }
+
+/--
+Transient lookup index and validation summary constructed once per
+`currentOpenScheduled` inspection pass.
+-/
+private structure ScheduledLifecycleIndex where
+  eventIds : Std.HashSet String
+  completionBySource : Std.HashMap String EventId
+  retiredSources : Std.HashSet String
+  replacementBySource : Std.HashMap String ScheduledId
+  replacementEdges : List (ReplacementFrontier.Edge ScheduledId)
+  hasUnknownCompletionSource : Bool
+  hasUnknownRetirementSource : Bool
+  hasUnknownReplacementEndpoint : Bool
+  hasCrossKindConflict : Bool
+
+private def buildScheduledLifecycleIndex {Time : Type}
     (scheduledMemory : ScheduledMemory Time)
-    (id : ScheduledId) : Bool :=
-  (ScheduledMemory.findById? scheduledMemory id).isSome
-
-private def completionSourcesKnown {Time : Type}
-    (scheduledMemory : ScheduledMemory Time)
-    (terminalMemory : ScheduledTerminalMemory) : Bool :=
-  terminalMemory.terminals.all fun terminal =>
-    match terminal.target with
-    | some (.actual _) => scheduledPresent scheduledMemory terminal.source
-    | _ => true
-
-private def retirementSourcesKnown {Time : Type}
-    (scheduledMemory : ScheduledMemory Time)
-    (terminalMemory : ScheduledTerminalMemory) : Bool :=
-  terminalMemory.terminals.all fun terminal =>
-    match terminal.target with
-    | none => scheduledPresent scheduledMemory terminal.source
-    | _ => true
-
-private def replacementEdges
-    (terminalMemory : ScheduledTerminalMemory) :
-    List (ReplacementFrontier.Edge ScheduledId) :=
-  terminalMemory.terminals.filterMap fun terminal =>
-    match terminal.target with
-    | some (.scheduled successor) =>
-        some { source := terminal.source, successor := successor }
-    | _ => none
-
-private def replacementEndpointsKnown {Time : Type}
-    (scheduledMemory : ScheduledMemory Time)
-    (terminalMemory : ScheduledTerminalMemory) : Bool :=
-  ReplacementFrontier.referencesClosed
-    (scheduledPresent scheduledMemory)
-    (replacementEdges terminalMemory)
-
-private def hasEffectiveCompletion
     (terminalMemory : ScheduledTerminalMemory)
-    (eventMemory : EventMemory)
-    (scheduled : ScheduledId) : Bool :=
-  match ScheduledTerminalMemory.completionActualFor? terminalMemory scheduled with
-  | none => false
-  | some actual => (EventMemory.findById? eventMemory actual).isSome
+    (eventMemory : EventMemory) : ScheduledLifecycleIndex :=
+  let scheduledIds := buildScheduledIdSet scheduledMemory
+  let eventIds := buildEventIdSet eventMemory
+  let scan := scanTerminals scheduledIds terminalMemory.terminals
+  {
+    eventIds := eventIds
+    completionBySource := scan.completionBySource
+    retiredSources := scan.retiredSources
+    replacementBySource := scan.replacementBySource
+    replacementEdges := scan.replacementEdgesRev.reverse
+    hasUnknownCompletionSource := scan.hasUnknownCompletionSource
+    hasUnknownRetirementSource := scan.hasUnknownRetirementSource
+    hasUnknownReplacementEndpoint := scan.hasUnknownReplacementEndpoint
+    hasCrossKindConflict := scan.hasCrossKindConflict
+  }
 
-private def isCurrentOpen {Time : Type}
-    (terminalMemory : ScheduledTerminalMemory)
-    (eventMemory : EventMemory)
+private def isCurrentOpenIndexed {Time : Type}
+    (index : ScheduledLifecycleIndex)
     (occurrence : ScheduledOccurrence Time) : Bool :=
-  (ScheduledTerminalMemory.retirementFor?
-      terminalMemory occurrence.id).isNone &&
-    (ScheduledTerminalMemory.replacementFor?
-      terminalMemory occurrence.id).isNone &&
-    !hasEffectiveCompletion terminalMemory eventMemory occurrence.id
+  let idToken := occurrence.id.token
+  !index.retiredSources.contains idToken &&
+    !index.replacementBySource.contains idToken &&
+    !(match index.completionBySource[idToken]? with
+      | some actual => index.eventIds.contains actual.token
+      | none => false)
 
 /--
 Project the complete current-open Scheduled set, or refuse the whole answer when
@@ -117,20 +198,19 @@ def currentOpenScheduled {Time : Type}
     (scheduledMemory : ScheduledMemory Time)
     (terminalMemory : ScheduledTerminalMemory)
     (eventMemory : EventMemory) : CurrentOpenScheduledResult Time :=
-  let edges := replacementEdges terminalMemory
-  if !completionSourcesKnown scheduledMemory terminalMemory then
+  let index := buildScheduledLifecycleIndex scheduledMemory terminalMemory eventMemory
+  if index.hasUnknownCompletionSource then
     .unknownCompletionScheduled
-  else if !retirementSourcesKnown scheduledMemory terminalMemory then
+  else if index.hasUnknownRetirementSource then
     .unknownRetirementScheduled
-  else if !replacementEndpointsKnown scheduledMemory terminalMemory then
+  else if index.hasUnknownReplacementEndpoint then
     .unknownReplacementScheduled
-  else if !ReplacementFrontier.acyclic edges then
+  else if !ReplacementFrontier.acyclic index.replacementEdges then
     .invalidReplacementGraph
-  else if terminalMemory.hasCrossKindConflict then
+  else if index.hasCrossKindConflict then
     .conflictingTerminalEvidence
   else
     .open <|
-      scheduledMemory.occurrences.filter
-        (isCurrentOpen terminalMemory eventMemory)
+      scheduledMemory.occurrences.filter (isCurrentOpenIndexed index)
 
 end Loam.Application
