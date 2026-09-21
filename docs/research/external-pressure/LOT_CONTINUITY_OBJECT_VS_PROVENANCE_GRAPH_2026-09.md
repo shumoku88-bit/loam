@@ -570,3 +570,73 @@ a universal untyped `SubjectId` would also overstate semantic commonality.
 The smallest successful research shape is a domain-indexed stable identity
 schema. Production remains unchanged until two real production domains need the
 lifecycle strongly enough for shared mechanics to pay for themselves.
+
+
+## 15. Observation 296 — generic representation, domain-specific meaning
+
+Observation 296 tests the next temptation after the successful
+`StableSubjectId Domain` experiment: should existing production identities be
+rewritten using that one schema?
+
+The selected identities are:
+
+- `EventId`;
+- `ScheduledId`;
+- `AttentionId`;
+- `RelationUnitId`;
+- `CapacityMovementId`;
+- `ActualValidityRevisionId`.
+
+All are currently thin String wrappers. The Lean observation constructs a typed
+domain-indexed representation for each and proves round trips in both
+directions.
+
+So at the representation level:
+
+```text
+existing named one-field ID
+    ~=
+StableSubjectId Domain
+```
+
+for the selected token/equality question.
+
+A generic projection-injectivity theorem can also replace several repeated
+private proofs that `id -> id.token` is injective.
+
+That is a real but small mechanical compression opportunity.
+
+The architectural result is negative, however.
+
+Each current identity was earned for a different semantic reason and owns a
+different lifecycle. Replacing the wrapper does not merge those lifecycles,
+authority rules, persistence formats, admission boundaries, or queries.
+
+LOAM has also already extracted the more substantial shared mechanics below the
+identity layer:
+
+- `FiniteKeyed` for keyed finite-list mechanics;
+- hash-backed uniqueness admission;
+- `firstUnusedNumberedToken` for total fresh token allocation.
+
+Therefore a full production identity rewrite would currently compress mostly
+wrapper declarations, constructor spelling, and a handful of injectivity lemmas.
+It would not remove meaningful runtime or semantic duplication.
+
+The refined rule is:
+
+```text
+generic mechanics underneath identities
+    GOOD and already largely present
+
+domain-indexed identity schema as research/design pattern
+    USEFUL
+
+rewrite established named semantic IDs into one generic wrapper
+    NOT YET EARNED
+```
+
+This result also protects the Observation 295 insight from expanding into a
+universal identity ontology. `StableSubjectId Domain` is valuable where a new
+cross-domain stable-subject lifecycle is actually earned; it is not a reason to
+rename every existing identity in LOAM.
