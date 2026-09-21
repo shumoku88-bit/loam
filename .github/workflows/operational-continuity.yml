@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/OperationalContinuity.lean'
       - 'Loam/ActualAuthority.lean'
+      - 'Loam/MovementWorldLoader.lean'
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
       - 'tools/loam'
@@ -29,7 +30,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamDoctor
+          build-args: loamDoctor Loam.MovementWorldLoader
           test: false
           lint: false
           use-mathlib-cache: false

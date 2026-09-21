@@ -7,6 +7,8 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/MovementAdmission.lean'
+      - 'Loam/MovementWorldAdapter.lean'
+      - 'Loam/MovementWorldLoader.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
@@ -26,6 +28,8 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/MovementAdmission.lean'
+      - 'Loam/MovementWorldAdapter.lean'
+      - 'Loam/MovementWorldLoader.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
@@ -54,7 +58,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.ScheduledTerminalPublisher Loam.ScheduledReview Loam.ActualReview Loam.Tests.ActualWorldFixture
+          build-args: Loam.ScheduledTerminalPublisher Loam.ScheduledReview Loam.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
           test: false
           lint: false
           use-mathlib-cache: false
