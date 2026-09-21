@@ -11,7 +11,8 @@ The current LOAM pressure sequence is:
 - Observation 287 — one acquisition source selected for one disposal;
 - Observation 288 — one disposal consumes exact quantities from several sources;
 - Observation 289 — a stock split makes acquisition Effect identity differ from the current quantity-bearing Effect identity;
-- Observation 290 — a spin-off branches one acquisition origin into several current Effects.
+- Observation 290 — a spin-off branches one acquisition origin into several current Effects;
+- Observation 291 — two acquisition origins merge into one current physical Effect while origin-specific basis remains observable.
 
 The sequence suggests a candidate reading:
 
@@ -186,8 +187,12 @@ But they do not yet justify:
 
 > LOAM should never have a LotId.
 
-The next falsification target should be many-to-one merger provenance.
+Observation 291 then applied the many-to-one merger pressure.
 
-If graph edges preserve every selected basis / holding-period / disposal answer there too, the graph hypothesis becomes substantially stronger.
+Two independently acquired origins feed one current physical Effect, with exact current quantity carried on separate provenance edges. A later one-unit disposal can be attributed to either origin, and the two attributions produce different realised-gain answers because the origin bases differ.
 
-If a stable independently referenceable identity is still missing after the graph is retained, that missing answer would be the right evidence for earning a first-class Lot identity.
+So the graph hypothesis now survives one-to-one, one-to-many, and many-to-one selected transformations.
+
+That substantially strengthens the research hypothesis, but it still does not prove that a LotId is never useful.
+
+The next evidence that would genuinely earn a first-class Lot identity should be a selected query requiring one stable reference that is not equivalent to an acquisition origin, a current physical Effect, or a reconstructable provenance component/path. Examples include an externally supplied stable lot identifier, annotations that must survive graph rewrites, or correction semantics that replace provenance edges while preserving one referenced lot identity.
