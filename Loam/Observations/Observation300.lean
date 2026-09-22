@@ -124,6 +124,25 @@ theorem correction_depth_one_candidate_count :
     (correctionSearchSpace 1).candidateCount = 8 := by
   native_decide
 
+
+/-- Distinct unordered summary collisions reduce the same fixture to two payloads. -/
+theorem correction_depth_one_distinct_collision_candidate_count :
+    (correctionSearchSpace 1).distinctSummaryCollisionCandidateCount
+      Loam.Observation193.encodeCurrentQuantity = 2 := by
+  native_decide
+
+def correctionDistinctCollisionSearch :=
+  (correctionSearchSpace 1).searchDistinctSummaryCollisions
+    Loam.Observation193.correctionAnswer
+    Loam.Observation193.correctionStep
+    Loam.Observation193.CorrectionVocabulary
+    decideCorrectionVocabulary
+    Loam.Observation193.encodeCurrentQuantity
+
+theorem correction_distinct_collision_search_finds_counterexample :
+    correctionDistinctCollisionSearch.isSome = true := by
+  native_decide
+
 /--
 With no future operation available, the two candidate states are collapsed by
 the current-quantity summary and remain indistinguishable.
