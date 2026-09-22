@@ -110,6 +110,24 @@ theorem reversal_depth_one_candidate_count :
     (reversalSearchSpace 1).candidateCount = 8 := by
   native_decide
 
+
+theorem reversal_depth_one_distinct_collision_candidate_count :
+    (reversalSearchSpace 1).distinctSummaryCollisionCandidateCount
+      Loam.Examples.ActualReversalFutureContext.encodeCurrentAnswer = 2 := by
+  native_decide
+
+def reversalDistinctCollisionSearch :=
+  (reversalSearchSpace 1).searchDistinctSummaryCollisions
+    Loam.Examples.ActualReversalFutureContext.answer
+    Loam.Examples.ActualReversalFutureContext.step
+    Loam.Examples.ActualReversalFutureContext.Vocabulary
+    decideReversalVocabulary
+    Loam.Examples.ActualReversalFutureContext.encodeCurrentAnswer
+
+theorem reversal_distinct_collision_search_finds_counterexample :
+    reversalDistinctCollisionSearch.isSome = true := by
+  native_decide
+
 theorem reversal_depth_zero_finds_no_counterexample :
     (reversalSearch 0).isNone = true := by
   native_decide
@@ -117,6 +135,28 @@ theorem reversal_depth_zero_finds_no_counterexample :
 theorem reversal_depth_one_finds_counterexample :
     (reversalSearch 1).isSome = true := by
   native_decide
+
+theorem reversal_distinct_collision_search_refutes_current_answer_summary :
+    ¬ Loam.Observation192.FutureSufficient
+      Loam.Examples.ActualReversalFutureContext.answer
+      Loam.Examples.ActualReversalFutureContext.step
+      Loam.Examples.ActualReversalFutureContext.Vocabulary
+      Loam.Examples.ActualReversalFutureContext.encodeCurrentAnswer := by
+  have hSome : reversalDistinctCollisionSearch.isSome = true :=
+    reversal_distinct_collision_search_finds_counterexample
+  cases hSearch : reversalDistinctCollisionSearch with
+  | none =>
+      simp [hSearch] at hSome
+  | some payload =>
+      exact
+        (reversalSearchSpace 1).searchDistinctSummaryCollisions_some_refutes_futureSufficient
+          Loam.Examples.ActualReversalFutureContext.answer
+          Loam.Examples.ActualReversalFutureContext.step
+          Loam.Examples.ActualReversalFutureContext.Vocabulary
+          decideReversalVocabulary
+          Loam.Examples.ActualReversalFutureContext.encodeCurrentAnswer
+          payload
+          (by simpa [reversalDistinctCollisionSearch] using hSearch)
 
 theorem reversal_search_refutes_current_answer_summary :
     ¬ Loam.Observation192.FutureSufficient
