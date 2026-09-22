@@ -161,13 +161,11 @@ def main (args : List String) : IO Unit := do
   expect ((Loam.MovementAdmission.admit? unresolvedWorld unresolvedDraft).isOk)
     "filled unresolved Movement did not pass ordinary Movement admission"
 
-  let partialForm : Form := {
-    unresolvedStartForm with
-    rows := #[
-      { locus := "paypay", amount := "-5800" },
-      { locus := "books", amount := "1200" },
-      { locus := "food", amount := "2000" },
-      { locus := "suspense", amount := "4600" }] }
+  let partialForm : Form := replaceRows unresolvedStartForm #[
+    { locus := "paypay", amount := "-5800" },
+    { locus := "books", amount := "1200" },
+    { locus := "food", amount := "2000" },
+    { locus := "suspense", amount := "4600" }]
   let partialAdjusted := update unresolvedWorld [] { form := partialForm } (.ctrl 'u')
   expect (partialAdjusted.state.form.rows == #[
       { locus := "paypay", amount := "-5800" },
@@ -176,13 +174,11 @@ def main (args : List String) : IO Unit := do
       { locus := "suspense", amount := "2600" }])
     "unresolved remainder did not adjust an existing suspense posting"
 
-  let resolvedForm : Form := {
-    unresolvedStartForm with
-    rows := #[
-      { locus := "paypay", amount := "-5800" },
-      { locus := "books", amount := "1200" },
-      { locus := "food", amount := "4600" },
-      { locus := "suspense", amount := "2600" }] }
+  let resolvedForm : Form := replaceRows unresolvedStartForm #[
+    { locus := "paypay", amount := "-5800" },
+    { locus := "books", amount := "1200" },
+    { locus := "food", amount := "4600" },
+    { locus := "suspense", amount := "2600" }]
   let resolvedFilled := update unresolvedWorld [] { form := resolvedForm } (.ctrl 'u')
   expect (resolvedFilled.state.form.rows == #[
       { locus := "paypay", amount := "-5800" },
