@@ -129,13 +129,14 @@ private theorem eventA_ne_eventB : eventA ≠ eventB := by
   native_decide
 
 /--
-The three-bit summary is exactly locally maintainable under the declared future
-operation.
+The concrete three-bit summary transition commutes with the retained Core state
+transition.
 -/
-theorem encode_is_updateIndependent :
-    Loam.Observation297.UpdateIndependent step encode := by
-  refine ⟨summaryStep, ?_⟩
-  intro state operation
+theorem summaryStep_commutes
+    (state : State)
+    (operation : Operation) :
+    summaryStep (encode state) operation =
+      encode (step state operation) := by
   cases operation
   by_cases hA :
       eventA ∈ ActualReversal.endpointIds state.reversals.reversals
@@ -173,6 +174,14 @@ theorem encode_is_updateIndependent :
         hANone, hBNone, answer, ActualReversalMemory.findByTarget?,
         ActualReversal.endpointIds]
 
+/--
+The three-bit summary is exactly locally maintainable under the declared future
+operation.
+-/
+theorem encode_is_updateIndependent :
+    Loam.Observation297.UpdateIndependent step encode :=
+  ⟨summaryStep, summaryStep_commutes⟩
+
 /-- A proof-directed positive certificate over existing Core relation semantics. -/
 theorem retentionCertificate :
     Loam.Observation298.MaintainedCertificate
@@ -191,6 +200,43 @@ def retentionVerdict :
     Loam.Observation298.RetentionVerdict
       answer step Vocabulary encode :=
   .preserved encode_is_futureSufficient
+
+/-! ## Canonical behavioural witness states -/
+
+/-- No retained reversal endpoint currently blocks the declared A -> B publication. -/
+def availableWitnessState : State :=
+  { reversals := ActualReversalMemory.empty }
+
+/--
+A is already consumed as a reversal endpoint but is not itself a reversal
+target, so the declared A -> B publication is blocked while the selected current
+answer remains false.
+-/
+def blockedWitnessState : State :=
+  { reversals :=
+      { reversals :=
+          [ { target := eventC
+              reversal := eventA } ]
+        endpointNodup := by native_decide } }
+
+/-- Publishing A -> B from the available state yields the already-reversed class. -/
+def alreadyReversedWitnessState : State :=
+  step availableWitnessState .publishAB
+
+theorem availableWitness_encode :
+    encode availableWitnessState =
+      { aUsed := false, bUsed := false, aIsReversed := false } := by
+  native_decide
+
+theorem blockedWitness_encode :
+    encode blockedWitnessState =
+      { aUsed := true, bUsed := false, aIsReversed := false } := by
+  native_decide
+
+theorem alreadyReversedWitness_encode :
+    encode alreadyReversedWitnessState =
+      { aUsed := true, bUsed := true, aIsReversed := true } := by
+  native_decide
 
 /-! ## The certificate is genuinely lossy -/
 
