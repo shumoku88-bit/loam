@@ -53,7 +53,7 @@ private def initMemory (pathText : String) : IO UInt32 := do
   if ← path.pathExists then
     IO.eprintln ("loamMemory: init refused because file already exists: " ++ pathText)
     return 2
-  match ← saveMemory path PersonalSemanticMemory.empty with
+  match ← saveMemory path Loam.Examples.PersonalSemanticMemory.empty with
   | .error message =>
       IO.eprintln message
       return 2
@@ -71,7 +71,7 @@ private def remember
         return 2
     | .ok memory => pure memory
   let updated ←
-    match PersonalSemanticMemory.remember? memory ⟨idToken⟩ text with
+    match Loam.Examples.PersonalSemanticMemory.remember? memory ⟨idToken⟩ text with
     | none =>
         IO.eprintln
           ("loamMemory: remember refused; EventId may already exist or the fact " ++
@@ -94,7 +94,7 @@ private def recall (pathText idToken : String) : IO UInt32 := do
         IO.eprintln message
         return 2
     | .ok memory => pure memory
-  match PersonalSemanticMemory.recall? memory ⟨idToken⟩ with
+  match Loam.Examples.PersonalSemanticMemory.recall? memory ⟨idToken⟩ with
   | none =>
       IO.eprintln ("loamMemory: no retained fact for EventId: " ++ idToken)
       return 2
