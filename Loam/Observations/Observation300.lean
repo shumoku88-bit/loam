@@ -87,17 +87,28 @@ def decideCorrectionVocabulary :
       Decidable (Loam.Observation193.CorrectionVocabulary question) :=
   fun _ => isTrue trivial
 
+private def correctionSearchSpace (depth : Nat) :
+    Loam.Observation299.SearchSpace
+      Loam.Observation193.CorrectionState
+      Loam.Observation193.CorrectionOperation
+      Loam.Observation193.CorrectionQuestion :=
+  { states := correctionStates
+    operations := correctionOperations
+    questions := correctionQuestions
+    depth := depth }
+
 def correctionSearch (depth : Nat) :=
-  Loam.Observation299.boundedCounterexampleSearch
+  (correctionSearchSpace depth).search
     Loam.Observation193.correctionAnswer
     Loam.Observation193.correctionStep
     Loam.Observation193.CorrectionVocabulary
     decideCorrectionVocabulary
     Loam.Observation193.encodeCurrentQuantity
-    correctionStates
-    correctionOperations
-    correctionQuestions
-    depth
+
+/-- The depth-one fixture enumerates exactly eight candidate payloads. -/
+theorem correction_depth_one_candidate_count :
+    (correctionSearchSpace 1).candidateCount = 8 := by
+  native_decide
 
 /--
 With no future operation available, the two candidate states are collapsed by
@@ -133,16 +144,12 @@ theorem correction_search_refutes_current_quantity_summary :
       simp [hSearch] at hSome
   | some payload =>
       exact
-        Loam.Observation299.boundedCounterexampleSearch_some_refutes_futureSufficient
+        (correctionSearchSpace 1).search_some_refutes_futureSufficient
           Loam.Observation193.correctionAnswer
           Loam.Observation193.correctionStep
           Loam.Observation193.CorrectionVocabulary
           decideCorrectionVocabulary
           Loam.Observation193.encodeCurrentQuantity
-          correctionStates
-          correctionOperations
-          correctionQuestions
-          1
           payload
           (by simpa [correctionSearch] using hSearch)
 
