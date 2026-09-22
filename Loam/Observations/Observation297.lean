@@ -116,6 +116,46 @@ def ReconstructingComplement
   ∃ recover : View × Complement → State,
     ∀ state, recover (view state, complement state) = state
 
+/-- Exact source reconstruction makes the combined representation query-sufficient. -/
+theorem reconstructingComplement_implies_currentSufficient
+    {View : Type uV}
+    {Complement : Type uC}
+    (answer : State → Question → Answer)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (view : State → View)
+    (complement : State → Complement)
+    (hComplement : ReconstructingComplement view complement) :
+    Loam.Observation029.SufficientFor
+      answer vocabulary (fun state => (view state, complement state)) := by
+  rcases hComplement with ⟨recover, hRecover⟩
+  refine ⟨fun summary question => answer (recover summary) question, ?_⟩
+  intro state question _
+  change
+    answer (recover (view state, complement state)) question =
+      answer state question
+  rw [hRecover]
+
+/-- Exact source reconstruction also makes the combined representation locally maintainable. -/
+theorem reconstructingComplement_implies_updateIndependent
+    {View : Type uV}
+    {Complement : Type uC}
+    (step : State → Operation → State)
+    (view : State → View)
+    (complement : State → Complement)
+    (hComplement : ReconstructingComplement view complement) :
+    UpdateIndependent step (fun state => (view state, complement state)) := by
+  rcases hComplement with ⟨recover, hRecover⟩
+  refine ⟨
+    fun summary operation =>
+      let next := step (recover summary) operation
+      (view next, complement next), ?_⟩
+  intro state operation
+  change
+    (let next := step (recover (view state, complement state)) operation
+      (view next, complement next)) =
+      (view (step state operation), complement (step state operation))
+  rw [hRecover]
+
 /--
 Exact source reconstruction is sufficient for every selected future-context
 question, without any additional update-maintenance theorem.
