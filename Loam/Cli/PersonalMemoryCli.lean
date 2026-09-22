@@ -113,7 +113,7 @@ private def correct
         return 2
     | .ok memory => pure memory
   let updated ←
-    match PersonalSemanticMemory.correct?
+    match Loam.Examples.PersonalSemanticMemory.correct?
         memory ⟨targetToken⟩ ⟨replacementToken⟩ replacementText with
     | none =>
         IO.eprintln
