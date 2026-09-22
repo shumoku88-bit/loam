@@ -27,7 +27,7 @@ The only semantic theorem is soundness: every payload returned by the searcher
 is a valid counterexample and therefore refutes the proposed compression.
 -/
 
-universe uS uO uQ uA uM
+universe uSeed uS uO uQ uA uM
 
 /-- All operation words of exactly the requested length. -/
 def continuationsExact
@@ -92,6 +92,43 @@ structure SearchSpace
   operations : List Operation
   questions : List Question
   depth : Nat
+
+/--
+Build one bounded semantic slice from a smaller list of domain-specific seeds.
+
+The seed type is intentionally unconstrained. A caller may use quantities,
+identities, relation endpoints, or another compact description that generates
+the retained states worth comparing. This is not whole-type enumeration.
+-/
+def SearchSpace.fromSeeds
+    {Seed : Type uSeed}
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    (seeds : List Seed)
+    (realize : Seed → State)
+    (operations : List Operation)
+    (questions : List Question)
+    (depth : Nat) :
+    SearchSpace State Operation Question :=
+  { states := seeds.map realize
+    operations := operations
+    questions := questions
+    depth := depth }
+
+@[simp] theorem SearchSpace.fromSeeds_state_count
+    {Seed : Type uSeed}
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    (seeds : List Seed)
+    (realize : Seed → State)
+    (operations : List Operation)
+    (questions : List Question)
+    (depth : Nat) :
+    (SearchSpace.fromSeeds seeds realize operations questions depth).states.length =
+      seeds.length := by
+  simp [SearchSpace.fromSeeds]
 
 def SearchSpace.payloads
     {State : Type uS}
