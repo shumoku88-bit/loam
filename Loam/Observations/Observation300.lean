@@ -40,39 +40,38 @@ private def oneEffectEvent
         ⟨effectToken⟩ wallet jpy (Quantity.ofQuanta quanta)]
     keyNodup := by simp }
 
-private def leftEvents : EventMemory :=
-  { events :=
-      [ oneEffectEvent "target" "target-effect" (-100)
-      , oneEffectEvent "replacement" "replacement-effect" (-80)
-      , oneEffectEvent "buffer" "buffer-effect" 180
-      ]
-    idNodup := by native_decide }
-
-private def rightEvents : EventMemory :=
-  { events :=
-      [ oneEffectEvent "target" "target-effect" (-120)
-      , oneEffectEvent "replacement" "replacement-effect" (-80)
-      , oneEffectEvent "buffer" "buffer-effect" 200
-      ]
-    idNodup := by native_decide }
+private def replacementQuanta : Int := -80
 
 private def emptyCorrections : EventCorrectionMemory :=
   { corrections := [], idNodup := by simp }
 
-private def leftState : Loam.Observation193.CorrectionState :=
-  { events := leftEvents, corrections := emptyCorrections }
+/--
+One target quantity is enough to generate a complete candidate world.
 
-private def rightState : Loam.Observation193.CorrectionState :=
-  { events := rightEvents, corrections := emptyCorrections }
+The buffer is derived so that the current recorded total remains zero before
+the Correction is published. The future effective quantity therefore exposes
+the hidden target difference instead of encoding the finished state by hand.
+-/
+private def correctionStateFromTarget
+    (targetQuanta : Int) : Loam.Observation193.CorrectionState :=
+  let bufferQuanta := -(targetQuanta + replacementQuanta)
+  { events :=
+      { events :=
+          [ oneEffectEvent "target" "target-effect" targetQuanta
+          , oneEffectEvent "replacement" "replacement-effect" replacementQuanta
+          , oneEffectEvent "buffer" "buffer-effect" bufferQuanta
+          ]
+        idNodup := by
+          simp [oneEffectEvent] }
+    corrections := emptyCorrections }
+
+private def correctionSeeds : List Int :=
+  [-100, -120]
 
 private def publishTarget : Loam.Observation193.CorrectionOperation :=
   .publish
     { target := ⟨"target"⟩
       replacement := ⟨"replacement"⟩ }
-
-private def correctionStates :
-    List Loam.Observation193.CorrectionState :=
-  [leftState, rightState]
 
 private def correctionOperations :
     List Loam.Observation193.CorrectionOperation :=
@@ -92,10 +91,25 @@ private def correctionSearchSpace (depth : Nat) :
       Loam.Observation193.CorrectionState
       Loam.Observation193.CorrectionOperation
       Loam.Observation193.CorrectionQuestion :=
-  { states := correctionStates
-    operations := correctionOperations
-    questions := correctionQuestions
-    depth := depth }
+  Loam.Observation299.SearchSpace.fromSeeds
+    correctionSeeds
+    correctionStateFromTarget
+    correctionOperations
+    correctionQuestions
+    depth
+
+theorem correction_seed_count :
+    (correctionSearchSpace 1).states.length = correctionSeeds.length := by
+  simp [correctionSearchSpace]
+
+/-- The generated worlds are intentionally indistinguishable by today's summary. -/
+theorem correction_generated_current_summaries :
+    correctionSeeds.map
+        (fun seed =>
+          Loam.Observation193.encodeCurrentQuantity
+            (correctionStateFromTarget seed)) =
+      [some 0, some 0] := by
+  native_decide
 
 def correctionSearch (depth : Nat) :=
   (correctionSearchSpace depth).search
