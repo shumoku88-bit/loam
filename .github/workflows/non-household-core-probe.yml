@@ -8,6 +8,7 @@ on:
       - 'Loam/Examples/DocumentProvenanceBoundary.lean'
       - 'Loam/Examples/PersonalSemanticMemory.lean'
       - 'Loam/Examples/PersonalSemanticMemoryPersistence.lean'
+      - 'Loam/Cli/PersonalMemoryCli.lean'
       - '.github/workflows/non-household-core-probe.yml'
       - 'Loam/Core/Quantity.lean'
       - 'Loam/Core/Measure.lean'
@@ -44,3 +45,16 @@ jobs:
           lake env lean Loam/Examples/PersonalSemanticMemory.lean
           lake build Loam.Examples.PersonalSemanticMemory
           lake env lean Loam/Examples/PersonalSemanticMemoryPersistence.lean
+          lake build loamMemory
+          memory_file="$(mktemp)"
+          rm "$memory_file"
+          lake exe loamMemory -- init "$memory_file"
+          lake exe loamMemory -- remember "$memory_file" memory:editor "editor preference: nvim"
+          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor)" = "editor preference: nvim"
+          lake exe loamMemory -- correct "$memory_file" memory:editor memory:editor-2 "editor preference: nvim; configuration may evolve"
+          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor)" = "editor preference: nvim"
+          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor-2)" = "editor preference: nvim; configuration may evolve"
+          if lake exe loamMemory -- remember "$memory_file" memory:editor "overwrite attempt"; then
+            echo "duplicate remember unexpectedly succeeded" >&2
+            exit 1
+          fi
