@@ -321,19 +321,6 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .input 'e' | .input 'E' | .backspace =>
             { state := { state with mode := .editing, notice := "" } }
         | _ => { state }
-    | .enableUnresolved =>
-      .column
-        [ line "Unresolved recording / Enable"
-        , line ""
-        , line "Some of this Movement is not classified yet."
-        , line "Enable unresolved recording for this household?"
-        , line ""
-        , line "This adds one ordinary admitted Locus: suspense"
-        , line "It does not record this Movement, change its Measure, or guess a category."
-        , line ""
-        , line "Enter enable   e/E or Backspace return   Esc cancel Record"
-        , line state.notice
-        ]
   | .preview draft choice =>
         match key with
         | .tab | .right =>
@@ -452,6 +439,19 @@ def view (_known : List String) (state : State) : Widget :=
          line "Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
+  | .enableUnresolved =>
+      .column
+        [ line "Unresolved recording / Enable"
+        , line ""
+        , line "Some of this Movement is not classified yet."
+        , line "Enable unresolved recording for this household?"
+        , line ""
+        , line "This adds one ordinary admitted Locus: suspense"
+        , line "It does not record this Movement, change its Measure, or guess a category."
+        , line ""
+        , line "Enter enable   e/E or Backspace return   Esc cancel Record"
+        , line state.notice
+        ]
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <| [line "Record / Preview", line draft.validOn,
