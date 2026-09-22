@@ -227,10 +227,277 @@ theorem available_and_blocked_differ_after_selected_future :
       false := by
   native_decide
 
+/-! ## The generated depth-one signature is exact for the selected future language -/
+
+theorem provenance_depth_one_contexts :
+    Loam.Observation308.boundedContexts
+        (provenanceSynthesisSpace 1)
+        Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+        decideQuestionVocabulary =
+      [ ([], .aDerivedToDInTwoSteps)
+      , ([publishFuture], .aDerivedToDInTwoSteps)
+      ] := by
+  native_decide
+
+theorem provenance_depth_one_signature_formula
+    (state : Loam.Examples.DocumentProvenanceFutureContext.State) :
+    provenanceSignatureAtDepth 1 state =
+      [ Loam.Examples.DocumentProvenanceFutureContext.answer
+          state .aDerivedToDInTwoSteps
+      , Loam.Examples.DocumentProvenanceFutureContext.answer
+          (Loam.Examples.DocumentProvenanceFutureContext.step
+            state publishFuture)
+          .aDerivedToDInTwoSteps
+      ] := by
+  simp [provenanceSignatureAtDepth,
+    Loam.Observation308.boundedBehaviourSignature,
+    provenance_depth_one_contexts,
+    Loam.Observation192.run]
+
+/--
+Once the selected publication has happened, any further continuation made only
+of that selected operation leaves the selected answer unchanged.
+-/
+theorem selected_answer_stable_after_publish
+    (state : Loam.Examples.DocumentProvenanceFutureContext.State)
+    (continuation :
+      List Loam.Examples.DocumentProvenanceFutureContext.Operation)
+    (hAllowed :
+      Loam.Observation312.ContinuationAllowed
+        SelectedOperations continuation) :
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Observation192.run
+          Loam.Examples.DocumentProvenanceFutureContext.step
+          (Loam.Examples.DocumentProvenanceFutureContext.step
+            state publishFuture)
+          continuation)
+        .aDerivedToDInTwoSteps =
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Examples.DocumentProvenanceFutureContext.step
+          state publishFuture)
+        .aDerivedToDInTwoSteps := by
+  induction continuation generalizing state with
+  | nil =>
+      rfl
+  | cons operation rest ih =>
+      have hOperation : SelectedOperations operation :=
+        hAllowed operation (by simp)
+      have hOperationEq : operation = publishFuture :=
+        hOperation
+      subst operation
+      have hRest :
+          Loam.Observation312.ContinuationAllowed
+            SelectedOperations rest := by
+        intro candidate hMem
+        exact hAllowed candidate (by simp [hMem])
+      simp only [Loam.Observation192.run]
+      calc
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+            (Loam.Observation192.run
+              Loam.Examples.DocumentProvenanceFutureContext.step
+              (Loam.Examples.DocumentProvenanceFutureContext.step
+                (Loam.Examples.DocumentProvenanceFutureContext.step
+                  state publishFuture)
+                publishFuture)
+              rest)
+            .aDerivedToDInTwoSteps =
+          Loam.Examples.DocumentProvenanceFutureContext.answer
+            (Loam.Examples.DocumentProvenanceFutureContext.step
+              (Loam.Examples.DocumentProvenanceFutureContext.step
+                state publishFuture)
+              publishFuture)
+            .aDerivedToDInTwoSteps :=
+          ih
+            (state :=
+              Loam.Examples.DocumentProvenanceFutureContext.step
+                state publishFuture)
+            hRest
+        _ =
+          Loam.Examples.DocumentProvenanceFutureContext.answer
+            (Loam.Examples.DocumentProvenanceFutureContext.step
+              state publishFuture)
+            .aDerivedToDInTwoSteps :=
+          selected_answer_after_publish_is_idempotent state
+
+/--
+Every selected continuation has only two observable cases: empty, or at least
+one B -> D publication.
+-/
+theorem selected_continuation_answer
+    (state : Loam.Examples.DocumentProvenanceFutureContext.State)
+    (continuation :
+      List Loam.Examples.DocumentProvenanceFutureContext.Operation)
+    (hAllowed :
+      Loam.Observation312.ContinuationAllowed
+        SelectedOperations continuation) :
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Observation192.run
+          Loam.Examples.DocumentProvenanceFutureContext.step
+          state continuation)
+        .aDerivedToDInTwoSteps =
+      if continuation = [] then
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+          state .aDerivedToDInTwoSteps
+      else
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+          (Loam.Examples.DocumentProvenanceFutureContext.step
+            state publishFuture)
+          .aDerivedToDInTwoSteps := by
+  cases continuation with
+  | nil =>
+      rfl
+  | cons operation rest =>
+      have hOperation : SelectedOperations operation :=
+        hAllowed operation (by simp)
+      have hOperationEq : operation = publishFuture :=
+        hOperation
+      subst operation
+      have hRest :
+          Loam.Observation312.ContinuationAllowed
+            SelectedOperations rest := by
+        intro candidate hMem
+        exact hAllowed candidate (by simp [hMem])
+      simp only [Loam.Observation192.run]
+      rw [selected_answer_stable_after_publish state rest hRest]
+      simp
+
+/--
+Depth-one generated signature equality is exactly selected-operation
+future-context equivalence for every retained provenance state.
+-/
+theorem same_depth_one_signature_iff_futureEquivalentUnder
+    (left right : Loam.Examples.DocumentProvenanceFutureContext.State) :
+    provenanceSignatureAtDepth 1 left =
+        provenanceSignatureAtDepth 1 right ↔
+      Loam.Observation312.FutureEquivalentUnder
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+        Loam.Examples.DocumentProvenanceFutureContext.step
+        SelectedOperations
+        Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+        left right := by
+  constructor
+  · intro hSignature
+    rw [provenance_depth_one_signature_formula left,
+      provenance_depth_one_signature_formula right] at hSignature
+    simp at hSignature
+    rcases hSignature with ⟨hNow, hNext⟩
+    intro continuation question hAllowed hVisible
+    cases question
+    rw [selected_continuation_answer left continuation hAllowed,
+      selected_continuation_answer right continuation hAllowed]
+    by_cases hEmpty : continuation = []
+    · simp [hEmpty, hNow]
+    · simp [hEmpty, hNext]
+  · intro hFuture
+    rw [provenance_depth_one_signature_formula,
+      provenance_depth_one_signature_formula]
+    have hNow :=
+      hFuture [] .aDerivedToDInTwoSteps
+        (by
+          exact
+            Loam.Observation312.empty_continuation_allowed
+              SelectedOperations)
+        (by simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary])
+    have hNext :=
+      hFuture [publishFuture] .aDerivedToDInTwoSteps
+        (by
+          intro operation hMem
+          simp at hMem
+          subst operation
+          rfl)
+        (by simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary])
+    simpa [Loam.Observation192.run] using And.intro hNow hNext
+
+theorem provenance_depth_one_signature_is_exact :
+    Loam.Observation312.ExactFutureClassifierUnder
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      (provenanceSignatureAtDepth 1) :=
+  same_depth_one_signature_iff_futureEquivalentUnder
+
+/-! ## Depth zero is still too shallow -/
+
+theorem available_not_futureEquivalentUnder_blocked :
+    ¬ Loam.Observation312.FutureEquivalentUnder
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      availableState blockedState := by
+  intro hFuture
+  have hAfter :=
+    hFuture [publishFuture] .aDerivedToDInTwoSteps
+      (by
+        intro operation hMem
+        simp at hMem
+        subst operation
+        rfl)
+      (by simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary])
+  rcases available_and_blocked_differ_after_selected_future with
+    ⟨hAvailable, hBlocked⟩
+  simpa [Loam.Observation192.run, hAvailable, hBlocked] using hAfter
+
+theorem provenance_depth_zero_signature_is_not_exact :
+    ¬ Loam.Observation312.ExactFutureClassifierUnder
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      (provenanceSignatureAtDepth 0) := by
+  intro hExact
+  have hFuture :=
+    (hExact availableState blockedState).1
+      depth_zero_merges_available_and_blocked
+  exact available_not_futureEquivalentUnder_blocked hFuture
+
 /-!
-The remainder of the observation will connect the generated depth-one signature
-to FutureEquivalentUnder once the selected-publication idempotence lemma above
-is admitted by Lean.
+## Finding
+
+The same synthesis/certification pattern now appears in a second relation
+semantics that is intentionally not Correction and not ActualReversal.
+
+For the selected document-provenance future language:
+
+    allowed operation:
+      publish B -> D
+
+    selected question:
+      A derived to D in exactly two steps?
+
+bounded synthesis yields:
+
+    available       -> [false, true]
+    blocked         -> [false, false]
+    alreadyDerived  -> [true, true]
+
+and Lean proves:
+
+    depth-zero signature equality
+      is not exact
+
+    depth-one signature equality
+      iff
+    FutureEquivalentUnder
+
+The raw provenance transition is not state-idempotent: publishing B -> D again
+can append duplicate retained evidence. What matters is observational
+idempotence for the selected question. The duplicate-invariance lemmas make
+that distinction explicit.
+
+This is stronger evidence that the reversal result was not only a peculiarity
+of one operation family. The reusable shape is now:
+
+    declared operation vocabulary
+      + declared question vocabulary
+      + bounded future-answer synthesis
+      + independent unbounded semantic proof
+        ->
+      exact vocabulary-relative behavioural quotient
+
+No generic claim is made that depth one suffices for provenance in general, or
+that the example-local DocumentDerivation relation should move into Core.
 -/
 
 end Loam.Observation313
