@@ -148,9 +148,29 @@ theorem encode_is_updateIndependent :
     · have hAFlat := hA
       have hBFlat := hB
       simp [ActualReversal.endpointIds] at hAFlat hBFlat
+      have hANone :
+          ¬ ∃ relation,
+              relation ∈ state.reversals.reversals ∧
+                (eventA = relation.target ∨ eventA = relation.reversal) := by
+        intro hExists
+        rcases hExists with ⟨relation, hMem, hEndpoint⟩
+        have hFresh := hAFlat relation hMem
+        rcases hEndpoint with hTarget | hReversal
+        · exact hFresh.1 hTarget
+        · exact hFresh.2 hReversal
+      have hBNone :
+          ¬ ∃ relation,
+              relation ∈ state.reversals.reversals ∧
+                (eventB = relation.target ∨ eventB = relation.reversal) := by
+        intro hExists
+        rcases hExists with ⟨relation, hMem, hEndpoint⟩
+        have hFresh := hBFlat relation hMem
+        rcases hEndpoint with hTarget | hReversal
+        · exact hFresh.1 hTarget
+        · exact hFresh.2 hReversal
       simp [summaryStep, encode, endpointUsed, step,
         ActualReversalMemory.add?, publishAB, eventA_ne_eventB,
-        hAFlat, hBFlat, answer, ActualReversalMemory.findByTarget?,
+        hANone, hBNone, answer, ActualReversalMemory.findByTarget?,
         ActualReversal.endpointIds]
 
 /-- A proof-directed positive certificate over existing Core relation semantics. -/
