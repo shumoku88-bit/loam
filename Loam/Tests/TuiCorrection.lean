@@ -102,6 +102,26 @@ def main (args : List String) : IO Unit := do
   expect (shifted.state.editor.form.focus.val != 0)
     "Correction focus reached the fixed Date field"
 
+  let some unresolvedVocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"paypay"⟩, ⟨"coffee"⟩, Loam.Tui.Record.unresolvedLocus]
+    | throw (IO.userError "Correction unresolved vocabulary")
+  let unresolvedWorld : Loam.MovementAdmission.World := {
+    world with locusAdmission := unresolvedVocabulary }
+  let unresolvedForm : Loam.Tui.Record.Form := {
+    editor.editor.form with
+    rows := #[
+      { locus := "paypay", amount := "-640" },
+      { locus := "coffee", amount := "400" }] }
+  let unresolvedState : Loam.Tui.Correction.State := {
+    editor with editor := { editor.editor with form := unresolvedForm } }
+  let unresolvedStep :=
+    Loam.Tui.Correction.update unresolvedWorld known unresolvedState (.ctrl 'u')
+  expect (unresolvedStep.state.editor.form.rows == #[
+      { locus := "paypay", amount := "-640" },
+      { locus := "coffee", amount := "400" },
+      { locus := "suspense", amount := "240" }])
+    "Correction editor did not reuse unresolved remainder assistance"
+
   let correctedRows : Array Loam.Tui.Record.Row := #[
     { locus := "paypay", amount := "-650" },
     { locus := "coffee", amount := "650" }]
