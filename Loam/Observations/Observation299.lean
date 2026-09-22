@@ -77,6 +77,39 @@ def candidatePayloads
                     continuation := continuation
                     question := question }))))
 
+/--
+A first-class finite slice of an otherwise potentially infinite semantic model.
+
+This deliberately does not require `Fintype State`, `Fintype Operation`, or
+`Fintype Question`. Real LOAM states contain open-ended identities and values;
+the bounded experiment chooses only the semantically relevant finite candidates.
+-/
+structure SearchSpace
+    (State : Type uS)
+    (Operation : Type uO)
+    (Question : Type uQ) where
+  states : List State
+  operations : List Operation
+  questions : List Question
+  depth : Nat
+
+def SearchSpace.payloads
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    (space : SearchSpace State Operation Question) :
+    List (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  candidatePayloads
+    space.states space.operations space.questions space.depth
+
+/-- Exact number of candidate payloads enumerated by this bounded slice. -/
+def SearchSpace.candidateCount
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    (space : SearchSpace State Operation Question) : Nat :=
+  space.payloads.length
+
 /-- Return the first element accepted by a Boolean checker. -/
 def firstAccepted
     {α : Type uS}
@@ -136,6 +169,26 @@ def boundedCounterexampleSearch
     (Loam.Observation298.checkCounterexample
       answer step vocabulary decideVocabulary encode)
     (candidatePayloads states operations questions depth)
+
+/-- Run the bounded search using one explicit finite semantic slice. -/
+def SearchSpace.search
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary) :
+    Option (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  boundedCounterexampleSearch
+    answer step vocabulary decideVocabulary encode
+    space.states space.operations space.questions space.depth
 
 /--
 Soundness of the bounded searcher.
@@ -212,6 +265,56 @@ theorem boundedCounterexampleSearch_some_refutes_futureSufficient
       (boundedCounterexampleSearch_some_is_valid
         answer step vocabulary decideVocabulary encode
         states operations questions depth payload hFound)
+
+/-- A payload returned from an explicit search space is semantically valid. -/
+theorem SearchSpace.search_some_is_valid
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.search answer step vocabulary decideVocabulary encode = some payload) :
+    Loam.Observation298.ValidCounterexample
+      answer step vocabulary encode payload := by
+  exact
+    boundedCounterexampleSearch_some_is_valid
+      answer step vocabulary decideVocabulary encode
+      space.states space.operations space.questions space.depth payload hFound
+
+/-- A found payload from the finite slice refutes the candidate compression. -/
+theorem SearchSpace.search_some_refutes_futureSufficient
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.search answer step vocabulary decideVocabulary encode = some payload) :
+    ¬ Loam.Observation192.FutureSufficient
+      answer step vocabulary encode := by
+  exact
+    boundedCounterexampleSearch_some_refutes_futureSufficient
+      answer step vocabulary decideVocabulary encode
+      space.states space.operations space.questions space.depth payload hFound
 
 /-! ## Executable reveal witness -/
 
