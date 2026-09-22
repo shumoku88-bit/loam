@@ -1,6 +1,6 @@
 # Observation 269 — valid unknown classification is not invalid recording
 
-Status: **PROPOSED — Alloy qualification pending**
+Status: **QUALIFIED — Alloy 6.2.0 / Sat4j**
 
 Issue: #1169
 
@@ -79,21 +79,26 @@ It is closer to:
 
 ## Integer-width qualification note
 
-The first executable pass used 5-bit Alloy integers. That scope can represent
-only -16..15, while four bounded Locus quantities may participate in sums up to
-28. Alloy therefore found wraparound counterexamples to the two preservation
-assertions.
+The first executable pass exposed two modeling hazards before the household law
+could be trusted.
 
-Those are model-arithmetic artifacts, not household-semantic witnesses. The
-qualified scope uses 6-bit integers (-32..31), which covers every intermediate
-sum admitted by the explicit -7..7 per-Locus bounds.
+First, 5-bit Alloy integers represent only -16..15, while four bounded Locus
+quantities may participate in sums up to 28. That can create wraparound
+counterexamples.
 
-This is kept in the observation because the integer-width assumption is part of
-the bounded formal result.
+Second, bare `+` / `-` are not a safe way to express the intended integer
+arithmetic in this relational context. The qualified model opens
+`util/integer` and uses explicit `.add[]` / `.sub[]`.
 
-## Expected qualification matrix
+The final scope uses 6-bit integers (-32..31), covering every intermediate sum
+admitted by the explicit -7..7 per-Locus bounds.
 
-The first bounded run should require:
+These details are retained because arithmetic interpretation and integer width
+are part of the bounded formal result.
+
+## Qualification matrix
+
+The qualified bounded run produced:
 
 ```text
 validUnknownExists                         SAT
@@ -110,6 +115,11 @@ FullResolutionLeavesNoUnresolvedQuantity   UNSAT counterexample
 
 The SAT witnesses show that strict conservation does not require all-or-nothing
 classification.
+
+The UNSAT checks show, within this bounded model, that once both snapshots are
+admitted and the only destination change is exact redistribution out of
+Suspense, the physical Source quantity and total destination quantity cannot
+change.
 
 The invalid imbalance witness preserves the important opposite boundary:
 "unknown" is admissible only when the physical movement itself is coherent.
