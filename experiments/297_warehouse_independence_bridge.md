@@ -187,9 +187,12 @@ The relationship is therefore:
                   v
     selected future-answer sufficiency
 
-The arrows are implications. Observation 297 supplies a generic counterexample
-to the reverse implication from the bottom to exact summary maintenance, and
-also shows that the bottom condition does not require an injective encoding.
+The arrows are implications. Observation 297 now supplies a counterexample to
+each reverse direction at the representation level: a current-query-sufficient,
+exactly update-independent visible-only summary can still be non-injective, and
+a different future-sufficient summary can fail exact local update independence.
+Thus neither the middle nor bottom obligation requires reconstruction of the
+entire retained source state.
 
 ## Consequence for the LOAM research question
 
