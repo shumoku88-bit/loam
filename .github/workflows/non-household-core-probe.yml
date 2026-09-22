@@ -6,6 +6,7 @@ on:
       - 'Loam/Examples/PhysicalInventory.lean'
       - 'Loam/Examples/ScientificObservation.lean'
       - 'Loam/Examples/DocumentProvenanceBoundary.lean'
+      - 'Loam/Examples/PersonalSemanticMemory.lean'
       - '.github/workflows/non-household-core-probe.yml'
       - 'Loam/Core/Quantity.lean'
       - 'Loam/Core/Measure.lean'
@@ -39,3 +40,4 @@ jobs:
           lake env lean Loam/Examples/PhysicalInventory.lean
           lake env lean Loam/Examples/ScientificObservation.lean
           lake env lean Loam/Examples/DocumentProvenanceBoundary.lean
+          lake env lean Loam/Examples/PersonalSemanticMemory.lean
