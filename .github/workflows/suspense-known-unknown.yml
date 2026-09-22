@@ -1,18 +1,21 @@
-name: Observation 269
+name: Suspense Known/Unknown Research
 
 on:
   pull_request:
     paths:
       - 'experiments/269_suspense_known_unknown.als'
       - 'experiments/269_suspense_known_unknown.md'
+      - 'Loam/Observations/Observation309.lean'
       - '.github/workflows/suspense-known-unknown.yml'
   push:
     branches:
       - 'experiment/269-suspense-known-unknown'
+      - 'experiment/suspense-real-correction'
       - main
     paths:
       - 'experiments/269_suspense_known_unknown.als'
       - 'experiments/269_suspense_known_unknown.md'
+      - 'Loam/Observations/Observation309.lean'
       - '.github/workflows/suspense-known-unknown.yml'
   workflow_dispatch:
 
@@ -89,3 +92,23 @@ jobs:
           if wrong:
               raise SystemExit(f'unexpected Observation 269 receipt: {wrong}')
           PY
+
+
+  lean-real-semantics:
+    name: Check suspense against real Correction semantics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Observation 309
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Observations.Observation309
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
