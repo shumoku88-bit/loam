@@ -150,10 +150,7 @@ theorem reconstructingComplement_implies_updateIndependent
       let next := step (recover summary) operation
       (view next, complement next), ?_⟩
   intro state operation
-  change
-    (let next := step (recover (view state, complement state)) operation
-      (view next, complement next)) =
-      (view (step state operation), complement (step state operation))
+  simp only
   rw [hRecover]
 
 /--
