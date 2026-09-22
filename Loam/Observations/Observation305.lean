@@ -76,6 +76,11 @@ theorem encode_is_currently_sufficient :
   refine ⟨decodeCurrent, ?_⟩
   intro state question _
   cases question
+  change
+    decodeCurrent
+        (classOfSummary (Loam.Observation304.encode state))
+        .aIsReversed =
+      Loam.Observation304.answer state .aIsReversed
   rw [decode_classOfSummary]
   rfl
 
