@@ -1,6 +1,7 @@
 import Loam.HouseholdCommand
 import Loam.Tui.Kernel
 import Loam.Tui.Record
+import Loam.Tui.UnresolvedActivation
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 
@@ -31,18 +32,43 @@ partial def run
     (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
   let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
   if step.cancel then return "Record cancelled."
-  match step.publish with
-  | some draft =>
-      match ← Loam.HouseholdCommand.record root draft with
-      | .ok eventId => return "Recorded " ++ eventId.token ++ "."
-      | .error message =>
-          let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
-          let nextFrame := compileWidget (Loam.Tui.Record.view known next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          run bounds root world known next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds root world known step.state nextFrame
+  if step.enableUnresolved then
+    match ← Loam.Tui.UnresolvedActivation.enable? root with
+    | .error message =>
+        let next := {
+          step.state with
+          mode := Loam.Tui.Record.Mode.editing
+          notice := "Unresolved recording was not enabled: " ++ message }
+        let nextFrame := compileWidget (Loam.Tui.Record.view known next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        run bounds root world known next nextFrame
+    | .ok enabled =>
+        let base := Loam.Tui.Record.withCatalog
+          { step.state with mode := Loam.Tui.Record.Mode.editing } enabled.catalog
+        let next :=
+          match Loam.Tui.Record.fillUnresolvedRemainder? enabled.world base with
+          | .ok filled =>
+              { filled with
+                notice := "Unresolved recording enabled; remainder filled." }
+          | .error message =>
+              { base with
+                notice := "Unresolved recording enabled. " ++ message }
+        let nextFrame := compileWidget (Loam.Tui.Record.view enabled.known next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        run bounds root enabled.world enabled.known next nextFrame
+  else
+    match step.publish with
+    | some draft =>
+        match ← Loam.HouseholdCommand.record root draft with
+        | .ok eventId => return "Recorded " ++ eventId.token ++ "."
+        | .error message =>
+            let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }
+            let nextFrame := compileWidget (Loam.Tui.Record.view known next)
+            Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+            run bounds root world known next nextFrame
+    | none =>
+        let nextFrame := compileWidget (Loam.Tui.Record.view known step.state)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        run bounds root world known step.state nextFrame
 
 end Loam.Tui.RecordSession
