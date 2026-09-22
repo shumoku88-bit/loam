@@ -38,23 +38,27 @@ abbrev OperationVocabulary (Operation : Type uO) :=
   Operation → Prop
 
 /-- Every operation is selected. This recovers Observation 192's original boundary. -/
-def AllOperations :
+def AllOperations
+    {Operation : Type uO} :
     OperationVocabulary Operation :=
   fun _ => True
 
 /-- Every operation appearing in one finite continuation is selected. -/
 def ContinuationAllowed
+    {Operation : Type uO}
     (operationVocabulary : OperationVocabulary Operation)
     (continuation : List Operation) : Prop :=
   ∀ operation, operation ∈ continuation → operationVocabulary operation
 
 @[simp] theorem empty_continuation_allowed
+    {Operation : Type uO}
     (operationVocabulary : OperationVocabulary Operation) :
     ContinuationAllowed operationVocabulary [] := by
   intro operation hMem
   simp at hMem
 
 theorem cons_continuation_allowed_iff
+    {Operation : Type uO}
     (operationVocabulary : OperationVocabulary Operation)
     (operation : Operation)
     (rest : List Operation) :
@@ -223,7 +227,7 @@ theorem futureEquivalentUnder_all_iff_futureEquivalent
     exact h continuation question
       (by
         intro operation hMem
-        trivial)
+        simp [AllOperations])
       hVisible
   · intro h continuation question _ hVisible
     exact h continuation question hVisible
@@ -310,7 +314,7 @@ theorem futureSufficientUnder_all_iff_futureSufficient
     exact hDecode state continuation question
       (by
         intro operation hMem
-        trivial)
+        simp [AllOperations])
       hVisible
   · rintro ⟨decode, hDecode⟩
     refine ⟨decode, ?_⟩
