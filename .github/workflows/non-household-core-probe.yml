@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Examples/PhysicalInventory.lean'
+      - 'Loam/Examples/ScientificObservation.lean'
       - '.github/workflows/non-household-core-probe.yml'
       - 'Loam/Core/Quantity.lean'
       - 'Loam/Core/Measure.lean'
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  physical-inventory:
+  non-household-probes:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -32,5 +33,7 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
-      - name: Check physical inventory probe
-        run: lake env lean Loam/Examples/PhysicalInventory.lean
+      - name: Check non-household Core probes
+        run: |
+          lake env lean Loam/Examples/PhysicalInventory.lean
+          lake env lean Loam/Examples/ScientificObservation.lean
