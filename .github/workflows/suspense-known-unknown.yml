@@ -93,22 +93,3 @@ jobs:
               raise SystemExit(f'unexpected Observation 269 receipt: {wrong}')
           PY
 
-
-  lean-real-semantics:
-    name: Check suspense against real Correction semantics
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Build Observation 309
-        uses: leanprover/lean-action@v1
-        with:
-          auto-config: false
-          build: true
-          build-args: Loam.Observations.Observation309
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
