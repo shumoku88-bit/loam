@@ -1,4 +1,4 @@
-import Loam.Observations.Observation312
+import Loam.Observations.Observation313
 
 namespace Loam.Observation314
 
@@ -227,6 +227,166 @@ theorem exact_of_same_fibers_as_basisProfile
       answer step operationVocabulary questionVocabulary contexts hBasis
       left right
 
+
+/--
+Any two exact classifiers under the same declared future language induce the
+same equality partition on retained states.
+-/
+theorem exactFutureClassifiersUnder_have_same_fibers
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {LeftSummary : Type uM}
+    {RightSummary : Type uM}
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (operationVocabulary : Loam.Observation312.OperationVocabulary Operation)
+    (questionVocabulary : Loam.Observation029.Vocabulary Question)
+    (leftEncode : State → LeftSummary)
+    (rightEncode : State → RightSummary)
+    (hLeft :
+      Loam.Observation312.ExactFutureClassifierUnder
+        answer step operationVocabulary questionVocabulary leftEncode)
+    (hRight :
+      Loam.Observation312.ExactFutureClassifierUnder
+        answer step operationVocabulary questionVocabulary rightEncode)
+    (left right : State) :
+    leftEncode left = leftEncode right ↔
+      rightEncode left = rightEncode right := by
+  rw [hLeft left right, hRight left right]
+
+/-! ## Document-provenance depth-one basis -/
+
+abbrev ProvenanceState :=
+  Loam.Examples.DocumentProvenanceFutureContext.State
+
+abbrev ProvenanceOperation :=
+  Loam.Examples.DocumentProvenanceFutureContext.Operation
+
+abbrev ProvenanceQuestion :=
+  Loam.Examples.DocumentProvenanceFutureContext.Question
+
+/--
+The two contexts mechanically generated at depth one in Observation 313.
+-/
+def provenanceDepthOneContexts :
+    List (FutureContext ProvenanceOperation ProvenanceQuestion) :=
+  [ ([], .aDerivedToDInTwoSteps)
+  , ([Loam.Observation313.publishFuture], .aDerivedToDInTwoSteps)
+  ]
+
+/--
+The provenance example's depth-one contexts are not merely distinguishing on
+three witness states. They form a basis for every retained provenance state
+under the selected operation/question language.
+-/
+theorem provenance_depth_one_contexts_form_basis :
+    FutureContextBasisUnder
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      Loam.Observation313.SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      provenanceDepthOneContexts := by
+  constructor
+  · intro context hMem
+    simp only [provenanceDepthOneContexts, List.mem_cons,
+      List.mem_singleton] at hMem
+    rcases hMem with hNow | hNext
+    · subst context
+      constructor
+      · exact
+          Loam.Observation312.empty_continuation_allowed
+            Loam.Observation313.SelectedOperations
+      · simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary]
+    · subst context
+      constructor
+      · intro operation hOperation
+        simp only [List.mem_cons, List.mem_singleton] at hOperation
+        rcases hOperation with hOperation | hImpossible
+        · subst operation
+          rfl
+        · simp at hImpossible
+      · simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary]
+  · intro continuation question hAllowed _
+    cases question
+    by_cases hEmpty : continuation = []
+    · subst continuation
+      refine
+        ⟨([], .aDerivedToDInTwoSteps), ?_, ?_⟩
+      · simp [provenanceDepthOneContexts]
+      · intro state
+        rfl
+    · refine
+        ⟨([Loam.Observation313.publishFuture], .aDerivedToDInTwoSteps),
+          ?_, ?_⟩
+      · simp [provenanceDepthOneContexts]
+      · intro state
+        have hAnswer :=
+          Loam.Observation313.selected_continuation_answer
+            state continuation hAllowed
+        have hAfter :
+            Loam.Examples.DocumentProvenanceFutureContext.answer
+                (Loam.Observation192.run
+                  Loam.Examples.DocumentProvenanceFutureContext.step
+                  state continuation)
+                .aDerivedToDInTwoSteps =
+              Loam.Examples.DocumentProvenanceFutureContext.answer
+                (Loam.Examples.DocumentProvenanceFutureContext.step
+                  state Loam.Observation313.publishFuture)
+                .aDerivedToDInTwoSteps := by
+          simpa [hEmpty] using hAnswer
+        simpa [contextAnswer, Loam.Observation192.run] using hAfter.symm
+
+theorem provenance_basis_profile_is_exact :
+    Loam.Observation312.ExactFutureClassifierUnder
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      Loam.Observation313.SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      (basisProfile
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+        Loam.Examples.DocumentProvenanceFutureContext.step
+        provenanceDepthOneContexts) :=
+  futureContextBasis_profile_is_exact
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+    Loam.Examples.DocumentProvenanceFutureContext.step
+    Loam.Observation313.SelectedOperations
+    Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+    provenanceDepthOneContexts
+    provenance_depth_one_contexts_form_basis
+
+/--
+The mechanically generated depth-one list signature and the generic finite-basis
+profile induce exactly the same partition on every retained provenance state.
+-/
+theorem provenance_generated_signature_has_basis_fibers
+    (left right : ProvenanceState) :
+    Loam.Observation313.provenanceSignatureAtDepth 1 left =
+        Loam.Observation313.provenanceSignatureAtDepth 1 right ↔
+      basisProfile
+          Loam.Examples.DocumentProvenanceFutureContext.answer
+          Loam.Examples.DocumentProvenanceFutureContext.step
+          provenanceDepthOneContexts left =
+        basisProfile
+          Loam.Examples.DocumentProvenanceFutureContext.answer
+          Loam.Examples.DocumentProvenanceFutureContext.step
+          provenanceDepthOneContexts right := by
+  exact
+    exactFutureClassifiersUnder_have_same_fibers
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      Loam.Observation313.SelectedOperations
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      (Loam.Observation313.provenanceSignatureAtDepth 1)
+      (basisProfile
+        Loam.Examples.DocumentProvenanceFutureContext.answer
+        Loam.Examples.DocumentProvenanceFutureContext.step
+        provenanceDepthOneContexts)
+      Loam.Observation313.provenance_depth_one_signature_is_exact
+      provenance_basis_profile_is_exact
+      left right
+
 /-!
 ## Finding
 
@@ -266,9 +426,9 @@ proves basis completeness.
 
 That boundary also sharpens the next research options:
 
-- connect Observation-308 list signatures to this basis theorem;
-- prove the ActualReversal and provenance depth-one context sets satisfy the
-  basis condition;
+- connect Observation-308 list signatures to this basis theorem more directly;
+- prove the ActualReversal depth-one context set satisfies the same basis
+  condition; the provenance case is now proved above;
 - study minimal bases / minimal distinguishing depth;
 - compare the resulting proof obligation directly with automata
   characterization sets and observational completeness before adding another
