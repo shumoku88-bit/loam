@@ -65,6 +65,16 @@ theorem summary_collision_candidate_count :
       Loam.Observation192.encodeVisible = 10 := by
   native_decide
 
+
+/--
+Removing self-pairs and symmetric duplicates leaves one distinct colliding pair
+(the two visible=false worlds). With two continuations, only two payloads remain.
+-/
+theorem distinct_summary_collision_candidate_count :
+    searchSpace.distinctSummaryCollisionCandidateCount
+      Loam.Observation192.encodeVisible = 2 := by
+  native_decide
+
 /-- The collision-prefiltered explorer still discovers the reveal witness. -/
 def collisionSearch :=
   searchSpace.searchSummaryCollisions
@@ -76,6 +86,20 @@ def collisionSearch :=
 
 theorem collision_search_finds_counterexample :
     collisionSearch.isSome = true := by
+  native_decide
+
+
+/-- Search the same fixture using distinct unordered summary collisions only. -/
+def distinctCollisionSearch :=
+  searchSpace.searchDistinctSummaryCollisions
+    Loam.Observation192.revealAnswer
+    Loam.Observation192.revealStep
+    Loam.Observation192.VisibleVocabulary
+    Loam.Observation298.decideVisibleVocabulary
+    Loam.Observation192.encodeVisible
+
+theorem distinct_collision_search_finds_counterexample :
+    distinctCollisionSearch.isSome = true := by
   native_decide
 
 /--
@@ -104,6 +128,32 @@ theorem collision_search_refutes_visible_summary :
           payload
           (by simpa [collisionSearch] using hSearch)
 
+
+/--
+The narrowest explorer still returns a checker-certified witness.
+-/
+theorem distinct_collision_search_refutes_visible_summary :
+    ¬ Loam.Observation192.FutureSufficient
+      Loam.Observation192.revealAnswer
+      Loam.Observation192.revealStep
+      Loam.Observation192.VisibleVocabulary
+      Loam.Observation192.encodeVisible := by
+  have hSome : distinctCollisionSearch.isSome = true :=
+    distinct_collision_search_finds_counterexample
+  cases hSearch : distinctCollisionSearch with
+  | none =>
+      simp [hSearch] at hSome
+  | some payload =>
+      exact
+        searchSpace.searchDistinctSummaryCollisions_some_refutes_futureSufficient
+          Loam.Observation192.revealAnswer
+          Loam.Observation192.revealStep
+          Loam.Observation192.VisibleVocabulary
+          Loam.Observation298.decideVisibleVocabulary
+          Loam.Observation192.encodeVisible
+          payload
+          (by simpa [distinctCollisionSearch] using hSearch)
+
 /-!
 ## Finding
 
@@ -126,9 +176,9 @@ The bounded exploration pipeline can now be decomposed explicitly:
             v
       certified witness
 
-In the small reveal fixture, the candidate count falls from 18 to 10 after one
-irrelevant state is added, while the known depth-one future distinction remains
-discoverable.
+In the small reveal fixture, the candidate count falls from 18 to 10 after
+current-summary filtering and then to 2 after removing self-pairs and symmetric
+duplicates. The known depth-one future distinction remains discoverable.
 
 No new semantic trust is placed in the collision filter. A buggy or incomplete
 explorer may miss witnesses, but anything it does return must still pass the
