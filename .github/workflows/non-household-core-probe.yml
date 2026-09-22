@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Examples/PhysicalInventory.lean'
       - 'Loam/Examples/ScientificObservation.lean'
+      - 'Loam/Examples/ScientificFutureContext.lean'
       - 'Loam/Examples/DocumentProvenanceBoundary.lean'
       - 'Loam/Examples/PersonalSemanticMemory.lean'
       - 'Loam/Examples/PersonalSemanticMemoryPersistence.lean'
@@ -41,6 +42,7 @@ jobs:
         run: |
           lake env lean Loam/Examples/PhysicalInventory.lean
           lake env lean Loam/Examples/ScientificObservation.lean
+          lake env lean Loam/Examples/ScientificFutureContext.lean
           lake env lean Loam/Examples/DocumentProvenanceBoundary.lean
           lake env lean Loam/Examples/PersonalSemanticMemory.lean
           lake build Loam.Examples.PersonalSemanticMemory
