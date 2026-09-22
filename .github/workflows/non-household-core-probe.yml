@@ -48,13 +48,13 @@ jobs:
           lake build loamMemory
           memory_file="$(mktemp)"
           rm "$memory_file"
-          lake exe loamMemory -- init "$memory_file"
-          lake exe loamMemory -- remember "$memory_file" memory:editor "editor preference: nvim"
-          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor)" = "editor preference: nvim"
-          lake exe loamMemory -- correct "$memory_file" memory:editor memory:editor-2 "editor preference: nvim; configuration may evolve"
-          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor)" = "editor preference: nvim"
-          test "$(lake exe loamMemory -- recall "$memory_file" memory:editor-2)" = "editor preference: nvim; configuration may evolve"
-          if lake exe loamMemory -- remember "$memory_file" memory:editor "overwrite attempt"; then
+          lake exe loamMemory init "$memory_file"
+          lake exe loamMemory remember "$memory_file" memory:editor "editor preference: nvim"
+          test "$(lake exe loamMemory recall "$memory_file" memory:editor)" = "editor preference: nvim"
+          lake exe loamMemory correct "$memory_file" memory:editor memory:editor-2 "editor preference: nvim; configuration may evolve"
+          test "$(lake exe loamMemory recall "$memory_file" memory:editor)" = "editor preference: nvim"
+          test "$(lake exe loamMemory recall "$memory_file" memory:editor-2)" = "editor preference: nvim; configuration may evolve"
+          if lake exe loamMemory remember "$memory_file" memory:editor "overwrite attempt"; then
             echo "duplicate remember unexpectedly succeeded" >&2
             exit 1
           fi
