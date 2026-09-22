@@ -77,6 +77,53 @@ def candidatePayloads
                     continuation := continuation
                     question := question }))))
 
+
+/--
+Enumerate only ordered state pairs that collide under the candidate summary.
+
+This is an explorer optimization, not a trusted semantic judgment. The later
+Observation-298 checker still rechecks summary equality together with the future
+answer distinction before any theorem is derived.
+-/
+def summaryCollidingStatePairs
+    {State : Type uS}
+    {Summary : Type uM}
+    [DecidableEq Summary]
+    (encode : State → Summary)
+    (states : List State) : List (State × State) :=
+  states.flatMap
+    (fun left =>
+      states.filterMap
+        (fun right =>
+          if encode left = encode right then
+            some (left, right)
+          else
+            none))
+
+/-- Enumerate future-context payloads only from current-summary collisions. -/
+def candidatePayloadsFromSummaryCollisions
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    [DecidableEq Summary]
+    (encode : State → Summary)
+    (states : List State)
+    (operations : List Operation)
+    (questions : List Question)
+    (depth : Nat) :
+    List (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  (summaryCollidingStatePairs encode states).flatMap
+    (fun pair =>
+      (continuationsUpTo operations depth).flatMap
+        (fun continuation =>
+          questions.map
+            (fun question =>
+              { left := pair.1
+                right := pair.2
+                continuation := continuation
+                question := question })))
+
 /--
 A first-class finite slice of an otherwise potentially infinite semantic model.
 
@@ -146,6 +193,31 @@ def SearchSpace.candidateCount
     {Question : Type uQ}
     (space : SearchSpace State Operation Question) : Nat :=
   space.payloads.length
+
+
+/-- Candidate payloads after discarding state pairs with different current summaries. -/
+def SearchSpace.summaryCollisionPayloads
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Summary]
+    (encode : State → Summary) :
+    List (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  candidatePayloadsFromSummaryCollisions
+    encode space.states space.operations space.questions space.depth
+
+/-- Exact bounded candidate count after current-summary collision filtering. -/
+def SearchSpace.summaryCollisionCandidateCount
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Summary]
+    (encode : State → Summary) : Nat :=
+  (space.summaryCollisionPayloads encode).length
 
 /-- Return the first element accepted by a Boolean checker. -/
 def firstAccepted
@@ -226,6 +298,33 @@ def SearchSpace.search
   boundedCounterexampleSearch
     answer step vocabulary decideVocabulary encode
     space.states space.operations space.questions space.depth
+
+
+/--
+Search only state pairs that already collide under the candidate summary.
+
+The trusted boundary remains unchanged: every returned payload is still passed
+through the same Observation-298 checker.
+-/
+def SearchSpace.searchSummaryCollisions
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary) :
+    Option (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  firstAccepted
+    (Loam.Observation298.checkCounterexample
+      answer step vocabulary decideVocabulary encode)
+    (space.summaryCollisionPayloads encode)
 
 /--
 Soundness of the bounded searcher.
@@ -327,6 +426,66 @@ theorem SearchSpace.search_some_is_valid
     boundedCounterexampleSearch_some_is_valid
       answer step vocabulary decideVocabulary encode
       space.states space.operations space.questions space.depth payload hFound
+
+/-- A summary-collision search result is still checked into a semantic witness. -/
+theorem SearchSpace.searchSummaryCollisions_some_is_valid
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.searchSummaryCollisions
+        answer step vocabulary decideVocabulary encode = some payload) :
+    Loam.Observation298.ValidCounterexample
+      answer step vocabulary encode payload := by
+  have hAccepted :
+      Loam.Observation298.checkCounterexample
+          answer step vocabulary decideVocabulary encode payload = true :=
+    firstAccepted_some_implies_true
+      (Loam.Observation298.checkCounterexample
+        answer step vocabulary decideVocabulary encode)
+      (space.summaryCollisionPayloads encode)
+      payload hFound
+  exact
+    (Loam.Observation298.checkCounterexample_eq_true_iff
+      answer step vocabulary decideVocabulary encode payload).1 hAccepted
+
+/-- A found summary-collision witness refutes future sufficiency. -/
+theorem SearchSpace.searchSummaryCollisions_some_refutes_futureSufficient
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.searchSummaryCollisions
+        answer step vocabulary decideVocabulary encode = some payload) :
+    ¬ Loam.Observation192.FutureSufficient
+      answer step vocabulary encode := by
+  exact
+    Loam.Observation298.validCounterexample_refutes_futureSufficient
+      answer step vocabulary encode payload
+      (space.searchSummaryCollisions_some_is_valid
+        answer step vocabulary decideVocabulary encode payload hFound)
 
 /-- A found payload from the finite slice refutes the candidate compression. -/
 theorem SearchSpace.search_some_refutes_futureSufficient
