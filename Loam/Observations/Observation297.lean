@@ -147,10 +147,14 @@ theorem reconstructingComplement_implies_updateIndependent
   rcases hComplement with ⟨recover, hRecover⟩
   refine ⟨
     fun summary operation =>
-      let next := step (recover summary) operation
-      (view next, complement next), ?_⟩
+      ( view (step (recover summary) operation)
+      , complement (step (recover summary) operation) ), ?_⟩
   intro state operation
-  simp only
+  change
+    ( view (step (recover (view state, complement state)) operation)
+    , complement (step (recover (view state, complement state)) operation) ) =
+      ( view (step state operation)
+      , complement (step state operation) )
   rw [hRecover]
 
 /--
