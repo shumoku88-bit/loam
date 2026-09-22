@@ -96,6 +96,9 @@ theorem query_and_update_independence_imply_futureSufficient
     fun summary continuation question =>
       decode (runSummary summaryStep summary continuation) question, ?_⟩
   intro state continuation question hVisible
+  change
+    decode (runSummary summaryStep (encode state) continuation) question =
+      answer (Loam.Observation192.run step state continuation) question
   rw [runSummary_commutes step encode summaryStep hMaintain]
   exact hDecode
     (Loam.Observation192.run step state continuation)
@@ -135,6 +138,12 @@ theorem reconstructingComplement_implies_futureSufficient
         (Loam.Observation192.run step (recover summary) continuation)
         question, ?_⟩
   intro state continuation question _
+  change
+    answer
+        (Loam.Observation192.run
+          step (recover (view state, complement state)) continuation)
+        question =
+      answer (Loam.Observation192.run step state continuation) question
   rw [hRecover]
 
 end Generic
@@ -273,7 +282,9 @@ theorem futureSufficient_does_not_require_injective_encoding :
     have hState : hiddenFalse = hiddenTrue :=
       hInjective hidden_states_encode_equal
     have hJunk := congrArg ExampleState.junk hState
-    native_decide at hJunk
+    have : False := by
+      simpa [hiddenFalse, hiddenTrue] using hJunk
+    exact this
 
 /-!
 ## Finding
