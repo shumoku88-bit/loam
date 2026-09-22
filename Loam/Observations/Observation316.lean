@@ -197,13 +197,12 @@ theorem reversal_no_characterizing_set_at_depth_zero :
         Loam.Observation304.blockedWitnessState := by
     rintro ⟨continuation, question⟩ hMem
     have hLength := hDepth (continuation, question) hMem
-    have hLengthZero : continuation.length = 0 :=
-      Nat.eq_zero_of_le_zero hLength
-    have hEmpty : continuation = [] :=
-      List.length_eq_zero.mp hLengthZero
-    subst continuation
-    cases question
-    native_decide
+    cases continuation with
+    | nil =>
+        cases question
+        native_decide
+    | cons operation rest =>
+        simp at hLength
   have hFutureUnder :=
     (hCharacterizing.2
       Loam.Observation304.availableWitnessState
@@ -224,15 +223,8 @@ theorem reversal_characterizing_set_exists_at_depth_one :
     Loam.Observation314.reversalDepthOneContexts,
     Loam.Observation315.reversal_depth_one_contexts_characterize,
     ?_⟩
-  intro context hMem
-  simp only
-    [Loam.Observation314.reversalDepthOneContexts,
-      List.mem_cons, List.mem_singleton] at hMem
-  rcases hMem with hNow | hNext
-  · subst context
-    simp
-  · subst context
-    simp
+  simp [ContextsWithinDepth,
+    Loam.Observation314.reversalDepthOneContexts]
 
 /--
 Depth one is therefore the least semantic depth at which any finite
