@@ -115,6 +115,25 @@ theorem provenance_depth_one_candidate_count :
     (provenanceSearchSpace 1).candidateCount = 8 := by
   native_decide
 
+
+/-- Distinct unordered summary collisions reduce the same fixture to two payloads. -/
+theorem provenance_depth_one_distinct_collision_candidate_count :
+    (provenanceSearchSpace 1).distinctSummaryCollisionCandidateCount
+      Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer = 2 := by
+  native_decide
+
+def provenanceDistinctCollisionSearch :=
+  (provenanceSearchSpace 1).searchDistinctSummaryCollisions
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+    Loam.Examples.DocumentProvenanceFutureContext.step
+    Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+    decideProvenanceVocabulary
+    Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer
+
+theorem provenance_distinct_collision_search_finds_counterexample :
+    provenanceDistinctCollisionSearch.isSome = true := by
+  native_decide
+
 /--
 Without any future publication, the current-answer-only summary loses no
 selected answer inside this finite candidate set.
@@ -130,6 +149,28 @@ after publishing the same future edge.
 theorem provenance_depth_one_finds_counterexample :
     (provenanceSearch 1).isSome = true := by
   native_decide
+
+theorem provenance_distinct_collision_search_refutes_current_answer_summary :
+    ¬ Loam.Observation192.FutureSufficient
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+      Loam.Examples.DocumentProvenanceFutureContext.step
+      Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+      Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer := by
+  have hSome : provenanceDistinctCollisionSearch.isSome = true :=
+    provenance_distinct_collision_search_finds_counterexample
+  cases hSearch : provenanceDistinctCollisionSearch with
+  | none =>
+      simp [hSearch] at hSome
+  | some payload =>
+      exact
+        (provenanceSearchSpace 1).searchDistinctSummaryCollisions_some_refutes_futureSufficient
+          Loam.Examples.DocumentProvenanceFutureContext.answer
+          Loam.Examples.DocumentProvenanceFutureContext.step
+          Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
+          decideProvenanceVocabulary
+          Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer
+          payload
+          (by simpa [provenanceDistinctCollisionSearch] using hSearch)
 
 /--
 The automatically found provenance payload passes through the same generic
