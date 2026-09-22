@@ -139,6 +139,8 @@ def view (_known : List String) (state : State) : Widget :=
             ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order.")
         , Loam.Tui.Record.line
             "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate"
+        , Loam.Tui.Record.line
+            "Ctrl-U fill unresolved remainder   Ctrl-N add row   Ctrl-D drop row"
         , Loam.Tui.Record.line "Esc cancel   Date is retained from the selected Actual"
         , Loam.Tui.Record.line state.editor.notice
         ]
