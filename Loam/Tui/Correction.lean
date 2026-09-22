@@ -24,6 +24,7 @@ structure State where
 structure Step where
   state : State
   cancel : Bool := false
+  enableUnresolved : Bool := false
   publish : Option Loam.CorrectionPublisher.Draft := none
 
 private def rowsFromRecord
@@ -103,7 +104,9 @@ def update
   if step.cancel then
     { state := next, cancel := true }
   else
-    { state := next, publish := step.publish.map (publisherDraft state.target) }
+    { state := next
+      enableUnresolved := step.enableUnresolved
+      publish := step.publish.map (publisherDraft state.target) }
 
 /-- Return a failed publication attempt to editable replacement evidence. -/
 def withPublishError (state : State) (message : String) : State :=
@@ -144,6 +147,8 @@ def view (_known : List String) (state : State) : Widget :=
         , Loam.Tui.Record.line "Esc cancel   Date is retained from the selected Actual"
         , Loam.Tui.Record.line state.editor.notice
         ]
+  | .enableUnresolved =>
+      Loam.Tui.Record.view _known state.editor
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <|
