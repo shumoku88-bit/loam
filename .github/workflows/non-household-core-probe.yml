@@ -46,15 +46,34 @@ jobs:
           lake build Loam.Examples.PersonalSemanticMemory
           lake env lean Loam/Examples/PersonalSemanticMemoryPersistence.lean
           lake build loamMemory
+
+          unset LOAM_MEMORY_FILE
+          if missing_env_output="$(lake exe loamMemory init 2>&1)"; then
+            echo "init unexpectedly succeeded without a memory path" >&2
+            exit 1
+          fi
+          echo "$missing_env_output" | grep -F "LOAM_MEMORY_FILE is not set"
+
           memory_file="$(mktemp)"
           rm "$memory_file"
-          lake exe loamMemory init "$memory_file"
-          lake exe loamMemory remember "$memory_file" memory:editor "editor preference: nvim"
-          test "$(lake exe loamMemory recall "$memory_file" memory:editor)" = "editor preference: nvim"
-          lake exe loamMemory correct "$memory_file" memory:editor memory:editor-2 "editor preference: nvim; configuration may evolve"
-          test "$(lake exe loamMemory recall "$memory_file" memory:editor)" = "editor preference: nvim"
-          test "$(lake exe loamMemory recall "$memory_file" memory:editor-2)" = "editor preference: nvim; configuration may evolve"
-          if lake exe loamMemory remember "$memory_file" memory:editor "overwrite attempt"; then
+          export LOAM_MEMORY_FILE="$memory_file"
+          lake exe loamMemory init
+          lake exe loamMemory remember memory:editor "editor preference: nvim"
+          test "$(lake exe loamMemory recall memory:editor)" = "editor preference: nvim"
+          lake exe loamMemory correct memory:editor memory:editor-2 "editor preference: nvim; configuration may evolve"
+          test "$(lake exe loamMemory recall memory:editor)" = "editor preference: nvim"
+          test "$(lake exe loamMemory recall memory:editor-2)" = "editor preference: nvim; configuration may evolve"
+          if lake exe loamMemory remember memory:editor "overwrite attempt"; then
             echo "duplicate remember unexpectedly succeeded" >&2
+            exit 1
+          fi
+
+          explicit_file="$(mktemp)"
+          rm "$explicit_file"
+          lake exe loamMemory init "$explicit_file"
+          lake exe loamMemory remember "$explicit_file" memory:explicit "explicit path wins"
+          test "$(lake exe loamMemory recall "$explicit_file" memory:explicit)" = "explicit path wins"
+          if lake exe loamMemory recall memory:explicit; then
+            echo "explicit-path fact leaked into LOAM_MEMORY_FILE target" >&2
             exit 1
           fi
