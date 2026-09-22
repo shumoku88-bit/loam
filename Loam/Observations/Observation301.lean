@@ -43,29 +43,25 @@ private def documents : EventMemory :=
   { events := [docA, docB, docC, docD]
     idNodup := by native_decide }
 
-private def leftBase : DocumentDerivation :=
-  { source := docA.id, derived := docB.id }
-
-private def rightBase : DocumentDerivation :=
-  { source := docC.id, derived := docB.id }
-
-private def leftState :
+/--
+A base-source identity is enough to generate the retained provenance topology
+for this bounded experiment. The common derived endpoint stays fixed at B.
+-/
+private def provenanceStateFromSource
+    (source : EventId) :
     Loam.Examples.DocumentProvenanceFutureContext.State :=
   { documents := documents
-    derivations := { edges := [leftBase] } }
+    derivations :=
+      { edges :=
+          [ { source := source
+              derived := docB.id } ] } }
 
-private def rightState :
-    Loam.Examples.DocumentProvenanceFutureContext.State :=
-  { documents := documents
-    derivations := { edges := [rightBase] } }
+private def provenanceSeeds : List EventId :=
+  [docA.id, docC.id]
 
 private def publishFuture :
     Loam.Examples.DocumentProvenanceFutureContext.Operation :=
   .publish { source := docB.id, derived := docD.id }
-
-private def provenanceStates :
-    List Loam.Examples.DocumentProvenanceFutureContext.State :=
-  [leftState, rightState]
 
 private def provenanceOperations :
     List Loam.Examples.DocumentProvenanceFutureContext.Operation :=
@@ -86,10 +82,25 @@ private def provenanceSearchSpace (depth : Nat) :
       Loam.Examples.DocumentProvenanceFutureContext.State
       Loam.Examples.DocumentProvenanceFutureContext.Operation
       Loam.Examples.DocumentProvenanceFutureContext.Question :=
-  { states := provenanceStates
-    operations := provenanceOperations
-    questions := provenanceQuestions
-    depth := depth }
+  Loam.Observation299.SearchSpace.fromSeeds
+    provenanceSeeds
+    provenanceStateFromSource
+    provenanceOperations
+    provenanceQuestions
+    depth
+
+theorem provenance_seed_count :
+    (provenanceSearchSpace 1).states.length = provenanceSeeds.length := by
+  simp [provenanceSearchSpace]
+
+/-- The generated provenance worlds share the selected answer before publication. -/
+theorem provenance_generated_current_summaries :
+    provenanceSeeds.map
+        (fun seed =>
+          Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer
+            (provenanceStateFromSource seed)) =
+      [false, false] := by
+  native_decide
 
 def provenanceSearch (depth : Nat) :=
   (provenanceSearchSpace depth).search
