@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Tui.Record
+import Loam.Tui.UnresolvedActivation
 import Loam.MovementDraftReview
 import Loam.MovementPublisher
 import Loam.ActualReview
@@ -89,6 +90,7 @@ def main (args : List String) : IO Unit := do
   match directPreview.state.mode with
   | .preview _ choice => expect (choice.val == 0) "direct preview did not select Publish"
   | .editing => throw (IO.userError "final amount Enter did not open preview")
+  | .enableUnresolved => throw (IO.userError "final amount Enter opened unresolved activation")
   expect (directPreview.publish.isNone) "direct preview published without confirmation"
   expect ((update w [] directPreview.state .enter).publish.isSome)
     "direct preview did not preserve explicit publish confirmation"
@@ -100,6 +102,7 @@ def main (args : List String) : IO Unit := do
   match previewed.state.mode with
   | .preview _ choice => expect (choice.val == 0) "Preview action did not open preview"
   | .editing => throw (IO.userError "Preview action did not open preview")
+  | .enableUnresolved => throw (IO.userError "Preview action opened unresolved activation")
 
   let addPostingForm := { readyForm with focus := ⟨8, by decide⟩ }
   let added := update w [] { form := addPostingForm } .enter
@@ -138,11 +141,41 @@ def main (args : List String) : IO Unit := do
     rows := #[
       { locus := "paypay", amount := "-5800" },
       { locus := "books", amount := "1200" }] }
-  let unresolvedBlocked := update w [] { form := unresolvedStartForm } (.ctrl 'u')
-  expect (unresolvedBlocked.state.form.rows == unresolvedStartForm.rows)
-    "unresolved remainder changed rows without admitted suspense Locus"
-  expect (!unresolvedBlocked.state.notice.isEmpty)
-    "missing suspense Locus did not explain why unresolved recording is unavailable"
+  let unresolvedPrompt := update w [] { form := unresolvedStartForm } (.ctrl 'u')
+  expect (unresolvedPrompt.state.form.rows == unresolvedStartForm.rows)
+    "unresolved activation prompt changed rows before policy admission"
+  expect (!unresolvedPrompt.enableUnresolved)
+    "unresolved activation prompt requested durable policy without confirmation"
+  match unresolvedPrompt.state.mode with
+  | .enableUnresolved => pure ()
+  | _ => throw (IO.userError "missing suspense Locus did not open explicit activation confirmation")
+  let unresolvedEnable := update w [] unresolvedPrompt.state .enter
+  expect unresolvedEnable.enableUnresolved
+    "explicit unresolved confirmation did not emit activation intent"
+  expect (unresolvedEnable.publish.isNone)
+    "unresolved activation confirmation also emitted Actual publication"
+  let unresolvedBack := update w [] unresolvedPrompt.state (.input 'e')
+  match unresolvedBack.state.mode with
+  | .editing => pure ()
+  | _ => throw (IO.userError "unresolved activation return did not restore editing")
+
+  let activationRoot := root / "unresolved-activation"
+  IO.FS.createDirAll activationRoot
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? activationRoot w
+    | throw (IO.userError "initialize unresolved activation fixture")
+  let actualBeforeActivation ← IO.FS.readFile (activationRoot / "actual.loam")
+  let .ok enabled ← Loam.Tui.UnresolvedActivation.enable? activationRoot
+    | throw (IO.userError "enable unresolved recording")
+  expect (enabled.world.locusAdmission.allows unresolvedLocus)
+    "unresolved activation did not survive canonical world reload"
+  expect ((← IO.FS.readFile (activationRoot / "actual.loam")) == actualBeforeActivation)
+    "unresolved activation changed Actual authority"
+  let .ok enabledAgain ← Loam.Tui.UnresolvedActivation.enable? activationRoot
+    | throw (IO.userError "repeat unresolved activation did not converge")
+  expect (enabledAgain.world.locusAdmission.allows unresolvedLocus)
+    "repeat unresolved activation lost admitted suspense Locus"
+  expect ((← IO.FS.readFile (activationRoot / "actual.loam")) == actualBeforeActivation)
+    "repeat unresolved activation changed Actual authority"
 
   let some unresolvedVocabulary := LocusAdmissionVocabulary.ofLoci?
       [⟨"paypay"⟩, ⟨"books"⟩, ⟨"food"⟩, unresolvedLocus]
