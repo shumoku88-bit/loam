@@ -68,29 +68,29 @@ private theorem recordedMove_shelfA :
     Event.quantityAt recordedMove shelfA bookCopies = minusOneBook := by
   simp [recordedMove, shelfA, desk, bookCopies, oneBook, minusOneBook,
     Event.quantityAt, Effect.coordinate, Effect.ofAnonymousQuantity,
-    Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
-    Amount.ofQuantity, Quantity.ofQuanta]
+    Effect.measure, Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
+    Amount.ofQuantity, Quantity.zero, Quantity.ofQuanta]
 
 private theorem recordedMove_desk :
     Event.quantityAt recordedMove desk bookCopies = oneBook := by
   simp [recordedMove, shelfA, desk, bookCopies, oneBook, minusOneBook,
     Event.quantityAt, Effect.coordinate, Effect.ofAnonymousQuantity,
-    Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
-    Amount.ofQuantity, Quantity.ofQuanta]
+    Effect.measure, Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
+    Amount.ofQuantity, Quantity.zero, Quantity.ofQuanta]
 
 private theorem correctedMove_shelfA :
     Event.quantityAt correctedMove shelfA bookCopies = 0 := by
   simp [correctedMove, shelfA, shelfB, desk, bookCopies, oneBook, minusOneBook,
     Event.quantityAt, Effect.coordinate, Effect.ofAnonymousQuantity,
-    Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
-    Amount.ofQuantity, Quantity.ofQuanta]
+    Effect.measure, Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
+    Amount.ofQuantity, Quantity.zero, Quantity.ofQuanta]
 
 private theorem correctedMove_shelfB :
     Event.quantityAt correctedMove shelfB bookCopies = minusOneBook := by
   simp [correctedMove, shelfB, desk, bookCopies, oneBook, minusOneBook,
     Event.quantityAt, Effect.coordinate, Effect.ofAnonymousQuantity,
-    Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
-    Amount.ofQuantity, Quantity.ofQuanta]
+    Effect.measure, Effect.quantity, SomeAmount.quantity, SomeAmount.ofQuantity,
+    Amount.ofQuantity, Quantity.zero, Quantity.ofQuanta]
 
 /--
 The concrete physical movement conserves book-copy quantity across its source
