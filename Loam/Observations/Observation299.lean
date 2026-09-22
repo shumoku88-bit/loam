@@ -100,6 +100,58 @@ def summaryCollidingStatePairs
           else
             none))
 
+
+/--
+Enumerate each distinct unordered state pair exactly once, by list position.
+
+No `DecidableEq State` is required: distinctness is structural in the finite
+candidate list. This removes self-pairs and symmetric duplicates from explorer
+work without asserting any semantic equality on the state type.
+-/
+def unorderedDistinctStatePairs
+    {State : Type uS} : List State → List (State × State)
+  | [] => []
+  | left :: rest =>
+      rest.map (fun right => (left, right)) ++
+        unorderedDistinctStatePairs rest
+
+/--
+Keep only distinct unordered pairs that the candidate summary currently
+identifies.
+-/
+def distinctSummaryCollidingStatePairs
+    {State : Type uS}
+    {Summary : Type uM}
+    [DecidableEq Summary]
+    (encode : State → Summary)
+    (states : List State) : List (State × State) :=
+  (unorderedDistinctStatePairs states).filter
+    (fun pair => decide (encode pair.1 = encode pair.2))
+
+/-- Enumerate future payloads from distinct unordered summary collisions only. -/
+def candidatePayloadsFromDistinctSummaryCollisions
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    [DecidableEq Summary]
+    (encode : State → Summary)
+    (states : List State)
+    (operations : List Operation)
+    (questions : List Question)
+    (depth : Nat) :
+    List (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  (distinctSummaryCollidingStatePairs encode states).flatMap
+    (fun pair =>
+      (continuationsUpTo operations depth).flatMap
+        (fun continuation =>
+          questions.map
+            (fun question =>
+              { left := pair.1
+                right := pair.2
+                continuation := continuation
+                question := question })))
+
 /-- Enumerate future-context payloads only from current-summary collisions. -/
 def candidatePayloadsFromSummaryCollisions
     {State : Type uS}
@@ -219,6 +271,31 @@ def SearchSpace.summaryCollisionCandidateCount
     (encode : State → Summary) : Nat :=
   (space.summaryCollisionPayloads encode).length
 
+
+/-- Payloads from distinct unordered state pairs that collide under the summary. -/
+def SearchSpace.distinctSummaryCollisionPayloads
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Summary]
+    (encode : State → Summary) :
+    List (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  candidatePayloadsFromDistinctSummaryCollisions
+    encode space.states space.operations space.questions space.depth
+
+/-- Exact candidate count after distinct unordered summary-collision filtering. -/
+def SearchSpace.distinctSummaryCollisionCandidateCount
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Summary]
+    (encode : State → Summary) : Nat :=
+  (space.distinctSummaryCollisionPayloads encode).length
+
 /-- Return the first element accepted by a Boolean checker. -/
 def firstAccepted
     {α : Type uS}
@@ -325,6 +402,33 @@ def SearchSpace.searchSummaryCollisions
     (Loam.Observation298.checkCounterexample
       answer step vocabulary decideVocabulary encode)
     (space.summaryCollisionPayloads encode)
+
+
+/--
+Search distinct unordered state pairs that collide under the current summary.
+
+This is a narrower explorer than `searchSummaryCollisions`; the semantic checker
+and its trust boundary remain unchanged.
+-/
+def SearchSpace.searchDistinctSummaryCollisions
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary) :
+    Option (Loam.Observation298.CounterexamplePayload State Operation Question) :=
+  firstAccepted
+    (Loam.Observation298.checkCounterexample
+      answer step vocabulary decideVocabulary encode)
+    (space.distinctSummaryCollisionPayloads encode)
 
 /--
 Soundness of the bounded searcher.
@@ -459,6 +563,66 @@ theorem SearchSpace.searchSummaryCollisions_some_is_valid
   exact
     (Loam.Observation298.checkCounterexample_eq_true_iff
       answer step vocabulary decideVocabulary encode payload).1 hAccepted
+
+/-- A distinct-summary-collision search result remains a checked semantic witness. -/
+theorem SearchSpace.searchDistinctSummaryCollisions_some_is_valid
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.searchDistinctSummaryCollisions
+        answer step vocabulary decideVocabulary encode = some payload) :
+    Loam.Observation298.ValidCounterexample
+      answer step vocabulary encode payload := by
+  have hAccepted :
+      Loam.Observation298.checkCounterexample
+          answer step vocabulary decideVocabulary encode payload = true :=
+    firstAccepted_some_implies_true
+      (Loam.Observation298.checkCounterexample
+        answer step vocabulary decideVocabulary encode)
+      (space.distinctSummaryCollisionPayloads encode)
+      payload hFound
+  exact
+    (Loam.Observation298.checkCounterexample_eq_true_iff
+      answer step vocabulary decideVocabulary encode payload).1 hAccepted
+
+/-- A distinct-summary-collision witness refutes future sufficiency. -/
+theorem SearchSpace.searchDistinctSummaryCollisions_some_refutes_futureSufficient
+    {State : Type uS}
+    {Operation : Type uO}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {Summary : Type uM}
+    (space : SearchSpace State Operation Question)
+    [DecidableEq Answer]
+    [DecidableEq Summary]
+    (answer : State → Question → Answer)
+    (step : State → Operation → State)
+    (vocabulary : Loam.Observation029.Vocabulary Question)
+    (decideVocabulary : ∀ question, Decidable (vocabulary question))
+    (encode : State → Summary)
+    (payload : Loam.Observation298.CounterexamplePayload State Operation Question)
+    (hFound :
+      space.searchDistinctSummaryCollisions
+        answer step vocabulary decideVocabulary encode = some payload) :
+    ¬ Loam.Observation192.FutureSufficient
+      answer step vocabulary encode := by
+  exact
+    Loam.Observation298.validCounterexample_refutes_futureSufficient
+      answer step vocabulary encode payload
+      (space.searchDistinctSummaryCollisions_some_is_valid
+        answer step vocabulary decideVocabulary encode payload hFound)
 
 /-- A found summary-collision witness refutes future sufficiency. -/
 theorem SearchSpace.searchSummaryCollisions_some_refutes_futureSufficient
