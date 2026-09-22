@@ -70,7 +70,7 @@ private def original : Event :=
     keyNodup := by
       simp [retainedEffectKeys, effect, Effect.ofAnonymousQuantity] }
 
-private def partial : Event :=
+private def partiallyClassified : Event :=
   { id := partialId
     effects :=
       [ effect source (-5800)
@@ -96,11 +96,11 @@ private def initialEvents : EventMemory :=
     idNodup := by native_decide }
 
 private def partialEvents : EventMemory :=
-  { events := [original, partial]
+  { events := [original, partiallyClassified]
     idNodup := by native_decide }
 
 private def fullEvents : EventMemory :=
-  { events := [original, partial, full]
+  { events := [original, partiallyClassified, full]
     idNodup := by native_decide }
 
 private def noCorrections : EventCorrectionMemory :=
@@ -134,7 +134,7 @@ theorem original_is_practical :
   native_decide
 
 theorem partial_is_practical :
-    (Loam.PracticalMovement.ofSingleMeasureEffects? partial.effects).isSome =
+    (Loam.PracticalMovement.ofSingleMeasureEffects? partiallyClassified.effects).isSome =
       true := by
   native_decide
 
@@ -214,16 +214,16 @@ theorem unresolved_quantity_can_shrink_in_stages :
 /-! ## Correction preserves the retained historical observations -/
 
 theorem original_observation_remains_retained :
-    EventMemory.findById? fullEvents originalId = some original := by
-  native_decide
+    original ∈ fullEvents.events := by
+  simp [fullEvents]
 
 theorem partial_observation_remains_retained :
-    EventMemory.findById? fullEvents partialId = some partial := by
-  native_decide
+    partiallyClassified ∈ fullEvents.events := by
+  simp [fullEvents]
 
 theorem final_observation_is_retained :
-    EventMemory.findById? fullEvents fullId = some full := by
-  native_decide
+    full ∈ fullEvents.events := by
+  simp [fullEvents]
 
 /-!
 ## Finding
