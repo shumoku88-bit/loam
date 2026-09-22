@@ -11,13 +11,42 @@ set_option autoImplicit false
 
 private def usage : String :=
   "Usage:\n" ++
-  "  loamMemory init MEMORY_FILE\n" ++
-  "  loamMemory remember MEMORY_FILE EVENT_ID TEXT\n" ++
-  "  loamMemory recall MEMORY_FILE EVENT_ID\n" ++
-  "  loamMemory correct MEMORY_FILE TARGET_ID REPLACEMENT_ID TEXT\n" ++
+  "  loamMemory init [MEMORY_FILE]\n" ++
+  "  loamMemory remember [MEMORY_FILE] EVENT_ID TEXT\n" ++
+  "  loamMemory recall [MEMORY_FILE] EVENT_ID\n" ++
+  "  loamMemory correct [MEMORY_FILE] TARGET_ID REPLACEMENT_ID TEXT\n" ++
   "\n" ++
+  "When MEMORY_FILE is omitted, LOAM_MEMORY_FILE is used.\n" ++
+  "An explicitly supplied MEMORY_FILE always takes precedence.\n" ++
   "TEXT should be passed as one shell argument when it contains spaces.\n" ++
   "Recall addresses one explicit EventId; correction edges do not imply latest/current authority."
+
+private def resolveMemoryPath
+    (path? : Option String) : IO (Except String System.FilePath) := do
+  match path? with
+  | some path =>
+      if path.isEmpty then
+        return .error "loamMemory: memory file path must not be empty"
+      return .ok (System.FilePath.mk path)
+  | none =>
+      match ← IO.getEnv "LOAM_MEMORY_FILE" with
+      | some path =>
+          if path.isEmpty then
+            return .error "loamMemory: LOAM_MEMORY_FILE must not be empty"
+          return .ok (System.FilePath.mk path)
+      | none =>
+          return .error
+            "loamMemory: no memory file supplied and LOAM_MEMORY_FILE is not set"
+
+private def withMemoryPath
+    (path? : Option String)
+    (action : System.FilePath → IO UInt32) : IO UInt32 := do
+  match ← resolveMemoryPath path? with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok path =>
+      action path
 
 private def loadMemory (path : System.FilePath) :
     IO (Except String PersonalSemanticMemory) := do
@@ -48,8 +77,8 @@ private def saveMemory
       ("loamMemory: could not publish memory file " ++ path.toString ++
         ": " ++ toString e)
 
-private def initMemory (pathText : String) : IO UInt32 := do
-  let path := System.FilePath.mk pathText
+private def initMemory (path : System.FilePath) : IO UInt32 := do
+  let pathText := path.toString
   if ← path.pathExists then
     IO.eprintln ("loamMemory: init refused because file already exists: " ++ pathText)
     return 2
@@ -62,8 +91,8 @@ private def initMemory (pathText : String) : IO UInt32 := do
       return 0
 
 private def remember
-    (pathText idToken text : String) : IO UInt32 := do
-  let path := System.FilePath.mk pathText
+    (path : System.FilePath)
+    (idToken text : String) : IO UInt32 := do
   let memory ←
     match ← loadMemory path with
     | .error message =>
@@ -86,8 +115,9 @@ private def remember
       IO.println idToken
       return 0
 
-private def recall (pathText idToken : String) : IO UInt32 := do
-  let path := System.FilePath.mk pathText
+private def recall
+    (path : System.FilePath)
+    (idToken : String) : IO UInt32 := do
   let memory ←
     match ← loadMemory path with
     | .error message =>
@@ -103,9 +133,9 @@ private def recall (pathText idToken : String) : IO UInt32 := do
       return 0
 
 private def correct
-    (pathText targetToken replacementToken replacementText : String) :
+    (path : System.FilePath)
+    (targetToken replacementToken replacementText : String) :
     IO UInt32 := do
-  let path := System.FilePath.mk pathText
   let memory ←
     match ← loadMemory path with
     | .error message =>
@@ -131,14 +161,23 @@ private def correct
 
 def run (args : List String) : IO UInt32 := do
   match args with
+  | ["init"] =>
+      withMemoryPath none initMemory
   | ["init", memoryPath] =>
-      initMemory memoryPath
+      withMemoryPath (some memoryPath) initMemory
+  | ["remember", eventId, text] =>
+      withMemoryPath none (fun path => remember path eventId text)
   | ["remember", memoryPath, eventId, text] =>
-      remember memoryPath eventId text
+      withMemoryPath (some memoryPath) (fun path => remember path eventId text)
+  | ["recall", eventId] =>
+      withMemoryPath none (fun path => recall path eventId)
   | ["recall", memoryPath, eventId] =>
-      recall memoryPath eventId
+      withMemoryPath (some memoryPath) (fun path => recall path eventId)
+  | ["correct", targetId, replacementId, text] =>
+      withMemoryPath none (fun path => correct path targetId replacementId text)
   | ["correct", memoryPath, targetId, replacementId, text] =>
-      correct memoryPath targetId replacementId text
+      withMemoryPath (some memoryPath)
+        (fun path => correct path targetId replacementId text)
   | ["help"] =>
       IO.println usage
       return 0
