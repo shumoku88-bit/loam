@@ -123,6 +123,26 @@ def main (args : List String) : IO Unit := do
   expect (edited.state.editor.form.rows[0]!.amount == "-100")
     "Scheduled completion seed was not editable presentation state"
 
+  let unresolvedPromptForm : Loam.Tui.Record.Form :=
+    Loam.Tui.Record.replaceRows editor.editor.form #[
+      { locus := "paypay", amount := "-1000" },
+      { locus := "rent", amount := "700" }]
+  let unresolvedPromptState : Loam.Tui.ScheduledCompletion.State := {
+    editor with editor := { editor.editor with form := unresolvedPromptForm } }
+  let unresolvedPrompt := Loam.Tui.ScheduledCompletion.update
+    initialWorld ["paypay", "rent", "food"] unresolvedPromptState (.ctrl 'u')
+  expect (!unresolvedPrompt.enableUnresolved)
+    "Scheduled completion requested unresolved policy before confirmation"
+  match unresolvedPrompt.state.editor.mode with
+  | .enableUnresolved => pure ()
+  | _ => throw (IO.userError "Scheduled completion did not open unresolved activation confirmation")
+  let unresolvedEnable := Loam.Tui.ScheduledCompletion.update
+    initialWorld ["paypay", "rent", "food"] unresolvedPrompt.state .enter
+  expect unresolvedEnable.enableUnresolved
+    "Scheduled completion did not forward explicit unresolved activation intent"
+  expect (unresolvedEnable.publish.isNone)
+    "Scheduled completion unresolved activation also emitted completion publication"
+
   let .ok movementDraft := Loam.Tui.Record.draft? editor.editor.form
     | throw (IO.userError "build seeded Actual draft")
   let previewState : Loam.Tui.ScheduledCompletion.State := {
