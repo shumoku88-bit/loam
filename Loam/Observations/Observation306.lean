@@ -40,11 +40,11 @@ future behaviour.
 
 /-- The two observations that identify the three behavioural classes. -/
 def behaviourSignature
-    (class : Loam.Observation305.RetentionClass) : Bool × Bool :=
+    (retentionClass : Loam.Observation305.RetentionClass) : Bool × Bool :=
   ( Loam.Observation305.decodeCurrent
-      class .aIsReversed
+      retentionClass .aIsReversed
   , Loam.Observation305.decodeCurrent
-      (Loam.Observation305.summaryStep class .publishAB)
+      (Loam.Observation305.summaryStep retentionClass .publishAB)
       .aIsReversed )
 
 theorem available_signature :
