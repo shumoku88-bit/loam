@@ -169,8 +169,10 @@ Observation 297 defines a constructive `ReconstructingComplement` boundary:
 
     recover (view state, complement state) = state
 
-and proves that such exact source reconstruction implies `FutureSufficient` for
-every selected future vocabulary.
+and proves that such exact source reconstruction implies both current query
+sufficiency and exact local update independence for the combined representation.
+By the generic bridge, it therefore also implies `FutureSufficient` for every
+selected future vocabulary.
 
 But the strictness witness also proves a future-sufficient encoder need not be
 injective. Therefore it need not reconstruct exact retained source state.
