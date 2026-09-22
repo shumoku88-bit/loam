@@ -29,6 +29,7 @@ structure Form where
 
 inductive Mode where
   | editing
+  | enableUnresolved
   | preview (draft : Loam.MovementAdmission.Draft) (choice : Fin 3)
 
 structure State where
@@ -45,6 +46,7 @@ structure State where
 structure Step where
   state : State
   cancel : Bool := false
+  enableUnresolved : Bool := false
   publish : Option Loam.MovementAdmission.Draft := none
 
 def initial (date : String) : State := { form := { date := date } }
@@ -313,6 +315,12 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
   | .escape => { state, cancel := true }
   | _ =>
     match state.mode with
+    | .enableUnresolved =>
+        match key with
+        | .enter => { state, enableUnresolved := true }
+        | .input 'e' | .input 'E' | .backspace =>
+            { state := { state with mode := .editing, notice := "" } }
+        | _ => { state }
     | .preview draft choice =>
         match key with
         | .tab | .right =>
@@ -327,9 +335,12 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
     | .editing =>
         match key with
         | .ctrl 'u' =>
-            match fillUnresolvedRemainder? world state with
-            | .ok next => { state := next }
-            | .error message => { state := { state with notice := message } }
+            if world.locusAdmission.allows unresolvedLocus then
+              match fillUnresolvedRemainder? world state with
+              | .ok next => { state := next }
+              | .error message => { state := { state with notice := message } }
+            else
+              { state := { state with mode := .enableUnresolved, notice := "" } }
         | .ctrl 'n' =>
             if state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
@@ -428,6 +439,19 @@ def view (_known : List String) (state : State) : Widget :=
          line "Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
+  | .enableUnresolved =>
+      .column
+        [ line "Unresolved recording / Enable"
+        , line ""
+        , line "Some of this Movement is not classified yet."
+        , line "Enable unresolved recording for this household?"
+        , line ""
+        , line "This adds one ordinary admitted Locus: suspense"
+        , line "It does not record this Movement, change its Measure, or guess a category."
+        , line ""
+        , line "Enter enable   e/E or Backspace return   Esc cancel Record"
+        , line state.notice
+        ]
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
       .column <| [line "Record / Preview", line draft.validOn,

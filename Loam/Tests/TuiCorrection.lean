@@ -102,6 +102,26 @@ def main (args : List String) : IO Unit := do
   expect (shifted.state.editor.form.focus.val != 0)
     "Correction focus reached the fixed Date field"
 
+  let unresolvedPromptForm : Loam.Tui.Record.Form :=
+    Loam.Tui.Record.replaceRows editor.editor.form #[
+      { locus := "paypay", amount := "-640" },
+      { locus := "coffee", amount := "400" }]
+  let unresolvedPromptState : Loam.Tui.Correction.State := {
+    editor with editor := { editor.editor with form := unresolvedPromptForm } }
+  let unresolvedPrompt :=
+    Loam.Tui.Correction.update world known unresolvedPromptState (.ctrl 'u')
+  expect (!unresolvedPrompt.enableUnresolved)
+    "Correction requested unresolved policy before confirmation"
+  match unresolvedPrompt.state.editor.mode with
+  | .enableUnresolved => pure ()
+  | _ => throw (IO.userError "Correction did not open unresolved activation confirmation")
+  let unresolvedEnable :=
+    Loam.Tui.Correction.update world known unresolvedPrompt.state .enter
+  expect unresolvedEnable.enableUnresolved
+    "Correction did not forward explicit unresolved activation intent"
+  expect (unresolvedEnable.publish.isNone)
+    "Correction unresolved activation also emitted replacement publication"
+
   let some unresolvedVocabulary := LocusAdmissionVocabulary.ofLoci?
       [⟨"paypay"⟩, ⟨"coffee"⟩, Loam.Tui.Record.unresolvedLocus]
     | throw (IO.userError "Correction unresolved vocabulary")
