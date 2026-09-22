@@ -7,6 +7,7 @@ on:
       - 'Loam/Examples/ScientificObservation.lean'
       - 'Loam/Examples/ScientificFutureContext.lean'
       - 'Loam/Examples/DocumentProvenanceBoundary.lean'
+      - 'Loam/Examples/DocumentProvenanceFutureContext.lean'
       - 'Loam/Examples/PersonalSemanticMemory.lean'
       - 'Loam/Examples/PersonalSemanticMemoryPersistence.lean'
       - 'Loam/Cli/PersonalMemoryCli.lean'
@@ -44,6 +45,7 @@ jobs:
           lake env lean Loam/Examples/ScientificObservation.lean
           lake env lean Loam/Examples/ScientificFutureContext.lean
           lake env lean Loam/Examples/DocumentProvenanceBoundary.lean
+          lake env lean Loam/Examples/DocumentProvenanceFutureContext.lean
           lake env lean Loam/Examples/PersonalSemanticMemory.lean
           lake build Loam.Examples.PersonalSemanticMemory
           lake env lean Loam/Examples/PersonalSemanticMemoryPersistence.lean
