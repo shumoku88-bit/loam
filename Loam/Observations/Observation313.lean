@@ -35,9 +35,6 @@ The target result is stronger than the earlier bounded counterexample:
   ExactFutureClassifierUnder for this selected future language.
 -/
 
-namespace Provenance :=
-  Loam.Examples.DocumentProvenanceFutureContext
-
 private def document (token : String) : Event :=
   { id := ⟨token⟩
     effects := []
@@ -61,28 +58,28 @@ private def edgeCB : DocumentDerivation :=
 private def edgeBD : DocumentDerivation :=
   { source := docB.id, derived := docD.id }
 
-private def availableState : Provenance.State :=
+private def availableState : Loam.Examples.DocumentProvenanceFutureContext.State :=
   { documents := documents
     derivations := { edges := [edgeAB] } }
 
-private def blockedState : Provenance.State :=
+private def blockedState : Loam.Examples.DocumentProvenanceFutureContext.State :=
   { documents := documents
     derivations := { edges := [edgeCB] } }
 
-private def alreadyDerivedState : Provenance.State :=
+private def alreadyDerivedState : Loam.Examples.DocumentProvenanceFutureContext.State :=
   { documents := documents
     derivations := { edges := [edgeAB, edgeBD] } }
 
-def publishFuture : Provenance.Operation :=
+def publishFuture : Loam.Examples.DocumentProvenanceFutureContext.Operation :=
   .publish edgeBD
 
 /-- The declared future language contains exactly publication of B -> D. -/
 def SelectedOperations :
-    Loam.Observation312.OperationVocabulary Provenance.Operation :=
+    Loam.Observation312.OperationVocabulary Loam.Examples.DocumentProvenanceFutureContext.Operation :=
   fun operation => operation = publishFuture
 
 def decideSelectedOperations :
-    ∀ operation : Provenance.Operation,
+    ∀ operation : Loam.Examples.DocumentProvenanceFutureContext.Operation,
       Decidable (SelectedOperations operation) :=
   fun operation => inferInstance
 
@@ -98,53 +95,53 @@ The retained raw edge list may grow by one duplicate. The selected provenance
 answer does not.
 -/
 theorem selected_answer_after_publish_is_idempotent
-    (state : Provenance.State) :
-    Provenance.answer
-        (Provenance.step
-          (Provenance.step state publishFuture)
+    (state : Loam.Examples.DocumentProvenanceFutureContext.State) :
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Examples.DocumentProvenanceFutureContext.step
+          (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture)
           publishFuture)
         .aDerivedToDInTwoSteps =
-      Provenance.answer
-        (Provenance.step state publishFuture)
+      Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture)
         .aDerivedToDInTwoSteps := by
   by_cases hProject :
       (DocumentDerivation.project? state.documents edgeBD).isSome = true
   · have hDocuments :
-        (Provenance.step state publishFuture).documents = state.documents :=
-      Provenance.step_preserves_documents state edgeBD
-    simp [publishFuture, Provenance.step, hProject, hDocuments,
-      Provenance.answer, Provenance.derivedInTwoSteps, Provenance.hasEdge,
+        (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture).documents = state.documents :=
+      Loam.Examples.DocumentProvenanceFutureContext.step_preserves_documents state edgeBD
+    simp [publishFuture, Loam.Examples.DocumentProvenanceFutureContext.step, hProject, hDocuments,
+      Loam.Examples.DocumentProvenanceFutureContext.answer, Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps, Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
       edgeBD]
   · have hDocuments :
-        (Provenance.step state publishFuture).documents = state.documents :=
-      Provenance.step_preserves_documents state edgeBD
-    simp [publishFuture, Provenance.step, hProject, hDocuments]
+        (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture).documents = state.documents :=
+      Loam.Examples.DocumentProvenanceFutureContext.step_preserves_documents state edgeBD
+    simp [publishFuture, Loam.Examples.DocumentProvenanceFutureContext.step, hProject, hDocuments]
 
 /-! ## Bounded signatures over three canonical provenance worlds -/
 
 def provenanceSynthesisSpace (depth : Nat) :
     Loam.Observation299.SearchSpace
-      Provenance.State
-      Provenance.Operation
-      Provenance.Question :=
+      Loam.Examples.DocumentProvenanceFutureContext.State
+      Loam.Examples.DocumentProvenanceFutureContext.Operation
+      Loam.Examples.DocumentProvenanceFutureContext.Question :=
   { states := [availableState, blockedState, alreadyDerivedState]
     operations := [publishFuture]
     questions := [.aDerivedToDInTwoSteps]
     depth := depth }
 
 def decideQuestionVocabulary :
-    ∀ question : Provenance.Question,
-      Decidable (Provenance.Vocabulary question) :=
+    ∀ question : Loam.Examples.DocumentProvenanceFutureContext.Question,
+      Decidable (Loam.Examples.DocumentProvenanceFutureContext.Vocabulary question) :=
   fun _ => isTrue trivial
 
 def provenanceSignatureAtDepth
     (depth : Nat)
-    (state : Provenance.State) : List Bool :=
+    (state : Loam.Examples.DocumentProvenanceFutureContext.State) : List Bool :=
   Loam.Observation308.boundedBehaviourSignature
     (provenanceSynthesisSpace depth)
-    Provenance.answer
-    Provenance.step
-    Provenance.Vocabulary
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+    Loam.Examples.DocumentProvenanceFutureContext.step
+    Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
     decideQuestionVocabulary
     state
 
@@ -166,12 +163,12 @@ theorem depth_zero_merges_available_and_blocked :
   native_decide
 
 theorem available_and_blocked_differ_after_selected_future :
-    Provenance.answer
-        (Provenance.step availableState publishFuture)
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Examples.DocumentProvenanceFutureContext.step availableState publishFuture)
         .aDerivedToDInTwoSteps =
       true ∧
-    Provenance.answer
-        (Provenance.step blockedState publishFuture)
+    Loam.Examples.DocumentProvenanceFutureContext.answer
+        (Loam.Examples.DocumentProvenanceFutureContext.step blockedState publishFuture)
         .aDerivedToDInTwoSteps =
       false := by
   native_decide
