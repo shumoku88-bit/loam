@@ -89,6 +89,38 @@ theorem future_edge_projects :
     (DocumentDerivation.project? documents edgeBD).isSome = true := by
   native_decide
 
+/-- Duplicating one already-appended edge does not change direct-edge existence. -/
+theorem hasEdge_append_duplicate
+    (memory : Loam.Examples.DocumentProvenanceFutureContext.DerivationMemory)
+    (edge : DocumentDerivation)
+    (source derived : EventId) :
+    Loam.Examples.DocumentProvenanceFutureContext.hasEdge
+        { edges := memory.edges ++ [edge, edge] }
+        source derived =
+      Loam.Examples.DocumentProvenanceFutureContext.hasEdge
+        { edges := memory.edges ++ [edge] }
+        source derived := by
+  simp [Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
+    Bool.or_assoc]
+
+/--
+The same duplicate-invariance lifts to the selected two-step reachability
+observation.
+-/
+theorem derivedInTwoSteps_append_duplicate
+    (memory : Loam.Examples.DocumentProvenanceFutureContext.DerivationMemory)
+    (edge : DocumentDerivation)
+    (source target : EventId) :
+    Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps
+        { edges := memory.edges ++ [edge, edge] }
+        source target =
+      Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps
+        { edges := memory.edges ++ [edge] }
+        source target := by
+  simp [Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps,
+    Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
+    Bool.or_assoc, Bool.or_left_comm, Bool.or_comm]
+
 /--
 Publishing the same selected provenance edge twice does not change the selected
 two-step answer beyond the first publication.
@@ -115,19 +147,29 @@ theorem selected_answer_after_publish_is_idempotent
               { edges := state.derivations.edges ++ [edgeBD] } } := by
       simp [publishFuture,
         Loam.Examples.DocumentProvenanceFutureContext.step, hProject]
-    rw [hStep]
-    simp [publishFuture,
-      Loam.Examples.DocumentProvenanceFutureContext.step, hProject,
-      Loam.Examples.DocumentProvenanceFutureContext.answer,
-      Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps,
-      Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
-      edgeBD]
+    have hStepAgain :
+        Loam.Examples.DocumentProvenanceFutureContext.step
+            { state with
+              derivations :=
+                { edges := state.derivations.edges ++ [edgeBD] } }
+            publishFuture =
+          { state with
+            derivations :=
+              { edges := state.derivations.edges ++ [edgeBD, edgeBD] } } := by
+      simp [publishFuture,
+        Loam.Examples.DocumentProvenanceFutureContext.step, hProject]
+    rw [hStep, hStepAgain]
+    unfold Loam.Examples.DocumentProvenanceFutureContext.answer
+    simpa using
+      (derivedInTwoSteps_append_duplicate
+        state.derivations edgeBD _ _)
   · have hStep :
         Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture =
           state := by
       simp [publishFuture,
         Loam.Examples.DocumentProvenanceFutureContext.step, hProject]
-    rw [hStep]
+    rw [hStep, hStep]
+
 
 /-! ## Bounded signatures over three canonical provenance worlds -/
 
