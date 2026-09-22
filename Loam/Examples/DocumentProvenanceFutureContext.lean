@@ -99,7 +99,9 @@ theorem step_preserves_documents
     (state : State)
     (edge : DocumentDerivation) :
     (step state (.publish edge)).documents = state.documents := by
-  simp [step]
+  by_cases h : (DocumentDerivation.project? state.documents edge).isSome = true
+  · simp [step, h]
+  · simp [step, h]
 
 def answer (state : State) : Question → Bool
   | .aDerivedToDInTwoSteps =>
