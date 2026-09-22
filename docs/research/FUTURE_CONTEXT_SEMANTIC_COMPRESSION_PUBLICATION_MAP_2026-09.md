@@ -228,7 +228,37 @@ Lean proves both not FutureEquivalent left right and that the current-scalar-onl
 
 This is evidence that the selected future-context phenomenon is not caused by double-entry, balancing, transfer, or household accounting vocabulary.
 
-Important limitation: the second domain still reuses LOAM's Correction relation and CorrectionFrontier semantics. It is cross-domain evidence, not yet an independent second transition mechanism.
+Important limitation: this witness changes domain but still reuses LOAM's Correction relation and CorrectionFrontier semantics. PR #1157 supplies a separate document-provenance operation family that removes that remaining dependency.
+
+### W5 — independent document-provenance transition family
+
+PR #1157 adds Loam/Examples/DocumentProvenanceFutureContext.lean.
+
+This witness starts from the independently earned boundary in PR #1150 that
+derived-from and EventCorrection have different meanings. It uses:
+
+    quantity-free retained document Events
+    + example-local DocumentDerivation edges
+    + publication of one derived-from edge
+    + an exactly-two-step provenance question
+
+There is no AccountingRole, Quantity, BalancedMovement, EventCorrection, or
+CorrectionFrontier.
+
+Two states retain identical documents and answer the selected current provenance
+question equally. They differ only in one retained derivation edge. Publishing
+the same future B -> D derivation then yields:
+
+    left:  A -> B -> D   => true
+    right: C -> B -> D   => false
+
+Lean proves that the two states are not FutureEquivalent and that a summary
+retaining only the current selected provenance answer is not FutureSufficient.
+
+This satisfies the current Gate B requirement for an independently earned
+non-Correction transition family. It remains a bounded example-local provenance
+semantics, not a claim that two-step reachability is the correct general
+provenance model.
 
 ## 5. Nearby structures that should not be confused with the central claim
 
@@ -364,9 +394,16 @@ The important search is not for the words event sourcing or bisimulation alone. 
 
 ### Gate B — independent transition domain
 
-The scientific witness changes the domain but keeps Correction topology.
+Status: **SATISFIED BY PR #1157 for the current research threshold.**
 
-A stronger generality result would use a second operation family whose semantics is not supersession/correction. Candidate pressure could come from document provenance, scientific revision/derivation, or another non-household relation, but only if that relation is independently earned rather than invented for the paper.
+PR #1157 uses the independently earned DocumentDerivation boundary from PR #1150
+and an operation family that publishes derivation evidence rather than
+Correction/supersession evidence.
+
+This does not prove universality. It does remove the narrower concern that every
+future-context witness depended on Correction topology. A later third domain
+should be added only if literature comparison or a real product/research pressure
+shows that another transition shape would distinguish competing explanations.
 
 ### Gate C — one reusable cross-domain theorem
 
@@ -393,4 +430,4 @@ The current result is stronger when presented as an observed design law with exp
     compression must preserve the distinctions the future vocabulary can expose
     retained evidence may therefore be richer than today's answers
 
-The next work should test the claim against literature and one independently earned non-Correction transition domain before trying to turn this map into a paper.
+The next work should prioritize literature comparison and executable correspondence. The independently earned non-Correction transition gate is now met by PR #1157; additional domains should be added only when they answer a specific unresolved question.
