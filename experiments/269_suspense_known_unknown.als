@@ -134,13 +134,13 @@ assert FullResolutionLeavesNoUnresolvedQuantity {
       q[b, Suspense] = 0
 }
 
-run validUnknownExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-run validPartialClassificationExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-run partialResolutionExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-run fullResolutionExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-run invalidImbalanceExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
+run validUnknownExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+run validPartialClassificationExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+run partialResolutionExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+run fullResolutionExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+run invalidImbalanceExists for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
 
-check UnknownIsNotInvalid for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-check RedistributionPreservesPhysicalPayment for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-check RedistributionPreservesDestinationTotal for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
-check FullResolutionLeavesNoUnresolvedQuantity for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 5 Int
+check UnknownIsNotInvalid for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+check RedistributionPreservesPhysicalPayment for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+check RedistributionPreservesDestinationTotal for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
+check FullResolutionLeavesNoUnresolvedQuantity for exactly 2 Snapshot, exactly 4 Locus, exactly 1 Measure, 6 Int
