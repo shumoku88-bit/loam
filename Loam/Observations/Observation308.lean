@@ -39,7 +39,7 @@ Enumerate the selected bounded future contexts carried by one SearchSpace.
 Questions rejected by the declared vocabulary are omitted even if they were
 accidentally included in SearchSpace.questions.
 -/
-def Loam.Observation299.SearchSpace.boundedContexts
+def boundedContexts
     {State : Type uS}
     {Operation : Type uO}
     {Question : Type uQ}
@@ -62,7 +62,7 @@ The bounded future-answer vector for one retained state.
 The order is deterministic because it follows SearchSpace operation-word order
 and then SearchSpace question order.
 -/
-def Loam.Observation299.SearchSpace.boundedBehaviourSignature
+def boundedBehaviourSignature
     {State : Type uS}
     {Operation : Type uO}
     {Question : Type uQ}
@@ -73,7 +73,7 @@ def Loam.Observation299.SearchSpace.boundedBehaviourSignature
     (vocabulary : Loam.Observation029.Vocabulary Question)
     (decideVocabulary : ∀ question, Decidable (vocabulary question))
     (state : State) : List Answer :=
-  (space.boundedContexts vocabulary decideVocabulary).map
+  (boundedContexts space vocabulary decideVocabulary).map
     (fun context =>
       answer
         (Loam.Observation192.run step state context.1)
@@ -83,7 +83,7 @@ def Loam.Observation299.SearchSpace.boundedBehaviourSignature
 The distinct bounded behaviours actually realized by the caller-supplied state
 slice.
 -/
-def Loam.Observation299.SearchSpace.realizedBehaviourSignatures
+def realizedBehaviourSignatures
     {State : Type uS}
     {Operation : Type uO}
     {Question : Type uQ}
@@ -96,14 +96,14 @@ def Loam.Observation299.SearchSpace.realizedBehaviourSignatures
     (decideVocabulary : ∀ question, Decidable (vocabulary question)) :
     List (List Answer) :=
   (space.states.map
-    (space.boundedBehaviourSignature
-      answer step vocabulary decideVocabulary)).eraseDups
+    (boundedBehaviourSignature
+      space answer step vocabulary decideVocabulary)).eraseDups
 
 /--
 How many bounded behavioural classes are realized in the supplied finite state
 slice.
 -/
-def Loam.Observation299.SearchSpace.realizedBehaviourClassCount
+def realizedBehaviourClassCount
     {State : Type uS}
     {Operation : Type uO}
     {Question : Type uQ}
@@ -114,8 +114,8 @@ def Loam.Observation299.SearchSpace.realizedBehaviourClassCount
     (step : State → Operation → State)
     (vocabulary : Loam.Observation029.Vocabulary Question)
     (decideVocabulary : ∀ question, Decidable (vocabulary question)) : Nat :=
-  (space.realizedBehaviourSignatures
-    answer step vocabulary decideVocabulary).length
+  (realizedBehaviourSignatures
+    space answer step vocabulary decideVocabulary).length
 
 /-! ## ActualReversal synthesis fixture -/
 
@@ -144,7 +144,7 @@ def reversalSynthesisSpace :
 
 /-- Depth one yields exactly the current and one-publication contexts. -/
 theorem reversal_bounded_contexts :
-    reversalSynthesisSpace.boundedContexts
+    boundedContexts reversalSynthesisSpace
         Loam.Observation304.Vocabulary
         decideReversalVocabulary =
       [ ([], .aIsReversed)
@@ -153,7 +153,7 @@ theorem reversal_bounded_contexts :
   native_decide
 
 theorem reversal_available_signature :
-    reversalSynthesisSpace.boundedBehaviourSignature
+    boundedBehaviourSignature reversalSynthesisSpace
         Loam.Observation304.answer
         Loam.Observation304.step
         Loam.Observation304.Vocabulary
@@ -163,7 +163,7 @@ theorem reversal_available_signature :
   native_decide
 
 theorem reversal_blocked_signature :
-    reversalSynthesisSpace.boundedBehaviourSignature
+    boundedBehaviourSignature reversalSynthesisSpace
         Loam.Observation304.answer
         Loam.Observation304.step
         Loam.Observation304.Vocabulary
@@ -173,7 +173,7 @@ theorem reversal_blocked_signature :
   native_decide
 
 theorem reversal_already_reversed_signature :
-    reversalSynthesisSpace.boundedBehaviourSignature
+    boundedBehaviourSignature reversalSynthesisSpace
         Loam.Observation304.answer
         Loam.Observation304.step
         Loam.Observation304.Vocabulary
@@ -187,7 +187,7 @@ Without being given the hand-written class labels, bounded observation generates
 three distinct answer vectors from the three supplied retained worlds.
 -/
 theorem reversal_realized_signatures :
-    reversalSynthesisSpace.realizedBehaviourSignatures
+    realizedBehaviourSignatures reversalSynthesisSpace
         Loam.Observation304.answer
         Loam.Observation304.step
         Loam.Observation304.Vocabulary
@@ -199,7 +199,7 @@ theorem reversal_realized_signatures :
   native_decide
 
 theorem reversal_realized_class_count :
-    reversalSynthesisSpace.realizedBehaviourClassCount
+    realizedBehaviourClassCount reversalSynthesisSpace
         Loam.Observation304.answer
         Loam.Observation304.step
         Loam.Observation304.Vocabulary
