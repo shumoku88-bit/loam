@@ -300,7 +300,7 @@ theorem distinguishingContextsAgainst_contains
           ⟨context, hSome, hAllowed, hDifferent⟩
         refine ⟨context, ?_, hAllowed, hDifferent⟩
         simp [distinguishingContextsAgainst, hSome]
-      · rcases ih hTail hNot with
+      · rcases ih right hTail hNot with
           ⟨context, hMem, hAllowed, hDifferent⟩
         refine ⟨context, ?_, hAllowed, hDifferent⟩
         cases hOption :
@@ -424,7 +424,7 @@ theorem distinguishingContextsFrom_contains
         exact
           List.mem_append.mpr
             (Or.inl hMem)
-      · rcases ih hTail hRight hNot with
+      · rcases ih left right hTail hRight hNot with
           ⟨context, hMem, hAllowed, hDifferent⟩
         refine ⟨context, ?_, hAllowed, hDifferent⟩
         exact
