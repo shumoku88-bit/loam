@@ -1171,6 +1171,7 @@ def run (args : List String) : IO UInt32 := do
     return 0
   finally
     Loam.Tui.Terminal.leave
+    Loam.Tui.FavaLaunch.shutdown
 
 end Loam.Tui.Cli
 

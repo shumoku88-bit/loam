@@ -8,7 +8,34 @@ set_option autoImplicit false
 def defaultOutputPath : System.FilePath := "/tmp/loam-fava-household.beancount"
 def defaultReportPath : System.FilePath := "/tmp/loam-fava-household-report.txt"
 def defaultLogPath : System.FilePath := "/tmp/loam-fava.log"
+def defaultPidPath : System.FilePath := "/tmp/loam-fava.pid"
 def defaultPort : Nat := 5001
+
+private structure OwnedSession where
+  child : IO.Process.Child { stdin := .null }
+  port : Nat
+
+initialize activeSessionRef : IO.Ref (Option OwnedSession) ← IO.mkRef none
+
+/-- Check if this TUI session currently owns an active Fava process. -/
+def hasActiveSession : IO Bool := do
+  return (← activeSessionRef.get).isSome
+
+/-- Returns the OS process ID of the owned Fava process, if one is currently active. -/
+def activeSessionPid? : IO (Option UInt32) := do
+  return (← activeSessionRef.get).map fun s => s.child.pid
+
+/--
+Shutdown any Fava server owned by this TUI session.
+Terminates the entire process group (setsid) so that both uvx wrapper and python/fava exit.
+Cleans up the PID file and reaps the child process to prevent zombies.
+-/
+def shutdown : IO Unit := do
+  if let some session ← activeSessionRef.get then
+    activeSessionRef.set none
+    try session.child.kill catch _ => pure ()
+    discard <| session.child.tryWait
+    try IO.FS.removeFile defaultPidPath catch _ => pure ()
 
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
@@ -61,30 +88,53 @@ private partial def waitForFavaHealthy (port : Nat) (attemptsLeft : Nat) : IO Bo
 
 /--
 Ensure Fava is running on the given port.
-Reuses healthy existing server or launches a detached background process.
+Reuses healthy existing server or launches a process group owned by this TUI session.
 Guards against collision with unrelated non-Fava services on the same port.
 -/
 def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : IO (Except String Bool) := do
+  -- Check if we already own an active, healthy session on this port
+  if let some session ← activeSessionRef.get then
+    if session.port == port && (← isFavaResponding port) then
+      return .ok false
+    else
+      shutdown
+
+  -- Check if an external Fava instance is already responding on this port
   if ← isFavaResponding port then
-    return .ok false  -- already running healthy Fava instance
+    return .ok false
 
   -- Check if port is occupied by another non-Fava service
   if ← isPortListening port then
     return .error s!"Port {port} is occupied by an unrelated process; choose another port"
 
-  let cmd := s!"uvx --from fava fava --port {port} {beancountPath.toString} > {logPath.toString} 2>&1 &"
+  -- Spawn in its own session / process group (setsid) using exec so uvx becomes the group leader.
+  -- Redirect stdin from /dev/null so Python runtime does not fail with Errno 9 Bad file descriptor in a detached session.
+  -- No trailing '&' is used because IO.Process.spawn runs asynchronously and retains direct Child ownership.
+  let cmd := s!"exec uvx --from fava fava --port {port} {beancountPath.toString} < /dev/null > {logPath.toString} 2>&1"
+  let child ←
+    try
+      IO.Process.spawn {
+        cmd := "sh",
+        args := #["-c", cmd],
+        stdin := .null,
+        setsid := true
+      }
+    catch e =>
+      return .error s!"Failed to spawn Fava: {e}"
+
+  let pid := child.pid
   try
-    discard <| IO.Process.spawn {
-      cmd := "sh",
-      args := #["-c", cmd]
-    }
-  catch e =>
-    return .error s!"Failed to spawn Fava: {e}"
+    IO.FS.writeFile defaultPidPath s!"{pid}\n"
+  catch _ =>
+    pure ()
+
+  activeSessionRef.set (some { child := child, port := port })
 
   -- Wait up to 3 seconds (15 * 200ms) for Fava to start listening
   if ← waitForFavaHealthy port 15 then
     return .ok true
   else
+    shutdown
     return .error s!"Fava started but did not respond on port {port}; check {logPath}"
 
 /--
@@ -115,8 +165,9 @@ def launch
           return s!"Fava server unavailable: {message}"
       | .ok newlyStarted =>
           let url := s!"http://127.0.0.1:{port}"
-          openBrowser url
-          let statusNote := if newlyStarted then "started & opened" else "reloaded & opened"
+          if newlyStarted then
+            openBrowser url
+          let statusNote := if newlyStarted then "started & opened" else "refreshed projection (browser updated)"
           return s!"Exported {res.exportedCount} events ({res.unresolvedEffectCount} suspense) -> Fava {statusNote} at {url}"
 
 end Loam.Tui.FavaLaunch

@@ -31,6 +31,9 @@ In `loamTui`:
 
 This automatically regenerates `/tmp/loam-fava-household.beancount` in `--suspense` mode, starts the Fava server on port 5001 if not already running, and opens `http://127.0.0.1:5001` in your browser.
 
+**Lifecycle & Process Ownership**:
+The spawned Fava server runs in a dedicated process group owned by the active `loamTui` session. When `loamTui` terminates (via `q`, `Esc`, unhandled error, or interrupt), the entire Fava process group is automatically terminated, freeing port 5001 and removing `/tmp/loam-fava.pid` so no orphaned background processes remain.
+
 ---
 
 ### Manual CLI Workflow
