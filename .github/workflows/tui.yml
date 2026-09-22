@@ -556,3 +556,37 @@ jobs:
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py
+
+  issue1134_benchmark:
+    name: Issue 1134 correction-heavy read benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Re-measure corrected Actual history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-actual-read.py \
+            --no-build \
+            --shape corrected \
+            --sizes 1000 5000 10000 50000 \
+            --repeat 3 \
+            --timeout 300 \
+            | tee /tmp/issue-1134-benchmark.tsv
