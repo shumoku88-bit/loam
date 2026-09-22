@@ -77,6 +77,20 @@ It is closer to:
 > reclassification changes interpretation of the unresolved destination quantity,
 > not the observed physical payment.
 
+## Integer-width qualification note
+
+The first executable pass used 5-bit Alloy integers. That scope can represent
+only -16..15, while four bounded Locus quantities may participate in sums up to
+28. Alloy therefore found wraparound counterexamples to the two preservation
+assertions.
+
+Those are model-arithmetic artifacts, not household-semantic witnesses. The
+qualified scope uses 6-bit integers (-32..31), which covers every intermediate
+sum admitted by the explicit -7..7 per-Locus bounds.
+
+This is kept in the observation because the integer-width assumption is part of
+the bounded formal result.
+
 ## Expected qualification matrix
 
 The first bounded run should require:
