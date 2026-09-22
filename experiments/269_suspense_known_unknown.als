@@ -1,5 +1,7 @@
 module experiments/observation_269_suspense_known_unknown
 
+open util/integer
+
 one sig Measure {}
 
 abstract sig Locus {}
@@ -44,7 +46,7 @@ pred unresolved[s: Snapshot] {
 
 pred partiallyKnown[s: Snapshot] {
   unresolved[s]
-  q[s, KnownA] + q[s, KnownB] > 0
+  q[s, KnownA].add[q[s, KnownB]] > 0
 }
 
 pred resolved[s: Snapshot] {
@@ -67,13 +69,13 @@ pred classificationRedistribution[a, b: Snapshot] {
   q[b, KnownB] >= q[a, KnownB]
   q[b, Suspense] <= q[a, Suspense]
 
-  let movedA = q[b, KnownA] - q[a, KnownA] |
-  let movedB = q[b, KnownB] - q[a, KnownB] |
-  let removed = q[a, Suspense] - q[b, Suspense] | {
+  let movedA = q[b, KnownA].sub[q[a, KnownA]] |
+  let movedB = q[b, KnownB].sub[q[a, KnownB]] |
+  let removed = q[a, Suspense].sub[q[b, Suspense]] | {
     movedA >= 0
     movedB >= 0
     removed >= 0
-    removed = movedA + movedB
+    removed = movedA.add[movedB]
   }
 }
 
@@ -122,8 +124,8 @@ assert RedistributionPreservesPhysicalPayment {
 assert RedistributionPreservesDestinationTotal {
   all a, b: Snapshot |
     classificationRedistribution[a, b] implies
-      q[a, KnownA] + q[a, KnownB] + q[a, Suspense] =
-        q[b, KnownA] + q[b, KnownB] + q[b, Suspense]
+      q[a, KnownA].add[q[a, KnownB]].add[q[a, Suspense]] =
+        q[b, KnownA].add[q[b, KnownB]].add[q[b, Suspense]]
 }
 
 assert FullResolutionLeavesNoUnresolvedQuantity {
