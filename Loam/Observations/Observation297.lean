@@ -308,6 +308,48 @@ theorem futureSufficient_does_not_imply_updateIndependent :
           hMaintain hiddenTrue .promote
     exact promoted_encodings_differ hSameNext
 
+/-- A simpler summary keeps only the selected visible information. -/
+def visibleOnlyEncode (state : ExampleState) : Bool :=
+  state.visible
+
+private def visibleOnlyDecode (summary : Bool) : ExampleQuestion → Bool
+  | .visible => summary
+
+/-- The visible-only summary answers the selected current vocabulary. -/
+theorem visibleOnlyEncode_is_currently_sufficient :
+    Loam.Observation029.SufficientFor
+      exampleAnswer ExampleVocabulary visibleOnlyEncode := by
+  refine ⟨visibleOnlyDecode, ?_⟩
+  intro state question _
+  cases question
+  rfl
+
+/-- The visible-only summary is exactly locally maintainable under `promote`. -/
+theorem visibleOnlyEncode_is_updateIndependent :
+    UpdateIndependent exampleStep visibleOnlyEncode := by
+  refine ⟨fun _ operation =>
+    match operation with
+    | .promote => true, ?_⟩
+  intro state operation
+  cases operation
+  rfl
+
+/-- Yet the query/update-independent summary still forgets retained `junk`. -/
+theorem query_and_update_independence_do_not_require_injective_encoding :
+    Loam.Observation029.SufficientFor
+        exampleAnswer ExampleVocabulary visibleOnlyEncode ∧
+      UpdateIndependent exampleStep visibleOnlyEncode ∧
+      ¬ Function.Injective visibleOnlyEncode := by
+  refine ⟨visibleOnlyEncode_is_currently_sufficient,
+    visibleOnlyEncode_is_updateIndependent, ?_⟩
+  intro hInjective
+  have hState : hiddenFalse = hiddenTrue :=
+    hInjective (by rfl)
+  have hJunk := congrArg ExampleState.junk hState
+  have : False := by
+    simpa [hiddenFalse, hiddenTrue] using hJunk
+  exact this
+
 /--
 Future-sufficient summaries need not reconstruct exact retained source state.
 This separates LOAM's selected-future-answer criterion from a classical lossless
