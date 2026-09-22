@@ -91,10 +91,12 @@ theorem exists_distinguishing_context_of_not_futureEquivalentUnder
         Loam.Observation314.contextAnswer answer step left context ≠
           Loam.Observation314.contextAnswer answer step right context := by
   classical
-  by_contra hNoContext
+  apply Classical.byContradiction
+  intro hNoContext
   apply hNot
   intro continuation question hAllowed hVisible
-  by_contra hDifferent
+  apply Classical.byContradiction
+  intro hDifferent
   exact
     hNoContext
       ⟨(continuation, question),
@@ -286,7 +288,7 @@ theorem distinguishingContextsAgainst_contains
           operationVocabulary questionVocabulary context ∧
       Loam.Observation314.contextAnswer answer step left context ≠
         Loam.Observation314.contextAnswer answer step right context := by
-  induction rights with
+  induction rights generalizing right with
   | nil =>
       simp at hRight
   | cons head rest ih =>
@@ -407,7 +409,7 @@ theorem distinguishingContextsFrom_contains
           operationVocabulary questionVocabulary context ∧
       Loam.Observation314.contextAnswer answer step left context ≠
         Loam.Observation314.contextAnswer answer step right context := by
-  induction remaining with
+  induction remaining generalizing left right with
   | nil =>
       simp at hLeft
   | cons head rest ih =>
@@ -472,7 +474,8 @@ theorem finiteFutureQuotient_has_finite_characterizing_set
           Loam.Observation312.FutureEquivalentUnder
             answer step operationVocabulary questionVocabulary
             leftRepresentative rightRepresentative := by
-        by_contra hNot
+        apply Classical.byContradiction
+        intro hNot
         rcases
           distinguishingContextsFrom_contains
             answer step operationVocabulary questionVocabulary
@@ -561,7 +564,11 @@ theorem finiteContextProfile_eq_iff_equivalentOnContexts
         answer step contexts left right := by
   induction contexts with
   | nil =>
-      simp [finiteContextProfile, Loam.Observation315.EquivalentOnContexts]
+      constructor
+      · intro _ context hMem
+        simp at hMem
+      · intro _
+        rfl
   | cons head tail ih =>
       constructor
       · intro hProfile context hMem
@@ -635,14 +642,16 @@ theorem finiteContextProfile_mem_allFiniteAnswerProfiles
       allFiniteAnswerProfiles answerValues contexts.length := by
   induction contexts with
   | nil =>
-      simp [finiteContextProfile, allFiniteAnswerProfiles]
+      exact List.mem_cons.mpr (Or.inl rfl)
   | cons context rest ih =>
       have hHead :
           Loam.Observation314.contextAnswer answer step state context ∈
             answerValues :=
         hAnswerValues _
-      have hTail := ih
-      simp [finiteContextProfile, allFiniteAnswerProfiles, hHead, hTail]
+      apply List.mem_flatMap_of_mem hHead
+      exact
+        List.mem_map.mpr
+          ⟨finiteContextProfile answer step rest state, ih, rfl⟩
 
 /--
 For every realized code in a finite code list, retain one representative state.
@@ -699,7 +708,7 @@ theorem representativesForCodes_covers
 A finite future-characterizing set plus an explicit finite list covering every
 possible Answer yields a finite cover of the full future-equivalence quotient.
 -/
-theorem finite_characterizing_set_has_finite_future_quotient
+noncomputable def finite_characterizing_set_has_finite_future_quotient
     {State : Type uS}
     {Operation : Type uO}
     {Question : Type uQ}
