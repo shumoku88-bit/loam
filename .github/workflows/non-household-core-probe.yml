@@ -1,0 +1,36 @@
+name: Non-household Core probe
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Examples/PhysicalInventory.lean'
+      - '.github/workflows/non-household-core-probe.yml'
+      - 'Loam/Core/Quantity.lean'
+      - 'Loam/Core/Measure.lean'
+      - 'Loam/Core/Effect.lean'
+      - 'Loam/Core/Event.lean'
+      - 'Loam/Core/EventMemory.lean'
+      - 'Loam/Core/EventCorrection.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+jobs:
+  physical-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+      - name: Check physical inventory probe
+        run: lake env lean Loam/Examples/PhysicalInventory.lean
