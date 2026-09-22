@@ -277,9 +277,10 @@ def fillUnresolvedRemainder?
             pure <| state.form.rows.filter fun item =>
               item.locus != unresolvedLocus.token
           else
-            pure <| state.form.rows.set index {
-              row with amount := Loam.MeasurePresentation.formatQuanta
-                state.measurePresentation measure adjusted }
+            pure <| state.form.rows.set index
+              ({ row with
+                 amount := Loam.MeasurePresentation.formatQuanta
+                   state.measurePresentation measure adjusted } : Row)
         else
           throw "The unresolved posting index is no longer present."
   pure {
