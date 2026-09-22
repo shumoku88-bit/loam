@@ -145,7 +145,7 @@ theorem full_is_practical :
 
 theorem practical_measure_stays_jpy :
     practicalMeasure? original = some jpy ∧
-    practicalMeasure? partial = some jpy ∧
+    practicalMeasure? partiallyClassified = some jpy ∧
     practicalMeasure? full = some jpy := by
   native_decide
 
