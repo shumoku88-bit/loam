@@ -107,11 +107,10 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "Correction unresolved vocabulary")
   let unresolvedWorld : Loam.MovementAdmission.World := {
     world with locusAdmission := unresolvedVocabulary }
-  let unresolvedForm : Loam.Tui.Record.Form := {
-    editor.editor.form with
-    rows := #[
+  let unresolvedForm : Loam.Tui.Record.Form :=
+    Loam.Tui.Record.replaceRows editor.editor.form #[
       { locus := "paypay", amount := "-640" },
-      { locus := "coffee", amount := "400" }] }
+      { locus := "coffee", amount := "400" }]
   let unresolvedState : Loam.Tui.Correction.State := {
     editor with editor := { editor.editor with form := unresolvedForm } }
   let unresolvedStep :=
