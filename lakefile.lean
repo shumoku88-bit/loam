@@ -68,3 +68,6 @@ lean_exe loamAttention where
 
 lean_exe loamWeb where
   root := `Loam.Web.Cli
+
+lean_exe loamMemory where
+  root := `Loam.Cli.PersonalMemoryCli
