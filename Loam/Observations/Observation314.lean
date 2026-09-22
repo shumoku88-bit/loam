@@ -429,11 +429,13 @@ theorem reversal_depth_one_contexts_form_basis :
               Loam.Observation312.OperationVocabulary
                 Loam.Observation304.Operation)
       · simp [Loam.Observation304.Vocabulary]
-    · subst context
-      constructor
-      · intro operation _
-        simp [Loam.Observation312.AllOperations]
-      · simp [Loam.Observation304.Vocabulary]
+    · rcases hNext with hNext | hImpossible
+      · subst context
+        constructor
+        · intro operation _
+          simp [Loam.Observation312.AllOperations]
+        · simp [Loam.Observation304.Vocabulary]
+      · simp at hImpossible
   · intro continuation question _ _
     cases question
     by_cases hEmpty : continuation = []
@@ -568,15 +570,17 @@ theorem provenance_depth_one_contexts_form_basis :
           Loam.Observation312.empty_continuation_allowed
             Loam.Observation313.SelectedOperations
       · simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary]
-    · subst context
-      constructor
-      · intro operation hOperation
-        simp only [List.mem_cons, List.mem_singleton] at hOperation
-        rcases hOperation with hOperation | hImpossible
-        · subst operation
-          rfl
-        · simp at hImpossible
-      · simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary]
+    · rcases hNext with hNext | hImpossible
+      · subst context
+        constructor
+        · intro operation hOperation
+          simp only [List.mem_cons] at hOperation
+          rcases hOperation with hOperation | hImpossibleOperation
+          · subst operation
+            rfl
+          · simp at hImpossibleOperation
+        · simp [Loam.Examples.DocumentProvenanceFutureContext.Vocabulary]
+      · simp at hImpossible
   · intro continuation question hAllowed _
     cases question
     by_cases hEmpty : continuation = []
