@@ -1,3 +1,4 @@
+import Loam.Observations.Observation309
 import Loam.Observations.Observation313
 
 namespace Loam.Observation314
@@ -256,6 +257,274 @@ theorem exactFutureClassifiersUnder_have_same_fibers
       rightEncode left = rightEncode right := by
   rw [hLeft left right, hRight left right]
 
+/-! ## ActualReversal depth-one basis -/
+
+def reversalClassRun :
+    Loam.Observation305.RetentionClass →
+      List Loam.Observation304.Operation →
+        Loam.Observation305.RetentionClass
+  | summary, [] => summary
+  | summary, operation :: rest =>
+      reversalClassRun
+        (Loam.Observation305.summaryStep summary operation)
+        rest
+
+theorem reversalClassRun_commutes
+    (state : Loam.Observation304.State)
+    (continuation : List Loam.Observation304.Operation) :
+    reversalClassRun
+        (Loam.Observation305.encode state)
+        continuation =
+      Loam.Observation305.encode
+        (Loam.Observation192.run
+          Loam.Observation304.step state continuation) := by
+  induction continuation generalizing state with
+  | nil =>
+      rfl
+  | cons operation rest ih =>
+      simp only [reversalClassRun, Loam.Observation192.run]
+      rw [Loam.Observation305.summaryStep_commutes]
+      exact ih (Loam.Observation304.step state operation)
+
+theorem reversal_summaryStep_idempotent
+    (summary : Loam.Observation305.RetentionClass) :
+    Loam.Observation305.summaryStep
+        (Loam.Observation305.summaryStep summary .publishAB)
+        .publishAB =
+      Loam.Observation305.summaryStep summary .publishAB := by
+  cases summary <;> rfl
+
+theorem reversalClassRun_after_publish_stable
+    (summary : Loam.Observation305.RetentionClass)
+    (continuation : List Loam.Observation304.Operation) :
+    reversalClassRun
+        (Loam.Observation305.summaryStep summary .publishAB)
+        continuation =
+      Loam.Observation305.summaryStep summary .publishAB := by
+  induction continuation generalizing summary with
+  | nil =>
+      rfl
+  | cons operation rest ih =>
+      cases operation
+      simp only [reversalClassRun]
+      rw [reversal_summaryStep_idempotent]
+      exact ih summary
+
+/--
+Once the selected reversal publication has been attempted once, later attempts
+cannot change the selected behavioural answer.
+-/
+theorem reversal_answer_stable_after_publish
+    (state : Loam.Observation304.State)
+    (continuation : List Loam.Observation304.Operation) :
+    Loam.Observation304.answer
+        (Loam.Observation192.run
+          Loam.Observation304.step
+          (Loam.Observation304.step state .publishAB)
+          continuation)
+        .aIsReversed =
+      Loam.Observation304.answer
+        (Loam.Observation304.step state .publishAB)
+        .aIsReversed := by
+  let first := Loam.Observation304.step state .publishAB
+  have hRun :=
+    reversalClassRun_commutes first continuation
+  have hFirst :
+      Loam.Observation305.encode first =
+        Loam.Observation305.summaryStep
+          (Loam.Observation305.encode state) .publishAB := by
+    exact
+      (Loam.Observation305.summaryStep_commutes state .publishAB).symm
+  have hStable :
+      reversalClassRun
+          (Loam.Observation305.encode first)
+          continuation =
+        Loam.Observation305.encode first := by
+    rw [hFirst]
+    exact
+      reversalClassRun_after_publish_stable
+        (Loam.Observation305.encode state) continuation
+  calc
+    Loam.Observation304.answer
+        (Loam.Observation192.run
+          Loam.Observation304.step first continuation)
+        .aIsReversed =
+      Loam.Observation305.decodeCurrent
+        (Loam.Observation305.encode
+          (Loam.Observation192.run
+            Loam.Observation304.step first continuation))
+        .aIsReversed :=
+      (Loam.Observation305.decodeCurrent_encode
+        (Loam.Observation192.run
+          Loam.Observation304.step first continuation)).symm
+    _ =
+      Loam.Observation305.decodeCurrent
+        (reversalClassRun
+          (Loam.Observation305.encode first) continuation)
+        .aIsReversed := by
+      rw [hRun]
+    _ =
+      Loam.Observation305.decodeCurrent
+        (Loam.Observation305.encode first)
+        .aIsReversed := by
+      rw [hStable]
+    _ =
+      Loam.Observation304.answer first .aIsReversed :=
+      Loam.Observation305.decodeCurrent_encode first
+
+/--
+Every reversal continuation has only two selected observational forms: no
+publication yet, or at least one publication attempt.
+-/
+theorem reversal_continuation_answer
+    (state : Loam.Observation304.State)
+    (continuation : List Loam.Observation304.Operation) :
+    Loam.Observation304.answer
+        (Loam.Observation192.run
+          Loam.Observation304.step state continuation)
+        .aIsReversed =
+      if continuation = [] then
+        Loam.Observation304.answer state .aIsReversed
+      else
+        Loam.Observation304.answer
+          (Loam.Observation304.step state .publishAB)
+          .aIsReversed := by
+  cases continuation with
+  | nil =>
+      rfl
+  | cons operation rest =>
+      cases operation
+      simp only [Loam.Observation192.run]
+      rw [reversal_answer_stable_after_publish state rest]
+      simp
+
+def reversalDepthOneContexts :
+    List
+      (FutureContext
+        Loam.Observation304.Operation
+        Loam.Observation304.Question) :=
+  [ ([], .aIsReversed)
+  , ([.publishAB], .aIsReversed)
+  ]
+
+theorem reversal_depth_one_contexts_form_basis :
+    FutureContextBasisUnder
+      Loam.Observation304.answer
+      Loam.Observation304.step
+      (Loam.Observation312.AllOperations :
+        Loam.Observation312.OperationVocabulary
+          Loam.Observation304.Operation)
+      Loam.Observation304.Vocabulary
+      reversalDepthOneContexts := by
+  constructor
+  · intro context hMem
+    simp only [reversalDepthOneContexts, List.mem_cons,
+      List.mem_singleton] at hMem
+    rcases hMem with hNow | hNext
+    · subst context
+      constructor
+      · exact
+          Loam.Observation312.empty_continuation_allowed
+            (Loam.Observation312.AllOperations :
+              Loam.Observation312.OperationVocabulary
+                Loam.Observation304.Operation)
+      · simp [Loam.Observation304.Vocabulary]
+    · subst context
+      constructor
+      · intro operation _
+        simp [Loam.Observation312.AllOperations]
+      · simp [Loam.Observation304.Vocabulary]
+  · intro continuation question _ _
+    cases question
+    by_cases hEmpty : continuation = []
+    · subst continuation
+      refine ⟨([], .aIsReversed), ?_, ?_⟩
+      · simp [reversalDepthOneContexts]
+      · intro state
+        rfl
+    · refine ⟨([.publishAB], .aIsReversed), ?_, ?_⟩
+      · simp [reversalDepthOneContexts]
+      · intro state
+        have hAnswer :=
+          reversal_continuation_answer state continuation
+        have hAfter :
+            Loam.Observation304.answer
+                (Loam.Observation192.run
+                  Loam.Observation304.step state continuation)
+                .aIsReversed =
+              Loam.Observation304.answer
+                (Loam.Observation304.step state .publishAB)
+                .aIsReversed := by
+          simpa [hEmpty] using hAnswer
+        simpa [contextAnswer, Loam.Observation192.run] using hAfter.symm
+
+theorem reversal_basis_profile_is_exact :
+    Loam.Observation312.ExactFutureClassifierUnder
+      Loam.Observation304.answer
+      Loam.Observation304.step
+      (Loam.Observation312.AllOperations :
+        Loam.Observation312.OperationVocabulary
+          Loam.Observation304.Operation)
+      Loam.Observation304.Vocabulary
+      (basisProfile
+        Loam.Observation304.answer
+        Loam.Observation304.step
+        reversalDepthOneContexts) :=
+  futureContextBasis_profile_is_exact
+    Loam.Observation304.answer
+    Loam.Observation304.step
+    (Loam.Observation312.AllOperations :
+      Loam.Observation312.OperationVocabulary
+        Loam.Observation304.Operation)
+    Loam.Observation304.Vocabulary
+    reversalDepthOneContexts
+    reversal_depth_one_contexts_form_basis
+
+theorem reversal_generated_signature_is_exact_under :
+    Loam.Observation312.ExactFutureClassifierUnder
+      Loam.Observation304.answer
+      Loam.Observation304.step
+      (Loam.Observation312.AllOperations :
+        Loam.Observation312.OperationVocabulary
+          Loam.Observation304.Operation)
+      Loam.Observation304.Vocabulary
+      Loam.Observation309.reversalDepthOneSignature :=
+  (Loam.Observation312.exactFutureClassifierUnder_all_iff_exactFutureClassifier
+    Loam.Observation304.answer
+    Loam.Observation304.step
+    Loam.Observation304.Vocabulary
+    Loam.Observation309.reversalDepthOneSignature).2
+      Loam.Observation309.reversalDepthOneSignature_is_exact
+
+theorem reversal_generated_signature_has_basis_fibers
+    (left right : Loam.Observation304.State) :
+    Loam.Observation309.reversalDepthOneSignature left =
+        Loam.Observation309.reversalDepthOneSignature right ↔
+      basisProfile
+          Loam.Observation304.answer
+          Loam.Observation304.step
+          reversalDepthOneContexts left =
+        basisProfile
+          Loam.Observation304.answer
+          Loam.Observation304.step
+          reversalDepthOneContexts right := by
+  exact
+    exactFutureClassifiersUnder_have_same_fibers
+      Loam.Observation304.answer
+      Loam.Observation304.step
+      (Loam.Observation312.AllOperations :
+        Loam.Observation312.OperationVocabulary
+          Loam.Observation304.Operation)
+      Loam.Observation304.Vocabulary
+      Loam.Observation309.reversalDepthOneSignature
+      (basisProfile
+        Loam.Observation304.answer
+        Loam.Observation304.step
+        reversalDepthOneContexts)
+      reversal_generated_signature_is_exact_under
+      reversal_basis_profile_is_exact
+      left right
+
 /-! ## Document-provenance depth-one basis -/
 
 abbrev ProvenanceState :=
@@ -427,8 +696,8 @@ proves basis completeness.
 That boundary also sharpens the next research options:
 
 - connect Observation-308 list signatures to this basis theorem more directly;
-- prove the ActualReversal depth-one context set satisfies the same basis
-  condition; the provenance case is now proved above;
+- use the now-certified ActualReversal and provenance bases to study what
+  makes a basis minimal, and when bounded depth discovers one;
 - study minimal bases / minimal distinguishing depth;
 - compare the resulting proof obligation directly with automata
   characterization sets and observational completeness before adding another
