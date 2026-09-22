@@ -202,6 +202,93 @@ def draftWithPresentation?
     (form : Form) : Except String Loam.MovementAdmission.Draft :=
   draftUsingPresentation? metadata form
 
+/-- Ordinary Locus token used by the TUI for explicitly unresolved classification. -/
+def unresolvedLocus : Loam.Core.LocusId := ⟨"suspense"⟩
+
+private def formAtPreview (form : Form) (rows : Array Row) : Form :=
+  { date := form.date
+    description := form.description
+    measure := form.measure
+    rows := rows
+    focus := ⟨3 + rows.size * 2, by omega⟩ }
+
+/--
+Fill or adjust one ordinary `suspense` posting so the currently completed rows
+balance exactly.
+
+This is presentation assistance only. It does not weaken Movement admission,
+create a new semantic type, or publish Locus policy. The ordinary `suspense`
+Locus must already be admitted for new writes, and the resulting draft still
+passes the same preview and publication admission as every other Movement.
+-/
+def fillUnresolvedRemainder?
+    (world : Loam.MovementAdmission.World)
+    (state : State) : Except String State := do
+  if !Loam.Persistence.validToken state.form.measure then
+    throw "Enter a valid Measure before filling the unresolved remainder."
+  if !world.locusAdmission.allows unresolvedLocus then
+    throw
+      "Unresolved recording is not enabled yet. Admit the 'suspense' Locus first."
+  let measure : Loam.Core.MeasureId := ⟨state.form.measure⟩
+  let mut signedTotal : Int := 0
+  let mut unresolvedCount : Nat := 0
+  let mut unresolvedIndex : Option Nat := none
+  for index in List.range state.form.rows.size do
+    let row := state.form.rows[index]!
+    if !Loam.Persistence.validToken row.locus then
+      throw "Complete every current Locus before filling the unresolved remainder."
+    if !world.locusAdmission.allows ⟨row.locus⟩ then
+      throw "Every current posting must use an admitted Locus."
+    let some amount :=
+        Loam.MeasurePresentation.parseQuanta?
+          state.measurePresentation measure row.amount
+      | throw
+          "Complete every current nonzero amount before filling the unresolved remainder."
+    if amount = 0 then
+      throw
+        "Complete every current nonzero amount before filling the unresolved remainder."
+    signedTotal := signedTotal + amount
+    if row.locus == unresolvedLocus.token then
+      unresolvedCount := unresolvedCount + 1
+      unresolvedIndex := some index
+  if unresolvedCount > 1 then
+    throw "Keep at most one unresolved posting before using this action."
+  if signedTotal = 0 then
+    throw "This Movement is already balanced; there is no unresolved remainder."
+  let adjustment := -signedTotal
+  let rows ←
+    match unresolvedIndex with
+    | none =>
+        if state.form.rows.size >= 6 then
+          throw "No row is available for the unresolved remainder."
+        pure <| state.form.rows.push {
+          locus := unresolvedLocus.token
+          amount := Loam.MeasurePresentation.formatQuanta
+            state.measurePresentation measure adjustment }
+    | some index =>
+        if h : index < state.form.rows.size then
+          let row := state.form.rows[index]
+          let some current :=
+              Loam.MeasurePresentation.parseQuanta?
+                state.measurePresentation measure row.amount
+            | throw "The existing unresolved amount is not valid."
+          let adjusted := current + adjustment
+          if adjusted = 0 then
+            pure <| state.form.rows.filter fun item =>
+              item.locus != unresolvedLocus.token
+          else
+            pure <| state.form.rows.set index
+              ({ row with
+                 amount := Loam.MeasurePresentation.formatQuanta
+                   state.measurePresentation measure adjusted } : Row)
+        else
+          throw "The unresolved posting index is no longer present."
+  pure {
+    state with
+    form := formAtPreview state.form rows
+    candidateIndex := 0
+    notice := "" }
+
 def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
   match draftWithPresentation? state.measurePresentation state.form with
   | .error message => { state with notice := message }
@@ -239,6 +326,10 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | _ => { state }
     | .editing =>
         match key with
+        | .ctrl 'u' =>
+            match fillUnresolvedRemainder? world state with
+            | .ok next => { state := next }
+            | .error message => { state := { state with notice := message } }
         | .ctrl 'n' =>
             if state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
@@ -333,7 +424,8 @@ def view (_known : List String) (state : State) : Widget :=
          line "Locus catalog:"] ++ candidateLines ++ helpLine ++
         [line ("Posting " ++ form.measure ++ " is signed; decimal input follows the Measure presentation scale."),
          line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
-         line "Up / Down choose candidate   Ctrl-N add row   Ctrl-D drop row",
+         line "Up / Down choose candidate   Ctrl-U fill unresolved remainder",
+         line "Ctrl-N add row   Ctrl-D drop row",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .preview draft choice =>

@@ -27,6 +27,37 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
     discharges := []
     locusAdmission := vocabulary }
 
+private def suspenseWorld : IO Loam.MovementAdmission.World := do
+  let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty suspense events")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"paypay"⟩, ⟨"food"⟩, ⟨"books"⟩, ⟨"suspense"⟩]
+    | throw (IO.userError "suspense vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := []
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
+
+private def suspenseEffects
+    (booksAmount suspenseAmount : Int) : List Effect :=
+  [ Effect.ofQuantity ⟨"suspense-source"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩
+      (Quantity.ofQuanta (-5800))
+  , Effect.ofQuantity ⟨"suspense-food"⟩ ⟨"food"⟩ ⟨"jpy"⟩
+      (Quantity.ofQuanta 1200)
+  ] ++
+  (if booksAmount = 0 then [] else
+    [Effect.ofQuantity ⟨"suspense-books"⟩ ⟨"books"⟩ ⟨"jpy"⟩
+      (Quantity.ofQuanta booksAmount)]) ++
+  (if suspenseAmount = 0 then [] else
+    [Effect.ofQuantity ⟨"suspense-unresolved"⟩ ⟨"suspense"⟩ ⟨"jpy"⟩
+      (Quantity.ofQuanta suspenseAmount)])
+
 private def effects (fromLocus toLocus : String) (amount : Int) : List Effect :=
   [ Effect.ofQuantity ⟨"effect-1"⟩ ⟨fromLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount))
   , Effect.ofQuantity ⟨"effect-2"⟩ ⟨toLocus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta amount)
@@ -258,4 +289,106 @@ def main (args : List String) : IO Unit := do
   expect (afterRelationBlocked.relations.length == 1)
     "refused Relation-source correction changed retained relation evidence"
 
-  IO.println "Correction Publisher: Actual re-read, Measure-preserving USD replacement, cross-Measure refusal, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
+  -- A partially classified household purchase remains a normal balanced Movement.
+  -- Later classification is expressed only through the existing Correction path.
+  let suspenseRoot := root / "suspense-correction"
+  IO.FS.createDirAll suspenseRoot
+  let unresolvedWorld ← suspenseWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? suspenseRoot unresolvedWorld
+    | throw (IO.userError "initialize suspense correction world")
+
+  let unresolvedDraft : Loam.MovementAdmission.Draft := {
+    validOn := "2026-09-23"
+    description := some "bulk purchase, partially unresolved"
+    effects := suspenseEffects 0 4600
+    relations := []
+    discharges := []
+    total := 5800 }
+  let .ok unresolvedId ←
+      Loam.MovementPublisher.publishDraft suspenseRoot.toString unresolvedDraft
+    | throw (IO.userError "publish unresolved Movement")
+
+  let partialDraft : Loam.CorrectionPublisher.Draft := {
+    target := unresolvedId
+    effects := suspenseEffects 2000 2600
+    description := some "bulk purchase, partially classified" }
+  let .ok () ←
+      Loam.CorrectionPublisher.publishCorrection suspenseRoot.toString partialDraft
+    | throw (IO.userError "publish partial suspense resolution")
+
+  let .ok partialEvidence ← Loam.ActualAuthority.loadActual? suspenseRoot
+    | throw (IO.userError "reload partial suspense correction")
+  let some firstCorrection := partialEvidence.corrections.corrections.find?
+      (fun correction => correction.target == unresolvedId)
+    | throw (IO.userError "find partial suspense correction")
+  let partialId := firstCorrection.replacement
+  let some partialEvent := EventMemory.findById? partialEvidence.events partialId
+    | throw (IO.userError "partial suspense replacement missing")
+
+  expect (Event.quantityAt partialEvent ⟨"paypay"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta (-5800))
+    "partial suspense correction changed physical source quantity"
+  expect (Event.quantityAt partialEvent ⟨"food"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 1200)
+    "partial suspense correction changed already-known food quantity"
+  expect (Event.quantityAt partialEvent ⟨"books"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 2000)
+    "partial suspense correction did not expose newly classified quantity"
+  expect (Event.quantityAt partialEvent ⟨"suspense"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 2600)
+    "partial suspense correction did not retain unresolved remainder"
+
+  let resolvedDraft : Loam.CorrectionPublisher.Draft := {
+    target := partialId
+    effects := suspenseEffects 4600 0
+    description := some "bulk purchase, fully classified" }
+  let .ok () ←
+      Loam.CorrectionPublisher.publishCorrection suspenseRoot.toString resolvedDraft
+    | throw (IO.userError "publish full suspense resolution")
+
+  let .ok resolvedEvidence ← Loam.ActualAuthority.loadActual? suspenseRoot
+    | throw (IO.userError "reload resolved suspense correction")
+  let some secondCorrection := resolvedEvidence.corrections.corrections.find?
+      (fun correction => correction.target == partialId)
+    | throw (IO.userError "find full suspense correction")
+  let resolvedId := secondCorrection.replacement
+  let some resolvedEvent := EventMemory.findById? resolvedEvidence.events resolvedId
+    | throw (IO.userError "resolved suspense replacement missing")
+
+  expect (resolvedEvidence.corrections.corrections.length == 2)
+    "suspense resolution did not retain the two-step correction chain"
+  expect ((EventMemory.findById? resolvedEvidence.events unresolvedId).isSome)
+    "suspense resolution removed the original observation"
+  expect ((EventMemory.findById? resolvedEvidence.events partialId).isSome)
+    "suspense resolution removed the intermediate observation"
+  expect (Event.quantityAt resolvedEvent ⟨"paypay"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta (-5800))
+    "full suspense resolution changed physical source quantity"
+  expect (Event.quantityAt resolvedEvent ⟨"food"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 1200)
+    "full suspense resolution changed already-known food quantity"
+  expect (Event.quantityAt resolvedEvent ⟨"books"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 4600)
+    "full suspense resolution lost classified quantity"
+  expect (Event.quantityAt resolvedEvent ⟨"suspense"⟩ ⟨"jpy"⟩ ==
+      Quantity.ofQuanta 0)
+    "full suspense resolution left unresolved quantity"
+
+  let .ok suspenseRecords ← Loam.ActualReview.loadRecordsFromActual suspenseRoot
+    | throw (IO.userError "reload suspense correction review")
+  let suspenseCurrent := Loam.ActualReview.select suspenseRecords (.day "2026-09-23")
+  expect (suspenseCurrent.length == 1)
+    "resolved suspense day did not have exactly one current Actual"
+  expect (suspenseCurrent.any fun record =>
+      record.event.id == resolvedId &&
+      record.description == "bulk purchase, fully classified" &&
+      record.date == some "2026-09-23")
+    "resolved suspense review did not expose the final replacement"
+  expect (suspenseRecords.any fun record =>
+      record.event.id == unresolvedId && !record.isCurrent)
+    "original suspense Event disappeared instead of remaining historical"
+  expect (suspenseRecords.any fun record =>
+      record.event.id == partialId && !record.isCurrent)
+    "partial suspense Event disappeared instead of remaining historical"
+
+  IO.println "Correction Publisher: Actual re-read, Measure-preserving USD replacement, suspense partial/full resolution, cross-Measure refusal, sparse replacement identity, fail-closed policy, Relation-source/Discharge refusal, append-only relation, replacement and fresh review passed."
