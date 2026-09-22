@@ -1,0 +1,41 @@
+name: Issue 1134 correction-heavy read benchmark
+
+on:
+  push:
+    branches:
+      - 'bench/1134-current-main-correction-read'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Re-measure correction-heavy Actual read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          build: false
+          test: false
+
+      - name: Build production review entrance
+        run: lake build loam
+
+      - name: Run correction-heavy production-path benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-actual-read.py             --no-build             --shape corrected             --sizes 1000 5000 10000 50000             --repeat 3             --timeout 300             | tee /tmp/issue-1134-benchmark.tsv
+
+          {
+            echo '## Issue #1134 correction-heavy Actual read'
+            echo
+            echo '~~~text'
+            cat /tmp/issue-1134-benchmark.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
