@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - 'bench/1134-current-main-correction-read'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/issue-1134-correction-read-benchmark.yml'
   workflow_dispatch:
 
 permissions:
