@@ -68,6 +68,18 @@ private theorem decode_classOfSummary
       cases aUsed <;> cases bUsed <;> cases aIsReversed <;>
         native_decide
 
+theorem decodeCurrent_encode
+    (state : Loam.Observation304.State) :
+    decodeCurrent (encode state) .aIsReversed =
+      Loam.Observation304.answer state .aIsReversed := by
+  change
+    decodeCurrent
+        (classOfSummary (Loam.Observation304.encode state))
+        .aIsReversed =
+      Loam.Observation304.answer state .aIsReversed
+  rw [decode_classOfSummary]
+  rfl
+
 theorem encode_is_currently_sufficient :
     Loam.Observation029.SufficientFor
       Loam.Observation304.answer
@@ -76,13 +88,7 @@ theorem encode_is_currently_sufficient :
   refine ⟨decodeCurrent, ?_⟩
   intro state question _
   cases question
-  change
-    decodeCurrent
-        (classOfSummary (Loam.Observation304.encode state))
-        .aIsReversed =
-      Loam.Observation304.answer state .aIsReversed
-  rw [decode_classOfSummary]
-  rfl
+  exact decodeCurrent_encode state
 
 /--
 The semantic transition has only one interesting edge:
@@ -107,12 +113,12 @@ private theorem summaryStep_classOfSummary
       cases aUsed <;> cases bUsed <;> cases aIsReversed <;>
         native_decide
 
-/-- The three behavioural classes are exactly locally maintainable. -/
-theorem encode_is_updateIndependent :
-    Loam.Observation297.UpdateIndependent
-      Loam.Observation304.step encode := by
-  refine ⟨summaryStep, ?_⟩
-  intro state operation
+/-- The behavioural transition commutes with the retained-state transition. -/
+theorem summaryStep_commutes
+    (state : Loam.Observation304.State)
+    (operation : Loam.Observation304.Operation) :
+    summaryStep (encode state) operation =
+      encode (Loam.Observation304.step state operation) := by
   cases operation
   calc
     summaryStep (encode state) .publishAB =
@@ -127,6 +133,12 @@ theorem encode_is_updateIndependent :
       congrArg classOfSummary
         (Loam.Observation304.summaryStep_commutes state .publishAB)
     _ = encode (Loam.Observation304.step state .publishAB) := rfl
+
+/-- The three behavioural classes are exactly locally maintainable. -/
+theorem encode_is_updateIndependent :
+    Loam.Observation297.UpdateIndependent
+      Loam.Observation304.step encode :=
+  ⟨summaryStep, summaryStep_commutes⟩
 
 theorem retentionCertificate :
     Loam.Observation298.MaintainedCertificate
