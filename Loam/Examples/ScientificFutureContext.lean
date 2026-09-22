@@ -96,6 +96,13 @@ def step (state : State) : Operation → State
       | some updated => { state with corrections := updated }
       | none => state
 
+/-- Correction publication changes only correction evidence, never retained Events. -/
+theorem step_preserves_events
+    (state : State) (correction : EventCorrection) :
+    (step state (.publish correction)).events = state.events := by
+  unfold step
+  cases hAdd : EventCorrectionMemory.add? state.corrections correction <;> simp [hAdd]
+
 /-- The selected observation is the existing fail-closed correction-frontier quantity. -/
 def answer (state : State) : Question → Option Int
   | .observedScalar =>
@@ -210,8 +217,8 @@ theorem states_are_not_futureEquivalent :
 theorem retained_event_evidence_remains_identical_after_future :
     (step leftState publishFuture).events =
       (step rightState publishFuture).events := by
-  unfold step
-  split <;> split <;> rfl
+  rw [step_preserves_events, step_preserves_events]
+  exact retained_event_evidence_is_identical
 
 /--
 Therefore a summary that keeps only the current scalar answer cannot be sufficient
