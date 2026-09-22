@@ -42,4 +42,5 @@ jobs:
           lake env lean Loam/Examples/ScientificObservation.lean
           lake env lean Loam/Examples/DocumentProvenanceBoundary.lean
           lake env lean Loam/Examples/PersonalSemanticMemory.lean
+          lake build Loam.Examples.PersonalSemanticMemory
           lake env lean Loam/Examples/PersonalSemanticMemoryPersistence.lean
