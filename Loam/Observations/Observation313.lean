@@ -81,7 +81,9 @@ def SelectedOperations :
 def decideSelectedOperations :
     ∀ operation : Loam.Examples.DocumentProvenanceFutureContext.Operation,
       Decidable (SelectedOperations operation) :=
-  fun operation => inferInstance
+  fun operation => by
+    unfold SelectedOperations
+    infer_instance
 
 theorem future_edge_projects :
     (DocumentDerivation.project? documents edgeBD).isSome = true := by
@@ -106,16 +108,26 @@ theorem selected_answer_after_publish_is_idempotent
         .aDerivedToDInTwoSteps := by
   by_cases hProject :
       (DocumentDerivation.project? state.documents edgeBD).isSome = true
-  · have hDocuments :
-        (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture).documents = state.documents :=
-      Loam.Examples.DocumentProvenanceFutureContext.step_preserves_documents state edgeBD
-    simp [publishFuture, Loam.Examples.DocumentProvenanceFutureContext.step, hProject, hDocuments,
-      Loam.Examples.DocumentProvenanceFutureContext.answer, Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps, Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
+  · have hStep :
+        Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture =
+          { state with
+            derivations :=
+              { edges := state.derivations.edges ++ [edgeBD] } } := by
+      simp [publishFuture,
+        Loam.Examples.DocumentProvenanceFutureContext.step, hProject]
+    rw [hStep]
+    simp [publishFuture,
+      Loam.Examples.DocumentProvenanceFutureContext.step, hProject,
+      Loam.Examples.DocumentProvenanceFutureContext.answer,
+      Loam.Examples.DocumentProvenanceFutureContext.derivedInTwoSteps,
+      Loam.Examples.DocumentProvenanceFutureContext.hasEdge,
       edgeBD]
-  · have hDocuments :
-        (Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture).documents = state.documents :=
-      Loam.Examples.DocumentProvenanceFutureContext.step_preserves_documents state edgeBD
-    simp [publishFuture, Loam.Examples.DocumentProvenanceFutureContext.step, hProject, hDocuments]
+  · have hStep :
+        Loam.Examples.DocumentProvenanceFutureContext.step state publishFuture =
+          state := by
+      simp [publishFuture,
+        Loam.Examples.DocumentProvenanceFutureContext.step, hProject]
+    rw [hStep]
 
 /-! ## Bounded signatures over three canonical provenance worlds -/
 
