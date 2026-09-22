@@ -145,13 +145,16 @@ theorem encode_is_updateIndependent :
         eventB ∈ ActualReversal.endpointIds state.reversals.reversals
     · simp [summaryStep, encode, endpointUsed, step,
         ActualReversalMemory.add?, publishAB, eventA_ne_eventB, hA, hB]
-    · simp [summaryStep, encode, endpointUsed, step,
-        ActualReversalMemory.add?, publishAB, eventA_ne_eventB, hA, hB,
-        answer, ActualReversalMemory.findByTarget?,
+    · have hAFlat := hA
+      have hBFlat := hB
+      simp [ActualReversal.endpointIds] at hAFlat hBFlat
+      simp [summaryStep, encode, endpointUsed, step,
+        ActualReversalMemory.add?, publishAB, eventA_ne_eventB,
+        hAFlat, hBFlat, answer, ActualReversalMemory.findByTarget?,
         ActualReversal.endpointIds]
 
 /-- A proof-directed positive certificate over existing Core relation semantics. -/
-def retentionCertificate :
+theorem retentionCertificate :
     Loam.Observation298.MaintainedCertificate
       answer step Vocabulary encode :=
   { current := encode_is_currently_sufficient
