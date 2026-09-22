@@ -308,6 +308,33 @@ theorem probe_run_identity
       simp only [Loam.Observation192.run, probeStep]
       exact ih
 
+theorem probeContexts_allowed
+    (context : Loam.Observation314.FutureContext ProbeOperation ProbeQuestion)
+    (hMem : context ∈ probeContexts) :
+    Loam.Observation314.ContextAllowedUnder
+      (Loam.Observation312.AllOperations :
+        Loam.Observation312.OperationVocabulary ProbeOperation)
+      ProbeVocabulary
+      context := by
+  simp only [probeContexts, List.mem_cons] at hMem
+  rcases hMem with hX | hTail
+  · subst context
+    constructor
+    · exact
+        Loam.Observation312.empty_continuation_allowed
+          (Loam.Observation312.AllOperations :
+            Loam.Observation312.OperationVocabulary ProbeOperation)
+    · simp [ProbeVocabulary]
+  · rcases hTail with hY | hImpossible
+    · subst context
+      constructor
+      · exact
+          Loam.Observation312.empty_continuation_allowed
+            (Loam.Observation312.AllOperations :
+              Loam.Observation312.OperationVocabulary ProbeOperation)
+      · simp [ProbeVocabulary]
+    · simp at hImpossible
+
 /--
 The two coordinate observations x and y characterize every future observation,
 including xor, because every continuation is semantically a no-op and xor is
@@ -322,25 +349,7 @@ theorem probeContexts_characterize :
       ProbeVocabulary
       probeContexts := by
   constructor
-  · intro context hMem
-    simp only [probeContexts, List.mem_cons] at hMem
-    rcases hMem with hX | hTail
-    · subst context
-      constructor
-      · exact
-          Loam.Observation312.empty_continuation_allowed
-            (Loam.Observation312.AllOperations :
-              Loam.Observation312.OperationVocabulary ProbeOperation)
-      · simp [ProbeVocabulary]
-    · rcases hTail with hY | hImpossible
-      · subst context
-        constructor
-        · exact
-            Loam.Observation312.empty_continuation_allowed
-              (Loam.Observation312.AllOperations :
-                Loam.Observation312.OperationVocabulary ProbeOperation)
-        · simp [ProbeVocabulary]
-      · simp at hImpossible
+  · exact probeContexts_allowed
   · intro left right
     constructor
     · intro hSame
@@ -359,12 +368,7 @@ theorem probeContexts_characterize :
         probe_run_identity right continuation]
       cases question <;> simp [probeAnswer, hX, hY]
     · intro hFuture context hMem
-      have hAllowed :
-          Loam.Observation314.ContextAllowedUnder
-            (Loam.Observation312.AllOperations :
-              Loam.Observation312.OperationVocabulary ProbeOperation)
-            ProbeVocabulary context := by
-        exact probeContexts_characterize.1 context hMem
+      have hAllowed := probeContexts_allowed context hMem
       exact
         hFuture
           context.1
@@ -407,11 +411,13 @@ theorem probeContexts_are_not_basis :
   rcases hMem with hX | hTail
   · subst context
     have hFalse := hRepresentative probeXCounterexample
-    native_decide at hFalse
+    simp [Loam.Observation314.contextAnswer, probeAnswer,
+      Loam.Observation192.run, probeXCounterexample] at hFalse
   · rcases hTail with hY | hImpossible
     · subst context
       have hFalse := hRepresentative probeYCounterexample
-      native_decide at hFalse
+      simp [Loam.Observation314.contextAnswer, probeAnswer,
+        Loam.Observation192.run, probeYCounterexample] at hFalse
     · simp at hImpossible
 
 theorem futureCharacterizingSet_does_not_imply_futureContextBasis :
