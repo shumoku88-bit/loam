@@ -1,4 +1,5 @@
 import Loam.Core.EventDescription
+import Loam.Core.EventMemory
 
 namespace Loam.Examples.DocumentProvenanceBoundary
 
@@ -85,7 +86,7 @@ end DocumentDerivation
 /-- Quantity is genuinely absent from both document Events. -/
 theorem documents_have_no_effects :
     sourceDocument.effects = [] ∧ derivedDocument.effects = [] := by
-  rfl
+  exact ⟨rfl, rfl⟩
 
 /-- Event identity remains usable without any Effect / Measure / Quantity value. -/
 theorem source_identity_is_retained :
