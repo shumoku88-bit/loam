@@ -63,9 +63,11 @@ def remember?
   let events ← EventMemory.add? memory.events (textEvent id)
   let descriptions ←
     EventDescriptionMemory.add? memory.descriptions { event := id, text := text }
-  return { events := events
-      descriptions := descriptions
-      corrections := memory.corrections }
+  return {
+    events := events
+    descriptions := descriptions
+    corrections := memory.corrections
+  }
 
 /--
 Recall text only when the corresponding Event identity is also retained.
@@ -96,9 +98,11 @@ def correct?
   let corrections ←
     EventCorrectionMemory.add? remembered.corrections
       { target := target, replacement := replacement }
-  return { events := remembered.events
-      descriptions := remembered.descriptions
-      corrections := corrections }
+  return {
+    events := remembered.events
+    descriptions := remembered.descriptions
+    corrections := corrections
+  }
 
 /--
 Inspect one explicitly supplied correction only when that exact correction fact
@@ -123,47 +127,63 @@ namespace Example
 def note1 : EventId := ⟨"memory:note-1"⟩
 def note2 : EventId := ⟨"memory:note-2"⟩
 
-def remembered : Option PersonalSemanticMemory :=
-  remember? empty note1 "editor preference: nvim"
+def rememberedMemory : PersonalSemanticMemory :=
+  { events :=
+      { events := [textEvent note1]
+        idNodup := by simp }
+    descriptions :=
+      { entries :=
+          [{ event := note1, text := "editor preference: nvim" }]
+        eventNodup := by simp }
+    corrections :=
+      { corrections := []
+        idNodup := by simp } }
 
-def corrected : Option PersonalSemanticMemory := do
-  let memory ← remembered
-  correct? memory note1 note2 "editor preference: nvim; configuration may evolve"
+def noteCorrection : EventCorrection :=
+  { target := note1
+    replacement := note2 }
 
-/-- A freshly remembered text fact can be recalled by stable identity. -/
-theorem remember_then_recall :
-    remembered.bind (fun memory => recall? memory note1) =
-      some "editor preference: nvim" := by
-  simp [remembered, remember?, recall?, empty, note1, textEvent,
-    EventMemory.add?, EventMemory.ofEvents?, EventMemory.findById?,
-    EventDescriptionMemory.add?, EventDescriptionMemory.ofEntries?,
-    EventDescriptionMemory.findText?, FiniteKeyed.findBy?,
-    retainedEffectKeys]
+def correctedMemory : PersonalSemanticMemory :=
+  { events :=
+      { events := [textEvent note1, textEvent note2]
+        idNodup := by simp [textEvent, note1, note2] }
+    descriptions :=
+      { entries :=
+          [ { event := note1, text := "editor preference: nvim" }
+          , { event := note2,
+              text := "editor preference: nvim; configuration may evolve" }
+          ]
+        eventNodup := by simp [note1, note2] }
+    corrections :=
+      { corrections := [noteCorrection]
+        idNodup := by simp } }
 
-/-- Remembering the same identity twice is rejected rather than overwritten. -/
+/-- A retained text fact is recalled by stable identity. -/
+theorem recall_retained_fact :
+    recall? rememberedMemory note1 = some "editor preference: nvim" := by
+  simp [recall?, rememberedMemory, note1, textEvent,
+    EventMemory.findById?, EventDescriptionMemory.findText?,
+    FiniteKeyed.findBy?]
+
+/-- Reusing the same EventId is rejected rather than treated as an overwrite. -/
 theorem duplicate_remember_is_rejected :
-    remembered.bind
-      (fun memory => remember? memory note1 "different text") = none := by
-  simp [remembered, remember?, empty, note1, textEvent,
-    EventMemory.add?, EventMemory.ofEvents?, retainedEffectKeys]
+    remember? rememberedMemory note1 "different text" = none := by
+  simp [remember?, rememberedMemory, note1, textEvent,
+    EventMemory.add?_singleton_duplicate]
 
 /--
-Correction preserves the original text, adds the replacement text, and retains
-an explicit note1 -> note2 correction edge.
+An explicit correction keeps both texts inspectable; it does not erase the
+original retained fact.
 -/
 theorem correction_is_explicit_and_non_destructive :
-    corrected.bind
-      (fun memory =>
-        recallCorrection? memory { target := note1, replacement := note2 }) =
+    recallCorrection? correctedMemory noteCorrection =
       some
         ("editor preference: nvim",
          "editor preference: nvim; configuration may evolve") := by
-  simp [corrected, remembered, correct?, remember?, recallCorrection?, recall?,
-    empty, note1, note2, textEvent, EventMemory.add?, EventMemory.ofEvents?,
-    EventMemory.findById?, EventDescriptionMemory.add?,
-    EventDescriptionMemory.ofEntries?, EventDescriptionMemory.findText?,
-    EventCorrectionMemory.add?, EventCorrectionMemory.ofCorrections?,
-    EventCorrection.project?, FiniteKeyed.findBy?, retainedEffectKeys]
+  simp [recallCorrection?, correctedMemory, noteCorrection, recall?,
+    note1, note2, textEvent, EventCorrection.project?,
+    EventMemory.findById?, EventDescriptionMemory.findText?,
+    FiniteKeyed.findBy?]
 
 end Example
 
