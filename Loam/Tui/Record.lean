@@ -321,7 +321,7 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .input 'e' | .input 'E' | .backspace =>
             { state := { state with mode := .editing, notice := "" } }
         | _ => { state }
-  | .preview draft choice =>
+    | .preview draft choice =>
         match key with
         | .tab | .right =>
             { state := { state with mode := (.preview draft ⟨(choice.val + 1) % 3, Nat.mod_lt _ (by omega)⟩) } }
