@@ -266,25 +266,22 @@ def fillUnresolvedRemainder?
           amount := Loam.MeasurePresentation.formatQuanta
             state.measurePresentation measure adjustment }
     | some index =>
-        let row := state.form.rows[index]!
-        let some current :=
-            Loam.MeasurePresentation.parseQuanta?
-              state.measurePresentation measure row.amount
-          | throw "The existing unresolved amount is not valid."
-        let adjusted := current + adjustment
-        if adjusted = 0 then
-          pure <| state.form.rows.filter fun item =>
-            item.locus != unresolvedLocus.token
+        if h : index < state.form.rows.size then
+          let row := state.form.rows[index]
+          let some current :=
+              Loam.MeasurePresentation.parseQuanta?
+                state.measurePresentation measure row.amount
+            | throw "The existing unresolved amount is not valid."
+          let adjusted := current + adjustment
+          if adjusted = 0 then
+            pure <| state.form.rows.filter fun item =>
+              item.locus != unresolvedLocus.token
+          else
+            pure <| state.form.rows.set index {
+              row with amount := Loam.MeasurePresentation.formatQuanta
+                state.measurePresentation measure adjusted }
         else
-          have h : index < state.form.rows.size := by
-            have hRange : index ∈ List.range state.form.rows.size := by
-              have hFound : unresolvedIndex = some index := by rfl
-              clear hFound
-              omega
-            simpa using List.mem_range.mp hRange
-          pure <| state.form.rows.set index {
-            row with amount := Loam.MeasurePresentation.formatQuanta
-              state.measurePresentation measure adjusted }
+          throw "The unresolved posting index is no longer present."
   pure {
     state with
     form := formAtPreview state.form rows
