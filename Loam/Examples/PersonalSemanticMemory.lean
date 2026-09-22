@@ -33,7 +33,6 @@ structure PersonalSemanticMemory where
   events : EventMemory
   descriptions : EventDescriptionMemory
   corrections : EventCorrectionMemory
-deriving Repr
 
 def empty : PersonalSemanticMemory :=
   { events := { events := [], idNodup := by simp }
@@ -64,8 +63,7 @@ def remember?
   let events ← EventMemory.add? memory.events (textEvent id)
   let descriptions ←
     EventDescriptionMemory.add? memory.descriptions { event := id, text := text }
-  return
-    { events := events
+  return { events := events
       descriptions := descriptions
       corrections := memory.corrections }
 
@@ -98,8 +96,7 @@ def correct?
   let corrections ←
     EventCorrectionMemory.add? remembered.corrections
       { target := target, replacement := replacement }
-  return
-    { events := remembered.events
+  return { events := remembered.events
       descriptions := remembered.descriptions
       corrections := corrections }
 
