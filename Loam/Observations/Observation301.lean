@@ -81,17 +81,28 @@ def decideProvenanceVocabulary :
         (Loam.Examples.DocumentProvenanceFutureContext.Vocabulary question) :=
   fun _ => isTrue trivial
 
+private def provenanceSearchSpace (depth : Nat) :
+    Loam.Observation299.SearchSpace
+      Loam.Examples.DocumentProvenanceFutureContext.State
+      Loam.Examples.DocumentProvenanceFutureContext.Operation
+      Loam.Examples.DocumentProvenanceFutureContext.Question :=
+  { states := provenanceStates
+    operations := provenanceOperations
+    questions := provenanceQuestions
+    depth := depth }
+
 def provenanceSearch (depth : Nat) :=
-  Loam.Observation299.boundedCounterexampleSearch
+  (provenanceSearchSpace depth).search
     Loam.Examples.DocumentProvenanceFutureContext.answer
     Loam.Examples.DocumentProvenanceFutureContext.step
     Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
     decideProvenanceVocabulary
     Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer
-    provenanceStates
-    provenanceOperations
-    provenanceQuestions
-    depth
+
+/-- The depth-one provenance fixture also enumerates eight candidate payloads. -/
+theorem provenance_depth_one_candidate_count :
+    (provenanceSearchSpace 1).candidateCount = 8 := by
+  native_decide
 
 /--
 Without any future publication, the current-answer-only summary loses no
@@ -127,16 +138,12 @@ theorem provenance_search_refutes_current_answer_summary :
       simp [hSearch] at hSome
   | some payload =>
       exact
-        Loam.Observation299.boundedCounterexampleSearch_some_refutes_futureSufficient
+        (provenanceSearchSpace 1).search_some_refutes_futureSufficient
           Loam.Examples.DocumentProvenanceFutureContext.answer
           Loam.Examples.DocumentProvenanceFutureContext.step
           Loam.Examples.DocumentProvenanceFutureContext.Vocabulary
           decideProvenanceVocabulary
           Loam.Examples.DocumentProvenanceFutureContext.encodeCurrentAnswer
-          provenanceStates
-          provenanceOperations
-          provenanceQuestions
-          1
           payload
           (by simpa [provenanceSearch] using hSearch)
 
