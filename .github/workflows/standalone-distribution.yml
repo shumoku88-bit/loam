@@ -91,3 +91,113 @@ jobs:
             test "$export_status" -eq 2
             grep -Fq "Usage: loam export journal ACTUAL_FILE OUTPUT_FILE" <<<"$export_out"
           )
+
+
+  package:
+    name: Package ${{ matrix.artifact }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            artifact: loam-linux-x86_64
+            expected_arch: x86_64
+            os_family: linux
+          - runner: ubuntu-22.04-arm
+            artifact: loam-linux-aarch64
+            expected_arch: aarch64
+            os_family: linux
+          - runner: macos-15-intel
+            artifact: loam-macos-x86_64
+            expected_arch: x86_64
+            os_family: macos
+          - runner: macos-14
+            artifact: loam-macos-arm64
+            expected_arch: arm64
+            os_family: macos
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Confirm native runner architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_arch="$(uname -m)"
+          echo "runner: ${{ matrix.runner }}"
+          echo "architecture: $actual_arch"
+          test "$actual_arch" = "${{ matrix.expected_arch }}"
+
+      - name: Build unified loam executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Inspect native binary linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          file .lake/build/bin/loam
+          if [[ "${{ matrix.os_family }}" == "macos" ]]; then
+            otool -L .lake/build/bin/loam
+          else
+            ldd .lake/build/bin/loam
+          fi
+
+      - name: Package and re-run extracted standalone binary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_root="$RUNNER_TEMP/${{ matrix.artifact }}"
+          archive="$RUNNER_TEMP/${{ matrix.artifact }}.tar.gz"
+          extracted="$RUNNER_TEMP/extracted-${{ matrix.artifact }}"
+
+          mkdir -p "$package_root"
+          cp .lake/build/bin/loam "$package_root/loam"
+          chmod +x "$package_root/loam"
+
+          tar -C "$RUNNER_TEMP" -czf "$archive" "${{ matrix.artifact }}"
+
+          rm -rf "$package_root"
+          mkdir -p "$extracted"
+          tar -C "$extracted" -xzf "$archive"
+
+          (
+            cd "$extracted/${{ matrix.artifact }}"
+            test ! -e lakefile.lean
+            test ! -d Loam
+            test ! -d .lake
+
+            clean_env=(env -i HOME="$HOME" PATH="/usr/bin:/bin")
+            help_out="$("${clean_env[@]}" ./loam help)"
+            grep -Fq "LOAM practical dogfood" <<<"$help_out"
+            grep -Fq "loam export beancount" <<<"$help_out"
+          )
+
+          if [[ "${{ matrix.os_family }}" == "macos" ]]; then
+            shasum -a 256 "$archive" > "$archive.sha256"
+          else
+            sha256sum "$archive" > "$archive.sha256"
+          fi
+
+      - name: Upload standalone package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz
+            ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz.sha256
+          if-no-files-found: error
