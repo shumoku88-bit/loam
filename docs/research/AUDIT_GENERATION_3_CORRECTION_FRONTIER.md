@@ -202,3 +202,160 @@ This observation does **not** justify:
 
 The only live question is whether Phase 3H's successful qualification apparatus
 has earned one independent physical module boundary.
+
+
+## Experiment 1 result: semantic/reference layer vs indexed implementation
+
+Classification: **SPLIT_QUALIFIED, STOP BEFORE FURTHER PROOF EXTRACTION**
+
+### First attempted boundary was rejected
+
+The first candidate was narrower:
+
+```text
+production CorrectionFrontier
+    |
+    +-- runtime indexed implementation
+    |
+    `-- separate legacy/correspondence qualification module
+```
+
+Repository inspection falsified that boundary before an implementation commit.
+
+The large correspondence chain depends on file-private scan machinery such as
+`CorrectionScanState` and `scanCorrections`. Moving only the proof body would
+therefore require one of the following:
+
+- expose implementation internals merely to cross a file boundary;
+- duplicate scan helpers inside a proof module;
+- rebuild the correspondence proof around a different public surface.
+
+None is justified by the current question. A proof-only split would make the
+physical API worse in order to make one file shorter.
+
+**Verdict: REJECT proof-only extraction.**
+
+### Revised structural experiment
+
+The narrower earned distinction is historical and architectural:
+
+```text
+CorrectionFrontierSemantics
+    pre-Phase-3H list semantics
+    correction topology vocabulary
+    legacy/reference specification
+          |
+          v
+CorrectionFrontierIndexed
+    Phase-3H transient HashMap/HashSet implementation
+    implementation correspondence proofs
+    production indexed facade
+          |
+          v
+CorrectionFrontier
+    stable public import entrance
+```
+
+The existing `Loam.Application` declaration namespace is unchanged. Current
+consumers keep importing `Loam.Application.CorrectionFrontier`; no household
+caller learns the internal physical split.
+
+The branch shape after extraction is:
+
+```text
+CorrectionFrontier                  10 lines
+CorrectionFrontierSemantics        194 lines / 14 declarations
+CorrectionFrontierIndexed         1153 lines / 54 declarations
+```
+
+The generic module inventory reports the stable entrance at fan-in 19 / fan-out
+1. The semantic layer has one direct physical consumer, the indexed layer, but
+it owns a distinct reason to change: Correction graph meaning and the reference
+specification. Phase 3H indexing and its correspondence proof change for a
+different reason: runtime representation and performance qualification.
+
+### Qualification
+
+At branch head `98678fa9d60dfd66288d556e4104b49365dea4fb`, all triggered
+production and semantic gates completed successfully:
+
+- Practical Actual Correction Frontier: SUCCESS;
+- Lean Application: SUCCESS;
+- Compression Audit: SUCCESS;
+- Module granularity inventory: SUCCESS;
+- Selected Lean Observations: SUCCESS;
+- Practical Slice A2: SUCCESS;
+- Shared ActualValidity Publisher: SUCCESS;
+- Stateless Shadow Quantity: SUCCESS;
+- Observation 245: SUCCESS;
+- Accounting Projection Basis: SUCCESS;
+- Cycle Funding Inspection: SUCCESS.
+
+The focused Correction workflow built the new module chain successfully and the
+semantic correspondence executable still reported:
+
+```text
+All 12 semantic correspondence test cases passed successfully!
+```
+
+No public Correction name, canonical Actual representation, production
+admission rule, or runtime result changed in this experiment.
+
+### D2 instrument check
+
+The responsibility projection was also executed with D2 v0.9.0 rather than
+accepted as unvalidated source text.
+
+The first render intentionally produced useful failure evidence:
+
+```text
+unknown shape "note"
+```
+
+The unsupported shape was replaced with an ordinary rectangle. The second run
+successfully rendered both SVG and ASCII with ELK. The temporary renderer
+workflow is not retained as steady-state CI because the current D2 source is an
+audit projection, not production authority.
+
+### Why the indexed module remains large
+
+The experiment does not treat 1153 lines as an automatic second split request.
+
+The remaining bulk is dominated by one tightly coupled reason:
+
+```text
+indexed runtime mechanics
+    +
+proof that those mechanics preserve the list/reference semantics
+```
+
+The earlier proof-only extraction attempt showed concrete negative pressure:
+separating those pieces would expose or duplicate private scan mechanics. Until
+another consumer or independent change history appears, keeping the optimized
+implementation beside its qualification is clearer than adding an internal API
+only for file size.
+
+### Experiment 1 verdict
+
+```text
+CorrectionFrontierSemantics  KEEP_BOUNDARY
+CorrectionFrontierIndexed    KEEP_BOUNDARY
+CorrectionFrontier           KEEP as stable aggregation/import entrance
+
+further proof-only split      REJECT
+further index split           STOP, no current evidence
+```
+
+This is a structural result, not a new semantic claim. The public Correction
+meaning remains exactly the previously qualified frontier.
+
+## Next audit frontier
+
+Correction no longer has an unexplained module-granularity residual from Phase
+3H. The next Generation-3 candidate should therefore move to a different kind
+of pressure instead of continuing to mine this subsystem.
+
+The strongest next candidate from the current mechanics scan is verified sibling
+publication staging across Actual, Capacity, Scheduled lifecycle, and replaceable
+configuration. That question is procedural rather than primarily topological, so
+DRAKON is the preferred next instrument before considering any shared helper.
