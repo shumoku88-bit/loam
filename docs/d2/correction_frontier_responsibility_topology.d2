@@ -1,0 +1,66 @@
+direction: right
+
+title: {
+  label: "Correction Frontier responsibility topology"
+  shape: text
+}
+
+canonical: {
+  label: "Canonical retained evidence\nEventMemory + EventCorrectionMemory"
+  shape: cylinder
+}
+
+facade: {
+  label: "CorrectionFrontier\nproduction semantic facade"
+  shape: rectangle
+}
+
+index: {
+  label: "Transient indexed implementation\nCorrectionFrontierIndex\nHashMap / HashSet acceleration"
+  shape: rectangle
+}
+
+admission: {
+  label: "NormalizedActualAdmission\nproduction admitted read image"
+  shape: rectangle
+}
+
+consumers: {
+  label: "Production consumers\nBalance / Quantity / Routing / Capacity / Reviews"
+  shape: rectangle
+}
+
+reference: {
+  label: "Legacy list reference specification\ncorrectionFrontierMemoryLegacy?"
+  shape: rectangle
+}
+
+correspondence: {
+  label: "Correspondence qualification\nindexed = reference\nadmissibility facets = reference facets"
+  shape: rectangle
+}
+
+tests: {
+  label: "Benchmark + semantic correspondence tests"
+  shape: rectangle
+}
+
+canonical -> facade: "semantic input"
+facade -> index: "production implementation"
+index -> admission: "indexed admission"
+facade -> consumers: "public semantic API"
+
+canonical -> reference: "reference input"
+index -> correspondence: "candidate behavior"
+reference -> correspondence: "reference behavior"
+correspondence -> tests: "qualification evidence"
+reference -> tests: "benchmark baseline"
+
+note: {
+  label: "Audit question:\nDoes correspondence qualification still belong\ninside the production semantic module?"
+  shape: note
+}
+
+correspondence -> note: {
+  style.stroke-dash: 4
+}
