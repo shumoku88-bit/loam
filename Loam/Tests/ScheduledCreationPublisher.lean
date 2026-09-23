@@ -98,8 +98,9 @@ def main (args : List String) : IO Unit := do
 
   let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload Scheduled review after first creation")
-  let firstDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10")
+  let .ok firstDayEvidence := Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10"
+    | throw (IO.userError "fresh Scheduled day evidence refused valid creation")
+  let firstDay := Loam.ScheduledReview.explicitDueRecords firstDayEvidence
   expect (hasScheduled firstDay first)
     "fresh Scheduled creation did not become current-open on its explicit date"
 
