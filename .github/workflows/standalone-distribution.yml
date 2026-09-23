@@ -145,16 +145,53 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Inspect native binary linkage
+      - name: Record native portability evidence
         shell: bash
         run: |
           set -euo pipefail
-          file .lake/build/bin/loam
-          if [[ "${{ matrix.os_family }}" == "macos" ]]; then
-            otool -L .lake/build/bin/loam
-          else
-            ldd .lake/build/bin/loam
-          fi
+
+          binary=".lake/build/bin/loam"
+          metadata="$RUNNER_TEMP/PORTABILITY.txt"
+
+          file "$binary"
+
+          {
+            echo "artifact=${{ matrix.artifact }}"
+            echo "runner=${{ matrix.runner }}"
+            echo "architecture=$(uname -m)"
+
+            if [[ "${{ matrix.os_family }}" == "macos" ]]; then
+              echo "host_macos=$(sw_vers -productVersion)"
+              echo "dynamic_dependencies:"
+              otool -L "$binary" | sed 's/^/  /'
+
+              minimum_macos="$(
+                otool -l "$binary" | awk '
+                  $1 == "cmd" && $2 == "LC_BUILD_VERSION" { build = 1; legacy = 0; next }
+                  build && $1 == "minos" { print $2; exit }
+                  $1 == "cmd" && $2 == "LC_VERSION_MIN_MACOSX" { legacy = 1; build = 0; next }
+                  legacy && $1 == "version" { print $2; exit }
+                '
+              )"
+              echo "binary_min_macos=${minimum_macos:-unknown}"
+            else
+              host_glibc="$(ldd --version | head -n 1)"
+              echo "host_glibc=$host_glibc"
+              echo "dynamic_dependencies:"
+              ldd "$binary" | sed 's/^/  /'
+
+              required_glibc="$(
+                (
+                  readelf --version-info "$binary" |
+                    grep -oE 'GLIBC_[0-9]+(\\.[0-9]+)*' |
+                    sed 's/^GLIBC_//' |
+                    sort -Vu |
+                    tail -n 1
+                ) || true
+              )"
+              echo "binary_max_glibc_symbol=${required_glibc:-unknown}"
+            fi
+          } | tee "$metadata"
 
       - name: Package and re-run extracted standalone binary
         shell: bash
@@ -167,6 +204,7 @@ jobs:
 
           mkdir -p "$package_root"
           cp .lake/build/bin/loam "$package_root/loam"
+          cp "$RUNNER_TEMP/PORTABILITY.txt" "$package_root/PORTABILITY.txt"
           chmod +x "$package_root/loam"
 
           tar -C "$RUNNER_TEMP" -czf "$archive" "${{ matrix.artifact }}"
@@ -200,4 +238,5 @@ jobs:
           path: |
             ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz
             ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz.sha256
+            ${{ runner.temp }}/PORTABILITY.txt
           if-no-files-found: error
