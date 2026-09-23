@@ -27,8 +27,8 @@ private def resolvedPathInside
     (root candidate : System.FilePath) : Bool :=
   let rootText := root.toString
   let candidateText := candidate.toString
-  let prefix := if rootText.endsWith "/" then rootText else rootText ++ "/"
-  candidateText == rootText || candidateText.startsWith prefix
+  let rootPrefix := if rootText.endsWith "/" then rootText else rootText ++ "/"
+  candidateText == rootText || candidateText.startsWith rootPrefix
 
 /--
 Web output is presentation, never household persistence.
