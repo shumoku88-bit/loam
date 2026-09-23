@@ -134,10 +134,12 @@ def main (args : List String) : IO Unit := do
 
   let .ok afterFresh ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "reload replacement-aware Scheduled review")
-  let oldDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterFresh "2026-09-10")
-  let newDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterFresh "2026-09-13")
+  let .ok oldDayEvidence := Loam.ScheduledReview.dayEvidence afterFresh "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid replacement source day")
+  let .ok newDayEvidence := Loam.ScheduledReview.dayEvidence afterFresh "2026-09-13"
+    | throw (IO.userError "Scheduled day evidence refused valid replacement target day")
+  let oldDay := Loam.ScheduledReview.explicitDueRecords oldDayEvidence
+  let newDay := Loam.ScheduledReview.explicitDueRecords newDayEvidence
   expect (!hasScheduled oldDay ⟨"scheduled-1"⟩)
     "replaced source stayed current-open"
   expect (hasScheduled newDay replacementId)
