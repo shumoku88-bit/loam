@@ -23,6 +23,35 @@ private def resolveDataDir (explicit : Option String) : IO (Except String System
           return .ok (System.FilePath.mk path)
       | none => return .ok (System.FilePath.mk "../loam-data")
 
+private def resolvedPathInside
+    (root candidate : System.FilePath) : Bool :=
+  let rootText := root.toString
+  let candidateText := candidate.toString
+  let prefix := if rootText.endsWith "/" then rootText else rootText ++ "/"
+  candidateText == rootText || candidateText.startsWith prefix
+
+/--
+Web output is presentation, never household persistence.
+
+Refuse both direct paths inside the selected household root and existing aliases
+(such as symbolic links) that resolve back into it. For a new output file, the
+resolved parent is sufficient to establish whether the destination would be
+created inside household storage.
+-/
+private def outputConflictsWithHouseholdRoot
+    (dataDir output : System.FilePath) : IO Bool := do
+  if !(← dataDir.pathExists) then
+    return false
+  let rootResolved ← IO.FS.realPath dataDir
+  if ← output.pathExists then
+    let outputResolved ← IO.FS.realPath output
+    return resolvedPathInside rootResolved outputResolved
+  let parent := output.parent.getD (System.FilePath.mk ".")
+  if !(← parent.pathExists) then
+    return false
+  let parentResolved ← IO.FS.realPath parent
+  return resolvedPathInside rootResolved parentResolved
+
 private def loadScheduled
     (dataDir : System.FilePath) : IO (Except String (List Loam.ScheduledReview.Record)) := do
   match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir with
@@ -70,6 +99,9 @@ private def renderTo
         IO.print html
         return 0
       try
+        if ← outputConflictsWithHouseholdRoot dataDir output then
+          IO.eprintln "loam: Web output must remain outside the household data root"
+          return 2
         IO.FS.writeFile output html
         IO.println ("LOAM Web snapshot: " ++ output.toString)
         return 0
@@ -82,7 +114,7 @@ private def usage : String :=
   "  loamWeb [LOAM_DATA_DIR] [OUTPUT_HTML]\n\n" ++
   "Defaults: LOAM_DATA_DIR or ../loam-data; output ./loam-web.html.\n" ++
   "Use OUTPUT_HTML '-' to write only the current HTML document to stdout.\n" ++
-  "The page consumes shared Review boundaries and performs no writes."
+  "The page consumes shared Review boundaries and never writes household data."
 
 def run (args : List String) : IO UInt32 := do
   match args with
