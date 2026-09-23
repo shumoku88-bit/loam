@@ -166,8 +166,10 @@ def main (args : List String) : IO Unit := do
 
   let afterCompletion ← loadSnapshot scheduledFile root
   let afterCompletionScheduled ← requireScheduled afterCompletion
-  let dueAfterCompletion := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCompletionScheduled "2026-09-10")
+  let .ok dueAfterCompletionEvidence :=
+      Loam.ScheduledReview.dayEvidence afterCompletionScheduled "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid post-completion frontier")
+  let dueAfterCompletion := Loam.ScheduledReview.explicitDueRecords dueAfterCompletionEvidence
   expect (!hasScheduled dueAfterCompletion "scheduled-1" &&
       hasScheduled dueAfterCompletion "scheduled-2" &&
       hasScheduled dueAfterCompletion "scheduled-3")
@@ -206,8 +208,11 @@ def main (args : List String) : IO Unit := do
 
   let afterCancellation ← loadSnapshot scheduledFile root
   let afterCancellationScheduled ← requireScheduled afterCancellation
-  let explicitAfterCancellation := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCancellationScheduled "2026-09-10")
+  let .ok afterCancellationDayEvidence :=
+      Loam.ScheduledReview.dayEvidence afterCancellationScheduled "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid post-cancellation frontier")
+  let explicitAfterCancellation :=
+    Loam.ScheduledReview.explicitDueRecords afterCancellationDayEvidence
   expect (explicitAfterCancellation.length == 1 && hasScheduled explicitAfterCancellation "scheduled-3")
     "fresh Scheduled read did not leave only the untouched third occurrence"
   let replacementState := Loam.Tui.SelectedDay.refreshed afterCancellation afterState
@@ -268,10 +273,14 @@ def main (args : List String) : IO Unit := do
 
   let afterReplacement ← loadSnapshot scheduledFile root
   let afterReplacementScheduled ← requireScheduled afterReplacement
-  let oldDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-10")
-  let newDay := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-12")
+  let .ok oldDayEvidence :=
+      Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid old replacement day")
+  let .ok newDayEvidence :=
+      Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-12"
+    | throw (IO.userError "Scheduled day evidence refused valid new replacement day")
+  let oldDay := Loam.ScheduledReview.explicitDueRecords oldDayEvidence
+  let newDay := Loam.ScheduledReview.explicitDueRecords newDayEvidence
   expect oldDay.isEmpty
     "fresh Scheduled read retained completed, cancelled, or superseded sources on the old day"
   expect
