@@ -1,6 +1,6 @@
 # Observation 322 — interpretation recording time is an independent coordinate
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `c3db12c17602df297d1a7085345478cb05b14ed7`
 
@@ -80,7 +80,9 @@ notesKnownBy(world, fact, cutoff)
 returns only Notes about the selected Fact whose `recordedAt` lies at or before
 the cutoff.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35891179413`, Alloy 6.2.0 / Sat4j:
 
 ```text
 laterRecordingExists                       SAT
@@ -117,7 +119,7 @@ In particular:
 - Attention closure `knownOn` answers when closure evidence became known, not
   when arbitrary interpretive text was retained.
 
-## What a successful result would earn
+## What this qualified result earns
 
 Only this information-boundary claim:
 
@@ -125,7 +127,7 @@ Only this information-boundary claim:
 > queries, recording time is information independent of the subject Fact's time,
 > note text, and subject attribution.
 
-It would **not** yet earn:
+It does **not** yet earn:
 
 - a production `Reflection` type;
 - a new canonical file;
@@ -135,7 +137,7 @@ It would **not** yet earn:
 - an `attributedAt` coordinate;
 - real/complex-number semantics.
 
-## Next pressure if qualified
+## Next pressure
 
 Test `attributedAt` separately:
 
