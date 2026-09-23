@@ -1,3 +1,4 @@
+import Loam.AttentionReview
 import Loam.ScheduledReview
 import Loam.Tui.ScheduledContinuationSession
 
@@ -92,13 +93,44 @@ def main : IO Unit := do
   let noneText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView nonePrompt)
   expect (contains "No similar later current-open Scheduled was found" noneText)
     "no-candidate prompt did not state absence explicitly"
+  expect (contains "Done" noneText && contains "Defer" noneText && contains "Add next" noneText)
+    "no-candidate prompt did not expose Done / Defer / Add next choices"
   let done := Loam.Tui.ScheduledContinuationSession.updatePrompt nonePrompt .enter
   expect (done.action == some .done)
     "no-candidate prompt did not default to Done"
-  let noneAddState :=
+
+  let noneDeferState :=
     (Loam.Tui.ScheduledContinuationSession.updatePrompt nonePrompt .right).state
+  let noneDefer := Loam.Tui.ScheduledContinuationSession.updatePrompt noneDeferState .enter
+  expect (noneDefer.action == some .defer)
+    "no-candidate prompt could not explicitly choose Defer"
+
+  let noneAddState :=
+    (Loam.Tui.ScheduledContinuationSession.updatePrompt noneDeferState .right).state
   let noneAdd := Loam.Tui.ScheduledContinuationSession.updatePrompt noneAddState .enter
   expect (noneAdd.action == some .add)
     "no-candidate prompt could not explicitly choose Add next"
 
-  IO.println "TUI Scheduled continuation awareness: similar-plan projection and explicit Keep/Add/Review/Done choices passed."
+  let deferDraft := Loam.Tui.ScheduledContinuationSession.deferredAttentionDraft source
+  expect (deferDraft.due == .dueUndetermined)
+    "deferred continuation invented a due date or no-due claim"
+  expect (contains "source" deferDraft.context && contains "gpt-plus" deferDraft.context)
+    "deferred continuation Attention context lost the completed Scheduled identity or summary"
+
+  let root ← IO.FS.createTempDir
+  let .ok deferredId ←
+      Loam.Tui.ScheduledContinuationSession.publishDeferredContinuation root source
+    | throw (IO.userError "deferred continuation Attention publication was refused")
+  match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+  | .error message => throw (IO.userError message)
+  | .ok .unavailable =>
+      throw (IO.userError "deferred continuation did not create Attention authority")
+  | .ok (.available attention) =>
+      let some item := attention.openItems.find? (fun item => item.id == deferredId)
+        | throw (IO.userError "deferred continuation Attention was not current-open")
+      expect (item.due == .dueUndetermined)
+        "published deferred continuation lost unknown due timing"
+      expect (contains "source" item.context && contains "gpt-plus" item.context)
+        "published deferred continuation lost human-identifiable context"
+
+  IO.println "TUI Scheduled continuation awareness: Keep/Add/Review plus explicit Done/Defer/Add-next choices passed."
