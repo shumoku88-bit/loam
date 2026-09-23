@@ -1,5 +1,6 @@
 import Loam.AttentionReview
 import Loam.ScheduledReview
+import Loam.Tui.HraHome
 import Loam.Tui.ScheduledContinuationSession
 
 open Loam.Core Loam.Tui.Kernel
@@ -121,16 +122,48 @@ def main : IO Unit := do
   let .ok deferredId ←
       Loam.Tui.ScheduledContinuationSession.publishDeferredContinuation root source
     | throw (IO.userError "deferred continuation Attention publication was refused")
-  match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
-  | .error message => throw (IO.userError message)
-  | .ok .unavailable =>
-      throw (IO.userError "deferred continuation did not create Attention authority")
-  | .ok (.available attention) =>
-      let some item := attention.openItems.find? (fun item => item.id == deferredId)
-        | throw (IO.userError "deferred continuation Attention was not current-open")
-      expect (item.due == .dueUndetermined)
-        "published deferred continuation lost unknown due timing"
-      expect (contains "source" item.context && contains "gpt-plus" item.context)
-        "published deferred continuation lost human-identifiable context"
+  let attentionAvailability ←
+    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+    | .error message => throw (IO.userError message)
+    | .ok .unavailable =>
+        throw (IO.userError "deferred continuation did not create Attention authority")
+    | .ok (.available attention) =>
+        let some item := attention.openItems.find? (fun item => item.id == deferredId)
+          | throw (IO.userError "deferred continuation Attention was not current-open")
+        expect (item.due == .dueUndetermined)
+          "published deferred continuation lost unknown due timing"
+        expect (contains "source" item.context && contains "gpt-plus" item.context)
+          "published deferred continuation lost human-identifiable context"
+        pure (Loam.AttentionReview.Availability.available attention)
 
-  IO.println "TUI Scheduled continuation awareness: Keep/Add/Review plus explicit Done/Defer/Add-next choices passed."
+  let actual : Loam.Tui.Main.ActualSnapshot := {
+    today := "2026-09-15"
+    allRecords := []
+  }
+  let homeSnapshot : Loam.Tui.Main.Snapshot := {
+    actual := actual
+    scheduled := .ok snapshot
+    attention := .ok attentionAvailability
+  }
+  let homeState := Loam.Tui.Main.initialState "2026-09-15"
+  let homeText := widgetText
+    (Loam.Tui.HraHome.view { width := 100, height := 42 } homeSnapshot homeState)
+  expect (contains "Attention: 1 open" homeText &&
+      contains "due unknown" homeText && contains "source" homeText)
+    "Home did not rediscover the deferred continuation Attention"
+
+  let unavailableText := widgetText
+    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+      { homeSnapshot with attention := .ok .unavailable } homeState)
+  expect (contains "Attention: not configured" unavailableText)
+    "Home collapsed missing Attention configuration into an empty stream"
+
+  let emptyAttention : Loam.AttentionReview.Availability :=
+    .available { openItems := [] }
+  let emptyText := widgetText
+    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+      { homeSnapshot with attention := .ok emptyAttention } homeState)
+  expect (contains "Attention: 0 open" emptyText)
+    "Home lost the configured-empty Attention distinction"
+
+  IO.println "TUI Scheduled continuation awareness: explicit Defer survives Attention reload and Home rediscovery."
