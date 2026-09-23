@@ -418,9 +418,8 @@ def loadHistoryAt
     | .error message => return .error message
     | .ok scheduled => pure scheduled
   let records := Loam.ActualReview.recordsFromActualImage image
-  return
-    projectHistory
-      window.start observedAt window.endExclusive
-      selection balances records scheduled days
+  return projectHistory
+    window.start observedAt window.endExclusive
+    selection balances records scheduled days
 
 end Loam.CycleSpendingPaceReview
