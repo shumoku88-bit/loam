@@ -58,17 +58,18 @@ def exportJournal
       IO.println ("Regenerated readable Actual journal: " ++ outputPath)
       return 0
 
-end Loam.JournalExportCli
+private def usage : String :=
+  "Usage: loam export journal ACTUAL_FILE OUTPUT_FILE"
 
-private def journalUsage : String :=
-  "Usage: loamJournalExport ACTUAL_FILE OUTPUT_FILE"
-
-def main (args : List String) : IO UInt32 :=
+/-- Command dispatcher for regenerating the human-readable Actual journal. -/
+def run (args : List String) : IO UInt32 :=
   match args with
   | [actualPath, outputPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.JournalExportCli.exportJournal actualPath outputPath)
+        (exportJournal actualPath outputPath)
   | _ => do
-      IO.eprintln journalUsage
+      IO.eprintln usage
       return 2
+
+end Loam.JournalExportCli
