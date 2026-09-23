@@ -10,6 +10,10 @@ on:
       - 'lean-toolchain'
       - '.github/workflows/standalone-distribution.yml'
   push:
+    branches:
+      - main
+    tags:
+      - 'v*'
     paths:
       - 'Loam/Cli.lean'
       - 'Loam/Cli/**'
@@ -234,10 +238,12 @@ jobs:
             grep -Fq "loam export beancount" <<<"$help_out"
           )
 
+          archive_dir="$(dirname "$archive")"
+          archive_name="$(basename "$archive")"
           if [[ "${{ matrix.os_family }}" == "macos" ]]; then
-            shasum -a 256 "$archive" > "$archive.sha256"
+            (cd "$archive_dir" && shasum -a 256 "$archive_name") > "$archive.sha256"
           else
-            sha256sum "$archive" > "$archive.sha256"
+            (cd "$archive_dir" && sha256sum "$archive_name") > "$archive.sha256"
           fi
 
       - name: Upload standalone package
@@ -249,3 +255,95 @@ jobs:
             ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz.sha256
             ${{ runner.temp }}/PORTABILITY.txt
           if-no-files-found: error
+
+
+  collect:
+    name: Verify release asset set
+    needs: package
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download platform packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: loam-*
+          path: ${{ runner.temp }}/downloads
+
+      - name: Verify checksums and flatten release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          downloads="$RUNNER_TEMP/downloads"
+          release_assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$release_assets"
+
+          expected=(
+            loam-linux-x86_64
+            loam-linux-aarch64
+            loam-macos-x86_64
+            loam-macos-arm64
+          )
+
+          for name in "${expected[@]}"; do
+            dir="$downloads/$name"
+            archive="$dir/$name.tar.gz"
+            checksum="$dir/$name.tar.gz.sha256"
+            portability="$dir/PORTABILITY.txt"
+
+            test -f "$archive"
+            test -f "$checksum"
+            test -f "$portability"
+
+            (
+              cd "$dir"
+              sha256sum -c "$name.tar.gz.sha256"
+            )
+
+            cp "$archive" "$release_assets/"
+            cp "$checksum" "$release_assets/"
+            cp "$portability" "$release_assets/$name.PORTABILITY.txt"
+          done
+
+          test "$(find "$release_assets" -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 12
+
+          printf '%s\n' "Release asset set:"
+          find "$release_assets" -maxdepth 1 -type f -printf '  %f\n' | sort
+
+      - name: Upload verified release asset set
+        uses: actions/upload-artifact@v4
+        with:
+          name: loam-release-assets
+          path: ${{ runner.temp }}/release-assets/*
+          if-no-files-found: error
+
+  release:
+    name: Publish tagged GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: collect
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: loam-release-assets
+          path: release-assets
+
+      - name: Publish or refresh tagged release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          tag="$GITHUB_REF_NAME"
+          test -n "$tag"
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" release-assets/*               --repo "$GITHUB_REPOSITORY"               --clobber
+          else
+            gh release create "$tag" release-assets/*               --repo "$GITHUB_REPOSITORY"               --verify-tag               --generate-notes               --title "$tag"
+          fi
