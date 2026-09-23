@@ -1,0 +1,38 @@
+name: Temporary Correction Frontier D2 Audit
+
+on:
+  pull_request:
+    paths:
+      - 'docs/d2/correction_frontier_responsibility_topology.d2'
+      - '.github/workflows/audit-d2-correction-frontier.yml'
+  push:
+    branches:
+      - 'audit/g3-correction-frontier-topology'
+    paths:
+      - 'docs/d2/correction_frontier_responsibility_topology.d2'
+      - '.github/workflows/audit-d2-correction-frontier.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install D2
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://d2lang.com/install.sh | sh -s --
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Render audit projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          d2 version
+          d2 --layout=elk docs/d2/correction_frontier_responsibility_topology.d2 /tmp/correction-frontier.svg
+          d2 --layout=elk --ascii-mode standard docs/d2/correction_frontier_responsibility_topology.d2 /tmp/correction-frontier.txt
+          test -s /tmp/correction-frontier.svg
+          test -s /tmp/correction-frontier.txt
+          cat /tmp/correction-frontier.txt
