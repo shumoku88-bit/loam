@@ -117,8 +117,4 @@ if [[ "${1:-}" == "help" && "${2:-}" != "low-level" ]]; then
   exit 0
 fi
 
-if [[ "${1:-}" == "balances" || "${1:-}" == "current" ]]; then
-  run_target loamDailyQuantity "$@"
-fi
-
 run_target loam "$@"
