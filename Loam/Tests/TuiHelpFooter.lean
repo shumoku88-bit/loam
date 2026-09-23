@@ -25,6 +25,14 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
   | some result => pure result
   | none => throw (IO.userError message)
 
+private def firstLineContaining?
+    (needle : String) : List (List Cell) → Nat → Option Nat
+  | [], _ => none
+  | cells :: rest, index =>
+      let line := String.ofList (cells.map Cell.glyph)
+      if contains needle line then some index
+      else firstLineContaining? needle rest (index + 1)
+
 private def buildSnapshot : IO Loam.Tui.Main.Snapshot := do
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? [])
     "empty Scheduled memory was not admitted"
@@ -104,7 +112,16 @@ def main : IO Unit := do
 
   -- 2a. Wide terminal
   let wideBounds : Bounds := { width := 190, height := 45 }
-  let wideText := widgetText (Loam.Tui.HraHome.view wideBounds snapshot state)
+  let wideView := Loam.Tui.HraHome.view wideBounds snapshot state
+  let wideText := widgetText wideView
+  let wideCalendarEnd ← requireSome
+    (firstLineContaining? "underline = today" wideView.lines 0)
+    "wide Home lost the calendar Today legend"
+  let widePaceLine ← requireSome
+    (firstLineContaining? "Daily pace" wideView.lines 0)
+    "wide Home lost Daily Pace"
+  expect (wideCalendarEnd < widePaceLine)
+    "wide Home moved Daily Pace away from the space below the calendar"
   for token in expectedTokens do
     expect (contains token wideText) s!"wide Home lost token {token}"
   expect (contains "Day:" wideText && contains "Household:" wideText && contains "Manage:" wideText)
@@ -172,6 +189,14 @@ def main : IO Unit := do
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.HraHome.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
+  let narrowCalendarEnd ← requireSome
+    (firstLineContaining? "underline = today" narrowView.lines 0)
+    "narrow Home lost the calendar Today legend"
+  let narrowPaceLine ← requireSome
+    (firstLineContaining? "Daily pace" narrowView.lines 0)
+    "narrow Home lost Daily Pace"
+  expect (narrowCalendarEnd < narrowPaceLine)
+    "narrow Home moved Daily Pace away from the space below the calendar"
   for token in expectedTokens do
     expect (contains token narrowText)
       s!"80-column Home lost token {token}; must not be clipped"
