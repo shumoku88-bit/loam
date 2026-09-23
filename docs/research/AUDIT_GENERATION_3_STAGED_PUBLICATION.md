@@ -136,3 +136,114 @@ or authority semantics.
 
 Do not promote a new generic persistence framework merely because four diagrams
 share boxes.
+
+
+## Experiment result
+
+Classification: **LOCAL SAFETY STRENGTHENING QUALIFIED; NO NEW GENERIC HELPER**
+
+The DRAKON comparison made the procedural asymmetry explicit. At the baseline,
+Actual, Capacity, and Scheduled Coverage all followed:
+
+```text
+write stage
+-> read stage
+-> exact byte equality
+-> production typed decode of staged bytes
+-> rename
+```
+
+Scheduled lifecycle stopped after byte equality and renamed immediately.
+
+The branch added only this local gate to
+`saveScheduledLifecycleImage?`:
+
+```text
+match decodeScheduledLifecycleImage? staged with
+| none   => return false
+| some _ => continue to rename
+```
+
+No wire bytes, codec, authority topology, missing-storage meaning, publisher
+entrance, or lifecycle interpretation changed.
+
+### Qualification
+
+At head `2eaa5320b3fac00d56039c5a128234633ea33734`, every triggered
+qualification completed successfully:
+
+- Scheduled Lifecycle Persistence;
+- Shared Scheduled Creation Publisher;
+- Shared Scheduled Terminal Publisher;
+- Shared Scheduled Replacement Publisher;
+- Practical Scheduled Routing;
+- Practical Slice B;
+- Selected Lean Observations;
+- Compression Audit;
+- temporary staged-publication DRAKON build / inspection.
+
+The focused persistence workflow built 15 jobs successfully. Its executable
+regression still reports that the v1 Completion / Retirement / Replacement wire
+meaning, endpoint uniqueness, explicit empty state, and fail-closed authority
+behavior are preserved.
+
+### DRAKON result
+
+The generated audit map contains three diagrams:
+
+1. four staged publication paths at one procedural scale;
+2. the Scheduled lifecycle verification residual;
+3. the sharing stop point.
+
+The map and SQLite metadata passed integrity checks and were inspected through
+the repository's own `inspect_map.py` interface.
+
+### Why Lean was not added
+
+A repository search found the general newline-framing round-trip theorem for
+`VersionedRows`, but no corresponding general theorem for the complete
+Scheduled lifecycle codec.
+
+Proving the entire compound lifecycle encode/decode law would require new proof
+surface across the Scheduled block codec and terminal-section codec. That proof
+may be useful later, but it is larger than the current safety question.
+
+The local production-decoder gate directly enforces the needed boundary:
+unreadable staged lifecycle bytes never become authority.
+
+### Sharing verdict
+
+The experiment does **not** earn a generic
+`replaceVerifiedTextViaSiblingStage` framework.
+
+The visible shared boxes remain surrounded by independently meaningful
+differences:
+
+- family-specific typed codecs;
+- `Bool` versus `Except String Unit` result surfaces;
+- different diagnostic wording;
+- different parent-directory preparation;
+- authority versus replaceable configuration meaning;
+- different semantic admission before the persistence call.
+
+The smallest current design is therefore:
+
+```text
+SiblingStage
+  KEEP ordinary write+rename primitive
+
+Actual / Capacity / Scheduled Coverage / Scheduled lifecycle
+  KEEP stronger protocol explicit at each owning boundary
+
+Scheduled lifecycle
+  ADD local staged typed re-decode
+```
+
+## Stop point
+
+This audit closes the observed staged-verification asymmetry without opening a
+new persistence framework.
+
+Reopen only if two or more stronger protocols later accumulate the same
+verification/error/recovery contract strongly enough that a shared helper
+reduces responsibility rather than merely line count.
