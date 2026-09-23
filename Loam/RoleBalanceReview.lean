@@ -444,9 +444,7 @@ def loadSnapshot
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
-  let actualPath :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-    else Loam.ActualAuthority.actualPath actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
