@@ -165,6 +165,3 @@ def run (args : List String) : IO UInt32 := do
       return 2
 
 end Loam.DailyQuantityCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.DailyQuantityCli.run args
