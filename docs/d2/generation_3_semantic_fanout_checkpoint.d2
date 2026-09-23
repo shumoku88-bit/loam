@@ -1,0 +1,51 @@
+direction: down
+
+title: {
+  label: "Generation 3 semantic fanout checkpoint"
+  shape: text
+}
+
+evidence: {
+  label: "Exact evidence / detailed diagnostics"
+  core: "Core + Application"
+  note: "keep distinctions needed for qualification"
+}
+
+owners: {
+  label: "Narrow semantic owners"
+  correction: "Correction semantics / indexed boundary"
+  stage: "Authority-specific publication protocol"
+  selector: "ScheduledCoverageSelector"
+  actual: "ActualAuthority\npath identity"
+  scheduled: "ScheduledReview\norder + day refusal"
+  merchant: "MerchantExpenseReview\nexact answer, surface deferred"
+}
+
+surfaces: {
+  label: "Presentation / intent"
+  tui: "TUI"
+  web: "Web"
+  cli: "CLI"
+  ai: "AI / future surfaces"
+}
+
+evidence.core -> owners.correction
+evidence.core -> owners.stage
+evidence.core -> owners.selector
+evidence.core -> owners.actual
+evidence.core -> owners.scheduled
+evidence.core -> owners.merchant
+
+owners.selector -> surfaces.tui
+owners.scheduled -> surfaces.tui
+owners.scheduled -> surfaces.web
+owners.scheduled -> surfaces.cli
+owners.actual -> surfaces.cli
+owners.merchant -> surfaces.ai: "only when a surface is earned"
+
+stop: {
+  label: "Stop rule\nDo not centralize presentation differences.\nReopen only when identity / refusal / order / answer diverges."
+  shape: rectangle
+}
+
+surfaces -> stop
