@@ -40,13 +40,13 @@ lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
 
 lean_exe loamJournalExport where
-  root := `Loam.Cli.JournalExportCli
+  root := `Loam.Cli.JournalExportExecutable
 
 lean_exe loamPtaExport where
-  root := `Loam.Cli.PlainTextAccountingExportCli
+  root := `Loam.Cli.PlainTextAccountingExportExecutable
 
 lean_exe loamBeancountExport where
-  root := `Loam.Cli.BeancountExportCli
+  root := `Loam.Cli.BeancountExportExecutable
 
 lean_exe loamShadowAudit where
   root := `Loam.Cli.ShadowAuditCli
