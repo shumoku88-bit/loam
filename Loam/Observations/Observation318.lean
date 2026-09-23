@@ -159,7 +159,19 @@ theorem same_nonreversal_actual_evidence :
     worldAB.corrections = worldCB.corrections ∧
     worldAB.relations = worldCB.relations ∧
     worldAB.discharges = worldCB.discharges := by
-  native_decide
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor <;> rfl
 
 theorem reversal_memories_differ :
     worldAB.reversals.reversals ≠ worldCB.reversals.reversals := by
