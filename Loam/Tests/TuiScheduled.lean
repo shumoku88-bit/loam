@@ -109,8 +109,12 @@ def main : IO Unit := do
   let dueTodayText := widgetText dueTodayView
   expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
     "Home did not expose the current Daily Pace answer"
-  expect (contains "3d ▁▄█  09-05..09-07" dueTodayText)
-    "Home did not expose the reconstructed Daily Pace sparkline"
+  expect (contains "Recent pace" dueTodayText)
+    "Home did not label the reconstructed Daily Pace history"
+  expect (contains "09-05  150 jpy/day" dueTodayText &&
+          contains "09-06  160 jpy/day" dueTodayText &&
+          contains "09-07  170 jpy/day" dueTodayText)
+    "Home did not expose reconstructed Daily Pace values vertically"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 
