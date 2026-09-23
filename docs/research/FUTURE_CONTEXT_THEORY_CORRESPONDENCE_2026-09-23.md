@@ -197,15 +197,111 @@ The Observation 315 x/y/xor witness is exactly the right separator:
 - xor is determined by the pair;
 - xor is not uniformly identical to x or y individually.
 
+### Stronger literature match: context-side equivalence / left automata equivalence
+
+A more precise match is available than the generic phrase "stronger W-set."
+
+Define semantic equivalence on admitted future contexts by equality of their complete
+observation columns:
+
+```text
+context₁ ≈obs context₂
+iff
+for every retained state s,
+  contextAnswer s context₁ = contextAnswer s context₂
+```
+
+Then `FutureContextBasisUnder` says exactly:
+
+1. every listed context is admitted; and
+2. every admitted context is `≈obs`-equivalent to at least one listed context.
+
+So the "basis" is a **finite representative cover of the context-side observational
+equivalence classes**. If duplicate representatives are removed, it is a complete
+set of representatives, or transversal, of those classes.
+
+This gives a clean row/column distinction:
+
+```text
+behaviour matrix
+  rows    = retained states
+  columns = admitted future contexts
+  cells   = answers
+
+FutureCharacterizingSetUnder:
+  choose enough columns to preserve all row distinctions
+
+FutureContextBasisUnder:
+  choose representatives for all distinct column behaviours
+```
+
+This explains exactly why the basis condition is stronger than a W-set. A W-set
+does not need to represent every semantically distinct experiment column; it only
+needs enough columns jointly to separate every behaviourally distinct state pair.
+
+There is also a direct classical automata specialization.
+
+For a Boolean DFA observation with accepting-state set `F`, an input word `u`
+induces the observation column
+
+```text
+q ↦ [δ(q,u) ∈ F]
+```
+
+Two words have the same column exactly when they have the same predecessor set
+of final states:
+
+```text
+pre_u(F) = pre_v(F)
+```
+
+Ganty, Gutiérrez, and Valero call this the **left automata-based equivalence**.
+Their Definition 11 defines
+
+```text
+u ~ᴸ_N v  iff  pre_u^N(F) = pre_v^N(F)
+```
+
+and proves that it is a finite-index left congruence for finite automata. They
+also distinguish it from the language-based left Nerode equivalence and explain
+the duality with right congruences.
+
+Reference:
+
+- Pierre Ganty, Elena Gutiérrez, Pedro Valero,
+  "A Congruence-based Perspective on Automata Minimization Algorithms",
+  MFCS 2019:
+  https://arxiv.org/abs/1906.06194
+  (especially Definitions 9 and 11)
+
+For an accessible DFA, equality of these predecessor sets is equivalent to
+equality under every possible left prefix, so this also meets the language-side
+left Nerode view. For arbitrary LOAM retained states, which are not introduced
+as states reachable from one distinguished initial state, the **automata-based
+left equivalence** is the more faithful analogue.
+
+LOAM generalizes the experiment carrier from one Boolean suffix to:
+
+```text
+(List Operation, Question)
+```
+
+with arbitrary Answer. Thus the safest description is:
+
+> `FutureContextBasisUnder` is a finite representative cover of
+> context-observation equivalence; in the single-question Boolean DFA case this
+> specializes to representatives of the left automata-based equivalence classes.
+
 ### Research implication
 
 Do not call `FutureContextBasisUnder` "the W-set condition."
 
-A safer description is:
-
-> a stronger representative-context basis condition that implies ordinary finite characterization.
-
-A future literature search could investigate whether this exact property has an established name under column reduction, test redundancy, automata observation matrices, or functional factorization.
+The current evidence suggests that "basis" is LOAM terminology for a standard
+kind of **complete representative set on the experiment side**, rather than a
+new characterization-set concept. The exact multi-question, arbitrary-answer
+generalization may not have one universally dominant name, but its mathematical
+shape is now clear enough that a novelty claim about the condition itself would
+be inappropriate.
 
 ---
 
@@ -589,26 +685,37 @@ This is much safer than presenting a new automata theorem.
 
 ## 14. Recommended next research questions
 
-### Priority 1 — investigate FutureContextBasisUnder terminology
+### Priority 1 — formalize the context-side quotient if it adds clarity
 
-Search specifically for an established notion equivalent to:
+The terminology search substantially resolved the earlier ambiguity.
+
+The useful next formal object would be an explicit relation such as:
 
 ```text
-every observation column is exactly equal,
-as a function on all states,
-to one column in a finite selected family
+ContextObservationEquivalent answer step c₁ c₂ :=
+  ∀ state,
+    contextAnswer answer step state c₁ =
+      contextAnswer answer step state c₂
 ```
 
-Possible neighboring terms:
+Then prove that `FutureContextBasisUnder` is precisely a finite admitted
+representative cover of this relation.
 
-- redundant experiments;
-- observation-column equivalence;
-- test-suite reduction;
-- functional basis of experiments;
-- quotient of observation contexts;
-- representative suffixes / representative experiments.
+For the single-question Boolean DFA specialization, record the correspondence
+with the left automata-based equivalence `pre_u(F) = pre_v(F)`.
 
-This is currently the least clearly matched LOAM concept.
+This would make the state/context duality explicit:
+
+```text
+state-side quotient:
+  FutureEquivalentUnder
+
+context-side quotient:
+  ContextObservationEquivalent
+```
+
+Only add this Observation if the explicit duality clarifies later reasoning;
+the underlying mathematics is established.
 
 ### Priority 2 — formalize the Moore-machine normalization only if useful
 
