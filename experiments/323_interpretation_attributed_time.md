@@ -1,6 +1,6 @@
 # Observation 323 — attributed interpretation time is distinct from recording time
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `48f47301374cbaaa7ce04e69ef35817cae53e249`
 
@@ -84,7 +84,9 @@ what had already been recorded by cutoff T?
 One is about retained-evidence arrival. The other is about the time that the
 retained evidence itself refers to.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35892059768`, Alloy 6.2.0 / Sat4j:
 
 ```text
 sameBaseDifferentAttribution                  SAT
@@ -113,7 +115,7 @@ intentionally opaque human text. Parsing phrases such as "at the time" or
 If this coordinate survives, it should be explicit or remain unavailable. It
 should not be guessed from language by default.
 
-## What a successful result would earn
+## What this qualified result earns
 
 Only this information-boundary claim:
 
@@ -128,7 +130,7 @@ interpretive text
   attributedAt
 ```
 
-It would **not** yet earn:
+It does **not** yet earn:
 
 - a production `Reflection` type;
 - a new canonical file;
@@ -139,7 +141,7 @@ It would **not** yet earn:
 - a rule that attributedAt must always equal the Fact time;
 - real or complex coordinates.
 
-## Next pressure if qualified
+## Next pressure
 
 Stop adding fields temporarily.
 
