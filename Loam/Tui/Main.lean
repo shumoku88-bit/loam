@@ -105,6 +105,6 @@ def homeScheduledEvidence
     (snapshot : Snapshot) (state : State) : Except String ScheduledEvidence :=
   match snapshot.scheduled with
   | .error message => .error message
-  | .ok scheduled => .ok (Loam.ScheduledReview.dayEvidence scheduled state.selectedDate)
+  | .ok scheduled => Loam.ScheduledReview.dayEvidence scheduled state.selectedDate
 
 end Loam.Tui.Main
