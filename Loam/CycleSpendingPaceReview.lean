@@ -58,6 +58,93 @@ def Snapshot.dailyPaceQuanta? (snapshot : Snapshot) : Option Int :=
     some (snapshot.availableThroughEnd.quanta / Int.ofNat snapshot.remainingDays)
 
 
+private def selectedChange
+    (selection : List EffectCoordinate)
+    (measure : MeasureId)
+    (change : MovementChange LocusId) : Bool :=
+  selection.any fun coordinate =>
+    coordinate.locus == change.coordinate && coordinate.measure == measure
+
+/-- Exact signed effect of one Scheduled occurrence on the explicitly selected pool. -/
+private def eligiblePoolEffectQuanta
+    (selection : List EffectCoordinate)
+    (record : Loam.ScheduledReview.Record) : Int :=
+  record.movement.changes.foldl
+    (fun total change =>
+      if selectedChange selection record.measure change then
+        total + change.quantity.quanta
+      else
+        total)
+    0
+
+/--
+Only a net drain of the selected pool is protected.
+
+A positive planned effect is not spendable before it becomes Actual. A movement
+whose selected-pool net is zero is an internal transfer, not a deduction.
+-/
+private def deductionQuanta
+    (selection : List EffectCoordinate)
+    (record : Loam.ScheduledReview.Record) : Int :=
+  max 0 (-eligiblePoolEffectQuanta selection record)
+
+private def selectedRowsMatch
+    (selection : List EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot) : Bool :=
+  balances.rows.map (·.coordinate) == selection
+
+/--
+Compose already-admitted current balances and Scheduled lifecycle evidence.
+
+There is intentionally no lower Scheduled-date bound. Current-open overdue
+occurrences still drain the selected pool until completion, retirement, or
+replacement removes them from the current-open frontier.
+-/
+def project
+    (observedAt endExclusive : String)
+    (selection : List EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) :
+    Except String Snapshot := do
+  if !Loam.ActualDate.validIsoDate observedAt ||
+      !Loam.ActualDate.validIsoDate endExclusive then
+    throw "loam: Daily Pace requires real YYYY-MM-DD observation and cycle-end dates"
+  let some distance := Loam.ActualDate.daysBetween? observedAt endExclusive
+    | throw "loam: Daily Pace could not determine the remaining calendar horizon"
+  if distance <= 0 then
+    throw "loam: Daily Pace requires the observation date to precede cycle end"
+  if !decide selection.Nodup then
+    throw "loam: Daily Pace pool contains duplicate coordinates"
+  if !selection.all (fun coordinate => coordinate.measure.token == "jpy") then
+    throw "loam: Daily Pace currently requires an explicit JPY pool"
+  if !selectedRowsMatch selection balances then
+    throw "loam: Daily Pace balance answer does not match the selected pool"
+
+  let records ← Loam.ScheduledReview.currentOpenRecords scheduled
+  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+    throw "loam: Daily Pace current-open Scheduled evidence contains an invalid date"
+
+  let eligible :=
+    balances.rows.foldl (fun total row => total + row.quantity.quanta) (0 : Int)
+  let deductions :=
+    records.foldl
+      (fun total record =>
+        if decide (record.scheduledOn < endExclusive) then
+          total + deductionQuanta selection record
+        else
+          total)
+      (0 : Int)
+  let available := eligible - deductions
+
+  return {
+    observedAt := observedAt
+    endExclusive := endExclusive
+    remainingDays := distance.natAbs
+    eligiblePool := Quantity.ofQuanta eligible
+    automaticDeductions := Quantity.ofQuanta deductions
+    availableThroughEnd := Quantity.ofQuanta available
+  }
+
 /-!
 ## Retrospective pace series
 
@@ -257,93 +344,6 @@ def projectHistory
         return points
       throw
         "loam: Daily Pace history latest point disagrees with the current Daily Pace answer"
-
-private def selectedChange
-    (selection : List EffectCoordinate)
-    (measure : MeasureId)
-    (change : MovementChange LocusId) : Bool :=
-  selection.any fun coordinate =>
-    coordinate.locus == change.coordinate && coordinate.measure == measure
-
-/-- Exact signed effect of one Scheduled occurrence on the explicitly selected pool. -/
-private def eligiblePoolEffectQuanta
-    (selection : List EffectCoordinate)
-    (record : Loam.ScheduledReview.Record) : Int :=
-  record.movement.changes.foldl
-    (fun total change =>
-      if selectedChange selection record.measure change then
-        total + change.quantity.quanta
-      else
-        total)
-    0
-
-/--
-Only a net drain of the selected pool is protected.
-
-A positive planned effect is not spendable before it becomes Actual. A movement
-whose selected-pool net is zero is an internal transfer, not a deduction.
--/
-private def deductionQuanta
-    (selection : List EffectCoordinate)
-    (record : Loam.ScheduledReview.Record) : Int :=
-  max 0 (-eligiblePoolEffectQuanta selection record)
-
-private def selectedRowsMatch
-    (selection : List EffectCoordinate)
-    (balances : Loam.BalanceReview.Snapshot) : Bool :=
-  balances.rows.map (·.coordinate) == selection
-
-/--
-Compose already-admitted current balances and Scheduled lifecycle evidence.
-
-There is intentionally no lower Scheduled-date bound. Current-open overdue
-occurrences still drain the selected pool until completion, retirement, or
-replacement removes them from the current-open frontier.
--/
-def project
-    (observedAt endExclusive : String)
-    (selection : List EffectCoordinate)
-    (balances : Loam.BalanceReview.Snapshot)
-    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) :
-    Except String Snapshot := do
-  if !Loam.ActualDate.validIsoDate observedAt ||
-      !Loam.ActualDate.validIsoDate endExclusive then
-    throw "loam: Daily Pace requires real YYYY-MM-DD observation and cycle-end dates"
-  let some distance := Loam.ActualDate.daysBetween? observedAt endExclusive
-    | throw "loam: Daily Pace could not determine the remaining calendar horizon"
-  if distance <= 0 then
-    throw "loam: Daily Pace requires the observation date to precede cycle end"
-  if !decide selection.Nodup then
-    throw "loam: Daily Pace pool contains duplicate coordinates"
-  if !selection.all (fun coordinate => coordinate.measure.token == "jpy") then
-    throw "loam: Daily Pace currently requires an explicit JPY pool"
-  if !selectedRowsMatch selection balances then
-    throw "loam: Daily Pace balance answer does not match the selected pool"
-
-  let records ← Loam.ScheduledReview.currentOpenRecords scheduled
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
-    throw "loam: Daily Pace current-open Scheduled evidence contains an invalid date"
-
-  let eligible :=
-    balances.rows.foldl (fun total row => total + row.quantity.quanta) (0 : Int)
-  let deductions :=
-    records.foldl
-      (fun total record =>
-        if decide (record.scheduledOn < endExclusive) then
-          total + deductionQuanta selection record
-        else
-          total)
-      (0 : Int)
-  let available := eligible - deductions
-
-  return {
-    observedAt := observedAt
-    endExclusive := endExclusive
-    remainingDays := distance.natAbs
-    eligiblePool := Quantity.ofQuanta eligible
-    automaticDeductions := Quantity.ofQuanta deductions
-    availableThroughEnd := Quantity.ofQuanta available
-  }
 
 /--
 Load the current explicit boundary, Daily Pace pool, current balances, and
