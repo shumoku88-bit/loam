@@ -152,6 +152,24 @@ def main : IO Unit := do
       contains "due unknown" homeText && contains "source" homeText)
     "Home did not rediscover the deferred continuation Attention"
 
+  let .ok _secondAttention ← Loam.HouseholdCommand.addAttention root {
+      context := "second open attention"
+      due := .noDueDate
+    }
+    | throw (IO.userError "second Attention publication was refused")
+  let multiAvailability ←
+    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+    | .ok (.available attention) => pure (Loam.AttentionReview.Availability.available attention)
+    | .error message => throw (IO.userError message)
+    | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
+  let multiText := widgetText
+    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+      { homeSnapshot with attention := .ok multiAvailability } homeState)
+  expect (contains "Attention: 2 open  [i] manage" multiText)
+    "Home did not expose multiple open Attention items without inventing priority"
+  expect (!contains "Decide continuation after source" multiText)
+    "Home singled out representation-order Attention as if it were prioritized"
+
   let unavailableText := widgetText
     (Loam.Tui.HraHome.view { width := 100, height := 42 }
       { homeSnapshot with attention := .ok .unavailable } homeState)
