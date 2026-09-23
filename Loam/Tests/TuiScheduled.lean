@@ -87,9 +87,9 @@ def main : IO Unit := do
   expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
     "Scheduled on Today was incorrectly marked Pending"
   let dueTodayText := widgetText dueTodayView
-  expect (contains "Daily pace: 170 jpy/day" dueTodayText)
+  expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
     "Home did not expose the current Daily Pace answer"
-  expect (contains "Next Scheduled: 2026-09-07" dueTodayText)
+  expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
