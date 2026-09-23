@@ -378,11 +378,6 @@ def loadSnapshotAt
     | .ok scheduled => pure scheduled
   return project observedAt window.endExclusive selection balances scheduled
 
-private def actualPathForObservation
-    (actualRoot : System.FilePath) : System.FilePath :=
-  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-  else Loam.ActualAuthority.actualPath actualRoot
-
 /--
 Load a retrospective current-truth Daily Pace series without retaining any pace
 observation. The current normalized Actual image is read once and supplies both
@@ -400,7 +395,7 @@ def loadHistoryAt
     match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
-  let actualPath := actualPathForObservation actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message

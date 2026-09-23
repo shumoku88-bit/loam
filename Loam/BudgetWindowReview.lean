@@ -84,13 +84,6 @@ private def projectPurpose?
     consumption := consumption
   }
 
-private def loadActualImage
-    (actualRoot : System.FilePath) : IO (Except String Loam.ActualAuthority.Image) :=
-  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then
-    Loam.ActualAuthority.loadImageFile? actualRoot
-  else
-    Loam.ActualAuthority.loadImage? actualRoot
-
 private def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
   let capacityPath := dataDir / "capacity.loam"
@@ -105,7 +98,8 @@ private def loadEvidence
   | .ok _ => pure ()
 
   let actualImage ←
-    match ← loadActualImage actualRoot with
+    match ← Loam.ActualAuthority.loadImageFile?
+        (Loam.ActualAuthority.actualPathFromRootOrFile actualRoot) with
     | .ok image => pure image
     | .error message => return .error message
   let routing ←

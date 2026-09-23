@@ -1,0 +1,24 @@
+direction: right
+
+input: "caller input\nhousehold root OR actual.loam"
+
+before: {
+  label: "Before: 11 local identity decisions"
+  reviews: "ActualReview + 10 Reviews"
+  local: "fileName == actual.loam ?\nfile : root/actual.loam"
+  authority: "ActualAuthority file loaders"
+  reviews -> local -> authority
+}
+
+after: {
+  label: "After: authority owns lexical selection"
+  reviews: "ActualReview + 10 Reviews"
+  resolver: "ActualAuthority.actualPathFromRootOrFile"
+  authority: "ActualAuthority file loaders / ownership lock"
+  reviews -> resolver -> authority
+}
+
+input -> before.reviews
+input -> after.reviews
+
+note: "No filesystem probing and no fallback format.\nThis preserves the existing lexical root-or-file contract."

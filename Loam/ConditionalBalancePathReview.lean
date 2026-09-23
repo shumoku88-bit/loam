@@ -183,10 +183,6 @@ def project
     points := points
   }
 
-private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
-  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-  else Loam.ActualAuthority.actualPath actualRoot
-
 private def loadWithinActualObservation
     (dataDir actualRoot : System.FilePath)
     (today assumedCompleteThrough : String) : IO (Except String Snapshot) := do
@@ -215,7 +211,7 @@ def loadSnapshot
     (assumedCompleteThrough : String) : IO (Except String Snapshot) := do
   let some today ← Loam.ActualDate.todayIso?
     | return .error "loam: conditional outlook unavailable: could not determine the local date"
-  let actualPath := actualPathForObservation actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   Loam.ActualAuthority.withActualFileOwnership actualPath
     (loadWithinActualObservation dataDir actualRoot today assumedCompleteThrough)
 

@@ -149,9 +149,7 @@ structure Evidence where
 /-- Load the exact selected Actual authority and independent zero-origin evidence. -/
 def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
-  let path :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-    else Loam.ActualAuthority.actualPath actualRoot
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let actualEvidence ←
     match ← Loam.ActualAuthority.loadActualFile? path with
     | .ok ev => pure ev
@@ -172,9 +170,7 @@ invent a zero balance; balance-view.tsv selects display coordinates only.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
-  let path :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-    else Loam.ActualAuthority.actualPath actualRoot
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? path with
     | .ok image => pure image

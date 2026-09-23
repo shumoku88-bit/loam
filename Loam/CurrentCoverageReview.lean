@@ -172,9 +172,7 @@ def loadSnapshotAt
   | .ok _ => pure ()
 
   let capacity := capacityImage.movements
-  let path :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-    else Loam.ActualAuthority.actualPath actualRoot
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let actualImage ←
     match ← Loam.ActualAuthority.loadImageFile? path with
     | .ok image => pure image
