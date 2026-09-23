@@ -71,12 +71,13 @@ def report
           printOne start end_ row
           return 0
 
-end Loam.BudgetWindowCli
-
-def main (args : List String) : IO UInt32 :=
+/-- Command dispatcher for the shared production Budget Window projection. -/
+def run (args : List String) : IO UInt32 :=
   match args with
   | [rootPath, start, end_, purpose] =>
-      Loam.BudgetWindowCli.report rootPath start end_ purpose
+      report rootPath start end_ purpose
   | _ => do
-      IO.eprintln Loam.BudgetWindowCli.usage
+      IO.eprintln usage
       return 2
+
+end Loam.BudgetWindowCli
