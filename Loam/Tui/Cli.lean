@@ -131,6 +131,8 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     | .ok records => pure records
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir
+  let attention ←
+    Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
   let pace ←
     Loam.CycleSpendingPaceReview.loadSnapshotAt dataDir dataDir today
   let paceHistory ←
@@ -142,6 +144,7 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
   return .ok {
     actual := actual
     scheduled := scheduled
+    attention := attention
     pace := pace
     paceHistory := paceHistory
   }
@@ -1023,10 +1026,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.view admin)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
         Loam.Tui.AttentionAdministrationSession.run bounds root admin adminFrame
+        let fresh ← requireReload "Attention administration completed." (loadSnapshot dataDir)
         let home := { state with notice := "" }
-        let nextFrame := compiledFrameFor bounds snapshot home
+        let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-        loop bounds dataDir root snapshot home nextFrame
+        loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'b' || key = .input 'B') then
     match ← Loam.BalanceReview.loadSnapshot dataDir root with
     | .error message =>
