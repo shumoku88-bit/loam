@@ -352,6 +352,6 @@ jobs:
             gh release create "$tag" release-assets/* \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
-              --generate-notes \
-              --title "$tag"
+              --title "$tag" \
+              --notes "First standalone LOAM release. Prebuilt binaries are provided for Linux and macOS on x86_64 and arm64. Each archive includes portability metadata, with SHA-256 checksums alongside."
           fi
