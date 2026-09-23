@@ -296,6 +296,3 @@ def run (args : List String) : IO UInt32 := do
         recordMovement options.rootPath
 
 end Loam.MovementCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.MovementCli.run args
