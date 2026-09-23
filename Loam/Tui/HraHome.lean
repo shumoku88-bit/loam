@@ -169,6 +169,41 @@ private def statusTokens
     | .error _ => "Unavailable"
   ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus]
 
+private def dailyPaceLine (snapshot : Snapshot) : Widget :=
+  match snapshot.pace with
+  | .error _ =>
+      mutedLine " Daily pace: unavailable"
+  | .ok pace =>
+      match pace.dailyPaceQuanta? with
+      | none => mutedLine " Daily pace: unavailable"
+      | some quanta =>
+          plainLine
+            (" Daily pace: " ++ toString quanta ++ " jpy/day  (" ++
+              toString pace.remainingDays ++ " days; " ++
+              toString pace.availableThroughEnd.quanta ++
+              " jpy through " ++ pace.endExclusive ++ ")")
+
+private def nextScheduledLine (snapshot : Snapshot) : Widget :=
+  match snapshot.scheduled with
+  | .error _ =>
+      mutedLine " Next Scheduled: unavailable"
+  | .ok scheduled =>
+      match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
+      | .error _ =>
+          mutedLine " Next Scheduled: unavailable"
+      | .ok none =>
+          mutedLine " Next Scheduled: none current-open"
+      | .ok (some record) =>
+          let status :=
+            if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
+            else ""
+          plainLine
+            (" Next Scheduled: " ++ record.scheduledOn ++ status ++ "  " ++
+              Loam.ScheduledReview.summary record)
+
+private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
+  [dailyPaceLine snapshot, nextScheduledLine snapshot]
+
 private def pendingSection (pending : PendingEvidence) : List Widget :=
   match pending with
   | .ok [] => []
@@ -186,6 +221,9 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
       , span "]" .muted
       ]
   , ruleLine bounds '='
+  ] ++
+  homeSummaryLines snapshot ++
+  [ ruleLine bounds '-'
   , plainLine (centeredMonthTitle state)
   , calendarHeader
   ] ++
@@ -267,7 +305,7 @@ private def wideSelectedDayPane
      ((details.drop offset).take visible))
 
 private def widePanelRows (bounds : Bounds) (footerRows : Nat) : Nat :=
-  Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 4
+  Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 7
 
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -290,6 +328,8 @@ private def wideHomeBody
       ]
   , ruleLine bounds '='
   ] ++
+  homeSummaryLines snapshot ++
+  [ruleLine bounds '-'] ++
   sideBySide panelRows leftWidth rightWidth left right ++
   [ruleLine bounds '=']
 
