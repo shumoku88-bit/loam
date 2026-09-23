@@ -39,7 +39,3 @@ def run (args : List String) : IO UInt32 :=
   diagnose args
 
 end Loam.DoctorCli
-
-
-def main (args : List String) : IO UInt32 :=
-  Loam.DoctorCli.run args

@@ -10,7 +10,7 @@ lean_exe loam where
   root := `Loam.Cli
 
 lean_exe loamMovement where
-  root := `Loam.Cli.MovementCli
+  root := `Loam.Cli.MovementExecutable
 
 lean_exe loamMovementProposal where
   root := `Loam.Cli.MovementProposalCli
@@ -55,13 +55,13 @@ lean_exe loamShadowQuantity where
   root := `Loam.Cli.ShadowQuantityCli
 
 lean_exe loamDoctor where
-  root := `Loam.Cli.DoctorCli
+  root := `Loam.Cli.DoctorExecutable
 
 lean_exe loamHouseholdObservation where
   root := `Loam.Cli.HouseholdObservationCli
 
 lean_exe loamTui where
-  root := `Loam.Tui.Cli
+  root := `Loam.Tui.Executable
 
 lean_exe loamAttention where
   root := `Loam.Tui.AttentionMain

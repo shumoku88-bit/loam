@@ -94,22 +94,12 @@ EOF
 }
 
 if [[ $# -eq 0 ]]; then
-  run_target loamTui
-fi
-
-if [[ "${1:-}" == "tui" ]]; then
-  shift
-  run_target loamTui "$@"
+  run_target loam
 fi
 
 if [[ "${1:-}" == "web" ]]; then
   shift
   run_web "$@"
-fi
-
-if [[ "${1:-}" == "doctor" ]]; then
-  shift
-  run_target loamDoctor "$@"
 fi
 
 if [[ "${1:-}" == "shadow-audit" ]]; then
@@ -120,11 +110,6 @@ fi
 if [[ "${1:-}" == "shadow-quantity" ]]; then
   shift
   run_target loamShadowQuantity "$@"
-fi
-
-if [[ "${1:-}" == "movement" ]]; then
-  shift
-  run_target loamMovement "$@"
 fi
 
 if [[ "${1:-}" == "movement-proposal" ]]; then

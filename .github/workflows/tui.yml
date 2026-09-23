@@ -255,13 +255,40 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamDailyQuantity loamJournalExport loamPtaExport loamTui Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamDoctor loamDailyQuantity loamJournalExport loamPtaExport loamTui Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Verify unified loam command dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          compare_dispatch() {
+            local standalone="$1"
+            shift
+            local combined_out standalone_out combined_status standalone_status
+            set +e
+            combined_out="$(.lake/build/bin/loam "$@" 2>&1)"
+            combined_status=$?
+            standalone_out="$(.lake/build/bin/"$standalone" "${@:2}" 2>&1)"
+            standalone_status=$?
+            set -e
+            test "$combined_status" -eq "$standalone_status"
+            test "$combined_out" = "$standalone_out"
+          }
+
+          help_out="$(.lake/build/bin/loam help)"
+          grep -F "Open TUI interface (primary entrance)" <<<"$help_out"
+          grep -F "./tools/loam movement [LOAM_DATA_DIR]" <<<"$help_out"
+
+          compare_dispatch loamTui tui too many
+          compare_dispatch loamDoctor doctor "$(mktemp -d)"
+          compare_dispatch loamMovement movement too many
 
       - name: Verify display/history and admission-scoped Locus catalog
         run: lake env lean --run Loam/Tests/LocusCatalog.lean

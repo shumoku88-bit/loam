@@ -1174,7 +1174,3 @@ def run (args : List String) : IO UInt32 := do
     Loam.Tui.FavaLaunch.shutdown
 
 end Loam.Tui.Cli
-
-
-def main (args : List String) : IO UInt32 :=
-  Loam.Tui.Cli.run args
