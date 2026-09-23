@@ -179,6 +179,10 @@ semantic HTML
 Missing or refused evidence remains visibly unavailable. The Web layer must not
 turn missing authority into zero, empty, false, or NotDue.
 
+Direct HTML file output is kept outside the selected household data root. Existing
+filesystem aliases that resolve back into that root are refused as well, so a
+presentation command cannot replace canonical or configured household evidence.
+
 ## Progressive-enhancement rule
 
 A later Safari-rich layer may add layout, typography, responsive tables, timelines,
