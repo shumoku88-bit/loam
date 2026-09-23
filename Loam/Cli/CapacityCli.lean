@@ -15,11 +15,11 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM spending capacity\n\n" ++
   "Move JPY capacity between unallocated and purpose coordinates:\n" ++
-  "  ./tools/loam capacity <capacity-file>\n\n" ++
+  "  loam capacity <capacity-file>\n\n" ++
   "Show current all-history JPY entitlement projections:\n" ++
-  "  ./tools/loam capacity show <capacity-file>\n\n" ++
+  "  loam capacity show <capacity-file>\n\n" ++
   "Show JPY entitlement projected from movements effective in [start, end):\n" ++
-  "  ./tools/loam capacity show-window <capacity-file> YYYY-MM-DD YYYY-MM-DD\n\n" ++
+  "  loam capacity show-window <capacity-file> YYYY-MM-DD YYYY-MM-DD\n\n" ++
   "Scripted recording may set LOAM_CAPACITY_EFFECTIVE_DATE=YYYY-MM-DD."
 
 private def promptLine (prompt : String) : IO String := do
