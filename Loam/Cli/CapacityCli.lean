@@ -184,6 +184,3 @@ def run (args : List String) : IO UInt32 :=
       return 2
 
 end Loam.CapacityCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.CapacityCli.run args
