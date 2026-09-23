@@ -107,18 +107,26 @@ jobs:
             artifact: loam-linux-x86_64
             expected_arch: x86_64
             os_family: linux
+            deployment_target: ''
+            max_glibc_symbol: '2.17'
           - runner: ubuntu-22.04-arm
             artifact: loam-linux-aarch64
             expected_arch: aarch64
             os_family: linux
+            deployment_target: ''
+            max_glibc_symbol: '2.17'
           - runner: macos-15-intel
             artifact: loam-macos-x86_64
             expected_arch: x86_64
             os_family: macos
-          - runner: macos-14
+            deployment_target: '10.15'
+            max_glibc_symbol: ''
+          - runner: macos-15
             artifact: loam-macos-arm64
             expected_arch: arm64
             os_family: macos
+            deployment_target: '11.0'
+            max_glibc_symbol: ''
 
     runs-on: ${{ matrix.runner }}
 
@@ -138,6 +146,8 @@ jobs:
 
       - name: Build unified loam executable
         uses: leanprover/lean-action@v1
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
         with:
           auto-config: false
           build: true
@@ -177,15 +187,15 @@ jobs:
                 echo "  unavailable"
               fi
 
+              configured_target="${{ matrix.deployment_target }}"
               minimum_macos="$(awk '$1 == "minos" { print $2; exit }' <<<"$build_info")"
-              if [[ "$minimum_macos" == "99.0" ]]; then
-                echo "binary_minos=lean-default-sentinel-99.0"
-                echo "claimed_minimum_macos=unknown"
-                echo "portability_note=Lean sets MACOSX_DEPLOYMENT_TARGET=99.0 when unspecified; do not infer a minimum supported macOS from this Mach-O value."
-              else
-                echo "binary_minos=${minimum_macos:-unknown}"
-                echo "claimed_minimum_macos=${minimum_macos:-unknown}"
-              fi
+              test -n "$configured_target"
+              test -n "$minimum_macos"
+              test "$minimum_macos" = "$configured_target"
+              echo "configured_macos_deployment_target=$configured_target"
+              echo "binary_minos=$minimum_macos"
+              echo "runtime_qualified_on_host_macos=$(sw_vers -productVersion)"
+              echo "portability_note=The deployment target is encoded and checked at link time; runtime execution is qualified on the listed GitHub runner host."
             else
               host_glibc="$(ldd --version | head -n 1)"
               echo "host_glibc=$host_glibc"
@@ -201,8 +211,14 @@ jobs:
                     tail -n 1
                 ) || true
               )"
-              echo "observed_max_glibc_symbol=${required_glibc:-unknown}"
-              echo "portability_note=This is the highest referenced GLIBC symbol version observed in the built binary, not a complete oldest-distribution compatibility guarantee."
+              allowed_glibc="${{ matrix.max_glibc_symbol }}"
+              test -n "$required_glibc"
+              test -n "$allowed_glibc"
+              highest="$(printf '%s\n%s\n' "$required_glibc" "$allowed_glibc" | sort -Vu | tail -n 1)"
+              test "$highest" = "$allowed_glibc"
+              echo "observed_max_glibc_symbol=$required_glibc"
+              echo "enforced_max_glibc_symbol=$allowed_glibc"
+              echo "portability_note=CI rejects a binary whose highest referenced GLIBC symbol version exceeds this bound; this is not a complete oldest-distribution compatibility guarantee."
             fi
           } | tee "$metadata"
 
