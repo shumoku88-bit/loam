@@ -47,29 +47,16 @@ def report (scheduledPath actualRoot day : String) : IO UInt32 := do
         return 2
     | .ok snapshot =>
         match Loam.ScheduledReview.dayEvidence snapshot day with
-        | .due first rest => printDue day first rest
-        | .unknown =>
+        | .error message =>
+            IO.eprintln message
+            return 2
+        | .ok (.due first rest) => printDue day first rest
+        | .ok .unknown =>
             IO.println ("UNKNOWN\t" ++ day)
             IO.println
               "No explicit current-open Scheduled evidence is retained for this day."
             IO.println
               "This does not establish NOT_DUE; unmaterialized future obligations remain unknown."
             return 0
-        | .unknownCompletionScheduled =>
-            IO.eprintln "loam: Scheduled completion refers to an unknown Scheduled identity"
-            return 2
-        | .unknownRetirementScheduled =>
-            IO.eprintln "loam: Scheduled retirement refers to an unknown Scheduled identity"
-            return 2
-        | .unknownReplacementScheduled =>
-            IO.eprintln "loam: Scheduled replacement refers to an unknown Scheduled identity"
-            return 2
-        | .invalidReplacementGraph =>
-            IO.eprintln "loam: Scheduled replacement graph is cyclic or otherwise invalid"
-            return 2
-        | .conflictingTerminalEvidence =>
-            IO.eprintln
-              "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
-            return 2
 
 end Loam.ScheduledDayEvidenceCli
