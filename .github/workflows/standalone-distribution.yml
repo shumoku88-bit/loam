@@ -145,16 +145,62 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Inspect native binary linkage
+      - name: Record native portability evidence
         shell: bash
         run: |
           set -euo pipefail
-          file .lake/build/bin/loam
-          if [[ "${{ matrix.os_family }}" == "macos" ]]; then
-            otool -L .lake/build/bin/loam
-          else
-            ldd .lake/build/bin/loam
-          fi
+
+          binary=".lake/build/bin/loam"
+          metadata="$RUNNER_TEMP/PORTABILITY.txt"
+
+          file "$binary"
+
+          {
+            echo "artifact=${{ matrix.artifact }}"
+            echo "runner=${{ matrix.runner }}"
+            echo "architecture=$(uname -m)"
+
+            if [[ "${{ matrix.os_family }}" == "macos" ]]; then
+              echo "host_macos=$(sw_vers -productVersion)"
+              echo "dynamic_dependencies:"
+              otool -L "$binary" | sed 's/^/  /'
+
+              build_info="$(xcrun vtool -show-build "$binary" 2>/dev/null || true)"
+              echo "mach_o_build_version:"
+              if [[ -n "$build_info" ]]; then
+                sed 's/^/  /' <<<"$build_info"
+              else
+                echo "  unavailable"
+              fi
+
+              minimum_macos="$(awk '$1 == "minos" { print $2; exit }' <<<"$build_info")"
+              if [[ "$minimum_macos" == "99.0" ]]; then
+                echo "binary_minos=lean-default-sentinel-99.0"
+                echo "claimed_minimum_macos=unknown"
+                echo "portability_note=Lean sets MACOSX_DEPLOYMENT_TARGET=99.0 when unspecified; do not infer a minimum supported macOS from this Mach-O value."
+              else
+                echo "binary_minos=${minimum_macos:-unknown}"
+                echo "claimed_minimum_macos=${minimum_macos:-unknown}"
+              fi
+            else
+              host_glibc="$(ldd --version | head -n 1)"
+              echo "host_glibc=$host_glibc"
+              echo "dynamic_dependencies:"
+              ldd "$binary" | sed 's/^/  /'
+
+              required_glibc="$(
+                (
+                  readelf --version-info "$binary" |
+                    grep -oE 'GLIBC_[0-9]+([.][0-9]+)*' |
+                    sed 's/^GLIBC_//' |
+                    sort -Vu |
+                    tail -n 1
+                ) || true
+              )"
+              echo "observed_max_glibc_symbol=${required_glibc:-unknown}"
+              echo "portability_note=This is the highest referenced GLIBC symbol version observed in the built binary, not a complete oldest-distribution compatibility guarantee."
+            fi
+          } | tee "$metadata"
 
       - name: Package and re-run extracted standalone binary
         shell: bash
@@ -167,6 +213,7 @@ jobs:
 
           mkdir -p "$package_root"
           cp .lake/build/bin/loam "$package_root/loam"
+          cp "$RUNNER_TEMP/PORTABILITY.txt" "$package_root/PORTABILITY.txt"
           chmod +x "$package_root/loam"
 
           tar -C "$RUNNER_TEMP" -czf "$archive" "${{ matrix.artifact }}"
@@ -200,4 +247,5 @@ jobs:
           path: |
             ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz
             ${{ runner.temp }}/${{ matrix.artifact }}.tar.gz.sha256
+            ${{ runner.temp }}/PORTABILITY.txt
           if-no-files-found: error
