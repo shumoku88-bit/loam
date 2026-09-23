@@ -5,6 +5,8 @@ on:
     paths:
       - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CorrectionFrontierSemantics.lean'
+      - 'Loam/Application/CorrectionFrontierIndexed.lean'
       - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
       - '.github/workflows/practical-actual-correction-frontier.yml'
   push:
@@ -15,6 +17,8 @@ on:
     paths:
       - 'Loam/Core/EventCorrectionMemory.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CorrectionFrontierSemantics.lean'
+      - 'Loam/Application/CorrectionFrontierIndexed.lean'
       - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
       - '.github/workflows/practical-actual-correction-frontier.yml'
   workflow_dispatch:
