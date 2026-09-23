@@ -68,7 +68,27 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
     automaticDeductions := Quantity.ofQuanta 800
     availableThroughEnd := Quantity.ofQuanta 1700
   }
-  pure { actual := actual, scheduled := .ok scheduledSnapshot, pace := .ok pace }
+  let paceHistory : List Loam.CycleSpendingPaceReview.Snapshot := [
+    { observedAt := "2026-09-05"
+      endExclusive := "2026-09-17"
+      remainingDays := 12
+      eligiblePool := Quantity.ofQuanta 2600
+      automaticDeductions := Quantity.ofQuanta 800
+      availableThroughEnd := Quantity.ofQuanta 1800 },
+    { observedAt := "2026-09-06"
+      endExclusive := "2026-09-17"
+      remainingDays := 11
+      eligiblePool := Quantity.ofQuanta 2560
+      automaticDeductions := Quantity.ofQuanta 800
+      availableThroughEnd := Quantity.ofQuanta 1760 },
+    pace
+  ]
+  pure {
+    actual := actual
+    scheduled := .ok scheduledSnapshot
+    pace := .ok pace
+    paceHistory := .ok paceHistory
+  }
 
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
@@ -89,6 +109,8 @@ def main : IO Unit := do
   let dueTodayText := widgetText dueTodayView
   expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
     "Home did not expose the current Daily Pace answer"
+  expect (contains "3d ▁▄█  09-05..09-07" dueTodayText)
+    "Home did not expose the reconstructed Daily Pace sparkline"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 

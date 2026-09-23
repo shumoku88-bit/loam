@@ -1,4 +1,6 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
+import Loam.ActualReview
 import Loam.BalanceReview
 import Loam.BoundaryPresetConfig
 import Loam.DailyPaceConfig
@@ -54,6 +56,7 @@ def Snapshot.dailyPaceQuanta? (snapshot : Snapshot) : Option Int :=
     none
   else
     some (snapshot.availableThroughEnd.quanta / Int.ofNat snapshot.remainingDays)
+
 
 private def selectedChange
     (selection : List EffectCoordinate)
@@ -142,6 +145,206 @@ def project
     availableThroughEnd := Quantity.ofQuanta available
   }
 
+/-!
+## Retrospective pace series
+
+The series below retains no Daily Pace observations. Instead it reconstructs each
+past day from the **current admitted household truth**:
+
+- the current Event correction frontier is cut by current occurrence dates, just
+  as Stock–Flow reconstruction cuts historical quantity boundaries;
+- a Scheduled completion is considered closed from the occurrence date of its
+  retained Actual endpoint;
+- currently retained Scheduled occurrences are treated as part of the current
+  truth for every reconstructed day.
+
+This is intentionally not a claim about what LOAM knew or displayed on that past
+day. Scheduled creation has no learned-time coordinate, so a later-added
+occurrence may appear in an earlier reconstructed point.
+
+Retirement and Scheduled replacement currently have no learned-time coordinate
+or dated Actual endpoint. If either would affect the selected Daily Pace pool,
+historical reconstruction refuses rather than fabricating a transition date.
+-/
+
+private def selectedEventQuanta
+    (selection : List EffectCoordinate)
+    (event : Event) : Int :=
+  event.effects.foldl
+    (fun total effect =>
+      if effect.coordinate ∈ selection then total + effect.quantity.quanta else total)
+    0
+
+private def validateHistoricalActualDates
+    (selection : List EffectCoordinate) :
+    List Loam.ActualReview.Record → Except String Unit
+  | [] => .ok ()
+  | record :: rest =>
+      if !record.isCurrent then
+        validateHistoricalActualDates selection rest
+      else
+        let quantity := selectedEventQuanta selection record.event
+        if quantity = 0 then
+          validateHistoricalActualDates selection rest
+        else
+          match record.date with
+          | none =>
+              .error
+                ("loam: Daily Pace history unavailable: current selected Actual " ++
+                  record.event.id.token ++ " has no occurrence date")
+          | some date =>
+              if Loam.ActualDate.validIsoDate date then
+                validateHistoricalActualDates selection rest
+              else
+                .error
+                  ("loam: Daily Pace history unavailable: current selected Actual " ++
+                    record.event.id.token ++ " has an invalid occurrence date")
+
+private def eligiblePoolAtEndOfDay
+    (selection : List EffectCoordinate)
+    (records : List Loam.ActualReview.Record)
+    (date : String) : Int :=
+  records.foldl
+    (fun total record =>
+      if !record.isCurrent then total
+      else
+        match record.date with
+        | some validOn =>
+            if decide (validOn ≤ date) then
+              total + selectedEventQuanta selection record.event
+            else
+              total
+        | none => total)
+    0
+
+private def terminalFor?
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (id : ScheduledId) : Option ScheduledTerminal :=
+  scheduled.terminals.terminals.find? fun terminal => terminal.source == id
+
+private def completionDateFor
+    (records : List Loam.ActualReview.Record)
+    (event : EventId) : Except String String := do
+  let some record := records.find? fun record => record.event.id == event
+    | throw
+        ("loam: Daily Pace history unavailable: Scheduled completion Actual " ++
+          event.token ++ " is not retained")
+  let some date := record.date
+    | throw
+        ("loam: Daily Pace history unavailable: Scheduled completion Actual " ++
+          event.token ++ " has no occurrence date")
+  if Loam.ActualDate.validIsoDate date then
+    return date
+  throw
+    ("loam: Daily Pace history unavailable: Scheduled completion Actual " ++
+      event.token ++ " has an invalid occurrence date")
+
+private def historicalDeductionsForDate
+    (selection : List EffectCoordinate)
+    (records : List Loam.ActualReview.Record)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (endExclusive pointDate : String) :
+    List (ScheduledOccurrence String) → Except String Int
+  | [] => .ok 0
+  | occurrence :: rest => do
+      let later ←
+        historicalDeductionsForDate
+          selection records scheduled endExclusive pointDate rest
+      let deduction := deductionQuanta selection occurrence
+      if deduction = 0 || !(decide (occurrence.scheduledOn < endExclusive)) then
+        return later
+      if !Loam.ActualDate.validIsoDate occurrence.scheduledOn then
+        throw
+          ("loam: Daily Pace history unavailable: Scheduled " ++
+            occurrence.id.token ++ " has an invalid retained date")
+      match terminalFor? scheduled occurrence.id with
+      | none =>
+          return deduction + later
+      | some terminal =>
+          match terminal.target with
+          | some (.actual event) =>
+              let completedOn ← completionDateFor records event
+              if decide (completedOn ≤ pointDate) then
+                return later
+              else
+                return deduction + later
+          | some (.scheduled _) =>
+              throw
+                ("loam: Daily Pace history unavailable: Scheduled " ++
+                  occurrence.id.token ++
+                  " was replaced without a learned-time coordinate")
+          | none =>
+              throw
+                ("loam: Daily Pace history unavailable: Scheduled " ++
+                  occurrence.id.token ++
+                  " was retired without a learned-time coordinate")
+
+private def reconstructedSnapshot
+    (endExclusive : String)
+    (selection : List EffectCoordinate)
+    (records : List Loam.ActualReview.Record)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (date : String) : Except String Snapshot := do
+  let some distance := Loam.ActualDate.daysBetween? date endExclusive
+    | throw "loam: Daily Pace history could not determine a remaining calendar horizon"
+  if distance <= 0 then
+    throw "loam: Daily Pace history point must precede cycle end"
+  let eligible := eligiblePoolAtEndOfDay selection records date
+  let deductions ←
+    historicalDeductionsForDate
+      selection records scheduled endExclusive date scheduled.scheduled.occurrences
+  return {
+    observedAt := date
+    endExclusive := endExclusive
+    remainingDays := distance.natAbs
+    eligiblePool := Quantity.ofQuanta eligible
+    automaticDeductions := Quantity.ofQuanta deductions
+    availableThroughEnd := Quantity.ofQuanta (eligible - deductions)
+  }
+
+private def recentDates
+    (windowStart observedAt : String)
+    (days : Nat) : List String :=
+  (List.range days).filterMap fun index => do
+    let offset := Int.ofNat index - Int.ofNat (days - 1)
+    let date ← Loam.ActualDate.shiftDays? observedAt offset
+    if decide (windowStart ≤ date) then some date else none
+
+/--
+Reconstruct up to `days` current-truth Daily Pace points inside the current
+explicit cycle, oldest first.
+
+The latest reconstructed point must equal the ordinary current Daily Pace answer.
+This parity check prevents the trend from silently using a different balance or
+Scheduled interpretation than Home's headline number.
+-/
+def projectHistory
+    (windowStart observedAt endExclusive : String)
+    (selection : List EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot)
+    (records : List Loam.ActualReview.Record)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (days : Nat) : Except String (List Snapshot) := do
+  if !Loam.ActualDate.validIsoDate windowStart then
+    throw "loam: Daily Pace history requires a real cycle-start date"
+  if !(decide (windowStart ≤ observedAt)) then
+    throw "loam: Daily Pace history observation precedes the current cycle"
+  let current ← project observedAt endExclusive selection balances scheduled
+  let _ ← Loam.ScheduledReview.currentOpenRecords scheduled
+  validateHistoricalActualDates selection records
+  if days = 0 then
+    return []
+  let dates := recentDates windowStart observedAt days
+  let points ← dates.mapM fun date =>
+    reconstructedSnapshot endExclusive selection records scheduled date
+  match points.reverse with
+  | [] => return []
+  | latest :: _ =>
+      if latest = current then
+        return points
+      throw
+        "loam: Daily Pace history latest point disagrees with the current Daily Pace answer"
+
 /--
 Load the current explicit boundary, Daily Pace pool, current balances, and
 current-open Scheduled evidence.
@@ -174,5 +377,49 @@ def loadSnapshotAt
     | .error message => return .error message
     | .ok scheduled => pure scheduled
   return project observedAt window.endExclusive selection balances scheduled
+
+private def actualPathForObservation
+    (actualRoot : System.FilePath) : System.FilePath :=
+  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
+  else Loam.ActualAuthority.actualPath actualRoot
+
+/--
+Load a retrospective current-truth Daily Pace series without retaining any pace
+observation. The current normalized Actual image is read once and supplies both
+the correction-aware Event frontier and current occurrence-date projection.
+-/
+def loadHistoryAt
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (List Snapshot)) := do
+  let window ←
+    match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
+    | .error message => return .error message
+    | .ok window => pure window
+  let selection ←
+    match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
+    | .error message => return .error message
+    | .ok coordinates => pure coordinates
+  let actualPath := actualPathForObservation actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    | .error message => return .error message
+    | .ok image => pure image
+  let coverage ←
+    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    | .error message => return .error message
+    | .ok coverage => pure coverage
+  let balances ←
+    match Loam.BalanceReview.projectImage image coverage selection with
+    | .error message => return .error message
+    | .ok balances => pure balances
+  let scheduled ←
+    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
+    | .error message => return .error message
+    | .ok scheduled => pure scheduled
+  let records := Loam.ActualReview.recordsFromActualImage image
+  return projectHistory
+    window.start observedAt window.endExclusive
+    selection balances records scheduled days
 
 end Loam.CycleSpendingPaceReview

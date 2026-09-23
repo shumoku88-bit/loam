@@ -30,6 +30,12 @@ structure Snapshot where
   -/
   pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
     .error "loam: Daily Pace not loaded"
+  /--
+  Optional retrospective current-truth series for presentation. This is derived
+  from canonical evidence at load time and is never retained as household state.
+  -/
+  paceHistory : Except String (List Loam.CycleSpendingPaceReview.Snapshot) :=
+    .error "loam: Daily Pace history not loaded"
 
 /-- Production root state now owns only Home date focus and a human-facing notice. -/
 structure State where

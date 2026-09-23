@@ -106,5 +106,88 @@ def main : IO Unit := do
       "2026-09-18" "2026-09-18" selection balances scheduled)
     "Daily Pace accepted an empty current-cycle horizon"
 
+  let opening ← requireSome
+    (Event.ofEffects? ⟨"opening"⟩
+      [ Effect.ofQuantity ⟨"opening-wallet"⟩ wallet yen (Quantity.ofQuanta 2000)
+      , Effect.ofQuantity ⟨"opening-income"⟩ income yen (Quantity.ofQuanta (-2000))
+      ])
+    "Daily Pace history opening Event fixture"
+  let spend ← requireSome
+    (Event.ofEffects? ⟨"spend"⟩
+      [ Effect.ofQuantity ⟨"spend-wallet"⟩ wallet yen (Quantity.ofQuanta (-500))
+      , Effect.ofQuantity ⟨"spend-expense"⟩ expense yen (Quantity.ofQuanta 500)
+      ])
+    "Daily Pace history spending Event fixture"
+  let completion ← requireSome
+    (Event.ofEffects? ⟨"completion"⟩
+      [ Effect.ofQuantity ⟨"completion-cash"⟩ cash yen (Quantity.ofQuanta (-300))
+      , Effect.ofQuantity ⟨"completion-expense"⟩ expense yen (Quantity.ofQuanta 300)
+      ])
+    "Daily Pace history completion Event fixture"
+  let historyEvents ← requireSome
+    (EventMemory.ofEvents? [opening, spend, completion])
+    "Daily Pace history Event memory fixture"
+
+  let bill ← requireSome
+    (scheduled? "bill" "2026-09-12" [change cash (-300), change expense 300])
+    "Daily Pace history bill fixture"
+  let laterBill ← requireSome
+    (scheduled? "later-bill" "2026-09-13" [change cash (-500), change expense 500])
+    "Daily Pace history later bill fixture"
+  let historyScheduledMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [bill, laterBill])
+    "Daily Pace history Scheduled memory fixture"
+  let historyTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := bill.id, target := some (.actual completion.id) }])
+    "Daily Pace history terminal fixture"
+  let historyScheduled : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := historyScheduledMemory
+    terminals := historyTerminals
+    events := historyEvents
+  }
+  let historyBalances : Loam.BalanceReview.Snapshot := {
+    rows := [
+      { coordinate := coordinate wallet, quantity := Quantity.ofQuanta 1500 },
+      { coordinate := coordinate cash, quantity := Quantity.ofQuanta (-300) }
+    ]
+  }
+  let records : List Loam.ActualReview.Record := [
+    { event := opening, date := some "2026-09-08", description := "", replacement := none },
+    { event := spend, date := some "2026-09-09", description := "", replacement := none },
+    { event := completion, date := some "2026-09-10", description := "", replacement := none }
+  ]
+
+  let history ←
+    match Loam.CycleSpendingPaceReview.projectHistory
+        "2026-09-08" "2026-09-10" "2026-09-18"
+        selection historyBalances records historyScheduled 7 with
+    | .error message => throw (IO.userError message)
+    | .ok points => pure points
+
+  expect
+    (history.map (fun point => point.observedAt) ==
+      ["2026-09-08", "2026-09-09", "2026-09-10"])
+    "Daily Pace history did not stay inside the current cycle"
+  expect
+    (history.map (fun point => point.dailyPaceQuanta?) ==
+      [some 120, some 77, some 87])
+    "Daily Pace history did not reconstruct completion-aware pace"
+
+  let retirementTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := laterBill.id, target := none }])
+    "Daily Pace history retirement fixture"
+  let retiredScheduled : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := historyScheduledMemory
+    terminals := retirementTerminals
+    events := historyEvents
+  }
+  expectError
+    (Loam.CycleSpendingPaceReview.projectHistory
+      "2026-09-08" "2026-09-10" "2026-09-18"
+      selection historyBalances records retiredScheduled 7)
+    "Daily Pace history invented a retirement date"
+
   IO.println
     "Cycle Spending Pace: explicit pool, per-Scheduled deduction, boundary and earliest-open checks passed."

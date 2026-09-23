@@ -133,11 +133,18 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir
   let pace ←
     Loam.CycleSpendingPaceReview.loadSnapshotAt dataDir dataDir today
+  let paceHistory ←
+    Loam.CycleSpendingPaceReview.loadHistoryAt dataDir dataDir today 7
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
   }
-  return .ok { actual := actual, scheduled := scheduled, pace := pace }
+  return .ok {
+    actual := actual
+    scheduled := scheduled
+    pace := pace
+    paceHistory := paceHistory
+  }
 
 private def requireReload {α : Type} (notice : String)
     (reload : IO (Except String α)) : IO α := do
