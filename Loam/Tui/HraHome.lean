@@ -169,52 +169,34 @@ private def statusTokens
     | .error _ => "Unavailable"
   ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus]
 
-private def paceBounds : List Int → Option (Int × Int)
-  | [] => none
-  | first :: rest =>
-      some <| rest.foldl
-        (fun bounds value =>
-          (if value < bounds.1 then value else bounds.1,
-           if bounds.2 < value then value else bounds.2))
-        (first, first)
-
-private def sparkGlyph : Nat → String
-  | 0 => "▁"
-  | 1 => "▂"
-  | 2 => "▃"
-  | 3 => "▄"
-  | 4 => "▅"
-  | 5 => "▆"
-  | 6 => "▇"
-  | _ => "█"
-
-private def sparkline (values : List Int) : Option String := do
-  let (low, high) ← paceBounds values
-  if low = high then
-    some (String.intercalate "" (values.map fun _ => "▄"))
-  else
-    some <| String.intercalate "" <| values.map fun value =>
-      let index := (((value - low) * 7) / (high - low)).natAbs
-      sparkGlyph index
-
 private def shortPaceDate (date : String) : String :=
   String.ofList (date.toList.drop 5)
 
-private def dailyPaceHistoryText (snapshot : Snapshot) : String :=
-  match snapshot.paceHistory with
-  | .error _ => "trend: unavailable"
-  | .ok history =>
-      let values := history.filterMap fun point => point.dailyPaceQuanta?
-      match sparkline values, history.head?, history.reverse.head? with
-      | some graph, some first, some last =>
-          toString history.length ++ "d " ++ graph ++ "  " ++
-            shortPaceDate first.observedAt ++ ".." ++ shortPaceDate last.observedAt
-      | _, _, _ => "trend: unavailable"
+/--
+Home favors exact recent values over a shape-only graph.
 
-private def dailyPaceHistoryLine (snapshot : Snapshot) : Widget :=
+The review boundary may derive seven days, while Home keeps the last five rows
+to preserve the calendar as the dominant object in the left pane.
+-/
+private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
   match snapshot.paceHistory with
-  | .error _ => mutedLine (" " ++ dailyPaceHistoryText snapshot)
-  | .ok _ => mutedLine (" " ++ dailyPaceHistoryText snapshot)
+  | .error _ =>
+      [mutedLine " Recent pace: unavailable"]
+  | .ok history =>
+      let recent := (history.reverse.take 5).reverse
+      if recent.isEmpty then
+        [mutedLine " Recent pace: unavailable"]
+      else
+        [mutedLine " Recent pace"] ++
+        (recent.map fun point =>
+          match point.dailyPaceQuanta? with
+          | some quanta =>
+              mutedLine
+                ("   " ++ shortPaceDate point.observedAt ++ "  " ++
+                  toString quanta ++ " jpy/day")
+          | none =>
+              mutedLine
+                ("   " ++ shortPaceDate point.observedAt ++ "  unavailable"))
 
 private def dailyPaceText (snapshot : Snapshot) : String :=
   match snapshot.pace with
@@ -260,7 +242,9 @@ private def nextScheduledLine (snapshot : Snapshot) : Widget :=
       | .ok (some _) => plainLine (" " ++ nextScheduledText snapshot)
 
 private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
-  [dailyPaceLine snapshot, dailyPaceHistoryLine snapshot, nextScheduledLine snapshot]
+  [dailyPaceLine snapshot] ++
+  dailyPaceHistoryLines snapshot ++
+  [nextScheduledLine snapshot]
 
 private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
   let paceLines :=
@@ -281,8 +265,8 @@ private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
             , mutedLine
                 ("   " ++ toString pace.availableThroughEnd.quanta ++
                   " jpy through " ++ pace.endExclusive)
-            , mutedLine ("   " ++ dailyPaceHistoryText snapshot)
-            ]
+            ] ++
+            dailyPaceHistoryLines snapshot
   let scheduledLines :=
     match snapshot.scheduled with
     | .error _ =>
