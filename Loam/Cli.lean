@@ -15,6 +15,9 @@ import Loam.Cli.DailyQuantityCli
 import Loam.Cli.ActualRoutingCli
 import Loam.Cli.ScheduledRoutingCli
 import Loam.Cli.BudgetWindowCli
+import Loam.Cli.JournalExportCli
+import Loam.Cli.PlainTextAccountingExportCli
+import Loam.Cli.BeancountExportCli
 import Loam.Tui.Cli
 import Loam.RoleBalanceReview
 import Loam.Tui.Kernel
@@ -41,6 +44,10 @@ private def practicalUsage : String :=
   "  ./tools/loam actual-routing ...\n" ++
   "  ./tools/loam scheduled-routing ...\n" ++
   "  ./tools/loam budget-window DATA_ROOT START END PURPOSE|--all\n\n" ++
+  "Portable exports:\n" ++
+  "  ./tools/loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
+  "  ./tools/loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
+  "  ./tools/loam export beancount [--partial|--suspense] ...\n\n" ++
   "Print the evidence-aware Balances report as plain text:\n" ++
   "  ./tools/loam report balances [LOAM_DATA_DIR]\n\n" ++
   "Publish one complete current quantity observation image:\n" ++
@@ -150,6 +157,12 @@ def run (args : List String) : IO UInt32 := do
       Loam.ScheduledRoutingCli.run routingArgs
   | "budget-window" :: budgetArgs =>
       Loam.BudgetWindowCli.run budgetArgs
+  | "export" :: "journal" :: exportArgs =>
+      Loam.JournalExportCli.run exportArgs
+  | "export" :: "pta" :: exportArgs =>
+      Loam.PlainTextAccountingExportCli.run exportArgs
+  | "export" :: "beancount" :: exportArgs =>
+      Loam.BeancountExportCli.run exportArgs
   | ["help"] => do
       IO.println practicalUsage
       return 0
