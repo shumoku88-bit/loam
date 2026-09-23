@@ -174,7 +174,14 @@ jobs:
               fi
 
               minimum_macos="$(awk '$1 == "minos" { print $2; exit }' <<<"$build_info")"
-              echo "binary_minos=${minimum_macos:-unknown}"
+              if [[ "$minimum_macos" == "99.0" ]]; then
+                echo "binary_minos=lean-default-sentinel-99.0"
+                echo "claimed_minimum_macos=unknown"
+                echo "portability_note=Lean sets MACOSX_DEPLOYMENT_TARGET=99.0 when unspecified; do not infer a minimum supported macOS from this Mach-O value."
+              else
+                echo "binary_minos=${minimum_macos:-unknown}"
+                echo "claimed_minimum_macos=${minimum_macos:-unknown}"
+              fi
             else
               host_glibc="$(ldd --version | head -n 1)"
               echo "host_glibc=$host_glibc"
@@ -190,7 +197,8 @@ jobs:
                     tail -n 1
                 ) || true
               )"
-              echo "binary_max_glibc_symbol=${required_glibc:-unknown}"
+              echo "observed_max_glibc_symbol=${required_glibc:-unknown}"
+              echo "portability_note=This is the highest referenced GLIBC symbol version observed in the built binary, not a complete oldest-distribution compatibility guarantee."
             fi
           } | tee "$metadata"
 
