@@ -1,0 +1,68 @@
+direction: right
+
+baseline: {
+  label: "G2 closure\n024a76c..."
+  shape: rectangle
+}
+
+growth: {
+  label: "Post-G2 growth\n242 commits / 451 files"
+  shape: rectangle
+
+  authority: "Actual / Capacity / Scheduled authority"
+  write: "Proposal / Merchant / Attention / unresolved writes"
+  read: "Daily Pace / reports / Web / Home"
+  scheduled: "Scheduled generation / coverage / continuation"
+  measure: "Multi-Measure / decimal presentation"
+  export: "PTA / Beancount / Fava / standalone"
+  perf: "Relation / discharge / Scheduled / Correction indexes"
+  research: "Future-context / semantic-memory / interpretation probes"
+}
+
+findings: {
+  label: "Open audit findings"
+  shape: rectangle
+
+  d1: "D1 HIGH\nWeb output can overwrite authority"
+  d2: "D2 HIGH\nJournal alias guard is lexical only"
+  d3: "D3 HIGH semantic\nMeasure scale can reinterpret history"
+  d4: "D4 MEDIUM\nHome can mix Actual generations"
+  d5: "D5 MEDIUM\nReplay output may describe unretained payload"
+  d6: "D6 MEDIUM\nExternal Fava may serve another ledger"
+  d7: "D7 LOW-MEDIUM\nRelation/discharge proof-density gap"
+  lower: "D8-D10 LOW\nconfig concurrency / research exe / pace label"
+}
+
+baseline -> growth
+
+growth.export -> findings.d1
+growth.export -> findings.d2
+growth.measure -> findings.d3
+growth.read -> findings.d4
+growth.write -> findings.d5
+growth.export -> findings.d6
+growth.perf -> findings.d7
+growth.scheduled -> findings.lower
+growth.research -> findings.lower
+
+pass: {
+  label: "No blocking finding"
+  shape: rectangle
+  text1: "normalized Actual / Capacity"
+  text2: "Scheduled lifecycle"
+  text3: "Merchant"
+  text4: "unresolved recording"
+  text5: "single-Measure recording"
+  text6: "Scheduled generation semantics"
+  text7: "PTA / Beancount"
+  text8: "standalone distribution"
+}
+
+growth.authority -> pass.text1
+growth.authority -> pass.text2
+growth.write -> pass.text3
+growth.write -> pass.text4
+growth.measure -> pass.text5
+growth.scheduled -> pass.text6
+growth.export -> pass.text7
+growth.export -> pass.text8
