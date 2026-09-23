@@ -72,8 +72,8 @@ def initialPrompt (candidates : List Loam.ScheduledReview.Record) : PromptState 
   | [] => {}
   | first :: rest => { candidate := some first, additionalCount := rest.length }
 
-private def optionCount (state : PromptState) : Nat :=
-  if state.candidate.isSome then 3 else 3
+private def optionCount (_state : PromptState) : Nat :=
+  3
 
 private def moveChoice (state : PromptState) (back : Bool) : PromptState :=
   let count := optionCount state
