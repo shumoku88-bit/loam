@@ -23,7 +23,11 @@ existing v1 physical authority format at the persistence boundary.
 -/
 
 abbrev Record := ScheduledOccurrence String
-abbrev DayEvidence := Loam.Application.CurrentScheduledDayEvidenceResult String
+inductive DayEvidence where
+  | due (first : Record) (rest : List Record)
+  | unknown
+  deriving Repr, DecidableEq
+
 
 structure EvidenceSnapshot where
   scheduled : ScheduledMemory String
@@ -119,13 +123,24 @@ def loadHouseholdEvidenceForEvents
   loadLifecycleSnapshot? (dataDir / "scheduled.loam") eventMemory
 
 
-def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
-  Loam.Application.currentScheduledDayEvidence
-    snapshot.scheduled snapshot.terminals snapshot.events date
+/--
+Qualified exact-day Scheduled answer.
+
+Lifecycle-topology failures are refused at the Review boundary through the same
+`currentOpenRecords` admission used by other shared Scheduled reads. Surfaces
+therefore observe only `due` or open-world `unknown`; malformed lifecycle
+evidence never becomes an ordinary day answer.
+-/
+def dayEvidence
+    (snapshot : EvidenceSnapshot) (date : String) : Except String DayEvidence := do
+  let records ← currentOpenRecords snapshot
+  match records.filter fun occurrence => occurrence.scheduledOn == date with
+  | [] => return .unknown
+  | first :: rest => return .due first rest
 
 def explicitDueRecords : DayEvidence → List Record
   | .due first rest => first :: rest
-  | _ => []
+  | .unknown => []
 
 /--
 Return current-open Scheduled occurrences whose retained expected date is before
