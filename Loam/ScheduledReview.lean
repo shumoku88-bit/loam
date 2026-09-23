@@ -26,7 +26,6 @@ abbrev Record := ScheduledOccurrence String
 inductive DayEvidence where
   | due (first : Record) (rest : List Record)
   | unknown
-  deriving Repr, DecidableEq
 
 
 structure EvidenceSnapshot where
