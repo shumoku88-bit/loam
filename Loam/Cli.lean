@@ -5,6 +5,9 @@ import Loam.WriterOwnership
 import Loam.Cli.EffectiveCli
 import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
+import Loam.Cli.DoctorCli
+import Loam.Cli.MovementCli
+import Loam.Tui.Cli
 import Loam.RoleBalanceReview
 import Loam.Tui.Kernel
 import Loam.Tui.RoleBalances
@@ -17,7 +20,10 @@ set_option autoImplicit false
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
   "Open TUI interface (primary entrance):\n" ++
-  "  ./tools/loam\n\n" ++
+  "  ./tools/loam\n" ++
+  "  ./tools/loam tui [LOAM_DATA_DIR]\n\n" ++
+  "Record one Movement through the same binary:\n" ++
+  "  ./tools/loam movement [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
   "  ./tools/loam doctor [LOAM_DATA_DIR]\n\n" ++
   "Print the evidence-aware Balances report as plain text:\n" ++
@@ -107,9 +113,10 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
 /-- Command dispatcher for the New-only normalized Actual runtime. -/
 def run (args : List String) : IO UInt32 := do
   match args with
-  | [] => do
-      IO.println practicalUsage
-      return 0
+  | [] => Loam.Tui.Cli.run []
+  | "tui" :: tuiArgs => Loam.Tui.Cli.run tuiArgs
+  | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
+  | "movement" :: movementArgs => Loam.MovementCli.run movementArgs
   | ["help"] => do
       IO.println practicalUsage
       return 0
