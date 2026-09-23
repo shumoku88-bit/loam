@@ -1,0 +1,93 @@
+name: Standalone Distribution Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/**'
+      - 'Loam/Tui/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - '.github/workflows/standalone-distribution.yml'
+  push:
+    paths:
+      - 'Loam/Cli.lean'
+      - 'Loam/Cli/**'
+      - 'Loam/Tui/**'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - '.github/workflows/standalone-distribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standalone-distribution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Run loam outside repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build unified loam executable
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run copied binary with no source tree or Lean toolchain on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          standalone="$(mktemp -d)"
+          cp .lake/build/bin/loam "$standalone/loam"
+          chmod +x "$standalone/loam"
+
+          (
+            cd "$standalone"
+            test ! -e lakefile.lean
+            test ! -d Loam
+            test ! -d .lake
+
+            clean_env=(env -i HOME="$HOME" PATH="/usr/bin:/bin")
+
+            help_out="$("${clean_env[@]}" ./loam help)"
+            grep -Fq "LOAM practical dogfood" <<<"$help_out"
+            grep -Fq "loam movement [LOAM_DATA_DIR]" <<<"$help_out"
+            grep -Fq "loam export beancount" <<<"$help_out"
+            if grep -Fq "./tools/loam" <<<"$help_out"; then
+              echo "standalone binary help still refers to repository wrapper" >&2
+              exit 1
+            fi
+
+            mkdir household
+            set +e
+            doctor_out="$("${clean_env[@]}" ./loam doctor "$standalone/household" 2>&1)"
+            doctor_status=$?
+            set -e
+            test "$doctor_status" -eq 2
+            grep -Fq "LOAM operational diagnosis" <<<"$doctor_out"
+            grep -Fq "Status: blocked" <<<"$doctor_out"
+            grep -Fq "This diagnosis is read-only." <<<"$doctor_out"
+
+            set +e
+            export_out="$("${clean_env[@]}" ./loam export journal 2>&1)"
+            export_status=$?
+            set -e
+            test "$export_status" -eq 2
+            grep -Fq "Usage: loam export journal ACTUAL_FILE OUTPUT_FILE" <<<"$export_out"
+          )
