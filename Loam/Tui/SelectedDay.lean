@@ -70,7 +70,7 @@ def scheduledEvidence
     (snapshot : Snapshot) (state : State) : Except String ScheduledEvidence :=
   match snapshot.scheduled with
   | .error message => .error message
-  | .ok scheduled => .ok (Loam.ScheduledReview.dayEvidence scheduled state.focusDate)
+  | .ok scheduled => Loam.ScheduledReview.dayEvidence scheduled state.focusDate
 
 
 def scheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecord :=
@@ -267,7 +267,6 @@ private def paneRow (snapshot : Snapshot) (state : State)
           | .error message => " [Unavailable] " ++ message
           | .ok .unknown => " (Unknown; no completeness horizon claimed)"
           | .ok (.due _ _) => " (none due)"
-          | .ok _ => " (Scheduled evidence unavailable)"
         else ""
   .row [span (fit leftWidth actualText), span " | ", span (fit rightWidth scheduledText)]
 
@@ -297,16 +296,6 @@ private def scheduledUnavailableDetail
       [ plainLine " Selected Scheduled:"
       , mutedLine "   Unknown: absence of an explicit due occurrence is not NotDue."
       ]
-  | .ok .unknownCompletionScheduled =>
-      [plainLine " Selected Scheduled:", plainLine "   Unavailable: completion evidence references an unknown Scheduled identity."]
-  | .ok .unknownRetirementScheduled =>
-      [plainLine " Selected Scheduled:", plainLine "   Unavailable: retirement evidence references an unknown Scheduled identity."]
-  | .ok .unknownReplacementScheduled =>
-      [plainLine " Selected Scheduled:", plainLine "   Unavailable: replacement evidence references an unknown Scheduled identity."]
-  | .ok .invalidReplacementGraph =>
-      [plainLine " Selected Scheduled:", plainLine "   Unavailable: Scheduled replacement graph is invalid."]
-  | .ok .conflictingTerminalEvidence =>
-      [plainLine " Selected Scheduled:", plainLine "   Unavailable: Scheduled terminal evidence conflicts."]
   | .ok (.due _ _) =>
       [plainLine " Selected Scheduled:", mutedLine "   (no Scheduled selected)"]
 
