@@ -27,10 +27,6 @@ private structure ActualObservation where
   coverage : Except String Loam.CurrentCoverageReview.Snapshot
   evidence : Except String Loam.BalanceReview.Evidence
 
-private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
-  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-  else Loam.ActualAuthority.actualPath actualRoot
-
 private def loadActualObservation
     (dataDir actualRoot : System.FilePath)
     (observedAt : String)
@@ -57,7 +53,7 @@ replay. No writer or recovery is invoked.
 def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) :
     IO Snapshot := do
   let window ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt
-  let actualPath := actualPathForObservation actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let observation ←
     try
       Loam.ActualAuthority.withActualFileOwnership actualPath
