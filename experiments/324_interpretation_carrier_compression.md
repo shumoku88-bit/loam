@@ -1,6 +1,6 @@
 # Observation 324 — existing Event carrier cannot compress interpretation meaning losslessly
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `993654ac0592d8e7e89410a0ad219aebbef2458e`
 
@@ -79,7 +79,9 @@ Can two worlds have the same retained carrier while differing in:
 
 If yes, then Event + Description + one attributed-time coordinate also loses meaning.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35892567898`, Alloy 6.2.0 / Sat4j:
 
 ```text
 recordedCarrierLosesSubject          SAT
@@ -109,7 +111,7 @@ It also does not attempt these semantically suspicious encodings:
 Those tricks may carry bits, but they would import meanings that LOAM currently
 keeps separate.
 
-## Expected conclusion if qualified
+## Qualified conclusion
 
 The existing Event carrier can plausibly reuse:
 
