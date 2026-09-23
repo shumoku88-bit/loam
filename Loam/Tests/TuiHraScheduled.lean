@@ -83,6 +83,40 @@ private def longHraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
 
 def main : IO Unit := do
   let snapshot ← hraScheduledSnapshot
+
+  -- Shared current-open read order is date first, then Scheduled identity.
+  -- Retained order is intentionally reversed for the same-date pair.
+  let sameDateZ ← requireSome
+    (scheduledRecord? "z-same-day" "2026-09-10" "wallet" "food" 10)
+    "same-date z fixture was not admitted"
+  let sameDateA ← requireSome
+    (scheduledRecord? "a-same-day" "2026-09-10" "wallet" "books" 20)
+    "same-date a fixture was not admitted"
+  let orderedMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [sameDateZ, sameDateA])
+    "same-date ordered Scheduled memory was not admitted"
+  let orderedTerminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "same-date empty terminal memory was not admitted"
+  let orderedEvents ← requireSome (EventMemory.ofEvents? [])
+    "same-date empty Event memory was not admitted"
+  let orderedEvidence : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := orderedMemory
+    terminals := orderedTerminals
+    events := orderedEvents
+  }
+  let ordered ←
+    match Loam.ScheduledReview.orderedCurrentOpenRecords orderedEvidence with
+    | .error message => throw (IO.userError message)
+    | .ok rows => pure rows
+  expect (ordered.map (fun row => row.id.token) == ["a-same-day", "z-same-day"])
+    "shared Scheduled read order did not use identity as the same-date tie-breaker"
+  let earliest ←
+    match Loam.ScheduledReview.earliestCurrentOpenRecord orderedEvidence with
+    | .error message => throw (IO.userError message)
+    | .ok row => pure row
+  expect ((earliest.map (fun row => row.id.token)) == some "a-same-day")
+    "earliest current-open Scheduled diverged from the shared ordered frontier"
+
   let start := Loam.Tui.HraScheduled.initial "2026-09-07"
 
   -- 1. Focus Day scope shows only today's Scheduled occurrences
