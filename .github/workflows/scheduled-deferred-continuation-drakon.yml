@@ -1,0 +1,33 @@
+name: Temporary Scheduled Deferred Continuation DRAKON
+
+on:
+  pull_request:
+    paths:
+      - 'docs/drakon/build_scheduled_deferred_continuation_audit_map.py'
+      - '.github/workflows/scheduled-deferred-continuation-drakon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  map:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build DRAKON map
+        run: python3 docs/drakon/build_scheduled_deferred_continuation_audit_map.py
+      - name: Inspect all diagrams
+        run: python3 docs/drakon/inspect_map.py docs/drakon/loam-scheduled-deferred-continuation-audit.drn --all
+      - name: Verify SQLite integrity and metadata
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          p = "docs/drakon/loam-scheduled-deferred-continuation-audit.drn"
+          with sqlite3.connect(p) as db:
+              assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+              assert db.execute("select count(*) from diagrams").fetchone()[0] == 1
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 1
+          PY
