@@ -79,6 +79,11 @@ Scriptable routing and budget projection:
   ./tools/loam scheduled-routing ...
   ./tools/loam budget-window DATA_ROOT START END PURPOSE|--all
 
+Portable exports:
+  ./tools/loam export journal ACTUAL_FILE OUTPUT_FILE
+  ./tools/loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE
+  ./tools/loam export beancount [--partial|--suspense] ...
+
 Show current Scheduled evidence:
   ./tools/loam open-scheduled SCHEDULED_FILE DATA_ROOT
 

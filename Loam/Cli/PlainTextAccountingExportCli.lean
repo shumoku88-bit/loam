@@ -97,17 +97,18 @@ def exportJournal
       IO.println ("Regenerated Plain Text Accounting journal: " ++ outputPath)
       return 0
 
-end Loam.PlainTextAccountingExportCli
-
 private def usage : String :=
-  "Usage: loamPtaExport ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE"
+  "Usage: loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE"
 
-def main (args : List String) : IO UInt32 :=
+/-- Command dispatcher for regenerating a Plain Text Accounting journal. -/
+def run (args : List String) : IO UInt32 :=
   match args with
   | [actualPath, rolePath, outputPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.PlainTextAccountingExportCli.exportJournal actualPath rolePath outputPath)
+        (exportJournal actualPath rolePath outputPath)
   | _ => do
       IO.eprintln usage
       return 2
+
+end Loam.PlainTextAccountingExportCli

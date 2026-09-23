@@ -60,31 +60,29 @@ def exportSuspenseBeancount
       IO.println s!"Generated suspense export report: {reportPath}"
       return 0
 
-end Loam.BeancountExportCli
-
 private def usage : String :=
   "Usage:\n" ++
-  "  loamBeancountExport ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
-  "  loamBeancountExport --partial ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE REPORT_FILE\n" ++
-  "  loamBeancountExport --suspense ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE REPORT_FILE"
+  "  loam export beancount ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
+  "  loam export beancount --partial ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE REPORT_FILE\n" ++
+  "  loam export beancount --suspense ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE REPORT_FILE"
 
-def main (args : List String) : IO UInt32 :=
+/-- Command dispatcher for strict, partial, and suspense Beancount exports. -/
+def run (args : List String) : IO UInt32 :=
   match args with
   | ["--suspense", actualPath, rolePath, outputPath, reportPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.BeancountExportCli.exportSuspenseBeancount
-          actualPath rolePath outputPath reportPath)
+        (exportSuspenseBeancount actualPath rolePath outputPath reportPath)
   | ["--partial", actualPath, rolePath, outputPath, reportPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.BeancountExportCli.exportPartialBeancount
-          actualPath rolePath outputPath reportPath)
+        (exportPartialBeancount actualPath rolePath outputPath reportPath)
   | [actualPath, rolePath, outputPath] =>
       Loam.WriterOwnership.withOwnership
         (System.FilePath.mk actualPath)
-        (Loam.BeancountExportCli.exportBeancount
-          actualPath rolePath outputPath)
+        (exportBeancount actualPath rolePath outputPath)
   | _ => do
       IO.eprintln usage
       return 2
+
+end Loam.BeancountExportCli
