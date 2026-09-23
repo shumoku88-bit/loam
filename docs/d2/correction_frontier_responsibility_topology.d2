@@ -1,7 +1,7 @@
 direction: right
 
 title: {
-  label: "Correction Frontier responsibility topology"
+  label: "Correction Frontier post-Phase-3H module topology"
   shape: text
 }
 
@@ -10,18 +10,23 @@ canonical: {
   shape: cylinder
 }
 
-facade: {
-  label: "CorrectionFrontier\nproduction semantic facade"
+semantics: {
+  label: "CorrectionFrontierSemantics\n194 lines / 14 declarations\nlist semantics + legacy reference"
   shape: rectangle
 }
 
-index: {
-  label: "Transient indexed implementation\nCorrectionFrontierIndex\nHashMap / HashSet acceleration"
+indexed: {
+  label: "CorrectionFrontierIndexed\n1153 lines / 54 declarations\ntransient index + correspondence proofs"
+  shape: rectangle
+}
+
+entrance: {
+  label: "CorrectionFrontier\n10-line stable import entrance\nfan-in 19"
   shape: rectangle
 }
 
 admission: {
-  label: "NormalizedActualAdmission\nproduction admitted read image"
+  label: "NormalizedActualAdmission\nproof-carrying current Event image"
   shape: rectangle
 }
 
@@ -30,37 +35,48 @@ consumers: {
   shape: rectangle
 }
 
-reference: {
-  label: "Legacy list reference specification\ncorrectionFrontierMemoryLegacy?"
-  shape: rectangle
-}
-
-correspondence: {
-  label: "Correspondence qualification\nindexed = reference\nadmissibility facets = reference facets"
-  shape: rectangle
-}
-
 tests: {
-  label: "Benchmark + semantic correspondence tests"
+  label: "Semantic correspondence test\n12 topology cases"
   shape: rectangle
 }
 
-canonical -> facade: "semantic input"
-facade -> index: "production implementation"
-index -> admission: "indexed admission"
-facade -> consumers: "public semantic API"
-
-canonical -> reference: "reference input"
-index -> correspondence: "candidate behavior"
-reference -> correspondence: "reference behavior"
-correspondence -> tests: "qualification evidence"
-reference -> tests: "benchmark baseline"
-
-note: {
-  label: "Audit question:\nDoes correspondence qualification still belong\ninside the production semantic module?"
+benchmark: {
+  label: "Phase 3H paired benchmark\nlegacy reference vs indexed"
   shape: rectangle
 }
 
-correspondence -> note: {
+canonical -> semantics: "semantic input"
+semantics -> indexed: "reference meaning"
+indexed -> entrance: "public declarations via import"
+entrance -> admission: "production indexed admission"
+entrance -> consumers: "stable public API"
+entrance -> tests: "same public entrance"
+semantics -> benchmark: "reference baseline"
+indexed -> benchmark: "indexed candidate"
+
+imports: {
+  label: "Physical import direction\nCorrectionFrontier -> Indexed -> Semantics"
+  shape: rectangle
+}
+
+entrance -> imports: {
+  style.stroke-dash: 4
+}
+imports -> indexed: {
+  style.stroke-dash: 4
+}
+indexed -> semantics: {
+  style.stroke-dash: 4
+}
+
+question: {
+  label: "Audit question\nDo Semantics and Indexed have independent reasons to change?"
+  shape: rectangle
+}
+
+semantics -> question: {
+  style.stroke-dash: 4
+}
+indexed -> question: {
   style.stroke-dash: 4
 }
