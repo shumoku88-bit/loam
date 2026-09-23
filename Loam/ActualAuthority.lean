@@ -41,6 +41,18 @@ def actualPath (root : System.FilePath) : System.FilePath :=
   root / actualFileName
 
 /--
+Resolve a caller-supplied household Actual location to the canonical authority
+file path.
+
+Shared reviews historically accept either the household root or the canonical
+`actual.loam` file itself. Keep that lexical compatibility decision here so
+readers, observation locks, and diagnostics select the same authority identity.
+-/
+def actualPathFromRootOrFile (rootOrFile : System.FilePath) : System.FilePath :=
+  if rootOrFile.fileName == some actualFileName then rootOrFile
+  else actualPath rootOrFile
+
+/--
 Detailed load error preserving structured persistence diagnostics and file context.
 -/
 inductive LoadError where
