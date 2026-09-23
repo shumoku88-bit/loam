@@ -52,6 +52,7 @@ inductive PromptMode where
 
 inductive PromptAction where
   | keep
+  | defer
   | add
   | done
   deriving Repr, DecidableEq, BEq
@@ -72,7 +73,7 @@ def initialPrompt (candidates : List Loam.ScheduledReview.Record) : PromptState 
   | first :: rest => { candidate := some first, additionalCount := rest.length }
 
 private def optionCount (state : PromptState) : Nat :=
-  if state.candidate.isSome then 3 else 2
+  if state.candidate.isSome then 3 else 3
 
 private def moveChoice (state : PromptState) (back : Bool) : PromptState :=
   let count := optionCount state
@@ -105,8 +106,10 @@ def updatePrompt (state : PromptState) (key : Loam.Tui.Terminal.Key) : PromptSte
               | 1 => { state, action := some .add }
               | _ => { state := { state with mode := .review } }
           | none =>
-              if state.choice % 2 = 0 then { state, action := some .done }
-              else { state, action := some .add }
+              match state.choice % 3 with
+              | 0 => { state, action := some .done }
+              | 1 => { state, action := some .defer }
+              | _ => { state, action := some .add }
       | _ => { state }
 
 private def line (text : String) : Widget := .row [span text]
@@ -142,9 +145,11 @@ private def noCandidateView (state : PromptState) : Widget :=
     [ line "Scheduled / Completion / Next Plan"
     , line "No similar later current-open Scheduled was found."
     , line "Nothing will be inferred or created automatically."
+    , line "If you want to decide later, Defer keeps that unfinished intent in Attention."
     , .row
-        [ choiceSpan (state.choice % 2 = 0) "Done"
-        , choiceSpan (state.choice % 2 = 1) "Add next"
+        [ choiceSpan (state.choice % 3 = 0) "Done"
+        , choiceSpan (state.choice % 3 = 1) "Defer"
+        , choiceSpan (state.choice % 3 = 2) "Add next"
         ]
     , line "Tab / arrows select   Enter confirm   Esc done"
     ]
@@ -183,6 +188,27 @@ partial def runPrompt
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       runPrompt bounds step.state nextFrame
 
+/-- Human context retained when continuation is deliberately left undecided. -/
+def deferredAttentionDraft
+    (record : Loam.Tui.Main.ScheduledRecord) : Loam.AttentionPublisher.AddDraft :=
+  {
+    context :=
+      "Decide continuation after " ++ record.id.token ++
+      " (scheduled " ++ record.scheduledOn ++ "): " ++
+      Loam.ScheduledReview.summary record
+    due := .dueUndetermined
+  }
+
+/--
+Persist explicit unfinished continuation intent through the existing Attention
+authority. This creates no Scheduled occurrence, recurrence, cadence, or next
+date.
+-/
+def publishDeferredContinuation
+    (root : System.FilePath) (record : Loam.Tui.Main.ScheduledRecord) :
+    IO (Except String Loam.Core.AttentionId) :=
+  Loam.HouseholdCommand.addAttention root (deferredAttentionDraft record)
+
 private def addNext
     (bounds : Bounds) (root : System.FilePath)
     (known : List String) (record : Loam.Tui.Main.ScheduledRecord)
@@ -209,8 +235,9 @@ Run post-completion awareness after completion has already published.
 
 The canonical Scheduled image is reloaded before offering another creation. A
 later same-positive-Locus occurrence is only a candidate for user awareness.
-Keeping it writes nothing. Adding still uses the ordinary creation publisher and
-routing inheritance.
+Keeping it writes nothing. Deferring without a later candidate records one ordinary
+Attention item with unknown due timing. Adding still uses the ordinary creation
+publisher and routing inheritance.
 -/
 def runAfterCompletion
     (bounds : Bounds) (root : System.FilePath)
@@ -243,6 +270,16 @@ def runAfterCompletion
                   return completed ++ " No additional Scheduled created."
           | .done =>
               return completed ++ " No additional Scheduled created."
+          | .defer =>
+              match ← publishDeferredContinuation root record with
+              | .ok attention =>
+                  return completed ++
+                    " Deferred continuation as " ++ attention.token ++
+                    "; no additional Scheduled created."
+              | .error message =>
+                  return completed ++
+                    " Deferred continuation could not be retained: " ++ message ++
+                    " No additional Scheduled created."
           | .add =>
               let notice ← addNext bounds root known record effectiveOn loadCatalog
               return completed ++ " " ++ notice
