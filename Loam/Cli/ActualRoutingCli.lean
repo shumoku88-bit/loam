@@ -91,6 +91,3 @@ def run (args : List String) : IO UInt32 :=
       return 2
 
 end Loam.ActualRoutingCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.ActualRoutingCli.run args
