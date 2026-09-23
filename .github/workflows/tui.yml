@@ -45,6 +45,7 @@ on:
       - 'Loam/Tests/ActualReversalPublisher.lean'
       - 'Loam/Tests/TuiActualReversal.lean'
       - 'Loam/Tests/TuiActual.lean'
+      - 'Loam/ScheduledCoverageSelector.lean'
       - 'Loam/Tests/TuiHraScheduled.lean'
       - 'Loam/Tests/TuiScheduledGeneration.lean'
       - 'Loam/Tests/TuiScheduled.lean'
