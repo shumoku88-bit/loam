@@ -1,6 +1,6 @@
 # Observation 321 — interpretation subject sufficiency
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `e3a715bd64bca91fea57bffab17c538018175ec0`
 
@@ -90,7 +90,9 @@ notesFor(world, fact)
 If two Worlds have identical currently retained evidence but this answer differs,
 then subject attribution is not reconstructible from those surfaces.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35889060574`, Alloy 6.2.0 / Sat4j:
 
 ```text
 sameExistingEvidenceDifferentSubjectAnswer   SAT
@@ -126,7 +128,7 @@ Historical Attention provenance experiments also do not by themselves earn a
 production relation vocabulary. Current Core intentionally retains Attention
 item + due meaning + closure evidence, with opaque context.
 
-## What a successful result would earn
+## What this qualified result earns
 
 Only this information-boundary claim:
 
@@ -134,7 +136,7 @@ Only this information-boundary claim:
 > particular Fact?", some explicit subject association must be retained or
 > otherwise supplied by evidence that is equivalent to it.
 
-It would **not** yet earn:
+It does **not** yet earn:
 
 - a production `Reflection` type;
 - a new canonical file;
@@ -147,7 +149,7 @@ It would **not** yet earn:
 The surprising small candidate is not "Reflection". It is just **subject
 attribution**.
 
-## Next pressure if qualified
+## Next pressure
 
 If the subject association survives, the next independent question should be
 temporal:
