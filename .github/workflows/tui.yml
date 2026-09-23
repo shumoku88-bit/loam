@@ -53,7 +53,6 @@ on:
       - 'Loam/Tests/TuiScheduledContinuation.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
-      - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiCapacity.lean'
@@ -485,13 +484,10 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
 
       - name: Build Attention review boundary
-        run: lake build Loam.AttentionReview Loam.Tui.Attention Loam.Tui.AttentionAdministration
+        run: lake build Loam.AttentionReview Loam.Tui.AttentionAdministration
 
       - name: Verify shared Attention persistence and review boundary
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
-
-      - name: Verify read-only Attention workspace
-        run: lake env lean --run Loam/Tests/TuiAttention.lean
 
       - name: Verify Attention administration interaction
         run: lake env lean --run Loam/Tests/TuiAttentionAdministration.lean

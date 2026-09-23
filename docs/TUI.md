@@ -74,7 +74,7 @@ Loam/Tui/HraActual           Actual workspace presentation state
 Loam/Tui/HraScheduled        Scheduled workspace presentation state
 Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
 Loam/Tui/Record              local Movement draft editor
-Loam/Tui/Attention           current-open read-only Attention view
+Loam/Tui/AttentionAdministration current-open Attention management view
 Loam/Tui/Balances            replaceable read-only balance view
 Loam/Tui/CycleBudget         current-cycle Budget decision surface
 Loam/Tui/Capacity            Capacity observation and action surface
@@ -129,10 +129,14 @@ publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
 
 ## Attention
 
-Home `i` opens the current-open Attention workspace. It consumes
-`Loam.AttentionReview`; lifecycle selection remains in shared Application/Review
-semantics. The surface is read-only and preserves the qualified due distinctions
-rather than inventing priority or selected-day membership.
+Home `i` opens `Attention / Manage` over the shared `Loam.AttentionReview`
+answer. The surface preserves unavailable separately from configured-empty evidence
+and keeps `due on`, `no due date`, and `due unknown` distinct.
+
+The TUI may collect Add / Resolve / Drop intent, but durable publication remains in
+the shared `HouseholdCommand -> AttentionPublisher` path. After publication the
+session reloads canonical `attention.loam` evidence before continuing. The surface
+does not invent priority, selected-day membership, or a second lifecycle engine.
 
 ## Balances
 

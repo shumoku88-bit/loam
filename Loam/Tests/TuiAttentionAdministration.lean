@@ -45,6 +45,14 @@ def main : IO Unit := do
   expect (contains "Press n to create the first household matter" adminText)
     "administration did not expose the first-write entrance"
 
+  let emptyAdmin := Loam.Tui.AttentionAdministration.initial
+    (.available { openItems := [] }) "2026-09-16"
+  let emptyText := widgetText (Loam.Tui.AttentionAdministration.view emptyAdmin)
+  expect (contains "0 open" emptyText)
+    "explicit empty Attention source did not remain distinct from unavailable"
+  expect (!contains "No canonical Attention stream yet" emptyText)
+    "explicit empty Attention source collapsed into unavailable"
+
   let new0 := (Loam.Tui.AttentionAdministration.update admin0 (.input 'n')).state
   let new1 := typeText new0 "watch refund"
   let new2 := (Loam.Tui.AttentionAdministration.update new1 .enter).state
@@ -148,6 +156,12 @@ def main : IO Unit := do
     "view missing descriptive subtitle"
   expect (contains "n new   r resolve today   x drop today   Up/Down select" manageText)
     "view missing action help footer"
+  expect (contains "due 2026-10-01" manageText)
+    "known due meaning was not rendered in the production Attention surface"
+  expect (contains "no due date" manageText)
+    "no-due meaning was not rendered in the production Attention surface"
+  expect (contains "due unknown" manageText)
+    "unknown-due meaning was not rendered in the production Attention surface"
 
   -- End-to-end lifecycle in an isolated temporary directory:
   -- 1. Missing file produces unavailable bootstrap view.
