@@ -325,7 +325,7 @@ def main() -> int:
         row
         for row in rows
         if not row["reachable_from_declared_root"]
-        and row["layer"] not in {"Tests", "Observations"}
+        and row["layer"] not in {"Tests", "Observations", "Examples"}
     ]
     print(f"Lean modules: {len(rows)}")
     print(f"Modules <= 80 lines: {len(small)}")
