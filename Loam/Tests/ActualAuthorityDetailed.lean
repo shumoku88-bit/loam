@@ -31,6 +31,11 @@ def main : IO Unit := do
   let tempDir ← IO.FS.createTempDir
   let actualPath := tempDir / "actual.loam"
 
+  expect (actualPathFromRootOrFile tempDir == actualPath)
+    "0a. household root did not resolve to canonical actual.loam"
+  expect (actualPathFromRootOrFile actualPath == actualPath)
+    "0b. canonical actual.loam file was not preserved by root-or-file resolution"
+
   -- 1. valid actual.loam は新しい詳細loaderでも正常にloadできる
   IO.FS.writeFile actualPath validWire
   let imageResult ← loadImageFileDetailed actualPath
