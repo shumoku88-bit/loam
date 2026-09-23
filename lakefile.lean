@@ -13,13 +13,13 @@ lean_exe loamMovement where
   root := `Loam.Cli.MovementExecutable
 
 lean_exe loamMovementProposal where
-  root := `Loam.Cli.MovementProposalCli
+  root := `Loam.Cli.MovementProposalExecutable
 
 lean_exe loamMovementProposalRecord where
-  root := `Loam.Cli.MovementProposalRecordCli
+  root := `Loam.Cli.MovementProposalRecordExecutable
 
 lean_exe loamCapacity where
-  root := `Loam.Cli.CapacityCli
+  root := `Loam.Cli.CapacityExecutable
 
 lean_exe loamActualRouting where
   root := `Loam.Cli.ActualRoutingCli
@@ -34,7 +34,7 @@ lean_exe loamDailyQuantity where
   root := `Loam.Cli.DailyQuantityCli
 
 lean_exe loamOpenScheduled where
-  root := `Loam.Cli.OpenScheduledCli
+  root := `Loam.Cli.OpenScheduledExecutable
 
 lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
