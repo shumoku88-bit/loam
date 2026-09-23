@@ -1,0 +1,33 @@
+direction: right
+
+before: {
+  label: "Before: current-open order fans out"
+  review: "ScheduledReview"
+  home: "HraHome\nearliest helper"
+  tui: "HraScheduled\ndate + id sort"
+  web: "Web Snapshot\ndate + id sort"
+  cli: "OpenScheduledCli\ndate-only sort"
+
+  review -> home
+  review -> tui
+  review -> web
+  review -> cli
+}
+
+after: {
+  label: "After: one deterministic read order"
+  frontier: "ScheduledReview.currentOpenRecords"
+  ordered: "ScheduledReview.orderedCurrentOpenRecords\ndate -> id"
+  earliest: "earliest / before-date / similar queries"
+  tui: "HraScheduled"
+  web: "Web"
+  cli: "OpenScheduled CLI"
+
+  frontier -> ordered
+  ordered -> earliest
+  ordered -> tui
+  ordered -> web
+  ordered -> cli
+}
+
+note: "Order is read-side observation only.\nIt does not create priority, recurrence, or publication order."

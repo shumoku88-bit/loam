@@ -27,7 +27,7 @@ private def loadScheduled
     (dataDir : System.FilePath) : IO (Except String (List Loam.ScheduledReview.Record)) := do
   match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir with
   | .error message => return .error message
-  | .ok evidence => return Loam.ScheduledReview.currentOpenRecords evidence
+  | .ok evidence => return Loam.ScheduledReview.orderedCurrentOpenRecords evidence
 
 private def currentPurposeMetadata
     (dataDir : System.FilePath) : IO (List Loam.PurposeCatalog.Metadata) := do

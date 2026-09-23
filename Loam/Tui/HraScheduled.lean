@@ -93,11 +93,8 @@ def scopeEvidence (snapshot : Snapshot) (state : State) : Except String ScopeEvi
           | .invalidReplacementGraph => .error "Scheduled replacement topology is invalid."
           | .conflictingTerminalEvidence => .error "Scheduled terminal evidence conflicts."
       | .allCurrent =>
-          match Loam.ScheduledReview.currentOpenRecords scheduled with
-          | .ok records =>
-              .ok (.records (records.mergeSort fun left right =>
-                if left.scheduledOn = right.scheduledOn then left.id.token ≤ right.id.token
-                else left.scheduledOn ≤ right.scheduledOn))
+          match Loam.ScheduledReview.orderedCurrentOpenRecords scheduled with
+          | .ok records => .ok (.records records)
           | .error message => .error message
 
 /-- Local browse mechanics project only explicit rows; presentation completeness uses `scopeEvidence`. -/

@@ -50,6 +50,24 @@ def currentOpenRecords (snapshot : EvidenceSnapshot) : Except String (List Recor
       .error "loam: Scheduled terminal evidence conflicts across completion, retirement, or replacement"
   | .open occurrences => .ok occurrences
 
+/--
+Return current-open Scheduled occurrences in one deterministic read order.
+
+Retained expected date is primary. Scheduled identity is the tie-breaker for
+occurrences on the same date. This is a read-side observation order only; it does
+not create priority, recurrence, or publication order.
+-/
+def orderedCurrentOpenRecords
+    (snapshot : EvidenceSnapshot) : Except String (List Record) := do
+  let records ← currentOpenRecords snapshot
+  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+    throw "loam: current-open Scheduled evidence contains an invalid retained date"
+  return records.mergeSort fun left right =>
+    if left.scheduledOn = right.scheduledOn then
+      left.id.token ≤ right.id.token
+    else
+      left.scheduledOn ≤ right.scheduledOn
+
 private def lifecycleAdmission
     (snapshot : EvidenceSnapshot) : Except String Unit := do
   let _ ← currentOpenRecords snapshot
@@ -120,15 +138,8 @@ def currentOpenBeforeDate
     (snapshot : EvidenceSnapshot) (date : String) : Except String (List Record) := do
   if !Loam.ActualDate.validIsoDate date then
     throw "loam: pending Scheduled boundary must be a real YYYY-MM-DD calendar date"
-  let records ← currentOpenRecords snapshot
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
-    throw "loam: current-open Scheduled evidence contains an invalid retained date"
-  let pending := records.filter fun record => decide (record.scheduledOn < date)
-  return pending.mergeSort fun left right =>
-    if left.scheduledOn = right.scheduledOn then
-      left.id.token ≤ right.id.token
-    else
-      left.scheduledOn ≤ right.scheduledOn
+  let records ← orderedCurrentOpenRecords snapshot
+  return records.filter fun record => decide (record.scheduledOn < date)
 
 /--
 Return the earliest retained current-open Scheduled occurrence.
@@ -139,14 +150,7 @@ to today or silently skips it in favor of a later plan.
 -/
 def earliestCurrentOpenRecord
     (snapshot : EvidenceSnapshot) : Except String (Option Record) := do
-  let records ← currentOpenRecords snapshot
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
-    throw "loam: current-open Scheduled evidence contains an invalid retained date"
-  let ordered := records.mergeSort fun left right =>
-    if left.scheduledOn = right.scheduledOn then
-      left.id.token ≤ right.id.token
-    else
-      left.scheduledOn ≤ right.scheduledOn
+  let ordered ← orderedCurrentOpenRecords snapshot
   match ordered with
   | [] => return none
   | first :: _ => return some first
@@ -177,14 +181,10 @@ def sameDateSimilarOpenRecords
     throw "loam: Scheduled awareness date must be a real YYYY-MM-DD calendar date"
   let proposedLoci := positiveLocusTokensFromChanges movement.changes
   if proposedLoci.isEmpty then return []
-  let records ← currentOpenRecords snapshot
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
-    throw "loam: current-open Scheduled evidence contains an invalid retained date"
-  let candidates := records.filter fun record =>
+  let records ← orderedCurrentOpenRecords snapshot
+  return records.filter fun record =>
     record.scheduledOn == scheduledOn &&
       positiveLocusTokens record == proposedLoci
-  return candidates.mergeSort fun left right =>
-    left.id.token <= right.id.token
 
 /--
 Find later current-open Scheduled occurrences that share the completed source's
@@ -201,17 +201,10 @@ def laterSimilarOpenRecords
     throw "loam: continuation source contains an invalid retained date"
   let sourceLoci := positiveLocusTokens source
   if sourceLoci.isEmpty then return []
-  let records ← currentOpenRecords snapshot
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
-    throw "loam: current-open Scheduled evidence contains an invalid retained date"
-  let candidates := records.filter fun record =>
+  let records ← orderedCurrentOpenRecords snapshot
+  return records.filter fun record =>
     decide (source.scheduledOn < record.scheduledOn) &&
       positiveLocusTokens record == sourceLoci
-  return candidates.mergeSort fun left right =>
-    if left.scheduledOn = right.scheduledOn then
-      left.id.token <= right.id.token
-    else
-      left.scheduledOn <= right.scheduledOn
 
 private def fromChanges (record : Record) : List (MovementChange LocusId) :=
   record.movement.changes.filter fun change => change.quantity.quanta < 0

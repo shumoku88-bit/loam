@@ -87,12 +87,7 @@ private def renderScheduled
   match result with
   | .error message => unavailable message
   | .ok records =>
-      let ordered := records.mergeSort fun left right =>
-        if left.scheduledOn = right.scheduledOn then
-          left.id.token <= right.id.token
-        else
-          left.scheduledOn <= right.scheduledOn
-      renderRows <| (ordered.take 12).map fun record =>
+      renderRows <| (records.take 12).map fun record =>
         "<span class=\"coordinate\">" ++ escapeHtml record.scheduledOn ++ "</span> " ++
         escapeHtml (Loam.ScheduledReview.summary record)
 
