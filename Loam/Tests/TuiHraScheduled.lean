@@ -1,3 +1,4 @@
+import Loam.ScheduledCoverageSelector
 import Loam.Tui.Main
 import Loam.Tui.HraScheduled
 import Loam.Tui.ScheduledCoverageSetup
@@ -210,6 +211,8 @@ def main : IO Unit := do
     monitorRule.everyMonths == 1 &&
     monitorRule.name == "food")
     "Scheduled monitoring setup did not derive anchor/cadence/display identity from the selected occurrence"
+  expect (Loam.ScheduledCoverageSelector.matchesRule selectedForMonitor monitorRule)
+    "Scheduled monitoring setup produced a rule that the shared coverage selector would not match"
 
   let backStep := Loam.Tui.HraScheduled.update snapshot occPane .back
   expect (backStep.command == .back)
