@@ -86,6 +86,3 @@ def run (args : List String) : IO UInt32 := do
       return 2
 
 end Loam.MovementProposalCli
-
-def main (args : List String) : IO UInt32 :=
-  Loam.MovementProposalCli.run args
