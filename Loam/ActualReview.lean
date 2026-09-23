@@ -178,9 +178,7 @@ Load authoritative review records from the normalized Actual authority file.
 -/
 def loadRecordsFromActual
     (root : System.FilePath) : IO (Except String (List Record)) := do
-  let path :=
-    if root.fileName == some Loam.ActualAuthority.actualFileName then root
-    else Loam.ActualAuthority.actualPath root
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile root
   match ← Loam.ActualAuthority.loadImageFile? path with
   | .error message => return .error message
   | .ok image => return .ok (recordsFromActualImage image)
