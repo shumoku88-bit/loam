@@ -1,6 +1,6 @@
 # Observation 325 — missing attributed time is meaningful
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `0e793585d345ebc783f510932dbe73545612dd5c`
 
@@ -44,7 +44,9 @@ When present, it remains constrained between the subject Fact time and
 
 When absent, the model makes no substitute claim.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35893550828`, Alloy 6.2.0 / Sat4j:
 
 ```text
 unknownVersusFactTimeExists                    SAT
@@ -57,7 +59,7 @@ BaseEvidenceDeterminesAttributionPresence      SAT counterexample
 EqualOptionalAttributionDeterminesExplicitAsOfView  UNSAT counterexample
 ```
 
-## Intended conclusion if qualified
+## Qualified conclusion
 
 These states must remain distinct:
 
