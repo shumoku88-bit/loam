@@ -1,0 +1,40 @@
+name: Temporary Staged Publication DRAKON Audit
+
+on:
+  pull_request:
+    paths:
+      - 'docs/drakon/build_staged_publication_verification_audit_map.py'
+      - 'docs/research/AUDIT_GENERATION_3_STAGED_PUBLICATION.md'
+      - '.github/workflows/audit-staged-publication-drakon.yml'
+  push:
+    branches:
+      - 'audit/g3-staged-publication-protocol'
+    paths:
+      - 'docs/drakon/build_staged_publication_verification_audit_map.py'
+      - 'docs/research/AUDIT_GENERATION_3_STAGED_PUBLICATION.md'
+      - '.github/workflows/audit-staged-publication-drakon.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build staged publication DRAKON audit
+        run: |
+          set -euo pipefail
+          python3 docs/drakon/build_staged_publication_verification_audit_map.py
+          test -s docs/drakon/loam-staged-publication-verification-audit.drn
+          python3 docs/drakon/inspect_map.py --map docs/drakon/loam-staged-publication-verification-audit.drn --all
+      - name: Verify SQLite structure
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          path = "docs/drakon/loam-staged-publication-verification-audit.drn"
+          with sqlite3.connect(path) as db:
+              assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+              assert db.execute("select count(*) from diagrams").fetchone()[0] == 3
+              assert db.execute("select count(*) from diagram_info where name='sources'").fetchone()[0] == 3
+          PY
