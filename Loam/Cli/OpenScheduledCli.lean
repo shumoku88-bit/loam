@@ -106,17 +106,18 @@ def showOpenScheduled (scheduledPath actualRoot : String) : IO UInt32 := do
                 "Coverage: explicit Scheduled evidence only; unmaterialized future obligations remain Unknown."
               return 0
 
-end Loam.OpenScheduledCli
-
-def main (args : List String) : IO UInt32 :=
+/-- Command dispatcher for current-open Scheduled inspection and its qualified subreports. -/
+def run (args : List String) : IO UInt32 :=
   match args with
   | ["day-evidence", scheduledPath, actualRoot, day] =>
       Loam.ScheduledDayEvidenceCli.report scheduledPath actualRoot day
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
   | [scheduledPath, actualRoot] =>
-      Loam.OpenScheduledCli.showOpenScheduled scheduledPath actualRoot
+      showOpenScheduled scheduledPath actualRoot
   | _ => do
       IO.eprintln
-        "Usage: loamOpenScheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE ACTUAL_ROOT"
+        "Usage: loam open-scheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE ACTUAL_ROOT"
       return 2
+
+end Loam.OpenScheduledCli
