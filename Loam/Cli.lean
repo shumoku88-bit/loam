@@ -7,6 +7,10 @@ import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.DoctorCli
 import Loam.Cli.MovementCli
+import Loam.Cli.MovementProposalCli
+import Loam.Cli.MovementProposalRecordCli
+import Loam.Cli.CapacityCli
+import Loam.Cli.OpenScheduledCli
 import Loam.Tui.Cli
 import Loam.RoleBalanceReview
 import Loam.Tui.Kernel
@@ -117,6 +121,14 @@ def run (args : List String) : IO UInt32 := do
   | "tui" :: tuiArgs => Loam.Tui.Cli.run tuiArgs
   | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
   | "movement" :: movementArgs => Loam.MovementCli.run movementArgs
+  | "movement-proposal" :: proposalArgs =>
+      Loam.MovementProposalCli.run proposalArgs
+  | "movement-proposal-record" :: proposalArgs =>
+      Loam.MovementProposalRecordCli.run proposalArgs
+  | "capacity" :: capacityArgs =>
+      Loam.CapacityCli.run capacityArgs
+  | "open-scheduled" :: scheduledArgs =>
+      Loam.OpenScheduledCli.run scheduledArgs
   | ["help"] => do
       IO.println practicalUsage
       return 0
