@@ -224,6 +224,9 @@ def saveScheduledLifecycleImage?
       let staged ← IO.FS.readFile stagePath
       if staged != text then
         return false
+      match decodeScheduledLifecycleImage? staged with
+      | none => return false
+      | some _ => pure ()
       IO.FS.rename stagePath path
       return true
 
