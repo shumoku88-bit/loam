@@ -162,10 +162,6 @@ def project
     currentTracked := Quantity.ofQuanta (currentTrackedQuanta balances)
   }
 
-private def actualPathForObservation (actualRoot : System.FilePath) : System.FilePath :=
-  if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-  else Loam.ActualAuthority.actualPath actualRoot
-
 private def loadWithinActualObservation
     (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
@@ -191,7 +187,7 @@ adds no second Event decoder or report authority.
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
-  let actualPath := actualPathForObservation actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   Loam.ActualAuthority.withActualFileOwnership actualPath
     (loadWithinActualObservation dataDir actualRoot start endExclusive)
 
