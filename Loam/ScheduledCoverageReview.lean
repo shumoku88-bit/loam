@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.ScheduledCoverageConfig
+import Loam.ScheduledCoverageSelector
 import Loam.ScheduledReview
 
 namespace Loam.ScheduledCoverageReview
@@ -56,15 +57,6 @@ private def monthText (index : Nat) : String :=
   let month := index % 12 + 1
   padded 4 year ++ "-" ++ padded 2 month
 
-private def signedLocusTokens
-    (record : Record) (positive : Bool) : List String :=
-  ((record.movement.changes.filterMap fun change =>
-      if positive then
-        if change.quantity.quanta > 0 then some change.coordinate.token else none
-      else
-        if change.quantity.quanta < 0 then some change.coordinate.token else none).eraseDups)
-    |>.mergeSort (fun left right => left <= right)
-
 private def expectedAt (rule : Rule) (target : Nat) : Bool :=
   if rule.everyMonths = 0 then
     false
@@ -77,8 +69,7 @@ private def expectedAt (rule : Rule) (target : Nat) : Bool :=
 private def explicitCountAt
     (rule : Rule) (records : List Record) (target : Nat) : Nat :=
   (records.filter fun record =>
-    signedLocusTokens record false == rule.negativeLoci &&
-    signedLocusTokens record true == rule.positiveLoci &&
+    Loam.ScheduledCoverageSelector.matchesRule record rule &&
       match monthIndex? record.scheduledOn with
       | some index => index == target
       | none => false).length

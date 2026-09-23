@@ -1,4 +1,5 @@
 import Loam.ScheduledCoverageConfig
+import Loam.ScheduledCoverageSelector
 import Loam.ScheduledReview
 import Loam.Tui.Kernel
 import Loam.Tui.Main
@@ -46,14 +47,6 @@ def cadenceLabel (months : Nat) : String :=
   | some choice => choice.label
   | none => "Every " ++ toString months ++ " months"
 
-private def signedLoci (record : Record) (positive : Bool) : List String :=
-  ((record.movement.changes.filterMap fun change =>
-      if positive then
-        if change.quantity.quanta > 0 then some change.coordinate.token else none
-      else
-        if change.quantity.quanta < 0 then some change.coordinate.token else none).eraseDups)
-    |>.mergeSort (fun left right => left <= right)
-
 /--
 Build one monitoring rule from an already explicit Scheduled occurrence.
 
@@ -65,20 +58,19 @@ def ruleFor? (source : Record) (months : Nat) :
     Except String Loam.ScheduledCoverageConfig.Rule := do
   if months = 0 then
     throw "Monitoring cadence must be at least one month."
-  let negativeLoci := signedLoci source false
-  let positiveLoci := signedLoci source true
-  if negativeLoci.isEmpty || positiveLoci.isEmpty then
+  let shape := Loam.ScheduledCoverageSelector.ofRecord source
+  if !shape.usable then
     throw "The selected Scheduled occurrence has no usable signed-Locus shape."
   let name :=
-    match positiveLoci with
+    match shape.positiveLoci with
     | [only] => only
     | _ => source.id.token
   return {
     name := name
     anchor := source.scheduledOn
     everyMonths := months
-    negativeLoci := negativeLoci
-    positiveLoci := positiveLoci
+    negativeLoci := shape.negativeLoci
+    positiveLoci := shape.positiveLoci
   }
 
 private def moveSelection (state : State) (back : Bool) : State :=

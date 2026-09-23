@@ -1,0 +1,27 @@
+direction: right
+
+before: {
+  label: "Before: duplicated selector meaning"
+  setup: "ScheduledCoverageSetup\nrule producer"
+  setup_shape: "private signedLoci"
+  review: "ScheduledCoverageReview\nrule matcher"
+  review_shape: "private signedLocusTokens"
+  rule: "scheduled-coverage.tsv rule"
+
+  setup -> setup_shape -> rule
+  review -> review_shape -> rule: "compare"
+}
+
+after: {
+  label: "After: one selector owner"
+  setup: "ScheduledCoverageSetup\nrule producer"
+  selector: "ScheduledCoverageSelector\nofRecord / matchesRule"
+  review: "ScheduledCoverageReview\nrule matcher"
+  rule: "scheduled-coverage.tsv rule"
+
+  setup -> selector -> rule
+  review -> selector
+  selector -> rule: "match"
+}
+
+note: "Signed-Locus shape is monitoring identity only.\nIt does not create Scheduled authority or recurrence."
