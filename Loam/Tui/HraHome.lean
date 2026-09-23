@@ -209,6 +209,46 @@ private def nextScheduledText (snapshot : Snapshot) : String :=
           "Next Scheduled: " ++ record.scheduledOn ++ status ++ "  " ++
             Loam.ScheduledReview.summary record
 
+private def attentionText (snapshot : Snapshot) : String :=
+  match snapshot.attention with
+  | .error _ => "Attention: unavailable"
+  | .ok .unavailable => "Attention: not configured"
+  | .ok (.available attention) =>
+      match attention.openItems with
+      | [] => "Attention: 0 open"
+      | first :: rest =>
+          "Attention: " ++ toString (rest.length + 1) ++ " open  " ++
+            Loam.ActualReview.shortText 72 (Loam.AttentionReview.summary first)
+
+private def attentionLine (snapshot : Snapshot) : Widget :=
+  match snapshot.attention with
+  | .ok (.available { openItems := _ :: _ }) =>
+      plainLine (" " ++ attentionText snapshot)
+  | _ => mutedLine (" " ++ attentionText snapshot)
+
+private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
+  match snapshot.attention with
+  | .error _ =>
+      [ mutedLine " Attention"
+      , mutedLine "   unavailable"
+      ]
+  | .ok .unavailable =>
+      [ mutedLine " Attention"
+      , mutedLine "   not configured"
+      ]
+  | .ok (.available attention) =>
+      match attention.openItems with
+      | [] =>
+          [ mutedLine " Attention"
+          , mutedLine "   0 open"
+          ]
+      | first :: rest =>
+          [ plainLine " Attention"
+          , plainLine ("   " ++ toString (rest.length + 1) ++ " open")
+          , plainLine ("   " ++
+              Loam.ActualReview.shortText 34 (Loam.AttentionReview.summary first))
+          ]
+
 private def dailyPaceLine (snapshot : Snapshot) : Widget :=
   match snapshot.pace with
   | .error _ => mutedLine (" " ++ dailyPaceText snapshot)
@@ -229,7 +269,7 @@ private def nextScheduledLine (snapshot : Snapshot) : Widget :=
 private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
   [dailyPaceLine snapshot] ++
   dailyPaceHistoryLines snapshot ++
-  [nextScheduledLine snapshot]
+  [nextScheduledLine snapshot, attentionLine snapshot]
 
 private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
   let paceLines :=
@@ -276,7 +316,8 @@ private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
             , plainLine ("   " ++ record.scheduledOn ++ status)
             , plainLine ("   " ++ Loam.ScheduledReview.summary record)
             ]
-  paceLines ++ [blankLine] ++ scheduledLines
+  paceLines ++ [blankLine] ++ scheduledLines ++
+    [blankLine] ++ wideAttentionLines snapshot
 
 private def pendingSection (pending : PendingEvidence) : List Widget :=
   match pending with
