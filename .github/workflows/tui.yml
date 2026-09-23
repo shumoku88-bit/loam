@@ -255,7 +255,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamJournalExport loamPtaExport loamTui Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamTui Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
@@ -293,6 +293,25 @@ jobs:
           compare_dispatch loamMovementProposalRecord movement-proposal-record
           compare_dispatch loamCapacity capacity
           compare_dispatch loamOpenScheduled open-scheduled
+          compare_dispatch loamActualRouting actual-routing
+          compare_dispatch loamScheduledRouting scheduled-routing
+          compare_dispatch loamBudgetWindow budget-window
+
+          compare_quantity_dispatch() {
+            local command="$1"
+            local combined_out standalone_out combined_status standalone_status
+            set +e
+            combined_out="$(.lake/build/bin/loam "$command" 2>&1)"
+            combined_status=$?
+            standalone_out="$(.lake/build/bin/loamDailyQuantity "$command" 2>&1)"
+            standalone_status=$?
+            set -e
+            test "$combined_status" -eq "$standalone_status"
+            test "$combined_out" = "$standalone_out"
+          }
+
+          compare_quantity_dispatch balances
+          compare_quantity_dispatch current
 
       - name: Verify display/history and admission-scoped Locus catalog
         run: lake env lean --run Loam/Tests/LocusCatalog.lean
