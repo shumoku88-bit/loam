@@ -10,6 +10,9 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/DailyPaceConfig.lean'
+      - 'Loam/CycleSpendingPaceReview.lean'
+      - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/LocusAdmissionPublisher.lean'
@@ -539,6 +542,9 @@ jobs:
 
       - name: Verify windowed Current Coverage review boundary
         run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
+
+      - name: Verify current cycle Daily Pace review boundary
+        run: lake env lean --run Loam/Tests/CycleSpendingPaceReview.lean
 
       - name: Verify Capacity workspace
         run: lake env lean --run Loam/Tests/TuiCapacity.lean
