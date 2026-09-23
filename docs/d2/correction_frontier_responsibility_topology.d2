@@ -1,0 +1,82 @@
+direction: right
+
+title: {
+  label: "Correction Frontier post-Phase-3H module topology"
+  shape: text
+}
+
+canonical: {
+  label: "Canonical retained evidence\nEventMemory + EventCorrectionMemory"
+  shape: cylinder
+}
+
+semantics: {
+  label: "CorrectionFrontierSemantics\n194 lines / 14 declarations\nlist semantics + legacy reference"
+  shape: rectangle
+}
+
+indexed: {
+  label: "CorrectionFrontierIndexed\n1153 lines / 54 declarations\ntransient index + correspondence proofs"
+  shape: rectangle
+}
+
+entrance: {
+  label: "CorrectionFrontier\n10-line stable import entrance\nfan-in 19"
+  shape: rectangle
+}
+
+admission: {
+  label: "NormalizedActualAdmission\nproof-carrying current Event image"
+  shape: rectangle
+}
+
+consumers: {
+  label: "Production consumers\nBalance / Quantity / Routing / Capacity / Reviews"
+  shape: rectangle
+}
+
+tests: {
+  label: "Semantic correspondence test\n12 topology cases"
+  shape: rectangle
+}
+
+benchmark: {
+  label: "Phase 3H paired benchmark\nlegacy reference vs indexed"
+  shape: rectangle
+}
+
+canonical -> semantics: "semantic input"
+semantics -> indexed: "reference meaning"
+indexed -> entrance: "public declarations via import"
+entrance -> admission: "production indexed admission"
+entrance -> consumers: "stable public API"
+entrance -> tests: "same public entrance"
+semantics -> benchmark: "reference baseline"
+indexed -> benchmark: "indexed candidate"
+
+imports: {
+  label: "Physical import direction\nCorrectionFrontier -> Indexed -> Semantics"
+  shape: rectangle
+}
+
+entrance -> imports: {
+  style.stroke-dash: 4
+}
+imports -> indexed: {
+  style.stroke-dash: 4
+}
+indexed -> semantics: {
+  style.stroke-dash: 4
+}
+
+question: {
+  label: "Audit question\nDo Semantics and Indexed have independent reasons to change?"
+  shape: rectangle
+}
+
+semantics -> question: {
+  style.stroke-dash: 4
+}
+indexed -> question: {
+  style.stroke-dash: 4
+}
