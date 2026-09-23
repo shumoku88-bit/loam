@@ -22,16 +22,16 @@ lean_exe loamCapacity where
   root := `Loam.Cli.CapacityExecutable
 
 lean_exe loamActualRouting where
-  root := `Loam.Cli.ActualRoutingCli
+  root := `Loam.Cli.ActualRoutingExecutable
 
 lean_exe loamScheduledRouting where
-  root := `Loam.Cli.ScheduledRoutingCli
+  root := `Loam.Cli.ScheduledRoutingExecutable
 
 lean_exe loamBudgetWindow where
-  root := `Loam.Cli.BudgetWindowCli
+  root := `Loam.Cli.BudgetWindowExecutable
 
 lean_exe loamDailyQuantity where
-  root := `Loam.Cli.DailyQuantityCli
+  root := `Loam.Cli.DailyQuantityExecutable
 
 lean_exe loamOpenScheduled where
   root := `Loam.Cli.OpenScheduledExecutable

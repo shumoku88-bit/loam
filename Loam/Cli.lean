@@ -11,6 +11,10 @@ import Loam.Cli.MovementProposalCli
 import Loam.Cli.MovementProposalRecordCli
 import Loam.Cli.CapacityCli
 import Loam.Cli.OpenScheduledCli
+import Loam.Cli.DailyQuantityCli
+import Loam.Cli.ActualRoutingCli
+import Loam.Cli.ScheduledRoutingCli
+import Loam.Cli.BudgetWindowCli
 import Loam.Tui.Cli
 import Loam.RoleBalanceReview
 import Loam.Tui.Kernel
@@ -30,6 +34,13 @@ private def practicalUsage : String :=
   "  ./tools/loam movement [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
   "  ./tools/loam doctor [LOAM_DATA_DIR]\n\n" ++
+  "Explicit zero-origin quantity projections:\n" ++
+  "  ./tools/loam balances ACTUAL_FILE COVERAGE_FILE [BALANCE_VIEW]\n" ++
+  "  ./tools/loam current ACTUAL_FILE COVERAGE_FILE\n\n" ++
+  "Scriptable routing and budget projection:\n" ++
+  "  ./tools/loam actual-routing ...\n" ++
+  "  ./tools/loam scheduled-routing ...\n" ++
+  "  ./tools/loam budget-window DATA_ROOT START END PURPOSE|--all\n\n" ++
   "Print the evidence-aware Balances report as plain text:\n" ++
   "  ./tools/loam report balances [LOAM_DATA_DIR]\n\n" ++
   "Publish one complete current quantity observation image:\n" ++
@@ -129,6 +140,16 @@ def run (args : List String) : IO UInt32 := do
       Loam.CapacityCli.run capacityArgs
   | "open-scheduled" :: scheduledArgs =>
       Loam.OpenScheduledCli.run scheduledArgs
+  | "balances" :: quantityArgs =>
+      Loam.DailyQuantityCli.run ("balances" :: quantityArgs)
+  | "current" :: quantityArgs =>
+      Loam.DailyQuantityCli.run ("current" :: quantityArgs)
+  | "actual-routing" :: routingArgs =>
+      Loam.ActualRoutingCli.run routingArgs
+  | "scheduled-routing" :: routingArgs =>
+      Loam.ScheduledRoutingCli.run routingArgs
+  | "budget-window" :: budgetArgs =>
+      Loam.BudgetWindowCli.run budgetArgs
   | ["help"] => do
       IO.println practicalUsage
       return 0
