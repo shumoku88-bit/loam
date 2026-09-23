@@ -215,19 +215,51 @@ private def nextScheduledLine (snapshot : Snapshot) : Widget :=
 private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
   [dailyPaceLine snapshot, nextScheduledLine snapshot]
 
-/--
-Wide Home keeps both glance answers on one fixed row so short terminals retain
-at least one detail row plus the local scroll affordance.
--/
-private def wideHomeSummaryLine (bounds : Bounds) (snapshot : Snapshot) : Widget :=
-  let width := Loam.Tui.Layout.contentWidth bounds
-  let gap := 3
-  let leftWidth := (width - gap) / 2
-  let rightWidth := width - gap - leftWidth
-  plainLine
-    (Loam.Tui.Layout.padRight leftWidth (" " ++ dailyPaceText snapshot) ++
-      repeatChar gap ' ' ++
-      Loam.Tui.Layout.clip rightWidth (nextScheduledText snapshot))
+private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
+  let paceLines :=
+    match snapshot.pace with
+    | .error _ =>
+        [ mutedLine " Daily pace"
+        , mutedLine "   unavailable"
+        ]
+    | .ok pace =>
+        match pace.dailyPaceQuanta? with
+        | none =>
+            [ mutedLine " Daily pace"
+            , mutedLine "   unavailable"
+            ]
+        | some quanta =>
+            [ plainLine " Daily pace"
+            , plainLine ("   " ++ toString quanta ++ " jpy/day")
+            , mutedLine
+                ("   " ++ toString pace.availableThroughEnd.quanta ++
+                  " jpy through " ++ pace.endExclusive)
+            ]
+  let scheduledLines :=
+    match snapshot.scheduled with
+    | .error _ =>
+        [ mutedLine " Next Scheduled"
+        , mutedLine "   unavailable"
+        ]
+    | .ok scheduled =>
+        match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
+        | .error _ =>
+            [ mutedLine " Next Scheduled"
+            , mutedLine "   unavailable"
+            ]
+        | .ok none =>
+            [ mutedLine " Next Scheduled"
+            , mutedLine "   none current-open"
+            ]
+        | .ok (some record) =>
+            let status :=
+              if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
+              else ""
+            [ plainLine " Next Scheduled"
+            , plainLine ("   " ++ record.scheduledOn ++ status)
+            , plainLine ("   " ++ Loam.ScheduledReview.summary record)
+            ]
+  paceLines ++ [blankLine] ++ scheduledLines
 
 private def pendingSection (pending : PendingEvidence) : List Widget :=
   match pending with
@@ -246,9 +278,6 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
       , span "]" .muted
       ]
   , ruleLine bounds '='
-  ] ++
-  homeSummaryLines snapshot ++
-  [ ruleLine bounds '-'
   , plainLine (centeredMonthTitle state)
   , calendarHeader
   ] ++
@@ -256,6 +285,8 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
   [mutedLine " underline = today"] ++
   (if pastOpenDates.isEmpty then [] else
     [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
+  [blankLine] ++
+  homeSummaryLines snapshot ++
   [ ruleLine bounds '-'
   , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
   ] ++
@@ -281,7 +312,9 @@ private def wideCalendarPane
      calendarRows snapshot.actual.today pastOpenDates state ++
      [mutedLine " underline = today"] ++
      (if pastOpenDates.isEmpty then [] else
-       [mutedLine " ! = still current-open"]))
+       [mutedLine " ! = still current-open"]) ++
+     [blankLine] ++
+     wideHomeSummaryLines snapshot)
 
 private def wideDetailLines
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
@@ -330,7 +363,7 @@ private def wideSelectedDayPane
      ((details.drop offset).take visible))
 
 private def widePanelRows (bounds : Bounds) (footerRows : Nat) : Nat :=
-  Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 5
+  Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 4
 
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -352,7 +385,6 @@ private def wideHomeBody
       , span "]" .muted
       ]
   , ruleLine bounds '='
-  , wideHomeSummaryLine bounds snapshot
   ] ++
   sideBySide panelRows leftWidth rightWidth left right ++
   [ruleLine bounds '=']
