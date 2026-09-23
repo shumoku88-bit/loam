@@ -31,6 +31,7 @@ import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
 import Loam.Tui.CycleBudget
+import Loam.CycleSpendingPaceReview
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.CapacityRebalance
@@ -130,11 +131,13 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     | .ok records => pure records
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir
+  let pace ←
+    Loam.CycleSpendingPaceReview.loadSnapshotAt dataDir dataDir today
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
   }
-  return .ok { actual := actual, scheduled := scheduled }
+  return .ok { actual := actual, scheduled := scheduled, pace := pace }
 
 private def requireReload {α : Type} (notice : String)
     (reload : IO (Except String α)) : IO α := do

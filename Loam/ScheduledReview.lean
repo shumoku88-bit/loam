@@ -89,6 +89,17 @@ def loadHouseholdEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) :=
   loadEvidenceFromActual (dataDir / "scheduled.loam") actualRoot
 
+/--
+Load the household Scheduled lifecycle against one caller-supplied Actual Event
+image. This lets composed read boundaries reuse an already-loaded Actual
+generation instead of reopening the same authority merely to validate Scheduled
+completion references.
+-/
+def loadHouseholdEvidenceForEvents
+    (dataDir : System.FilePath)
+    (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) :=
+  loadLifecycleSnapshot? (dataDir / "scheduled.loam") eventMemory
+
 
 def dayEvidence (snapshot : EvidenceSnapshot) (date : String) : DayEvidence :=
   Loam.Application.currentScheduledDayEvidence
@@ -120,6 +131,27 @@ def currentOpenBeforeDate
       left.id.token ≤ right.id.token
     else
       left.scheduledOn ≤ right.scheduledOn
+
+/--
+Return the earliest retained current-open Scheduled occurrence.
+
+Overdue evidence is intentionally included. An old expected date remains
+actionable while the occurrence is current-open; this projection never moves it
+to today or silently skips it in favor of a later plan.
+-/
+def earliestCurrentOpenRecord
+    (snapshot : EvidenceSnapshot) : Except String (Option Record) := do
+  let records ← currentOpenRecords snapshot
+  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+    throw "loam: current-open Scheduled evidence contains an invalid retained date"
+  let ordered := records.mergeSort fun left right =>
+    if left.scheduledOn = right.scheduledOn then
+      left.id.token ≤ right.id.token
+    else
+      left.scheduledOn ≤ right.scheduledOn
+  match ordered with
+  | [] => return none
+  | first :: _ => return some first
 
 private def positiveLocusTokensFromChanges
     (changes : List (MovementChange LocusId)) : List String :=

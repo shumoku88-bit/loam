@@ -60,7 +60,15 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
     today := "2026-09-07"
     allRecords := []
   }
-  pure { actual := actual, scheduled := .ok scheduledSnapshot }
+  let pace : Loam.CycleSpendingPaceReview.Snapshot := {
+    observedAt := "2026-09-07"
+    endExclusive := "2026-09-17"
+    remainingDays := 10
+    eligiblePool := Quantity.ofQuanta 2500
+    automaticDeductions := Quantity.ofQuanta 800
+    availableThroughEnd := Quantity.ofQuanta 1700
+  }
+  pure { actual := actual, scheduled := .ok scheduledSnapshot, pace := .ok pace }
 
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
@@ -78,6 +86,11 @@ def main : IO Unit := do
     "Home status lost the selected-day Scheduled due count"
   expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
     "Scheduled on Today was incorrectly marked Pending"
+  let dueTodayText := widgetText dueTodayView
+  expect (contains "Daily pace: 170 jpy/day" dueTodayText)
+    "Home did not expose the current Daily Pace answer"
+  expect (contains "Next Scheduled: 2026-09-07" dueTodayText)
+    "Home did not expose the earliest current-open Scheduled occurrence"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with

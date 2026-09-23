@@ -1,4 +1,5 @@
 import Loam.ActualReview
+import Loam.CycleSpendingPaceReview
 import Loam.ScheduledReview
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
@@ -23,6 +24,12 @@ structure Snapshot where
   actual : ActualSnapshot
   /-- Scheduled refusal remains explicit and must never be reinterpreted as an empty household. -/
   scheduled : ScheduledAvailability
+  /--
+  Daily Pace is an optional read answer. Its unavailability must not prevent
+  ordinary Home, Actual, or Scheduled use.
+  -/
+  pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
+    .error "loam: Daily Pace not loaded"
 
 /-- Production root state now owns only Home date focus and a human-facing notice. -/
 structure State where

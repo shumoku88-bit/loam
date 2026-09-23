@@ -117,7 +117,8 @@ def main : IO Unit := do
     "Home body regained a duplicate shortcut section"
   expect (!contains "Attention is current-open evidence" wideText)
     "Home body regained explanatory shortcut prose"
-  let expectedWidePanelRows := footerBodyCapacity wideBounds 4 - 4
+  -- Wide Home composes both glance answers into one fixed summary row.
+  let expectedWidePanelRows := footerBodyCapacity wideBounds 4 - 5
   expect (occurrences " │ " wideText == expectedWidePanelRows)
     "wide Home divider height changed with content instead of filling the fixed viewport"
   for token in ["[i] attention", "[b] balances", "[c] budget", "[e] capacity",
