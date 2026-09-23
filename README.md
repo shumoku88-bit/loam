@@ -39,25 +39,39 @@ Repository-backed research surveys, checkpoints, and falsification catalogs are 
 
 For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
 
-## Local practical entrance
+## Practical entrance
 
-LOAM's practical Lean boundary is selected by the repository's `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then run the wrapper from the repository root:
+LOAM is published as one standalone `loam` executable for macOS and Linux. A normal user does not need Lean, Lake, or a repository checkout.
+
+Download the archive for your platform from the [latest GitHub Release](https://github.com/shumoku88-bit/loam/releases/latest), extract it, then run:
+
+```text
+./loam
+```
+
+With no arguments, `loam` opens the production household TUI. The same binary also exposes explicit named commands for scriptable, diagnostic, and export use.
+
+The release workflow publishes native archives for macOS x86_64, macOS arm64, Linux x86_64, and Linux aarch64, together with SHA-256 checksums and platform portability notes.
+
+The TUI resolves `LOAM_DATA_DIR`, defaulting to `../loam-data`. That directory is the production Actual authority root; normalized Actual evidence is retained in `actual.loam`. Missing or malformed selected authority fails closed rather than falling back to retired sidecars.
+
+Household recording has one explicit line-CLI entrance:
+
+```text
+./loam movement [LOAM_DATA_DIR]
+```
+
+If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
+
+### Development checkout
+
+For repository development, LOAM's practical Lean boundary is selected by `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then use the repository wrapper:
 
 ```text
 ./tools/loam
 ```
 
-With no arguments, the wrapper opens the production `loamTui` household workspace. The TUI resolves `LOAM_DATA_DIR`, defaulting to `../loam-data`. That directory is the production Actual authority root; normalized Actual evidence is retained in `actual.loam`. Missing or malformed selected authority fails closed rather than falling back to retired sidecars.
-
-Explicit named CLI commands remain available for scriptable, diagnostic, and lower-level use. The default human entrance does not replace those commands.
-
-Household recording has one explicit line-CLI entrance:
-
-```text
-./tools/loam movement [LOAM_DATA_DIR]
-```
-
-If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
+The wrapper delegates practical entrances to the same unified `loam` executable while lower-level development and research targets remain available separately.
 
 Select one Measure for the movement (default `jpy`; scripted callers may set `LOAM_MEASURE`), enter one or more FROM loci and positive amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly in that same Measure before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
