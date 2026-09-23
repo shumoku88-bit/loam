@@ -104,7 +104,7 @@ def recordFile (proposalPath rootPath : String) : IO UInt32 := do
 
 private def usage : String :=
   "Record one machine-readable Movement proposal through canonical publication:\n" ++
-  "  ./tools/loam movement-proposal-record PROPOSAL_FILE [LOAM_DATA_DIR]\n\n" ++
+  "  loam movement-proposal-record PROPOSAL_FILE [LOAM_DATA_DIR]\n\n" ++
   "Invocation is an explicit write request. The writer re-reads current authority and may refuse even after an earlier read-only review.\n" ++
   "Format v1 remains identity-free. Format v2 requires operation<TAB>ID and retries that identity idempotently."
 
