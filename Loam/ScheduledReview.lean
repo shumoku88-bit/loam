@@ -72,9 +72,7 @@ private def loadLifecycleSnapshot?
 
 def loadEvidenceFromActual
     (scheduledFile actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
-  let path :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then actualRoot
-    else Loam.ActualAuthority.actualPath actualRoot
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   match ← Loam.ActualAuthority.loadActualFile? path with
   | .error message => return .error message
   | .ok evidence => loadLifecycleSnapshot? scheduledFile evidence.events
