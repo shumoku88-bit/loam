@@ -216,9 +216,11 @@ private def attentionText (snapshot : Snapshot) : String :=
   | .ok (.available attention) =>
       match attention.openItems with
       | [] => "Attention: 0 open"
-      | first :: rest =>
-          "Attention: " ++ toString (rest.length + 1) ++ " open  " ++
+      | [first] =>
+          "Attention: 1 open  " ++
             Loam.ActualReview.shortText 72 (Loam.AttentionReview.summary first)
+      | _ =>
+          "Attention: " ++ toString attention.openItems.length ++ " open  [i] manage"
 
 private def attentionLine (snapshot : Snapshot) : Widget :=
   match snapshot.attention with
@@ -242,11 +244,16 @@ private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
           [ mutedLine " Attention"
           , mutedLine "   0 open"
           ]
-      | first :: rest =>
+      | [first] =>
           [ plainLine " Attention"
-          , plainLine ("   " ++ toString (rest.length + 1) ++ " open")
+          , plainLine "   1 open"
           , plainLine ("   " ++
               Loam.ActualReview.shortText 34 (Loam.AttentionReview.summary first))
+          ]
+      | _ =>
+          [ plainLine " Attention"
+          , plainLine ("   " ++ toString attention.openItems.length ++ " open")
+          , mutedLine "   [i] manage"
           ]
 
 private def dailyPaceLine (snapshot : Snapshot) : Widget :=
