@@ -85,13 +85,9 @@ def scopeEvidence (snapshot : Snapshot) (state : State) : Except String ScopeEvi
       match state.scope with
       | .focusDay =>
           match Loam.ScheduledReview.dayEvidence scheduled state.focusDate with
-          | .due first rest => .ok (.records (first :: rest))
-          | .unknown => .ok .unknown
-          | .unknownCompletionScheduled => .error "Scheduled completion evidence references an unknown identity."
-          | .unknownRetirementScheduled => .error "Scheduled retirement evidence references an unknown identity."
-          | .unknownReplacementScheduled => .error "Scheduled replacement evidence references an unknown identity."
-          | .invalidReplacementGraph => .error "Scheduled replacement topology is invalid."
-          | .conflictingTerminalEvidence => .error "Scheduled terminal evidence conflicts."
+          | .error message => .error message
+          | .ok (.due first rest) => .ok (.records (first :: rest))
+          | .ok .unknown => .ok .unknown
       | .allCurrent =>
           match Loam.ScheduledReview.orderedCurrentOpenRecords scheduled with
           | .ok records => .ok (.records records)

@@ -119,8 +119,9 @@ def main (args : List String) : IO Unit := do
     match fresh.scheduled with
     | .error message => throw (IO.userError message)
     | .ok scheduled => pure scheduled
-  let due := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence freshScheduled "2026-09-12")
+  let .ok dayEvidence := Loam.ScheduledReview.dayEvidence freshScheduled "2026-09-12"
+    | throw (IO.userError "fresh Scheduled day evidence refused valid lifecycle")
+  let due := Loam.ScheduledReview.explicitDueRecords dayEvidence
   expect (hasScheduled due scheduledId)
     "fresh Scheduled read did not expose the newly created occurrence on its explicit day"
   expect (fresh.actual.allRecords.isEmpty)

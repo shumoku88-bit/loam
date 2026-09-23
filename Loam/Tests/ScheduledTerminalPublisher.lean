@@ -129,8 +129,9 @@ def main (args : List String) : IO Unit := do
 
   let .ok afterCompletion ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after completion")
-  let due10 := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCompletion "2026-09-10")
+  let .ok due10Evidence := Loam.ScheduledReview.dayEvidence afterCompletion "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid completion frontier")
+  let due10 := Loam.ScheduledReview.explicitDueRecords due10Evidence
   expect (!hasScheduled due10 "scheduled-1") "completed Scheduled stayed current-open"
   expect (hasScheduled due10 "scheduled-2") "unrelated Scheduled disappeared after completion"
 
@@ -139,8 +140,9 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish Scheduled cancellation")
   let .ok afterCancellation ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
     | throw (IO.userError "load scheduled review after cancellation")
-  let due10After := Loam.ScheduledReview.explicitDueRecords
-    (Loam.ScheduledReview.dayEvidence afterCancellation "2026-09-10")
+  let .ok due10AfterEvidence := Loam.ScheduledReview.dayEvidence afterCancellation "2026-09-10"
+    | throw (IO.userError "Scheduled day evidence refused valid cancellation frontier")
+  let due10After := Loam.ScheduledReview.explicitDueRecords due10AfterEvidence
   expect (!hasScheduled due10After "scheduled-2") "cancelled Scheduled stayed current-open"
   let staleCompletion ← Loam.ScheduledTerminalPublisher.publishCompletion
     scheduledFile.toString root.toString

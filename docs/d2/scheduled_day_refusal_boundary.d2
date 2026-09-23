@@ -1,0 +1,35 @@
+direction: right
+
+before: {
+  label: "Before: lifecycle refusal fans out"
+  app: "Application\nCurrentScheduledDayEvidenceResult"
+  review: "ScheduledReview.dayEvidence\nraw pass-through"
+  home: "Home\n5 refusal branches"
+  scheduled: "HraScheduled\n5 refusal branches"
+  selected: "SelectedDay\n5 refusal branches"
+  cli: "ScheduledDayEvidenceCli\n5 refusal branches"
+
+  app -> review
+  review -> home
+  review -> scheduled
+  review -> selected
+  review -> cli
+}
+
+after: {
+  label: "After: Review qualifies day answer"
+  app: "Application\nDetailed inspection result"
+  review: "ScheduledReview.dayEvidence\nExcept String (Due | Unknown)"
+  home: "Home"
+  scheduled: "HraScheduled"
+  selected: "SelectedDay"
+  cli: "ScheduledDayEvidenceCli"
+
+  app -> review: "detailed failure preserved internally"
+  review -> home
+  review -> scheduled
+  review -> selected
+  review -> cli
+}
+
+note: "Application keeps detailed invalid lifecycle constructors for qualification.\nPresentation sees only refusal, Due, or open-world Unknown."

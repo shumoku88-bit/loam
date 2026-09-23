@@ -129,16 +129,6 @@ private def scheduledLines (snapshot : Snapshot) (state : State) : List Widget :
               toString change.quantity.quanta ++ " " ++ record.measure.token))
   | .ok .unknown =>
       [mutedLine "   (unknown; no completeness horizon is claimed)"]
-  | .ok .unknownCompletionScheduled =>
-      [plainLine "   [Unavailable] completion evidence references an unknown Scheduled identity"]
-  | .ok .unknownRetirementScheduled =>
-      [plainLine "   [Unavailable] retirement evidence references an unknown Scheduled identity"]
-  | .ok .unknownReplacementScheduled =>
-      [plainLine "   [Unavailable] replacement evidence references an unknown Scheduled identity"]
-  | .ok .invalidReplacementGraph =>
-      [plainLine "   [Unavailable] Scheduled replacement graph is invalid"]
-  | .ok .conflictingTerminalEvidence =>
-      [plainLine "   [Unavailable] Scheduled terminal evidence conflicts"]
 
 private def pendingLines : PendingEvidence → List Widget
   | .error message =>
@@ -158,11 +148,6 @@ private def statusTokens
     | .error _ => "Unavailable"
     | .ok (.due _ rest) => "Due (" ++ toString (rest.length + 1) ++ ")"
     | .ok .unknown => "Unknown"
-    | .ok .unknownCompletionScheduled => "Unavailable"
-    | .ok .unknownRetirementScheduled => "Unavailable"
-    | .ok .unknownReplacementScheduled => "Unavailable"
-    | .ok .invalidReplacementGraph => "Unavailable"
-    | .ok .conflictingTerminalEvidence => "Unavailable"
   let pendingStatus :=
     match pending with
     | .ok records => toString records.length

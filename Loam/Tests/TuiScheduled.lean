@@ -190,6 +190,30 @@ def main : IO Unit := do
   expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
     "Synthetic Today + Focus + Pending lost a presentation cue"
 
+  -- Review owns fail-closed lifecycle refusal for exact-day answers.
+  let scheduledEvidence ←
+    match snapshot.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok evidence => pure evidence
+  let invalidTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{ source := ⟨"scheduled-0"⟩, target := some (.scheduled ⟨"missing-scheduled"⟩) }])
+    "invalid replacement fixture could not be retained for Review qualification"
+  let invalidEvidence : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := scheduledEvidence.scheduled
+    terminals := invalidTerminals
+    events := scheduledEvidence.events
+  }
+  match Loam.ScheduledReview.dayEvidence invalidEvidence "2026-09-07" with
+  | .error message =>
+      expect
+        (message ==
+          "loam: Scheduled replacement refers to an unknown Scheduled identity")
+        "Scheduled Review changed the qualified unknown-replacement refusal"
+  | .ok _ =>
+      throw (IO.userError
+        "Scheduled Review exposed malformed replacement topology as an ordinary day answer")
+
   -- SGR attributes accumulate: each style must clear the previous underline,
   -- background and dim attributes before setting its own (including dirty redraw).
   for style in [Style.normal, .selected, .muted, .underlined, .selectedUnderlined] do
