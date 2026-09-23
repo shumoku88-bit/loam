@@ -6,7 +6,7 @@ set_option autoImplicit false
 
 private def usage : String :=
   "Usage:\n" ++
-  "  ./tools/loam doctor [LOAM_DATA_DIR]"
+  "  loam doctor [LOAM_DATA_DIR]"
 
 private def resolveDataDir (args : List String) : IO (Except String System.FilePath) := do
   match args with

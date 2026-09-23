@@ -31,33 +31,33 @@ set_option autoImplicit false
 private def practicalUsage : String :=
   "LOAM practical dogfood\n\n" ++
   "Open TUI interface (primary entrance):\n" ++
-  "  ./tools/loam\n" ++
-  "  ./tools/loam tui [LOAM_DATA_DIR]\n\n" ++
+  "  loam\n" ++
+  "  loam tui [LOAM_DATA_DIR]\n\n" ++
   "Record one Movement through the same binary:\n" ++
-  "  ./tools/loam movement [LOAM_DATA_DIR]\n\n" ++
+  "  loam movement [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
-  "  ./tools/loam doctor [LOAM_DATA_DIR]\n\n" ++
+  "  loam doctor [LOAM_DATA_DIR]\n\n" ++
   "Explicit zero-origin quantity projections:\n" ++
-  "  ./tools/loam balances ACTUAL_FILE COVERAGE_FILE [BALANCE_VIEW]\n" ++
-  "  ./tools/loam current ACTUAL_FILE COVERAGE_FILE\n\n" ++
+  "  loam balances ACTUAL_FILE COVERAGE_FILE [BALANCE_VIEW]\n" ++
+  "  loam current ACTUAL_FILE COVERAGE_FILE\n\n" ++
   "Scriptable routing and budget projection:\n" ++
-  "  ./tools/loam actual-routing ...\n" ++
-  "  ./tools/loam scheduled-routing ...\n" ++
-  "  ./tools/loam budget-window DATA_ROOT START END PURPOSE|--all\n\n" ++
+  "  loam actual-routing ...\n" ++
+  "  loam scheduled-routing ...\n" ++
+  "  loam budget-window DATA_ROOT START END PURPOSE|--all\n\n" ++
   "Portable exports:\n" ++
-  "  ./tools/loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
-  "  ./tools/loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
-  "  ./tools/loam export beancount [--partial|--suspense] ...\n\n" ++
+  "  loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
+  "  loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
+  "  loam export beancount [--partial|--suspense] ...\n\n" ++
   "Print the evidence-aware Balances report as plain text:\n" ++
-  "  ./tools/loam report balances [LOAM_DATA_DIR]\n\n" ++
+  "  loam report balances [LOAM_DATA_DIR]\n\n" ++
   "Publish one complete current quantity observation image:\n" ++
-  "  ./tools/loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
+  "  loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
   "Scheduled persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
-  "  ./tools/loam scheduled show SCHEDULED_FILE\n\n" ++
+  "  loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
-  "  ./tools/loam review ACTUAL_FILE [QUERY]\n\n" ++
+  "  loam review ACTUAL_FILE [QUERY]\n\n" ++
   "Show recorded quantities:\n" ++
-  "  ./tools/loam summary ACTUAL_FILE"
+  "  loam summary ACTUAL_FILE"
 
 private def recordedCoordinates
     (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=

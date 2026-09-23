@@ -272,8 +272,8 @@ def reviewMovement (rootPath : String) : IO UInt32 := do
 
 private def usage : String :=
   "Record or review one balanced single-Measure movement:\n" ++
-  "  ./tools/loam movement [LOAM_DATA_DIR]\n" ++
-  "  ./tools/loam movement --dry-run [LOAM_DATA_DIR]\n\n" ++
+  "  loam movement [LOAM_DATA_DIR]\n" ++
+  "  loam movement --dry-run [LOAM_DATA_DIR]\n\n" ++
   "Dry-run uses the same draft and admission rules but writes no LOAM persistence and reserves no EventId.\n" ++
   "If LOAM_DATA_DIR is omitted, the LOAM_DATA_DIR environment variable is used, then ../loam-data.\n" ++
   "Interactive recording: press Enter at Date [today], optionally enter a description, then optionally add open relation and relation discharge evidence.\n" ++

@@ -10,7 +10,7 @@ set_option autoImplicit false
 
 private def usage : String :=
   "Publish one complete current quantity observation image:\n" ++
-  "  ./tools/loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
+  "  loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
   "LOAM_DATA_DIR selects the household data root; otherwise ../loam-data is used."
 
 private def parseAssertion?

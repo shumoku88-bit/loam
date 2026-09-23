@@ -12,9 +12,9 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM daily quantity\n\n" ++
   "Show balances from explicit zero-origin coverage:\n" ++
-  "  ./tools/loam balances <actual-file> <zero-origin-coverage> [balance-view]\n\n" ++
+  "  loam balances <actual-file> <zero-origin-coverage> [balance-view]\n\n" ++
   "Show all nonzero current quantities admitted by zero-origin coverage:\n" ++
-  "  ./tools/loam current <actual-file> <zero-origin-coverage>\n\n" ++
+  "  loam current <actual-file> <zero-origin-coverage>\n\n" ++
   "Starting-quantity writers are retired. Zero-origin coverage is changed only by explicit reconstruction/cutover."
 
 private def loadImageForView?
