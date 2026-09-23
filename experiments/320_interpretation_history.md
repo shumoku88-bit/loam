@@ -1,6 +1,6 @@
 # Observation 320 — interpretation history without rewriting facts
 
-Status: **BOUNDED ALLOY PROBE — DO NOT PROMOTE YET**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — DO NOT PROMOTE TO PRODUCTION YET**
 
 Baseline: `2fc06056799d77f3fe78ecb960d82f8b3b8cadbe`
 
@@ -106,14 +106,14 @@ This means:
 
 Can a Reflection be recorded later than the Fact it interprets?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 ### 2. Reconsideration without deletion
 
 Can an old Reflection remain retained while a newly appended Reflection takes
 the opposite Stance toward the same Meaning and Fact?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 This is why the probe models Reflection **history**, not a single mutable
 "current interpretation" field.
@@ -123,7 +123,7 @@ This is why the probe models Reflection **history**, not a single mutable
 Can a later Reflection explicitly attribute its perspective to the earlier
 Fact time while keeping the later recording time?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 The two time coordinates remain distinct.
 
@@ -131,7 +131,7 @@ The two time coordinates remain distinct.
 
 Can two opposed Reflections be equally latest for one Fact?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 If this witness exists, a unique current interpretation is not derivable from
 `recordedAt` alone. A future query would need an explicit selection policy, or
@@ -141,7 +141,7 @@ it should honestly return several current candidates.
 
 Can a weak Reflection append coincide with changed Fact membership?
 
-Expected: **SAT**.
+Observed: **SAT**.
 
 If so, any later temporal model must carry an explicit frame condition (or a
 representation that makes Fact preservation structural). "We only added a
@@ -149,7 +149,7 @@ Reflection" is not by itself a formal preservation law.
 
 ## Assertion matrix
 
-Expected bounded result:
+Qualified bounded result on GitHub Actions run `35887898679` (Alloy 6.2.0 / Sat4j):
 
 ```text
 retrospectiveReflectionExists              SAT
@@ -166,7 +166,7 @@ ReflectionAppendKeepsSubjectsPresent        UNSAT counterexample
 For `check` commands, UNSAT means Alloy found no counterexample in the selected
 scope.
 
-## What a successful result would earn
+## What this qualified result earns
 
 Only a small research conclusion:
 
@@ -176,7 +176,7 @@ Only a small research conclusion:
 4. Reflection time alone does not necessarily yield one canonical current view.
 5. Fact preservation must be explicit in any state-transition model.
 
-It would **not** earn:
+It does **not** earn:
 
 - a production `Reflection` Core type;
 - a new canonical file;
@@ -186,7 +186,7 @@ It would **not** earn:
 - a singleton current interpretation;
 - real-number or complex-number semantics.
 
-## Next pressure if qualified
+## Next pressure
 
 Do not implement production storage yet.
 
