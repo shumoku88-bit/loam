@@ -1,4 +1,5 @@
 import Loam.ActualReview
+import Loam.AttentionReview
 import Loam.CycleSpendingPaceReview
 import Loam.ScheduledReview
 import Loam.Tui.Calendar
@@ -24,6 +25,12 @@ structure Snapshot where
   actual : ActualSnapshot
   /-- Scheduled refusal remains explicit and must never be reinterpreted as an empty household. -/
   scheduled : ScheduledAvailability
+  /--
+  Attention is an optional read answer. Missing configuration, configured empty,
+  and read refusal remain distinct at the Review boundary.
+  -/
+  attention : Except String Loam.AttentionReview.Availability :=
+    .error "loam: Attention not loaded"
   /--
   Daily Pace is an optional read answer. Its unavailability must not prevent
   ordinary Home, Actual, or Scheduled use.
