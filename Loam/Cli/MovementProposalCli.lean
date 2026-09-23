@@ -63,7 +63,7 @@ def reviewFile (proposalPath rootPath : String) : IO UInt32 := do
 
 private def usage : String :=
   "Review one machine-readable Movement proposal without publishing:\n" ++
-  "  ./tools/loam movement-proposal PROPOSAL_FILE [LOAM_DATA_DIR]\n\n" ++
+  "  loam movement-proposal PROPOSAL_FILE [LOAM_DATA_DIR]\n\n" ++
   "Format v1 begins with LOAM-MOVEMENT-PROPOSAL<TAB>1 and supports date, description, effect, relation, and discharge rows.\n" ++
   "The command never publishes, reserves an EventId, or retains source-to-LOAM identity."
 
