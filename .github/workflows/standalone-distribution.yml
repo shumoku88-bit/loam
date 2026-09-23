@@ -157,7 +157,7 @@ jobs:
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
-          use-github-cache: true
+          use-github-cache: false
 
       - name: Record native portability evidence
         shell: bash
