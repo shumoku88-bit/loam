@@ -8,20 +8,6 @@ open Loam.Core
 
 set_option autoImplicit false
 
-private def insertByScheduledDay
-    (occurrence : ScheduledOccurrence String) :
-    List (ScheduledOccurrence String) → List (ScheduledOccurrence String)
-  | [] => [occurrence]
-  | current :: rest =>
-      match compare occurrence.scheduledOn current.scheduledOn with
-      | Ordering.gt => current :: insertByScheduledDay occurrence rest
-      | _ => occurrence :: current :: rest
-
-private def sortByScheduledDay
-    (occurrences : List (ScheduledOccurrence String)) :
-    List (ScheduledOccurrence String) :=
-  occurrences.foldr insertByScheduledDay []
-
 private def fromChanges
     (occurrence : ScheduledOccurrence String) : List (MovementChange LocusId) :=
   occurrence.movement.changes.filter fun change => change.quantity.quanta < 0
@@ -87,12 +73,12 @@ def showOpenScheduled (scheduledPath actualRoot : String) : IO UInt32 := do
       IO.eprintln message
       return 2
   | .ok snapshot =>
-      match Loam.ScheduledReview.currentOpenRecords snapshot with
+      match Loam.ScheduledReview.orderedCurrentOpenRecords snapshot with
       | .error message =>
           IO.eprintln message
           return 2
       | .ok openOccurrences =>
-          match sortByScheduledDay openOccurrences with
+          match openOccurrences with
           | [] =>
               IO.println "No explicit current-open Scheduled movements are retained."
               IO.println
