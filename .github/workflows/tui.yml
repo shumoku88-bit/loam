@@ -284,7 +284,7 @@ jobs:
 
           help_out="$(.lake/build/bin/loam help)"
           grep -F "Open TUI interface (primary entrance)" <<<"$help_out"
-          grep -F "./tools/loam movement [LOAM_DATA_DIR]" <<<"$help_out"
+          grep -F "loam movement [LOAM_DATA_DIR]" <<<"$help_out"
 
           compare_dispatch loamTui tui too many
           compare_dispatch loamDoctor doctor "$(mktemp -d)"
