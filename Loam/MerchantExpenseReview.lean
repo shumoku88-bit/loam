@@ -199,11 +199,7 @@ def loadSnapshot
     (start endExclusive : String)
     (party : ExternalPartyId)
     (measure : MeasureId) : IO (Except String Snapshot) := do
-  let actualPath :=
-    if actualRoot.fileName == some Loam.ActualAuthority.actualFileName then
-      actualRoot
-    else
-      Loam.ActualAuthority.actualPath actualRoot
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let evidence ←
     match ← Loam.ActualAuthority.loadActualFile? actualPath with
     | .ok value => pure value
