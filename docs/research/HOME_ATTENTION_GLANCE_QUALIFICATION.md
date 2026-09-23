@@ -38,14 +38,20 @@ The glance preserves four states:
 read refusal        -> Attention: unavailable
 missing authority   -> Attention: not configured
 configured empty    -> Attention: 0 open
-current-open items  -> N open + first qualified summary
+one current-open    -> 1 open + qualified summary
+multiple open       -> N open + [i] manage
 ```
 
-For a deferred Scheduled continuation, the first qualified summary retains the
+For a single deferred Scheduled continuation, the qualified summary retains the
 existing `due unknown` label and opaque human context.
 
-Home shows only one item plus the count. Full navigation, resolve/drop, and new
-item creation remain in `Attention / Manage`.
+When multiple Attention items are open, Home deliberately shows only the count
+and the `[i] manage` affordance. `openItems` retains representation order only,
+not priority, so Home must not single out the first retained item as though it
+were more important.
+
+Full navigation, resolve/drop, and new item creation remain in
+`Attention / Manage`.
 
 ## Freshness
 
