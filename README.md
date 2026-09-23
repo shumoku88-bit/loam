@@ -10,6 +10,8 @@ The research began with a deliberately narrow question:
 
 Use the smallest set of tools that can answer the current question.
 
+For AI-assisted or cross-cutting repository work, [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is the discovery index for LOAM's semantic maps, obligation DAGs, DRAKON/D2 views, repository audits, falsification catalogs, and formal/executable instruments. It is a menu rather than a required pipeline.
+
 The default core is:
 
 - **Alloy** explores possible structures and counterexamples.

@@ -2,6 +2,8 @@
 
 Read `DESIGN_PHILOSOPHY.md` and `docs/HOUSEHOLD_OPERATING_MODE.md` before making architectural, persistence, canonical-data, or household-authority decisions.
 
+Before non-trivial analysis, auditing, or implementation, read `docs/AI_WORKBENCH.md` and select repository instruments by the question they answer. Do not reason over the whole repository unaided when an existing map, DAG, audit, or qualified evidence surface already narrows the question.
+
 LOAM is the current day-to-day household system and is still under active development. It has no external compatibility obligation, but its operational household data must be preserved through explicit, qualified transitions when representations change.
 
 ## Standing rules
