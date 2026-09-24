@@ -268,13 +268,18 @@ private def buildSourceEffectIndex
 Build a one-pass transient aggregate mapping `(EventId, EffectKey)` to total
 relation quantity across all relation units targeting that source.
 -/
+private def coverageAt
+    (index : Std.HashMap SourceKey Int)
+    (key : SourceKey) : Int :=
+  (index.get? key).getD 0
+
 private def buildCoverageIndex :
     List RelationUnit → Std.HashMap SourceKey Int
   | [] => {}
   | relation :: rest =>
       let index := buildCoverageIndex rest
       let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
-      let prior := index[key]?.getD 0
+      let prior := coverageAt index key
       index.insert key (relation.quantity.quanta + prior)
 
 /--
@@ -284,10 +289,10 @@ by the semantic frontier, for every raw RelationUnit list and queried source.
 private theorem buildCoverageIndex_getD_eq_currentCoverageFor
     (relations : List RelationUnit)
     (sourceRelation : RelationUnit) :
-    (buildCoverageIndex relations)[({
+    coverageAt (buildCoverageIndex relations) {
       event := sourceRelation.sourceEvent,
       effect := sourceRelation.sourceEffect
-    } : SourceKey)]?.getD 0 =
+    } =
       currentCoverageFor relations sourceRelation := by
   induction relations with
   | nil =>
