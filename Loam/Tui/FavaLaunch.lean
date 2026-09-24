@@ -112,7 +112,7 @@ def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : I
   -- Spawn in its own session / process group (setsid) using exec so uvx becomes the group leader.
   -- Redirect stdin from /dev/null so Python runtime does not fail with Errno 9 Bad file descriptor in a detached session.
   -- No trailing '&' is used because IO.Process.spawn runs asynchronously and retains direct Child ownership.
-  let cmd := s!"exec uvx --from fava fava --port {port} {beancountPath.toString} < /dev/null > {logPath.toString} 2>&1"
+  let cmd := s!"exec uvx --from fava fava --read-only --port {port} {beancountPath.toString} < /dev/null > {logPath.toString} 2>&1"
   let child ←
     try
       IO.Process.spawn {
@@ -143,7 +143,7 @@ def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : I
 Full launch workflow:
 1. Acquires WriterOwnership exclusive lock on actual.loam to prevent dirty read during stage write.
 2. Exports canonical Actual into disposable Beancount projection with source overwrite protection.
-3. Verifies or spawns Fava web server with health check.
+3. Verifies or spawns Fava in read-only mode with health check.
 4. Opens browser only after confirming Fava is responding.
 -/
 def launch
