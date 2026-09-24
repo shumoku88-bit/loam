@@ -1,4 +1,5 @@
 import Loam.Core.LocusAdmission
+import Loam.HouseholdPaths
 import Loam.Persistence.LocusAdmissionPersistence
 import Loam.WriterOwnership
 
@@ -19,12 +20,12 @@ Actual evidence.
 -/
 
 /-- The standard canonical filename for Locus admission policy authority. -/
-def locusAdmissionFileName : String := "locus-admission.loam"
+def locusAdmissionFileName : String := Loam.HouseholdPaths.locusAdmissionFileName
 
 /-- Resolve the authoritative filepath for locus admission policy. -/
 def locusAdmissionPath (root : System.FilePath) : System.FilePath :=
   if root.fileName == some locusAdmissionFileName then root
-  else root / locusAdmissionFileName
+  else Loam.HouseholdPaths.locusAdmission root
 
 /-- Load exactly the currently selected new-write Locus policy. -/
 def loadCurrent?

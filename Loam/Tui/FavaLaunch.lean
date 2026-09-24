@@ -1,4 +1,5 @@
 import Loam.BeancountExportPipeline
+import Loam.HouseholdPaths
 import Loam.WriterOwnership
 
 namespace Loam.Tui.FavaLaunch
@@ -151,8 +152,8 @@ def launch
     (port : Nat := defaultPort)
     (outputFile : System.FilePath := defaultOutputPath)
     (reportFile : System.FilePath := defaultReportPath) : IO String := do
-  let actualPath := root / "actual.loam"
-  let rolePath := dataDir / "accounting-role.loam"
+  let actualPath := Loam.HouseholdPaths.actual root
+  let rolePath := Loam.HouseholdPaths.accountingRole dataDir
 
   -- Protect against dirty reads or concurrent stage replacement
   let exportResult ← Loam.WriterOwnership.withOwnership actualPath do

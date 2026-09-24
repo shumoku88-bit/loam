@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.CurrentQuantityAnchor
 import Loam.LocusAdmissionAuthority
+import Loam.HouseholdPaths
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -13,10 +14,10 @@ open Loam.Core
 set_option autoImplicit false
 
 /-- Canonical filename for the optional current reconciliation image. -/
-def fileName : String := "current-quantity-anchor.loam"
+def fileName : String := Loam.HouseholdPaths.currentQuantityAnchorFileName
 
 /-- Canonical path for current reconciliation evidence under one household root. -/
-def path (root : System.FilePath) : System.FilePath := root / fileName
+def path (root : System.FilePath) : System.FilePath := Loam.HouseholdPaths.currentQuantityAnchor root
 
 private def overlapsExistingSupport
     (coverage : ZeroOriginCoverage)
@@ -66,7 +67,7 @@ def propose?
 
 private def loadCoverage
     (root : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
-  let coveragePath := root / "zero-origin-coverage.loam"
+  let coveragePath := Loam.HouseholdPaths.zeroOriginCoverage root
   if !(← coveragePath.pathExists) then
     return .error "loam: zero-origin coverage authority is missing"
   let some coverage ← Loam.Persistence.loadZeroOriginCoverage? coveragePath
@@ -75,7 +76,7 @@ private def loadCoverage
 
 private def loadOpening
     (root : System.FilePath) : IO (Except String OpeningSupportMap) := do
-  let openingPath := root / "opening-support.loam"
+  let openingPath := Loam.HouseholdPaths.openingSupport root
   if !(← openingPath.pathExists) then
     return .error "loam: opening-support authority is missing"
   let some opening ← Loam.Persistence.loadOpeningSupportMap? openingPath

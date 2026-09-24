@@ -16,8 +16,18 @@ Review/Publisher boundary owns the operation.
 def configDir (root : System.FilePath) : System.FilePath :=
   root / "config"
 
+/-- Filename-level identity is exposed only where an operational boundary must distinguish a root from the canonical Actual file. -/
+def actualFileName : String := "actual.loam"
+
+/-- Filename-level identity retained for the existing CurrentQuantityAnchor publisher API. -/
+def currentQuantityAnchorFileName : String := "current-quantity-anchor.loam"
+
+def locusAdmissionFileName : String := "locus-admission.loam"
+
+def measurePresentationFileName : String := "measure-presentation.tsv"
+
 def actual (root : System.FilePath) : System.FilePath :=
-  root / "actual.loam"
+  root / actualFileName
 
 def scheduled (root : System.FilePath) : System.FilePath :=
   root / "scheduled.loam"
@@ -37,6 +47,9 @@ def scheduledRouting (root : System.FilePath) : System.FilePath :=
 def accountingRole (root : System.FilePath) : System.FilePath :=
   root / "accounting-role.loam"
 
+def locusAdmission (root : System.FilePath) : System.FilePath :=
+  root / locusAdmissionFileName
+
 def zeroOriginCoverage (root : System.FilePath) : System.FilePath :=
   root / "zero-origin-coverage.loam"
 
@@ -44,13 +57,13 @@ def openingSupport (root : System.FilePath) : System.FilePath :=
   root / "opening-support.loam"
 
 def currentQuantityAnchor (root : System.FilePath) : System.FilePath :=
-  root / "current-quantity-anchor.loam"
+  root / currentQuantityAnchorFileName
 
 def boundaryPresets (root : System.FilePath) : System.FilePath :=
   configDir root / "boundary-presets.tsv"
 
 def measurePresentation (root : System.FilePath) : System.FilePath :=
-  configDir root / "measure-presentation.tsv"
+  configDir root / measurePresentationFileName
 
 def locusCatalog (root : System.FilePath) : System.FilePath :=
   configDir root / "locus-catalog.tsv"
