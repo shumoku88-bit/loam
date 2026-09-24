@@ -67,6 +67,10 @@ def main : IO Unit := do
       "Home unexpectedly lost available Daily Pace evidence")
 
   match home.funding with
+  | .notRequested =>
+      throw (IO.userError "Home unexpectedly left funding not requested")
+  | .unavailable =>
+      throw (IO.userError "Home unexpectedly classified funding as unavailable")
   | .failed message =>
       throw (IO.userError ("Home unexpectedly lost funding evidence: " ++ message))
   | .loaded funding =>
