@@ -44,9 +44,7 @@ structure AdmittedActualImage where
 
 private def retainedEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
-  events.events.foldl
-    (fun index event => index.insert event.id.token event)
-    {}
+  FiniteKeyed.hashIndexBy Event.id EventId.token events.events
 
 private def retainedRelationIdSet
     (relations : List RelationUnit) : Std.HashSet String :=
