@@ -122,21 +122,28 @@ private def currentLocusCatalog
   | .ok catalog => return catalog
   | .error _ => return Loam.LocusCatalog.fallback world.locusAdmission
 
-private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
-  let some today ← Loam.ActualDate.todayIso?
-    | return .error "loam: could not determine the local date"
-  let actualRecords ←
-    match ← Loam.ActualReview.loadRecordsFromActual dataDir with
-    | .error message => return .error message
-    | .ok records => pure records
+/--
+Compose one Home snapshot from one already-admitted Actual generation.
+
+Every Actual-backed Home branch receives the same `ActualAuthority.Image`:
+Actual rows, Scheduled completion validation, current Daily Pace, and recent pace
+history. Independent authorities such as Scheduled storage and Attention remain
+independently refreshed; this boundary promises same-Actual-generation
+composition, not a cross-file atomic snapshot.
+-/
+def loadSnapshotFromActualImage
+    (dataDir : System.FilePath)
+    (today : String)
+    (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
+  let actualRecords := Loam.ActualReview.recordsFromActualImage image
   let scheduled ←
-    Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir
+    Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents
   let attention ←
     Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
   let pace ←
-    Loam.CycleSpendingPaceReview.loadSnapshotAt dataDir dataDir today
+    Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image today
   let paceHistory ←
-    Loam.CycleSpendingPaceReview.loadHistoryAt dataDir dataDir today 7
+    Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt dataDir image today 7
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
@@ -148,6 +155,15 @@ private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapsho
     pace := pace
     paceHistory := paceHistory
   }
+
+private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
+  let some today ← Loam.ActualDate.todayIso?
+    | return .error "loam: could not determine the local date"
+  let image ←
+    match ← Loam.ActualAuthority.loadImage? dataDir with
+    | .error message => return .error message
+    | .ok image => pure image
+  loadSnapshotFromActualImage dataDir today image
 
 private def requireReload {α : Type} (notice : String)
     (reload : IO (Except String α)) : IO α := do
