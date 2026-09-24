@@ -245,10 +245,22 @@ private def renderCapacity
         escapeHtml (Loam.PurposeCatalog.labelFor metadata row.purpose) ++ "</span> " ++
         quantityText row.entitlement)
 
-private def renderReports (snapshot : Snapshot) : String :=
-  let reports := Loam.Presentation.Reports.fromSnapshot snapshot
+private def roleLabel : AccountingRole → String
+  | .asset => "Asset"
+  | .liability => "Liability"
+  | .equity => "Equity"
+  | .income => "Income"
+  | .expense => "Expense"
+
+private def measuredQuantityText
+    (measure : MeasureId) (quantity : Quantity) : String :=
+  escapeHtml (toString quantity.quanta ++ " " ++ measure.token)
+
+private def renderStockFlowReport
+    (reports : Loam.Presentation.Reports.Model) : String :=
   match reports.stockFlow with
-  | .error message => unavailable message
+  | .error message =>
+      "<h3>Current Cycle Stock-Flow</h3>\n" ++ unavailable message
   | .ok report =>
       "<h3>Current Cycle Stock-Flow</h3>\n" ++
       "<p class=\"note\">Why did the tracked balance become what it is? Values come from the shared Stock-Flow Review.</p>\n" ++
@@ -262,6 +274,70 @@ private def renderReports (snapshot : Snapshot) : String :=
       "<tr><th>Closing reconstructed</th>" ++ tableCell (quantityText report.closing) ++ "</tr>\n" ++
       "<tr><th>Current tracked</th>" ++ tableCell (quantityText report.currentTracked) ++ "</tr>\n" ++
       "</table>"
+
+private def renderIncomeExpenseReport
+    (reports : Loam.Presentation.Reports.Model) : String :=
+  match reports.incomeExpense with
+  | .error message =>
+      "<h3>Income &amp; Expense</h3>\n" ++ unavailable message
+  | .ok report =>
+      let rows :=
+        report.measures.map fun row =>
+          "<tr><td>" ++ escapeHtml row.measure.token ++ "</td>" ++
+          tableCell (measuredQuantityText row.measure row.income) ++
+          tableCell (measuredQuantityText row.measure row.expense) ++
+          tableCell (measuredQuantityText row.measure row.result) ++ "</tr>"
+      let body :=
+        if rows.isEmpty then
+          empty "No classified Income or Expense quantity appears in this window."
+        else
+          "<table summary=\"Current cycle Income and Expense role flow\">\n" ++
+          "<tr><th>Measure</th><th>Income</th><th>Expense</th><th>Result</th></tr>\n" ++
+          String.intercalate "\n" rows ++ "\n</table>"
+      "<h3>Income &amp; Expense</h3>\n" ++
+      "<p class=\"note\">Occurrence-time AccountingRole flow. Distinct Measures remain separate; no valuation or period closing is inferred.</p>\n" ++
+      "<p>Window " ++ escapeHtml report.start ++ " to " ++
+        escapeHtml report.endExclusive ++ " (end exclusive)</p>\n" ++
+      body ++ "\n" ++
+      "<p class=\"note\">Unresolved role Effects: " ++
+        escapeHtml (toString report.unresolvedEffectCount) ++
+        ". Totals are partial when this count is nonzero.</p>"
+
+private def renderBalancesReport
+    (reports : Loam.Presentation.Reports.Model) : String :=
+  match reports.balances with
+  | .error message =>
+      "<h3>Balances</h3>\n" ++ unavailable message
+  | .ok report =>
+      let rows :=
+        report.rows.map fun row =>
+          "<tr><td>" ++ escapeHtml (roleLabel row.role) ++ "</td>" ++
+          "<td>" ++ escapeHtml row.coordinate.locus.token ++ "</td>" ++
+          "<td>" ++ escapeHtml row.coordinate.measure.token ++ "</td>" ++
+          tableCell (measuredQuantityText row.coordinate.measure row.quantity) ++
+          "</tr>"
+      let body :=
+        if rows.isEmpty then
+          empty "No classified supported Role Balance rows."
+        else
+          "<table summary=\"Evidence-aware current accounting balances\">\n" ++
+          "<tr><th>Role</th><th>Locus</th><th>Measure</th><th>Quantity</th></tr>\n" ++
+          String.intercalate "\n" rows ++ "\n</table>"
+      "<h3>Balances</h3>\n" ++
+      "<p class=\"note\">Current evidence-aware Role Balance rows. This presentation does not infer missing roles or unsupported quantities.</p>\n" ++
+      body ++ "\n" ++
+      "<p class=\"note\">Unresolved roles: " ++
+        escapeHtml (toString report.unresolvedRoleCount) ++
+        "; unsupported balances: " ++
+        escapeHtml (toString report.unsupportedBalanceCount) ++ ".</p>"
+
+private def renderReports (snapshot : Snapshot) : String :=
+  let reports := Loam.Presentation.Reports.fromSnapshot snapshot
+  String.intercalate "\n"
+    [ renderStockFlowReport reports
+    , renderIncomeExpenseReport reports
+    , renderBalancesReport reports
+    ]
 
 def render (snapshot : Snapshot) : String :=
   String.intercalate "\n"
