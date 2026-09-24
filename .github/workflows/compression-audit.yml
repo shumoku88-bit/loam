@@ -25,6 +25,7 @@ on:
       - 'tools/select-alloy-research-cases'
       - 'tools/loam'
       - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
+      - 'docs/CI_OBLIGATION_MAP.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE1.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE2.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE3.md'
