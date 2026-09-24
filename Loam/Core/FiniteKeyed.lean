@@ -104,7 +104,16 @@ theorem hashIndexBy_contains_eq_findBy?_isSome
       · have hHash : hashKeyOf (keyOf item) ≠ hashKeyOf key := by
           intro h
           exact hKey (hashKeyInjective h)
-        simpa [hHash, hKey] using ih
+        have hBeq :
+            (hashKeyOf (keyOf item) == hashKeyOf key) = false := by
+          cases hEq : (hashKeyOf (keyOf item) == hashKeyOf key) with
+          | false => rfl
+          | true =>
+              have : hashKeyOf (keyOf item) = hashKeyOf key := eq_of_beq hEq
+              exact False.elim (hHash this)
+        rw [hBeq]
+        simp only [Bool.false_or]
+        exact ih
 
 /--
 Appending one item whose projected key is fresh preserves unique-key evidence.
