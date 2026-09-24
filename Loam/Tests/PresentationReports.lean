@@ -97,7 +97,7 @@ def main : IO Unit := do
   | .ok report =>
       expect (report.measures.length == 2)
         "Reports merged distinct Measures in Income & Expense"
-      let some jpySummary := report.measures.find? (fun row => row.measure = jpy)
+      let some jpySummary := report.measures.find? (fun row => decide (row.measure = jpy))
         | throw (IO.userError "Reports lost JPY Income & Expense measure")
       expect (jpySummary.income.quanta == 5000)
         "Reports changed displayed Income sign"
@@ -105,7 +105,7 @@ def main : IO Unit := do
         "Reports changed displayed Expense quantity"
       expect (jpySummary.result.quanta == 3800)
         "Reports changed Income & Expense result"
-      let some usdSummary := report.measures.find? (fun row => row.measure = usd)
+      let some usdSummary := report.measures.find? (fun row => decide (row.measure = usd))
         | throw (IO.userError "Reports lost USD Income & Expense measure")
       expect (usdSummary.income.quanta == 20 && usdSummary.expense.quanta == 0)
         "Reports did not keep USD separate from JPY"
@@ -120,7 +120,9 @@ def main : IO Unit := do
         "Reports changed supported Role Balance row count"
       let some row := report.rows.head?
         | throw (IO.userError "Reports lost supported Role Balance row")
-      expect (row.coordinate.locus = cash && row.role = .asset && row.quantity.quanta == 12000)
+      expect
+        (decide (row.coordinate.locus = cash ∧ row.role = .asset) &&
+          row.quantity.quanta == 12000)
         "Reports changed supported Role Balance row"
       expect (report.unresolvedRoleCount == 1)
         "Reports changed unresolved Role count"
