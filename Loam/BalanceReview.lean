@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.Application.CorrectionFrontier
 import Loam.BalanceViewConfig
+import Loam.HouseholdPaths
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 namespace Loam.BalanceReview
@@ -155,7 +156,7 @@ def loadEvidence
     | .ok ev => pure ev
     | .error message => return .error message
   let coverage ←
-    match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok evidence => pure evidence
   return .ok {
@@ -176,11 +177,11 @@ def loadSnapshot
     | .ok image => pure image
     | .error message => return .error message
   let coverage ←
-    match ← loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←
-    match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
   return projectImage image coverage coordinates

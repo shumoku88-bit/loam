@@ -1,5 +1,6 @@
 import Loam.AttentionReview
 import Loam.HouseholdCommand
+import Loam.HouseholdPaths
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -13,7 +14,7 @@ set_option autoImplicit false
 
 private def reload
     (root : System.FilePath) : IO (Except String Loam.AttentionReview.Availability) :=
-  Loam.AttentionReview.loadEvidence (root / "attention.loam")
+  Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention root)
 
 private def closeVerb : Loam.Core.AttentionClosureKind → String
   | .resolved => "Resolved"

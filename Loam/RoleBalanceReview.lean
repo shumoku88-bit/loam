@@ -1,6 +1,7 @@
 import Loam.Application.CorrectionFrontier
 import Loam.BalanceReview
 import Loam.CurrentQuantityAnchor
+import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.OpeningSupportPersistence
@@ -443,20 +444,20 @@ generation. No presentation selection such as `balance-view.tsv` is used.
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
-  let rolesPath := dataDir / "accounting-role.loam"
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok coverage => pure coverage
   let openingSupport ←
-    match ← loadOpeningSupport (dataDir / "opening-support.loam") with
+    match ← loadOpeningSupport (Loam.HouseholdPaths.openingSupport dataDir) with
     | .error message => return .error message
     | .ok supportMap => pure supportMap
   let currentAnchor ←
-    match ← loadCurrentAnchor (dataDir / "current-quantity-anchor.loam") with
+    match ← loadCurrentAnchor (Loam.HouseholdPaths.currentQuantityAnchor dataDir) with
     | .error message => return .error message
     | .ok anchor => pure anchor
   let roles ←

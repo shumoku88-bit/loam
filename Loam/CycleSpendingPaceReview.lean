@@ -4,6 +4,7 @@ import Loam.ActualReview
 import Loam.BalanceReview
 import Loam.BoundaryPresetConfig
 import Loam.DailyPaceConfig
+import Loam.HouseholdPaths
 import Loam.ScheduledReview
 
 namespace Loam.CycleSpendingPaceReview
@@ -361,11 +362,11 @@ def loadSnapshotFromActualImageAt
     | .error message => return .error message
     | .ok window => pure window
   let selection ←
-    match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
+    match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok coverage => pure coverage
   let balances ←
@@ -414,11 +415,11 @@ def loadHistoryFromActualImageAt
     | .error message => return .error message
     | .ok window => pure window
   let selection ←
-    match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
+    match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok coverage => pure coverage
   let balances ←

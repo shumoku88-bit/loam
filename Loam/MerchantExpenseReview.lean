@@ -1,5 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualReview
+import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 import Loam.TransactionsFlowReview
 
@@ -213,7 +214,7 @@ def loadSnapshot
     | .ok value => pure value
     | .error message => return .error message
 
-  let rolePath := dataDir / "accounting-role.loam"
+  let rolePath := Loam.HouseholdPaths.accountingRole dataDir
   if !(← rolePath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
   let roles ←

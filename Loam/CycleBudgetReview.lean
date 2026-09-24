@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.CycleFundingConfig
 import Loam.CycleFundingInspection
+import Loam.HouseholdPaths
 import Loam.BoundaryPresetConfig
 
 namespace Loam.CycleBudgetReview
@@ -70,12 +71,12 @@ def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) 
     match evidence with
     | .error message => return .error message
     | .ok evidence =>
-      match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
+      match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
       | none => return .error "balance-view.tsv malformed"
       | some coordinates =>
         return Loam.BalanceReview.project
           evidence.events evidence.corrections evidence.coverage coordinates
-  let selection ← Loam.CycleFundingConfig.load (dataDir / "config" / "cycle-funding.tsv")
+  let selection ← Loam.CycleFundingConfig.load (Loam.HouseholdPaths.cycleFunding dataDir)
   let funding := do
     let current ← coverage
     let coordinates ← selection

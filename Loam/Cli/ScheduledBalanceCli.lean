@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Application.ScheduledBalanceHypothetical
 import Loam.Application.ScheduledBalanceInspection
 import Loam.BalanceViewConfig
+import Loam.HouseholdPaths
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 namespace Loam.ScheduledBalanceCli
@@ -20,8 +21,8 @@ private structure QueryContext where
 
 private def loadContext (rootPath : String) : IO (Except String QueryContext) := do
   let root := System.FilePath.mk rootPath
-  let scheduledPath := root / "scheduled.loam"
-  let balanceViewPath := root / "config" / "balance-view.tsv"
+  let scheduledPath := Loam.HouseholdPaths.scheduled root
+  let balanceViewPath := Loam.HouseholdPaths.balanceView root
 
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"

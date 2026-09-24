@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.ScheduledCoverageConfig
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
@@ -29,7 +30,7 @@ private partial def loop
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           loop bounds dataDir next nextFrame
       | .ok rule =>
-          let path := dataDir / "config" / "scheduled-coverage.tsv"
+          let path := Loam.HouseholdPaths.scheduledCoverage dataDir
           match ← Loam.ScheduledCoverageConfig.upsertAt path rule with
           | .error message =>
               let next := { step.state with notice := message }

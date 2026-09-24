@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
 import Loam.CapacityAuthority
 import Loam.CapacityReview
+import Loam.HouseholdPaths
 import Loam.Persistence.ActualRoutingPersistence
 
 namespace Loam.BudgetWindowReview
@@ -86,8 +87,8 @@ private def projectPurpose?
 
 private def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
-  let capacityPath := dataDir / "capacity.loam"
-  let routingPath := dataDir / "actual-routing.loam"
+  let capacityPath := Loam.HouseholdPaths.capacity dataDir
+  let routingPath := Loam.HouseholdPaths.actualRouting dataDir
 
   let capacityImage ←
     match ← Loam.CapacityAuthority.loadRequired capacityPath with

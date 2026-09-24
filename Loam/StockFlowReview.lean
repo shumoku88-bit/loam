@@ -2,6 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.BalanceReview
+import Loam.HouseholdPaths
 
 namespace Loam.StockFlowReview
 
@@ -187,11 +188,11 @@ def loadSnapshotFromActualImage
     (image : Loam.ActualAuthority.Image)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←
-    match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
     | none => return .error "loam: malformed or unsupported balance-view config"
     | some selected => pure selected
   let balances ←
