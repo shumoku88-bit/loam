@@ -73,6 +73,18 @@ For repository development, LOAM's practical Lean boundary is selected by `lean-
 
 The wrapper delegates practical entrances to the same unified `loam` executable while lower-level development and research targets remain available separately.
 
+#### Lean build surfaces
+
+Repository qualification intentionally keeps three Lean surfaces distinct:
+
+```text
+lake build                       # product/runtime library surface (Loam)
+lake build Loam.DurableProofs    # long-lived production-relevant proofs
+lake build Loam.Observations     # broader live research-regression witnesses
+```
+
+The default product library does not import the broad Observation umbrella merely to obtain repository-wide regression coverage. Durable proofs and selected research witnesses remain independently checked by CI, while executable targets continue to use their own practical roots.
+
 Select one Measure for the movement (default `jpy`; scripted callers may set `LOAM_MEASURE`), enter one or more FROM loci and positive amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly in that same Measure before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
 Purchases, transfers, income, split payments, and other same-Measure value flows use this entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. A cross-Measure exchange such as JPY -> USD is deliberately not inferred by this entrance; it requires separately qualified exchange / valuation semantics. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.

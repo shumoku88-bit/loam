@@ -1,6 +1,7 @@
 name: Lean Proof Surfaces
 
-# Two deliberately different Lean evidence tiers:
+# Three deliberately different Lean build surfaces:
+# - product: ordinary product/runtime library aggregation, excluding research witnesses
 # - durable: small long-lived theorem surface, checked with lean4checker + axiom audit
 # - observations: broader research-regression witnesses, which may use native_decide
 #
@@ -11,6 +12,8 @@ on:
   pull_request:
     paths:
       - 'Loam/**'
+      - 'Loam.lean'
+      - 'tools/audit-production-reachability'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -20,6 +23,8 @@ on:
       - main
     paths:
       - 'Loam/**'
+      - 'Loam.lean'
+      - 'tools/audit-production-reachability'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -34,6 +39,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  product:
+    name: Build product Lean surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build product library aggregation
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify product surface excludes research/test modules
+        run: python3 tools/audit-production-reachability
+
   durable:
     name: Check durable Lean proof surface
     runs-on: ubuntu-latest
