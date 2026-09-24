@@ -305,19 +305,27 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
-          cases hSame with
-          | intro hEvent hEffect =>
-              cases hEvent
-              cases hEffect
-              rfl
-        simp [hKey, sameRelationSource, hSame, ih]
+          apply SourceKey.ext
+          · exact hSame.1
+          · exact hSame.2
+        simp [hKey, sameRelationSource, hSame]
+        change ((buildCoverageIndex rest).get? {
+          event := sourceRelation.sourceEvent,
+          effect := sourceRelation.sourceEffect
+        }).getD 0 = currentCoverageFor rest sourceRelation
+        exact ih
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
           intro h
           apply hSame
           exact ⟨congrArg SourceKey.event h, congrArg SourceKey.effect h⟩
-        simp [hKey, sameRelationSource, hSame, ih]
+        simp [hKey, sameRelationSource, hSame]
+        change ((buildCoverageIndex rest).get? {
+          event := sourceRelation.sourceEvent,
+          effect := sourceRelation.sourceEffect
+        }).getD 0 = currentCoverageFor rest sourceRelation
+        exact ih
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
