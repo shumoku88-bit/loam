@@ -201,3 +201,21 @@ does not infer a retained Period identity.
 
 The two intermediate Lean probes therefore graduate to Git history. Their
 research notes remain as the rationale for the production shape.
+
+## Follow-up — graduate presentation/topology probes
+
+Observations 239 and 241 have graduated to Git history.
+
+Observation 239 became duplicate proof ownership after the production
+`PurposeCatalog` module acquired direct identity-preservation and fallback
+theorems, with focused production/TUI regression tests.
+
+Observation 241 was an intentionally abstract factorization probe showing that
+semantic availability must not be confused with physical container topology.
+It did not prove a production authority implementation. Later authority and
+compression audits now own the real physical-topology decisions, so keeping the
+toy model in the live Lean umbrella no longer adds distinct evidence.
+
+The Purpose Catalog workflow also stops rebuilding the whole repository solely
+for the retired Observation 239 wrapper; its production build and focused tests
+remain.

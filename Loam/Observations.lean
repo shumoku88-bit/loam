@@ -16,8 +16,6 @@ import Loam.Observations.Observation192
 import Loam.Observations.Observation193
 import Loam.Observations.Observation194
 import Loam.Observations.Observation195
-import Loam.Observations.Observation239
-import Loam.Observations.Observation241
 import Loam.Observations.Observation250
 import Loam.Observations.Observation253
 import Loam.Observations.Observation255
