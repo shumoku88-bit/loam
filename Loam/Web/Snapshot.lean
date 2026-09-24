@@ -4,6 +4,7 @@ import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
+import Loam.Presentation.HouseholdSnapshot
 
 namespace Loam.Web.Snapshot
 
@@ -25,14 +26,8 @@ It owns no household semantics, persistence, publication, recurrence, account
 classification, or authority selection.
 -/
 
-structure Snapshot where
-  observedAt : String
-  actual : Except String (List Loam.ActualReview.Record)
-  scheduled : Except String (List Loam.ScheduledReview.Record)
-  attention : Except String Loam.AttentionReview.Availability
-  budget : Loam.CycleBudgetReview.Snapshot
-  capacity : Except String Loam.CapacityReview.Snapshot
-  purposeMetadata : List Loam.PurposeCatalog.Metadata := []
+/-- Compatibility name for the Web renderer; the evidence model is surface-neutral. -/
+abbrev Snapshot := Loam.Presentation.HouseholdSnapshot
 
 private def escapeHtmlChar : Char → String
   | '&' => "&amp;"
