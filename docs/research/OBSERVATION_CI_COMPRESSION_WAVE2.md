@@ -135,3 +135,26 @@ Each retained 047-051 workflow now triggers only from the exact model/config fil
 ## Safety criterion
 
 This wave is successful only if exact-head CI keeps all retained narrowed solver checks green and the selected Lean owner remains available for the lifted Observation 043 theorem. No Core, Application, Persistence, writer, authority, TUI, or canonical-data semantics are changed here.
+
+## Follow-up — retire CSLib shadow runners
+
+The six `cslib-semantic-correspondence-00N` workflows are retired.
+
+They were useful research probes, but none runs CSLib itself or another
+independent checker. Each workflow only installs Lean and recompiles its
+experiment source. The experiment sources and the original audit record remain
+in the repository as historical evidence.
+
+This follows the existing CI ownership rule:
+
+```text
+historical semantic probe
+!=
+permanent dedicated CI lane
+```
+
+Observation 274 also stops triggering on
+`experiments/cslib_semantic_correspondence_002.lean`; it does not import that
+file and owns its correspondence proof independently.
+
+No production module, theorem, experiment source, or household behavior changes.
