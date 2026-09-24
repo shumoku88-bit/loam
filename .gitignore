@@ -10,3 +10,9 @@ scratch/
 __pycache__/
 *.py[cod]
 .DS_Store
+
+# Reproducible DRAKON outputs that are not committed golden CI fixtures.
+docs/drakon/loam-system-map.drn
+docs/drakon/loam-read-path-map.drn
+docs/drakon/loam-tui-cli-granularity-audit.drn
+docs/drakon/loam-tui-legacy-workspace-retirement-audit.drn
