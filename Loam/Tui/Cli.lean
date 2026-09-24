@@ -30,13 +30,10 @@ import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
 import Loam.Tui.Capacity
+import Loam.Tui.CapacitySession
 import Loam.Tui.CycleBudget
 import Loam.Tui.CycleBudgetSession
 import Loam.CycleSpendingPaceReview
-import Loam.Tui.CapacityTransfer
-import Loam.Tui.CapacityTransferSession
-import Loam.Tui.CapacityRebalance
-import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.CurrentQuantityAnchor
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
@@ -51,7 +48,6 @@ import Loam.ScheduledReview
 import Loam.AttentionReview
 import Loam.BalanceReview
 import Loam.CapacityReview
-import Loam.CurrentCoverageReview
 import Loam.ActualRoutingReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
@@ -174,21 +170,6 @@ private def requireReload {α : Type} (notice : String)
 
 private def unavailableNotice (subject message : String) : String :=
   "[Unavailable] " ++ subject ++ ": " ++ message
-
-/-- Current Capacity and Budget share one explicit preset selection boundary. -/
-private def attachCurrentCoverage
-    (dataDir root : System.FilePath)
-    (observedAt : String)
-    (state : Loam.Tui.Capacity.State) : IO Loam.Tui.Capacity.State := do
-  match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
-  | .error message => return Loam.Tui.Capacity.withoutCoverage message state
-  | .ok window =>
-    match ← Loam.CurrentCoverageReview.loadSnapshotAt
-        dataDir root window.start observedAt window.endExclusive with
-    | .error message => return Loam.Tui.Capacity.withoutCoverage message state
-    | .ok coverage =>
-      return Loam.Tui.Capacity.withCoverage coverage ("preset " ++ window.source) state
-
 
 def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
   compileWidget (Loam.Tui.HraHome.view bounds snapshot state)
@@ -820,57 +801,6 @@ partial def currentQuantityAnchorLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       currentQuantityAnchorLoop bounds root step.state nextFrame
 
-/-- All-retained Capacity session with shared current coverage and a local transfer entrance. -/
-partial def capacityLoop
-    (bounds : Bounds) (dataDir root : System.FilePath)
-    (observedAt : String)
-    (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
-  let backKey := key = .escape || key = .input 'q' || key = .input 'Q'
-  let event : Loam.Tui.Capacity.Event :=
-    if backKey then .back
-    else
-      match key with
-      | .up | .input 'k' | .input 'K' => .up
-      | .down | .input 'j' | .input 'J' => .down
-      | .input 't' | .input 'T' => .transfer
-      | .input 'r' | .input 'R' => .rebalance
-      | _ => .other
-  match Loam.Tui.Capacity.update state event with
-  | .back => return ()
-  | .transfer current =>
-      let editor := Loam.Tui.CapacityTransfer.initial
-        current.snapshot observedAt (Loam.Tui.Capacity.selectedPurpose? current)
-      let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-      let notice ← Loam.Tui.CapacityTransferSession.run
-        bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
-      let refreshed := Loam.Tui.Capacity.refreshed fresh current
-      let covered ← attachCurrentCoverage dataDir root observedAt refreshed
-      let next := { covered with notice := notice }
-      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-      capacityLoop bounds dataDir root observedAt next nextFrame
-  | .rebalance current =>
-      let editor := Loam.Tui.CapacityRebalance.initial
-        current.snapshot current.coverage observedAt (Loam.Tui.Capacity.selectedPurpose? current)
-      let editorFrame := compileWidget (Loam.Tui.CapacityRebalance.view bounds editor)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-      let notice ← Loam.Tui.CapacityRebalanceSession.run
-        bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
-      let refreshed := Loam.Tui.Capacity.refreshed fresh current
-      let covered ← attachCurrentCoverage dataDir root observedAt refreshed
-      let next := { covered with notice := notice }
-      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-      capacityLoop bounds dataDir root observedAt next nextFrame
-  | .stay next =>
-      let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      capacityLoop bounds dataDir root observedAt next nextFrame
-
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
@@ -992,10 +922,8 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let purposeMetadata ← currentPurposeMetadata dataDir
         let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
           (Loam.Tui.Capacity.initial capacitySnapshot)
-        let capacity ← attachCurrentCoverage dataDir root snapshot.actual.today baseCapacity
-        let capacityFrame := compileWidget (Loam.Tui.Capacity.view capacity)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame capacityFrame
-        capacityLoop bounds dataDir root snapshot.actual.today capacity capacityFrame
+        Loam.Tui.CapacitySession.run
+          bounds dataDir root snapshot.actual.today baseCapacity frame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
