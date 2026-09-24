@@ -1,0 +1,87 @@
+direction: right
+
+baseline: {
+  label: "G2 closure\n024a76c..."
+  shape: rectangle
+}
+
+growth: {
+  label: "Post-G2 growth\n242 commits / 451 files\ninitial audit through 993654ac..."
+  shape: rectangle
+
+  authority: "Actual / Capacity / Scheduled authority"
+  write: "Proposal / Merchant / Attention / unresolved writes"
+  read: "Daily Pace / reports / Web / Home"
+  scheduled: "Scheduled generation / coverage / continuation"
+  measure: "Multi-Measure / decimal presentation"
+  export: "PTA / Beancount / Fava / standalone"
+  perf: "Relation / discharge / Scheduled / Correction indexes"
+  research: "Future-context / semantic-memory / interpretation probes"
+}
+
+findings: {
+  label: "Audit findings\nall dispositioned"
+  shape: rectangle
+
+  d1: "D1 HIGH\nWeb overwrite\nfixed #1235"
+  d2: "D2 HIGH\nJournal alias guard\nfixed #1236"
+  d3: "D3 HIGH semantic\nMeasure scale stability\nfixed #1239"
+  d4: "D4 MEDIUM\nHome generation coherence\nfixed #1240"
+  d5: "D5 MEDIUM\nReplay payload display\nfixed #1254"
+  d6: "D6 MEDIUM\nExternal Fava identity\nfixed #1255"
+  d7: "D7 LOW-MEDIUM\nRelation/discharge proof density\nclosed #1256-#1258"
+  lower: "D8-D10 LOW\nD8 fixed #1259\nD9 classified\nD10 fixed #1260"
+}
+
+baseline -> growth
+
+growth.export -> findings.d1
+growth.export -> findings.d2
+growth.measure -> findings.d3
+growth.read -> findings.d4
+growth.write -> findings.d5
+growth.export -> findings.d6
+growth.perf -> findings.d7
+growth.scheduled -> findings.lower
+growth.research -> findings.lower
+
+pass: {
+  label: "No blocking finding"
+  shape: rectangle
+  text1: "normalized Actual / Capacity"
+  text2: "Scheduled lifecycle"
+  text3: "Merchant"
+  text4: "unresolved recording"
+  text5: "single-Measure recording"
+  text6: "Scheduled generation semantics"
+  text7: "PTA / Beancount"
+  text8: "standalone distribution"
+}
+
+growth.authority -> pass.text1
+growth.authority -> pass.text2
+growth.write -> pass.text3
+growth.write -> pass.text4
+growth.measure -> pass.text5
+growth.scheduled -> pass.text6
+growth.export -> pass.text7
+growth.export -> pass.text8
+
+
+closure: {
+  label: "Remediation closure\n9de34e0e..."
+  shape: rectangle
+  status: "D1-D10 dispositioned"
+  method: "small independent repairs"
+  stop: "no broad abstraction sweep"
+}
+
+findings.d1 -> closure.status
+findings.d2 -> closure.status
+findings.d3 -> closure.status
+findings.d4 -> closure.status
+findings.d5 -> closure.status
+findings.d6 -> closure.status
+findings.d7 -> closure.status
+findings.lower -> closure.status
+pass -> closure.method
