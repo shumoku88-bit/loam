@@ -244,8 +244,21 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
     (← Loam.MeasurePresentationAuthority.setScale missingRoot ⟨"jpy"⟩ 2)
     "used Measure changed away from missing-config historical scale 0"
 
+  let scaleFirstRoot := base / "scale-first"
+  initBase scaleFirstRoot
+  writePresentation scaleFirstRoot [{ measure := ⟨"usd"⟩, scale := 2 }]
+  requireOk
+    (← Loam.MeasurePresentationAuthority.setScale scaleFirstRoot ⟨"usd"⟩ 3)
+    "pre-use USD scale change"
+  publishActualMeasure scaleFirstRoot "usd"
+  expect ((← loadScale scaleFirstRoot "usd") == 3)
+    "first use did not retain the newly selected scale convention"
+  expectError
+    (← Loam.MeasurePresentationAuthority.setScale scaleFirstRoot ⟨"usd"⟩ 2)
+    "post-first-use rollback to the old scale was admitted"
+
   IO.println
-    "Measure scale administration: unused change, all retained authority families, no-op, malformed config, and missing-config compatibility passed."
+    "Measure scale administration: unused change, all retained authority families, no-op, malformed config, missing-config compatibility, and scale-before-first-use ordering passed."
 
 private def raceSetup (root : System.FilePath) : IO Unit := do
   initBase root
