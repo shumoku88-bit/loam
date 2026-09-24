@@ -3,6 +3,7 @@ name: Observation 074
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Cli/ShadowAuditCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
@@ -13,6 +14,7 @@ on:
       - 'experiment/074-private-shadow-projection'
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Cli/ShadowAuditCli.lean'
       - 'tools/loam'
       - 'lakefile.lean'
@@ -31,17 +33,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build compiled shadow audit
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamShadowAudit
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Check redaction, identity pressure, and source immutability
         shell: bash

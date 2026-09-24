@@ -3,6 +3,7 @@ name: Lean Application Qualifications
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - '.github/workflows/lean-application-qualifications.yml'
       - 'Loam/Application.lean'
       - 'Loam/Application/AttentionInspection.lean'
@@ -46,6 +47,7 @@ on:
       - 'perf/indexed-cycle-admission-by-stable-key'
       - 'perf/linearize-actual-correction-admission'
     paths:
+      - '.github/actions/lean-build/**'
       - '.github/workflows/lean-application-qualifications.yml'
       - 'Loam/Application.lean'
       - 'Loam/Application/AttentionInspection.lean'
@@ -126,17 +128,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build qualified Lean surface
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: ${{ matrix.buildArgs }}
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Run qualification
         shell: bash

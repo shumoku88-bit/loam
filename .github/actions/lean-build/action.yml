@@ -1,0 +1,22 @@
+name: Build LOAM Lean surface
+description: Apply the shared Lean build-only qualification settings
+
+inputs:
+  build-args:
+    description: Lean build target arguments
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: leanprover/lean-action@v1
+      with:
+        auto-config: false
+        build: true
+        build-args: ${{ inputs.build-args }}
+        test: false
+        lint: false
+        use-mathlib-cache: false
+        leanchecker: false
+        axiom-audit: false
+        use-github-cache: true

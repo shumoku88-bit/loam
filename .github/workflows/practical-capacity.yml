@@ -3,6 +3,7 @@ name: Practical Capacity
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core.lean'
@@ -21,6 +22,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core.lean'
@@ -52,17 +54,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build Capacity executable
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamCapacity
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Run Capacity memory and persistence check
         shell: bash

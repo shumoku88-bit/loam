@@ -3,6 +3,7 @@ name: Shared Scheduled Replacement Publisher
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
@@ -21,6 +22,7 @@ on:
       - main
       - feat/tui
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
@@ -48,16 +50,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build shared Scheduled replacement dependencies
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.ScheduledReplacementPublisher Loam.ScheduledReview Loam.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify Actual-backed Scheduled replacement publication
         run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"

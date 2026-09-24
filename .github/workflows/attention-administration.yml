@@ -3,6 +3,7 @@ name: Attention Administration
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/AttentionPublisher.lean'
       - 'Loam/AttentionReview.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -34,17 +35,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build Attention administration executable
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamAttention
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Verify Attention publisher and canonical review
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-administration"

@@ -3,6 +3,7 @@ name: TUI Event Merchant
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tui/EventMerchant.lean'
       - 'Loam/Tui/SelectedDay.lean'
       - 'Loam/Tui/Cli.lean'
@@ -21,6 +22,7 @@ on:
       - main
       - feat/tui-event-merchant
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tui/EventMerchant.lean'
       - 'Loam/Tui/SelectedDay.lean'
       - 'Loam/Tui/Cli.lean'
@@ -48,16 +50,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build TUI Merchant entrance
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.Tui.Cli Loam.Tui.EventMerchant Loam.HouseholdCommand Loam.Tests.ActualWorldFixture
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify TUI Event Merchant classification
         run: lake env lean --run Loam/Tests/TuiEventMerchant.lean "$(mktemp -d)/tui-event-merchant"

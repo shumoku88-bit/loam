@@ -3,6 +3,7 @@ name: Movement Proposal
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalCli.lean'
       - 'Loam/MovementDraftReview.lean'
@@ -29,17 +30,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build proposal executable and fixture boundary
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamMovementProposal Loam.Tests.ActualWorldFixture
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Verify versioned proposal parsing and read-only review
         run: lake env lean --run Loam/Tests/MovementProposal.lean "$(mktemp -d)/movement-proposal"

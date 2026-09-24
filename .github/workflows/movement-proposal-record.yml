@@ -3,6 +3,7 @@ name: Movement Proposal Record
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalRecordCli.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -28,17 +29,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build proposal writer and fixture boundary
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamMovementProposalRecord Loam.Tests.ActualWorldFixture
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Verify canonical writer reread and refusal atomicity
         run: lake env lean --run Loam/Tests/MovementProposalRecord.lean "$(mktemp -d)/movement-proposal-record"

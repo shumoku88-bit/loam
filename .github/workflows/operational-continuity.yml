@@ -3,6 +3,7 @@ name: Operational Continuity
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/OperationalContinuity.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/MovementWorldLoader.lean'
@@ -26,17 +27,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build household doctor
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamDoctor Loam.MovementWorldLoader
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Verify fail-closed diagnosis and human explanation
         run: lake env lean --run Loam/Tests/OperationalContinuity.lean "$(mktemp -d)/operational-continuity"
