@@ -1,6 +1,6 @@
 # Observation 196: Budget-window selection pressure
 
-Status: production-facing Lean observation after the first production Capacity TUI workspace.
+Status: graduated production-facing observation. The Lean probe is retained in Git history; production ownership now lives in the explicit `Loam.Tui.ReportWindow` query policy and `Loam.BudgetWindowReview` boundary.
 
 ## Question
 
@@ -55,7 +55,7 @@ Therefore selected day alone cannot determine the budget answer.
 
 ## Lean qualification
 
-`Loam.Observations.Observation196` proves:
+The historical `Loam.Observations.Observation196` probe proved:
 
 - both candidate windows satisfy production `validCapacityWindow`;
 - the same selected day belongs to both;

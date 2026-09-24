@@ -1,6 +1,6 @@
 # Observation 181 — Budget Window derived projection redundancy
 
-Status: production-facing Lean observation after Observation 180 observational closure.
+Status: graduated production-facing observation. The Lean probe is retained in Git history; production ownership now lives in `Loam/BudgetWindowReview.lean`, `Loam/Application/CapacityWindowInspection.lean`, and their tests.
 
 ## Question
 
@@ -63,7 +63,7 @@ already resolved.
 
 ## Lean qualification
 
-`Loam.Observations.Observation181` proves directly against the production
+The historical `Loam.Observations.Observation181` probe proved directly against the production
 Application functions that:
 
 1. if Entitlement resolves to `E` and Consumption resolves to `C`, then
