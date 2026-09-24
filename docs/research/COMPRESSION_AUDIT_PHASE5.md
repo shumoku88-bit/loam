@@ -455,3 +455,26 @@ Neither retired artifact has a current filename reference or dedicated workflow.
 
 The other normalized-Actual Alloy models remain for now. Effect identity promotion, Scheduled completion across independent authorities, and dependency-sensitive writer guarding still express distinct live questions not reduced to the completed one-time cutover.
 
+## Follow-up graduation - normalized Actual Scheduled-completion model
+
+The historical Alloy model `experiments/normalized_actual_scheduled_completion.als` qualified a relation-first Scheduled completion protocol across independently selected Scheduled and normalized Actual authorities.
+
+Its surviving obligations are now owned directly by current production:
+
+- `ScheduledTerminalPublisher` acquires shared Scheduled/Actual ownership, retains the Scheduled completion claim first, then publishes the normalized Actual generation;
+- an interruption after the first publication leaves inert retained recovery evidence and retry reuses the canonical Actual endpoint;
+- cancellation refuses to compete with an interrupted completion claim;
+- current Locus admission is re-read before publication under the writer-owned boundary;
+- `Loam/Tests/ScheduledTerminalPublisher.lean` pins ordinary completion, stale refusal, relation-first recovery, cancellation exclusion, and current-policy refusal;
+- `SCHEDULED_TERMINAL_ASYMMETRY_OBLIGATION_DAG.md` records the same current production reasoning and explicitly keeps the completion/recovery asymmetry local.
+
+The model has no dedicated workflow and no current filename references. Git history retains the exact bounded Alloy witness and assertions.
+
+The historical model therefore graduates from the working tree:
+
+```text
+experiments/normalized_actual_scheduled_completion.als
+```
+
+The remaining normalized-Actual models for Effect identity promotion and dependency-sensitive writer guarding remain active research evidence for now.
+
