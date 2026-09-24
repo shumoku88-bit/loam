@@ -1,5 +1,6 @@
 import Loam.ActualAuthority
 import Loam.CapacityAuthority
+import Loam.HouseholdPaths
 import Loam.MeasurePresentation
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -31,16 +32,16 @@ The presentation file is then replaced atomically through a sibling stage.
 -/
 
 def configPath (root : System.FilePath) : System.FilePath :=
-  root / "config" / Loam.MeasurePresentation.configFileName
+  Loam.HouseholdPaths.measurePresentation root
 
 private def scheduledPath (root : System.FilePath) : System.FilePath :=
-  root / "scheduled.loam"
+  Loam.HouseholdPaths.scheduled root
 
 private def anchorPath (root : System.FilePath) : System.FilePath :=
-  root / "current-quantity-anchor.loam"
+  Loam.HouseholdPaths.currentQuantityAnchor root
 
 private def capacityPath (root : System.FilePath) : System.FilePath :=
-  root / "capacity.loam"
+  Loam.HouseholdPaths.capacity root
 
 private def usedInActual
     (evidence : Loam.ActualEvidence) (measure : MeasureId) : Bool :=

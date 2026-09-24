@@ -1,4 +1,5 @@
 import Loam.ActualEvidence
+import Loam.HouseholdPaths
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.WriterOwnership
 
@@ -34,11 +35,11 @@ Publication follows strict atomic crash-resilient semantics:
 abbrev Image := Loam.Persistence.AdmittedActualImage
 
 /-- The standard canonical filename for normalized Actual authority. -/
-def actualFileName : String := "actual.loam"
+def actualFileName : String := Loam.HouseholdPaths.actualFileName
 
 /-- The authoritative filepath for actual evidence under a given repository root. -/
 def actualPath (root : System.FilePath) : System.FilePath :=
-  root / actualFileName
+  Loam.HouseholdPaths.actual root
 
 /--
 Resolve a caller-supplied household Actual location to the canonical authority

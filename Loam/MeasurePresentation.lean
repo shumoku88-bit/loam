@@ -153,7 +153,7 @@ def formatQuanta (metadata : List Metadata) (measure : MeasureId) (quanta : Int)
     sign ++ toString whole ++ "." ++ zeroPadLeft scale (toString fractional)
 
 /-- Canonical Measure presentation filename. -/
-def configFileName : String := "measure-presentation.tsv"
+def configFileName : String := Loam.HouseholdPaths.measurePresentationFileName
 
 /-- Canonical presentation path next to one household Actual file. -/
 def configPathForActualFile (actualFile : System.FilePath) : System.FilePath :=
