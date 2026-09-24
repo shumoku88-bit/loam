@@ -143,7 +143,10 @@ def main : IO Unit := do
   let homeSnapshot : Loam.Tui.Main.Snapshot := {
     actual := actual
     scheduled := .ok snapshot
-    attention := .ok attentionAvailability
+    attention :=
+      match attentionAvailability with
+      | .unavailable => .unavailable
+      | .available attention => .loaded attention
   }
   let homeState := Loam.Tui.Main.initialState "2026-09-15"
   let homeText := widgetText
@@ -164,7 +167,10 @@ def main : IO Unit := do
     | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
   let multiText := widgetText
     (Loam.Tui.HraHome.view { width := 100, height := 42 }
-      { homeSnapshot with attention := .ok multiAvailability } homeState)
+      { homeSnapshot with attention :=
+          match multiAvailability with
+          | .unavailable => .unavailable
+          | .available attention => .loaded attention } homeState)
   expect (contains "Attention: 2 open  [i] manage" multiText)
     "Home did not expose multiple open Attention items without inventing priority"
   expect (!contains "Decide continuation after source" multiText)
@@ -172,15 +178,14 @@ def main : IO Unit := do
 
   let unavailableText := widgetText
     (Loam.Tui.HraHome.view { width := 100, height := 42 }
-      { homeSnapshot with attention := .ok .unavailable } homeState)
+      { homeSnapshot with attention := .unavailable } homeState)
   expect (contains "Attention: not configured" unavailableText)
     "Home collapsed missing Attention configuration into an empty stream"
 
-  let emptyAttention : Loam.AttentionReview.Availability :=
-    .available { openItems := [] }
+  let emptyAttention : Loam.AttentionReview.Snapshot := { openItems := [] }
   let emptyText := widgetText
     (Loam.Tui.HraHome.view { width := 100, height := 42 }
-      { homeSnapshot with attention := .ok emptyAttention } homeState)
+      { homeSnapshot with attention := .loaded emptyAttention } homeState)
   expect (contains "Attention: 0 open" emptyText)
     "Home lost the configured-empty Attention distinction"
 

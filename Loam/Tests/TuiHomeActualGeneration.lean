@@ -130,16 +130,24 @@ def main : IO Unit := do
         "Home Scheduled validation mixed a later Actual generation"
 
   match snapshot.pace with
-  | .error message =>
+  | .notRequested =>
+      throw (IO.userError "Home Daily Pace was not requested")
+  | .unavailable =>
+      throw (IO.userError "Home Daily Pace was unexpectedly unavailable")
+  | .failed message =>
       throw (IO.userError ("Home Daily Pace unavailable: " ++ message))
-  | .ok pace =>
+  | .loaded pace =>
       expect (pace.eligiblePool.quanta == 1000)
         "Home Daily Pace reopened canonical Actual after selecting generation A"
 
   match snapshot.paceHistory with
-  | .error message =>
+  | .notRequested =>
+      throw (IO.userError "Home recent pace was not requested")
+  | .unavailable =>
+      throw (IO.userError "Home recent pace was unexpectedly unavailable")
+  | .failed message =>
       throw (IO.userError ("Home recent pace unavailable: " ++ message))
-  | .ok points =>
+  | .loaded points =>
       match points.reverse with
       | [] => throw (IO.userError "Home recent pace returned no current point")
       | latest :: _ =>

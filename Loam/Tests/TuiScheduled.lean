@@ -86,8 +86,8 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
   pure {
     actual := actual
     scheduled := .ok scheduledSnapshot
-    pace := .ok pace
-    paceHistory := .ok paceHistory
+    pace := .loaded pace
+    paceHistory := .loaded paceHistory
   }
 
 def main : IO Unit := do
@@ -117,6 +117,38 @@ def main : IO Unit := do
     "Home did not expose reconstructed Daily Pace values vertically"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
+
+  let stateBounds : Bounds := { width := 100, height := 42 }
+
+  let notRequestedSnapshot := { snapshot with attention := .notRequested }
+  let notRequestedSnapshot := { notRequestedSnapshot with pace := .notRequested }
+  let notRequestedSnapshot := { notRequestedSnapshot with paceHistory := .notRequested }
+  let notRequestedText :=
+    widgetText (Loam.Tui.HraHome.view stateBounds notRequestedSnapshot home)
+  expect (contains "Attention: not requested" notRequestedText &&
+      contains "Daily pace: not requested" notRequestedText &&
+      contains "Recent pace (current truth): not requested" notRequestedText)
+    "Home collapsed not-requested read state into ordinary unavailability"
+
+  let unavailableSnapshot := { snapshot with attention := .unavailable }
+  let unavailableSnapshot := { unavailableSnapshot with pace := .unavailable }
+  let unavailableSnapshot := { unavailableSnapshot with paceHistory := .unavailable }
+  let unavailableText :=
+    widgetText (Loam.Tui.HraHome.view stateBounds unavailableSnapshot home)
+  expect (contains "Attention: not configured" unavailableText &&
+      contains "Daily pace: unavailable" unavailableText &&
+      contains "Recent pace (current truth): unavailable" unavailableText)
+    "Home lost typed unavailable read state"
+
+  let failedSnapshot := { snapshot with attention := .failed "attention read failed" }
+  let failedSnapshot := { failedSnapshot with pace := .failed "pace read failed" }
+  let failedSnapshot := { failedSnapshot with paceHistory := .failed "pace history read failed" }
+  let failedText :=
+    widgetText (Loam.Tui.HraHome.view stateBounds failedSnapshot home)
+  expect (contains "Attention: failed" failedText &&
+      contains "Daily pace: failed" failedText &&
+      contains "Recent pace (current truth): failed" failedText)
+    "Home collapsed failed read state into ordinary unavailability"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
