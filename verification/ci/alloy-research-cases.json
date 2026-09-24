@@ -9,6 +9,27 @@
   ],
   "cases": [
     {
+      "id": "summary-correlation-loss",
+      "observation": "Observation 083",
+      "jobName": "Separate marginals and joint correlation",
+      "legacyWorkflow": ".github/workflows/summary-correlation-loss-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/083-summary-correlation-loss"
+      ],
+      "model": "experiments/083_summary_correlation_loss.als",
+      "paths": [
+        "experiments/083_summary_correlation_loss.als",
+        "experiments/083_summary_correlation_loss.md"
+      ],
+      "expected": {
+        "sameMarginalsDifferentJoint": true,
+        "SeparateMarginalsDetermineJoint": true,
+        "JointSummaryDeterminesMarginals": false,
+        "SameLinkClassificationsDetermineJoint": false
+      }
+    },
+    {
       "id": "accounting-projection-factorization",
       "observation": "Observation 242",
       "jobName": "Falsify accounting projection compression",
@@ -37,26 +58,84 @@
       }
     },
     {
-      "id": "balance-history-boundary",
-      "observation": "Observation 254",
-      "jobName": "Qualify balance history information boundary",
-      "legacyWorkflow": ".github/workflows/balance-history-boundary-observation.yml",
+      "id": "current-vs-historical-balance-support",
+      "observation": "Observation 243",
+      "jobName": "Falsify balance support collapse",
+      "legacyWorkflow": ".github/workflows/current-vs-historical-balance-support.yml",
       "pushBranches": [
-        "main"
+        "main",
+        "experiment/243-current-vs-historical-balance-support"
       ],
-      "model": "experiments/254_balance_history_boundary.als",
+      "model": "experiments/243_current_vs_historical_balance_support.als",
       "paths": [
-        "experiments/254_balance_history_boundary.als",
-        "experiments/254_balance_history_boundary.md",
-        "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
+        "experiments/243_current_vs_historical_balance_support.als",
+        "experiments/243_current_vs_historical_balance_support.md"
       ],
       "expected": {
-        "sameBalanceDifferentEventPartition": true,
-        "selectedHistoriesDifferAtRegisterLevel": true,
-        "sameEventRegisterDifferentEffectMembership": true,
-        "BalanceImageDeterminesEventPartition": true,
-        "SelectedHistoriesHaveDifferentRegisterImage": false,
-        "EventRegisterDeterminesEffectMembership": true
+        "anchoredCurrentWithoutZeroOrigin": true,
+        "sameCurrentSupportDifferentHistoricalSupport": true,
+        "completeBalanceSheetButIncompleteOriginHistory": true,
+        "ZeroOriginIsRequiredForEveryCurrentBalance": true,
+        "CurrentSupportDeterminesHistoricalSupport": true,
+        "BalanceSheetCompletenessImpliesOriginCompleteness": true,
+        "SeparateSupportEvidenceDeterminesAllSupportQuestions": false
+      }
+    },
+    {
+      "id": "temporal-quantity-anchor",
+      "observation": "Observation 244",
+      "jobName": "Falsify temporal quantity anchor compression",
+      "legacyWorkflow": ".github/workflows/temporal-quantity-anchor.yml",
+      "pushBranches": [
+        "main",
+        "experiment/244-temporal-quantity-anchor"
+      ],
+      "model": "experiments/244_temporal_quantity_anchor.als",
+      "paths": [
+        "experiments/244_temporal_quantity_anchor.als",
+        "experiments/244_temporal_quantity_anchor.md"
+      ],
+      "expected": {
+        "zeroOriginAsUnifiedAnchor": true,
+        "laterNonzeroAnchorSupportsCurrentOnly": true,
+        "missingAnchorWithZeroNetStillUnsupported": true,
+        "scalarBasisCannotPlaceLaterAnchor": true,
+        "bareObservationDoesNotDetermineCurrent": true,
+        "correctionsRemainRelevant": true,
+        "ZeroOriginEncodingPreservesAnswer": false,
+        "LaterAnchorNeverSupportsEarlierBoundary": false,
+        "BareObservationDeterminesCurrentReality": true,
+        "ScalarBasisDeterminesTemporalAnswer": true,
+        "RawDeltaDeterminesAnchoredAnswer": true,
+        "QualifiedAnchorAndFrontierDetermineAnswer": false
+      }
+    },
+    {
+      "id": "shared-current-anchor-cut",
+      "observation": "Observation 246",
+      "jobName": "Falsify shared current-anchor root cut",
+      "legacyWorkflow": ".github/workflows/shared-current-anchor-cut.yml",
+      "pushBranches": [
+        "main",
+        "experiment/246-shared-current-anchor-cut"
+      ],
+      "model": "experiments/246_shared_current_anchor_cut.als",
+      "paths": [
+        "experiments/246_shared_current_anchor_cut.als",
+        "experiments/246_shared_current_anchor_cut.md"
+      ],
+      "expected": {
+        "sharedCutSupportsMultipleCoordinates": true,
+        "cutIsIndependentEvidence": true,
+        "coveredRootCorrectionIsAbsorbed": true,
+        "uncoveredRootContributes": true,
+        "sharedAndDuplicatedCutAgree": true,
+        "differentBoundariesNeedDistinctCuts": true,
+        "currentSupportWithoutOriginCompleteness": true,
+        "CoveredRootChangesDoNotChangeCurrent": false,
+        "SharedCutEqualsDuplicatedEqualCuts": false,
+        "MissingAssertionRemainsUnsupported": false,
+        "CurrentAssertionImpliesOriginCompleteness": true
       }
     },
     {
@@ -81,28 +160,157 @@
       }
     },
     {
-      "id": "interpretation-history",
-      "observation": "Observation 320",
-      "jobName": "Qualify interpretation-history boundary",
-      "legacyWorkflow": ".github/workflows/interpretation-history.yml",
+      "id": "rea-interpretation",
+      "observation": "Observation 251",
+      "jobName": "Falsify REA interpretation derivability",
+      "legacyWorkflow": ".github/workflows/rea-interpretation-observation.yml",
       "pushBranches": [
         "main",
-        "experiment/320-interpretation-history"
+        "experiment/251-loam-rea-interpretation"
       ],
-      "model": "experiments/320_interpretation_history.als",
+      "model": "experiments/251_loam_rea_interpretation.als",
       "paths": [
-        "experiments/320_interpretation_history.als",
-        "experiments/320_interpretation_history.md"
+        "experiments/251_loam_rea_interpretation.als",
+        "experiments/251_loam_rea_interpretation.md"
       ],
       "expected": {
-        "retrospectiveReflectionExists": true,
-        "opposedReflectionAppendExists": true,
-        "rememberedPastAttributionExists": true,
-        "ambiguousLatestReflectionExists": true,
-        "weakAppendCanRewriteFacts": true,
-        "ReflectionAppendPreservesFacts": false,
-        "ReflectionAppendPreservesPriorReflections": false,
-        "ReflectionAppendKeepsSubjectsPresent": false
+        "reaInterpretationExists": true,
+        "sameLoamEvidenceDifferentAgent": true,
+        "sameLoamEvidenceDifferentResource": true,
+        "sameLoamEvidenceDifferentDuality": true,
+        "LoamEvidenceDeterminesREAInterpretation": true,
+        "LoamPlusResourceDeterminesAgent": true,
+        "LoamPlusResourceAndAgentDeterminesDuality": true,
+        "FullExplicitOverlayDeterminesSelectedQueries": false
+      }
+    },
+    {
+      "id": "rea-ledger-commutation",
+      "observation": "Observation 252",
+      "jobName": "Qualify REA Ledger commutation boundary",
+      "legacyWorkflow": ".github/workflows/rea-ledger-commutation-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/252-rea-ledger-commutation"
+      ],
+      "model": "experiments/252_rea_ledger_commutation.als",
+      "paths": [
+        "experiments/252_rea_ledger_commutation.als",
+        "experiments/252_rea_ledger_commutation.md"
+      ],
+      "expected": {
+        "compatibleTriangleExists": true,
+        "sameReaDifferentLedgerView": true,
+        "misalignedAccountingViewBreaksCommutation": true,
+        "differentReaSemanticsSameLedgerImage": true,
+        "resourceCollapseBlocksCommutation": true,
+        "ReaInterpretationDeterminesLedgerImage": true,
+        "CompatibleAccountingViewCommutes": false,
+        "CompatibleViewCannotHideDistinctDirectCoordinates": false
+      }
+    },
+    {
+      "id": "balance-history-boundary",
+      "observation": "Observation 254",
+      "jobName": "Qualify balance history information boundary",
+      "legacyWorkflow": ".github/workflows/balance-history-boundary-observation.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "experiments/254_balance_history_boundary.als",
+      "paths": [
+        "experiments/254_balance_history_boundary.als",
+        "experiments/254_balance_history_boundary.md",
+        "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
+      ],
+      "expected": {
+        "sameBalanceDifferentEventPartition": true,
+        "selectedHistoriesDifferAtRegisterLevel": true,
+        "sameEventRegisterDifferentEffectMembership": true,
+        "BalanceImageDeterminesEventPartition": true,
+        "SelectedHistoriesHaveDifferentRegisterImage": false,
+        "EventRegisterDeterminesEffectMembership": true
+      }
+    },
+    {
+      "id": "external-party-identity-boundary",
+      "observation": "Observation 263",
+      "jobName": "Falsify external party identity boundary",
+      "legacyWorkflow": ".github/workflows/external-party-identity-boundary.yml",
+      "pushBranches": [
+        "main",
+        "experiment/263-external-party-identity-boundary"
+      ],
+      "model": "experiments/263_external_party_identity_boundary.als",
+      "paths": [
+        "experiments/263_external_party_identity_boundary.als",
+        "experiments/263_external_party_identity_boundary.md"
+      ],
+      "expected": {
+        "sameExternalIdentityAcrossEventAndRelation": true,
+        "eventOnlyPartyNeedsNoOpenRelation": true,
+        "relationOnlyPartyNeedsNoEventCounterparty": true,
+        "samePartyCanAppearInBothRelationDirections": true,
+        "samePartyAcrossDifferentLoci": true,
+        "sameLocusAcrossDifferentParties": true,
+        "NeutralLoamEvidenceDeterminesCounterparty": true,
+        "OpenRelationEndpointDeterminesEventCounterparty": true,
+        "SelectedEventCounterpartyIsLone": false
+      }
+    },
+    {
+      "id": "event-party-granularity",
+      "observation": "Observation 264",
+      "jobName": "Falsify Event party granularity",
+      "legacyWorkflow": ".github/workflows/event-party-granularity-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/264-event-party-granularity"
+      ],
+      "model": "experiments/264_event_party_granularity.als",
+      "paths": [
+        "experiments/264_event_party_granularity.als",
+        "experiments/264_event_party_granularity.md"
+      ],
+      "expected": {
+        "currentAndArrearsShareCreditor": true,
+        "onePaymentDischargesCurrentAndArrears": true,
+        "onePaymentDischargesRentAndRenewal": true,
+        "landlordAndCollectionRecipientDiffer": true,
+        "oneEventHasTwoRelevantExternalParties": true,
+        "selfTransferNeedsNoExternalParty": true,
+        "simplePaymentFitsLoneCounterparty": true,
+        "CreditorDeterminesObligationIdentity": true,
+        "SelectedCounterpartyDeterminesCreditor": true,
+        "LoneCounterpartyCoversAllRelevantParties": true,
+        "SelectedEventCounterpartyIsLone": false
+      }
+    },
+    {
+      "id": "description-party-boundary",
+      "observation": "Observation 265",
+      "jobName": "Falsify description party derivation",
+      "legacyWorkflow": ".github/workflows/description-party-boundary.yml",
+      "pushBranches": [
+        "main",
+        "experiment/265-description-party-boundary"
+      ],
+      "model": "experiments/265_description_party_boundary.als",
+      "paths": [
+        "experiments/265_description_party_boundary.als",
+        "experiments/265_description_party_boundary.md"
+      ],
+      "expected": {
+        "sameDescriptionCanCoverDifferentParties": true,
+        "samePartyCanHaveDifferentDescriptions": true,
+        "exactMerchantTextCanAgreeWithStableParty": true,
+        "descriptionMayNameThingsWithoutSelectingParty": true,
+        "sameDescriptionAllowsDifferentPartyInterpretations": true,
+        "EqualDescriptionDeterminesParty": true,
+        "PartyDeterminesDescription": true,
+        "DescriptionDeterminesPartyAcrossWorlds": true,
+        "DescriptionPresenceImpliesParty": true,
+        "ExplicitPartyEvidenceDeterminesSelectedPartyQuery": false
       }
     },
     {
@@ -134,28 +342,263 @@
       }
     },
     {
-      "id": "rea-ledger-commutation",
-      "observation": "Observation 252",
-      "jobName": "Qualify REA Ledger commutation boundary",
-      "legacyWorkflow": ".github/workflows/rea-ledger-commutation-observation.yml",
+      "id": "merchant-coverage-completeness",
+      "observation": "Observation 268",
+      "jobName": "Falsify merchant coverage completeness",
+      "legacyWorkflow": ".github/workflows/merchant-coverage-completeness.yml",
       "pushBranches": [
         "main",
-        "experiment/252-rea-ledger-commutation"
+        "experiment/268-merchant-coverage-completeness"
       ],
-      "model": "experiments/252_rea_ledger_commutation.als",
+      "model": "experiments/268_merchant_coverage_completeness.als",
       "paths": [
-        "experiments/252_rea_ledger_commutation.als",
-        "experiments/252_rea_ledger_commutation.md"
+        "experiments/268_merchant_coverage_completeness.als",
+        "experiments/268_merchant_coverage_completeness.md"
       ],
       "expected": {
-        "compatibleTriangleExists": true,
-        "sameReaDifferentLedgerView": true,
-        "misalignedAccountingViewBreaksCommutation": true,
-        "differentReaSemanticsSameLedgerImage": true,
-        "resourceCollapseBlocksCommutation": true,
-        "ReaInterpretationDeterminesLedgerImage": true,
-        "CompatibleAccountingViewCommutes": false,
-        "CompatibleViewCannotHideDistinctDirectCoordinates": false
+        "positiveOnlyEvidenceCanHideAnotherMerchantEvent": true,
+        "samePositiveEvidenceAllowsDifferentMerchantTotals": true,
+        "explicitNonMerchantCanCloseOneOtherwiseUnknownEvent": true,
+        "MerchantAbsenceMeansExplicitNonMerchant": true,
+        "PositiveMerchantEvidenceDeterminesExactTotal": true,
+        "CompleteMerchantDispositionClosesExactTotal": false,
+        "SameCompleteMerchantEvidenceDeterminesExactTotal": false
+      }
+    },
+    {
+      "id": "suspense-known-unknown",
+      "observation": "Observation 269",
+      "jobName": "Qualify valid unknown classification boundary",
+      "legacyWorkflow": ".github/workflows/suspense-known-unknown.yml",
+      "pushBranches": [
+        "main",
+        "experiment/269-suspense-known-unknown"
+      ],
+      "model": "experiments/269_suspense_known_unknown.als",
+      "paths": [
+        "experiments/269_suspense_known_unknown.als",
+        "experiments/269_suspense_known_unknown.md"
+      ],
+      "expected": {
+        "validUnknownExists": true,
+        "validPartialClassificationExists": true,
+        "partialResolutionExists": true,
+        "fullResolutionExists": true,
+        "invalidImbalanceExists": true,
+        "UnknownIsNotInvalid": false,
+        "RedistributionPreservesPhysicalPayment": false,
+        "RedistributionPreservesDestinationTotal": false,
+        "FullResolutionLeavesNoUnresolvedQuantity": false
+      }
+    },
+    {
+      "id": "interpretation-history",
+      "observation": "Observation 320",
+      "jobName": "Qualify interpretation-history boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/320-interpretation-history"
+      ],
+      "model": "experiments/320_interpretation_history.als",
+      "paths": [
+        "experiments/320_interpretation_history.als",
+        "experiments/320_interpretation_history.md"
+      ],
+      "expected": {
+        "retrospectiveReflectionExists": true,
+        "opposedReflectionAppendExists": true,
+        "rememberedPastAttributionExists": true,
+        "ambiguousLatestReflectionExists": true,
+        "weakAppendCanRewriteFacts": true,
+        "ReflectionAppendPreservesFacts": false,
+        "ReflectionAppendPreservesPriorReflections": false,
+        "ReflectionAppendKeepsSubjectsPresent": false
+      }
+    },
+    {
+      "id": "reflection-subject-sufficiency",
+      "observation": "Observation 321",
+      "jobName": "Qualify interpretation-subject sufficiency boundary",
+      "legacyWorkflow": ".github/workflows/reflection-subject-sufficiency.yml",
+      "pushBranches": [
+        "main",
+        "experiment/321-reflection-subject-sufficiency"
+      ],
+      "model": "experiments/321_reflection_subject_sufficiency.als",
+      "paths": [
+        "experiments/321_reflection_subject_sufficiency.als",
+        "experiments/321_reflection_subject_sufficiency.md"
+      ],
+      "expected": {
+        "sameExistingEvidenceDifferentSubjectAnswer": true,
+        "attentionCopyStillCannotSelectSubject": true,
+        "ExistingEvidenceDeterminesSubject": true,
+        "ExplicitSubjectDeterminesPerFactQuery": false
+      }
+    },
+    {
+      "id": "interpretation-recorded-time",
+      "observation": "Observation 322",
+      "jobName": "Qualify interpretation recording-time boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-recorded-time.yml",
+      "pushBranches": [
+        "main",
+        "experiment/322-interpretation-recorded-time"
+      ],
+      "model": "experiments/322_interpretation_recorded_time.als",
+      "paths": [
+        "experiments/322_interpretation_recorded_time.als",
+        "experiments/322_interpretation_recorded_time.md"
+      ],
+      "expected": {
+        "laterRecordingExists": true,
+        "sameBaseDifferentRecording": true,
+        "sameBaseDifferentAsOfAnswer": true,
+        "NonRecordedEvidenceDeterminesAsOfView": true,
+        "RecordedTimeDeterminesAsOfView": false
+      }
+    },
+    {
+      "id": "interpretation-attributed-time",
+      "observation": "Observation 323",
+      "jobName": "Qualify interpretation attributed-time boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-attributed-time.yml",
+      "pushBranches": [
+        "main",
+        "experiment/323-interpretation-attributed-time"
+      ],
+      "model": "experiments/323_interpretation_attributed_time.als",
+      "paths": [
+        "experiments/323_interpretation_attributed_time.als",
+        "experiments/323_interpretation_attributed_time.md"
+      ],
+      "expected": {
+        "sameBaseDifferentAttribution": true,
+        "contemporaneousVersusLaterExists": true,
+        "sameBaseDifferentAttributedAsOfAnswer": true,
+        "FactAndRecordingTimesDetermineAttributionView": true,
+        "AttributedTimeDeterminesAttributionView": false
+      }
+    },
+    {
+      "id": "interpretation-carrier-compression",
+      "observation": "Observation 324",
+      "jobName": "Qualify interpretation carrier compression boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-carrier-compression.yml",
+      "pushBranches": [
+        "main",
+        "experiment/324-interpretation-carrier-compression"
+      ],
+      "model": "experiments/324_interpretation_carrier_compression.als",
+      "paths": [
+        "experiments/324_interpretation_carrier_compression.als",
+        "experiments/324_interpretation_carrier_compression.md"
+      ],
+      "expected": {
+        "recordedCarrierLosesSubject": true,
+        "recordedCarrierLosesAttributedTime": true,
+        "attributedCarrierLosesSubject": true,
+        "attributedCarrierLosesRecordedTime": true,
+        "RecordedCarrierDeterminesFullMeaning": true,
+        "AttributedCarrierDeterminesFullMeaning": true
+      }
+    },
+    {
+      "id": "interpretation-attribution-unknown",
+      "observation": "Observation 325",
+      "jobName": "Qualify interpretation attribution-unknown boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-attribution-unknown.yml",
+      "pushBranches": [
+        "main",
+        "experiment/325-interpretation-attribution-unknown"
+      ],
+      "model": "experiments/325_interpretation_attribution_unknown.als",
+      "paths": [
+        "experiments/325_interpretation_attribution_unknown.als",
+        "experiments/325_interpretation_attribution_unknown.md"
+      ],
+      "expected": {
+        "unknownVersusFactTimeExists": true,
+        "unknownVersusRecordedTimeExists": true,
+        "unknownChangesExplicitAsOfAnswer": true,
+        "defaultToFactCollapsesDistinctMeaning": true,
+        "defaultToRecordedCollapsesDistinctMeaning": true,
+        "BaseEvidenceDeterminesAttributionPresence": true,
+        "EqualOptionalAttributionDeterminesExplicitAsOfView": false
+      }
+    },
+    {
+      "id": "interpretation-split-boundary",
+      "observation": "Observation 326",
+      "jobName": "Qualify interpretation split boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-split-boundary.yml",
+      "pushBranches": [
+        "main",
+        "experiment/326-interpretation-split-boundary"
+      ],
+      "model": "experiments/326_interpretation_split_boundary.als",
+      "paths": [
+        "experiments/326_interpretation_split_boundary.als",
+        "experiments/326_interpretation_split_boundary.md"
+      ],
+      "expected": {
+        "completeSingleInterpretationCarrierExists": true,
+        "unknownAttributionCarrierExists": true,
+        "rawOrphanSubjectExists": true,
+        "rawOrphanNoteMetadataExists": true,
+        "rawMissingDescriptionExists": true,
+        "RepresentationIsFieldFaithful": false,
+        "AdmittedCarrierClosesSubjects": false,
+        "AdmittedCarrierClosesNoteMetadata": false
+      }
+    },
+    {
+      "id": "interpretation-subject-correction",
+      "observation": "Observation 327",
+      "jobName": "Qualify interpretation subject correction boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-subject-correction.yml",
+      "pushBranches": [
+        "main",
+        "experiment/327-interpretation-subject-correction"
+      ],
+      "model": "experiments/327_interpretation_subject_correction.als",
+      "paths": [
+        "experiments/327_interpretation_subject_correction.als",
+        "experiments/327_interpretation_subject_correction.md"
+      ],
+      "expected": {
+        "untouchedSubjectStaysItself": true,
+        "correctedSubjectProjectsToTerminal": true,
+        "malformedMergeExists": true,
+        "malformedCycleExists": true,
+        "AdmittedCurrentSubjectIsUnique": false,
+        "ProjectionNeverRewritesStoredSubject": false,
+        "CurrentSubjectIsReachableFromStoredSubject": false
+      }
+    },
+    {
+      "id": "measure-scale-history",
+      "observation": "Observation 328",
+      "jobName": "Qualify Measure scale history distinguishability",
+      "legacyWorkflow": ".github/workflows/measure-scale-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/328-measure-scale-history"
+      ],
+      "model": "experiments/328_measure_scale_history.als",
+      "paths": [
+        "experiments/328_measure_scale_history.als",
+        "experiments/328_measure_scale_history.md",
+        "docs/d2/measure_scale_stability_audit.d2",
+        "docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md"
+      ],
+      "expected": {
+        "ambiguousCurrentSnapshot": true,
+        "silentScaleRewriteExists": true,
+        "stableUseExists": true,
+        "CurrentSnapshotDeterminesHistoricalConvention": true,
+        "QualifiedSnapshotDeterminesHistoricalConvention": false
       }
     }
   ]
