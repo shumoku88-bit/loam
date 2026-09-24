@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **STRUCTURAL + TEMPORAL QUALIFICATION COMPLETE / PRODUCTION CANDIDATE UNDER CI**
+Status: **STRUCTURAL + TEMPORAL + PRODUCTION QUALIFICATION COMPLETE / D3 REMEDIATION READY**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -295,7 +295,9 @@ No Currency type, Quantity field, MeasureId field, retained migration marker,
 generic migration framework, new Lean theorem, or second TLA+ model is added.
 
 Integration qualification is intentionally about the implementation/model
-correspondence:
+correspondence.
+
+GitHub Actions run `35947719746` qualified the production boundary:
 
 ```text
 unused Measure scale change     -> allowed
@@ -306,6 +308,7 @@ used Anchor Measure change      -> refused
 same used scale                 -> byte-preserving no-op
 malformed config                -> refused / byte preserving
 missing config + scale 0        -> compatibility-preserving no-op
+scale change before first use   -> allowed, then new scale becomes stable
 concurrent first-use publisher  -> serialized, then scale change refused
 ```
 
@@ -316,12 +319,24 @@ acquires Actual and re-reads the newly-used Measure before deciding.
 
 ## Current stop point
 
-The production candidate now exists and keeps the selected protocol narrow.
-D3 closure waits only for the dedicated integration workflow to compile the
-production boundary and qualify the retained-family and real first-use
-concurrency cases above.
+The production boundary is now qualified against the selected protocol. The
+dedicated workflow built the production modules, exercised every retained
+quantity authority family, preserved malformed/missing compatibility behavior,
+qualified scale-before-first-use, and exercised the real cross-process
+first-use/scale-change serialization path.
 
-No additional formal-method instrument is currently indicated. Observation 328
-already answered the historical distinguishability question, and Observation 329
-already answered the temporal race question. The remaining evidence is concrete
-source correspondence and production execution.
+D3 therefore has all three distinct evidence layers it needed:
+
+1. Observation 328: current-snapshot historical ambiguity is real;
+2. Observation 329: naive publication ordering races, while aggregate ownership
+   removes that race without forbidding valid use;
+3. production run `35947719746`: concrete WriterOwnership, authority re-read,
+   refusal, no-op, and staged publication correspond to that protocol.
+
+No additional formal-method instrument is indicated. A draft prepared by a UI
+before writer ownership is an unretained presentation intent rather than retained
+historical convention; stale editor-session presentation consistency is a
+separate surface question and is not silently promoted into D3 semantics here.
+
+PR #1239 carries the production remediation. The living post-G2 audit PR #1230
+remains open for the other audit findings.
