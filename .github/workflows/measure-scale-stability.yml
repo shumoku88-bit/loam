@@ -1,0 +1,117 @@
+name: Measure Scale Stability
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/MeasurePresentationAuthority.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Cli/MeasureScaleCli.lean'
+      - 'Loam/Cli.lean'
+      - 'tools/loam'
+      - 'tools/loam'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ScheduledActualOwnership.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/CapacityAuthority.lean'
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Tests/MeasureScaleAdministration.lean'
+      - 'docs/ADDING_CURRENCY.md'
+      - 'docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md'
+      - '.github/workflows/measure-scale-stability.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/MeasurePresentationAuthority.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Cli/MeasureScaleCli.lean'
+      - 'Loam/Cli.lean'
+      - 'Loam/ActualAuthority.lean'
+      - 'Loam/ScheduledActualOwnership.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/CapacityAuthority.lean'
+      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Tests/MeasureScaleAdministration.lean'
+      - 'docs/ADDING_CURRENCY.md'
+      - 'docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md'
+      - '.github/workflows/measure-scale-stability.yml'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: measure-scale-stability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Qualify Measure scale administration
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build production Measure scale boundary
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Qualify retained-family scale stability
+        run: |
+          lake env lean --run Loam/Tests/MeasureScaleAdministration.lean "$(mktemp -d)/measure-scale"
+
+      - name: Qualify concurrent first-use correspondence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/measure-scale-race"
+          ready="$root/ready"
+
+          lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-setup "$root"
+          lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-first-use "$root" "$ready" &
+          writer_pid=$!
+
+          for _ in $(seq 1 100); do
+            if [ -f "$ready" ]; then
+              break
+            fi
+            sleep 0.05
+          done
+
+          if [ ! -f "$ready" ]; then
+            echo "first-use writer did not acquire Actual ownership"
+            kill "$writer_pid" 2>/dev/null || true
+            wait "$writer_pid" || true
+            exit 1
+          fi
+
+          if lake exe loam measure-scale "$root" usd 3; then
+            echo "scale change unexpectedly succeeded after concurrent first use"
+            wait "$writer_pid" || true
+            exit 1
+          fi
+
+          wait "$writer_pid"
+          lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-check "$root"

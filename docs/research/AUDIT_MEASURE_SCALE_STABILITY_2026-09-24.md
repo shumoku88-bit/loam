@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **STRUCTURAL + TEMPORAL QUALIFICATION COMPLETE / PRODUCTION IMPLEMENTATION OPEN**
+Status: **STRUCTURAL + TEMPORAL + PRODUCTION QUALIFICATION COMPLETE / D3 REMEDIATION READY**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -221,22 +221,122 @@ type, or adding a new lock to every quantity writer.
 Explicit migration remains a separate future operation if a used Measure ever
 really needs a scale change.
 
+### Production source correspondence candidate
+
+The production implementation is deliberately one narrow administration
+boundary: `Loam.MeasurePresentationAuthority.setScale`.
+
+It acquires existing ownership scopes in this fixed order:
+
+```text
+scheduled.loam
+    -> actual.loam
+    -> current-quantity-anchor.loam
+    -> capacity.loam
+```
+
+This corresponds to current production topology rather than introducing a new
+generic lock graph:
+
+- Scheduled multi-authority writers already use
+  `ScheduledActualOwnership`: Scheduled -> Actual.
+- CurrentQuantityAnchor publication already uses Actual -> Anchor.
+- Capacity publication owns Capacity alone.
+- Repository inspection found no current production
+  Capacity -> Actual/Scheduled/Anchor reverse acquisition path.
+
+Only after all four scopes are held does the administration boundary re-read the
+current admitted images and the current Measure-presentation configuration.
+
+The retained-use observation is structural and intentionally small:
+
+```text
+Actual                -> every retained Event Effect.measure
+Scheduled             -> every ScheduledOccurrence.measure
+Capacity              -> every CapacityMovement.measure
+CurrentQuantityAnchor -> every Assertion.coordinate.measure
+```
+
+Actual correction and reversal evidence refers to retained Event identities; it
+does not carry an independent quantity payload, so scanning every retained
+Event Effect covers the Actual quantity-bearing family without inventing
+frontier semantics.
+
+The candidate behavior is:
+
+```text
+same effective scale
+    -> safe no-op
+
+different scale + used Measure
+    -> refuse, explicit migration required
+
+different scale + unused Measure
+    -> encode
+    -> sibling stage
+    -> byte re-read
+    -> typed re-decode
+    -> atomic rename
+```
+
+Missing Measure-presentation configuration still means scale 0. Missing optional
+CurrentQuantityAnchor and Capacity authorities mean empty use for those families;
+malformed configured evidence fails closed. Scheduled lifecycle and Actual remain
+required authority for this household administration path.
+
+The surface-neutral entrance is
+`HouseholdCommand.setMeasureScale`; the scriptable production surface is:
+
+```text
+loam measure-scale DATA_ROOT MEASURE SCALE
+```
+
+No Currency type, Quantity field, MeasureId field, retained migration marker,
+generic migration framework, new Lean theorem, or second TLA+ model is added.
+
+Integration qualification is intentionally about the implementation/model
+correspondence.
+
+GitHub Actions run `35947719746` qualified the production boundary:
+
+```text
+unused Measure scale change     -> allowed
+used Actual Measure change      -> refused
+used Scheduled Measure change   -> refused
+used Capacity Measure change    -> refused
+used Anchor Measure change      -> refused
+same used scale                 -> byte-preserving no-op
+malformed config                -> refused / byte preserving
+missing config + scale 0        -> compatibility-preserving no-op
+scale change before first use   -> allowed, then new scale becomes stable
+concurrent first-use publisher  -> serialized, then scale change refused
+```
+
+The concurrent case uses the real cross-process `WriterOwnership` boundary:
+a first-use Actual writer acquires Actual before scale administration, publishes
+while the administration process is blocked, then the administration process
+acquires Actual and re-reads the newly-used Measure before deciding.
+
 ## Current stop point
 
-This branch changes no production semantics.
+The production boundary is now qualified against the selected protocol. The
+dedicated workflow built the production modules, exercised every retained
+quantity authority family, preserved malformed/missing compatibility behavior,
+qualified scale-before-first-use, and exercised the real cross-process
+first-use/scale-change serialization path.
 
-D3 now has:
+D3 therefore has all three distinct evidence layers it needed:
 
-1. an existing retained-meaning policy;
-2. a D2 ownership/consumer map;
-3. an Alloy counterexample proving current-snapshot insufficiency;
-4. a TLA+ counterexample for naive mutation ordering;
-5. a TLA+ qualified candidate protocol that preserves both scale change before
-   use and ordinary quantity publication.
+1. Observation 328: current-snapshot historical ambiguity is real;
+2. Observation 329: naive publication ordering races, while aggregate ownership
+   removes that race without forbidding valid use;
+3. production run `35947719746`: concrete WriterOwnership, authority re-read,
+   refusal, no-op, and staged publication correspond to that protocol.
 
-The next step is a small production implementation of that administration
-boundary, followed by source-correspondence and integration qualification.
+No additional formal-method instrument is indicated. A draft prepared by a UI
+before writer ownership is an unretained presentation intent rather than retained
+historical convention; stale editor-session presentation consistency is a
+separate surface question and is not silently promoted into D3 semantics here.
 
-Lean is not yet required. The remaining work is correspondence between the
-qualified protocol and concrete WriterOwnership / persistence code, not a new
-mathematical law.
+PR #1239 carries the production remediation. The living post-G2 audit PR #1230
+remains open for the other audit findings.
