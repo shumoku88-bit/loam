@@ -1,4 +1,5 @@
 import Loam.ActualDate
+import Loam.HouseholdPaths
 import Loam.ScheduledCoverageConfig
 import Loam.ScheduledCoverageSelector
 import Loam.ScheduledReview
@@ -119,7 +120,7 @@ def loadSnapshot
   let rules ←
     try
       match ← Loam.ScheduledCoverageConfig.load?
-          (dataDir / "config" / "scheduled-coverage.tsv") with
+          (Loam.HouseholdPaths.scheduledCoverage dataDir) with
       | none => return .error "loam: Scheduled coverage config is malformed"
       | some rules => pure rules
     catch error =>

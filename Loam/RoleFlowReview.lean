@@ -1,5 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualReview
+import Loam.HouseholdPaths
 import Loam.TransactionsFlowReview
 import Loam.Persistence.AccountingRolePersistence
 
@@ -91,7 +92,7 @@ def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image)
     (start endExclusive : String) : IO (Except String Snapshot) := do
-  let rolesPath := dataDir / "accounting-role.loam"
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
