@@ -192,17 +192,7 @@ Home/Scheduled presentation regression coverage. The merge result remained clean
 against #971; the PR diff changes only the Home transition caller in `Cli.lean`,
 not the Scheduled replacement-session seam.
 
-The DRAKON builder is:
-
-```text
-docs/drakon/build_tui_home_update_snapshot_audit_map.py
-```
-
-and generates:
-
-```text
-docs/drakon/loam-tui-home-update-snapshot-audit.drn
-```
+The G2-031 DRAKON map was a campaign-local qualification artifact. After Generation 2 closed, its builder graduated from the working tree; Git history retains the exact renderer and generated-map contract.
 
 ## Generation-2 verdict
 

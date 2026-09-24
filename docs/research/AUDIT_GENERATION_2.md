@@ -1,8 +1,10 @@
 # LOAM Audit Generation 2 — visual and obligation coverage ledger
 
-Status: **ACTIVE**
+Status: **HISTORICAL LAUNCH / LEDGER — GENERATION 2 CLOSED AT G2-034**
 
 Generation-2 baseline: `8942f6ea68f20b16eeb02f097ecc67fa3ca13ccb` (`#912`)
+
+The campaign is closed by `AUDIT_GENERATION_2_CLOSURE_034.md`. This file remains as the launch and early observation ledger; campaign-specific DRAKON builders have graduated to Git history.
 
 The first semantic-compression campaign remains valid historical evidence. Its
 `SEMANTIC_AUDIT_LEDGER.md` reached a natural checkpoint: the registered SA-001
@@ -288,8 +290,7 @@ Verdict at G2-002: **SIMPLIFY CANDIDATE CONFIRMED; production change deferred to
 qualification**.
 
 The detailed DAG and refusal-order examples live in
-`docs/research/BALANCE_REVIEW_OBLIGATION_DAG.md`. The DRAKON audit map is generated
-by `docs/drakon/build_balance_review_audit_map.py`.
+`docs/research/BALANCE_REVIEW_OBLIGATION_DAG.md`. The historical G2 DRAKON map and its builder graduated from the working tree after campaign closure; Git history retains the exact renderer.
 
 ### G2-003 — qualify one shared Balance Review correction basis
 
