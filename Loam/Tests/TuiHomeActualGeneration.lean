@@ -150,3 +150,6 @@ def main : IO Unit := do
     "Home Actual generation: one admitted Actual image remained shared after canonical Actual advanced."
 
 end Loam.Tests.TuiHomeActualGeneration
+
+def main : IO Unit :=
+  Loam.Tests.TuiHomeActualGeneration.main
