@@ -1,3 +1,5 @@
+import Loam.ActualAuthority
+import Loam.ActualReview
 import Loam.TransactionsFlowReview
 import Loam.Persistence.AccountingRolePersistence
 
@@ -80,18 +82,22 @@ def project
   }
 
 /--
-Load existing production flow evidence and the explicit AccountingRole authority,
-then compose them. Missing or malformed role evidence fails closed.
+Load one role-aware flow answer from a caller-supplied admitted Actual image.
+
+The explicit AccountingRole authority remains independently loaded. The selected
+window is projected from the same Actual generation already owned by the caller.
 -/
-def loadSnapshot
-    (dataDir actualRoot : System.FilePath)
+def loadSnapshotFromActualImage
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let rolesPath := dataDir / "accounting-role.loam"
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
   let flow ←
-    match ← Loam.TransactionsFlowReview.loadSnapshot dataDir actualRoot start endExclusive with
+    match Loam.TransactionsFlowReview.project
+        (Loam.ActualReview.recordsFromActualImage image) start endExclusive with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let roles ←
@@ -100,5 +106,19 @@ def loadSnapshot
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
   return .ok (project flow roles)
+
+/--
+Load existing production flow evidence and the explicit AccountingRole authority,
+then compose them. Missing or malformed role evidence fails closed.
+-/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath)
+    (start endExclusive : String) : IO (Except String Snapshot) := do
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    | .error message => return .error message
+    | .ok image => pure image
+  loadSnapshotFromActualImage dataDir image start endExclusive
 
 end Loam.RoleFlowReview
