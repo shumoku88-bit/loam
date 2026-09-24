@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+MANIFEST = Path("verification/ci/alloy-research-cases.json")
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: tools/run-alloy-research-case CASE_ID")
+
+    case_id = sys.argv[1]
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    cases = {case["id"]: case for case in manifest["cases"]}
+    if case_id not in cases:
+        raise SystemExit(f"unknown Alloy research case: {case_id}")
+
+    case = cases[case_id]
+    jar = os.environ.get("ALLOY_JAR")
+    if not jar:
+        raise SystemExit("ALLOY_JAR is not set")
+
+    model = Path(case["model"])
+    if not model.is_file():
+        raise SystemExit(f"missing Alloy model: {model}")
+
+    print(f"{case['observation']}: {case['jobName']}")
+    print(f"model: {model}")
+
+    with tempfile.TemporaryDirectory(prefix=f"loam-alloy-{case_id}-") as output:
+        subprocess.run(
+            ["java", "-jar", jar, "exec", "-f", "-s", "sat4j", "-o", output, str(model)],
+            check=True,
+        )
+        receipt_path = Path(output) / "receipt.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        commands = receipt.get("commands", {})
+
+        wrong: list[tuple[str, str, bool]] = []
+        missing: list[str] = []
+        for name, want_sat in case["expected"].items():
+            if name not in commands:
+                missing.append(name)
+                continue
+            solutions = commands[name].get("solution", [])
+            is_sat = bool(solutions)
+            label = "SAT" if is_sat else "UNSAT"
+            print(f"{name}: {label}")
+            if is_sat != want_sat:
+                wrong.append((name, label, want_sat))
+
+        if missing:
+            raise SystemExit(f"{case_id}: receipt missing expected commands: {missing}")
+        if wrong:
+            raise SystemExit(f"{case_id}: unexpected Alloy receipt: {wrong}")
+
+    print(f"{case_id}: obligation preserved")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

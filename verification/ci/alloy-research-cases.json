@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "sharedPaths": [
+    ".github/workflows/alloy-research-witnesses.yml",
+    ".github/actions/alloy-research-case/**",
+    "verification/ci/alloy-research-cases.json",
+    "tools/select-alloy-research-cases",
+    "tools/run-alloy-research-case"
+  ],
+  "cases": [
+    {
+      "id": "accounting-projection-factorization",
+      "observation": "Observation 242",
+      "jobName": "Falsify accounting projection compression",
+      "legacyWorkflow": ".github/workflows/accounting-projection-factorization.yml",
+      "pushBranches": [
+        "main",
+        "experiment/242-accounting-projection-factorization"
+      ],
+      "model": "experiments/242_accounting_projection_factorization.als",
+      "paths": [
+        "experiments/242_accounting_projection_factorization.als",
+        "experiments/242_accounting_projection_factorization.md"
+      ],
+      "expected": {
+        "sameRoleTotalsDifferentTrialBalance": true,
+        "sameFlowDifferentTrialBalance": true,
+        "sameBalanceDifferentProfitAndLoss": true,
+        "sameNumericBalanceDifferentSupport": true,
+        "RoleTotalsDetermineSelectedViews": true,
+        "FlowFamilyDeterminesTrialBalance": true,
+        "BalanceFamilyDeterminesProfitAndLoss": true,
+        "NumericBalanceDeterminesCompleteness": true,
+        "CoordinateFlowDeterminesProfitAndLoss": false,
+        "CoordinateBalancePlusSupportDeterminesBalanceViews": false,
+        "CoordinateFamiliesDetermineSelectedViews": false
+      }
+    },
+    {
+      "id": "balance-history-boundary",
+      "observation": "Observation 254",
+      "jobName": "Qualify balance history information boundary",
+      "legacyWorkflow": ".github/workflows/balance-history-boundary-observation.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "experiments/254_balance_history_boundary.als",
+      "paths": [
+        "experiments/254_balance_history_boundary.als",
+        "experiments/254_balance_history_boundary.md",
+        "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
+      ],
+      "expected": {
+        "sameBalanceDifferentEventPartition": true,
+        "selectedHistoriesDifferAtRegisterLevel": true,
+        "sameEventRegisterDifferentEffectMembership": true,
+        "BalanceImageDeterminesEventPartition": true,
+        "SelectedHistoriesHaveDifferentRegisterImage": false,
+        "EventRegisterDeterminesEffectMembership": true
+      }
+    },
+    {
+      "id": "cash-flow-classification",
+      "observation": "Observation 249",
+      "jobName": "Falsify cash-flow classification derivability",
+      "legacyWorkflow": ".github/workflows/cash-flow-classification-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/249-cash-flow-classification"
+      ],
+      "model": "experiments/249_cash_flow_classification.als",
+      "paths": [
+        "experiments/249_cash_flow_classification.als",
+        "experiments/249_cash_flow_classification.md"
+      ],
+      "expected": {
+        "sameAssetRoleEvidenceDifferentCashFlowClass": true,
+        "sameLiabilityRoleEvidenceDifferentCashFlowClass": true,
+        "CurrentLoamEvidenceDeterminesCashFlowClass": true,
+        "ExplicitCashFlowClassificationDeterminesReportClass": false
+      }
+    },
+    {
+      "id": "interpretation-history",
+      "observation": "Observation 320",
+      "jobName": "Qualify interpretation-history boundary",
+      "legacyWorkflow": ".github/workflows/interpretation-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/320-interpretation-history"
+      ],
+      "model": "experiments/320_interpretation_history.als",
+      "paths": [
+        "experiments/320_interpretation_history.als",
+        "experiments/320_interpretation_history.md"
+      ],
+      "expected": {
+        "retrospectiveReflectionExists": true,
+        "opposedReflectionAppendExists": true,
+        "rememberedPastAttributionExists": true,
+        "ambiguousLatestReflectionExists": true,
+        "weakAppendCanRewriteFacts": true,
+        "ReflectionAppendPreservesFacts": false,
+        "ReflectionAppendPreservesPriorReflections": false,
+        "ReflectionAppendKeepsSubjectsPresent": false
+      }
+    },
+    {
+      "id": "merchant-query-pressure",
+      "observation": "Observation 266",
+      "jobName": "Falsify merchant query boundary",
+      "legacyWorkflow": ".github/workflows/merchant-query-pressure.yml",
+      "pushBranches": [
+        "main",
+        "experiment/266-merchant-query-pressure"
+      ],
+      "model": "experiments/266_merchant_query_pressure.als",
+      "paths": [
+        "experiments/266_merchant_query_pressure.als",
+        "experiments/266_merchant_query_pressure.md"
+      ],
+      "expected": {
+        "splitExpenseOneMerchantNeedsNoStoredMerchantAmount": true,
+        "counterpartyCanExistWithoutMerchant": true,
+        "merchantCanMatchCounterpartyForSimplePurchase": true,
+        "merchantEvidenceCanExistWithUnresolvedRole": true,
+        "multiMerchantEffectPressureEscapesEventLoneMerchant": true,
+        "PhysicalRoleAndMerchantDetermineMerchantExpense": false,
+        "PhysicalAndMerchantDetermineMerchantExpense": true,
+        "PhysicalAndRoleDetermineMerchantExpense": true,
+        "SelectedCounterpartyDeterminesMerchantExpense": true,
+        "MerchantEvidenceImpliesQueryReady": true,
+        "LoneEventMerchantCannotExactlyPartitionTwoSellers": false
+      }
+    },
+    {
+      "id": "rea-ledger-commutation",
+      "observation": "Observation 252",
+      "jobName": "Qualify REA Ledger commutation boundary",
+      "legacyWorkflow": ".github/workflows/rea-ledger-commutation-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/252-rea-ledger-commutation"
+      ],
+      "model": "experiments/252_rea_ledger_commutation.als",
+      "paths": [
+        "experiments/252_rea_ledger_commutation.als",
+        "experiments/252_rea_ledger_commutation.md"
+      ],
+      "expected": {
+        "compatibleTriangleExists": true,
+        "sameReaDifferentLedgerView": true,
+        "misalignedAccountingViewBreaksCommutation": true,
+        "differentReaSemanticsSameLedgerImage": true,
+        "resourceCollapseBlocksCommutation": true,
+        "ReaInterpretationDeterminesLedgerImage": true,
+        "CompatibleAccountingViewCommutes": false,
+        "CompatibleViewCannotHideDistinctDirectCoordinates": false
+      }
+    }
+  ]
+}
