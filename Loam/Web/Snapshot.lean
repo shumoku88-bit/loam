@@ -5,6 +5,7 @@ import Loam.CycleBudgetReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
 import Loam.Presentation.HouseholdSnapshot
+import Loam.Presentation.Home
 
 namespace Loam.Web.Snapshot
 
@@ -54,10 +55,20 @@ private def renderRows (rows : List String) : String :=
       String.intercalate "\n" (rows.map fun row => "  <li>" ++ row ++ "</li>") ++
       "\n</ul>"
 
-private def renderCard (title body : String) : String :=
-  "<div class=\"card\">\n" ++
+private def renderCard (id title body : String) : String :=
+  "<div id=\"" ++ escapeHtml id ++ "\" class=\"card\">\n" ++
   "  <h2>" ++ escapeHtml title ++ "</h2>\n" ++
   body ++ "\n" ++
+  "</div>"
+
+private def renderNav : String :=
+  "<div id=\"nav\">" ++
+  "<a href=\"#home\">Home</a> | " ++
+  "<a href=\"#actual\">Actual</a> | " ++
+  "<a href=\"#scheduled\">Scheduled</a> | " ++
+  "<a href=\"#budget\">Budget</a> | " ++
+  "<a href=\"#attention\">Attention</a> | " ++
+  "<a href=\"#capacity\">Capacity</a>" ++
   "</div>"
 
 private def quantityText (quantity : Quantity) : String :=
@@ -65,6 +76,43 @@ private def quantityText (quantity : Quantity) : String :=
 
 private def tableCell (content : String) : String :=
   "<td>" ++ content ++ "</td>"
+
+private def renderHome (snapshot : Snapshot) : String :=
+  let home := Loam.Presentation.Home.fromSnapshot snapshot
+  let actualText :=
+    match home.recentActualCount with
+    | .error message => "Unavailable: " ++ escapeHtml message
+    | .ok count => escapeHtml (toString count ++ " record(s) in current week")
+  let scheduledText :=
+    match home.nextScheduled with
+    | .error message => "Unavailable: " ++ escapeHtml message
+    | .ok none => "None current-open"
+    | .ok (some record) =>
+        escapeHtml (record.scheduledOn ++ "  " ++ Loam.ScheduledReview.summary record)
+  let attentionText :=
+    match home.attentionOpenCount with
+    | .error message => "Unavailable: " ++ escapeHtml message
+    | .ok none => "Not configured"
+    | .ok (some count) => escapeHtml (toString count ++ " open")
+  let fundingRows :=
+    match home.funding with
+    | .error message =>
+        "<tr><th>Current funding</th>" ++
+        tableCell ("Unavailable: " ++ escapeHtml message) ++ "</tr>"
+    | .ok funding =>
+        "<tr><th>Budgetable backing</th>" ++
+          tableCell (quantityText funding.budgetableBacking) ++ "</tr>\n" ++
+        "<tr><th>Remaining assigned</th>" ++
+          tableCell (quantityText funding.remainingAssigned) ++ "</tr>\n" ++
+        "<tr><th>Residual before unresolved</th>" ++
+          tableCell (quantityText funding.residualBeforeUnresolved) ++ "</tr>"
+  "<p class=\"note\">Current household orientation derived from shared Lean Review answers.</p>\n" ++
+  "<table class=\"facts\" summary=\"LOAM Home current household orientation\">\n" ++
+  "<tr><th>Observed</th>" ++ tableCell (escapeHtml home.observedAt) ++ "</tr>\n" ++
+  "<tr><th>Recent Actual</th>" ++ tableCell actualText ++ "</tr>\n" ++
+  "<tr><th>Next Scheduled</th>" ++ tableCell scheduledText ++ "</tr>\n" ++
+  "<tr><th>Attention</th>" ++ tableCell attentionText ++ "</tr>\n" ++
+  fundingRows ++ "\n</table>"
 
 private def renderActual
     (observedAt : String)
@@ -195,7 +243,9 @@ def render (snapshot : Snapshot) : String :=
     , "  <style type=\"text/css\">"
     , "    body { font-family: monospace; margin: 0; padding: 1em; line-height: 1.4; color: #111; background: #fff; }"
     , "    #page { max-width: 78em; margin: 0 auto; }"
-    , "    #header { border-bottom: 1px solid #888; margin-bottom: 1em; padding-bottom: .5em; }"
+    , "    #header { border-bottom: 1px solid #888; margin-bottom: .75em; padding-bottom: .5em; }"
+    , "    #nav { border-bottom: 1px solid #aaa; margin-bottom: 1em; padding-bottom: .75em; }"
+    , "    #nav a { margin-right: .25em; }"
     , "    h1 { font-size: 1.5em; margin: 0 0 .25em 0; }"
     , "    h3 { font-size: 1em; margin: 1em 0 .4em 0; }"
     , "    .subtitle, .footer, .empty, .note { color: #555; }"
@@ -219,11 +269,13 @@ def render (snapshot : Snapshot) : String :=
     , "  <h1>LOAM</h1>"
     , "  <div class=\"subtitle\">read-only household web snapshot | observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
     , "</div>"
-    , renderCard "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
-    , renderCard "Current-open Scheduled" (renderScheduled snapshot.scheduled)
-    , renderCard "Current Budget" (renderBudget snapshot.purposeMetadata snapshot.budget)
-    , renderCard "Open Attention" (renderAttention snapshot.attention)
-    , renderCard "Raw Capacity (all retained)" (renderCapacity snapshot.purposeMetadata snapshot.capacity)
+    , renderNav
+    , renderCard "home" "Home" (renderHome snapshot)
+    , renderCard "actual" "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
+    , renderCard "scheduled" "Current-open Scheduled" (renderScheduled snapshot.scheduled)
+    , renderCard "budget" "Current Budget" (renderBudget snapshot.purposeMetadata snapshot.budget)
+    , renderCard "attention" "Open Attention" (renderAttention snapshot.attention)
+    , renderCard "capacity" "Raw Capacity (all retained)" (renderCapacity snapshot.purposeMetadata snapshot.capacity)
     , "<p class=\"footer\">Presentation only. This page does not own household authority and performs no writes.</p>"
     , "</div>"
     , "</body>"
