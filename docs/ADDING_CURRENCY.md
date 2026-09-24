@@ -78,15 +78,24 @@ scale 3   1234 quanta -> 1.234 displayed units
 LOAM does not round extra digits. Input with more fractional digits than the
 configured scale is refused.
 
-## 3. Add the presentation row
+## 3. Select the presentation scale
 
-Edit the household file:
+Use the production Measure-scale administration command rather than editing the
+configuration file directly:
 
 ```text
-loam-data/config/measure-presentation.tsv
+loam measure-scale LOAM_DATA_DIR usd 2
 ```
 
-Format:
+The command re-reads the current retained quantity authorities while holding the
+qualified ownership order. If the Measure is still unused, the selected scale is
+published atomically to:
+
+```text
+LOAM_DATA_DIR/config/measure-presentation.tsv
+```
+
+The file remains deliberately small and inspectable:
 
 ```text
 # measure<TAB>decimal-scale
@@ -95,9 +104,12 @@ usd<TAB>2
 ils<TAB>2
 ```
 
-To add another currency, append one row using the verified token and scale.
+If retained Actual, Scheduled, Capacity, or CurrentQuantityAnchor evidence
+already uses the Measure, an ordinary scale change is refused. Re-selecting the
+current effective scale is a harmless no-op. Missing configuration retains the
+historical scale-0 convention.
 
-This file does **not**:
+This configuration does **not**:
 
 - create a Locus;
 - assign an AccountingRole;
@@ -107,7 +119,8 @@ This file does **not**:
 - make the Measure a Core currency primitive.
 
 It only states how exact retained quanta for that Measure are entered and
-presented.
+presented. A scale change for an already-used Measure is a migration question,
+not a direct configuration edit.
 
 ## 4. Decide whether a new Locus is actually needed
 
