@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from collections import Counter, defaultdict
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(".")
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
+
+if not WORKFLOW_DIR.is_dir():
+    print("audit-ci-topology: run from the LOAM repository root", file=sys.stderr)
+    raise SystemExit(2)
+
+workflow_paths = sorted(WORKFLOW_DIR.glob("*.yml")) + sorted(WORKFLOW_DIR.glob("*.yaml"))
+
+
+def display_name(path: Path, text: str) -> str:
+    match = re.search(r"^name:\s*(.+)$", text, flags=re.MULTILINE)
+    return match.group(1).strip() if match else path.name
+
+
+def top_level_events(text: str) -> list[str]:
+    lines = text.splitlines()
+    events: list[str] = []
+    for index, raw in enumerate(lines):
+        if len(raw) - len(raw.lstrip()) != 0:
+            continue
+        inline = re.match(r"on:\s*\[(.*)\]\s*$", raw)
+        if inline:
+            return [part.strip() for part in inline.group(1).split(",") if part.strip()]
+        if raw.strip() != "on:":
+            continue
+        for child in lines[index + 1 :]:
+            if not child.strip() or child.lstrip().startswith("#"):
+                continue
+            indent = len(child) - len(child.lstrip())
+            if indent == 0:
+                break
+            if indent == 2:
+                match = re.match(r"\s{2}([A-Za-z0-9_-]+):", child)
+                if match:
+                    events.append(match.group(1))
+        break
+    return events
+
+
+def declared_permissions(text: str) -> str:
+    lines = text.splitlines()
+    for index, raw in enumerate(lines):
+        if len(raw) - len(raw.lstrip()) != 0:
+            continue
+        inline = re.match(r"permissions:\s*(\S.*)$", raw)
+        if inline:
+            return inline.group(1).strip()
+        if raw.strip() != "permissions:":
+            continue
+        found: list[str] = []
+        for child in lines[index + 1 :]:
+            if not child.strip() or child.lstrip().startswith("#"):
+                continue
+            indent = len(child) - len(child.lstrip())
+            if indent == 0:
+                break
+            if indent == 2 and ":" in child:
+                found.append(child.strip())
+        return ", ".join(found) if found else "(empty)"
+    return "(default/none declared)"
+
+
+def jobs(text: str) -> list[str]:
+    lines = text.splitlines()
+    for index, raw in enumerate(lines):
+        if raw.strip() != "jobs:" or len(raw) - len(raw.lstrip()) != 0:
+            continue
+        found: list[str] = []
+        for child in lines[index + 1 :]:
+            if not child.strip() or child.lstrip().startswith("#"):
+                continue
+            indent = len(child) - len(child.lstrip())
+            if indent == 0:
+                break
+            if indent == 2:
+                match = re.match(r"\s{2}([A-Za-z0-9_-]+):", child)
+                if match:
+                    found.append(match.group(1))
+        return found
+    return []
+
+
+def actions(text: str) -> list[str]:
+    return sorted(set(re.findall(r"uses:\s*([^\s#]+)", text)))
+
+
+def run_commands(text: str) -> list[str]:
+    lines = text.splitlines()
+    found: list[str] = []
+    index = 0
+    while index < len(lines):
+        raw = lines[index]
+        match = re.match(r"^(\s*)run:\s*(.*)$", raw)
+        if not match:
+            index += 1
+            continue
+        indent = len(match.group(1))
+        rest = match.group(2).strip()
+        if rest and rest not in {"|", ">"}:
+            found.append(rest)
+            index += 1
+            continue
+        index += 1
+        while index < len(lines):
+            child = lines[index]
+            if child.strip() and len(child) - len(child.lstrip()) <= indent:
+                break
+            stripped = child.strip()
+            if stripped and not stripped.startswith("#"):
+                found.append(stripped)
+            index += 1
+    return found
+
+
+def toolchains(text: str, used_actions: list[str], commands: list[str]) -> list[str]:
+    corpus = "\n".join([text, *used_actions, *commands]).lower()
+    checks = [
+        ("Lean", ("leanprover/lean-action", "lake build", "lake env lean")),
+        ("Alloy", ("alloy",)),
+        ("TLA+", ("tla2tools", " tlc", ".tla")),
+        ("Apalache", ("apalache",)),
+        ("SPIN", ("spin ", "promela", ".pml")),
+        ("Python", ("python3 ", "setup-python")),
+        ("Artifact/Release", ("upload-artifact", "gh release", "action-gh-release")),
+    ]
+    found = [
+        label
+        for label, needles in checks
+        if any(needle in corpus for needle in needles)
+    ]
+    return found or ["generic"]
+
+
+def path_entries(text: str) -> int:
+    in_paths = False
+    paths_indent = -1
+    count = 0
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        indent = len(raw) - len(raw.lstrip())
+        if stripped in {"paths:", "paths-ignore:"}:
+            in_paths = True
+            paths_indent = indent
+            continue
+        if not in_paths:
+            continue
+        if stripped and indent <= paths_indent:
+            in_paths = False
+            continue
+        if stripped.startswith("- "):
+            count += 1
+    return count
+
+
+rows: list[dict[str, object]] = []
+mechanics_clusters: dict[tuple[object, ...], list[str]] = defaultdict(list)
+tool_counts: Counter[str] = Counter()
+event_counts: Counter[str] = Counter()
+total_bytes = 0
+
+for path in workflow_paths:
+    text = path.read_text(encoding="utf-8")
+    total_bytes += len(text.encode("utf-8"))
+    workflow_events = top_level_events(text)
+    workflow_permissions = declared_permissions(text)
+    workflow_jobs = jobs(text)
+    workflow_actions = actions(text)
+    commands = run_commands(text)
+    workflow_tools = toolchains(text, workflow_actions, commands)
+
+    event_counts.update(workflow_events)
+    tool_counts.update(workflow_tools)
+
+    mechanics = (
+        tuple(workflow_events),
+        workflow_permissions,
+        tuple(workflow_tools),
+        tuple(workflow_actions),
+        len(workflow_jobs),
+    )
+    mechanics_clusters[mechanics].append(path.name)
+
+    rows.append(
+        {
+            "file": path.name,
+            "name": display_name(path, text),
+            "events": ",".join(workflow_events) if workflow_events else "(none)",
+            "tools": ",".join(workflow_tools),
+            "jobs": len(workflow_jobs),
+            "paths": path_entries(text),
+            "permissions": workflow_permissions,
+            "commands": commands,
+        }
+    )
+
+print(f"CI topology inventory: {len(rows)} workflow(s), {total_bytes} byte(s)")
+print()
+print("| workflow | events | toolchain | jobs | path entries | permissions |")
+print("| --- | --- | --- | ---: | ---: | --- |")
+for row in rows:
+    print(
+        f"| \`{row['file']}\` | {row['events']} | {row['tools']} | "
+        f"{row['jobs']} | {row['paths']} | {row['permissions']} |"
+    )
+
+print("\nToolchain counts:")
+for tool, count in sorted(tool_counts.items()):
+    print(f"  {tool:<18} {count:3d}")
+
+print("\nTrigger counts:")
+for event, count in sorted(event_counts.items()):
+    print(f"  {event:<18} {count:3d}")
+
+print("\nRepeated CI-mechanics clusters (human review candidates):")
+repeated = [
+    (signature, files)
+    for signature, files in mechanics_clusters.items()
+    if len(files) > 1
+]
+repeated.sort(key=lambda item: (-len(item[1]), item[1]))
+if not repeated:
+    print("  (none)")
+else:
+    for signature, files in repeated:
+        workflow_events, workflow_permissions, workflow_tools, workflow_actions, job_count = signature
+        print(
+            f"  {len(files):2d} workflow(s): "
+            f"events={','.join(workflow_events) or '(none)'}; "
+            f"tools={','.join(workflow_tools)}; jobs={job_count}; "
+            f"permissions={workflow_permissions}"
+        )
+        if workflow_actions:
+            print(f"     actions: {', '.join(workflow_actions)}")
+        for filename in files:
+            print(f"     - {filename}")
+
+print("\nCommands by workflow:")
+for row in rows:
+    print(f"  {row['file']}:")
+    commands = row["commands"]
+    if not commands:
+        print("    (no run commands; uses-only workflow)")
+        continue
+    for command in commands[:16]:
+        print(f"    {command}")
+    if len(commands) > 16:
+        print(f"    ... {len(commands) - 16} more line(s)")
+
+print(
+    "\nNote: repeated mechanics are consolidation candidates only. "
+    "Distinct solver witnesses, permissions, triggers, and operational boundaries "
+    "still require semantic review before any workflow is retired."
+)

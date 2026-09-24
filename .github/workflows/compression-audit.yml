@@ -7,6 +7,7 @@ on:
       - 'tools/audit-production-reachability'
       - 'tools/audit-semantic-candidates'
       - 'tools/audit-mechanics-patterns'
+      - 'tools/audit-ci-topology'
       - 'tools/loam'
       - 'docs/research/COMPRESSION_AUDIT_CHECKPOINT_226.md'
       - 'docs/research/COMPRESSION_AUDIT_PHASE1.md'
@@ -18,7 +19,7 @@ on:
       - 'docs/research/REPOSITORY_COMPRESSION_LIBRARY_SEEDS_2026-09.md'
       - 'Loam/**'
       - 'lakefile.lean'
-      - '.github/workflows/compression-audit.yml'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
@@ -42,3 +43,6 @@ jobs:
       - name: Scan mechanics multiplication pressure
         shell: bash
         run: python3 tools/audit-mechanics-patterns
+      - name: Inventory CI topology
+        shell: bash
+        run: python3 tools/audit-ci-topology
