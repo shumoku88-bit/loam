@@ -198,7 +198,6 @@ def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'j' | .input 'J' => .down
   | key => eventOfKey key
 
-/-- HRA Scheduled interaction grammar over presentation-only pane and cursor state. -/
 /-- HRA Actual interaction grammar over presentation-only pane and cursor state. -/
 def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .up | .input 'k' | .input 'K' => .previous
