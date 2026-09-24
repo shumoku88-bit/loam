@@ -402,3 +402,34 @@ experiments/212_locus_admission_vocabulary.md
 
 Observation 213 remains. Alias / display / AccountingRole separation is a distinct follow-up question and is not implied by the Locus-admission production boundary.
 
+## Follow-up graduation - Observations 216-217 AccountingRole report completeness
+
+Observations 216-217 qualified two closely related reporting laws while AccountingRole was still research-only:
+
+- missing AccountingRole evidence remains an unresolved classification witness rather than becoming an `UnknownRole`, zero, irrelevance, or a guessed role;
+- exact role quantities may be published for classified evidence while unresolved evidence remains visible;
+- numerical cancellation of unresolved evidence, including net zero, must not be used as a completeness proof;
+- role totals are derived presentation values and must not erase the unresolved evidence frontier.
+
+Those laws now have current production owners:
+
+- `Loam/Core/AccountingRole.lean` owns the partial `LocusId -> AccountingRole` relation and explicitly treats missing role evidence as unresolved;
+- `RoleFlowReview` preserves individual unresolved Effect witnesses so cancellation cannot masquerade as classification completeness;
+- `RoleBalanceReview` keeps quantity-supported unresolved-role coordinates and quantity-unsupported coordinates as separate frontiers;
+- Observation 275 proves that missing AccountingRole remains explicit unresolved metadata on a current routing answer;
+- Generation-2 closure explicitly keeps unresolved Effect witnesses and rejects stored role totals as an independent semantic owner;
+- current production tests exercise the unresolved-role and support-frontier behavior.
+
+The original Alloy models and research notes have no dedicated workflows and no current filename references. Git history retains the exact bounded witnesses and qualification receipts.
+
+The following historical apparatus therefore graduates from the working tree:
+
+```text
+experiments/216_partial_accounting_role_report.als
+experiments/216_partial_accounting_role_report.md
+experiments/217_partial_accounting_role_quantity.als
+experiments/217_partial_accounting_role_quantity.md
+```
+
+Observations 214-215 remain. Their destructive migration / mixed legacy Locus questions are not equivalent to the currently qualified virgin-Locus AccountingRole publication boundary.
+
