@@ -296,10 +296,10 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
       currentCoverageFor relations sourceRelation := by
   induction relations with
   | nil =>
-      simp [buildCoverageIndex, currentCoverageFor]
+      simp [buildCoverageIndex, currentCoverageFor, coverageAt]
   | cons relation rest ih =>
-      simp only [buildCoverageIndex, currentCoverageFor, List.foldr_cons]
-      rw [Std.HashMap.getElem?_insert]
+      simp only [buildCoverageIndex, currentCoverageFor, List.foldr_cons, coverageAt]
+      rw [Std.HashMap.get?_insert]
       by_cases hSame :
           relation.sourceEvent = sourceRelation.sourceEvent ∧
             relation.sourceEffect = sourceRelation.sourceEffect
