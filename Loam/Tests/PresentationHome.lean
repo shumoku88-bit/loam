@@ -30,12 +30,20 @@ def main : IO Unit := do
 
   let home := Loam.Presentation.Home.fromSnapshot snapshot
 
-  expect (home.recentActualCount == .ok 0)
-    "Home must preserve an evidenced empty recent Actual answer"
-  expect (home.nextScheduled == .ok none)
-    "Home must preserve an evidenced empty current-open Scheduled answer"
-  expect (home.attentionOpenCount == .ok (some 0))
-    "Home must distinguish configured-empty Attention from unavailable Attention"
+  match home.recentActualCount with
+  | .ok 0 => pure ()
+  | _ => throw (IO.userError
+      "Home must preserve an evidenced empty recent Actual answer")
+
+  match home.nextScheduled with
+  | .ok none => pure ()
+  | _ => throw (IO.userError
+      "Home must preserve an evidenced empty current-open Scheduled answer")
+
+  match home.attentionOpenCount with
+  | .ok (some 0) => pure ()
+  | _ => throw (IO.userError
+      "Home must distinguish configured-empty Attention from unavailable Attention")
 
   match home.funding with
   | .error message =>
@@ -50,7 +58,9 @@ def main : IO Unit := do
 
   let unavailableAttention :=
     Loam.Presentation.Home.fromSnapshot { snapshot with attention := .ok .unavailable }
-  expect (unavailableAttention.attentionOpenCount == .ok none)
-    "Home collapsed unavailable Attention into configured-empty Attention"
+  match unavailableAttention.attentionOpenCount with
+  | .ok none => pure ()
+  | _ => throw (IO.userError
+      "Home collapsed unavailable Attention into configured-empty Attention")
 
   IO.println "Home presentation: shared evidence, explicit availability, and exact funding derivation passed."
