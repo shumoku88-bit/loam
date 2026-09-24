@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **STRUCTURAL + TEMPORAL QUALIFICATION COMPLETE / PRODUCTION IMPLEMENTATION OPEN**
+Status: **STRUCTURAL + TEMPORAL QUALIFICATION COMPLETE / PRODUCTION CANDIDATE UNDER CI**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -221,22 +221,107 @@ type, or adding a new lock to every quantity writer.
 Explicit migration remains a separate future operation if a used Measure ever
 really needs a scale change.
 
+### Production source correspondence candidate
+
+The production implementation is deliberately one narrow administration
+boundary: `Loam.MeasurePresentationAuthority.setScale`.
+
+It acquires existing ownership scopes in this fixed order:
+
+```text
+scheduled.loam
+    -> actual.loam
+    -> current-quantity-anchor.loam
+    -> capacity.loam
+```
+
+This corresponds to current production topology rather than introducing a new
+generic lock graph:
+
+- Scheduled multi-authority writers already use
+  `ScheduledActualOwnership`: Scheduled -> Actual.
+- CurrentQuantityAnchor publication already uses Actual -> Anchor.
+- Capacity publication owns Capacity alone.
+- Repository inspection found no current production
+  Capacity -> Actual/Scheduled/Anchor reverse acquisition path.
+
+Only after all four scopes are held does the administration boundary re-read the
+current admitted images and the current Measure-presentation configuration.
+
+The retained-use observation is structural and intentionally small:
+
+```text
+Actual                -> every retained Event Effect.measure
+Scheduled             -> every ScheduledOccurrence.measure
+Capacity              -> every CapacityMovement.measure
+CurrentQuantityAnchor -> every Assertion.coordinate.measure
+```
+
+Actual correction and reversal evidence refers to retained Event identities; it
+does not carry an independent quantity payload, so scanning every retained
+Event Effect covers the Actual quantity-bearing family without inventing
+frontier semantics.
+
+The candidate behavior is:
+
+```text
+same effective scale
+    -> safe no-op
+
+different scale + used Measure
+    -> refuse, explicit migration required
+
+different scale + unused Measure
+    -> encode
+    -> sibling stage
+    -> byte re-read
+    -> typed re-decode
+    -> atomic rename
+```
+
+Missing Measure-presentation configuration still means scale 0. Missing optional
+CurrentQuantityAnchor and Capacity authorities mean empty use for those families;
+malformed configured evidence fails closed. Scheduled lifecycle and Actual remain
+required authority for this household administration path.
+
+The surface-neutral entrance is
+`HouseholdCommand.setMeasureScale`; the scriptable production surface is:
+
+```text
+loam measure-scale DATA_ROOT MEASURE SCALE
+```
+
+No Currency type, Quantity field, MeasureId field, retained migration marker,
+generic migration framework, new Lean theorem, or second TLA+ model is added.
+
+Integration qualification is intentionally about the implementation/model
+correspondence:
+
+```text
+unused Measure scale change     -> allowed
+used Actual Measure change      -> refused
+used Scheduled Measure change   -> refused
+used Capacity Measure change    -> refused
+used Anchor Measure change      -> refused
+same used scale                 -> byte-preserving no-op
+malformed config                -> refused / byte preserving
+missing config + scale 0        -> compatibility-preserving no-op
+concurrent first-use publisher  -> serialized, then scale change refused
+```
+
+The concurrent case uses the real cross-process `WriterOwnership` boundary:
+a first-use Actual writer acquires Actual before scale administration, publishes
+while the administration process is blocked, then the administration process
+acquires Actual and re-reads the newly-used Measure before deciding.
+
 ## Current stop point
 
-This branch changes no production semantics.
+The production candidate now exists and keeps the selected protocol narrow.
+D3 closure waits only for the dedicated integration workflow to compile the
+production boundary and qualify the retained-family and real first-use
+concurrency cases above.
 
-D3 now has:
-
-1. an existing retained-meaning policy;
-2. a D2 ownership/consumer map;
-3. an Alloy counterexample proving current-snapshot insufficiency;
-4. a TLA+ counterexample for naive mutation ordering;
-5. a TLA+ qualified candidate protocol that preserves both scale change before
-   use and ordinary quantity publication.
-
-The next step is a small production implementation of that administration
-boundary, followed by source-correspondence and integration qualification.
-
-Lean is not yet required. The remaining work is correspondence between the
-qualified protocol and concrete WriterOwnership / persistence code, not a new
-mathematical law.
+No additional formal-method instrument is currently indicated. Observation 328
+already answered the historical distinguishability question, and Observation 329
+already answered the temporal race question. The remaining evidence is concrete
+source correspondence and production execution.
