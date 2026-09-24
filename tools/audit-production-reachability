@@ -65,14 +65,21 @@ for raw_line in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
 exe_roots = [root for _, root in executables]
 exe_reachable = closure(exe_roots)
 
-# `Loam.lean` is deliberately excluded because it imports historical
-# observations for the all-library qualification build.
+# The product library root is intentionally separate from the research umbrella.
+# TUI remains an additional practical library root because its presentation modules
+# are not imported by the small top-level product aggregation.
 practical_library_roots = [
     module
-    for module in ["Loam.Core", "Loam.Application", "Loam.Tui"]
+    for module in ["Loam", "Loam.Tui"]
     if module in module_to_path
 ]
 library_reachable = closure(practical_library_roots)
+product_reachable = closure(["Loam"])
+product_historical_or_test = {
+    module
+    for module in product_reachable
+    if module.startswith("Loam.Tests") or module.startswith("Loam.Observations")
+}
 
 
 def is_candidate_practical(path: Path) -> bool:
@@ -194,6 +201,20 @@ if historical_or_test:
         print(f"  {module_to_path[module]}")
 else:
     print("  (none)")
+
+print("\nTest/observation modules reached by product library root:")
+if product_historical_or_test:
+    for module in sorted(product_historical_or_test):
+        print(f"  {module_to_path[module]}")
+else:
+    print("  (none)")
+
+if product_historical_or_test:
+    print(
+        "\naudit-production-reachability: product library surface reaches research/test modules",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 unresolved_roots = [root for root in exe_roots if root not in module_to_path]
 if unresolved_roots:
