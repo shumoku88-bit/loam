@@ -1,6 +1,6 @@
 # Observation 329 — Measure scale change and first-use publication order
 
-Status: **TLA+ QUALIFICATION IN PROGRESS**
+Status: **QUALIFIED TLA+ TEMPORAL OBSERVATION**
 
 ## Trigger
 
@@ -130,29 +130,34 @@ This is deliberately a one-Measure, two-scale model. Quantity arithmetic,
 Event identity, Locus, Purpose, and persistence encoding are irrelevant to the
 interleaving question.
 
-## Expected matrix
+## Qualified matrix
+
+GitHub Actions run `35945792069`, TLA+ tools 1.7.4 / TLC:
 
 ```text
 NaiveSpec + MeaningStable
-    -> FAIL with reachable counterexample
+    -> VIOLATED
+       75 distinct states explored before the counterexample
 
 LockedSpec + MeaningStable
     -> PASS
+       513 distinct states, complete finite state space
 
 LockedSpec + NeverScale2
-    -> FAIL, proving a pre-use scale change remains reachable
+    -> VIOLATED
+       pre-use scale change is reachable
 
 LockedSpec + NeverUsed
-    -> FAIL, proving quantity publication remains reachable
+    -> VIOLATED
+       quantity publication is reachable
 ```
 
-The last two checks prevent a vacuous "safe" protocol that simply disables one
-side of the interaction.
+The last two checks rule out a vacuous "safe" protocol that disables one side of
+the interaction.
 
-## What a positive result would justify
+## Qualified conclusion
 
-If the expected matrix qualifies, it supports the following implementation
-direction:
+The matrix supports the following implementation direction:
 
 1. keep `MeasurePresentation` outside neutral Core;
 2. add one narrow scale-administration boundary;
@@ -180,3 +185,26 @@ interleavings, not that source code has been wired to the model correctly.
 
 If the protocol is selected, ordinary integration tests must still exercise the
 real WriterOwnership boundaries.
+
+
+## Next production step
+
+D3 now has both a structural counterexample (Observation 328) and a temporal
+protocol qualification (Observation 329).
+
+The smallest selected production direction is therefore:
+
+```text
+Measure scale administration
+    -> acquire current retained-quantity authority ownership
+       in compatible fixed order
+    -> re-read Actual / Scheduled / Anchor / Capacity
+    -> if Measure is used: refuse ordinary scale change
+    -> if unused: publish the new presentation config atomically
+```
+
+No new lock is required on every quantity writer. Existing writer ownership is
+reused from the administration side.
+
+Implementation must still verify exact source correspondence for the concrete
+nested lock order and add integration tests around the real files.
