@@ -1,0 +1,174 @@
+name: SPIN Research Witnesses
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/spin-research-case/**'
+      - '.github/workflows/spin-research-witnesses.yml'
+      - 'experiments/059_split_publication_interleaving.md'
+      - 'experiments/059_split_publication_safe.pml'
+      - 'experiments/059_split_publication_unsafe_reader.pml'
+      - 'experiments/059_split_publication_unsafe_writer.pml'
+      - 'experiments/061_resolution_split_publication.md'
+      - 'experiments/061_resolution_split_publication_safe.pml'
+      - 'experiments/061_resolution_split_publication_unsafe_reader.pml'
+      - 'experiments/061_resolution_split_publication_unsafe_writer.pml'
+      - 'experiments/118_ui_stale_admission.md'
+      - 'experiments/118_ui_stale_admission_safe.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_cancel.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_complete.pml'
+      - 'experiments/177_movement_relation_publication.md'
+      - 'experiments/177_movement_relation_publication_safe.pml'
+      - 'experiments/177_movement_relation_publication_unsafe_reader.pml'
+      - 'experiments/177_movement_relation_publication_unsafe_writer.pml'
+      - 'experiments/182_discharge_publication_activation.md'
+      - 'experiments/182_discharge_publication_safe.pml'
+      - 'experiments/182_discharge_publication_unsafe_orphan_admission.pml'
+      - 'experiments/182_discharge_publication_unsafe_reader.pml'
+      - 'experiments/182_discharge_publication_unsafe_writer.pml'
+      - 'experiments/183_discharge_target_identity_reservation.md'
+      - 'experiments/183_discharge_target_identity_safe.pml'
+      - 'experiments/183_discharge_target_identity_unsafe_reuse.pml'
+      - 'tools/run-spin-research-case'
+      - 'tools/select-spin-research-cases'
+      - 'verification/ci/spin-research-cases.json'
+  push:
+    branches:
+      - 'main'
+      - 'experiment/059-split-publication-interleaving'
+      - 'experiment/061-resolution-split-publication'
+      - 'experiment/118-ui-stale-admission'
+      - 'experiment/177-movement-relation-publication'
+      - 'experiment/181-discharge-publication-activation'
+      - 'experiment/183-relation-id-reservation'
+    paths:
+      - '.github/actions/spin-research-case/**'
+      - '.github/workflows/spin-research-witnesses.yml'
+      - 'experiments/059_split_publication_interleaving.md'
+      - 'experiments/059_split_publication_safe.pml'
+      - 'experiments/059_split_publication_unsafe_reader.pml'
+      - 'experiments/059_split_publication_unsafe_writer.pml'
+      - 'experiments/061_resolution_split_publication.md'
+      - 'experiments/061_resolution_split_publication_safe.pml'
+      - 'experiments/061_resolution_split_publication_unsafe_reader.pml'
+      - 'experiments/061_resolution_split_publication_unsafe_writer.pml'
+      - 'experiments/118_ui_stale_admission.md'
+      - 'experiments/118_ui_stale_admission_safe.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_cancel.pml'
+      - 'experiments/118_ui_stale_admission_unsafe_complete.pml'
+      - 'experiments/177_movement_relation_publication.md'
+      - 'experiments/177_movement_relation_publication_safe.pml'
+      - 'experiments/177_movement_relation_publication_unsafe_reader.pml'
+      - 'experiments/177_movement_relation_publication_unsafe_writer.pml'
+      - 'experiments/182_discharge_publication_activation.md'
+      - 'experiments/182_discharge_publication_safe.pml'
+      - 'experiments/182_discharge_publication_unsafe_orphan_admission.pml'
+      - 'experiments/182_discharge_publication_unsafe_reader.pml'
+      - 'experiments/182_discharge_publication_unsafe_writer.pml'
+      - 'experiments/183_discharge_target_identity_reservation.md'
+      - 'experiments/183_discharge_target_identity_safe.pml'
+      - 'experiments/183_discharge_target_identity_unsafe_reuse.pml'
+      - 'tools/run-spin-research-case'
+      - 'tools/select-spin-research-cases'
+      - 'verification/ci/spin-research-cases.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select SPIN research obligations
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.select.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Qualify changed-path and branch selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python3 tools/select-spin-research-cases             --event pull_request             --paths experiments/059_split_publication_safe.pml)" =             '["split-publication-interleaving"]'
+          test "$(python3 tools/select-spin-research-cases             --event push             --branch experiment/059-split-publication-interleaving             --paths experiments/061_resolution_split_publication_safe.pml)" =             '[]'
+          test "$(python3 tools/select-spin-research-cases             --event push             --branch experiment/183-relation-id-reservation             --paths experiments/183_discharge_target_identity_safe.pml)" =             '["discharge-target-identity"]'
+          test "$(python3 tools/select-spin-research-cases             --event push             --branch experiment/059-split-publication-interleaving             --paths verification/ci/spin-research-cases.json)" =             '["split-publication-interleaving"]'
+          test "$(python3 tools/select-spin-research-cases             --event workflow_dispatch             --paths)" =             '["split-publication-interleaving","resolution-split-publication","ui-stale-admission","movement-relation-publication","discharge-publication-activation","discharge-target-identity"]'
+
+      - name: Select obligations for this event
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          cases="$(python3 tools/select-spin-research-cases             --event "$GITHUB_EVENT_NAME"             --event-file "$GITHUB_EVENT_PATH")"
+          printf 'cases=%s\n' "$cases" >> "$GITHUB_OUTPUT"
+          printf 'selected SPIN cases: %s\n' "$cases"
+
+  split-publication-interleaving:
+    name: SPIN split publication interleaving
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'split-publication-interleaving') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: split-publication-interleaving
+
+  resolution-split-publication:
+    name: SPIN Resolution split publication
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'resolution-split-publication') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: resolution-split-publication
+
+  ui-stale-admission:
+    name: SPIN stale UI admission
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'ui-stale-admission') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: ui-stale-admission
+
+  movement-relation-publication:
+    name: SPIN Movement relation publication
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'movement-relation-publication') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: movement-relation-publication
+
+  discharge-publication-activation:
+    name: SPIN discharge publication activation
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'discharge-publication-activation') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: discharge-publication-activation
+
+  discharge-target-identity:
+    name: SPIN discharge target identity reservation
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'discharge-target-identity') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spin-research-case
+        with:
+          case: discharge-target-identity
+

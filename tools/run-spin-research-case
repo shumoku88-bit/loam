@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+MANIFEST = Path("verification/ci/spin-research-cases.json")
+ZERO_ERRORS = re.compile(r"errors:\s+0")
+NONZERO_ERRORS = re.compile(r"errors:\s+[1-9][0-9]*")
+ASSERTION_VIOLATED = re.compile(r"assertion violated")
+
+
+def run_model(path: str) -> str:
+    model = Path(path)
+    if not model.is_file():
+        raise SystemExit(f"missing SPIN model: {model}")
+    result = subprocess.run(
+        ["spin", "-run", str(model)],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    output = result.stdout
+    print(f"--- {model} ---")
+    print(output, end="" if output.endswith("\n") else "\n")
+    return output
+
+
+def require_safe(case_id: str, model: str, output: str) -> None:
+    if not ZERO_ERRORS.search(output):
+        raise SystemExit(f"{case_id}: expected safe model with errors: 0: {model}")
+
+
+def require_unsafe(case_id: str, model: str, output: str) -> None:
+    witnessed = ASSERTION_VIOLATED.search(output) or NONZERO_ERRORS.search(output)
+    if not witnessed or ZERO_ERRORS.search(output):
+        raise SystemExit(
+            f"{case_id}: expected assertion violation or nonzero errors: {model}"
+        )
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: tools/run-spin-research-case CASE_ID")
+
+    case_id = sys.argv[1]
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    cases = {case["id"]: case for case in manifest["cases"]}
+    if case_id not in cases:
+        raise SystemExit(f"unknown SPIN research case: {case_id}")
+
+    case = cases[case_id]
+    print(f"{case['observation']}: {case['jobName']}")
+    for variant in case["variants"]:
+        model = variant["model"]
+        expectation = variant["expect"]
+        output = run_model(model)
+        if expectation == "safe":
+            require_safe(case_id, model, output)
+        elif expectation == "unsafe":
+            require_unsafe(case_id, model, output)
+        else:
+            raise SystemExit(f"{case_id}: unknown expectation {expectation!r}")
+
+    print(f"{case_id}: obligation preserved")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

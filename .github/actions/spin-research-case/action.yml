@@ -1,0 +1,22 @@
+name: Run LOAM SPIN research case
+description: Install SPIN and check one manifest-defined research obligation
+
+inputs:
+  case:
+    description: Case id from verification/ci/spin-research-cases.json
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install SPIN
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y spin
+        spin -V
+
+    - name: Check SPIN research obligation
+      shell: bash
+      run: python3 tools/run-spin-research-case '${{ inputs.case }}'

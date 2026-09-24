@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "sharedPaths": [
+    ".github/workflows/spin-research-witnesses.yml",
+    ".github/actions/spin-research-case/**",
+    "verification/ci/spin-research-cases.json",
+    "tools/select-spin-research-cases",
+    "tools/run-spin-research-case"
+  ],
+  "cases": [
+    {
+      "id": "split-publication-interleaving",
+      "observation": "Observation 059",
+      "jobName": "SPIN split publication interleaving",
+      "legacyWorkflow": ".github/workflows/split-publication-interleaving-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/059-split-publication-interleaving"
+      ],
+      "paths": [
+        "experiments/059_split_publication_safe.pml",
+        "experiments/059_split_publication_unsafe_writer.pml",
+        "experiments/059_split_publication_unsafe_reader.pml",
+        "experiments/059_split_publication_interleaving.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/059_split_publication_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/059_split_publication_unsafe_writer.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/059_split_publication_unsafe_reader.pml",
+          "expect": "unsafe"
+        }
+      ]
+    },
+    {
+      "id": "resolution-split-publication",
+      "observation": "Observation 061",
+      "jobName": "SPIN Resolution split publication",
+      "legacyWorkflow": ".github/workflows/resolution-split-publication-observation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/061-resolution-split-publication"
+      ],
+      "paths": [
+        "experiments/061_resolution_split_publication_safe.pml",
+        "experiments/061_resolution_split_publication_unsafe_writer.pml",
+        "experiments/061_resolution_split_publication_unsafe_reader.pml",
+        "experiments/061_resolution_split_publication.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/061_resolution_split_publication_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/061_resolution_split_publication_unsafe_writer.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/061_resolution_split_publication_unsafe_reader.pml",
+          "expect": "unsafe"
+        }
+      ]
+    },
+    {
+      "id": "ui-stale-admission",
+      "observation": "Observation 118",
+      "jobName": "SPIN stale UI admission",
+      "legacyWorkflow": ".github/workflows/observation-118-ui-stale-admission.yml",
+      "pushBranches": [
+        "main",
+        "experiment/118-ui-stale-admission"
+      ],
+      "paths": [
+        "experiments/118_ui_stale_admission_safe.pml",
+        "experiments/118_ui_stale_admission_unsafe_cancel.pml",
+        "experiments/118_ui_stale_admission_unsafe_complete.pml",
+        "experiments/118_ui_stale_admission.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/118_ui_stale_admission_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/118_ui_stale_admission_unsafe_cancel.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/118_ui_stale_admission_unsafe_complete.pml",
+          "expect": "unsafe"
+        }
+      ]
+    },
+    {
+      "id": "movement-relation-publication",
+      "observation": "Observation 177",
+      "jobName": "SPIN Movement relation publication",
+      "legacyWorkflow": ".github/workflows/observation-177-movement-relation-publication.yml",
+      "pushBranches": [
+        "main",
+        "experiment/177-movement-relation-publication"
+      ],
+      "paths": [
+        "experiments/177_movement_relation_publication_safe.pml",
+        "experiments/177_movement_relation_publication_unsafe_writer.pml",
+        "experiments/177_movement_relation_publication_unsafe_reader.pml",
+        "experiments/177_movement_relation_publication.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/177_movement_relation_publication_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/177_movement_relation_publication_unsafe_writer.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/177_movement_relation_publication_unsafe_reader.pml",
+          "expect": "unsafe"
+        }
+      ]
+    },
+    {
+      "id": "discharge-publication-activation",
+      "observation": "Observation 182",
+      "jobName": "SPIN discharge publication activation",
+      "legacyWorkflow": ".github/workflows/observation-182-discharge-publication-activation.yml",
+      "pushBranches": [
+        "main",
+        "experiment/181-discharge-publication-activation"
+      ],
+      "paths": [
+        "experiments/182_discharge_publication_safe.pml",
+        "experiments/182_discharge_publication_unsafe_writer.pml",
+        "experiments/182_discharge_publication_unsafe_reader.pml",
+        "experiments/182_discharge_publication_unsafe_orphan_admission.pml",
+        "experiments/182_discharge_publication_activation.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/182_discharge_publication_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/182_discharge_publication_unsafe_writer.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/182_discharge_publication_unsafe_reader.pml",
+          "expect": "unsafe"
+        },
+        {
+          "model": "experiments/182_discharge_publication_unsafe_orphan_admission.pml",
+          "expect": "unsafe"
+        }
+      ]
+    },
+    {
+      "id": "discharge-target-identity",
+      "observation": "Observation 183",
+      "jobName": "SPIN discharge target identity reservation",
+      "legacyWorkflow": ".github/workflows/observation-183-discharge-target-identity.yml",
+      "pushBranches": [
+        "main",
+        "experiment/183-relation-id-reservation"
+      ],
+      "paths": [
+        "experiments/183_discharge_target_identity_safe.pml",
+        "experiments/183_discharge_target_identity_unsafe_reuse.pml",
+        "experiments/183_discharge_target_identity_reservation.md"
+      ],
+      "variants": [
+        {
+          "model": "experiments/183_discharge_target_identity_safe.pml",
+          "expect": "safe"
+        },
+        {
+          "model": "experiments/183_discharge_target_identity_unsafe_reuse.pml",
+          "expect": "unsafe"
+        }
+      ]
+    }
+  ]
+}
