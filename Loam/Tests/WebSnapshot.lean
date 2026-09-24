@@ -16,6 +16,28 @@ def main (_args : List String) : IO Unit := do
     funding := .error "<budget-funding>"
   }
 
+  let jpy : Loam.Core.MeasureId := { token := "jpy" }
+  let cash : Loam.Core.LocusId := { token := "cash" }
+  let food : Loam.Core.LocusId := { token := "food" }
+  let some flowEvent1 := Loam.Core.Event.ofEffects? { token := "flow-1" } [
+      Loam.Core.Effect.ofAnonymousQuantity cash jpy (Loam.Core.Quantity.ofQuanta 500),
+      Loam.Core.Effect.ofAnonymousQuantity food jpy (Loam.Core.Quantity.ofQuanta (-500))
+    ]
+    | throw (IO.userError "could not build first Web Transactions Flow fixture Event")
+  let some flowEvent2 := Loam.Core.Event.ofEffects? { token := "flow-2" } [
+      Loam.Core.Effect.ofAnonymousQuantity cash jpy (Loam.Core.Quantity.ofQuanta (-200)),
+      Loam.Core.Effect.ofAnonymousQuantity food jpy (Loam.Core.Quantity.ofQuanta 200)
+    ]
+    | throw (IO.userError "could not build second Web Transactions Flow fixture Event")
+  let transactionsFlow : Loam.TransactionsFlowReview.Snapshot := {
+    start := "2026-09-01"
+    endExclusive := "2026-10-01"
+    columns := [
+      { event := flowEvent1, date := "2026-09-10", description := "first" },
+      { event := flowEvent2, date := "2026-09-11", description := "second" }
+    ]
+  }
+
   let snapshot : Loam.Web.Snapshot.Snapshot := {
     observedAt := "2026-09-19"
     actual := .error "<actual&unavailable>"
@@ -39,6 +61,7 @@ def main (_args : List String) : IO Unit := do
       decreasesAcrossEvents := Loam.Core.Quantity.ofQuanta (-3000)
       currentTracked := Loam.Core.Quantity.ofQuanta 12000
     }
+    transactionsFlow := .ok transactionsFlow
     roleFlow := .ok {
       start := "2026-09-01"
       endExclusive := "2026-10-01"
@@ -109,6 +132,14 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not label the Stock-Flow opening"
   expect (contains html "12000 jpy")
     "Web snapshot did not render the reconstructed/current Stock-Flow quantity"
+  expect (contains html "Transactions Flow")
+    "Web snapshot did not expose Transactions Flow"
+  expect (contains html "700 jpy")
+    "Web snapshot did not preserve gross Transactions Flow activity"
+  expect (contains html "300 jpy")
+    "Web snapshot did not render Transactions Flow net activity"
+  expect (contains html "2 selected Event(s)")
+    "Web snapshot did not render Transactions Flow Event count"
   expect (contains html "Income &amp; Expense")
     "Web snapshot did not expose Income & Expense"
   expect (contains html "3800 jpy")
