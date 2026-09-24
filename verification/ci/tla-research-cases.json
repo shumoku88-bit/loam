@@ -1,0 +1,741 @@
+{
+  "version": 1,
+  "sharedPaths": [
+    ".github/workflows/tla-research-witnesses.yml",
+    ".github/actions/tla-research-case/**",
+    "verification/ci/tla-research-cases.json",
+    "tools/select-tla-research-cases",
+    "tools/run-tla-research-case"
+  ],
+  "cases": [
+    {
+      "id": "time-indexed-relation",
+      "observation": "Observation 034",
+      "jobName": "TLA+ time-indexed relation",
+      "legacyWorkflow": ".github/workflows/observation-034.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/TimeIndexedRelation.tla",
+      "paths": [
+        "tla/TimeIndexedRelation.tla",
+        "tla/TimeIndexedRelation.cfg",
+        "tla/TimeIndexedRelationHistoricalBoundary.cfg",
+        "tla/TimeIndexedRelationFutureBoundary.cfg"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/TimeIndexedRelation.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "historical",
+          "config": "tla/TimeIndexedRelationHistoricalBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "LatestRelationAnswersPast",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "future",
+          "config": "tla/TimeIndexedRelationFutureBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "PlanAssumptionDeterminesTarget",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "valid-time-vs-learned-time",
+      "observation": "Observation 035",
+      "jobName": "TLA+ valid time vs learned time",
+      "legacyWorkflow": ".github/workflows/observation-035.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/ValidTimeVsLearnedTime.tla",
+      "paths": [
+        "tla/ValidTimeVsLearnedTime.tla",
+        "tla/ValidTimeVsLearnedTime.cfg",
+        "tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg",
+        "tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/ValidTimeVsLearnedTime.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "single-coordinate",
+          "config": "tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "ObservationTimeEqualsValidity",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "retrospective",
+          "config": "tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "RetrospectiveViewEqualsContemporaneousView",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bitemporal-correction-frontier",
+      "observation": "Observation 036",
+      "jobName": "TLA+ bitemporal correction frontier",
+      "legacyWorkflow": ".github/workflows/observation-036.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/BitemporalCorrectionFrontier.tla",
+      "paths": [
+        "tla/BitemporalCorrectionFrontier.tla",
+        "tla/BitemporalCorrectionFrontier.cfg",
+        "tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg",
+        "tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/BitemporalCorrectionFrontier.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "later-wins",
+          "config": "tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "LaterLearnedCorrectionWins",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "resolution-past",
+          "config": "tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "ResolutionRewritesPastConflict",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "correctable-explanation-edge",
+      "observation": "Observation 040",
+      "jobName": "TLA+ correctable explanation edge",
+      "legacyWorkflow": ".github/workflows/observation-040.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/CorrectableExplanationEdge.tla",
+      "paths": [
+        "tla/CorrectableExplanationEdge.tla",
+        "tla/CorrectableExplanationEdge.cfg",
+        "tla/CorrectableExplanationEdgeMutableBoundary.cfg",
+        "tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/CorrectableExplanationEdge.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "mutable",
+          "config": "tla/CorrectableExplanationEdgeMutableBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "MutableCurrentGraphAnswersEveryAsOf",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "learned-time",
+          "config": "tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "ClaimGraphWithoutLearnedTimeDeterminesAsOf",
+            "is equal to FALSE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "asynchronous-settlement",
+      "observation": "Observation 050",
+      "jobName": "TLA+ asynchronous settlement",
+      "legacyWorkflow": ".github/workflows/observation-050.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/AsynchronousSettlement.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/AsynchronousSettlement.tla",
+        "tla/AsynchronousSettlement.cfg",
+        "tla/AsynchronousSettlementPendingBoundary.cfg",
+        "tla/AsynchronousSettlementSettledBoundary.cfg",
+        "tla/AsynchronousSettlementPhysicalBoundary.cfg"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/AsynchronousSettlement.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "pending",
+          "config": "tla/AsynchronousSettlementPendingBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "NoPendingState",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "settled",
+          "config": "tla/AsynchronousSettlementSettledBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "NoSettledState",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "physical",
+          "config": "tla/AsynchronousSettlementPhysicalBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "UnmovedPhysicalStateMeansNotInitiated",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "policy-attribution-history",
+      "observation": "Observation 069",
+      "jobName": "TLA+ policy attribution history",
+      "legacyWorkflow": ".github/workflows/observation-069-policy-attribution-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/069-policy-change-history-pressure"
+      ],
+      "model": "tla/PolicyAttributionHistory.tla",
+      "paths": [
+        "tla/PolicyAttributionHistory.tla",
+        "tla/PolicyAttributionHistory*.cfg",
+        "experiments/069_policy_change_history_pressure.md",
+        "README.md",
+        "OBSERVATION_MAP.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/PolicyAttributionHistory.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/PolicyAttributionHistoryBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "CurrentPolicyReconstructsRecordedAttribution",
+            "Invariant",
+            "recordedAttribution = \"earlier3_later1\"",
+            "currentPolicy = \"preferLater\""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "policy-definition-history",
+      "observation": "Observation 071",
+      "jobName": "TLA+ policy definition history",
+      "legacyWorkflow": ".github/workflows/observation-071-policy-definition-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/071-policy-definition-history-pressure"
+      ],
+      "model": "tla/PolicyDefinitionHistory.tla",
+      "paths": [
+        "tla/PolicyDefinitionHistory.tla",
+        "tla/PolicyDefinitionHistory*.cfg",
+        "experiments/071_policy_definition_history_pressure.md",
+        "README.md",
+        "OBSERVATION_MAP.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/PolicyDefinitionHistory.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary-b",
+          "config": "tla/PolicyDefinitionHistoryBoundaryB.cfg",
+          "expect": "failure",
+          "required": [
+            "ProjectionForcesRecordedDefinitionB",
+            "Invariant",
+            "currentDefinition = \"definitionB\"",
+            "recordedDefinition = \"definitionA\"",
+            "recordedAttribution = \"earlier3_later1\""
+          ]
+        },
+        {
+          "id": "boundary-a",
+          "config": "tla/PolicyDefinitionHistoryBoundaryA.cfg",
+          "expect": "failure",
+          "required": [
+            "ProjectionForcesRecordedDefinitionA",
+            "Invariant",
+            "currentDefinition = \"definitionB\"",
+            "recordedDefinition = \"definitionB\"",
+            "recordedAttribution = \"earlier3_later1\""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "first-event-origin",
+      "observation": "Observation 087",
+      "jobName": "First-event anchored origin",
+      "legacyWorkflow": ".github/workflows/observation-087-first-event-origin.yml",
+      "pushBranches": [
+        "main",
+        "experiment/087-first-event-origin"
+      ],
+      "model": "tla/FirstEventAnchoredOrigin.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/FirstEventAnchoredOrigin.tla",
+        "tla/FirstEventAnchoredOrigin*.cfg",
+        "experiments/087_first_event_anchored_origin.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/FirstEventAnchoredOrigin.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "birth",
+          "config": "tla/FirstEventAnchoredOriginBirthWitness.cfg",
+          "expect": "failure",
+          "required": [
+            "NoFirstEventOriginEverAppears",
+            "firstEvent"
+          ]
+        },
+        {
+          "id": "auto",
+          "config": "tla/FirstEventAnchoredOriginAutoBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "AutoEnrollAllFirstAppearancesMatchesSelection"
+          ]
+        },
+        {
+          "id": "physical",
+          "config": "tla/FirstEventAnchoredOriginPhysicalBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "PhysicalFirstAppearanceDeterminesEnrollment",
+            "activity",
+            "enrolled"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zero-origin-admission-evidence",
+      "observation": "Observation 088",
+      "jobName": "Zero-origin admission evidence",
+      "legacyWorkflow": ".github/workflows/observation-088-zero-origin-admission-evidence.yml",
+      "pushBranches": [
+        "main",
+        "experiment/088-zero-origin-admission-evidence"
+      ],
+      "model": "tla/ZeroOriginAdmissionEvidence.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/ZeroOriginAdmissionEvidence.tla",
+        "tla/ZeroOriginAdmissionEvidence*.cfg",
+        "experiments/088_zero_origin_admission_evidence.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/ZeroOriginAdmissionEvidence.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "transfer",
+          "config": "tla/ZeroOriginAdmissionEvidenceTransferBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "TransferFirstAppearanceProvesZero",
+            "nonzero"
+          ]
+        },
+        {
+          "id": "income",
+          "config": "tla/ZeroOriginAdmissionEvidenceIncomeBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "IncomeFirstAppearanceProvesZero",
+            "nonzero"
+          ]
+        },
+        {
+          "id": "selection",
+          "config": "tla/ZeroOriginAdmissionEvidenceTransferSelectionBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "SameTransferFirstAppearanceDeterminesEnrollment",
+            "enrolled",
+            "transfer"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "origin-scope-valid-vs-learned",
+      "observation": "Observation 093",
+      "jobName": "Valid time vs learned time at origin",
+      "legacyWorkflow": ".github/workflows/observation-093-origin-scope-valid-vs-learned.yml",
+      "pushBranches": [
+        "main",
+        "experiment/092-origin-relative-time-cut"
+      ],
+      "model": "tla/OriginScopeValidVsLearned.tla",
+      "paths": [
+        "tla/OriginScopeValidVsLearned.tla",
+        "tla/OriginScopeValidVsLearned.cfg",
+        "tla/OriginScopeValidVsLearnedBoundary.cfg",
+        "experiments/093_origin_scope_valid_vs_learned.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/OriginScopeValidVsLearned.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/OriginScopeValidVsLearnedBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "LearnedScopeMatchesValidScopeForLateEvents",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "temporal-evidence-correction",
+      "observation": "Observation 096",
+      "jobName": "Append-only temporal evidence correction",
+      "legacyWorkflow": ".github/workflows/observation-096-temporal-evidence-correction.yml",
+      "pushBranches": [
+        "main",
+        "experiment/096-temporal-evidence-correction"
+      ],
+      "model": "tla/TemporalEvidenceCorrection.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/TemporalEvidenceCorrection.tla",
+        "tla/TemporalEvidenceCorrection.cfg",
+        "tla/TemporalEvidenceCorrectionBoundary.cfg",
+        "experiments/096_temporal_evidence_correction.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/TemporalEvidenceCorrection.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/TemporalEvidenceCorrectionBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "CurrentFrontierCanReconstructPastKnowledge",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "temporal-correction-conflict",
+      "observation": "Observation 097",
+      "jobName": "Temporal correction sibling conflict",
+      "legacyWorkflow": ".github/workflows/observation-097-temporal-correction-conflict.yml",
+      "pushBranches": [
+        "main",
+        "experiment/097-temporal-correction-conflict"
+      ],
+      "model": "tla/TemporalCorrectionConflict.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/TemporalCorrectionConflict.tla",
+        "tla/TemporalCorrectionConflict.cfg",
+        "tla/TemporalCorrectionConflictBoundary.cfg",
+        "experiments/097_temporal_correction_conflict.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/TemporalCorrectionConflict.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/TemporalCorrectionConflictBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "LearnedLatestEqualsStructuralCurrent",
+            "Invariant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "temporal-conflict-resolution-history",
+      "observation": "Observation 098",
+      "jobName": "Temporal conflict resolution history",
+      "legacyWorkflow": ".github/workflows/observation-098-temporal-conflict-resolution-history.yml",
+      "pushBranches": [
+        "main",
+        "experiment/098-temporal-conflict-resolution-history"
+      ],
+      "model": "tla/TemporalConflictResolutionHistory.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/TemporalConflictResolutionHistory.tla",
+        "tla/TemporalConflictResolutionHistory.cfg",
+        "tla/TemporalConflictResolutionHistoryBoundary.cfg",
+        "experiments/098_temporal_conflict_resolution_history.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/TemporalConflictResolutionHistory.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/TemporalConflictResolutionHistoryBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "Invariant FinalFrontierCanReconstructHistoricalConflict is violated."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "temporal-scoped-quantity-correction",
+      "observation": "Observation 099",
+      "jobName": "Temporal scoped quantity correction",
+      "legacyWorkflow": ".github/workflows/observation-099-temporal-scoped-quantity-correction.yml",
+      "pushBranches": [
+        "main",
+        "experiment/099-temporal-scoped-quantity-correction"
+      ],
+      "model": "tla/TemporalScopedQuantityCorrection.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/TemporalScopedQuantityCorrection.tla",
+        "tla/TemporalScopedQuantityCorrection.cfg",
+        "tla/TemporalScopedQuantityCorrectionBoundary.cfg",
+        "experiments/099_temporal_scoped_quantity_correction.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/TemporalScopedQuantityCorrection.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "boundary",
+          "config": "tla/TemporalScopedQuantityCorrectionBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "Invariant FinalTemporalFrontierCanReconstructPastQuantity is violated."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "query-relative-temporal-ambiguity",
+      "observation": "Observation 100",
+      "jobName": "Query-relative temporal ambiguity",
+      "legacyWorkflow": ".github/workflows/observation-100-query-relative-temporal-ambiguity.yml",
+      "pushBranches": [
+        "main",
+        "experiment/100-query-relative-temporal-ambiguity"
+      ],
+      "model": "tla/QueryRelativeTemporalAmbiguity.tla",
+      "flags": [
+        "-deadlock"
+      ],
+      "paths": [
+        "tla/QueryRelativeTemporalAmbiguity.tla",
+        "tla/QueryRelativeTemporalAmbiguity.cfg",
+        "tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg",
+        "tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg",
+        "experiments/100_query_relative_temporal_ambiguity.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/QueryRelativeTemporalAmbiguity.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "blocks",
+          "config": "tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "Invariant AnyTemporalConflictBlocksQuantity is violated."
+          ]
+        },
+        {
+          "id": "yields",
+          "config": "tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "Invariant AnyTemporalConflictStillYieldsQuantity is violated."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "measure-scale-publication-order",
+      "observation": "Observation 329",
+      "jobName": "TLA+ Measure scale publication order",
+      "legacyWorkflow": ".github/workflows/observation-329-measure-scale-order.yml",
+      "pushBranches": [
+        "main",
+        "experiment/329-measure-scale-publication-order"
+      ],
+      "model": "tla/MeasureScalePublicationOrder.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/MeasureScalePublicationOrder.tla",
+        "tla/MeasureScalePublicationOrderNaive.cfg",
+        "tla/MeasureScalePublicationOrderLocked.cfg",
+        "tla/MeasureScalePublicationOrderLockedScaleReachable.cfg",
+        "tla/MeasureScalePublicationOrderLockedUseReachable.cfg",
+        "experiments/329_measure_scale_publication_order.md"
+      ],
+      "variants": [
+        {
+          "id": "naive",
+          "config": "tla/MeasureScalePublicationOrderNaive.cfg",
+          "expect": "failure",
+          "required": [
+            "MeaningStable",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "locked",
+          "config": "tla/MeasureScalePublicationOrderLocked.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "scale",
+          "config": "tla/MeasureScalePublicationOrderLockedScaleReachable.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverScale2",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "use",
+          "config": "tla/MeasureScalePublicationOrderLockedUseReachable.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverUsed",
+            "Invariant"
+          ]
+        }
+      ]
+    }
+  ]
+}

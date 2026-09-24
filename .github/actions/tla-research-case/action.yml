@@ -1,0 +1,29 @@
+name: Run LOAM TLA+ research case
+description: Install pinned TLC and check one manifest-defined research obligation
+
+inputs:
+  case:
+    description: Case id from verification/ci/tla-research-cases.json
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Install TLC 1.7.4
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl --fail --location --retry 3 \
+          --output /tmp/tla2tools.jar \
+          https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar
+        test -s /tmp/tla2tools.jar
+        printf 'TLA2TOOLS_JAR=%s\n' /tmp/tla2tools.jar >> "$GITHUB_ENV"
+
+    - name: Check TLA+ research obligation
+      shell: bash
+      run: python3 tools/run-tla-research-case '${{ inputs.case }}'
