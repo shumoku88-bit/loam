@@ -1,3 +1,4 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 
@@ -218,6 +219,18 @@ def measureResidual (column : Column) (measure : MeasureId) : Quantity :=
         else
           total)
       0
+
+/--
+Project one Transactions-Flow window from a caller-supplied admitted Actual image.
+
+This is the composed-reader entrance for presentation surfaces that already own
+one Actual generation. It reuses the qualified Actual review projection and adds
+no second Event decoder or correction frontier.
+-/
+def projectImage
+    (image : Loam.ActualAuthority.Image)
+    (start endExclusive : String) : Except String Snapshot :=
+  project (Loam.ActualReview.recordsFromActualImage image) start endExclusive
 
 /--
 Compose the existing Actual-backed Actual reader with this pure projection.
