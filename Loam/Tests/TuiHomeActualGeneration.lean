@@ -78,7 +78,8 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
     "save Home generation zero-origin coverage"
 
   let scheduled ←
-    requireSome (ScheduledMemory.ofOccurrences? [])
+    requireSome
+      (ScheduledMemory.ofOccurrences? ([] : List (ScheduledOccurrence String)))
       "Home generation empty Scheduled memory"
   let terminals ←
     requireSome (ScheduledTerminalMemory.ofTerminals? [])
