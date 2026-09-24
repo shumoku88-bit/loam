@@ -18,6 +18,11 @@ differences visible instead of flattening all of them into "verified".
 The ledger is selective. A row belongs here when losing track of its evidence
 class would make a future design or maintenance decision materially worse.
 
+This ledger answers **what kind of evidence supports a durable claim**. It does not
+decide whether a structural distinction should be retained or compressed. Structural
+compression decisions remain in
+[`docs/research/SEMANTIC_AUDIT_LEDGER.md`](../research/SEMANTIC_AUDIT_LEDGER.md).
+
 ## Evidence vocabulary
 
 | Evidence | Meaning |

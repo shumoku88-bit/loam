@@ -8,6 +8,11 @@ Current production checkpoint: `9d43f788579f8320defea2eef9822853f1726941`
 
 This file is the current navigation ledger for structural compression work. Detailed evidence stays in the dedicated `SEMANTIC_AUDIT_SA*.md` records and PR history.
 
+This ledger answers **what structural distinction should be kept, shared, derived, moved,
+compressed, or deleted**. It does not classify the strength of evidence behind arbitrary
+LOAM claims. For that cross-cutting question, use
+[`docs/verification/EVIDENCE_LEDGER.md`](../verification/EVIDENCE_LEDGER.md).
+
 ## 1. Governing rule
 
 LOAM should retain only distinctions that earn independent meaning, information, authority, lifecycle, provenance, or safety.
