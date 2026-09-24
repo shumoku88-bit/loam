@@ -8,14 +8,19 @@ frontends do not grow separate semantic engines.
 
 ## Current production entrance
 
-Build and run:
+Run from the repository root:
 
 ```sh
-lake build loamTui
-./.lake/build/bin/loamTui
+./tools/loam
 ```
 
-`./tools/loam` opens the production TUI by default.
+This launcher builds the current `loam` executable before starting its TUI, so
+TUI changes are not missed because of an old executable. Pass an optional data
+directory via `./tools/loam tui LOAM_DATA_DIR`.
+
+For debugging, `lake build loamTui` followed by `./.lake/build/bin/loamTui`
+also works. Do not run the binary directly after changing sources without
+rebuilding it first.
 
 `LOAM_DATA_DIR` may select the household data directory; otherwise `loamTui` uses
 `../loam-data`. The selected directory is also the production Actual authority root,

@@ -25,7 +25,9 @@ LOAM provides a one-way deterministic projection from its canonical Actual evide
 
 ### Launch from TUI (One-Touch)
 
-In `loamTui`:
+Start the TUI from the repository root with `./tools/loam` (which builds it
+before launch); avoid running a stale `.lake/build/bin/loamTui` directly.
+Then:
 1. Press `v` to open **Reports**.
 2. Press `f` (or navigate to `Fava Projection` and press `Enter`).
 

@@ -89,7 +89,9 @@ try:
 
     # 3. Trigger Fava projection
     os.write(master, b"f")
-    wait_for("Fava", timeout=15)
+    # The menu already contains "Fava Projection"; require the launch result,
+    # not a label printed before the shortcut was handled.
+    wait_for("-> Fava started & opened", timeout=15)
 
     # 4. Verify Fava HTTP endpoint responds
     fava_ok = False
