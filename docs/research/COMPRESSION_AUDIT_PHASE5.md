@@ -275,3 +275,39 @@ Phase 5 is **COMPLETE**:
 5. The repeatable graduation rule is established for all future observations.
 
 Phase 6 (compare before/after complexity) may now proceed.
+
+## Follow-up graduation - Observations 053-058 storage / relation foundation
+
+A later repository-retirement pass revisited the early storage/relation experiments against current production ownership rather than observation age.
+
+Observation 052 remains in the working tree because later provenance and falsification work still uses its Effect-identity counterexample as an active reference point. Observations 053-058 have a different status: their surviving laws have moved to current owners or their experimental surface has itself retired.
+
+Current ownership is now explicit:
+
+- Observation 053's rule that representation order is not semantic history is owned directly by `EventMemory`, including permutation-invariant lookup/quantity laws and the explicit representation-order contract;
+- Observation 054's separation of logical fact meaning from physical storage topology is embodied by the current selected authority topology and compressed Observation Map rather than one global ordered fact log;
+- Observation 055's distinction between raw publication topology and admitted semantic truth is now covered by current fail-closed authority/admission protocols;
+- Observation 056's collection-identity pressure is owned by current memory/admission invariants rather than the old experiment-local relation collection;
+- Observations 057-058 depended on the old `RelationAdmission` / `EventResolution` capability surface, which was later retired from production selection in #707.
+
+No current workflow names any of the 053-058 experiment files as an executed fixture or path-owned verification source. Git history retains the exact Alloy models, prose, and prior qualified results.
+
+The following historical laboratory apparatus therefore graduates from the working tree:
+
+```text
+experiments/053_storage_order_without_history.als
+experiments/053_storage_order_without_history.md
+experiments/054_canonical_fact_topology.als
+experiments/054_canonical_fact_topology.md
+experiments/055_publication_boundary.als
+experiments/055_publication_boundary.md
+experiments/056_relation_collection_identity.als
+experiments/056_relation_collection_identity.md
+experiments/057_derived_admission.als
+experiments/057_derived_admission.md
+experiments/058_relation_memory_append.als
+experiments/058_relation_memory_append.md
+```
+
+This deliberately stops before Observation 059. The split-publication / recovery sequence still has dedicated operational SPIN coverage and therefore retains an independent current verification role.
+
