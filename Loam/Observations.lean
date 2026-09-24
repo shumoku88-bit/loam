@@ -94,11 +94,16 @@ import Loam.Observations.Observation318
 import Loam.Observations.Observation319
 
 /-!
-# Selected live Lean observations
+# Selected live Lean research witnesses
 
-This module gathers historical Lean proofs that still justify keeping an
-executable proof obligation in the current repository. Practical code should
+This module gathers historical Lean observations that still justify keeping an
+executable regression witness in the current repository. Practical code should
 import `Loam.Core` instead.
+
+This umbrella is **not** the durable kernel-proof trust surface. Some selected
+observations intentionally use `native_decide` for finite executable witnesses.
+Long-lived theorem assets selected for stronger checker/axiom qualification are
+indexed separately by `Loam.DurableProofs`.
 
 Superseded observations may graduate from this umbrella once their question,
 witness, and conclusion remain recorded in research prose and Git history and a
