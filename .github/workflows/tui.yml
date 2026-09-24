@@ -372,6 +372,25 @@ jobs:
             echo "superseded correction target leaked into current journal" >&2
             exit 1
           fi
+
+          cp "$root/actual.loam" "$root/actual-before-alias-check.loam"
+
+          if ./.lake/build/bin/loamJournalExport \
+              "$root/actual.loam" \
+              "$root/./actual.loam"; then
+            echo "Journal export accepted a dot-path alias of Actual authority" >&2
+            exit 1
+          fi
+          cmp "$root/actual-before-alias-check.loam" "$root/actual.loam"
+
+          ln -s "$root/actual.loam" "$root/actual-alias.loam"
+          if ./.lake/build/bin/loamJournalExport \
+              "$root/actual.loam" \
+              "$root/actual-alias.loam"; then
+            echo "Journal export accepted a symlink alias of Actual authority" >&2
+            exit 1
+          fi
+          cmp "$root/actual-before-alias-check.loam" "$root/actual.loam"
       - name: Verify Plain Text Accounting export
         shell: bash
         run: |
