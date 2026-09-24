@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'experiments/274_global_done_correspondence.lean'
-      - 'experiments/cslib_semantic_correspondence_002.lean'
       - '.github/workflows/observation-274-global-done-correspondence.yml'
       - 'Loam/Application/ReplacementFrontier.lean'
       - 'lean-toolchain'
