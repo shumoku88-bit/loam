@@ -10,6 +10,7 @@ LOAM provides a one-way deterministic projection from its canonical Actual evide
 2. **No heuristic classification**: Unresolved Loci are never guessed or automatically assigned to Asset/Expense/Income roles.
 3. **Strict balance enforcement**: Every Event must balance independently in each Measure across all modes.
 4. **Source overwrite protection**: Output and report files must never conflict with source authority files.
+5. **Observation is read-only**: LOAM-launched Fava runs with `--read-only`; changes must return through LOAM's own validated write paths rather than modifying the disposable projection.
 
 ## Projection Modes
 
@@ -31,7 +32,7 @@ Then:
 1. Press `v` to open **Reports**.
 2. Press `f` (or navigate to `Fava Projection` and press `Enter`).
 
-This automatically regenerates `/tmp/loam-fava-household.beancount` in `--suspense` mode, starts the Fava server on port 5001 if not already running, and opens `http://127.0.0.1:5001` in your browser.
+This automatically regenerates `/tmp/loam-fava-household.beancount` in `--suspense` mode, starts Fava in read-only mode on port 5001 if not already running, and opens `http://127.0.0.1:5001` in your browser.
 
 **Lifecycle & Process Ownership**:
 The spawned Fava server runs in a dedicated process group owned by the active `loamTui` session. When `loamTui` terminates (via `q`, `Esc`, unhandled error, or interrupt), the entire Fava process group is automatically terminated, freeing port 5001 and removing `/tmp/loam-fava.pid` so no orphaned background processes remain.
@@ -75,7 +76,7 @@ lake exe loamBeancountExport \
 Run Fava against the generated file (using `uvx` to run without global Python pollution):
 
 ```bash
-uvx --from fava fava --port 5001 /tmp/loam-fava-household.beancount
+uvx --from fava fava --read-only --port 5001 /tmp/loam-fava-household.beancount
 ```
 
 Open in your web browser:
