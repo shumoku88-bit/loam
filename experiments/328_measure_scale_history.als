@@ -14,11 +14,9 @@ sig World {
   recordedScale: Measure -> lone Scale
 }
 
-/--
-recordedScale is model-only historical truth: the convention under which retained
-quanta acquired their human fixed-point meaning. Current LOAM does not retain
-this relation beside the quantities.
--/
+// recordedScale is model-only historical truth: the convention under which retained
+// quanta acquired their human fixed-point meaning. Current LOAM does not retain
+// this relation beside the quantities.
 pred completeForRetained[w: World] {
   all q: w.retained | {
     one q.measure.(w.currentScale)
