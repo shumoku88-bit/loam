@@ -25,6 +25,14 @@ def main : IO Unit := do
     attention := .ok (.available { openItems := [] })
     budget := budget
     capacity := .error "capacity unavailable"
+    pace := .ok {
+      observedAt := "2026-09-24"
+      endExclusive := "2026-09-28"
+      remainingDays := 4
+      eligiblePool := Quantity.ofQuanta 5000
+      automaticDeductions := Quantity.ofQuanta 1000
+      availableThroughEnd := Quantity.ofQuanta 4000
+    }
     purposeMetadata := []
   }
 
@@ -44,6 +52,19 @@ def main : IO Unit := do
   | .ok (some 0) => pure ()
   | _ => throw (IO.userError
       "Home must distinguish configured-empty Attention from unavailable Attention")
+
+  match home.dailyPace with
+  | .ok (some pace) =>
+      expect (pace.quantaPerDay == 1000)
+        "Home changed the exact Daily Pace quotient"
+      expect (pace.availableThroughEnd.quanta == 4000)
+        "Home changed Daily Pace available-through-end quantity"
+      expect (pace.remainingDays == 4)
+        "Home changed Daily Pace remaining-day evidence"
+      expect (pace.endExclusive == "2026-09-28")
+        "Home changed Daily Pace cycle end"
+  | _ => throw (IO.userError
+      "Home unexpectedly lost available Daily Pace evidence")
 
   match home.funding with
   | .error message =>
