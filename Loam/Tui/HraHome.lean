@@ -166,13 +166,13 @@ to preserve the calendar as the dominant object in the left pane.
 private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
   match snapshot.paceHistory with
   | .error _ =>
-      [mutedLine " Recent pace: unavailable"]
+      [mutedLine " Recent pace (current truth): unavailable"]
   | .ok history =>
       let recent := (history.reverse.take 5).reverse
       if recent.isEmpty then
-        [mutedLine " Recent pace: unavailable"]
+        [mutedLine " Recent pace (current truth): unavailable"]
       else
-        [mutedLine " Recent pace"] ++
+        [mutedLine " Recent pace (recomputed current truth)"] ++
         (recent.map fun point =>
           match point.dailyPaceQuanta? with
           | some quanta =>
