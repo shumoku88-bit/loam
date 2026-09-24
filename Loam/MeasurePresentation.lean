@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.Core.Measure
 import Loam.Persistence.TokenSyntax
 
@@ -157,12 +158,12 @@ def configFileName : String := "measure-presentation.tsv"
 /-- Canonical presentation path next to one household Actual file. -/
 def configPathForActualFile (actualFile : System.FilePath) : System.FilePath :=
   let dataDir := actualFile.parent.getD (System.FilePath.mk ".")
-  dataDir / "config" / configFileName
+  Loam.HouseholdPaths.measurePresentation dataDir
 
 /-- Load optional Measure presentation metadata. Missing configuration is scale-0 compatibility. -/
 def loadMetadata
     (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
-  let path := dataDir / "config" / configFileName
+  let path := Loam.HouseholdPaths.measurePresentation dataDir
   try
     if ← path.pathExists then
       match decode? (← IO.FS.readFile path) with

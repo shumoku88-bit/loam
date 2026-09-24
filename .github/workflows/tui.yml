@@ -3,6 +3,7 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
       - 'Loam/Application/CapacityWindowInspection.lean'
@@ -124,6 +125,7 @@ on:
     branches:
       - 'feat/tui'
     paths:
+      - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
       - 'Loam/Application/CapacityWindowInspection.lean'

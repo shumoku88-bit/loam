@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.ActualDate
 import Loam.Persistence.TokenSyntax
 
@@ -181,7 +182,7 @@ def currentWindowFor?
 def loadCurrentWindow (dataDir : System.FilePath) (observedAt : String) :
     IO (Except String CurrentWindow) := do
   try
-    match ← load? (dataDir / "config" / "boundary-presets.tsv") with
+    match ← load? (Loam.HouseholdPaths.boundaryPresets dataDir) with
     | none => return .error "boundary preset config is malformed"
     | some presets => return currentWindowFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)
@@ -189,7 +190,7 @@ def loadCurrentWindow (dataDir : System.FilePath) (observedAt : String) :
 def loadHorizonSuggestions (dataDir : System.FilePath) (observedAt : String) :
     IO (Except String (List HorizonSuggestion)) := do
   try
-    match ← load? (dataDir / "config" / "boundary-presets.tsv") with
+    match ← load? (Loam.HouseholdPaths.boundaryPresets dataDir) with
     | none => return .error "boundary preset config is malformed"
     | some presets => return horizonSuggestionsFor? presets observedAt
   catch error => return .error ("boundary preset config unreadable: " ++ error.toString)

@@ -3,6 +3,7 @@ name: Read-only Web Frontend
 on:
   pull_request:
     paths:
+      - 'Loam/HouseholdPaths.lean'
       - 'Loam/Web/**'
       - 'Loam/Presentation/**'
       - 'Loam/Tests/WebSnapshot.lean'

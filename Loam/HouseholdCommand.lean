@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.MovementPublisher
 import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
@@ -33,23 +34,6 @@ operating on an arbitrary file. TUI, future high-level CLI, GUI, and AI adapters
 should not need to know canonical `.loam` filenames.
 -/
 
-private def scheduledFile (root : System.FilePath) : System.FilePath :=
-  root / "scheduled.loam"
-
-private def attentionFile (root : System.FilePath) : System.FilePath :=
-  root / "attention.loam"
-
-private def capacityFile (root : System.FilePath) : System.FilePath :=
-  root / "capacity.loam"
-
-private def actualRoutingFile (root : System.FilePath) : System.FilePath :=
-  root / "actual-routing.loam"
-
-private def scheduledRoutingFile (root : System.FilePath) : System.FilePath :=
-  root / "scheduled-routing.loam"
-
-private def accountingRoleFile (root : System.FilePath) : System.FilePath :=
-  root / "accounting-role.loam"
 
 /-- Record one Actual Movement through the normalized Actual publisher. -/
 def record
@@ -97,7 +81,7 @@ def reverseActual
     (draft : Loam.ActualReversalPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.ActualReversalPublisher.publishReversal
-    (scheduledFile root).toString root.toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
 
 /-- Create one independent Scheduled occurrence. -/
 def createScheduled
@@ -105,7 +89,7 @@ def createScheduled
     (draft : Loam.ScheduledCreationPublisher.Draft) :
     IO (Except String Loam.Core.ScheduledId) :=
   Loam.ScheduledCreationPublisher.publishCreation
-    (scheduledFile root).toString root.toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
 
 /-- Complete one Scheduled occurrence into Actual. -/
 def completeScheduled
@@ -113,7 +97,7 @@ def completeScheduled
     (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :
     IO (Except String Unit) :=
   Loam.ScheduledTerminalPublisher.publishCompletion
-    (scheduledFile root).toString root.toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
 
 /-- Cancel one current-open Scheduled occurrence. -/
 def cancelScheduled
@@ -121,7 +105,7 @@ def cancelScheduled
     (draft : Loam.ScheduledTerminalPublisher.CancellationDraft) :
     IO (Except String Unit) :=
   Loam.ScheduledTerminalPublisher.publishCancellation
-    (scheduledFile root).toString root.toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
 
 /-- Replace one current-open Scheduled occurrence. -/
 def replaceScheduled
@@ -129,7 +113,7 @@ def replaceScheduled
     (draft : Loam.ScheduledReplacementPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.ScheduledReplacementPublisher.publishReplacement
-    (scheduledFile root).toString root.toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
 
 /-- Inherit predecessor Scheduled routing into one newly created continuation. -/
 def inheritScheduledRouting
@@ -138,42 +122,42 @@ def inheritScheduledRouting
     (effectiveOn : String) :
     IO (Except String Loam.ScheduledContinuationRouting.Report) :=
   Loam.ScheduledContinuationRouting.inherit
-    (scheduledRoutingFile root) (scheduledFile root) predecessor created effectiveOn
+    (Loam.HouseholdPaths.scheduledRouting root) (Loam.HouseholdPaths.scheduled root) predecessor created effectiveOn
 
 /-- Add one current-open household Attention item. -/
 def addAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.AddDraft) :
     IO (Except String Loam.Core.AttentionId) :=
-  Loam.AttentionPublisher.add (attentionFile root).toString draft
+  Loam.AttentionPublisher.add (Loam.HouseholdPaths.attention root).toString draft
 
 /-- Resolve or drop one retained open household Attention item. -/
 def closeAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.CloseDraft) :
     IO (Except String Unit) :=
-  Loam.AttentionPublisher.close (attentionFile root).toString draft
+  Loam.AttentionPublisher.close (Loam.HouseholdPaths.attention root).toString draft
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.Draft) :
     IO (Except String Loam.Core.CapacityMovementId) :=
-  Loam.CapacityPublisher.publish (capacityFile root).toString draft
+  Loam.CapacityPublisher.publish (Loam.HouseholdPaths.capacity root).toString draft
 
 /-- Publish one balanced multi-coordinate Capacity movement. -/
 def rebalanceCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.BalancedDraft) :
     IO (Except String Loam.Core.CapacityMovementId) :=
-  Loam.CapacityPublisher.publishBalanced (capacityFile root).toString draft
+  Loam.CapacityPublisher.publishBalanced (Loam.HouseholdPaths.capacity root).toString draft
 
 /-- Publish one Actual routing assertion. -/
 def routeActual
     (root : System.FilePath)
     (draft : Loam.ActualRoutingPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ActualRoutingPublisher.publish (actualRoutingFile root).toString draft
+  Loam.ActualRoutingPublisher.publish (Loam.HouseholdPaths.actualRouting root).toString draft
 
 /-- Publish one Scheduled routing assertion. -/
 def routeScheduled
@@ -181,7 +165,7 @@ def routeScheduled
     (draft : Loam.ScheduledRoutingPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.ScheduledRoutingPublisher.publish
-    (scheduledRoutingFile root).toString (scheduledFile root).toString draft
+    (Loam.HouseholdPaths.scheduledRouting root).toString (Loam.HouseholdPaths.scheduled root).toString draft
 
 /-- Admit one new Locus for future publication. -/
 def admitLocus
@@ -196,7 +180,7 @@ def assignInitialAccountingRole
     (draft : Loam.AccountingRolePublisher.Draft) :
     IO (Except String Unit) :=
   Loam.AccountingRolePublisher.publishInitialRole
-    (scheduledFile root).toString root.toString (accountingRoleFile root).toString draft
+    (Loam.HouseholdPaths.scheduled root).toString root.toString (Loam.HouseholdPaths.accountingRole root).toString draft
 
 /-- Publish one complete set of current quantities observed together. -/
 def observeCurrentQuantities

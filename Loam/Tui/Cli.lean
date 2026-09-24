@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
@@ -139,7 +140,7 @@ def loadSnapshotFromActualImage
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents
   let attention ←
-    Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
+    Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
   let pace ←
     Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image today
   let paceHistory ←
@@ -1031,7 +1032,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'i' || key = .input 'I') then
-    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+    match ← Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention root) with
     | .error message =>
         let home := { state with notice := unavailableNotice "Attention" message }
         let nextFrame := compiledFrameFor bounds snapshot home
@@ -1123,7 +1124,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'v' || key = .input 'V') then
     let reports ←
-      match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
+      match ← Loam.BoundaryPresetConfig.load? (Loam.HouseholdPaths.boundaryPresets dataDir) with
       | some presets =>
           pure (Loam.Tui.Reports.initialForDateWithPresets state.selectedDate presets)
       | none =>

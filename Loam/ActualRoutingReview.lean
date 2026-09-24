@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.ActualDate
 import Loam.CapacityReview
 import Loam.Core.AccountingRole
@@ -109,8 +110,8 @@ def loadSnapshot
   if !Loam.ActualDate.validIsoDate observedAt then
     return .error "loam: Actual routing review date must be a real YYYY-MM-DD calendar date"
 
-  let routingPath := dataDir / "actual-routing.loam"
-  let rolesPath := dataDir / "accounting-role.loam"
+  let routingPath := Loam.HouseholdPaths.actualRouting dataDir
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
   if !(← routingPath.pathExists) then
     return .error "loam: required Actual routing evidence is missing"
   if !(← rolesPath.pathExists) then
@@ -129,7 +130,7 @@ def loadSnapshot
     | some roles => pure roles
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
   let capacity ←
-    match ← Loam.CapacityReview.loadSnapshot (dataDir / "capacity.loam") with
+    match ← Loam.CapacityReview.loadSnapshot (Loam.HouseholdPaths.capacity dataDir) with
     | .ok snapshot => pure snapshot
     | .error message => return .error message
 

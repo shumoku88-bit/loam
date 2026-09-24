@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ScheduledOpenWorldInspection
@@ -106,7 +107,7 @@ readers use this entrance; low-level arbitrary-path callers keep
 -/
 def loadHouseholdEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) :=
-  loadEvidenceFromActual (dataDir / "scheduled.loam") actualRoot
+  loadEvidenceFromActual (Loam.HouseholdPaths.scheduled dataDir) actualRoot
 
 /--
 Load the household Scheduled lifecycle against one caller-supplied Actual Event
@@ -117,7 +118,7 @@ completion references.
 def loadHouseholdEvidenceForEvents
     (dataDir : System.FilePath)
     (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) :=
-  loadLifecycleSnapshot? (dataDir / "scheduled.loam") eventMemory
+  loadLifecycleSnapshot? (Loam.HouseholdPaths.scheduled dataDir) eventMemory
 
 
 /--
