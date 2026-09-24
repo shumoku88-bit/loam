@@ -1,6 +1,10 @@
 import Loam.MeasurePresentationAuthority
 import Loam.CapacityAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Tests.ActualWorldFixture
+import Loam.MovementPublisher
+import Loam.MovementWorldAdapter
+import Loam.LocusAdmissionAuthority
 
 open Loam.Core
 
@@ -25,6 +29,43 @@ private def expectError {α : Type}
   | .error _ => pure ()
   | .ok _ => throw (IO.userError message)
 
+private def emptyWorld : IO Loam.MovementAdmission.World := do
+  let vocabulary ←
+    requireSome
+      (LocusAdmissionVocabulary.ofLoci?
+        [⟨"actual-source"⟩, ⟨"actual-destination"⟩])
+      "Actual fixture Locus vocabulary"
+  return {
+    events := { events := [], idNodup := by simp }
+    validity := {
+      facts := []
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp
+    }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary
+  }
+
+private def actualDraft
+    (measureToken : String) : Loam.MovementAdmission.Draft := {
+  validOn := "2026-09-24"
+  description := none
+  effects := [
+    Effect.ofQuantity
+      ⟨"scale-test-source"⟩ ⟨"actual-source"⟩ ⟨measureToken⟩
+      (Quantity.ofQuanta (-100)),
+    Effect.ofQuantity
+      ⟨"scale-test-destination"⟩ ⟨"actual-destination"⟩ ⟨measureToken⟩
+      (Quantity.ofQuanta 100)
+  ]
+  relations := []
+  discharges := []
+  total := 100
+}
+
 private def emptyScheduledImage : IO Loam.Persistence.ScheduledLifecycleImage := do
   let scheduled ←
     requireSome (ScheduledMemory.ofOccurrences? []) "empty Scheduled memory"
@@ -34,8 +75,9 @@ private def emptyScheduledImage : IO Loam.Persistence.ScheduledLifecycleImage :=
 
 private def initBase (root : System.FilePath) : IO Unit := do
   IO.FS.createDirAll root
-  requireOk (← Loam.ActualAuthority.initActualFile? (Loam.ActualAuthority.actualPath root))
-    "initialize Actual"
+  let world ← emptyWorld
+  requireOk (← Loam.Tests.ActualWorldFixture.publishWorld? root world)
+    "initialize admitted Actual fixture"
   let scheduled ← emptyScheduledImage
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
     "initialize Scheduled"
@@ -52,18 +94,10 @@ private def writePresentation
 
 private def publishActualMeasure
     (root : System.FilePath)
-    (eventToken measureToken : String) : IO Unit := do
-  let event ←
-    requireSome
-      (Event.ofEffects? ⟨eventToken⟩
-        [Effect.ofAnonymousQuantity
-          ⟨"actual-locus"⟩ ⟨measureToken⟩ (Quantity.ofQuanta 100)])
-      "Actual event"
-  let events ← requireSome (EventMemory.ofEvents? [event]) "Actual memory"
-  let evidence : Loam.ActualEvidence :=
-    { Loam.ActualEvidence.empty with events := events }
-  requireOk (← Loam.ActualAuthority.publishActual? root evidence)
-    "publish Actual fixture"
+    (measureToken : String) : IO Unit := do
+  requireOk
+    (← Loam.MovementPublisher.publishDraft root.toString (actualDraft measureToken))
+    "publish admitted Actual fixture"
 
 private def publishScheduledMeasure
     (root : System.FilePath)
@@ -142,7 +176,7 @@ private def loadScale
 private def sequentialQualification (base : System.FilePath) : IO Unit := do
   let root := base / "used-families"
   initBase root
-  publishActualMeasure root "actual-jpy" "jpy"
+  publishActualMeasure root "jpy"
   publishScheduledMeasure root "usd"
   publishCapacityMeasure root "cad"
   publishAnchorMeasure root "ils"
@@ -195,7 +229,7 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
 
   let missingRoot := base / "missing-config"
   initBase missingRoot
-  publishActualMeasure missingRoot "actual-jpy-missing-config" "jpy"
+  publishActualMeasure missingRoot "jpy"
   let missingPath := Loam.MeasurePresentationAuthority.configPath missingRoot
   expect (!(← missingPath.pathExists))
     "missing-config fixture unexpectedly has presentation config"
@@ -223,19 +257,26 @@ private def raceFirstUse
     let actual ←
       requireOk (← Loam.ActualAuthority.loadActual? root)
         "race load Actual"
-    let event ←
-      requireSome
-        (Event.ofEffects? ⟨"race-usd"⟩
-          [Effect.ofAnonymousQuantity
-            ⟨"race-locus"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 1234)])
-        "race USD Event"
-    let events ←
-      requireSome (actual.events.add? event)
-        "race append USD Event"
+    let locusAdmission ←
+      requireOk (← Loam.LocusAdmissionAuthority.loadCurrent? root)
+        "race load current Locus admission"
+    let world := Loam.MovementWorldAdapter.ofActual actual locusAdmission
+    let admitted ←
+      requireOk
+        (Loam.MovementAdmission.admit? world (actualDraft "usd"))
+        "race admit first USD Movement"
+    let updated : Loam.ActualEvidence := {
+      actual with
+      events := admitted.world.events
+      validity := admitted.world.validity
+      descriptions := admitted.world.descriptions
+      relations := admitted.world.relations
+      discharges := admitted.world.discharges
+    }
     IO.FS.writeFile ready "actual-owned\n"
     IO.sleep 1200
     requireOk
-      (← Loam.ActualAuthority.publishActual? root { actual with events := events })
+      (← Loam.ActualAuthority.publishActual? root updated)
       "race publish first USD use"
 
 private def raceCheck (root : System.FilePath) : IO Unit := do
