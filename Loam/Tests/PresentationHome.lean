@@ -20,12 +20,12 @@ def main : IO Unit := do
 
   let snapshot : Loam.Presentation.HouseholdSnapshot := {
     observedAt := "2026-09-24"
-    actual := .ok []
-    scheduled := .ok []
-    attention := .ok (.available { openItems := [] })
+    actual := .loaded []
+    scheduled := .loaded []
+    attention := .loaded { openItems := [] }
     budget := budget
-    capacity := .error "capacity unavailable"
-    pace := .ok {
+    capacity := .failed "capacity unavailable"
+    pace := .loaded {
       observedAt := "2026-09-24"
       endExclusive := "2026-09-28"
       remainingDays := 4
@@ -39,22 +39,22 @@ def main : IO Unit := do
   let home := Loam.Presentation.Home.fromSnapshot snapshot
 
   match home.recentActualCount with
-  | .ok 0 => pure ()
+  | .loaded 0 => pure ()
   | _ => throw (IO.userError
       "Home must preserve an evidenced empty recent Actual answer")
 
   match home.nextScheduled with
-  | .ok none => pure ()
+  | .loaded none => pure ()
   | _ => throw (IO.userError
       "Home must preserve an evidenced empty current-open Scheduled answer")
 
   match home.attentionOpenCount with
-  | .ok (some 0) => pure ()
+  | .loaded 0 => pure ()
   | _ => throw (IO.userError
       "Home must distinguish configured-empty Attention from unavailable Attention")
 
   match home.dailyPace with
-  | .ok (some pace) =>
+  | .loaded (some pace) =>
       expect (pace.quantaPerDay == 1000)
         "Home changed the exact Daily Pace quotient"
       expect (pace.availableThroughEnd.quanta == 4000)
@@ -67,9 +67,13 @@ def main : IO Unit := do
       "Home unexpectedly lost available Daily Pace evidence")
 
   match home.funding with
-  | .error message =>
+  | .notRequested =>
+      throw (IO.userError "Home unexpectedly left funding not requested")
+  | .unavailable =>
+      throw (IO.userError "Home unexpectedly classified funding as unavailable")
+  | .failed message =>
       throw (IO.userError ("Home unexpectedly lost funding evidence: " ++ message))
-  | .ok funding =>
+  | .loaded funding =>
       expect (funding.budgetableBacking.quanta == 1000)
         "Home changed budgetable backing"
       expect (funding.remainingAssigned.quanta == 400)
@@ -78,9 +82,9 @@ def main : IO Unit := do
         "Home did not derive the exact residual from shared funding evidence"
 
   let unavailableAttention :=
-    Loam.Presentation.Home.fromSnapshot { snapshot with attention := .ok .unavailable }
+    Loam.Presentation.Home.fromSnapshot { snapshot with attention := .unavailable }
   match unavailableAttention.attentionOpenCount with
-  | .ok none => pure ()
+  | .unavailable => pure ()
   | _ => throw (IO.userError
       "Home collapsed unavailable Attention into configured-empty Attention")
 

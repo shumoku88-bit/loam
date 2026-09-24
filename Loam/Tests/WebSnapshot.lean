@@ -40,12 +40,12 @@ def main (_args : List String) : IO Unit := do
 
   let snapshot : Loam.Web.Snapshot.Snapshot := {
     observedAt := "2026-09-19"
-    actual := .error "<actual&unavailable>"
-    scheduled := .ok []
-    attention := .ok .unavailable
+    actual := .failed "<actual&unavailable>"
+    scheduled := .loaded []
+    attention := .unavailable
     budget := budget
-    capacity := .ok { rows := [] }
-    pace := .ok {
+    capacity := .loaded { rows := [] }
+    pace := .loaded {
       observedAt := "2026-09-19"
       endExclusive := "2026-09-23"
       remainingDays := 4
@@ -53,7 +53,7 @@ def main (_args : List String) : IO Unit := do
       automaticDeductions := Loam.Core.Quantity.ofQuanta 1000
       availableThroughEnd := Loam.Core.Quantity.ofQuanta 4000
     }
-    stockFlow := .ok {
+    stockFlow := .loaded {
       start := "2026-09-01"
       endExclusive := "2026-10-01"
       reconstructedStart := Loam.Core.Quantity.ofQuanta 10000
@@ -61,8 +61,8 @@ def main (_args : List String) : IO Unit := do
       decreasesAcrossEvents := Loam.Core.Quantity.ofQuanta (-3000)
       currentTracked := Loam.Core.Quantity.ofQuanta 12000
     }
-    transactionsFlow := .ok transactionsFlow
-    roleFlow := .ok {
+    transactionsFlow := .loaded transactionsFlow
+    roleFlow := .loaded {
       start := "2026-09-01"
       endExclusive := "2026-10-01"
       rows := [
@@ -84,7 +84,7 @@ def main (_args : List String) : IO Unit := do
       ]
       unresolvedEffects := []
     }
-    roleBalances := .ok {
+    roleBalances := .loaded {
       rows := [
         { coordinate := {
             locus := { token := "cash" }

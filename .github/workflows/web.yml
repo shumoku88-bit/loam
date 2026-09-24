@@ -9,6 +9,7 @@ on:
       - 'Loam/Tests/WebSnapshot.lean'
       - 'Loam/Tests/PresentationHome.lean'
       - 'Loam/Tests/PresentationReports.lean'
+      - 'Loam/Tests/PresentationReadState.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -64,6 +65,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Verify typed presentation read state
+        run: lake env lean --run Loam/Tests/PresentationReadState.lean
 
       - name: Verify shared Home presentation
         run: lake env lean --run Loam/Tests/PresentationHome.lean

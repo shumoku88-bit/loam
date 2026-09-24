@@ -68,10 +68,10 @@ structure Balances where
   deriving Repr, DecidableEq
 
 structure Model where
-  stockFlow : Except String StockFlow
-  transactionsFlow : Except String TransactionsFlow
-  incomeExpense : Except String IncomeExpense
-  balances : Except String Balances
+  stockFlow : Loam.Presentation.ReadState StockFlow
+  transactionsFlow : Loam.Presentation.ReadState TransactionsFlow
+  incomeExpense : Loam.Presentation.ReadState IncomeExpense
+  balances : Loam.Presentation.ReadState Balances
 
 private def coordinateLe (left right : EffectCoordinate) : Bool :=
   if left.locus.token == right.locus.token then
@@ -182,11 +182,10 @@ private def presentBalances
 
 /-- Preserve qualified Review arithmetic and evidence gaps while naming presentation roles. -/
 def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
-  let stockFlow :=
-    match snapshot.stockFlow with
-    | .error message => .error message
-    | .ok report =>
-        .ok {
+  {
+    stockFlow :=
+      Loam.Presentation.ReadState.map snapshot.stockFlow fun report =>
+        {
           start := report.start
           endExclusive := report.endExclusive
           opening := report.reconstructedStart
@@ -195,23 +194,12 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
           closing := report.reconstructedEnd
           currentTracked := report.currentTracked
         }
-  let transactionsFlow :=
-    match snapshot.transactionsFlow with
-    | .error message => .error message
-    | .ok report => .ok (presentTransactionsFlow report)
-  let incomeExpense :=
-    match snapshot.roleFlow with
-    | .error message => .error message
-    | .ok report => .ok (presentIncomeExpense report)
-  let balances :=
-    match snapshot.roleBalances with
-    | .error message => .error message
-    | .ok report => .ok (presentBalances report)
-  {
-    stockFlow := stockFlow
-    transactionsFlow := transactionsFlow
-    incomeExpense := incomeExpense
-    balances := balances
+    transactionsFlow :=
+      Loam.Presentation.ReadState.map snapshot.transactionsFlow presentTransactionsFlow
+    incomeExpense :=
+      Loam.Presentation.ReadState.map snapshot.roleFlow presentIncomeExpense
+    balances :=
+      Loam.Presentation.ReadState.map snapshot.roleBalances presentBalances
   }
 
 end Loam.Presentation.Reports

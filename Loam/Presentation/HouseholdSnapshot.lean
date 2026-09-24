@@ -4,6 +4,7 @@ import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
+import Loam.Presentation.ReadState
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.ScheduledReview
@@ -33,26 +34,26 @@ persistence, publication, recurrence, classification, or write authority.
 -/
 structure HouseholdSnapshot where
   observedAt : String
-  actual : Except String (List Loam.ActualReview.Record)
-  scheduled : Except String (List Loam.ScheduledReview.Record)
-  attention : Except String Loam.AttentionReview.Availability
+  actual : Loam.Presentation.ReadState (List Loam.ActualReview.Record)
+  scheduled : Loam.Presentation.ReadState (List Loam.ScheduledReview.Record)
+  attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot
   budget : Loam.CycleBudgetReview.Snapshot
-  capacity : Except String Loam.CapacityReview.Snapshot
+  capacity : Loam.Presentation.ReadState Loam.CapacityReview.Snapshot
   /-- Current Daily Pace derived from the same admitted Actual generation when available. -/
-  pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
-    .error "loam: Daily Pace not loaded"
+  pace : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot :=
+    .notRequested
   /-- Current explicit-window Stock–Flow report for presentation, when requested. -/
-  stockFlow : Except String Loam.StockFlowReview.Snapshot :=
-    .error "loam: Stock-Flow not loaded"
+  stockFlow : Loam.Presentation.ReadState Loam.StockFlowReview.Snapshot :=
+    .notRequested
   /-- Current explicit-window role flow used by Income & Expense presentation. -/
-  roleFlow : Except String Loam.RoleFlowReview.Snapshot :=
-    .error "loam: Income & Expense not loaded"
+  roleFlow : Loam.Presentation.ReadState Loam.RoleFlowReview.Snapshot :=
+    .notRequested
   /-- Current evidence-aware Role Balance answer for presentation. -/
-  roleBalances : Except String Loam.RoleBalanceReview.Snapshot :=
-    .error "loam: Balances not loaded"
+  roleBalances : Loam.Presentation.ReadState Loam.RoleBalanceReview.Snapshot :=
+    .notRequested
   /-- Current explicit-window Transactions Flow answer for presentation. -/
-  transactionsFlow : Except String Loam.TransactionsFlowReview.Snapshot :=
-    .error "loam: Transactions Flow not loaded"
+  transactionsFlow : Loam.Presentation.ReadState Loam.TransactionsFlowReview.Snapshot :=
+    .notRequested
   purposeMetadata : List Loam.PurposeCatalog.Metadata := []
 
 end Loam.Presentation
