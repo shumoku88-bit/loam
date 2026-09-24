@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+MANIFEST = Path("verification/ci/lean-qualification-cases.json")
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: tools/run-lean-qualification-case CASE_ID")
+
+    case_id = sys.argv[1]
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    cases = {case["id"]: case for case in manifest["cases"]}
+    if case_id not in cases:
+        raise SystemExit(f"unknown Lean qualification case: {case_id}")
+
+    case = cases[case_id]
+    print(f"{case['workflowName']}: {case['jobName']}")
+    for test in case["tests"]:
+        test_path = Path(test)
+        if not test_path.is_file():
+            raise SystemExit(f"{case_id}: missing Lean test: {test_path}")
+        print(f"--- {case_id}: {test_path} ---")
+        subprocess.run(
+            ["lake", "env", "lean", "--run", str(test_path)],
+            check=True,
+        )
+
+    print(f"{case_id}: qualification preserved")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

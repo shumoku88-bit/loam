@@ -1,0 +1,143 @@
+name: Lean Application Qualifications
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lean-application-qualifications.yml'
+      - 'Loam/Application.lean'
+      - 'Loam/Application/AttentionInspection.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CorrectionFrontierIndexed.lean'
+      - 'Loam/Application/CorrectionFrontierSemantics.lean'
+      - 'Loam/Application/ReplacementFrontier.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Core/Attention.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/HashNodup.lean'
+      - 'Loam/Core/ScheduledTerminal.lean'
+      - 'Loam/Tests/Attention.lean'
+      - 'Loam/Tests/Capacity.lean'
+      - 'Loam/Tests/CapacityEffectiveWindow.lean'
+      - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
+      - 'Loam/Tests/ReplacementFrontierIndexedByTest.lean'
+      - 'Loam/Tests/ScheduledInspectionTest.lean'
+      - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - 'experiments/109_practical_slice_c1.md'
+      - 'lake-manifest.json'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'tools/run-lean-qualification-case'
+      - 'tools/select-lean-qualification-cases'
+      - 'verification/ci/lean-qualification-cases.json'
+  push:
+    branches:
+      - 'main'
+      - 'feat/attention-practical-core'
+      - 'feat/capacity-balanced-movement'
+      - 'feat/scheduled-replacement-frontier'
+      - 'perf/indexed-correction-frontier'
+      - 'perf/indexed-cycle-admission-by-stable-key'
+      - 'perf/linearize-actual-correction-admission'
+    paths:
+      - '.github/workflows/lean-application-qualifications.yml'
+      - 'Loam/Application.lean'
+      - 'Loam/Application/AttentionInspection.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Application/CapacityWindowInspection.lean'
+      - 'Loam/Application/CorrectionFrontier.lean'
+      - 'Loam/Application/CorrectionFrontierIndexed.lean'
+      - 'Loam/Application/CorrectionFrontierSemantics.lean'
+      - 'Loam/Application/ReplacementFrontier.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Core/Attention.lean'
+      - 'Loam/Core/AttentionMemory.lean'
+      - 'Loam/Core/BalancedMovement.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/EventCorrectionMemory.lean'
+      - 'Loam/Core/HashNodup.lean'
+      - 'Loam/Core/ScheduledTerminal.lean'
+      - 'Loam/Tests/Attention.lean'
+      - 'Loam/Tests/Capacity.lean'
+      - 'Loam/Tests/CapacityEffectiveWindow.lean'
+      - 'Loam/Tests/CorrectionFrontierSemanticTest.lean'
+      - 'Loam/Tests/ReplacementFrontierIndexedByTest.lean'
+      - 'Loam/Tests/ScheduledInspectionTest.lean'
+      - 'Loam/Tests/ScheduledReplacementFrontier.lean'
+      - 'experiments/109_practical_slice_c1.md'
+      - 'lake-manifest.json'
+      - 'lakefile.lean'
+      - 'lean-toolchain'
+      - 'tools/run-lean-qualification-case'
+      - 'tools/select-lean-qualification-cases'
+      - 'verification/ci/lean-qualification-cases.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select Lean qualification obligations
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Qualify changed-path and branch selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python3 tools/select-lean-qualification-cases --event pull_request --paths Loam/Core/Attention.lean)" = '["attention-slice-c1"]'
+          test "$(python3 tools/select-lean-qualification-cases --event push --branch feat/attention-practical-core --paths Loam/Core/Capacity.lean)" = '[]'
+          test "$(python3 tools/select-lean-qualification-cases --event push --branch perf/indexed-correction-frontier --paths Loam/Application/CorrectionFrontier.lean)" = '["actual-correction-frontier"]'
+          test "$(python3 tools/select-lean-qualification-cases --event push --branch feat/scheduled-replacement-frontier --paths verification/ci/lean-qualification-cases.json)" = '["scheduled-replacement-frontier"]'
+          test "$(python3 tools/select-lean-qualification-cases --event workflow_dispatch --paths)" = '["attention-slice-c1","capacity-slice-a1","actual-correction-frontier","capacity-effective-window","scheduled-replacement-frontier"]'
+
+      - name: Select qualifications for this event
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix="$(python3 tools/select-lean-qualification-cases             --event "$GITHUB_EVENT_NAME"             --event-file "$GITHUB_EVENT_PATH"             --format matrix)"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+          printf 'selected Lean qualification matrix: %s\n' "$matrix"
+
+  qualify:
+    name: ${{ matrix.jobName }}
+    needs: select
+    if: ${{ needs.select.outputs.matrix != '{"include":[]}' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build qualified Lean surface
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: ${{ matrix.buildArgs }}
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run qualification
+        shell: bash
+        run: python3 tools/run-lean-qualification-case '${{ matrix.id }}'

@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "sharedPaths": [
+    ".github/workflows/lean-application-qualifications.yml",
+    "verification/ci/lean-qualification-cases.json",
+    "tools/select-lean-qualification-cases",
+    "tools/run-lean-qualification-case"
+  ],
+  "cases": [
+    {
+      "id": "attention-slice-c1",
+      "workflowName": "Attention Slice C1",
+      "jobName": "Build typed Attention boundary",
+      "legacyWorkflow": ".github/workflows/attention-slice-c1.yml",
+      "pushBranches": [
+        "feat/attention-practical-core",
+        "main"
+      ],
+      "buildArgs": "Loam.Core Loam.Application",
+      "paths": [
+        "Loam/Core/Attention.lean",
+        "Loam/Core/AttentionMemory.lean",
+        "Loam/Core.lean",
+        "Loam/Application/AttentionInspection.lean",
+        "Loam/Application.lean",
+        "Loam/Tests/Attention.lean",
+        "experiments/109_practical_slice_c1.md",
+        "lakefile.lean",
+        "lake-manifest.json",
+        "lean-toolchain"
+      ],
+      "tests": [
+        "Loam/Tests/Attention.lean"
+      ]
+    },
+    {
+      "id": "capacity-slice-a1",
+      "workflowName": "Capacity Slice A1",
+      "jobName": "Build typed capacity boundary",
+      "legacyWorkflow": ".github/workflows/capacity-slice-a1.yml",
+      "pushBranches": [
+        "feat/capacity-balanced-movement",
+        "main"
+      ],
+      "buildArgs": "Loam.Core Loam.Application",
+      "paths": [
+        "Loam/Core/BalancedMovement.lean",
+        "Loam/Core/Capacity.lean",
+        "Loam/Core.lean",
+        "Loam/Application/CapacityInspection.lean",
+        "Loam/Application.lean",
+        "Loam/Tests/Capacity.lean",
+        "lakefile.lean",
+        "lake-manifest.json",
+        "lean-toolchain"
+      ],
+      "tests": [
+        "Loam/Tests/Capacity.lean"
+      ]
+    },
+    {
+      "id": "actual-correction-frontier",
+      "workflowName": "Practical Actual Correction Frontier",
+      "jobName": "Qualify Actual correction frontier index",
+      "legacyWorkflow": ".github/workflows/practical-actual-correction-frontier.yml",
+      "pushBranches": [
+        "main",
+        "perf/indexed-correction-frontier",
+        "perf/linearize-actual-correction-admission"
+      ],
+      "buildArgs": "Loam.Application.CorrectionFrontier",
+      "paths": [
+        "Loam/Core/EventCorrectionMemory.lean",
+        "Loam/Application/CorrectionFrontier.lean",
+        "Loam/Application/CorrectionFrontierSemantics.lean",
+        "Loam/Application/CorrectionFrontierIndexed.lean",
+        "Loam/Tests/CorrectionFrontierSemanticTest.lean"
+      ],
+      "tests": [
+        "Loam/Tests/CorrectionFrontierSemanticTest.lean"
+      ]
+    },
+    {
+      "id": "capacity-effective-window",
+      "workflowName": "Practical Capacity Effective Window",
+      "jobName": "Build and test Capacity effective window",
+      "legacyWorkflow": ".github/workflows/practical-capacity-effective-window.yml",
+      "pushBranches": [
+        "main"
+      ],
+      "buildArgs": "Loam.Core Loam.Application",
+      "paths": [
+        "Loam/Core/CapacityEffective.lean",
+        "Loam/Core.lean",
+        "Loam/Application/CapacityWindowInspection.lean",
+        "Loam/Application.lean",
+        "Loam/Tests/CapacityEffectiveWindow.lean",
+        "lean-toolchain"
+      ],
+      "tests": [
+        "Loam/Tests/CapacityEffectiveWindow.lean"
+      ]
+    },
+    {
+      "id": "scheduled-replacement-frontier",
+      "workflowName": "Practical Scheduled Replacement Frontier",
+      "jobName": "Qualify Scheduled replacement frontier",
+      "legacyWorkflow": ".github/workflows/practical-scheduled-replacement-frontier.yml",
+      "pushBranches": [
+        "main",
+        "feat/scheduled-replacement-frontier",
+        "perf/indexed-cycle-admission-by-stable-key"
+      ],
+      "buildArgs": "Loam.Application.ScheduledInspection",
+      "paths": [
+        "Loam/Core/HashNodup.lean",
+        "Loam/Core/ScheduledTerminal.lean",
+        "Loam/Application/ReplacementFrontier.lean",
+        "Loam/Application/ScheduledInspection.lean",
+        "Loam/Tests/ScheduledReplacementFrontier.lean",
+        "Loam/Tests/ScheduledInspectionTest.lean",
+        "Loam/Tests/ReplacementFrontierIndexedByTest.lean"
+      ],
+      "tests": [
+        "Loam/Tests/ScheduledReplacementFrontier.lean",
+        "Loam/Tests/ScheduledInspectionTest.lean",
+        "Loam/Tests/ReplacementFrontierIndexedByTest.lean"
+      ]
+    }
+  ]
+}
