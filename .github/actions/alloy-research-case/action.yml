@@ -1,0 +1,34 @@
+name: Run LOAM Alloy research case
+description: Install pinned Alloy and check one manifest-defined research obligation
+
+inputs:
+  case:
+    description: Case id from verification/ci/alloy-research-cases.json
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Install Alloy 6.2.0
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl --fail --location --retry 3 \
+          --output /tmp/alloy.tar.gz \
+          https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/alloy-6.2.0-linux-amd64.tar.gz
+        rm -rf /tmp/alloy
+        mkdir -p /tmp/alloy
+        tar -xzf /tmp/alloy.tar.gz -C /tmp/alloy
+        ALLOY_JAR="$(find /tmp/alloy -type f -name 'org.alloytools.alloy.dist.jar' -print -quit)"
+        test -n "$ALLOY_JAR"
+        printf 'ALLOY_JAR=%s\n' "$ALLOY_JAR" >> "$GITHUB_ENV"
+        java -jar "$ALLOY_JAR" version
+
+    - name: Check Alloy research obligation
+      shell: bash
+      run: python3 tools/run-alloy-research-case '${{ inputs.case }}'

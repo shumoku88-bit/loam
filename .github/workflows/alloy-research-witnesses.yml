@@ -1,0 +1,149 @@
+name: Alloy Research Witnesses
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/242_accounting_projection_factorization.als'
+      - 'experiments/242_accounting_projection_factorization.md'
+      - 'experiments/249_cash_flow_classification.als'
+      - 'experiments/249_cash_flow_classification.md'
+      - 'experiments/252_rea_ledger_commutation.als'
+      - 'experiments/252_rea_ledger_commutation.md'
+      - 'experiments/254_balance_history_boundary.als'
+      - 'experiments/254_balance_history_boundary.md'
+      - 'docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md'
+      - 'experiments/266_merchant_query_pressure.als'
+      - 'experiments/266_merchant_query_pressure.md'
+      - 'experiments/320_interpretation_history.als'
+      - 'experiments/320_interpretation_history.md'
+      - 'verification/ci/alloy-research-cases.json'
+      - 'tools/select-alloy-research-cases'
+      - 'tools/run-alloy-research-case'
+      - '.github/actions/alloy-research-case/**'
+      - '.github/workflows/alloy-research-witnesses.yml'
+  push:
+    branches:
+      - main
+      - 'experiment/242-accounting-projection-factorization'
+      - 'experiment/249-cash-flow-classification'
+      - 'experiment/252-rea-ledger-commutation'
+      - 'experiment/266-merchant-query-pressure'
+      - 'experiment/320-interpretation-history'
+    paths:
+      - 'experiments/242_accounting_projection_factorization.als'
+      - 'experiments/242_accounting_projection_factorization.md'
+      - 'experiments/249_cash_flow_classification.als'
+      - 'experiments/249_cash_flow_classification.md'
+      - 'experiments/252_rea_ledger_commutation.als'
+      - 'experiments/252_rea_ledger_commutation.md'
+      - 'experiments/254_balance_history_boundary.als'
+      - 'experiments/254_balance_history_boundary.md'
+      - 'docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md'
+      - 'experiments/266_merchant_query_pressure.als'
+      - 'experiments/266_merchant_query_pressure.md'
+      - 'experiments/320_interpretation_history.als'
+      - 'experiments/320_interpretation_history.md'
+      - 'verification/ci/alloy-research-cases.json'
+      - 'tools/select-alloy-research-cases'
+      - 'tools/run-alloy-research-case'
+      - '.github/actions/alloy-research-case/**'
+      - '.github/workflows/alloy-research-witnesses.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select Alloy research obligations
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.select.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Qualify changed-path and branch selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/242_accounting_projection_factorization.als)" =             '["accounting-projection-factorization"]'
+          test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
+          test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths verification/ci/alloy-research-cases.json)" =             '["accounting-projection-factorization"]'
+          test "$(python3 tools/select-alloy-research-cases             --event workflow_dispatch             --paths)" =             '["accounting-projection-factorization","balance-history-boundary","cash-flow-classification","interpretation-history","merchant-query-pressure","rea-ledger-commutation"]'
+
+      - name: Select obligations for this event
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          cases="$(python3 tools/select-alloy-research-cases             --event "$GITHUB_EVENT_NAME"             --event-file "$GITHUB_EVENT_PATH")"
+          printf 'cases=%s\n' "$cases" >> "$GITHUB_OUTPUT"
+          printf 'selected Alloy cases: %s\n' "$cases"
+
+  accounting-projection-factorization:
+    name: Falsify accounting projection compression
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'accounting-projection-factorization') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: accounting-projection-factorization
+
+  balance-history-boundary:
+    name: Qualify balance history information boundary
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'balance-history-boundary') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: balance-history-boundary
+
+  cash-flow-classification:
+    name: Falsify cash-flow classification derivability
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'cash-flow-classification') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: cash-flow-classification
+
+  interpretation-history:
+    name: Qualify interpretation-history boundary
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'interpretation-history') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: interpretation-history
+
+  merchant-query-pressure:
+    name: Falsify merchant query boundary
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'merchant-query-pressure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: merchant-query-pressure
+
+  rea-ledger-commutation:
+    name: Qualify REA Ledger commutation boundary
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'rea-ledger-commutation') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: rea-ledger-commutation
