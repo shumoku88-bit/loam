@@ -44,17 +44,20 @@ private def showIdempotent
   IO.println "LOAM idempotent Movement proposal publication"
   IO.println ("source: " ++ proposalPath)
   IO.println ("operation: " ++ operation.token)
-  IO.println ("date: " ++ draft.validOn)
-  IO.println ("effects: " ++ toString draft.effects.length)
-  IO.println ("movement: " ++ toString draft.total ++ " jpy")
-  match draft.description with
-  | some text => IO.println ("description: " ++ text)
-  | none => pure ()
-  IO.println ("event: " ++ eventId.token)
-  IO.println "[ok] proposal transport v2 parsed"
   if replayed then
+    IO.println ("event: " ++ eventId.token)
+    IO.println "[ok] proposal transport v2 parsed"
     IO.println "[ok] operation already applied; original Event reused"
+    IO.println "[ok] retry payload not displayed as retained Event evidence"
   else
+    IO.println ("date: " ++ draft.validOn)
+    IO.println ("effects: " ++ toString draft.effects.length)
+    IO.println ("movement: " ++ toString draft.total ++ " jpy")
+    match draft.description with
+    | some text => IO.println ("description: " ++ text)
+    | none => pure ()
+    IO.println ("event: " ++ eventId.token)
+    IO.println "[ok] proposal transport v2 parsed"
     IO.println "[ok] Event and operation evidence atomically published"
 
  /--

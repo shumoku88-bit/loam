@@ -37,6 +37,14 @@ private def idempotentProposal : String :=
   "effect\t-\tpaypay\tjpy\t-500\n" ++
   "effect\t-\tbooks\tjpy\t500\n"
 
+private def driftedIdempotentProposal : String :=
+  "LOAM-MOVEMENT-PROPOSAL\t2\n" ++
+  "operation\tai-book-20260917-1\n" ++
+  "date\t2026-09-18\n" ++
+  "description\tDRIFTED RETRY PAYLOAD\n" ++
+  "effect\t-\tpaypay\tjpy\t-700\n" ++
+  "effect\t-\tbooks\tjpy\t700\n"
+
 private def unadmittedLocusProposal : String :=
   "LOAM-MOVEMENT-PROPOSAL\t1\n" ++
   "date\t2026-09-16\n" ++
@@ -120,6 +128,28 @@ def main (args : List String) : IO Unit := do
   let actualPath := root / "actual.loam"
   let acceptedSnapshot ← IO.FS.readFile actualPath
 
+  IO.FS.writeFile proposalFile driftedIdempotentProposal
+  let driftedRetry ← IO.Process.output {
+    cmd := ".lake/build/bin/loamMovementProposalRecord"
+    args := #[proposalFile.toString, root.toString]
+  }
+  expect (driftedRetry.exitCode == 0)
+    s!"drifted idempotent retry failed with code {driftedRetry.exitCode}: {driftedRetry.stderr}"
+  expect (driftedRetry.stdout.contains "[ok] operation already applied; original Event reused")
+    "drifted retry did not report reuse of the original Event"
+  expect (driftedRetry.stdout.contains "[ok] retry payload not displayed as retained Event evidence")
+    "drifted retry did not report the replay presentation boundary"
+  expect (driftedRetry.stdout.contains "event: record-2")
+    "drifted retry did not identify the original retained Event"
+  expect (!(driftedRetry.stdout.contains "date: 2026-09-18"))
+    "drifted retry displayed the retry date as retained Event evidence"
+  expect (!(driftedRetry.stdout.contains "description: DRIFTED RETRY PAYLOAD"))
+    "drifted retry displayed the retry description as retained Event evidence"
+  expect (!(driftedRetry.stdout.contains "movement: 700 jpy"))
+    "drifted retry displayed the retry amount as retained Event evidence"
+  expect ((← IO.FS.readFile actualPath) == acceptedSnapshot)
+    "drifted idempotent retry modified canonical Actual authority"
+
   IO.FS.writeFile proposalFile unadmittedLocusProposal
   let refused ← IO.Process.output {
     cmd := ".lake/build/bin/loamMovementProposalRecord"
@@ -132,4 +162,4 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile actualPath) == acceptedSnapshot)
     "refused proposal modified canonical Actual authority"
 
-  IO.println "Movement proposal record: v1 compatibility, v2 idempotent retry, canonical writer reread, sparse identity, and refusal atomicity passed."
+  IO.println "Movement proposal record: v1 compatibility, v2 idempotent replay presentation, canonical writer reread, sparse identity, and refusal atomicity passed."
