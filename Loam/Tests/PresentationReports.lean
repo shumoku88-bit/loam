@@ -78,23 +78,23 @@ def main : IO Unit := do
   }
   let snapshot : Loam.Presentation.HouseholdSnapshot := {
     observedAt := "2026-09-24"
-    actual := .ok []
-    scheduled := .ok []
-    attention := .ok .unavailable
+    actual := .loaded []
+    scheduled := .loaded []
+    attention := .unavailable
     budget := budget
-    capacity := .error "capacity unavailable"
-    stockFlow := .ok stockFlow
-    transactionsFlow := .ok transactionsFlow
-    roleFlow := .ok roleFlow
-    roleBalances := .ok roleBalances
+    capacity := .failed "capacity unavailable"
+    stockFlow := .loaded stockFlow
+    transactionsFlow := .loaded transactionsFlow
+    roleFlow := .loaded roleFlow
+    roleBalances := .loaded roleBalances
     purposeMetadata := []
   }
 
   let reports := Loam.Presentation.Reports.fromSnapshot snapshot
   match reports.stockFlow with
-  | .error message =>
+  | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Stock-Flow evidence: " ++ message))
-  | .ok report =>
+  | .loaded report =>
       expect (report.start == "2026-09-01")
         "Reports changed Stock-Flow start"
       expect (report.endExclusive == "2026-10-01")
@@ -111,9 +111,9 @@ def main : IO Unit := do
         "Reports changed current tracked quantity"
 
   match reports.transactionsFlow with
-  | .error message =>
+  | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Transactions Flow evidence: " ++ message))
-  | .ok report =>
+  | .loaded report =>
       expect (report.start == "2026-09-01" && report.endExclusive == "2026-10-01")
         "Reports changed Transactions Flow window"
       expect (report.eventCount == 2)
@@ -131,9 +131,9 @@ def main : IO Unit := do
         "Reports changed Transactions Flow two-sided activity"
 
   match reports.incomeExpense with
-  | .error message =>
+  | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Income & Expense evidence: " ++ message))
-  | .ok report =>
+  | .loaded report =>
       expect (report.measures.length == 2)
         "Reports merged distinct Measures in Income & Expense"
       let some jpySummary := report.measures.find? (fun row => decide (row.measure = jpy))
@@ -152,9 +152,9 @@ def main : IO Unit := do
         "Reports changed unresolved role Effect count"
 
   match reports.balances with
-  | .error message =>
+  | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Balances evidence: " ++ message))
-  | .ok report =>
+  | .loaded report =>
       expect (report.rows.length == 1)
         "Reports changed supported Role Balance row count"
       let some row := report.rows.head?

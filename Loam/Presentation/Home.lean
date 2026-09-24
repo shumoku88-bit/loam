@@ -31,11 +31,11 @@ structure DailyPace where
 
 structure Model where
   observedAt : String
-  recentActualCount : Except String Nat
-  nextScheduled : Except String (Option Loam.ScheduledReview.Record)
-  attentionOpenCount : Except String (Option Nat)
-  dailyPace : Except String (Option DailyPace)
-  funding : Except String Funding
+  recentActualCount : Loam.Presentation.ReadState Nat
+  nextScheduled : Loam.Presentation.ReadState (Option Loam.ScheduledReview.Record)
+  attentionOpenCount : Loam.Presentation.ReadState Nat
+  dailyPace : Loam.Presentation.ReadState (Option DailyPace)
+  funding : Loam.Presentation.ReadState Funding
 
 private def scheduledBefore
     (left right : Loam.ScheduledReview.Record) : Bool :=
@@ -57,39 +57,29 @@ existing Review distinction.
 -/
 def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
   let recentActualCount :=
-    match snapshot.actual with
-    | .error message => .error message
-    | .ok records =>
-        .ok (Loam.ActualReview.select records (.week snapshot.observedAt)).length
+    Loam.Presentation.ReadState.map snapshot.actual fun records =>
+      (Loam.ActualReview.select records (.week snapshot.observedAt)).length
   let nextScheduled :=
-    match snapshot.scheduled with
-    | .error message => .error message
-    | .ok records => .ok (nextScheduledFrom records)
+    Loam.Presentation.ReadState.map snapshot.scheduled nextScheduledFrom
   let attentionOpenCount :=
-    match snapshot.attention with
-    | .error message => .error message
-    | .ok availability =>
-        match availability with
-        | .unavailable => .ok none
-        | .available attention => .ok (some attention.openItems.length)
+    Loam.Presentation.ReadState.map snapshot.attention fun attention =>
+      attention.openItems.length
   let dailyPace :=
-    match snapshot.pace with
-    | .error message => .error message
-    | .ok pace =>
-        match pace.dailyPaceQuanta? with
-        | none => .ok none
-        | some quanta =>
-            .ok (some {
-              quantaPerDay := quanta
-              availableThroughEnd := pace.availableThroughEnd
-              remainingDays := pace.remainingDays
-              endExclusive := pace.endExclusive
-            })
+    Loam.Presentation.ReadState.map snapshot.pace fun pace =>
+      match pace.dailyPaceQuanta? with
+      | none => none
+      | some quanta =>
+          some {
+            quantaPerDay := quanta
+            availableThroughEnd := pace.availableThroughEnd
+            remainingDays := pace.remainingDays
+            endExclusive := pace.endExclusive
+          }
   let funding :=
-    match snapshot.budget.funding with
-    | .error message => .error message
-    | .ok summary =>
-        .ok {
+    Loam.Presentation.ReadState.map
+      (Loam.Presentation.ReadState.fromExcept snapshot.budget.funding)
+      fun summary =>
+        {
           budgetableBacking := summary.budgetableBacking
           remainingAssigned := summary.remainingAssigned
           residualBeforeUnresolved := summary.residualBeforeUnresolved

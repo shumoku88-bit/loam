@@ -73,6 +73,21 @@ private def currentPurposeMetadata
   | .ok metadata => return metadata
   | .error _ => return []
 
+private def actualFailureState {α : Type}
+    (error : Loam.ActualAuthority.LoadError) : Loam.Presentation.ReadState α :=
+  match error with
+  | .fileNotFound _ => .unavailable
+  | .decode _ _ =>
+      .failed (Loam.ActualAuthority.LoadError.message error)
+
+private def attentionReadState
+    (result : Except String Loam.AttentionReview.Availability) :
+    Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
+  match result with
+  | .error message => .failed message
+  | .ok .unavailable => .unavailable
+  | .ok (.available snapshot) => .loaded snapshot
+
 private def renderCurrent
     (dataDir : System.FilePath) : IO (Except String String) := do
   let some observedAt ← Loam.ActualDate.todayIso?
@@ -83,50 +98,75 @@ private def renderCurrent
   Actual generation. Independent authorities such as Attention and budget
   configuration remain independently observed.
   -/
-  let actualImage ← Loam.ActualAuthority.loadImage? dataDir
-  let actual :=
+  let actualImage ← Loam.ActualAuthority.loadImageDetailed dataDir
+  let actual : Loam.Presentation.ReadState (List Loam.ActualReview.Record) :=
     match actualImage with
-    | .error message => .error message
-    | .ok image => .ok (Loam.ActualReview.recordsFromActualImage image)
+    | .error error => actualFailureState error
+    | .ok image => .loaded (Loam.ActualReview.recordsFromActualImage image)
   let scheduled ←
     match actualImage with
-    | .error message => pure (.error message)
-    | .ok image => loadScheduledFromActualImage dataDir image
+    | .error error =>
+        pure (actualFailureState error :
+          Loam.Presentation.ReadState (List Loam.ScheduledReview.Record))
+    | .ok image => do
+        let result ← loadScheduledFromActualImage dataDir image
+        pure (Loam.Presentation.ReadState.fromExcept result)
   let pace ←
     match actualImage with
-    | .error message => pure (.error message)
-    | .ok image =>
-        Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image observedAt
-  let attention ← Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
+    | .error error =>
+        pure (actualFailureState error :
+          Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot)
+    | .ok image => do
+        let result ←
+          Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt
+            dataDir image observedAt
+        pure (Loam.Presentation.ReadState.fromExcept result)
+  let attentionResult ←
+    Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
+  let attention := attentionReadState attentionResult
   let budget ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir observedAt
   let stockFlow ←
     match actualImage, budget.window with
-    | .error message, _ => pure (.error message)
+    | .error error, _ =>
+        pure (actualFailureState error :
+          Loam.Presentation.ReadState Loam.StockFlowReview.Snapshot)
     | _, .error message =>
-        pure (.error ("loam: Stock-Flow current window unavailable: " ++ message))
-    | .ok image, .ok window =>
-        Loam.StockFlowReview.loadSnapshotFromActualImage
-          dataDir image window.start window.endExclusive
-  let transactionsFlow :=
+        pure (.failed ("loam: Stock-Flow current window unavailable: " ++ message))
+    | .ok image, .ok window => do
+        let result ←
+          Loam.StockFlowReview.loadSnapshotFromActualImage
+            dataDir image window.start window.endExclusive
+        pure (Loam.Presentation.ReadState.fromExcept result)
+  let transactionsFlow : Loam.Presentation.ReadState Loam.TransactionsFlowReview.Snapshot :=
     match actualImage, budget.window with
-    | .error message, _ => .error message
+    | .error error, _ => actualFailureState error
     | _, .error message =>
-        .error ("loam: Transactions Flow current window unavailable: " ++ message)
+        .failed ("loam: Transactions Flow current window unavailable: " ++ message)
     | .ok image, .ok window =>
-        Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive
+        Loam.Presentation.ReadState.fromExcept
+          (Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive)
   let roleFlow ←
     match actualImage, budget.window with
-    | .error message, _ => pure (.error message)
+    | .error error, _ =>
+        pure (actualFailureState error :
+          Loam.Presentation.ReadState Loam.RoleFlowReview.Snapshot)
     | _, .error message =>
-        pure (.error ("loam: Income & Expense current window unavailable: " ++ message))
-    | .ok image, .ok window =>
-        Loam.RoleFlowReview.loadSnapshotFromActualImage
-          dataDir image window.start window.endExclusive
+        pure (.failed ("loam: Income & Expense current window unavailable: " ++ message))
+    | .ok image, .ok window => do
+        let result ←
+          Loam.RoleFlowReview.loadSnapshotFromActualImage
+            dataDir image window.start window.endExclusive
+        pure (Loam.Presentation.ReadState.fromExcept result)
   let roleBalances ←
     match actualImage with
-    | .error message => pure (.error message)
-    | .ok image => Loam.RoleBalanceReview.loadSnapshotFromActualImage dataDir image
-  let capacity ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
+    | .error error =>
+        pure (actualFailureState error :
+          Loam.Presentation.ReadState Loam.RoleBalanceReview.Snapshot)
+    | .ok image => do
+        let result ← Loam.RoleBalanceReview.loadSnapshotFromActualImage dataDir image
+        pure (Loam.Presentation.ReadState.fromExcept result)
+  let capacityResult ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
+  let capacity := Loam.Presentation.ReadState.fromExcept capacityResult
   let purposeMetadata ← currentPurposeMetadata dataDir
 
   let snapshot : Loam.Web.Snapshot.Snapshot := {

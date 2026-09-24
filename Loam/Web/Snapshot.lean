@@ -48,6 +48,26 @@ private def unavailable (message : String) : String :=
 private def empty (message : String) : String :=
   "<p class=\"empty\">" ++ escapeHtml message ++ "</p>"
 
+private def inlineReadState {α : Type}
+    (state : Loam.Presentation.ReadState α)
+    (loaded : α → String)
+    (notRequestedText unavailableText : String) : String :=
+  match state with
+  | .notRequested => escapeHtml notRequestedText
+  | .unavailable => escapeHtml unavailableText
+  | .failed message => "Read failed: " ++ escapeHtml message
+  | .loaded value => loaded value
+
+private def blockReadState {α : Type}
+    (state : Loam.Presentation.ReadState α)
+    (loaded : α → String)
+    (notRequestedText unavailableText : String) : String :=
+  match state with
+  | .notRequested => unavailable notRequestedText
+  | .unavailable => unavailable unavailableText
+  | .failed message => unavailable ("Read failed: " ++ message)
+  | .loaded value => loaded value
+
 private def renderRows (rows : List String) : String :=
   if rows.isEmpty then
     empty "No current items."
@@ -82,35 +102,46 @@ private def tableCell (content : String) : String :=
 private def renderHome (snapshot : Snapshot) : String :=
   let home := Loam.Presentation.Home.fromSnapshot snapshot
   let actualText :=
-    match home.recentActualCount with
-    | .error message => "Unavailable: " ++ escapeHtml message
-    | .ok count => escapeHtml (toString count ++ " record(s) in current week")
+    inlineReadState home.recentActualCount
+      (fun count => escapeHtml (toString count ++ " record(s) in current week"))
+      "Not requested"
+      "Unavailable"
   let scheduledText :=
-    match home.nextScheduled with
-    | .error message => "Unavailable: " ++ escapeHtml message
-    | .ok none => "None current-open"
-    | .ok (some record) =>
-        escapeHtml (record.scheduledOn ++ "  " ++ Loam.ScheduledReview.summary record)
+    inlineReadState home.nextScheduled
+      (fun next =>
+        match next with
+        | none => "None current-open"
+        | some record =>
+            escapeHtml (record.scheduledOn ++ "  " ++ Loam.ScheduledReview.summary record))
+      "Not requested"
+      "Unavailable"
   let attentionText :=
-    match home.attentionOpenCount with
-    | .error message => "Unavailable: " ++ escapeHtml message
-    | .ok none => "Not configured"
-    | .ok (some count) => escapeHtml (toString count ++ " open")
+    inlineReadState home.attentionOpenCount
+      (fun count => escapeHtml (toString count ++ " open"))
+      "Not requested"
+      "Not configured"
   let paceText :=
-    match home.dailyPace with
-    | .error message => "Unavailable: " ++ escapeHtml message
-    | .ok none => "Unavailable"
-    | .ok (some pace) =>
-        escapeHtml
-          (toString pace.quantaPerDay ++ " jpy/day  (" ++
-            toString pace.availableThroughEnd.quanta ++ " jpy through " ++
-            pace.endExclusive ++ "; " ++ toString pace.remainingDays ++ " days)")
+    inlineReadState home.dailyPace
+      (fun pace? =>
+        match pace? with
+        | none => "Unavailable"
+        | some pace =>
+            escapeHtml
+              (toString pace.quantaPerDay ++ " jpy/day  (" ++
+                toString pace.availableThroughEnd.quanta ++ " jpy through " ++
+                pace.endExclusive ++ "; " ++ toString pace.remainingDays ++ " days)"))
+      "Not requested"
+      "Unavailable"
   let fundingRows :=
     match home.funding with
-    | .error message =>
+    | .notRequested =>
+        "<tr><th>Current funding</th>" ++ tableCell "Not requested" ++ "</tr>"
+    | .unavailable =>
+        "<tr><th>Current funding</th>" ++ tableCell "Unavailable" ++ "</tr>"
+    | .failed message =>
         "<tr><th>Current funding</th>" ++
-        tableCell ("Unavailable: " ++ escapeHtml message) ++ "</tr>"
-    | .ok funding =>
+        tableCell ("Read failed: " ++ escapeHtml message) ++ "</tr>"
+    | .loaded funding =>
         "<tr><th>Budgetable backing</th>" ++
           tableCell (quantityText funding.budgetableBacking) ++ "</tr>\n" ++
         "<tr><th>Remaining assigned</th>" ++
@@ -128,32 +159,34 @@ private def renderHome (snapshot : Snapshot) : String :=
 
 private def renderActual
     (observedAt : String)
-    (result : Except String (List Loam.ActualReview.Record)) : String :=
-  match result with
-  | .error message => unavailable message
-  | .ok records =>
+    (result : Loam.Presentation.ReadState (List Loam.ActualReview.Record)) : String :=
+  blockReadState result
+    (fun records =>
       let selected := (Loam.ActualReview.select records (.week observedAt)).take 12
       renderRows <| selected.map fun record =>
         "<span class=\"coordinate\">" ++ escapeHtml (record.date.getD "date unknown") ++ "</span> " ++
-        escapeHtml (Loam.ActualReview.summary record)
+        escapeHtml (Loam.ActualReview.summary record))
+    "Actual was not requested."
+    "Actual authority is unavailable."
 
 private def renderScheduled
-    (result : Except String (List Loam.ScheduledReview.Record)) : String :=
-  match result with
-  | .error message => unavailable message
-  | .ok records =>
+    (result : Loam.Presentation.ReadState (List Loam.ScheduledReview.Record)) : String :=
+  blockReadState result
+    (fun records =>
       renderRows <| (records.take 12).map fun record =>
         "<span class=\"coordinate\">" ++ escapeHtml record.scheduledOn ++ "</span> " ++
-        escapeHtml (Loam.ScheduledReview.summary record)
+        escapeHtml (Loam.ScheduledReview.summary record))
+    "Scheduled was not requested."
+    "Scheduled evidence is unavailable."
 
 private def renderAttention
-    (result : Except String Loam.AttentionReview.Availability) : String :=
-  match result with
-  | .error message => unavailable message
-  | .ok .unavailable => unavailable "Attention authority is not configured."
-  | .ok (.available snapshot) =>
+    (result : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot) : String :=
+  blockReadState result
+    (fun snapshot =>
       renderRows <| snapshot.openItems.map fun item =>
-        escapeHtml (Loam.AttentionReview.summary item)
+        escapeHtml (Loam.AttentionReview.summary item))
+    "Attention was not requested."
+    "Attention authority is not configured."
 
 private def renderBudgetWindow (snapshot : Loam.CycleBudgetReview.Snapshot) : String :=
   match snapshot.window with
@@ -235,15 +268,16 @@ private def renderBudget
 
 private def renderCapacity
     (metadata : List Loam.PurposeCatalog.Metadata)
-    (result : Except String Loam.CapacityReview.Snapshot) : String :=
-  match result with
-  | .error message => unavailable message
-  | .ok snapshot =>
+    (result : Loam.Presentation.ReadState Loam.CapacityReview.Snapshot) : String :=
+  blockReadState result
+    (fun snapshot =>
       "<p class=\"note\">All-retained Capacity entitlement. This is not the current-cycle budget.</p>\n" ++
       (renderRows <| snapshot.rows.map fun row =>
         "<span class=\"coordinate\">" ++
         escapeHtml (Loam.PurposeCatalog.labelFor metadata row.purpose) ++ "</span> " ++
-        quantityText row.entitlement)
+        quantityText row.entitlement))
+    "Capacity was not requested."
+    "Capacity evidence is unavailable."
 
 private def roleLabel : AccountingRole → String
   | .asset => "Asset"
@@ -258,11 +292,9 @@ private def measuredQuantityText
 
 private def renderStockFlowReport
     (reports : Loam.Presentation.Reports.Model) : String :=
-  match reports.stockFlow with
-  | .error message =>
-      "<h3>Current Cycle Stock-Flow</h3>\n" ++ unavailable message
-  | .ok report =>
-      "<h3>Current Cycle Stock-Flow</h3>\n" ++
+  "<h3>Current Cycle Stock-Flow</h3>\n" ++
+  blockReadState reports.stockFlow
+    (fun report =>
       "<p class=\"note\">Why did the tracked balance become what it is? Values come from the shared Stock-Flow Review.</p>\n" ++
       "<table class=\"facts\" summary=\"Current cycle Stock-Flow bridge\">\n" ++
       "<tr><th>Window</th>" ++
@@ -273,14 +305,15 @@ private def renderStockFlowReport
       "<tr><th>Decreases</th>" ++ tableCell (quantityText report.decreases) ++ "</tr>\n" ++
       "<tr><th>Closing reconstructed</th>" ++ tableCell (quantityText report.closing) ++ "</tr>\n" ++
       "<tr><th>Current tracked</th>" ++ tableCell (quantityText report.currentTracked) ++ "</tr>\n" ++
-      "</table>"
+      "</table>")
+    "Stock-Flow was not requested."
+    "Stock-Flow evidence is unavailable."
 
 private def renderTransactionsFlowReport
     (reports : Loam.Presentation.Reports.Model) : String :=
-  match reports.transactionsFlow with
-  | .error message =>
-      "<h3>Transactions Flow</h3>\n" ++ unavailable message
-  | .ok report =>
+  "<h3>Transactions Flow</h3>\n" ++
+  blockReadState reports.transactionsFlow
+    (fun report =>
       let rows :=
         report.rows.map fun row =>
           let measure := row.coordinate.measure
@@ -300,19 +333,19 @@ private def renderTransactionsFlowReport
           "<tr><th>Coordinate</th><th>Net</th><th>Gross</th>" ++
           "<th>Positive</th><th>Negative</th><th>Events</th></tr>\n" ++
           String.intercalate "\n" rows ++ "\n</table>"
-      "<h3>Transactions Flow</h3>\n" ++
       "<p class=\"note\">Exact coordinate activity. Gross preserves movement hidden by a small or zero net; signs do not infer transfer, income, expense, debit, or credit.</p>\n" ++
       "<p>Window " ++ escapeHtml report.start ++ " to " ++
         escapeHtml report.endExclusive ++ " (end exclusive); " ++
         escapeHtml (toString report.eventCount) ++ " selected Event(s).</p>\n" ++
-      body
+      body)
+    "Transactions Flow was not requested."
+    "Transactions Flow evidence is unavailable."
 
 private def renderIncomeExpenseReport
     (reports : Loam.Presentation.Reports.Model) : String :=
-  match reports.incomeExpense with
-  | .error message =>
-      "<h3>Income &amp; Expense</h3>\n" ++ unavailable message
-  | .ok report =>
+  "<h3>Income &amp; Expense</h3>\n" ++
+  blockReadState reports.incomeExpense
+    (fun report =>
       let rows :=
         report.measures.map fun row =>
           "<tr><td>" ++ escapeHtml row.measure.token ++ "</td>" ++
@@ -326,21 +359,21 @@ private def renderIncomeExpenseReport
           "<table summary=\"Current cycle Income and Expense role flow\">\n" ++
           "<tr><th>Measure</th><th>Income</th><th>Expense</th><th>Result</th></tr>\n" ++
           String.intercalate "\n" rows ++ "\n</table>"
-      "<h3>Income &amp; Expense</h3>\n" ++
       "<p class=\"note\">Occurrence-time AccountingRole flow. Distinct Measures remain separate; no valuation or period closing is inferred.</p>\n" ++
       "<p>Window " ++ escapeHtml report.start ++ " to " ++
         escapeHtml report.endExclusive ++ " (end exclusive)</p>\n" ++
       body ++ "\n" ++
       "<p class=\"note\">Unresolved role Effects: " ++
         escapeHtml (toString report.unresolvedEffectCount) ++
-        ". Totals are partial when this count is nonzero.</p>"
+        ". Totals are partial when this count is nonzero.</p>")
+    "Income & Expense was not requested."
+    "Income & Expense evidence is unavailable."
 
 private def renderBalancesReport
     (reports : Loam.Presentation.Reports.Model) : String :=
-  match reports.balances with
-  | .error message =>
-      "<h3>Balances</h3>\n" ++ unavailable message
-  | .ok report =>
+  "<h3>Balances</h3>\n" ++
+  blockReadState reports.balances
+    (fun report =>
       let rows :=
         report.rows.map fun row =>
           "<tr><td>" ++ escapeHtml (roleLabel row.role) ++ "</td>" ++
@@ -355,13 +388,13 @@ private def renderBalancesReport
           "<table summary=\"Evidence-aware current accounting balances\">\n" ++
           "<tr><th>Role</th><th>Locus</th><th>Measure</th><th>Quantity</th></tr>\n" ++
           String.intercalate "\n" rows ++ "\n</table>"
-      "<h3>Balances</h3>\n" ++
       "<p class=\"note\">Current evidence-aware Role Balance rows. This presentation does not infer missing roles or unsupported quantities.</p>\n" ++
       body ++ "\n" ++
       "<p class=\"note\">Unresolved roles: " ++
         escapeHtml (toString report.unresolvedRoleCount) ++
-        "; unsupported balances: " ++
-        escapeHtml (toString report.unsupportedBalanceCount) ++ ".</p>"
+        "; unsupported balances: " ++ escapeHtml (toString report.unsupportedBalanceCount) ++ ".</p>")
+    "Balances were not requested."
+    "Balance evidence is unavailable."
 
 private def renderReports (snapshot : Snapshot) : String :=
   let reports := Loam.Presentation.Reports.fromSnapshot snapshot
