@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **BOUNDED AMBIGUITY QUALIFIED / PRODUCTION DESIGN OPEN**
+Status: **STRUCTURAL + TEMPORAL QUALIFICATION COMPLETE / PRODUCTION IMPLEMENTATION OPEN**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -173,34 +173,70 @@ used-Measure scale-stability rule.
 
 ### R2 — policy-to-production correspondence
 
-Classification: **design selection now open**.
+**Closed at protocol-selection level by Observation 329.**
 
-The next question is not whether scale stability matters. That is already
-decided and the ambiguity is now demonstrated. The next question is which
-smallest production boundary can preserve the distinction without turning
-Measure into Currency or adding unnecessary historical machinery.
+Repository inspection identified four current retained-quantity authority
+families:
 
-Candidates remain deliberately unselected:
+```text
+Actual
+Scheduled
+Capacity
+CurrentQuantityAnchor
+```
 
-1. retained immutable Measure-convention binding;
-2. append-only convention history;
-3. explicit migration evidence around a stable binding;
-4. another fail-closed mechanism with equivalent retained distinguishability.
+A naive `check unused -> later update scale` protocol is racy because first-use
+quantity publication can occur between the check and update.
+
+GitHub Actions run `35945792069`, TLA+ tools 1.7.4 / TLC, qualified:
+
+```text
+NaiveSpec + MeaningStable
+    -> invariant violation, reachable first-use race
+
+LockedSpec + MeaningStable
+    -> PASS, 513 distinct states / complete explored state space
+
+LockedSpec + NeverScale2
+    -> invariant violation, proving pre-use scale change remains reachable
+
+LockedSpec + NeverUsed
+    -> invariant violation, proving quantity publication remains reachable
+```
+
+The selected production direction is therefore deliberately operational rather
+than ontological:
+
+```text
+scale administration
+    -> acquire retained-quantity authorities in compatible fixed order
+    -> re-read them under ownership
+    -> used Measure: refuse ordinary scale change
+    -> unused Measure: atomically publish new presentation config
+```
+
+This does not require retaining scale on every Quantity, inventing a Currency
+type, or adding a new lock to every quantity writer.
+
+Explicit migration remains a separate future operation if a used Measure ever
+really needs a scale change.
 
 ## Current stop point
 
 This branch changes no production semantics.
 
-Observation 328 establishes that current snapshot evidence is insufficient.
-That earns a production-design step, but not yet a particular representation.
+D3 now has:
 
-Do not add a Core field, generic migration framework, or temporal protocol merely
-because the ambiguity exists. First choose the smallest retained operational
-boundary that distinguishes stable convention from migration.
+1. an existing retained-meaning policy;
+2. a D2 ownership/consumer map;
+3. an Alloy counterexample proving current-snapshot insufficiency;
+4. a TLA+ counterexample for naive mutation ordering;
+5. a TLA+ qualified candidate protocol that preserves both scale change before
+   use and ordinary quantity publication.
 
-After that choice:
+The next step is a small production implementation of that administration
+boundary, followed by source-correspondence and integration qualification.
 
-- use **Lean** only if a reusable general law remains worth retaining;
-- use **TLA+/SPIN** only if the selected design introduces a multi-step migration
-  or publication protocol whose ordering can change outcomes;
-- otherwise ordinary publisher qualification and persistence tests may be enough.
+Lean is not yet required. The remaining work is correspondence between the
+qualified protocol and concrete WriterOwnership / persistence code, not a new
+mathematical law.
