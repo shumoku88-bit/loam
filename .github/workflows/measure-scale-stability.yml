@@ -3,6 +3,7 @@ name: Measure Scale Stability
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/MeasurePresentation.lean'
       - 'Loam/MeasurePresentationAuthority.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -28,6 +29,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/MeasurePresentation.lean'
       - 'Loam/MeasurePresentationAuthority.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -66,17 +68,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Build production Measure scale boundary
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Qualify retained-family scale stability
         run: |

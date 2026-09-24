@@ -3,6 +3,7 @@ name: Practical Slice A2
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/BalancedMovement.lean'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/Purpose.lean'
@@ -27,6 +28,7 @@ on:
       - 'fix/correction-aware-consumption'
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/BalancedMovement.lean'
       - 'Loam/Core/Capacity.lean'
       - 'Loam/Core/Purpose.lean'
@@ -62,17 +64,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build Core and Application
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.Core Loam.Application
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Run capacity boundary check
         shell: bash

@@ -3,6 +3,7 @@ name: Cycle Funding Inspection
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
@@ -17,6 +18,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
@@ -46,17 +48,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Build shared funding boundary
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.CycleFundingInspection Loam.Tests.ActualWorldFixture
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Qualify funding arithmetic and explicit evidence selection
         run: lake env lean --run Loam/Tests/CycleFundingInspection.lean
       - name: Check neighboring physical balance review

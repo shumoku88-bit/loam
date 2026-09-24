@@ -3,6 +3,7 @@ name: Shared ActualValidity Publisher
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualAuthority.lean'
@@ -27,6 +28,7 @@ on:
       - main
       - feat/tui
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ActualValidityPublisher.lean'
       - 'Loam/ActualAuthority.lean'
@@ -60,17 +62,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build shared publisher test dependencies
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify Movement operation evidence contract
         run: lake env lean --run Loam/Tests/MovementOperationEvidence.lean
       - name: Verify normalized Actual persistence

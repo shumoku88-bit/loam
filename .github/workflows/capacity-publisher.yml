@@ -3,6 +3,7 @@ name: Shared Capacity Publisher
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/CapacityAuthority.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
@@ -23,6 +24,7 @@ on:
       - main
       - feat/tui
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/CapacityAuthority.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/CapacityReview.lean'
@@ -52,17 +54,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build shared Capacity publisher
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityAuthority Loam.CapacityPublisher Loam.CapacityReview
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify shared Capacity publication
         run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
       - name: Verify normalized Capacity round trip

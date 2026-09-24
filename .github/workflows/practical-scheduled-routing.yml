@@ -3,6 +3,7 @@ name: Practical Scheduled Routing
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -22,6 +23,7 @@ on:
       - 'feat/scheduled-capacity-pressure'
       - 'feat/scheduled-routing-publisher'
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Core/ScheduledRouting.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -47,17 +49,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build practical Scheduled routing utility and projection dependency
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.ScheduledRoutingPublisher
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Check routing persistence feeds existing Commitment semantics
         shell: bash

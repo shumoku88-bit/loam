@@ -3,6 +3,7 @@ name: Shared Scheduled Terminal Publisher
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
@@ -24,6 +25,7 @@ on:
       - main
       - feat/tui
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/ScheduledReview.lean'
@@ -54,16 +56,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build shared Scheduled publisher dependencies
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.ScheduledTerminalPublisher Loam.ScheduledReview Loam.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify Actual-backed Scheduled completion and cancellation
         run: lake env lean --run Loam/Tests/ScheduledTerminalPublisher.lean "$(mktemp -d)/scheduled-terminal-publisher"

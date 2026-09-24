@@ -3,6 +3,7 @@ name: Practical Actual Routing Persistence
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core.lean'
@@ -21,6 +22,7 @@ on:
       - 'feat/actual-routing-persistence'
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core.lean'
@@ -51,17 +53,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build Core and Application
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.Core Loam.Application Loam.Persistence.ActualRoutingPersistence
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
 
       - name: Run Actual routing persistence story
         shell: bash

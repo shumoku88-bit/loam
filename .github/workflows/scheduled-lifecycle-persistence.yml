@@ -3,6 +3,7 @@ name: Scheduled Lifecycle Persistence
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
@@ -15,6 +16,7 @@ on:
       - main
       - feat/tui
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
@@ -36,16 +38,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build lifecycle persistence
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.Persistence.ScheduledLifecyclePersistence
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify complete lifecycle codec and fail-closed authority
         run: lake env lean --run Loam/Tests/ScheduledLifecyclePersistence.lean "$(mktemp -d)/scheduled-lifecycle"

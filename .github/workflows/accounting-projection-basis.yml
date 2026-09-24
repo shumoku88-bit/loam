@@ -3,6 +3,7 @@ name: Accounting Projection Basis
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/RoleFlowReview.lean'
       - 'Loam/RoleBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -32,6 +33,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/RoleFlowReview.lean'
       - 'Loam/RoleBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -76,17 +78,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Build accounting projection basis
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.RoleFlowReview Loam.RoleBalanceReview Loam.CurrentQuantityAnchorPublisher Loam.Cli
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Qualify role-aware flow composition

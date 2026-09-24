@@ -35,6 +35,7 @@ on:
       - 'Loam/**'
       - 'lakefile.lean'
       - '.github/workflows/**'
+      - '.github/actions/lean-build/**'
   workflow_dispatch:
 
 permissions:

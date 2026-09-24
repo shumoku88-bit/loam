@@ -3,6 +3,7 @@ name: Merchant Expense Review
 on:
   pull_request:
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/MerchantExpenseReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
@@ -19,6 +20,7 @@ on:
     branches:
       - main
     paths:
+      - '.github/actions/lean-build/**'
       - 'Loam/MerchantExpenseReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
@@ -45,16 +47,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Lean and build Merchant Expense review
-        uses: leanprover/lean-action@v1
+        uses: ./.github/actions/lean-build
         with:
-          auto-config: false
-          build: true
           build-args: Loam.MerchantExpenseReview
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          leanchecker: false
-          axiom-audit: false
-          use-github-cache: true
       - name: Verify exact Merchant Expense projection
         run: lake env lean --run Loam/Tests/MerchantExpenseReview.lean
