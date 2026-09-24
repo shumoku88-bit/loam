@@ -2,6 +2,7 @@ import Loam.ActualReview
 import Loam.AttentionReview
 import Loam.CapacityReview
 import Loam.CycleBudgetReview
+import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
 
@@ -33,6 +34,9 @@ structure HouseholdSnapshot where
   attention : Except String Loam.AttentionReview.Availability
   budget : Loam.CycleBudgetReview.Snapshot
   capacity : Except String Loam.CapacityReview.Snapshot
+  /-- Current Daily Pace derived from the same admitted Actual generation when available. -/
+  pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
+    .error "loam: Daily Pace not loaded"
   purposeMetadata : List Loam.PurposeCatalog.Metadata := []
 
 end Loam.Presentation

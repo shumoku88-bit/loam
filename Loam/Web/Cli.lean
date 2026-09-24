@@ -1,8 +1,10 @@
+import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.AttentionReview
 import Loam.CapacityReview
 import Loam.CycleBudgetReview
+import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
 import Loam.Web.Snapshot
@@ -52,9 +54,11 @@ private def outputConflictsWithHouseholdRoot
   let parentResolved ← IO.FS.realPath parent
   return resolvedPathInside rootResolved parentResolved
 
-private def loadScheduled
-    (dataDir : System.FilePath) : IO (Except String (List Loam.ScheduledReview.Record)) := do
-  match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir dataDir with
+private def loadScheduledFromActualImage
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image) :
+    IO (Except String (List Loam.ScheduledReview.Record)) := do
+  match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
   | .error message => return .error message
   | .ok evidence => return Loam.ScheduledReview.orderedCurrentOpenRecords evidence
 
@@ -69,8 +73,25 @@ private def renderCurrent
   let some observedAt ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local date"
 
-  let actual ← Loam.ActualReview.loadRecordsFromActual dataDir
-  let scheduled ← loadScheduled dataDir
+  /-
+  Actual, current-open Scheduled validation, and Daily Pace share one admitted
+  Actual generation. Independent authorities such as Attention and budget
+  configuration remain independently observed.
+  -/
+  let actualImage ← Loam.ActualAuthority.loadImage? dataDir
+  let actual :=
+    match actualImage with
+    | .error message => .error message
+    | .ok image => .ok (Loam.ActualReview.recordsFromActualImage image)
+  let scheduled ←
+    match actualImage with
+    | .error message => pure (.error message)
+    | .ok image => loadScheduledFromActualImage dataDir image
+  let pace ←
+    match actualImage with
+    | .error message => pure (.error message)
+    | .ok image =>
+        Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image observedAt
   let attention ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
   let budget ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir observedAt
   let capacity ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
@@ -83,6 +104,7 @@ private def renderCurrent
     attention := attention
     budget := budget
     capacity := capacity
+    pace := pace
     purposeMetadata := purposeMetadata
   }
 

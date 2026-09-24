@@ -22,11 +22,19 @@ structure Funding where
   residualBeforeUnresolved : Quantity
   deriving Repr, DecidableEq
 
+structure DailyPace where
+  quantaPerDay : Int
+  availableThroughEnd : Quantity
+  remainingDays : Nat
+  endExclusive : String
+  deriving Repr, DecidableEq
+
 structure Model where
   observedAt : String
   recentActualCount : Except String Nat
   nextScheduled : Except String (Option Loam.ScheduledReview.Record)
   attentionOpenCount : Except String (Option Nat)
+  dailyPace : Except String (Option DailyPace)
   funding : Except String Funding
 
 private def scheduledBefore
@@ -64,6 +72,19 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
         match availability with
         | .unavailable => .ok none
         | .available attention => .ok (some attention.openItems.length)
+  let dailyPace :=
+    match snapshot.pace with
+    | .error message => .error message
+    | .ok pace =>
+        match pace.dailyPaceQuanta? with
+        | none => .ok none
+        | some quanta =>
+            .ok (some {
+              quantaPerDay := quanta
+              availableThroughEnd := pace.availableThroughEnd
+              remainingDays := pace.remainingDays
+              endExclusive := pace.endExclusive
+            })
   let funding :=
     match snapshot.budget.funding with
     | .error message => .error message
@@ -78,6 +99,7 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
     recentActualCount := recentActualCount
     nextScheduled := nextScheduled
     attentionOpenCount := attentionOpenCount
+    dailyPace := dailyPace
     funding := funding
   }
 
