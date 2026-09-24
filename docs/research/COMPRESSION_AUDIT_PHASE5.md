@@ -360,3 +360,22 @@ experiments/154_production_fixture_parity.md
 
 Observation 153 is deliberately excluded because Scheduled routing subject semantics are a different research thread and were not part of the closed Actual identity/wire-shape retirement finding.
 
+## Follow-up graduation - Observation 218 migration prose
+
+Observation 218's theorem-heavy executable migration proof had already graduated to Git history after `ReplacementFrontier` became current production mathematics. The remaining Markdown record explicitly described itself as promoted historical evidence and pointed to current ownership beside the implementation.
+
+A fresh ownership pass confirms that its surviving boundaries are no longer unique to that note:
+
+- `Loam/Application/ReplacementFrontier.lean` owns the finite partial-successor-map mechanics and the current executable contract;
+- `SEMANTIC_AUDIT_SA007_APPLICATION.md` explicitly keeps OpenRelation revision outside ReplacementFrontier;
+- `OBSERVATION_MAP.md` retains the broader rule that similar-shaped meanings do not automatically earn one generic ontology;
+- later Observation 274 / correspondence work owns stronger current theorem correspondence for the global-done implementation.
+
+No current file refers to `experiments/218_partial_injective_frontier.md` by filename. Historical references to Observation 218 remain valid through Git history.
+
+The final prose artifact therefore graduates from the working tree:
+
+```text
+experiments/218_partial_injective_frontier.md
+```
+
