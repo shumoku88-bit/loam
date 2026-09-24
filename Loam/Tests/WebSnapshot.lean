@@ -32,6 +32,12 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not retain the lightweight-browser HTML baseline"
   expect (contains html "<title>LOAM Web</title>")
     "Web snapshot did not render its document identity"
+  expect (contains html "href=\"#home\"")
+    "Web snapshot did not expose lightweight section navigation"
+  expect (contains html "id=\"home\" class=\"card\"")
+    "Web snapshot did not expose the Lean-derived Home section"
+  expect (contains html "Current household orientation derived from shared Lean Review answers.")
+    "Web snapshot did not identify the Home presentation boundary"
   expect (contains html "Recent Actual")
     "Web snapshot did not expose the Actual section"
   expect (contains html "Current-open Scheduled")

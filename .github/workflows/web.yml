@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'Loam/Web/**'
+      - 'Loam/Presentation/**'
       - 'Loam/Tests/WebSnapshot.lean'
+      - 'Loam/Tests/PresentationHome.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
@@ -47,6 +49,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Verify shared Home presentation
+        run: lake env lean --run Loam/Tests/PresentationHome.lean
 
       - name: Verify presentation-only Web snapshot
         run: lake env lean --run Loam/Tests/WebSnapshot.lean
