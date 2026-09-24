@@ -24,6 +24,8 @@ on:
       - "Loam/Tui/ReportsSession.lean"
       - "Loam/Tui/CycleBudgetSession.lean"
       - "Loam/Tui/CapacitySession.lean"
+      - "Loam/Tui/HraScheduledSession.lean"
+      - "Loam/Tui/ScheduledCancellationSession.lean"
       - "Loam/Tui/TransactionsFlowPane.lean"
       - "Loam/Tests/TuiTransactionsFlow.lean"
       - "docs/drakon/build_map.py"
