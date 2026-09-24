@@ -183,3 +183,21 @@ witnesses for the production Scheduled suppression comparison.
 
 The three intermediate Lean probes therefore graduate to Git history rather
 than remain compiled source.
+
+## Follow-up — graduate Budget Window probes
+
+Observations 181 and 196 have graduated from compiled research witnesses to
+production-owned design constraints.
+
+Observation 181's result is now explicit in production: Budget Window rows retain
+Entitlement and Consumption, while `Row.remaining` is derived from those two
+components. Production tests continue to exercise the derived Remaining value.
+
+Observation 196's result is now explicit in the Reports query boundary:
+`ReportWindow` turns a selected-date anchor plus a visible source policy
+(Calendar Month, named preset, or Custom) into explicit `[start, end)`
+coordinates. `BudgetWindowReview` accepts only those explicit coordinates and
+does not infer a retained Period identity.
+
+The two intermediate Lean probes therefore graduate to Git history. Their
+research notes remain as the rationale for the production shape.
