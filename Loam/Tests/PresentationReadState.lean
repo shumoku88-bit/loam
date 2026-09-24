@@ -39,12 +39,21 @@ def main : IO Unit := do
     capacity := .loaded { rows := [] }
   }
 
-  match snapshot.pace, snapshot.stockFlow, snapshot.roleFlow,
-      snapshot.roleBalances, snapshot.transactionsFlow with
-  | .notRequested, .notRequested, .notRequested, .notRequested, .notRequested =>
-      pure ()
-  | _ => throw (IO.userError
-      "HouseholdSnapshot optional reads must default to notRequested")
+  match snapshot.pace with
+  | .notRequested => pure ()
+  | _ => throw (IO.userError "Daily Pace must default to notRequested")
+  match snapshot.stockFlow with
+  | .notRequested => pure ()
+  | _ => throw (IO.userError "Stock-Flow must default to notRequested")
+  match snapshot.roleFlow with
+  | .notRequested => pure ()
+  | _ => throw (IO.userError "Role Flow must default to notRequested")
+  match snapshot.roleBalances with
+  | .notRequested => pure ()
+  | _ => throw (IO.userError "Role Balances must default to notRequested")
+  match snapshot.transactionsFlow with
+  | .notRequested => pure ()
+  | _ => throw (IO.userError "Transactions Flow must default to notRequested")
 
   expect true "typed read-state qualification completed"
   IO.println "Presentation ReadState: loaded emptiness, failure, and not-requested defaults passed."
