@@ -25,21 +25,35 @@ private def renderJournal (entries : List Loam.ActualJournalProjection.Entry) : 
   let lines := entries.flatMap renderEntry
   if lines.isEmpty then "" else String.intercalate "\n" lines ++ "\n"
 
+/--
+Return true when Journal output would replace the canonical Actual input.
+
+Raw path strings are insufficient because lexical aliases and symbolic links can
+name the same filesystem object. Existing paths are therefore compared after
+`IO.FS.realPath`, matching the already-qualified PTA / Beancount export
+boundary.
+-/
 private def conflictsWithCanonicalPath
-    (actualPath outputPath : String) : Bool :=
-  outputPath == actualPath
+    (actualPath outputPath : System.FilePath) : IO Bool := do
+  if actualPath == outputPath then
+    return true
+  if (← actualPath.pathExists) && (← outputPath.pathExists) then
+    let actualResolved ← IO.FS.realPath actualPath
+    let outputResolved ← IO.FS.realPath outputPath
+    return actualResolved == outputResolved
+  return false
 
 /--
 Regenerate one human-readable Actual journal from one fully admitted normalized Actual image.
 -/
 def exportJournal
     (actualPath outputPath : String) : IO UInt32 := do
-  if conflictsWithCanonicalPath actualPath outputPath then
-    IO.eprintln "loam: journal output must not replace a canonical Actual evidence stream"
-    return 2
-
   let actualFile := System.FilePath.mk actualPath
   let outputFile := System.FilePath.mk outputPath
+
+  if ← conflictsWithCanonicalPath actualFile outputFile then
+    IO.eprintln "loam: journal output must not replace a canonical Actual evidence stream"
+    return 2
 
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualFile with
