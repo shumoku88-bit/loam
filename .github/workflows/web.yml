@@ -57,6 +57,35 @@ jobs:
           grep -q '<title>LOAM Web</title>' /tmp/loam-web.html
           grep -q '<!DOCTYPE HTML PUBLIC' /tmp/loam-web.html
 
+      - name: Refuse Web output inside household storage
+        run: |
+          tmpdir="$(mktemp -d)"
+          data="$tmpdir/data"
+          mkdir -p "$data"
+          printf 'KEEP\n' > "$data/actual.loam"
+
+          if .lake/build/bin/loamWeb "$data" "$data/snapshot.html"; then
+            echo "Web output unexpectedly created a file inside the household root" >&2
+            exit 1
+          fi
+          test ! -e "$data/snapshot.html"
+
+          if .lake/build/bin/loamWeb "$data" "$data/./actual.loam"; then
+            echo "Web output unexpectedly replaced Actual through a lexical alias" >&2
+            exit 1
+          fi
+          grep -qx 'KEEP' "$data/actual.loam"
+
+          ln -s "$data/actual.loam" "$tmpdir/actual-alias"
+          if .lake/build/bin/loamWeb "$data" "$tmpdir/actual-alias"; then
+            echo "Web output unexpectedly replaced Actual through a symbolic-link alias" >&2
+            exit 1
+          fi
+          grep -qx 'KEEP' "$data/actual.loam"
+
+          .lake/build/bin/loamWeb "$data" "$tmpdir/snapshot.html"
+          grep -q '<title>LOAM Web</title>' "$tmpdir/snapshot.html"
+
       - name: Check request-on-read server syntax
         run: python3 -m py_compile tools/loam_web_server.py
 
