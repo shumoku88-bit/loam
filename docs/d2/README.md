@@ -45,7 +45,9 @@ Do not produce both views mechanically. A second projection must answer a distin
 `current_actual_target_comparison.d2` projects the same evidence already recorded by:
 
 - `docs/research/CURRENT_ACTUAL_TARGET_OBLIGATION_DAG.md`;
-- `docs/drakon/build_current_actual_target_audit_map.py`.
+- the closed Generation-2 audit record in `docs/research/AUDIT_GENERATION_2_CHECKPOINT_031.md`.
+
+The original G2 DRAKON builder graduated from the working tree after Generation 2 closed; Git history retains the exact historical renderer.
 
 The useful structural distinction is that Correction and Reversal consume the retained Event payload after the shared correction-current root, while Date correction consumes Event identity only. The projection therefore makes shared semantics visible without implying that one shared runtime helper is justified.
 
