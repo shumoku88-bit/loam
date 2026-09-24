@@ -95,9 +95,10 @@ private def writePresentation
 private def publishActualMeasure
     (root : System.FilePath)
     (measureToken : String) : IO Unit := do
-  requireOk
+  let _ ← requireOk
     (← Loam.MovementPublisher.publishDraft root.toString (actualDraft measureToken))
     "publish admitted Actual fixture"
+  pure ()
 
 private def publishScheduledMeasure
     (root : System.FilePath)
