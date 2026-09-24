@@ -6,6 +6,8 @@ import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
+import Loam.RoleBalanceReview
+import Loam.RoleFlowReview
 import Loam.ScheduledReview
 import Loam.StockFlowReview
 import Loam.Web.Snapshot
@@ -103,6 +105,18 @@ private def renderCurrent
     | .ok image, .ok window =>
         Loam.StockFlowReview.loadSnapshotFromActualImage
           dataDir image window.start window.endExclusive
+  let roleFlow ←
+    match actualImage, budget.window with
+    | .error message, _ => pure (.error message)
+    | _, .error message =>
+        pure (.error ("loam: Income & Expense current window unavailable: " ++ message))
+    | .ok image, .ok window =>
+        Loam.RoleFlowReview.loadSnapshotFromActualImage
+          dataDir image window.start window.endExclusive
+  let roleBalances ←
+    match actualImage with
+    | .error message => pure (.error message)
+    | .ok image => Loam.RoleBalanceReview.loadSnapshotFromActualImage dataDir image
   let capacity ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
   let purposeMetadata ← currentPurposeMetadata dataDir
 
@@ -115,6 +129,8 @@ private def renderCurrent
     capacity := capacity
     pace := pace
     stockFlow := stockFlow
+    roleFlow := roleFlow
+    roleBalances := roleBalances
     purposeMetadata := purposeMetadata
   }
 
