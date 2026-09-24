@@ -109,8 +109,8 @@ def main : IO Unit := do
   let dueTodayText := widgetText dueTodayView
   expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
     "Home did not expose the current Daily Pace answer"
-  expect (contains "Recent pace (reconstructed from current evidence)" dueTodayText)
-    "Home did not identify Daily Pace history as a current-evidence reconstruction"
+  expect (contains "Recent pace (recomputed current truth)" dueTodayText)
+    "Home did not identify Daily Pace history as recomputed current truth"
   expect (contains "09-05  150 jpy/day" dueTodayText &&
           contains "09-06  160 jpy/day" dueTodayText &&
           contains "09-07  170 jpy/day" dueTodayText)
