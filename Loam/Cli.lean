@@ -18,6 +18,7 @@ import Loam.Cli.BudgetWindowCli
 import Loam.Cli.JournalExportCli
 import Loam.Cli.PlainTextAccountingExportCli
 import Loam.Cli.BeancountExportCli
+import Loam.Cli.MeasureScaleCli
 import Loam.Tui.Cli
 import Loam.RoleBalanceReview
 import Loam.Tui.Kernel
@@ -52,6 +53,8 @@ private def practicalUsage : String :=
   "  loam report balances [LOAM_DATA_DIR]\n\n" ++
   "Publish one complete current quantity observation image:\n" ++
   "  loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
+  "Administer one Measure presentation scale:\n" ++
+  "  loam measure-scale DATA_ROOT MEASURE SCALE\n\n" ++
   "Scheduled persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
   "  loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
@@ -170,6 +173,8 @@ def run (args : List String) : IO UInt32 := do
   | ["report", "balances", dataDir] => showRoleBalanceReport (some dataDir)
   | "current-quantity-anchor" :: observationArgs =>
       Loam.CurrentQuantityAnchorCli.run observationArgs
+  | "measure-scale" :: scaleArgs =>
+      Loam.MeasureScaleCli.run scaleArgs
   | ["scheduled", "show", scheduledPath] =>
       Loam.ScheduledCli.showScheduled scheduledPath
   | ["review", actualPath] => Loam.ReviewCli.review actualPath
