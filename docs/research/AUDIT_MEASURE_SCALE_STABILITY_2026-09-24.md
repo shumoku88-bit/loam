@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **OBLIGATION SCAFFOLD OPEN / PRODUCTION UNCHANGED**
+Status: **BOUNDED AMBIGUITY QUALIFIED / PRODUCTION DESIGN OPEN**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -152,27 +152,33 @@ unresolved product-policy question.
 
 ### R1 — proof / bounded structural distinguishability
 
-Observation 328 asks whether two worlds can share the same current retained
-quantity and current config while differing in the historical scale that gave
-the quantity its human meaning.
+**Closed by Observation 328.**
 
-Tool: **Alloy**.
+GitHub Actions run `35945061540`, Alloy 6.2.0 / Sat4j, qualified:
 
-Why Alloy is earned here:
+```text
+ambiguousCurrentSnapshot                        SAT
+silentScaleRewriteExists                        SAT
+stableUseExists                                 SAT
+CurrentSnapshotDeterminesHistoricalConvention   SAT counterexample
+QualifiedSnapshotDeterminesHistoricalConvention UNSAT counterexample
+```
 
-- the residual is about representational sufficiency, not control flow;
-- a small counterexample is enough to refute current-snapshot sufficiency;
-- Lean would only prove a proposition after choosing a representation;
-- TLA+/SPIN are premature because no migration protocol has been selected yet.
+Two worlds can therefore share the same current retained quantity and current
+configuration while differing in the historical scale that gave the quantity
+its human meaning.
+
+Current-snapshot inspection alone is insufficient to enforce the documented
+used-Measure scale-stability rule.
 
 ### R2 — policy-to-production correspondence
 
-Classification: **unknown until R1 closes**.
+Classification: **design selection now open**.
 
-If R1 finds the expected counterexample, the next question is not whether scale
-stability matters. That is already decided. The next question is which smallest
-production boundary can preserve it without turning Measure into Currency or
-adding unnecessary historical machinery.
+The next question is not whether scale stability matters. That is already
+decided and the ambiguity is now demonstrated. The next question is which
+smallest production boundary can preserve the distinction without turning
+Measure into Currency or adding unnecessary historical machinery.
 
 Candidates remain deliberately unselected:
 
@@ -181,13 +187,20 @@ Candidates remain deliberately unselected:
 3. explicit migration evidence around a stable binding;
 4. another fail-closed mechanism with equivalent retained distinguishability.
 
-## Stop point
+## Current stop point
 
-This branch must not change production semantics.
+This branch changes no production semantics.
 
-Do not add a Core field, publisher, migration framework, or Lean theorem until
-Observation 328 determines whether the current snapshot itself is sufficient.
+Observation 328 establishes that current snapshot evidence is insufficient.
+That earns a production-design step, but not yet a particular representation.
 
-If the bounded counterexample exists, use that result to select the smallest
-production design. Only then decide whether Lean or a temporal model earns a
-role in qualification.
+Do not add a Core field, generic migration framework, or temporal protocol merely
+because the ambiguity exists. First choose the smallest retained operational
+boundary that distinguishes stable convention from migration.
+
+After that choice:
+
+- use **Lean** only if a reusable general law remains worth retaining;
+- use **TLA+/SPIN** only if the selected design introduces a multi-step migration
+  or publication protocol whose ordering can change outcomes;
+- otherwise ordinary publisher qualification and persistence tests may be enough.
