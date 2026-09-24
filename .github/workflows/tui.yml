@@ -13,6 +13,7 @@ on:
       - 'Loam/DailyPaceConfig.lean'
       - 'Loam/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
+      - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/LocusAdmissionPublisher.lean'
@@ -561,6 +562,9 @@ jobs:
 
       - name: Verify current cycle Daily Pace review boundary
         run: lake env lean --run Loam/Tests/CycleSpendingPaceReview.lean
+
+      - name: Verify Home same-Actual-generation composition
+        run: lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
 
       - name: Verify Capacity workspace
         run: lake env lean --run Loam/Tests/TuiCapacity.lean
