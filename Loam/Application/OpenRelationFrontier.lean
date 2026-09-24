@@ -305,15 +305,9 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
-          apply SourceKey.ext
-          · exact hSame.1
-          · exact hSame.2
+          exact congrArg₂ SourceKey.mk hSame.1 hSame.2
         simp [hKey, sameRelationSource, hSame]
-        change ((buildCoverageIndex rest).get? {
-          event := sourceRelation.sourceEvent,
-          effect := sourceRelation.sourceEffect
-        }).getD 0 = currentCoverageFor rest sourceRelation
-        exact ih
+        simpa only [currentCoverageFor] using ih
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
