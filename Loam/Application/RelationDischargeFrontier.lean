@@ -1,6 +1,7 @@
 import Loam.Application.OpenRelationFrontier
 import Loam.Core.HashNodup
 import Std.Data.HashMap
+import Std.Data.HashMap.Lemmas
 
 namespace Loam.Application
 
@@ -96,28 +97,83 @@ private def uniqueDischargeEvents
 
 /--
 Transient lookup index for remembered Events.
+
+The structurally recursive shape makes the correspondence to the canonical
+list lookup explicit: the head Event overrides the recursively indexed tail,
+matching `EventMemory.findById?` exactly even before using EventId uniqueness.
 -/
+private def buildEventIndexFrom :
+    List Event → Std.HashMap String Event
+  | [] => {}
+  | event :: rest =>
+      (buildEventIndexFrom rest).insert event.id.token event
+
 private def buildEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
-  events.events.foldl
-    (fun index event => index.insert event.id.token event)
-    {}
+  buildEventIndexFrom events.events
+
+/--
+The transient Event index is extensionally identical to canonical EventMemory
+identity lookup.
+-/
+theorem buildEventIndex_get?_eq_findById?
+    (events : EventMemory)
+    (id : EventId) :
+    (buildEventIndex events)[id.token]? =
+      EventMemory.findById? events id := by
+  cases events with
+  | mk eventList hNodup =>
+      simp only [buildEventIndex, EventMemory.findById?]
+      induction eventList with
+      | nil =>
+          simp [buildEventIndexFrom, FiniteKeyed.findBy?]
+      | cons event rest ih =>
+          simp only [buildEventIndexFrom, FiniteKeyed.findBy?]
+          rw [Std.HashMap.get?_insert]
+          by_cases hId : event.id = id
+          · subst hId
+            simp
+          · have hToken : event.id.token ≠ id.token := by
+              intro h
+              exact hId (eventIdToken_injective h)
+            simp [hToken, hId, ih]
 
 /--
 Build a target-keyed bucket index from the raw discharge list.
 
-The raw discharges for each target are accumulated in reverse order from
-`discharges.reverse`, so each bucket preserves the exact order in which
-discharges appeared in `discharges`, in overall expected O(D) time without
-allocating intermediate appended lists.
+Recursing through the tail and then prepending the head into its target bucket
+preserves the exact raw List order for every target in expected O(D) time.
 -/
-private def buildDischargeBuckets
-    (discharges : List RelationDischarge) : Std.HashMap String (List RelationDischarge) :=
-  discharges.reverse.foldl
-    (fun index discharge =>
+private def buildDischargeBuckets :
+    List RelationDischarge → Std.HashMap String (List RelationDischarge)
+  | [] => {}
+  | discharge :: rest =>
+      let index := buildDischargeBuckets rest
       let prior := index[discharge.target.token]?.getD []
-      index.insert discharge.target.token (discharge :: prior))
-    {}
+      index.insert discharge.target.token (discharge :: prior)
+
+/--
+Each transient target bucket is exactly the raw discharge list filtered to that
+RelationUnitId, including representation order.
+-/
+theorem buildDischargeBuckets_getD_eq_filter
+    (discharges : List RelationDischarge)
+    (target : RelationUnitId) :
+    (buildDischargeBuckets discharges)[target.token]?.getD [] =
+      discharges.filter (fun discharge => discharge.target = target) := by
+  induction discharges with
+  | nil =>
+      simp [buildDischargeBuckets]
+  | cons discharge rest ih =>
+      simp only [buildDischargeBuckets]
+      rw [Std.HashMap.get?_insert]
+      by_cases hTarget : discharge.target = target
+      · subst hTarget
+        simp [ih]
+      · have hToken : discharge.target.token ≠ target.token := by
+          intro h
+          exact hTarget (relationUnitIdToken_injective h)
+        simp [hToken, hTarget, ih]
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
@@ -184,7 +240,7 @@ private def admittedForCurrentTargetIndexed?
     (target : AdmittedRelationUnit) : Option (List AdmittedRelationDischarge) := do
   let targetDischarges := index.byTarget[target.relation.id.token]?.getD []
   let active := targetDischarges.filter fun discharge =>
-    index.events.contains discharge.event.token
+    index.events[discharge.event.token]?.isSome
   if !uniqueDischargeEvents active then
     none
   else
