@@ -88,6 +88,14 @@ private theorem eventIdToken_injective :
   cases h
   rfl
 
+private theorem relationUnitIdToken_injective :
+    Function.Injective (fun id : RelationUnitId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 private def uniqueDischargeEvents
     (discharges : List RelationDischarge) : Bool :=
   (hashNodupBy?
@@ -174,11 +182,17 @@ theorem buildDischargeBuckets_getD_eq_filter
       rw [Std.HashMap.get?_insert]
       by_cases hTarget : discharge.target = target
       · subst hTarget
-        simp [ih]
+        simp
+        change ((buildDischargeBuckets rest).get? discharge.target.token).getD [] =
+          rest.filter (fun discharge_1 => discharge_1.target = discharge.target)
+        exact ih
       · have hToken : discharge.target.token ≠ target.token := by
           intro h
           exact hTarget (relationUnitIdToken_injective h)
-        simp [hToken, hTarget, ih]
+        simp [hToken, hTarget]
+        change ((buildDischargeBuckets rest).get? target.token).getD [] =
+          rest.filter (fun discharge_1 => discharge_1.target = target)
+        exact ih
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
