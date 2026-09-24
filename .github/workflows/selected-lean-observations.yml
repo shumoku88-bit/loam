@@ -1,6 +1,9 @@
-name: Selected Lean Observations
+name: Lean Proof Surfaces
 
-# This lane owns CI coverage for the selected live Lean observation umbrella.
+# Two deliberately different Lean evidence tiers:
+# - durable: small long-lived theorem surface, checked with lean4checker + axiom audit
+# - observations: broader research-regression witnesses, which may use native_decide
+#
 # Do not add a per-observation workflow when its only independent action would
 # be to rebuild a module already imported by Loam.Observations.
 
@@ -27,12 +30,31 @@ permissions:
   contents: read
 
 concurrency:
-  group: selected-lean-observations-${{ github.ref }}
+  group: lean-proof-surfaces-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lean:
-    name: Build selected live Lean observations
+  durable:
+    name: Check durable Lean proof surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build and independently check durable proofs
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.DurableProofs
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: true
+          axiom-audit: true
+          use-github-cache: true
+
+  observations:
+    name: Build selected live Lean research witnesses
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
