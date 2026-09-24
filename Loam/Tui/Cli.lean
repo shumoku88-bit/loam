@@ -26,7 +26,6 @@ import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
 import Loam.Tui.ScheduledCoverageSetupSession
-import Loam.ScheduledCoverageReview
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
@@ -43,6 +42,7 @@ import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
+import Loam.Tui.ReportsSession
 import Loam.Tui.FavaLaunch
 import Loam.BoundaryPresetConfig
 import Loam.Tui.CompletionPrompt
@@ -54,12 +54,6 @@ import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
 import Loam.ActualRoutingReview
-import Loam.BudgetWindowReview
-import Loam.ConditionalBalancePathReview
-import Loam.StockFlowReview
-import Loam.TransactionsFlowReview
-import Loam.RoleFlowReview
-import Loam.RoleBalanceReview
 import Loam.Tui.Main
 import Loam.Tui.HraHome
 import Loam.Tui.HraActual
@@ -944,53 +938,6 @@ partial def cycleBudgetLoop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     cycleBudgetLoop bounds dataDir root next nextFrame
 
-/-- Reports session; q/Esc moves back one level and eventually returns Home. -/
-partial def reportsLoop (bounds : Bounds)
-    (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
-  let step := Loam.Tui.Reports.updateForBounds bounds state key
-  if step.back then return ()
-  let next ←
-    match step.query with
-    | none => pure step.state
-    | some (.budgetWindow start endExclusive) =>
-        match ← Loam.BudgetWindowReview.loadSnapshot dataDir root start endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withBudgetSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.stockFlow start endExclusive) =>
-        match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.transactionsFlow start endExclusive) =>
-        match ← Loam.TransactionsFlowReview.loadSnapshot dataDir root start endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withTransactionsFlowSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.incomeExpenseFlow start endExclusive) =>
-        match ← Loam.RoleFlowReview.loadSnapshot dataDir root start endExclusive with
-        | .ok snapshot => pure (Loam.Tui.Reports.withIncomeExpenseSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some .roleBalances =>
-        match ← Loam.RoleBalanceReview.loadSnapshot dataDir root with
-        | .ok snapshot => pure (Loam.Tui.Reports.withRoleBalanceSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.conditionalLiquidity assumedCompleteThrough) =>
-        match ← Loam.ConditionalBalancePathReview.loadSnapshot
-            dataDir root assumedCompleteThrough with
-        | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.scheduledCoverage observedAt) =>
-        match ← Loam.ScheduledCoverageReview.loadSnapshot
-            dataDir root observedAt with
-        | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some .favaProjection =>
-        let notice ← Loam.Tui.FavaLaunch.launch dataDir root
-        pure { step.state with notice := notice }
-  let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
-  Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-  reportsLoop bounds dataDir root next nextFrame
-
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
@@ -1140,7 +1087,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             notice := "Boundary preset config malformed; named presets unavailable." }
     let reportsFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds reports)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame reportsFrame
-    reportsLoop bounds dataDir root reports reportsFrame
+    Loam.Tui.ReportsSession.run bounds dataDir root reports reportsFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
