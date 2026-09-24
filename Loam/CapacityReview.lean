@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.Application.CapacityInspection
 import Loam.CapacityAuthority
 
@@ -72,6 +73,6 @@ shared review boundary. Explicit-path diagnostic callers keep `loadSnapshot`.
 -/
 def loadSnapshotFromHouseholdRoot
     (root : System.FilePath) : IO (Except String Snapshot) :=
-  loadSnapshot (root / "capacity.loam")
+  loadSnapshot (Loam.HouseholdPaths.capacity root)
 
 end Loam.CapacityReview

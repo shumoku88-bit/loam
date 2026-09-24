@@ -1,3 +1,4 @@
+import Loam.HouseholdPaths
 import Loam.AccountingRolePublisher
 import Loam.MovementWorldLoader
 import Loam.CurrentQuantityAnchorPublisher
@@ -43,8 +44,8 @@ authorities under writer ownership.
 -/
 def loadInitialCandidates
     (dataDir actualRoot : System.FilePath) : IO (Except String (List LocusId)) := do
-  let scheduledFile := dataDir / "scheduled.loam"
-  let roleFile := dataDir / "accounting-role.loam"
+  let scheduledFile := Loam.HouseholdPaths.scheduled dataDir
+  let roleFile := Loam.HouseholdPaths.accountingRole dataDir
   let world ←
     match ← Loam.MovementWorldLoader.loadSelectedWorld? actualRoot with
     | .ok world => pure world

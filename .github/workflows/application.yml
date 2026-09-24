@@ -3,6 +3,8 @@ name: Lean Application
 on:
   pull_request:
     paths:
+      - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
@@ -16,6 +18,8 @@ on:
       - '.github/workflows/application.yml'
   push:
     paths:
+      - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
@@ -47,6 +51,9 @@ jobs:
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Application Loam Loam.MovementPublisher loamHouseholdObservation Loam.Tests.ActualWorldFixture
+
+      - name: Qualify household path composition
+        run: lake env lean --run Loam/Tests/HouseholdPaths.lean
 
       - name: Qualify sparse Movement publication
         shell: bash
