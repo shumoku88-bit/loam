@@ -379,3 +379,26 @@ The final prose artifact therefore graduates from the working tree:
 experiments/218_partial_injective_frontier.md
 ```
 
+## Follow-up graduation - Observation 212 Locus admission research apparatus
+
+Observation 212 originally established that historically observed Locus identities are not sufficient authority for deciding which Loci may appear in new quantity-bearing canonical writes. Its selected result was one explicit current new-write admission vocabulary, independent from historical readability.
+
+That law is now owned directly by current production:
+
+- `Loam/Core/LocusAdmission.lean` states the Observation 212 boundary in its module contract and owns `LocusAdmissionVocabulary`;
+- `Loam/Persistence/LocusAdmissionPersistence.lean` persists exactly that finite current vocabulary without deriving policy from Event history;
+- `LocusAdmissionAuthority` owns the selected current policy authority;
+- `MovementAdmission` enforces the vocabulary on quantity-bearing publication;
+- later Generation-2 closure work extends the same current contract to newer quantity-bearing writers.
+
+The original Alloy model and research note no longer own unique current knowledge, have no dedicated workflow, and are not referenced by filename from current documentation or code. Git history retains the exact model, witnesses, prose, and prior qualification.
+
+The following historical apparatus therefore graduates from the working tree:
+
+```text
+experiments/212_locus_admission_vocabulary.als
+experiments/212_locus_admission_vocabulary.md
+```
+
+Observation 213 remains. Alias / display / AccountingRole separation is a distinct follow-up question and is not implied by the Locus-admission production boundary.
+
