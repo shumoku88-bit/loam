@@ -2,6 +2,7 @@ import Loam.Core.EventMemory
 import Loam.Core.HashNodup
 import Loam.Core.OpenRelation
 import Std.Data.HashMap
+import Std.Data.HashMap.Lemmas
 
 namespace Loam.Application
 
@@ -190,11 +191,6 @@ private theorem admitAll?_isSome_eq_currentUnitsAdmissible
           simp [admitAll?, currentUnitsAdmissible, hAdmission, Option.isSome_bind,
             admitAll?_isSome_eq_currentUnitsAdmissible events rest]
 
-private def sameRelationSource (left right : RelationUnit) : Bool :=
-  decide
-    (left.sourceEvent = right.sourceEvent ∧
-      left.sourceEffect = right.sourceEffect)
-
 private def sameRawSource
     (sourceEvent : EventId)
     (sourceEffect : EffectKey)
@@ -212,10 +208,11 @@ private def sourceRelationUnits
 private def currentCoverageFor
     (current : List RelationUnit)
     (sourceRelation : RelationUnit) : Int :=
-  current.foldl
-    (fun total relation =>
-      if sameRelationSource relation sourceRelation then
-        total + relation.quantity.quanta
+  current.foldr
+    (fun relation total =>
+      if relation.sourceEvent = sourceRelation.sourceEvent ∧
+          relation.sourceEffect = sourceRelation.sourceEffect then
+        relation.quantity.quanta + total
       else
         total)
     0
@@ -271,14 +268,55 @@ private def buildSourceEffectIndex
 Build a one-pass transient aggregate mapping `(EventId, EffectKey)` to total
 relation quantity across all relation units targeting that source.
 -/
-private def buildCoverageIndex
-    (relations : List RelationUnit) : Std.HashMap SourceKey Int :=
-  relations.foldl
-    (fun index relation =>
+private def coverageAt
+    (index : Std.HashMap SourceKey Int)
+    (key : SourceKey) : Int :=
+  (index.get? key).getD 0
+
+private def buildCoverageIndex :
+    List RelationUnit → Std.HashMap SourceKey Int
+  | [] => {}
+  | relation :: rest =>
+      let index := buildCoverageIndex rest
       let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
-      let prior := index[key]?.getD 0
-      index.insert key (prior + relation.quantity.quanta))
-    {}
+      let prior := coverageAt index key
+      index.insert key (relation.quantity.quanta + prior)
+
+/--
+The transient source-coverage index is exactly the direct list aggregation used
+by the semantic frontier, for every raw RelationUnit list and queried source.
+-/
+private theorem buildCoverageIndex_getD_eq_currentCoverageFor
+    (relations : List RelationUnit)
+    (sourceRelation : RelationUnit) :
+    coverageAt (buildCoverageIndex relations) {
+      event := sourceRelation.sourceEvent,
+      effect := sourceRelation.sourceEffect
+    } =
+      currentCoverageFor relations sourceRelation := by
+  induction relations with
+  | nil =>
+      simp [buildCoverageIndex, currentCoverageFor, coverageAt]
+  | cons relation rest ih =>
+      simp only [buildCoverageIndex, currentCoverageFor, List.foldr_cons, coverageAt]
+      rw [Std.HashMap.get?_insert]
+      by_cases hSame :
+          relation.sourceEvent = sourceRelation.sourceEvent ∧
+            relation.sourceEffect = sourceRelation.sourceEffect
+      · have hKey :
+            ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
+              { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
+          simp [hSame.1, hSame.2]
+        simp [hKey, hSame]
+        exact ih
+      · have hKey :
+            ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
+              { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
+          intro h
+          apply hSame
+          exact ⟨congrArg SourceKey.event h, congrArg SourceKey.effect h⟩
+        simp [hKey, hSame]
+        exact ih
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
