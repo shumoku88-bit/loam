@@ -284,10 +284,10 @@ by the semantic frontier, for every raw RelationUnit list and queried source.
 private theorem buildCoverageIndex_getD_eq_currentCoverageFor
     (relations : List RelationUnit)
     (sourceRelation : RelationUnit) :
-    ((buildCoverageIndex relations).get? {
+    (buildCoverageIndex relations)[{
       event := sourceRelation.sourceEvent,
       effect := sourceRelation.sourceEffect
-    }).getD 0 =
+    }]?.getD 0 =
       currentCoverageFor relations sourceRelation := by
   induction relations with
   | nil =>
