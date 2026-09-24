@@ -94,6 +94,15 @@ private def renderHome (snapshot : Snapshot) : String :=
     | .error message => "Unavailable: " ++ escapeHtml message
     | .ok none => "Not configured"
     | .ok (some count) => escapeHtml (toString count ++ " open")
+  let paceText :=
+    match home.dailyPace with
+    | .error message => "Unavailable: " ++ escapeHtml message
+    | .ok none => "Unavailable"
+    | .ok (some pace) =>
+        escapeHtml
+          (toString pace.quantaPerDay ++ " jpy/day  (" ++
+            toString pace.availableThroughEnd.quanta ++ " jpy through " ++
+            pace.endExclusive ++ "; " ++ toString pace.remainingDays ++ " days)")
   let fundingRows :=
     match home.funding with
     | .error message =>
@@ -112,6 +121,7 @@ private def renderHome (snapshot : Snapshot) : String :=
   "<tr><th>Recent Actual</th>" ++ tableCell actualText ++ "</tr>\n" ++
   "<tr><th>Next Scheduled</th>" ++ tableCell scheduledText ++ "</tr>\n" ++
   "<tr><th>Attention</th>" ++ tableCell attentionText ++ "</tr>\n" ++
+  "<tr><th>Daily Pace</th>" ++ tableCell paceText ++ "</tr>\n" ++
   fundingRows ++ "\n</table>"
 
 private def renderActual
