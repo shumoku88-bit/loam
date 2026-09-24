@@ -112,6 +112,25 @@ private def buildEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
   buildEventIndexFrom events.events
 
+private theorem buildEventIndexFrom_get?_eq_findBy?
+    (eventList : List Event)
+    (id : EventId) :
+    (buildEventIndexFrom eventList).get? id.token =
+      FiniteKeyed.findBy? Event.id eventList id := by
+  induction eventList with
+  | nil =>
+      simp [buildEventIndexFrom, FiniteKeyed.findBy?]
+  | cons event rest ih =>
+      simp only [buildEventIndexFrom, FiniteKeyed.findBy?]
+      rw [Std.HashMap.get?_insert]
+      by_cases hId : event.id = id
+      · subst hId
+        simp
+      · have hToken : event.id.token ≠ id.token := by
+          intro h
+          exact hId (eventIdToken_injective h)
+        simp [hToken, hId, ih]
+
 /--
 The transient Event index is extensionally identical to canonical EventMemory
 identity lookup.
@@ -119,24 +138,10 @@ identity lookup.
 theorem buildEventIndex_get?_eq_findById?
     (events : EventMemory)
     (id : EventId) :
-    (buildEventIndex events)[id.token]? =
+    (buildEventIndex events).get? id.token =
       EventMemory.findById? events id := by
-  cases events with
-  | mk eventList hNodup =>
-      simp only [buildEventIndex, EventMemory.findById?]
-      induction eventList with
-      | nil =>
-          simp [buildEventIndexFrom, FiniteKeyed.findBy?]
-      | cons event rest ih =>
-          simp only [buildEventIndexFrom, FiniteKeyed.findBy?]
-          rw [Std.HashMap.get?_insert]
-          by_cases hId : event.id = id
-          · subst hId
-            simp
-          · have hToken : event.id.token ≠ id.token := by
-              intro h
-              exact hId (eventIdToken_injective h)
-            simp [hToken, hId, ih]
+  unfold buildEventIndex EventMemory.findById?
+  exact buildEventIndexFrom_get?_eq_findBy? events.events id
 
 /--
 Build a target-keyed bucket index from the raw discharge list.
@@ -149,7 +154,7 @@ private def buildDischargeBuckets :
   | [] => {}
   | discharge :: rest =>
       let index := buildDischargeBuckets rest
-      let prior := index[discharge.target.token]?.getD []
+      let prior := (index.get? discharge.target.token).getD []
       index.insert discharge.target.token (discharge :: prior)
 
 /--
@@ -159,7 +164,7 @@ RelationUnitId, including representation order.
 theorem buildDischargeBuckets_getD_eq_filter
     (discharges : List RelationDischarge)
     (target : RelationUnitId) :
-    (buildDischargeBuckets discharges)[target.token]?.getD [] =
+    (buildDischargeBuckets discharges).get? target.token |>.getD [] =
       discharges.filter (fun discharge => discharge.target = target) := by
   induction discharges with
   | nil =>
