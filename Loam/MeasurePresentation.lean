@@ -70,6 +70,27 @@ def decode? (input : String) : Option (List Metadata) := do
     | _ => none
   if hasDuplicateMeasure rows then none else some rows
 
+/--
+Encode one admitted Measure presentation dictionary in the canonical TSV shape.
+
+This is intentionally the inverse-shaped persistence boundary for `decode?`.
+Comments beyond the canonical header are not semantic metadata and are therefore
+not retained by production administration.
+-/
+def encode? (metadata : List Metadata) : Option String := do
+  if hasDuplicateMeasure metadata then
+    none
+  else
+    let rows ← metadata.mapM fun row => do
+      if !Loam.Persistence.validToken row.measure.token || row.scale > 9 then
+        none
+      else
+        some (row.measure.token ++ "\t" ++ toString row.scale)
+    let rowText := String.intercalate "\n" rows
+    pure
+      ("# measure\tdecimal-scale\n" ++
+        (if rowText.isEmpty then "" else rowText ++ "\n"))
+
 /-- Missing metadata means the established integer presentation. -/
 def scaleFor (metadata : List Metadata) (measure : MeasureId) : Nat :=
   match metadata.find? (fun row => row.measure = measure) with
@@ -130,6 +151,7 @@ def formatQuanta (metadata : List Metadata) (measure : MeasureId) (quanta : Int)
     let sign := if quanta < 0 then "-" else ""
     sign ++ toString whole ++ "." ++ zeroPadLeft scale (toString fractional)
 
+/-- Canonical Measure presentation filename. -/
 def configFileName : String := "measure-presentation.tsv"
 
 /-- Canonical presentation path next to one household Actual file. -/
