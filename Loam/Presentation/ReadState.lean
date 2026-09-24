@@ -2,6 +2,8 @@ namespace Loam.Presentation
 
 set_option autoImplicit false
 
+universe u v
+
 /-!
 # Presentation read state
 
@@ -21,12 +23,13 @@ deriving Repr
 
 namespace ReadState
 
-def fromExcept (result : Except String α) : ReadState α :=
+def fromExcept {α : Type u} (result : Except String α) : ReadState α :=
   match result with
   | .error message => .failed message
   | .ok value => .loaded value
 
-def map (state : ReadState α) (f : α → β) : ReadState β :=
+def map {α : Type u} {β : Type v}
+    (state : ReadState α) (f : α → β) : ReadState β :=
   match state with
   | .notRequested => .notRequested
   | .unavailable => .unavailable
