@@ -200,3 +200,19 @@ that would count as new pressure are:
 Until such pressure exists, this verification sequence is closed. The qualified
 research checkpoints, fixtures, successful historical CI, and Git history retain the
 evidence without requiring every experimental verifier lane to remain live forever.
+
+## Working-tree graduation
+
+After the durable proof surface and evidence ledger were established, the
+Observation 161–164 Lean probes no longer owned a live proof obligation.
+
+Their conclusions are retained above as the closed verification-boundary result,
+and the Comparator/Nanoda fixtures that still qualify independent mechanisms
+remain in their dedicated locations. The historical Lean probe modules and their
+two local contract modules therefore graduate to Git history rather than remain
+compiled source.
+
+One historical CSLib shadow experiment that had imported Observation 163 only
+for transitive access to Observation 159 now imports Observation 159 directly.
+No production theorem, production module, verification fixture, or household
+behavior is removed by this graduation.
