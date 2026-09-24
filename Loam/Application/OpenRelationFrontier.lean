@@ -274,7 +274,7 @@ private def buildCoverageIndex :
   | relation :: rest =>
       let index := buildCoverageIndex rest
       let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
-      let prior := (index.get? key).getD 0
+      let prior := index[key]?.getD 0
       index.insert key (relation.quantity.quanta + prior)
 
 /--
@@ -284,10 +284,10 @@ by the semantic frontier, for every raw RelationUnit list and queried source.
 private theorem buildCoverageIndex_getD_eq_currentCoverageFor
     (relations : List RelationUnit)
     (sourceRelation : RelationUnit) :
-    ((buildCoverageIndex relations).get? {
+    (buildCoverageIndex relations)[{
       event := sourceRelation.sourceEvent,
       effect := sourceRelation.sourceEffect
-    }).getD 0 =
+    }]?.getD 0 =
       currentCoverageFor relations sourceRelation := by
   induction relations with
   | nil =>
@@ -302,14 +302,8 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
           simp [hSame.1, hSame.2]
-        simp [hSame]
-        change relation.quantity.quanta +
-            ((buildCoverageIndex rest).get? {
-              event := sourceRelation.sourceEvent,
-              effect := sourceRelation.sourceEffect
-            }).getD 0 =
-          relation.quantity.quanta + currentCoverageFor rest sourceRelation
-        rw [ih]
+        simp [hKey, hSame]
+        exact ih
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
@@ -317,11 +311,6 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
           apply hSame
           exact ⟨congrArg SourceKey.event h, congrArg SourceKey.effect h⟩
         simp [hKey, hSame]
-        change ((buildCoverageIndex rest).get? {
-              event := sourceRelation.sourceEvent,
-              effect := sourceRelation.sourceEffect
-            }).getD 0 =
-          currentCoverageFor rest sourceRelation
         exact ih
 
 /--
