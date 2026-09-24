@@ -433,3 +433,25 @@ experiments/217_partial_accounting_role_quantity.md
 
 Observations 214-215 remain. Their destructive migration / mixed legacy Locus questions are not equivalent to the currently qualified virgin-Locus AccountingRole publication boundary.
 
+## Follow-up graduation - normalized Actual cutover research
+
+A later retirement pass found two normalized-Actual research artifacts whose current-tree wording no longer matched production reality:
+
+```text
+docs/research/NORMALIZED_ACTUAL_WIRE.md
+experiments/normalized_actual_cutover.als
+```
+
+The wire note still classified production migration as blocked and referenced a synthetic Python qualification tool that is no longer present. The cutover Alloy model describes the one-time old-runtime -> normalized-runtime transition, including quiesced selection and old-byte retirement.
+
+That migration has since completed. Current ownership is explicit:
+
+- PR #756 graduated Actual to one canonical `actual.loam` authority and retired legacy fallback readers and dual-format runtime behavior;
+- `ActualAuthority` owns the single-file authority path, writer ownership, staged candidate verification, and atomic rename publication;
+- `NormalizedActualPersistence` and `NormalizedActualAdmission` own the current wire and fail-closed semantic admission;
+- `NormalizedActualPersistenceTest` exercises the production representation directly.
+
+Neither retired artifact has a current filename reference or dedicated workflow. Git history retains the historical candidate wire, synthetic qualification, and exact cutover model.
+
+The other normalized-Actual Alloy models remain for now. Effect identity promotion, Scheduled completion across independent authorities, and dependency-sensitive writer guarding still express distinct live questions not reduced to the completed one-time cutover.
+
