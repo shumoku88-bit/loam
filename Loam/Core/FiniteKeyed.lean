@@ -1,4 +1,6 @@
 import Init.Data.List.Perm
+import Std.Data.HashMap
+import Std.Data.HashMap.Lemmas
 
 namespace Loam.Core.FiniteKeyed
 
@@ -23,6 +25,95 @@ def findBy? {Item Key : Type} [DecidableEq Key]
         some item
       else
         findBy? keyOf rest key
+
+
+/--
+Build a transient hash index for a finite keyed list.
+
+`hashKeyOf` is representation mechanics only: it may project a semantic key such
+as `EventId` onto a hashable token such as `String`. The list remains the
+canonical representation and the resulting map carries no independent authority.
+The recursive tail-first construction preserves the same first-match semantics
+as `findBy?` when `hashKeyOf` is injective.
+-/
+def hashIndexBy
+    {Item Key HashKey : Type}
+    [BEq HashKey] [Hashable HashKey]
+    (keyOf : Item → Key)
+    (hashKeyOf : Key → HashKey) :
+    List Item → Std.HashMap HashKey Item
+  | [] => {}
+  | item :: rest =>
+      (hashIndexBy keyOf hashKeyOf rest).insert
+        (hashKeyOf (keyOf item)) item
+
+/--
+Transient hash lookup is extensionally identical to canonical list lookup when
+the hash-key projection is injective.
+-/
+theorem hashIndexBy_get?_eq_findBy?
+    {Item Key HashKey : Type}
+    [DecidableEq Key]
+    [BEq HashKey] [Hashable HashKey] [LawfulBEq HashKey] [LawfulHashable HashKey]
+    (keyOf : Item → Key)
+    (hashKeyOf : Key → HashKey)
+    (hashKeyInjective : Function.Injective hashKeyOf)
+    (items : List Item)
+    (key : Key) :
+    (hashIndexBy keyOf hashKeyOf items).get? (hashKeyOf key) =
+      findBy? keyOf items key := by
+  induction items with
+  | nil =>
+      simp [hashIndexBy, findBy?]
+  | cons item rest ih =>
+      simp only [hashIndexBy, findBy?]
+      rw [Std.HashMap.get?_insert]
+      by_cases hKey : keyOf item = key
+      · subst hKey
+        simp
+      · have hHash : hashKeyOf (keyOf item) ≠ hashKeyOf key := by
+          intro h
+          exact hKey (hashKeyInjective h)
+        simpa [hHash, hKey] using ih
+
+
+/--
+Hash membership in the transient index is exactly presence in canonical keyed
+list lookup.
+-/
+theorem hashIndexBy_contains_eq_findBy?_isSome
+    {Item Key HashKey : Type}
+    [DecidableEq Key]
+    [BEq HashKey] [Hashable HashKey] [LawfulBEq HashKey] [LawfulHashable HashKey]
+    (keyOf : Item → Key)
+    (hashKeyOf : Key → HashKey)
+    (hashKeyInjective : Function.Injective hashKeyOf)
+    (items : List Item)
+    (key : Key) :
+    (hashIndexBy keyOf hashKeyOf items).contains (hashKeyOf key) =
+      (findBy? keyOf items key).isSome := by
+  induction items with
+  | nil =>
+      simp [hashIndexBy, findBy?]
+  | cons item rest ih =>
+      simp only [hashIndexBy, findBy?]
+      rw [Std.HashMap.contains_insert]
+      by_cases hKey : keyOf item = key
+      · subst hKey
+        simp
+      · have hHash : hashKeyOf (keyOf item) ≠ hashKeyOf key := by
+          intro h
+          exact hKey (hashKeyInjective h)
+        have hBeq :
+            (hashKeyOf (keyOf item) == hashKeyOf key) = false := by
+          cases hEq : (hashKeyOf (keyOf item) == hashKeyOf key) with
+          | false => rfl
+          | true =>
+              have : hashKeyOf (keyOf item) = hashKeyOf key := eq_of_beq hEq
+              exact False.elim (hHash this)
+        rw [hBeq]
+        simp only [Bool.false_or]
+        simpa [hKey] using ih
 
 /--
 Appending one item whose projected key is fresh preserves unique-key evidence.

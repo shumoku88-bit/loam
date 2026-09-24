@@ -103,9 +103,7 @@ def buildCorrectionFrontierIndex
     (events : EventMemory)
     (corrections : EventCorrectionMemory) : CorrectionFrontierIndex :=
   let eventMap : Std.HashMap String Event :=
-    events.events.foldl
-      (fun map event => map.insert event.id.token event)
-      {}
+    FiniteKeyed.hashIndexBy Event.id EventId.token events.events
   let scan := scanCorrections eventMap corrections.corrections
   {
     events := eventMap
@@ -720,14 +718,14 @@ theorem buildCorrectionFrontierIndex_endpointUnique_eq
   unfold CorrectionFrontierIndex.endpointUnique ReplacementFrontier.endpointUnique correctionEdges buildCorrectionFrontierIndex
   dsimp only
   have hTargetDup :
-      (scanCorrections (events.events.foldl (fun map event => map.insert event.id.token event) ∅) corrections.corrections).hasDuplicateTarget =
+      (scanCorrections (FiniteKeyed.hashIndexBy Event.id EventId.token events.events) corrections.corrections).hasDuplicateTarget =
         ((corrections.corrections.map (fun c => c.target.token)).foldl hashSetContainsDupStep ({}, false)).2 := by
-    have h := scanCorrections_targetDup_eq (events.events.foldl (fun map event => map.insert event.id.token event) ∅) corrections.corrections
+    have h := scanCorrections_targetDup_eq (FiniteKeyed.hashIndexBy Event.id EventId.token events.events) corrections.corrections
     exact congrArg Prod.snd h
   have hReplDup :
-      (scanCorrections (events.events.foldl (fun map event => map.insert event.id.token event) ∅) corrections.corrections).hasDuplicateReplacement =
+      (scanCorrections (FiniteKeyed.hashIndexBy Event.id EventId.token events.events) corrections.corrections).hasDuplicateReplacement =
         ((corrections.corrections.map (fun c => c.replacement.token)).foldl hashSetContainsDupStep ({}, false)).2 := by
-    have h := scanCorrections_replacementDup_eq (events.events.foldl (fun map event => map.insert event.id.token event) ∅) corrections.corrections
+    have h := scanCorrections_replacementDup_eq (FiniteKeyed.hashIndexBy Event.id EventId.token events.events) corrections.corrections
     exact congrArg Prod.snd h
   rw [hTargetDup, hReplDup]
   have hTargetNodup :
@@ -791,88 +789,13 @@ theorem buildCorrectionFrontierIndex_endpointUnique_eq
             decide_eq_true ⟨hTTrue, hRTrue⟩
           rw [hDec]
 
-private theorem findBy?_isSome_iff {Item Key : Type} [DecidableEq Key]
-    (keyOf : Item → Key) (items : List Item) (key : Key) :
-    (FiniteKeyed.findBy? keyOf items key).isSome = true ↔ ∃ item ∈ items, keyOf item = key := by
-  induction items with
-  | nil => simp [FiniteKeyed.findBy?]
-  | cons item rest ih =>
-      simp only [FiniteKeyed.findBy?]
-      split
-      · rename_i hEq
-        simp [hEq]
-      · rename_i hNe
-        simp only [ih]
-        constructor
-        · intro ⟨item', hMem, hKey⟩
-          exact ⟨item', List.mem_cons_of_mem item hMem, hKey⟩
-        · intro ⟨item', hMem, hKey⟩
-          cases hMem with
-          | head =>
-              subst hKey
-              contradiction
-          | tail _ hTail =>
-              exact ⟨item', hTail, hKey⟩
-
-private theorem foldl_insert_eventMap_contains
-    (events : List Event)
-    (m : Std.HashMap String Event)
-    (id : EventId) :
-    (events.foldl (fun map event => map.insert event.id.token event) m).contains id.token = true ↔
-      (m.contains id.token = true ∨ ∃ e ∈ events, e.id = id) := by
-  induction events generalizing m with
-  | nil => simp
-  | cons e rest ih =>
-      simp only [List.foldl_cons]
-      rw [ih]
-      rw [Std.HashMap.contains_insert]
-      simp only [Bool.or_eq_true, beq_iff_eq]
-      constructor
-      · intro h
-        rcases h with (hEq | hMap) | ⟨e', he'Rest, he'Eq⟩
-        · right
-          have hIdEq : e.id = id := eventIdToken_injective hEq
-          exact ⟨e, List.mem_cons_self, hIdEq⟩
-        · left; exact hMap
-        · right
-          exact ⟨e', List.mem_cons_of_mem e he'Rest, he'Eq⟩
-      · intro h
-        rcases h with hMap | ⟨e', he'Cons, he'Eq⟩
-        · left; right; exact hMap
-        · cases he'Cons with
-          | head =>
-              left; left
-              subst he'Eq
-              rfl
-          | tail _ hTail =>
-              right
-              exact ⟨e', hTail, he'Eq⟩
-
 private theorem eventMap_contains_eq_eventPresent
     (events : EventMemory) (id : EventId) :
-    (events.events.foldl (fun (m : Std.HashMap String Event) event => m.insert event.id.token event) {}).contains id.token =
+    (FiniteKeyed.hashIndexBy Event.id EventId.token events.events).contains id.token =
       eventPresent events id := by
-  have hPresIff : eventPresent events id = true ↔ ∃ e ∈ events.events, e.id = id := by
-    unfold eventPresent EventMemory.findById?
-    exact findBy?_isSome_iff Event.id events.events id
-  cases hPres : eventPresent events id with
-  | true =>
-      rw [hPresIff] at hPres
-      have hCont : (events.events.foldl (fun (m : Std.HashMap String Event) event => m.insert event.id.token event) {}).contains id.token = true := by
-        rw [foldl_insert_eventMap_contains]
-        right
-        exact hPres
-      rw [hCont]
-  | false =>
-      have hNotPres : ¬(eventPresent events id = true) := by simp [hPres]
-      rw [hPresIff] at hNotPres
-      cases hCont : (events.events.foldl (fun (m : Std.HashMap String Event) event => m.insert event.id.token event) {}).contains id.token with
-      | false => rfl
-      | true =>
-          rw [foldl_insert_eventMap_contains] at hCont
-          rcases hCont with hEmpty | hExists
-          · simp at hEmpty
-          · exact False.elim (hNotPres hExists)
+  unfold eventPresent EventMemory.findById?
+  exact FiniteKeyed.hashIndexBy_contains_eq_findBy?_isSome
+    Event.id EventId.token eventIdToken_injective events.events id
 
 private def scanUnknownEndpointStep (eventMap : Std.HashMap String Event) (unk : Bool) (c : EventCorrection) : Bool :=
   unk || !eventMap.contains c.target.token || !eventMap.contains c.replacement.token
@@ -985,7 +908,7 @@ theorem buildCorrectionFrontierIndex_referencesClosed_eq
   rw [scanCorrections_hasUnknownEndpoint_eq]
   have hScanClosed :
       corrections.corrections.foldl
-        (scanUnknownEndpointStep (events.events.foldl (fun map event => map.insert event.id.token event) ∅)) false = false ↔
+        (scanUnknownEndpointStep (FiniteKeyed.hashIndexBy Event.id EventId.token events.events)) false = false ↔
         ∀ c ∈ corrections.corrections, eventPresent events c.target = true ∧ eventPresent events c.replacement = true := by
     rw [scanUnknownEndpointStep_foldl_eq_false]
     simp only [true_and]
@@ -999,7 +922,7 @@ theorem buildCorrectionFrontierIndex_referencesClosed_eq
       rw [← eventMap_contains_eq_eventPresent, ← eventMap_contains_eq_eventPresent] at hC
       exact hC
   cases hUnk : corrections.corrections.foldl
-    (scanUnknownEndpointStep (events.events.foldl (fun map event => map.insert event.id.token event) ∅)) false with
+    (scanUnknownEndpointStep (FiniteKeyed.hashIndexBy Event.id EventId.token events.events)) false with
   | true =>
       simp only [Bool.not_true]
       have hNotClosed : ¬(ReplacementFrontier.referencesClosed (eventPresent events) (correctionEdges corrections) = true) := by

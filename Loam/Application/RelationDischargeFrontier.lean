@@ -106,38 +106,13 @@ private def uniqueDischargeEvents
 /--
 Transient lookup index for remembered Events.
 
-The structurally recursive shape makes the correspondence to the canonical
-list lookup explicit: the head Event overrides the recursively indexed tail,
-matching `EventMemory.findById?` exactly even before using EventId uniqueness.
+The generic finite-keyed index is a derived acceleration structure only. Its
+lookup correspondence to canonical list semantics is proved once in
+`Loam.Core.FiniteKeyed`.
 -/
-private def buildEventIndexFrom :
-    List Event → Std.HashMap String Event
-  | [] => {}
-  | event :: rest =>
-      (buildEventIndexFrom rest).insert event.id.token event
-
 private def buildEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
-  buildEventIndexFrom events.events
-
-private theorem buildEventIndexFrom_get?_eq_findBy?
-    (eventList : List Event)
-    (id : EventId) :
-    (buildEventIndexFrom eventList).get? id.token =
-      FiniteKeyed.findBy? Event.id eventList id := by
-  induction eventList with
-  | nil =>
-      simp [buildEventIndexFrom, FiniteKeyed.findBy?]
-  | cons event rest ih =>
-      simp only [buildEventIndexFrom, FiniteKeyed.findBy?]
-      rw [Std.HashMap.get?_insert]
-      by_cases hId : event.id = id
-      · subst hId
-        simp
-      · have hToken : event.id.token ≠ id.token := by
-          intro h
-          exact hId (eventIdToken_injective h)
-        simpa [hToken, hId] using ih
+  FiniteKeyed.hashIndexBy Event.id EventId.token events.events
 
 /--
 The transient Event index is extensionally identical to canonical EventMemory
@@ -149,7 +124,8 @@ theorem buildEventIndex_get?_eq_findById?
     (buildEventIndex events).get? id.token =
       EventMemory.findById? events id := by
   unfold buildEventIndex EventMemory.findById?
-  exact buildEventIndexFrom_get?_eq_findBy? events.events id
+  exact FiniteKeyed.hashIndexBy_get?_eq_findBy?
+    Event.id EventId.token eventIdToken_injective events.events id
 
 /--
 Build a target-keyed bucket index from the raw discharge list.
