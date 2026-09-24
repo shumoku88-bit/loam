@@ -294,7 +294,7 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
       simp [buildCoverageIndex, currentCoverageFor]
   | cons relation rest ih =>
       simp only [buildCoverageIndex, currentCoverageFor, List.foldr_cons]
-      rw [Std.HashMap.get?_insert]
+      rw [Std.HashMap.getElem?_insert]
       by_cases hSame :
           relation.sourceEvent = sourceRelation.sourceEvent ∧
             relation.sourceEffect = sourceRelation.sourceEffect
