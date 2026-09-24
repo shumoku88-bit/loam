@@ -1,6 +1,6 @@
 # Purpose catalog boundary — 2026-09-10
 
-Status: candidate practical boundary pending CI qualification
+Status: **qualified production boundary**. The historical Observation 239 probe has graduated to Git history because production `Loam.PurposeCatalog` now owns the same noninterference laws directly.
 
 This checkpoint records the small result earned by Observation 239.
 
@@ -13,3 +13,20 @@ This checkpoint records the small result earned by Observation 239.
 No Purpose registry, rename event, alias graph, retirement model, or migration ontology is introduced.
 
 If CI remains green, the next practical slice is to load `config/purpose-catalog.tsv` at the TUI boundary and use its labels in Capacity/Budget rendering while keeping publication and routing on unchanged `PurposeId` values.
+
+
+## Current production owner
+
+The historical Observation 239 wrapper is no longer the live proof owner.
+
+`Loam.PurposeCatalog` now states the boundary directly:
+
+- `entryFor_preserves_identity`;
+- `forPurposes_preserves_identities`;
+- `labelFor_empty`.
+
+Production tests additionally exercise decode rejection, stable-token fallback,
+TUI label rendering, and selected-Purpose identity preservation. The dedicated
+Purpose Catalog workflow therefore builds the production TUI integration and
+runs those focused tests without rebuilding the entire repository merely to
+recheck an observation wrapper.
