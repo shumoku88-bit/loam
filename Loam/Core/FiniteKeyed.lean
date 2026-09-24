@@ -76,6 +76,36 @@ theorem hashIndexBy_get?_eq_findBy?
           exact hKey (hashKeyInjective h)
         simpa [hHash, hKey] using ih
 
+
+/--
+Hash membership in the transient index is exactly presence in canonical keyed
+list lookup.
+-/
+theorem hashIndexBy_contains_eq_findBy?_isSome
+    {Item Key HashKey : Type}
+    [DecidableEq Key]
+    [BEq HashKey] [Hashable HashKey] [LawfulBEq HashKey] [LawfulHashable HashKey]
+    (keyOf : Item → Key)
+    (hashKeyOf : Key → HashKey)
+    (hashKeyInjective : Function.Injective hashKeyOf)
+    (items : List Item)
+    (key : Key) :
+    (hashIndexBy keyOf hashKeyOf items).contains (hashKeyOf key) =
+      (findBy? keyOf items key).isSome := by
+  induction items with
+  | nil =>
+      simp [hashIndexBy, findBy?]
+  | cons item rest ih =>
+      simp only [hashIndexBy, findBy?]
+      rw [Std.HashMap.contains_insert]
+      by_cases hKey : keyOf item = key
+      · subst hKey
+        simp
+      · have hHash : hashKeyOf (keyOf item) ≠ hashKeyOf key := by
+          intro h
+          exact hKey (hashKeyInjective h)
+        simpa [hHash, hKey] using ih
+
 /--
 Appending one item whose projected key is fresh preserves unique-key evidence.
 
