@@ -165,3 +165,21 @@ Observation 274 also stops triggering on
 file and owns its correspondence proof independently.
 
 No production module, theorem, experiment source, or household behavior changes.
+
+## Follow-up — graduate decision-framing probes
+
+Observations 185, 188, and 189 have no remaining Lean import owner beyond the
+research umbrella.
+
+Their durable result is descriptive rather than a production invariant:
+
+- hypothetical interventions remain typed, derived, and non-authoritative;
+- spending description does not determine decision role;
+- choice, commitment, and funding posture are separate questions.
+
+The corresponding research notes retain those conclusions in prose, while
+Observation 186 remains live because it still provides concrete regression
+witnesses for the production Scheduled suppression comparison.
+
+The three intermediate Lean probes therefore graduate to Git history rather
+than remain compiled source.
