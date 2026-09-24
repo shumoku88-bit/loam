@@ -5,6 +5,8 @@ import Loam.Persistence.VersionedRows
 import Loam.ScheduledOccurrenceConstruction
 import Loam.Observations.Observation043
 import Loam.Observations.Observation044
+import Loam.Observations.Observation045
+import Loam.Observations.Observation046
 
 /-!
 # Durable Lean proof surface

@@ -126,7 +126,14 @@ stronger selected theorem    -> LET the theorem take over
 
 ## Follow-up — Observation 043-051 ownership
 
-Observations 043-046 remain selected Lean obligations. They still protect negative structural boundaries that prevent accidental ontology growth: acyclicity alone is insufficient, well-founded traversal is stronger than frontier coverage, and coverage does not imply a canonical stored witness. Observation 080 additionally uses 043-044 as the Lean side of its cross-tool regime comparison.
+Observations 043-046 have graduated from the broad research-witness umbrella to
+`Loam.DurableProofs`. They protect stable structural laws that remain useful
+independently of the historical observation sequence: acyclicity alone is
+insufficient, well-founded traversal is stronger than frontier coverage, and
+coverage does not imply a canonical stored witness. Their source files remain in
+`Loam/Observations/` for historical continuity, but their live proof owner is
+now the durable proof surface. Observation 080 still uses 043-044 as the Lean
+side of its cross-tool regime comparison.
 
 Observations 047-051 also retain independent Alloy or TLA+ witnesses and continue to feed later research: selection policy, allocation eligibility, accounting role, asynchronous settlement, and reconciliation evidence remain live distinctions. Their workflows therefore stay, but their broad research/toolchain triggers are removed.
 
