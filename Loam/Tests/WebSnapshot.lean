@@ -23,6 +23,14 @@ def main (_args : List String) : IO Unit := do
     attention := .ok .unavailable
     budget := budget
     capacity := .ok { rows := [] }
+    pace := .ok {
+      observedAt := "2026-09-19"
+      endExclusive := "2026-09-23"
+      remainingDays := 4
+      eligiblePool := Loam.Core.Quantity.ofQuanta 5000
+      automaticDeductions := Loam.Core.Quantity.ofQuanta 1000
+      availableThroughEnd := Loam.Core.Quantity.ofQuanta 4000
+    }
     purposeMetadata := []
   }
 
@@ -38,6 +46,10 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not expose the Lean-derived Home section"
   expect (contains html "Current household orientation derived from shared Lean Review answers.")
     "Web snapshot did not identify the Home presentation boundary"
+  expect (contains html "Daily Pace")
+    "Web snapshot did not expose Daily Pace on Home"
+  expect (contains html "1000 jpy/day")
+    "Web snapshot did not render the Lean-derived Daily Pace quotient"
   expect (contains html "Recent Actual")
     "Web snapshot did not expose the Actual section"
   expect (contains html "Current-open Scheduled")
