@@ -39,6 +39,49 @@ def main (_args : List String) : IO Unit := do
       decreasesAcrossEvents := Loam.Core.Quantity.ofQuanta (-3000)
       currentTracked := Loam.Core.Quantity.ofQuanta 12000
     }
+    roleFlow := .ok {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      rows := [
+        { coordinate := {
+            locus := { token := "salary" }
+            measure := { token := "jpy" } }
+          role := .income
+          quantity := Loam.Core.Quantity.ofQuanta (-5000) },
+        { coordinate := {
+            locus := { token := "food" }
+            measure := { token := "jpy" } }
+          role := .expense
+          quantity := Loam.Core.Quantity.ofQuanta 1200 },
+        { coordinate := {
+            locus := { token := "salary" }
+            measure := { token := "usd" } }
+          role := .income
+          quantity := Loam.Core.Quantity.ofQuanta (-20) }
+      ]
+      unresolvedEffects := []
+    }
+    roleBalances := .ok {
+      rows := [
+        { coordinate := {
+            locus := { token := "cash" }
+            measure := { token := "jpy" } }
+          role := .asset
+          quantity := Loam.Core.Quantity.ofQuanta 12000 }
+      ]
+      unresolvedRoles := [
+        { coordinate := {
+            locus := { token := "unknown" }
+            measure := { token := "jpy" } }
+          quantity := Loam.Core.Quantity.ofQuanta 300 }
+      ]
+      unsupportedBalances := [
+        { coordinate := {
+            locus := { token := "future" }
+            measure := { token := "jpy" } }
+          role := some .liability }
+      ]
+    }
     purposeMetadata := []
   }
 
@@ -66,6 +109,18 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not label the Stock-Flow opening"
   expect (contains html "12000 jpy")
     "Web snapshot did not render the reconstructed/current Stock-Flow quantity"
+  expect (contains html "Income &amp; Expense")
+    "Web snapshot did not expose Income & Expense"
+  expect (contains html "3800 jpy")
+    "Web snapshot did not render the JPY Income & Expense result"
+  expect (contains html "20 usd")
+    "Web snapshot did not keep USD Income separate from JPY"
+  expect (contains html "Evidence-aware current accounting balances")
+    "Web snapshot did not expose evidence-aware Balances"
+  expect (contains html "cash")
+    "Web snapshot did not render the supported Balance row"
+  expect (contains html "Unresolved roles: 1; unsupported balances: 1.")
+    "Web snapshot did not preserve Balance evidence gaps"
   expect (contains html "Recent Actual")
     "Web snapshot did not expose the Actual section"
   expect (contains html "Current-open Scheduled")
