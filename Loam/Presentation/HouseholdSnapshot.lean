@@ -4,6 +4,8 @@ import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
+import Loam.RoleBalanceReview
+import Loam.RoleFlowReview
 import Loam.ScheduledReview
 import Loam.StockFlowReview
 
@@ -41,6 +43,12 @@ structure HouseholdSnapshot where
   /-- Current explicit-window Stock–Flow report for presentation, when requested. -/
   stockFlow : Except String Loam.StockFlowReview.Snapshot :=
     .error "loam: Stock-Flow not loaded"
+  /-- Current explicit-window role flow used by Income & Expense presentation. -/
+  roleFlow : Except String Loam.RoleFlowReview.Snapshot :=
+    .error "loam: Income & Expense not loaded"
+  /-- Current evidence-aware Role Balance answer for presentation. -/
+  roleBalances : Except String Loam.RoleBalanceReview.Snapshot :=
+    .error "loam: Balances not loaded"
   purposeMetadata : List Loam.PurposeCatalog.Metadata := []
 
 end Loam.Presentation
