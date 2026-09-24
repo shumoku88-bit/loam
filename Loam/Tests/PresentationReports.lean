@@ -27,6 +27,24 @@ def main : IO Unit := do
   let salary : LocusId := { token := "salary" }
   let food : LocusId := { token := "food" }
   let cash : LocusId := { token := "cash" }
+  let some flowEvent1 := Event.ofEffects? { token := "flow-1" } [
+      Effect.ofAnonymousQuantity cash jpy (Quantity.ofQuanta 500),
+      Effect.ofAnonymousQuantity food jpy (Quantity.ofQuanta (-500))
+    ]
+    | throw (IO.userError "could not build first Transactions Flow fixture Event")
+  let some flowEvent2 := Event.ofEffects? { token := "flow-2" } [
+      Effect.ofAnonymousQuantity cash jpy (Quantity.ofQuanta (-200)),
+      Effect.ofAnonymousQuantity food jpy (Quantity.ofQuanta 200)
+    ]
+    | throw (IO.userError "could not build second Transactions Flow fixture Event")
+  let transactionsFlow : Loam.TransactionsFlowReview.Snapshot := {
+    start := "2026-09-01"
+    endExclusive := "2026-10-01"
+    columns := [
+      { event := flowEvent1, date := "2026-09-10", description := "first" },
+      { event := flowEvent2, date := "2026-09-11", description := "second" }
+    ]
+  }
   let roleFlow : Loam.RoleFlowReview.Snapshot := {
     start := "2026-09-01"
     endExclusive := "2026-10-01"
@@ -66,6 +84,7 @@ def main : IO Unit := do
     budget := budget
     capacity := .error "capacity unavailable"
     stockFlow := .ok stockFlow
+    transactionsFlow := .ok transactionsFlow
     roleFlow := .ok roleFlow
     roleBalances := .ok roleBalances
     purposeMetadata := []
@@ -90,6 +109,26 @@ def main : IO Unit := do
         "Reports did not preserve exact reconstructed closing"
       expect (report.currentTracked.quanta == 12000)
         "Reports changed current tracked quantity"
+
+  match reports.transactionsFlow with
+  | .error message =>
+      throw (IO.userError ("Reports unexpectedly lost Transactions Flow evidence: " ++ message))
+  | .ok report =>
+      expect (report.start == "2026-09-01" && report.endExclusive == "2026-10-01")
+        "Reports changed Transactions Flow window"
+      expect (report.eventCount == 2)
+        "Reports changed Transactions Flow Event count"
+      expect (report.rows.length == 2)
+        "Reports changed Transactions Flow active coordinate count"
+      let some cashRow := report.rows.find? (fun row => decide (row.coordinate.locus = cash))
+        | throw (IO.userError "Reports lost cash Transactions Flow row")
+      expect
+        (cashRow.net.quanta == 300 &&
+          cashRow.gross.quanta == 700 &&
+          cashRow.positive.quanta == 500 &&
+          cashRow.negative.quanta == -200 &&
+          cashRow.activeEvents == 2)
+        "Reports changed Transactions Flow two-sided activity"
 
   match reports.incomeExpense with
   | .error message =>
@@ -129,4 +168,4 @@ def main : IO Unit := do
       expect (report.unsupportedBalanceCount == 1)
         "Reports changed unsupported Balance count"
 
-  IO.println "Reports presentation: Stock-Flow, Income & Expense, and Balances preserve shared Review evidence."
+  IO.println "Reports presentation: Stock-Flow, Transactions Flow, Income & Expense, and Balances preserve shared Review evidence."
