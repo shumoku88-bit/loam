@@ -1,0 +1,373 @@
+name: TLA+ Research Witnesses
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/tla-research-case/**'
+      - '.github/workflows/tla-research-witnesses.yml'
+      - 'OBSERVATION_MAP.md'
+      - 'README.md'
+      - 'experiments/069_policy_change_history_pressure.md'
+      - 'experiments/071_policy_definition_history_pressure.md'
+      - 'experiments/087_first_event_anchored_origin.md'
+      - 'experiments/088_zero_origin_admission_evidence.md'
+      - 'experiments/093_origin_scope_valid_vs_learned.md'
+      - 'experiments/096_temporal_evidence_correction.md'
+      - 'experiments/097_temporal_correction_conflict.md'
+      - 'experiments/098_temporal_conflict_resolution_history.md'
+      - 'experiments/099_temporal_scoped_quantity_correction.md'
+      - 'experiments/100_query_relative_temporal_ambiguity.md'
+      - 'experiments/329_measure_scale_publication_order.md'
+      - 'tla/AsynchronousSettlement.cfg'
+      - 'tla/AsynchronousSettlement.tla'
+      - 'tla/AsynchronousSettlementPendingBoundary.cfg'
+      - 'tla/AsynchronousSettlementPhysicalBoundary.cfg'
+      - 'tla/AsynchronousSettlementSettledBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontier.cfg'
+      - 'tla/BitemporalCorrectionFrontier.tla'
+      - 'tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg'
+      - 'tla/CorrectableExplanationEdge.cfg'
+      - 'tla/CorrectableExplanationEdge.tla'
+      - 'tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg'
+      - 'tla/CorrectableExplanationEdgeMutableBoundary.cfg'
+      - 'tla/FirstEventAnchoredOrigin*.cfg'
+      - 'tla/FirstEventAnchoredOrigin.tla'
+      - 'tla/MeasureScalePublicationOrder.tla'
+      - 'tla/MeasureScalePublicationOrderLocked.cfg'
+      - 'tla/MeasureScalePublicationOrderLockedScaleReachable.cfg'
+      - 'tla/MeasureScalePublicationOrderLockedUseReachable.cfg'
+      - 'tla/MeasureScalePublicationOrderNaive.cfg'
+      - 'tla/OriginScopeValidVsLearned.cfg'
+      - 'tla/OriginScopeValidVsLearned.tla'
+      - 'tla/OriginScopeValidVsLearnedBoundary.cfg'
+      - 'tla/PolicyAttributionHistory*.cfg'
+      - 'tla/PolicyAttributionHistory.tla'
+      - 'tla/PolicyDefinitionHistory*.cfg'
+      - 'tla/PolicyDefinitionHistory.tla'
+      - 'tla/QueryRelativeTemporalAmbiguity.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguity.tla'
+      - 'tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg'
+      - 'tla/TemporalConflictResolutionHistory.cfg'
+      - 'tla/TemporalConflictResolutionHistory.tla'
+      - 'tla/TemporalConflictResolutionHistoryBoundary.cfg'
+      - 'tla/TemporalCorrectionConflict.cfg'
+      - 'tla/TemporalCorrectionConflict.tla'
+      - 'tla/TemporalCorrectionConflictBoundary.cfg'
+      - 'tla/TemporalEvidenceCorrection.cfg'
+      - 'tla/TemporalEvidenceCorrection.tla'
+      - 'tla/TemporalEvidenceCorrectionBoundary.cfg'
+      - 'tla/TemporalScopedQuantityCorrection.cfg'
+      - 'tla/TemporalScopedQuantityCorrection.tla'
+      - 'tla/TemporalScopedQuantityCorrectionBoundary.cfg'
+      - 'tla/TimeIndexedRelation.cfg'
+      - 'tla/TimeIndexedRelation.tla'
+      - 'tla/TimeIndexedRelationFutureBoundary.cfg'
+      - 'tla/TimeIndexedRelationHistoricalBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTime.cfg'
+      - 'tla/ValidTimeVsLearnedTime.tla'
+      - 'tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg'
+      - 'tla/ZeroOriginAdmissionEvidence*.cfg'
+      - 'tla/ZeroOriginAdmissionEvidence.tla'
+      - 'tools/run-tla-research-case'
+      - 'tools/select-tla-research-cases'
+      - 'verification/ci/tla-research-cases.json'
+  push:
+    branches:
+      - 'main'
+      - 'experiment/069-policy-change-history-pressure'
+      - 'experiment/071-policy-definition-history-pressure'
+      - 'experiment/087-first-event-origin'
+      - 'experiment/088-zero-origin-admission-evidence'
+      - 'experiment/092-origin-relative-time-cut'
+      - 'experiment/096-temporal-evidence-correction'
+      - 'experiment/097-temporal-correction-conflict'
+      - 'experiment/098-temporal-conflict-resolution-history'
+      - 'experiment/099-temporal-scoped-quantity-correction'
+      - 'experiment/100-query-relative-temporal-ambiguity'
+      - 'experiment/329-measure-scale-publication-order'
+    paths:
+      - '.github/actions/tla-research-case/**'
+      - '.github/workflows/tla-research-witnesses.yml'
+      - 'OBSERVATION_MAP.md'
+      - 'README.md'
+      - 'experiments/069_policy_change_history_pressure.md'
+      - 'experiments/071_policy_definition_history_pressure.md'
+      - 'experiments/087_first_event_anchored_origin.md'
+      - 'experiments/088_zero_origin_admission_evidence.md'
+      - 'experiments/093_origin_scope_valid_vs_learned.md'
+      - 'experiments/096_temporal_evidence_correction.md'
+      - 'experiments/097_temporal_correction_conflict.md'
+      - 'experiments/098_temporal_conflict_resolution_history.md'
+      - 'experiments/099_temporal_scoped_quantity_correction.md'
+      - 'experiments/100_query_relative_temporal_ambiguity.md'
+      - 'experiments/329_measure_scale_publication_order.md'
+      - 'tla/AsynchronousSettlement.cfg'
+      - 'tla/AsynchronousSettlement.tla'
+      - 'tla/AsynchronousSettlementPendingBoundary.cfg'
+      - 'tla/AsynchronousSettlementPhysicalBoundary.cfg'
+      - 'tla/AsynchronousSettlementSettledBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontier.cfg'
+      - 'tla/BitemporalCorrectionFrontier.tla'
+      - 'tla/BitemporalCorrectionFrontierLaterWinsBoundary.cfg'
+      - 'tla/BitemporalCorrectionFrontierResolutionRewritesPastBoundary.cfg'
+      - 'tla/CorrectableExplanationEdge.cfg'
+      - 'tla/CorrectableExplanationEdge.tla'
+      - 'tla/CorrectableExplanationEdgeLearnedTimeBoundary.cfg'
+      - 'tla/CorrectableExplanationEdgeMutableBoundary.cfg'
+      - 'tla/FirstEventAnchoredOrigin*.cfg'
+      - 'tla/FirstEventAnchoredOrigin.tla'
+      - 'tla/MeasureScalePublicationOrder.tla'
+      - 'tla/MeasureScalePublicationOrderLocked.cfg'
+      - 'tla/MeasureScalePublicationOrderLockedScaleReachable.cfg'
+      - 'tla/MeasureScalePublicationOrderLockedUseReachable.cfg'
+      - 'tla/MeasureScalePublicationOrderNaive.cfg'
+      - 'tla/OriginScopeValidVsLearned.cfg'
+      - 'tla/OriginScopeValidVsLearned.tla'
+      - 'tla/OriginScopeValidVsLearnedBoundary.cfg'
+      - 'tla/PolicyAttributionHistory*.cfg'
+      - 'tla/PolicyAttributionHistory.tla'
+      - 'tla/PolicyDefinitionHistory*.cfg'
+      - 'tla/PolicyDefinitionHistory.tla'
+      - 'tla/QueryRelativeTemporalAmbiguity.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguity.tla'
+      - 'tla/QueryRelativeTemporalAmbiguityBlocksBoundary.cfg'
+      - 'tla/QueryRelativeTemporalAmbiguityYieldsBoundary.cfg'
+      - 'tla/TemporalConflictResolutionHistory.cfg'
+      - 'tla/TemporalConflictResolutionHistory.tla'
+      - 'tla/TemporalConflictResolutionHistoryBoundary.cfg'
+      - 'tla/TemporalCorrectionConflict.cfg'
+      - 'tla/TemporalCorrectionConflict.tla'
+      - 'tla/TemporalCorrectionConflictBoundary.cfg'
+      - 'tla/TemporalEvidenceCorrection.cfg'
+      - 'tla/TemporalEvidenceCorrection.tla'
+      - 'tla/TemporalEvidenceCorrectionBoundary.cfg'
+      - 'tla/TemporalScopedQuantityCorrection.cfg'
+      - 'tla/TemporalScopedQuantityCorrection.tla'
+      - 'tla/TemporalScopedQuantityCorrectionBoundary.cfg'
+      - 'tla/TimeIndexedRelation.cfg'
+      - 'tla/TimeIndexedRelation.tla'
+      - 'tla/TimeIndexedRelationFutureBoundary.cfg'
+      - 'tla/TimeIndexedRelationHistoricalBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTime.cfg'
+      - 'tla/ValidTimeVsLearnedTime.tla'
+      - 'tla/ValidTimeVsLearnedTimeRetrospectiveBoundary.cfg'
+      - 'tla/ValidTimeVsLearnedTimeSingleCoordinateBoundary.cfg'
+      - 'tla/ZeroOriginAdmissionEvidence*.cfg'
+      - 'tla/ZeroOriginAdmissionEvidence.tla'
+      - 'tools/run-tla-research-case'
+      - 'tools/select-tla-research-cases'
+      - 'verification/ci/tla-research-cases.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    name: Select TLA+ research obligations
+    runs-on: ubuntu-latest
+    outputs:
+      cases: ${{ steps.select.outputs.cases }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Qualify changed-path and branch selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python3 tools/select-tla-research-cases --event pull_request --paths tla/TimeIndexedRelation.tla)" = '["time-indexed-relation"]'
+          test "$(python3 tools/select-tla-research-cases --event push --branch experiment/069-policy-change-history-pressure --paths tla/PolicyAttributionHistoryBoundary.cfg)" = '["policy-attribution-history"]'
+          test "$(python3 tools/select-tla-research-cases --event push --branch experiment/069-policy-change-history-pressure --paths tla/TemporalEvidenceCorrection.tla)" = '[]'
+          test "$(python3 tools/select-tla-research-cases --event push --branch experiment/329-measure-scale-publication-order --paths verification/ci/tla-research-cases.json)" = '["measure-scale-publication-order"]'
+          test "$(python3 tools/select-tla-research-cases --event workflow_dispatch --paths)" = '["time-indexed-relation","valid-time-vs-learned-time","bitemporal-correction-frontier","correctable-explanation-edge","asynchronous-settlement","policy-attribution-history","policy-definition-history","first-event-origin","zero-origin-admission-evidence","origin-scope-valid-vs-learned","temporal-evidence-correction","temporal-correction-conflict","temporal-conflict-resolution-history","temporal-scoped-quantity-correction","query-relative-temporal-ambiguity","measure-scale-publication-order"]'
+
+      - name: Select obligations for this event
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          cases="$(python3 tools/select-tla-research-cases --event "$GITHUB_EVENT_NAME" --event-file "$GITHUB_EVENT_PATH")"
+          printf 'cases=%s\n' "$cases" >> "$GITHUB_OUTPUT"
+          printf 'selected TLA+ cases: %s\n' "$cases"
+
+  time-indexed-relation:
+    name: TLA+ time-indexed relation
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'time-indexed-relation') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: time-indexed-relation
+
+  valid-time-vs-learned-time:
+    name: TLA+ valid time vs learned time
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'valid-time-vs-learned-time') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: valid-time-vs-learned-time
+
+  bitemporal-correction-frontier:
+    name: TLA+ bitemporal correction frontier
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'bitemporal-correction-frontier') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: bitemporal-correction-frontier
+
+  correctable-explanation-edge:
+    name: TLA+ correctable explanation edge
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'correctable-explanation-edge') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: correctable-explanation-edge
+
+  asynchronous-settlement:
+    name: TLA+ asynchronous settlement
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'asynchronous-settlement') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: asynchronous-settlement
+
+  policy-attribution-history:
+    name: TLA+ policy attribution history
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'policy-attribution-history') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: policy-attribution-history
+
+  policy-definition-history:
+    name: TLA+ policy definition history
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'policy-definition-history') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: policy-definition-history
+
+  first-event-origin:
+    name: First-event anchored origin
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'first-event-origin') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: first-event-origin
+
+  zero-origin-admission-evidence:
+    name: Zero-origin admission evidence
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'zero-origin-admission-evidence') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: zero-origin-admission-evidence
+
+  origin-scope-valid-vs-learned:
+    name: Valid time vs learned time at origin
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'origin-scope-valid-vs-learned') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: origin-scope-valid-vs-learned
+
+  temporal-evidence-correction:
+    name: Append-only temporal evidence correction
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'temporal-evidence-correction') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: temporal-evidence-correction
+
+  temporal-correction-conflict:
+    name: Temporal correction sibling conflict
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'temporal-correction-conflict') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: temporal-correction-conflict
+
+  temporal-conflict-resolution-history:
+    name: Temporal conflict resolution history
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'temporal-conflict-resolution-history') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: temporal-conflict-resolution-history
+
+  temporal-scoped-quantity-correction:
+    name: Temporal scoped quantity correction
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'temporal-scoped-quantity-correction') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: temporal-scoped-quantity-correction
+
+  query-relative-temporal-ambiguity:
+    name: Query-relative temporal ambiguity
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'query-relative-temporal-ambiguity') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: query-relative-temporal-ambiguity
+
+  measure-scale-publication-order:
+    name: TLA+ Measure scale publication order
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'measure-scale-publication-order') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: measure-scale-publication-order
+

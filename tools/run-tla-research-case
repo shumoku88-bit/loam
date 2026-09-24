@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+MANIFEST = Path("verification/ci/tla-research-cases.json")
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: tools/run-tla-research-case CASE_ID")
+
+    case_id = sys.argv[1]
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    cases = {case["id"]: case for case in manifest["cases"]}
+    if case_id not in cases:
+        raise SystemExit(f"unknown TLA+ research case: {case_id}")
+
+    case = cases[case_id]
+    jar = os.environ.get("TLA2TOOLS_JAR")
+    if not jar:
+        raise SystemExit("TLA2TOOLS_JAR is not set")
+
+    model = Path(case["model"])
+    if not model.is_file():
+        raise SystemExit(f"missing TLA+ model: {model}")
+
+    flags = list(case.get("flags", []))
+    use_metadir = bool(case.get("useMetadir", False))
+
+    print(f"{case['observation']}: {case['jobName']}")
+    print(f"model: {model}")
+
+    for variant in case["variants"]:
+        config = Path(variant["config"])
+        if not config.is_file():
+            raise SystemExit(f"{case_id}: missing TLC config: {config}")
+
+        command = ["java", "-cp", jar, "tlc2.TLC", *flags]
+        tempdir = None
+        if use_metadir:
+            tempdir = tempfile.TemporaryDirectory(prefix=f"loam-tla-{case_id}-{variant['id']}-")
+            command += ["-metadir", tempdir.name]
+        command += ["-config", str(config), str(model)]
+
+        print(f"--- {case_id}/{variant['id']} ---")
+        result = subprocess.run(
+            command,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        output = result.stdout
+        print(output, end="" if output.endswith("\n") else "\n")
+
+        expectation = variant["expect"]
+        if expectation == "success":
+            if result.returncode != 0:
+                raise SystemExit(
+                    f"{case_id}/{variant['id']}: expected TLC success, got {result.returncode}"
+                )
+        elif expectation == "failure":
+            if result.returncode == 0:
+                raise SystemExit(
+                    f"{case_id}/{variant['id']}: expected TLC counterexample/failure"
+                )
+        else:
+            raise SystemExit(
+                f"{case_id}/{variant['id']}: unknown expectation {expectation!r}"
+            )
+
+        missing = [needle for needle in variant["required"] if needle not in output]
+        if missing:
+            raise SystemExit(
+                f"{case_id}/{variant['id']}: missing required output strings: {missing}"
+            )
+
+        if tempdir is not None:
+            tempdir.cleanup()
+
+    print(f"{case_id}: obligation preserved")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
