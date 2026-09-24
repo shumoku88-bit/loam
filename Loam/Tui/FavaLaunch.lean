@@ -88,7 +88,9 @@ private partial def waitForFavaHealthy (port : Nat) (attemptsLeft : Nat) : IO Bo
 
 /--
 Ensure Fava is running on the given port.
-Reuses healthy existing server or launches a process group owned by this TUI session.
+Reuses only a healthy server owned by this TUI session, or launches a new owned
+process group. An independently started Fava is refused because a generic HTTP
+health check cannot establish which Beancount ledger that process is serving.
 Guards against collision with unrelated non-Fava services on the same port.
 -/
 def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : IO (Except String Bool) := do
@@ -99,9 +101,9 @@ def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : I
     else
       shutdown
 
-  -- Check if an external Fava instance is already responding on this port
+  -- Never reuse an unowned Fava: health proves service kind, not ledger identity.
   if ← isFavaResponding port then
-    return .ok false
+    return .error s!"Port {port} already serves a Fava process not owned by this LOAM session; served ledger identity cannot be established"
 
   -- Check if port is occupied by another non-Fava service
   if ← isPortListening port then
