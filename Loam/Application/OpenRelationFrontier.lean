@@ -191,11 +191,6 @@ private theorem admitAll?_isSome_eq_currentUnitsAdmissible
           simp [admitAll?, currentUnitsAdmissible, hAdmission, Option.isSome_bind,
             admitAll?_isSome_eq_currentUnitsAdmissible events rest]
 
-private def sameRelationSource (left right : RelationUnit) : Bool :=
-  decide
-    (left.sourceEvent = right.sourceEvent ∧
-      left.sourceEffect = right.sourceEffect)
-
 private def sameRawSource
     (sourceEvent : EventId)
     (sourceEffect : EffectKey)
@@ -215,7 +210,8 @@ private def currentCoverageFor
     (sourceRelation : RelationUnit) : Int :=
   current.foldr
     (fun relation total =>
-      if sameRelationSource relation sourceRelation then
+      if relation.sourceEvent = sourceRelation.sourceEvent ∧
+          relation.sourceEffect = sourceRelation.sourceEffect then
         relation.quantity.quanta + total
       else
         total)
@@ -306,16 +302,16 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
           simp [hSame.1, hSame.2]
-        simp [hKey, sameRelationSource, hSame]
-        simpa only [currentCoverageFor, sameRelationSource] using ih
+        simp [hKey, hSame]
+        simpa only [currentCoverageFor] using ih
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
               { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
           intro h
           apply hSame
           exact ⟨congrArg SourceKey.event h, congrArg SourceKey.effect h⟩
-        simp [hKey, sameRelationSource, hSame]
-        simpa only [currentCoverageFor, sameRelationSource] using ih
+        simp [hKey, hSame]
+        simpa only [currentCoverageFor] using ih
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
