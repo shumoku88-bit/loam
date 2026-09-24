@@ -2,6 +2,7 @@ import Loam.Core.EventMemory
 import Loam.Core.HashNodup
 import Loam.Core.OpenRelation
 import Std.Data.HashMap
+import Std.Data.HashMap.Lemmas
 
 namespace Loam.Application
 
@@ -212,10 +213,10 @@ private def sourceRelationUnits
 private def currentCoverageFor
     (current : List RelationUnit)
     (sourceRelation : RelationUnit) : Int :=
-  current.foldl
-    (fun total relation =>
+  current.foldr
+    (fun relation total =>
       if sameRelationSource relation sourceRelation then
-        total + relation.quantity.quanta
+        relation.quantity.quanta + total
       else
         total)
     0
@@ -271,14 +272,52 @@ private def buildSourceEffectIndex
 Build a one-pass transient aggregate mapping `(EventId, EffectKey)` to total
 relation quantity across all relation units targeting that source.
 -/
-private def buildCoverageIndex
-    (relations : List RelationUnit) : Std.HashMap SourceKey Int :=
-  relations.foldl
-    (fun index relation =>
+private def buildCoverageIndex :
+    List RelationUnit → Std.HashMap SourceKey Int
+  | [] => {}
+  | relation :: rest =>
+      let index := buildCoverageIndex rest
       let key : SourceKey := { event := relation.sourceEvent, effect := relation.sourceEffect }
-      let prior := index[key]?.getD 0
-      index.insert key (prior + relation.quantity.quanta))
-    {}
+      let prior := (index.get? key).getD 0
+      index.insert key (relation.quantity.quanta + prior)
+
+/--
+The transient source-coverage index is exactly the direct list aggregation used
+by the semantic frontier, for every raw RelationUnit list and queried source.
+-/
+private theorem buildCoverageIndex_getD_eq_currentCoverageFor
+    (relations : List RelationUnit)
+    (sourceRelation : RelationUnit) :
+    ((buildCoverageIndex relations).get? {
+      event := sourceRelation.sourceEvent,
+      effect := sourceRelation.sourceEffect
+    }).getD 0 =
+      currentCoverageFor relations sourceRelation := by
+  induction relations with
+  | nil =>
+      simp [buildCoverageIndex, currentCoverageFor]
+  | cons relation rest ih =>
+      simp only [buildCoverageIndex, currentCoverageFor, List.foldr_cons]
+      rw [Std.HashMap.get?_insert]
+      by_cases hSame :
+          relation.sourceEvent = sourceRelation.sourceEvent ∧
+            relation.sourceEffect = sourceRelation.sourceEffect
+      · have hKey :
+            ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
+              { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
+          cases hSame with
+          | intro hEvent hEffect =>
+              cases hEvent
+              cases hEffect
+              rfl
+        simp [hKey, sameRelationSource, hSame, ih]
+      · have hKey :
+            ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
+              { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
+          intro h
+          apply hSame
+          exact ⟨congrArg SourceKey.event h, congrArg SourceKey.effect h⟩
+        simp [hKey, sameRelationSource, hSame, ih]
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
