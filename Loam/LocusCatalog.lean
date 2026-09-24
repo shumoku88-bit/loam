@@ -1,4 +1,5 @@
 import Loam.Core.LocusAdmission
+import Loam.HouseholdPaths
 import Loam.Persistence.TokenSyntax
 import Loam.PresentationMetadata
 
@@ -94,7 +95,7 @@ def exactToken? (catalog : Catalog) (token : String) : Option Entry :=
 
 /-- Load the complete replaceable display dictionary, including historical-only rows. -/
 def loadMetadata (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
-  let path := dataDir / "config" / "locus-catalog.tsv"
+  let path := Loam.HouseholdPaths.locusCatalog dataDir
   try
     if ← path.pathExists then
       match decode? (← IO.FS.readFile path) with

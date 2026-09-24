@@ -1,4 +1,5 @@
 import Loam.Core.Purpose
+import Loam.HouseholdPaths
 import Loam.Persistence.TokenSyntax
 import Loam.PresentationMetadata
 
@@ -81,7 +82,7 @@ theorem forPurposes_preserves_identities (metadata : List Metadata) (purposes : 
 
 /-- Load replaceable display metadata. Missing configuration is an empty catalog, not missing semantics. -/
 def loadMetadata (dataDir : System.FilePath) : IO (Except String (List Metadata)) := do
-  let path := dataDir / "config" / "purpose-catalog.tsv"
+  let path := Loam.HouseholdPaths.purposeCatalog dataDir
   try
     if ← path.pathExists then
       match decode? (← IO.FS.readFile path) with

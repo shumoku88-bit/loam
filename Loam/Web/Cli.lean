@@ -5,6 +5,7 @@ import Loam.AttentionReview
 import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
+import Loam.HouseholdPaths
 import Loam.PurposeCatalog
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
@@ -96,7 +97,7 @@ private def renderCurrent
     | .error message => pure (.error message)
     | .ok image =>
         Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image observedAt
-  let attention ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
+  let attention ← Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
   let budget ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir observedAt
   let stockFlow ←
     match actualImage, budget.window with

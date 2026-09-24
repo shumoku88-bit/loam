@@ -9,6 +9,7 @@ on:
       - 'Loam/Tests/PresentationHome.lean'
       - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/ActualAuthority.lean'
+      - 'Loam/HouseholdPaths.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'

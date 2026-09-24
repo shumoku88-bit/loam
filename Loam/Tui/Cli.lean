@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
+import Loam.HouseholdPaths
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.PurposeCatalog
@@ -139,7 +140,7 @@ def loadSnapshotFromActualImage
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents
   let attention ←
-    Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
+    Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
   let pace ←
     Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image today
   let paceHistory ←
@@ -1123,7 +1124,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'v' || key = .input 'V') then
     let reports ←
-      match ← Loam.BoundaryPresetConfig.load? (dataDir / "config" / "boundary-presets.tsv") with
+      match ← Loam.BoundaryPresetConfig.load? (Loam.HouseholdPaths.boundaryPresets dataDir) with
       | some presets =>
           pure (Loam.Tui.Reports.initialForDateWithPresets state.selectedDate presets)
       | none =>

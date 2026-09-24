@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
 import Loam.CapacityAuthority
 import Loam.CapacityReview
+import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -148,11 +149,11 @@ def loadSnapshotAt
   if !(observedAt < endExclusive) then
     return .error "loam: current coverage horizon must be later than the observation date"
 
-  let capacityPath := dataDir / "capacity.loam"
-  let actualRoutingPath := dataDir / "actual-routing.loam"
-  let scheduledPath := dataDir / "scheduled.loam"
-  let scheduledRoutingPath := dataDir / "scheduled-routing.loam"
-  let accountingRolePath := dataDir / "accounting-role.loam"
+  let capacityPath := Loam.HouseholdPaths.capacity dataDir
+  let actualRoutingPath := Loam.HouseholdPaths.actualRouting dataDir
+  let scheduledPath := Loam.HouseholdPaths.scheduled dataDir
+  let scheduledRoutingPath := Loam.HouseholdPaths.scheduledRouting dataDir
+  let accountingRolePath := Loam.HouseholdPaths.accountingRole dataDir
 
   let capacityImage ←
     match ← Loam.CapacityAuthority.loadRequired capacityPath with

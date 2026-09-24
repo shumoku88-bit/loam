@@ -91,6 +91,8 @@ on:
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/HouseholdCommand.lean'
+      - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Tests/HouseholdPaths.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
@@ -208,6 +210,8 @@ on:
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/ReviewCli.lean'
       - 'Loam/HouseholdCommand.lean'
+      - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Tests/HouseholdPaths.lean'
       - 'Loam/Cli/DailyQuantityCli.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualQuantityCliFixture.lean'
@@ -335,6 +339,9 @@ jobs:
           compare_export_dispatch loamJournalExport journal
           compare_export_dispatch loamPtaExport pta
           compare_export_dispatch loamBeancountExport beancount
+
+      - name: Verify passive household filesystem topology
+        run: lake env lean --run Loam/Tests/HouseholdPaths.lean
 
       - name: Verify display/history and admission-scoped Locus catalog
         run: lake env lean --run Loam/Tests/LocusCatalog.lean
