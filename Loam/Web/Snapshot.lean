@@ -6,6 +6,7 @@ import Loam.PurposeCatalog
 import Loam.ScheduledReview
 import Loam.Presentation.HouseholdSnapshot
 import Loam.Presentation.Home
+import Loam.Presentation.Reports
 
 namespace Loam.Web.Snapshot
 
@@ -68,7 +69,8 @@ private def renderNav : String :=
   "<a href=\"#scheduled\">Scheduled</a> | " ++
   "<a href=\"#budget\">Budget</a> | " ++
   "<a href=\"#attention\">Attention</a> | " ++
-  "<a href=\"#capacity\">Capacity</a>" ++
+  "<a href=\"#capacity\">Capacity</a> | " ++
+  "<a href=\"#reports\">Reports</a>" ++
   "</div>"
 
 private def quantityText (quantity : Quantity) : String :=
@@ -243,6 +245,24 @@ private def renderCapacity
         escapeHtml (Loam.PurposeCatalog.labelFor metadata row.purpose) ++ "</span> " ++
         quantityText row.entitlement)
 
+private def renderReports (snapshot : Snapshot) : String :=
+  let reports := Loam.Presentation.Reports.fromSnapshot snapshot
+  match reports.stockFlow with
+  | .error message => unavailable message
+  | .ok report =>
+      "<h3>Current Cycle Stock-Flow</h3>\n" ++
+      "<p class=\"note\">Why did the tracked balance become what it is? Values come from the shared Stock-Flow Review.</p>\n" ++
+      "<table class=\"facts\" summary=\"Current cycle Stock-Flow bridge\">\n" ++
+      "<tr><th>Window</th>" ++
+        tableCell (escapeHtml (report.start ++ " to " ++ report.endExclusive ++ " (end exclusive)")) ++
+        "</tr>\n" ++
+      "<tr><th>Opening tracked</th>" ++ tableCell (quantityText report.opening) ++ "</tr>\n" ++
+      "<tr><th>Increases</th>" ++ tableCell (quantityText report.increases) ++ "</tr>\n" ++
+      "<tr><th>Decreases</th>" ++ tableCell (quantityText report.decreases) ++ "</tr>\n" ++
+      "<tr><th>Closing reconstructed</th>" ++ tableCell (quantityText report.closing) ++ "</tr>\n" ++
+      "<tr><th>Current tracked</th>" ++ tableCell (quantityText report.currentTracked) ++ "</tr>\n" ++
+      "</table>"
+
 def render (snapshot : Snapshot) : String :=
   String.intercalate "\n"
     [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"
@@ -286,6 +306,7 @@ def render (snapshot : Snapshot) : String :=
     , renderCard "budget" "Current Budget" (renderBudget snapshot.purposeMetadata snapshot.budget)
     , renderCard "attention" "Open Attention" (renderAttention snapshot.attention)
     , renderCard "capacity" "Raw Capacity (all retained)" (renderCapacity snapshot.purposeMetadata snapshot.capacity)
+    , renderCard "reports" "Reports" (renderReports snapshot)
     , "<p class=\"footer\">Presentation only. This page does not own household authority and performs no writes.</p>"
     , "</div>"
     , "</body>"

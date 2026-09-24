@@ -5,6 +5,7 @@ import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
+import Loam.StockFlowReview
 
 namespace Loam.Presentation
 
@@ -37,6 +38,9 @@ structure HouseholdSnapshot where
   /-- Current Daily Pace derived from the same admitted Actual generation when available. -/
   pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
     .error "loam: Daily Pace not loaded"
+  /-- Current explicit-window Stock–Flow report for presentation, when requested. -/
+  stockFlow : Except String Loam.StockFlowReview.Snapshot :=
+    .error "loam: Stock-Flow not loaded"
   purposeMetadata : List Loam.PurposeCatalog.Metadata := []
 
 end Loam.Presentation

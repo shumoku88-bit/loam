@@ -7,6 +7,7 @@ import Loam.CycleBudgetReview
 import Loam.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.ScheduledReview
+import Loam.StockFlowReview
 import Loam.Web.Snapshot
 
 namespace Loam.Web.Cli
@@ -94,6 +95,14 @@ private def renderCurrent
         Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image observedAt
   let attention ← Loam.AttentionReview.loadEvidence (dataDir / "attention.loam")
   let budget ← Loam.CycleBudgetReview.loadSnapshotAt dataDir dataDir observedAt
+  let stockFlow ←
+    match actualImage, budget.window with
+    | .error message, _ => pure (.error message)
+    | _, .error message =>
+        pure (.error ("loam: Stock-Flow current window unavailable: " ++ message))
+    | .ok image, .ok window =>
+        Loam.StockFlowReview.loadSnapshotFromActualImage
+          dataDir image window.start window.endExclusive
   let capacity ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir
   let purposeMetadata ← currentPurposeMetadata dataDir
 
@@ -105,6 +114,7 @@ private def renderCurrent
     budget := budget
     capacity := capacity
     pace := pace
+    stockFlow := stockFlow
     purposeMetadata := purposeMetadata
   }
 

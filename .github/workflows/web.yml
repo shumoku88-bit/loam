@@ -7,6 +7,7 @@ on:
       - 'Loam/Presentation/**'
       - 'Loam/Tests/WebSnapshot.lean'
       - 'Loam/Tests/PresentationHome.lean'
+      - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
@@ -14,6 +15,9 @@ on:
       - 'Loam/CapacityReview.lean'
       - 'Loam/CycleBudgetReview.lean'
       - 'Loam/CycleSpendingPaceReview.lean'
+      - 'Loam/StockFlowReview.lean'
+      - 'Loam/BalanceReview.lean'
+      - 'Loam/BalanceViewConfig.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/CycleFundingInspection.lean'
       - 'Loam/PurposeCatalog.lean'
@@ -54,6 +58,9 @@ jobs:
 
       - name: Verify shared Home presentation
         run: lake env lean --run Loam/Tests/PresentationHome.lean
+
+      - name: Verify shared Reports presentation
+        run: lake env lean --run Loam/Tests/PresentationReports.lean
 
       - name: Verify presentation-only Web snapshot
         run: lake env lean --run Loam/Tests/WebSnapshot.lean

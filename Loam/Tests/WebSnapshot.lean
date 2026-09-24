@@ -31,6 +31,14 @@ def main (_args : List String) : IO Unit := do
       automaticDeductions := Loam.Core.Quantity.ofQuanta 1000
       availableThroughEnd := Loam.Core.Quantity.ofQuanta 4000
     }
+    stockFlow := .ok {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      reconstructedStart := Loam.Core.Quantity.ofQuanta 10000
+      increasesAcrossEvents := Loam.Core.Quantity.ofQuanta 5000
+      decreasesAcrossEvents := Loam.Core.Quantity.ofQuanta (-3000)
+      currentTracked := Loam.Core.Quantity.ofQuanta 12000
+    }
     purposeMetadata := []
   }
 
@@ -50,6 +58,14 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not expose Daily Pace on Home"
   expect (contains html "1000 jpy/day")
     "Web snapshot did not render the Lean-derived Daily Pace quotient"
+  expect (contains html "href=\"#reports\"")
+    "Web snapshot did not expose Reports navigation"
+  expect (contains html "Current Cycle Stock-Flow")
+    "Web snapshot did not expose the Stock-Flow report"
+  expect (contains html "Opening tracked")
+    "Web snapshot did not label the Stock-Flow opening"
+  expect (contains html "12000 jpy")
+    "Web snapshot did not render the reconstructed/current Stock-Flow quantity"
   expect (contains html "Recent Actual")
     "Web snapshot did not expose the Actual section"
   expect (contains html "Current-open Scheduled")
