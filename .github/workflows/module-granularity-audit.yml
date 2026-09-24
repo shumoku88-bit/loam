@@ -19,6 +19,8 @@ on:
       - "docs/research/AUDIT_GENERATION_3_CORRECTION_FRONTIER.md"
       - "docs/d2/correction_frontier_responsibility_topology.d2"
       - "Loam/Tui/Reports.lean"
+      - "Loam/Tui/ReportsModel.lean"
+      - "Loam/Tui/ReportsView.lean"
       - "Loam/Tui/TransactionsFlowPane.lean"
       - "Loam/Tests/TuiTransactionsFlow.lean"
       - "docs/drakon/build_map.py"
