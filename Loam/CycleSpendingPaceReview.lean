@@ -347,13 +347,14 @@ def projectHistory
 
 /--
 Load the current explicit boundary, Daily Pace pool, current balances, and
-current-open Scheduled evidence.
+current-open Scheduled evidence from one caller-supplied admitted Actual image.
 
-Balance and Scheduled lifecycle interpretation remain owned by their existing
-shared readers. This boundary introduces no new canonical state.
+This entrance is for composed read boundaries such as Home that need several
+Actual-backed answers from one generation. It never reopens `actual.loam`.
 -/
-def loadSnapshotAt
-    (dataDir actualRoot : System.FilePath)
+def loadSnapshotFromActualImageAt
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
     (observedAt : String) : IO (Except String Snapshot) := do
   let window ←
     match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
@@ -363,28 +364,49 @@ def loadSnapshotAt
     match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
-  let evidence ←
-    match ← Loam.BalanceReview.loadEvidence dataDir actualRoot with
+  let coverage ←
+    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
-    | .ok evidence => pure evidence
+    | .ok coverage => pure coverage
   let balances ←
-    match Loam.BalanceReview.project
-        evidence.events evidence.corrections evidence.coverage selection with
+    match Loam.BalanceReview.projectImage image coverage selection with
     | .error message => return .error message
     | .ok balances => pure balances
   let scheduled ←
-    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir evidence.events with
+    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
   return project observedAt window.endExclusive selection balances scheduled
 
 /--
-Load a retrospective current-truth Daily Pace series without retaining any pace
-observation. The current normalized Actual image is read once and supplies both
-the correction-aware Event frontier and current occurrence-date projection.
+Load the current explicit boundary, Daily Pace pool, current balances, and
+current-open Scheduled evidence.
+
+Standalone callers still select and load their Actual authority here. Composed
+readers that already own one admitted Actual generation should call
+`loadSnapshotFromActualImageAt` instead.
 -/
-def loadHistoryAt
+def loadSnapshotAt
     (dataDir actualRoot : System.FilePath)
+    (observedAt : String) : IO (Except String Snapshot) := do
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    | .error message => return .error message
+    | .ok image => pure image
+  loadSnapshotFromActualImageAt dataDir image observedAt
+
+/--
+Reconstruct a retrospective current-truth Daily Pace series from one
+caller-supplied admitted Actual image.
+
+The same image supplies balances, Scheduled completion Event references, and
+Actual review records, so a composed reader cannot mix Actual generations while
+building one answer.
+-/
+def loadHistoryFromActualImageAt
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
     (observedAt : String)
     (days : Nat) : IO (Except String (List Snapshot)) := do
   let window ←
@@ -395,11 +417,6 @@ def loadHistoryAt
     match ← Loam.DailyPaceConfig.load (dataDir / "config" / "daily-pace.tsv") with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
-  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualPath with
-    | .error message => return .error message
-    | .ok image => pure image
   let coverage ←
     match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
@@ -416,5 +433,21 @@ def loadHistoryAt
   return projectHistory
     window.start observedAt window.endExclusive
     selection balances records scheduled days
+
+/--
+Load a retrospective current-truth Daily Pace series without retaining any pace
+observation. The current normalized Actual image is read once and then delegated
+to `loadHistoryFromActualImageAt`.
+-/
+def loadHistoryAt
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (List Snapshot)) := do
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    | .error message => return .error message
+    | .ok image => pure image
+  loadHistoryFromActualImageAt dataDir image observedAt days
 
 end Loam.CycleSpendingPaceReview
