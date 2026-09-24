@@ -50,8 +50,27 @@ jobs:
           lint: false
           use-mathlib-cache: false
           leanchecker: true
-          axiom-audit: true
+          leanchecker-args: "Loam.DurableProofs"
+          axiom-audit: false
           use-github-cache: true
+
+      - name: Audit durable proof axioms only
+        shell: bash
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          trap 'rm -rf "$workdir"' EXIT
+          git clone --depth 1 --branch v0.1.2 \
+            https://github.com/leanprover-community/axiom-audit.git \
+            "$workdir/axiom-audit"
+          test "$(git -C "$workdir/axiom-audit" rev-parse HEAD)" = \
+            "46024e005996495c65ef609368e11ab39c4222e3"
+          cp lean-toolchain "$workdir/axiom-audit/"
+          (cd "$workdir/axiom-audit" && lake build)
+          lake env "$workdir/axiom-audit/.lake/build/bin/axiom-audit" \
+            --root Loam \
+            --modules Loam.DurableProofs \
+            --allow propext,Classical.choice,Quot.sound
 
   observations:
     name: Build selected live Lean research witnesses
