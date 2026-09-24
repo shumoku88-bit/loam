@@ -1,0 +1,70 @@
+direction: down
+
+title: {
+  label: "D3 Measure scale stability"
+  shape: text
+}
+
+policy: {
+  label: "Existing retained-meaning policy"
+  rule: "unused Measure -> choose scale\nused Measure -> scale stable\nchange -> explicit migration"
+}
+
+config: {
+  label: "config/measure-presentation.tsv"
+  note: "current scale only\nmanual household configuration"
+}
+
+loader: {
+  label: "MeasurePresentation"
+  load: "loadMetadata / loadForActualFile"
+  parse: "parseQuanta?"
+  format: "formatQuanta"
+}
+
+retained: {
+  label: "Retained exact quanta"
+  actual: "Actual\nEvent -> Effect -> Measure x Quantity"
+  scheduled: "Scheduled\nMeasure + balanced expected movement"
+  capacity: "Capacity\nMeasure + balanced allocation movement"
+}
+
+consumers: {
+  label: "Current consumers"
+  record: "Record\nhuman decimal -> quanta"
+  correction: "Correction\nquanta -> editable decimal -> quanta"
+  completion: "Scheduled completion\nexpected quanta -> editable decimal -> Actual"
+  pta: "PTA export\nquanta -> decimal"
+  beancount: "Beancount/Fava export\nquanta -> decimal"
+}
+
+gap: {
+  label: "Audit gap"
+  shape: rectangle
+  note: "No retained edge records which scale gave an already-used Measure its human meaning.\nCurrent config can be changed without migration evidence."
+}
+
+question: {
+  label: "Residual question"
+  shape: text
+  note: "Can identical current retained quanta + identical current config arise from histories with different recording scales?"
+}
+
+policy.rule -> config
+config -> loader.load
+loader.parse -> consumers.record
+loader.format -> consumers.correction
+loader.format -> consumers.completion
+loader.format -> consumers.pta
+loader.format -> consumers.beancount
+
+consumers.record -> retained.actual: "publishes exact quanta"
+retained.scheduled -> consumers.completion
+consumers.completion -> retained.actual: "completion publishes Actual"
+retained.actual -> consumers.correction
+retained.actual -> consumers.pta
+retained.actual -> consumers.beancount
+
+config -> gap: "mutable current convention"
+retained -> gap: "quanta retain Measure, not convention history"
+gap -> question
