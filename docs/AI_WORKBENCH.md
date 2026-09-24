@@ -324,19 +324,16 @@ inductive-invariant question when that adds a distinct result.
 **Use for:** concrete process interleavings and protocol-order races when
 scheduling is the pressure point.
 
-### miniKanren
+### Retired one-off toolchains
 
-**Use for:** genuinely relational or backwards search when the active toolset
-cannot express the question clearly enough.
+J, miniKanren/Racket, and Dafny have historical research results in this
+repository, but their executable sources and dedicated CI toolchains are not
+part of the current working tree.
 
-Its previous presence does not justify permanent use. The question must earn it
-again.
-
-### Dafny and other one-off probes
-
-Historical application experiments may introduce a tool for one bounded
-question without making it a production dependency. Inspect the corresponding
-experiment record before reusing one.
+Use Git history and the corresponding observation/experiment records when
+reviewing those results. Reintroduce one only if a new bounded question earns a
+distinct result that Alloy, Lean, TLA+/Apalache, SPIN, tests, or simpler code
+cannot provide clearly enough.
 
 ## Proof-review and checker-boundary instruments
 

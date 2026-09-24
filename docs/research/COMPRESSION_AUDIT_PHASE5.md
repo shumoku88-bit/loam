@@ -239,7 +239,7 @@ A renewed correction or resolution question should earn a new probe against the 
 
 ## Follow-up graduation and trigger narrowing - Observation CI 025-031
 
-Observations 025-028 continued the historical resolution/provenance refinement arc. Their broad workflows reran frozen Alloy or J fixtures for resolution recoverability, offered-meaning acceptance, provenance compression, and future vocabulary refinement when unrelated research or production files changed. These four dedicated lanes graduate while their model/J/prose sources remain.
+Observations 025-028 continued the historical resolution/provenance refinement arc. Their broad workflows reran frozen Alloy or J fixtures for resolution recoverability, offered-meaning acceptance, provenance compression, and future vocabulary refinement when unrelated research or production files changed. These four dedicated lanes graduated while their model and prose records remained. The historical J executables later graduated to Git history as part of the inactive-toolchain retirement.
 
 Observation 029 is a different case: it remains a selected live Lean proof obligation in `Loam.Observations`, and no dedicated `observation-029.yml` workflow exists on the current main. Its live responsibility is already carried by the selected Lean path rather than a historical one-observation CI lane.
 

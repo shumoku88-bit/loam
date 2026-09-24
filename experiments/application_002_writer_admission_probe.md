@@ -1,5 +1,7 @@
 # Application 002 writer admission probe
 
+Status: historical one-off probe. The Dafny source and dedicated CI have graduated to Git history; later writer-protocol work owns the live publication boundary.
+
 ## Purpose
 
 Application 001 showed that a query-shaped boundary can become a small verified executable gate in Dafny without moving quantity semantics out of Lean.

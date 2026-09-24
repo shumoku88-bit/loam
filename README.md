@@ -15,21 +15,19 @@ For AI-assisted or cross-cutting repository work, [`docs/AI_WORKBENCH.md`](docs/
 The default core is:
 
 - **Alloy** explores possible structures and counterexamples.
-- **J** observes structures as arrays and exposes projection, loss, and shape.
 - **Lean 4** proves observed laws generally when they become worth keeping and hosts the practical core.
 
-Additional tools are introduced only when they add a distinct kind of answer:
+Additional live tools are introduced only when they add a distinct kind of answer:
 
 - **TLA+ / TLC** for temporal behavior, operation order, and state-transition questions.
 - **Apalache** for symbolic checking of selected TLA+ transition systems and inductive invariants.
 - **SPIN / Promela** for explicit interleaving and protocol-order questions where concurrent process scheduling is the pressure point.
-- **miniKanren** for genuinely relational or backwards search that the core cannot provide clearly enough.
 
 Before adding an optional tool to a new observation, state what the current toolset cannot answer and what distinct result the extra tool is expected to produce.
 
 Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
 
-Observations 006–007 are the historical miniKanren example. Their first Racket/miniKanren source and dedicated CI were later retired after that role was established. Observation 187 supplies a new concrete backwards-search pressure, so one observation-only Racket/miniKanren source and dedicated CI are present again. This does not make miniKanren a production or steady-state runtime dependency; a relational question must earn its use each time.
+J, miniKanren/Racket, and Dafny have all been used as bounded research instruments and are now historical-only: their results remain in the observation/experiment records and Git history, but no live source or CI toolchain is retained for them. Reintroduce one only when a new question earns a distinct answer that the current live toolset cannot provide clearly enough.
 
 Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
 

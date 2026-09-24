@@ -91,9 +91,9 @@ SameLinkClassificationsDetermineJoint     UNSAT counterexample
 
 The first two results establish the negative boundary. The final two are only bounded model checks and are not promoted here into unbounded Lean theorems.
 
-## J shape observation
+## Historical J shape observation
 
-J makes the same loss visible as array reduction using two synthetic 2 × 2 matrices:
+The historical J probe made the same loss visible as array reduction using two synthetic 2 × 2 matrices. Its executable source has graduated to Git history; the live machine-checked owner of the negative boundary is the Alloy model.
 
 ```text
 Left          Right
@@ -149,7 +149,7 @@ This matters to LOAM because privacy-safe and query-specific observations are in
 
 Alloy is used because the question is relational: can two worlds preserve both marginals while differing in the joint relation?
 
-J is used because the information loss is also an array-shape operation: row and column reductions can agree while the original matrix differs.
+J provided a useful historical array-shape rendering: row and column reductions can agree while the original matrix differs. That rendering is no longer kept as a live runtime dependency.
 
 Lean is deliberately not added in this observation. The central claim is negative, and one exact counterexample is sufficient to refute the universal implication. A future positive law should be moved to Lean only if a real operation or retained query needs that law generally.
 

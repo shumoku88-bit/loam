@@ -45,7 +45,7 @@ The current `NoUnitDisappearsFromPlacement` assertion repeats a fact already imp
 
 ## J lens
 
-`j/001_observe.ijs` begins with a deliberately lossy `Time × Purpose` count matrix.
+The historical J probe (retained in Git history) began with a deliberately lossy `Time × Purpose` count matrix.
 
 This forgets Unit identity and keeps only quantity per Purpose. It observes:
 

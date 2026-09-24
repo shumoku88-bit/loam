@@ -5,7 +5,6 @@ on:
     paths:
       - 'experiments/083_summary_correlation_loss.als'
       - 'experiments/083_summary_correlation_loss.md'
-      - 'experiments/083_summary_correlation_loss.ijs'
       - '.github/workflows/summary-correlation-loss-observation.yml'
   push:
     branches:
@@ -14,7 +13,6 @@ on:
     paths:
       - 'experiments/083_summary_correlation_loss.als'
       - 'experiments/083_summary_correlation_loss.md'
-      - 'experiments/083_summary_correlation_loss.ijs'
       - '.github/workflows/summary-correlation-loss-observation.yml'
   workflow_dispatch:
 
@@ -85,35 +83,3 @@ jobs:
           if wrong:
               raise SystemExit(f'unexpected Observation 083 receipt: {wrong}')
           PY
-
-  j:
-    name: Joint-matrix marginal reduction
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install J
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --location --retry 3 \
-            --output /tmp/j-linux64.tar.gz \
-            https://github.com/jsoftware/jinstall/releases/download/build/linux64.tar.gz
-          mkdir -p /tmp/j
-          tar -xzf /tmp/j-linux64.tar.gz -C /tmp/j
-          JCONSOLE="$(find /tmp/j -type f -name jconsole -print -quit)"
-          test -n "$JCONSOLE"
-          chmod +x "$JCONSOLE"
-          printf 'JCONSOLE=%s\n' "$JCONSOLE" >> "$GITHUB_ENV"
-
-      - name: Execute J correlation-loss observation
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$JCONSOLE" experiments/083_summary_correlation_loss.ijs | tee /tmp/j-observation.txt
-          grep -Fq 'Observation 083 / separate marginals lose joint correlation' /tmp/j-observation.txt
-          grep -Fq 'same row marginals:' /tmp/j-observation.txt
-          grep -Fq 'same column marginals:' /tmp/j-observation.txt
-          grep -Fq 'same joint matrix:' /tmp/j-observation.txt
-          test "$(grep -Fx '1' /tmp/j-observation.txt | wc -l | tr -d ' ')" -ge 2
-          grep -Fxq '0' /tmp/j-observation.txt
