@@ -331,3 +331,32 @@ None of these three filenames is referenced by a current workflow or current doc
 
 This graduation deliberately does not remove current private-source dogfood checkpoints such as the Series, refund-provenance, descriptive-context, or canonical-coverage audits. Those still record direct observations of the current private source boundary rather than merely an intermediate synthesis layer.
 
+## Follow-up graduation - Observations 147-152 / 154 Actual wire research prose
+
+The earlier repository-compression pass had already retired the executable Observation 147-152 apparatus and the Observation 154 fixture/workflow while deliberately leaving their research prose in place. A later retirement pass rechecked whether that prose still owns unique current knowledge.
+
+It no longer does.
+
+Current production has moved beyond the candidate arc:
+
+- `Loam.ActualAuthority` now owns one canonical single-file normalized Actual authority (`actual.loam`);
+- `NormalizedActualPersistence` owns the current normalized wire representation and fail-closed decode/encode admission;
+- publication stages a complete candidate off-authority, re-decodes it, and switches authority with one atomic rename;
+- the repository-compression census already classifies the 147-152 / 154 executable apparatus as graduated and closed.
+
+The seven remaining experiment notes have no current filename references, no dedicated workflow, and no selected `Loam.Observations` proof module. Later documents that cite Observation numbers retain valid historical provenance through Git history.
+
+The following distilled historical prose therefore graduates from the working tree:
+
+```text
+experiments/147_actual_validity_root_compression.md
+experiments/148_compact_identity_rekeying.md
+experiments/149_canonical_persistence_topology.md
+experiments/150_unified_actual_generation.md
+experiments/151_unified_actual_wire_shape.md
+experiments/152_typed_section_codec.md
+experiments/154_production_fixture_parity.md
+```
+
+Observation 153 is deliberately excluded because Scheduled routing subject semantics are a different research thread and were not part of the closed Actual identity/wire-shape retirement finding.
+
