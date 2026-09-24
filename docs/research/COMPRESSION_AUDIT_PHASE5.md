@@ -500,3 +500,27 @@ experiments/normalized_actual_effect_promotion.als
 
 The remaining normalized-Actual writer-authority model stays for now because dependency-sensitive cross-authority guards still express a distinct publication question.
 
+## Follow-up graduation - Observation 199 shared-refund composition
+
+Observation 199 closed falsification case F076 by showing that the selected full-refund consequence of a shared expense does not require a fourth independent evidence family. The bounded result was compositional:
+
+```text
+burden allocation
++ refund source provenance
++ prior discharge evidence
+    -> selected full-refund consequence
+```
+
+The experiment deliberately earned no production refund ontology or second-order retained fact. Its current result is already preserved in `LOAM_FALSIFICATION_PROGRESS.md`, where F076 is classified `ABSORBED / RESEARCH_ONLY` and the same three-family composition is recorded as the closure reason.
+
+The original Alloy model and prose have no dedicated workflow and no current filename references outside themselves. Git history retains the exact witness matrix, counterexamples, and qualification receipt.
+
+The following historical apparatus therefore graduates from the working tree:
+
+```text
+experiments/199_shared_refund_composition.als
+experiments/199_shared_refund_composition.md
+```
+
+Adjacent pressure remains intentionally open where the falsification program says it does: participant redistribution beyond the selected composition, partial/multiple refunds, disputes/chargebacks, overpayment direction reversal, and other unqualified refund lifecycle questions are not retired by this graduation.
+
