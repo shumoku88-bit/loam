@@ -1,6 +1,7 @@
 import Loam.Application.OpenRelationFrontier
 import Loam.Core.HashNodup
 import Std.Data.HashMap
+import Std.Data.HashMap.Lemmas
 
 namespace Loam.Application
 
@@ -87,6 +88,14 @@ private theorem eventIdToken_injective :
   cases h
   rfl
 
+private theorem relationUnitIdToken_injective :
+    Function.Injective (fun id : RelationUnitId => id.token) := by
+  intro left right h
+  cases left
+  cases right
+  cases h
+  rfl
+
 private def uniqueDischargeEvents
     (discharges : List RelationDischarge) : Bool :=
   (hashNodupBy?
@@ -96,28 +105,94 @@ private def uniqueDischargeEvents
 
 /--
 Transient lookup index for remembered Events.
+
+The structurally recursive shape makes the correspondence to the canonical
+list lookup explicit: the head Event overrides the recursively indexed tail,
+matching `EventMemory.findById?` exactly even before using EventId uniqueness.
 -/
+private def buildEventIndexFrom :
+    List Event → Std.HashMap String Event
+  | [] => {}
+  | event :: rest =>
+      (buildEventIndexFrom rest).insert event.id.token event
+
 private def buildEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
-  events.events.foldl
-    (fun index event => index.insert event.id.token event)
-    {}
+  buildEventIndexFrom events.events
+
+private theorem buildEventIndexFrom_get?_eq_findBy?
+    (eventList : List Event)
+    (id : EventId) :
+    (buildEventIndexFrom eventList).get? id.token =
+      FiniteKeyed.findBy? Event.id eventList id := by
+  induction eventList with
+  | nil =>
+      simp [buildEventIndexFrom, FiniteKeyed.findBy?]
+  | cons event rest ih =>
+      simp only [buildEventIndexFrom, FiniteKeyed.findBy?]
+      rw [Std.HashMap.get?_insert]
+      by_cases hId : event.id = id
+      · subst hId
+        simp
+      · have hToken : event.id.token ≠ id.token := by
+          intro h
+          exact hId (eventIdToken_injective h)
+        simpa [hToken, hId] using ih
+
+/--
+The transient Event index is extensionally identical to canonical EventMemory
+identity lookup.
+-/
+theorem buildEventIndex_get?_eq_findById?
+    (events : EventMemory)
+    (id : EventId) :
+    (buildEventIndex events).get? id.token =
+      EventMemory.findById? events id := by
+  unfold buildEventIndex EventMemory.findById?
+  exact buildEventIndexFrom_get?_eq_findBy? events.events id
 
 /--
 Build a target-keyed bucket index from the raw discharge list.
 
-The raw discharges for each target are accumulated in reverse order from
-`discharges.reverse`, so each bucket preserves the exact order in which
-discharges appeared in `discharges`, in overall expected O(D) time without
-allocating intermediate appended lists.
+Recursing through the tail and then prepending the head into its target bucket
+preserves the exact raw List order for every target in expected O(D) time.
 -/
-private def buildDischargeBuckets
-    (discharges : List RelationDischarge) : Std.HashMap String (List RelationDischarge) :=
-  discharges.reverse.foldl
-    (fun index discharge =>
-      let prior := index[discharge.target.token]?.getD []
-      index.insert discharge.target.token (discharge :: prior))
-    {}
+private def buildDischargeBuckets :
+    List RelationDischarge → Std.HashMap String (List RelationDischarge)
+  | [] => {}
+  | discharge :: rest =>
+      let index := buildDischargeBuckets rest
+      let prior := (index.get? discharge.target.token).getD []
+      index.insert discharge.target.token (discharge :: prior)
+
+/--
+Each transient target bucket is exactly the raw discharge list filtered to that
+RelationUnitId, including representation order.
+-/
+theorem buildDischargeBuckets_getD_eq_filter
+    (discharges : List RelationDischarge)
+    (target : RelationUnitId) :
+    ((buildDischargeBuckets discharges).get? target.token).getD [] =
+      discharges.filter (fun discharge => discharge.target = target) := by
+  induction discharges with
+  | nil =>
+      simp [buildDischargeBuckets]
+  | cons discharge rest ih =>
+      simp only [buildDischargeBuckets]
+      rw [Std.HashMap.get?_insert]
+      by_cases hTarget : discharge.target = target
+      · subst hTarget
+        simp
+        change ((buildDischargeBuckets rest).get? discharge.target.token).getD [] =
+          rest.filter (fun discharge_1 => discharge_1.target = discharge.target)
+        exact ih
+      · have hToken : discharge.target.token ≠ target.token := by
+          intro h
+          exact hTarget (relationUnitIdToken_injective h)
+        simp [hToken, hTarget]
+        change ((buildDischargeBuckets rest).get? target.token).getD [] =
+          rest.filter (fun discharge_1 => discharge_1.target = target)
+        exact ih
 
 /--
 Transient acceleration context constructed once per whole-frontier admission pass.
@@ -184,7 +259,7 @@ private def admittedForCurrentTargetIndexed?
     (target : AdmittedRelationUnit) : Option (List AdmittedRelationDischarge) := do
   let targetDischarges := index.byTarget[target.relation.id.token]?.getD []
   let active := targetDischarges.filter fun discharge =>
-    index.events.contains discharge.event.token
+    index.events[discharge.event.token]?.isSome
   if !uniqueDischargeEvents active then
     none
   else
