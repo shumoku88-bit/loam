@@ -59,6 +59,10 @@ Publish one complete current quantity observation image:
   ./tools/loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]
   LOAM_DATA_DIR selects the household data root; otherwise ../loam-data is used.
 
+Administer one Measure presentation scale:
+  ./tools/loam measure-scale LOAM_DATA_DIR MEASURE SCALE
+  Used Measures refuse ordinary scale changes; explicit migration is separate.
+
 Record one balanced JPY movement into actual.loam:
   ./tools/loam movement [LOAM_DATA_DIR]
 
