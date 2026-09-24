@@ -21,6 +21,7 @@ on:
       - "Loam/Tui/Reports.lean"
       - "Loam/Tui/ReportsModel.lean"
       - "Loam/Tui/ReportsView.lean"
+      - "Loam/Tui/ReportsSession.lean"
       - "Loam/Tui/TransactionsFlowPane.lean"
       - "Loam/Tests/TuiTransactionsFlow.lean"
       - "docs/drakon/build_map.py"
