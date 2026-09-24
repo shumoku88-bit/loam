@@ -1,5 +1,6 @@
 import Loam.ActualDate
 import Loam.Persistence.TokenSyntax
+import Loam.WriterOwnership
 
 namespace Loam.ScheduledCoverageConfig
 
@@ -149,19 +150,26 @@ def save (path : System.FilePath) (rules : List Rule) : IO (Except String Unit) 
   IO.FS.rename stage path
   return .ok ()
 
-/-- Load, upsert, and safely republish one monitoring rule. -/
-def upsertAt (path : System.FilePath) (rule : Rule) : IO (Except String Unit) := do
-  try
-    let rules ←
-      match ← load? path with
-      | none => return .error "loam: Scheduled coverage config is malformed"
-      | some rules => pure rules
-    let next ←
-      match upsertRule rules rule with
-      | .error message => return .error message
-      | .ok next => pure next
-    save path next
-  catch error =>
-    return .error ("loam: Scheduled coverage config update failed: " ++ error.toString)
+/--
+Load, upsert, and safely republish one monitoring rule.
+
+Writer ownership is acquired before reading the current image and retained
+through staging, typed re-decoding, and final replacement so concurrent
+whole-image updates cannot publish stale replacements.
+-/
+def upsertAt (path : System.FilePath) (rule : Rule) : IO (Except String Unit) :=
+  Loam.WriterOwnership.withOwnership path <| do
+    try
+      let rules ←
+        match ← load? path with
+        | none => return .error "loam: Scheduled coverage config is malformed"
+        | some rules => pure rules
+      let next ←
+        match upsertRule rules rule with
+        | .error message => return .error message
+        | .ok next => pure next
+      save path next
+    catch error =>
+      return .error ("loam: Scheduled coverage config update failed: " ++ error.toString)
 
 end Loam.ScheduledCoverageConfig
