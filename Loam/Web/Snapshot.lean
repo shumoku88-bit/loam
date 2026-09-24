@@ -275,6 +275,38 @@ private def renderStockFlowReport
       "<tr><th>Current tracked</th>" ++ tableCell (quantityText report.currentTracked) ++ "</tr>\n" ++
       "</table>"
 
+private def renderTransactionsFlowReport
+    (reports : Loam.Presentation.Reports.Model) : String :=
+  match reports.transactionsFlow with
+  | .error message =>
+      "<h3>Transactions Flow</h3>\n" ++ unavailable message
+  | .ok report =>
+      let rows :=
+        report.rows.map fun row =>
+          let measure := row.coordinate.measure
+          "<tr><td>" ++
+            escapeHtml (row.coordinate.locus.token ++ "/" ++ measure.token) ++ "</td>" ++
+          tableCell (measuredQuantityText measure row.net) ++
+          tableCell (measuredQuantityText measure row.gross) ++
+          tableCell (measuredQuantityText measure row.positive) ++
+          tableCell (measuredQuantityText measure row.negative) ++
+          tableCell (escapeHtml (toString row.activeEvents)) ++
+          "</tr>"
+      let body :=
+        if rows.isEmpty then
+          empty "No quantity activity appears in this window."
+        else
+          "<table summary=\"Current cycle Transactions Flow activity\">\n" ++
+          "<tr><th>Coordinate</th><th>Net</th><th>Gross</th>" ++
+          "<th>Positive</th><th>Negative</th><th>Events</th></tr>\n" ++
+          String.intercalate "\n" rows ++ "\n</table>"
+      "<h3>Transactions Flow</h3>\n" ++
+      "<p class=\"note\">Exact coordinate activity. Gross preserves movement hidden by a small or zero net; signs do not infer transfer, income, expense, debit, or credit.</p>\n" ++
+      "<p>Window " ++ escapeHtml report.start ++ " to " ++
+        escapeHtml report.endExclusive ++ " (end exclusive); " ++
+        escapeHtml (toString report.eventCount) ++ " selected Event(s).</p>\n" ++
+      body
+
 private def renderIncomeExpenseReport
     (reports : Loam.Presentation.Reports.Model) : String :=
   match reports.incomeExpense with
@@ -335,6 +367,7 @@ private def renderReports (snapshot : Snapshot) : String :=
   let reports := Loam.Presentation.Reports.fromSnapshot snapshot
   String.intercalate "\n"
     [ renderStockFlowReport reports
+    , renderTransactionsFlowReport reports
     , renderIncomeExpenseReport reports
     , renderBalancesReport reports
     ]

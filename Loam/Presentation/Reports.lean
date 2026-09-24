@@ -25,6 +25,22 @@ structure StockFlow where
   currentTracked : Quantity
   deriving Repr, DecidableEq
 
+structure TransactionsFlowRow where
+  coordinate : EffectCoordinate
+  net : Quantity
+  gross : Quantity
+  positive : Quantity
+  negative : Quantity
+  activeEvents : Nat
+  deriving Repr, DecidableEq
+
+structure TransactionsFlow where
+  start : String
+  endExclusive : String
+  eventCount : Nat
+  rows : List TransactionsFlowRow
+  deriving Repr, DecidableEq
+
 structure IncomeExpenseMeasure where
   measure : MeasureId
   income : Quantity
@@ -53,8 +69,50 @@ structure Balances where
 
 structure Model where
   stockFlow : Except String StockFlow
+  transactionsFlow : Except String TransactionsFlow
   incomeExpense : Except String IncomeExpense
   balances : Except String Balances
+
+private def coordinateLe (left right : EffectCoordinate) : Bool :=
+  if left.locus.token == right.locus.token then
+    left.measure.token <= right.measure.token
+  else
+    left.locus.token <= right.locus.token
+
+private def transactionsRowLe
+    (left right : TransactionsFlowRow) : Bool :=
+  if left.gross.quanta == right.gross.quanta then
+    coordinateLe left.coordinate right.coordinate
+  else
+    left.gross.quanta >= right.gross.quanta
+
+/--
+Promote only the arithmetic already exposed by TransactionsFlowReview.
+Rows with no contributing Event are omitted and the remaining rows use the same
+gross-activity salience ordering as the production TUI. Signs remain exact
+quantity changes, not inferred income, expense, debit, credit, or transfer edges.
+-/
+private def presentTransactionsFlow
+    (snapshot : Loam.TransactionsFlowReview.Snapshot) : TransactionsFlow :=
+  let rows :=
+    (snapshot.rows.map fun coordinate =>
+      let activity := Loam.TransactionsFlowReview.rowActivity snapshot coordinate
+      {
+        coordinate := coordinate
+        net := activity.net
+        gross := activity.gross
+        positive := activity.positive
+        negative := activity.negative
+        activeEvents := activity.activeEvents
+      })
+      |>.filter (fun row => row.activeEvents > 0)
+      |>.mergeSort transactionsRowLe
+  {
+    start := snapshot.start
+    endExclusive := snapshot.endExclusive
+    eventCount := snapshot.columns.length
+    rows := rows
+  }
 
 private def addMeasureIfAbsent
     (measures : List MeasureId) (measure : MeasureId) : List MeasureId :=
@@ -137,6 +195,10 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
           closing := report.reconstructedEnd
           currentTracked := report.currentTracked
         }
+  let transactionsFlow :=
+    match snapshot.transactionsFlow with
+    | .error message => .error message
+    | .ok report => .ok (presentTransactionsFlow report)
   let incomeExpense :=
     match snapshot.roleFlow with
     | .error message => .error message
@@ -147,6 +209,7 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
     | .ok report => .ok (presentBalances report)
   {
     stockFlow := stockFlow
+    transactionsFlow := transactionsFlow
     incomeExpense := incomeExpense
     balances := balances
   }

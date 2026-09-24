@@ -10,6 +10,7 @@ import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.ScheduledReview
 import Loam.StockFlowReview
+import Loam.TransactionsFlowReview
 import Loam.Web.Snapshot
 
 namespace Loam.Web.Cli
@@ -105,6 +106,13 @@ private def renderCurrent
     | .ok image, .ok window =>
         Loam.StockFlowReview.loadSnapshotFromActualImage
           dataDir image window.start window.endExclusive
+  let transactionsFlow :=
+    match actualImage, budget.window with
+    | .error message, _ => .error message
+    | _, .error message =>
+        .error ("loam: Transactions Flow current window unavailable: " ++ message)
+    | .ok image, .ok window =>
+        Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive
   let roleFlow ←
     match actualImage, budget.window with
     | .error message, _ => pure (.error message)
@@ -129,6 +137,7 @@ private def renderCurrent
     capacity := capacity
     pace := pace
     stockFlow := stockFlow
+    transactionsFlow := transactionsFlow
     roleFlow := roleFlow
     roleBalances := roleBalances
     purposeMetadata := purposeMetadata
