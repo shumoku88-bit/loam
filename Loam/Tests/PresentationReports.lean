@@ -92,6 +92,10 @@ def main : IO Unit := do
 
   let reports := Loam.Presentation.Reports.fromSnapshot snapshot
   match reports.stockFlow with
+  | .notRequested =>
+      throw (IO.userError "Reports unexpectedly left Stock-Flow not requested")
+  | .unavailable =>
+      throw (IO.userError "Reports unexpectedly classified Stock-Flow as unavailable")
   | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Stock-Flow evidence: " ++ message))
   | .loaded report =>
@@ -111,6 +115,10 @@ def main : IO Unit := do
         "Reports changed current tracked quantity"
 
   match reports.transactionsFlow with
+  | .notRequested =>
+      throw (IO.userError "Reports unexpectedly left Transactions Flow not requested")
+  | .unavailable =>
+      throw (IO.userError "Reports unexpectedly classified Transactions Flow as unavailable")
   | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Transactions Flow evidence: " ++ message))
   | .loaded report =>
@@ -131,6 +139,10 @@ def main : IO Unit := do
         "Reports changed Transactions Flow two-sided activity"
 
   match reports.incomeExpense with
+  | .notRequested =>
+      throw (IO.userError "Reports unexpectedly left Income & Expense not requested")
+  | .unavailable =>
+      throw (IO.userError "Reports unexpectedly classified Income & Expense as unavailable")
   | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Income & Expense evidence: " ++ message))
   | .loaded report =>
@@ -152,6 +164,10 @@ def main : IO Unit := do
         "Reports changed unresolved role Effect count"
 
   match reports.balances with
+  | .notRequested =>
+      throw (IO.userError "Reports unexpectedly left Balances not requested")
+  | .unavailable =>
+      throw (IO.userError "Reports unexpectedly classified Balances as unavailable")
   | .failed message =>
       throw (IO.userError ("Reports unexpectedly lost Balances evidence: " ++ message))
   | .loaded report =>
