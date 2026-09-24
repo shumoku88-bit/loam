@@ -1,6 +1,6 @@
 # Observation 187 — relational search over typed intervention candidates
 
-Status: observation-only miniKanren experiment following Observations 185–186.
+Status: historical observation-only miniKanren experiment following Observations 185–186. The executable Racket source and dedicated CI have graduated to Git history.
 
 ## Pressure
 
@@ -46,9 +46,9 @@ The first search is intentionally bounded to singleton or two-action bundles and
 
 The intervention kind remains in every answer. Equal numeric relief therefore does not collapse different household meanings.
 
-## Executable relation
+## Historical executable relation
 
-`scheme/187_relational_intervention_search.rkt` defines:
+The retired Racket/miniKanren source, available in Git history, defined:
 
 ```text
 finite typed actions

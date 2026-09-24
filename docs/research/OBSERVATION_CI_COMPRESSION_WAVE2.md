@@ -71,7 +71,6 @@ The corresponding Lean modules remain selected by `Loam.Observations` and theref
 
 This wave deliberately preserves workflows whose names may look historical but whose CI still performs a distinct observation:
 
-- Observation 001: Alloy structure exploration plus J projection;
 - Observation 003: TLA+ model checking for history-sensitive futures;
 - Observation 011: Alloy bounded witness/check;
 - Observation 183 discharge-target identity: SPIN safe/unsafe identity-reservation models.
@@ -219,3 +218,16 @@ toy model in the live Lean umbrella no longer adds distinct evidence.
 The Purpose Catalog workflow also stops rebuilding the whole repository solely
 for the retired Observation 239 wrapper; its production build and focused tests
 remain.
+
+
+## Follow-up — retire inactive experimental toolchains
+
+J, miniKanren/Racket, and Dafny executable probes have graduated to Git history.
+Their research findings remain in prose, while no production or durable-proof
+surface depends on those runtimes.
+
+Observation 083 keeps its Alloy counterexample job; its J array rendering was a
+secondary explanatory lens. Observation 187 remains a historical backwards-search
+record without a live miniKanren runtime. Application 001/002 retain their
+qualified findings in prose and in later production/protocol work without a live
+Dafny toolchain.

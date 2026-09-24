@@ -162,10 +162,10 @@ compression evidence under [research/](research/).
 
 ### B8 — Formal methods and AI are evidence-producing instruments
 
-Lean, Alloy, J, TLA+, Apalache, SPIN, miniKanren, tests, diagrams, and AI
-reasoning are selected for the question they answer. Their presence is not a
-goal and their output is not semantic authority merely because it is formal or
-agent-generated.
+Lean, Alloy, TLA+, Apalache, SPIN, tests, diagrams, and AI reasoning are
+selected for the question they answer. Historical one-off tools may be retired
+after their result is recorded; tool presence is not a goal, and tool output is
+not semantic authority merely because it is formal or agent-generated.
 
 A local theorem proves the proposition it states under its assumptions. A
 passing compiler or CI run does not by itself establish that the chosen

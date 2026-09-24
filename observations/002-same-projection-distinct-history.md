@@ -52,7 +52,7 @@ No Unit remains at `Purpose 1` through all three Times.
 
 ## J projection
 
-`j/002_observe.ijs` stores those two identity-bearing histories as `Time × Unit` matrices and derives counts rather than entering the count matrix by hand.
+The historical J probe (retained in Git history) stored those two identity-bearing histories as `Time × Unit` matrices and derived counts rather than entering the count matrix by hand.
 
 Both histories project to exactly the same `Time × Purpose` matrix:
 

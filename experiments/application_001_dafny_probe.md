@@ -1,5 +1,7 @@
 # Application 001 Dafny probe
 
+Status: historical one-off probe. The Dafny source and dedicated CI have graduated to Git history; the application distinction remains in current LOAM semantics.
+
 ## Purpose
 
 Application 001 already has an Alloy query-shape boundary:
@@ -106,7 +108,7 @@ The Dafny source did not need Account, Budget, Plan, Series, persistence, canoni
 
 ## Toolchain containment
 
-The workflow pins Dafny `4.11.0` and uses it only for this experiment and its dedicated CI path.
+The retired workflow pinned Dafny `4.11.0` and used it only for this experiment and its dedicated CI path.
 
 ```text
 production Lean build dependency:  no

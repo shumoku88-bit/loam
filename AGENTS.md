@@ -29,12 +29,12 @@ LOAM is the current day-to-day household system and is still under active develo
 Read the `Method` section of `README.md` as the full tool-selection policy. Use the smallest subset that gives a distinct answer:
 
 - **Alloy** for structural possibility, distinguishability, sufficiency, and bounded counterexamples.
-- **J** for finite arrays, quotient geometry, projection/loss, exhaustive shape, and representation experiments.
 - **Lean 4** for general laws worth retaining and for production semantics in the Practical Core/Application path.
 - **TLA+ / TLC** for temporal behavior, state transitions, reachable histories, and operation-order questions.
 - **Apalache** only when symbolic TLA+ checking or an inductive-invariant argument adds a distinct result.
 - **SPIN / Promela** for concrete process interleavings and protocol-order races where scheduling is the pressure point.
-- **miniKanren** only for relational or backwards-search questions that the active core cannot express clearly enough.
+
+J, miniKanren/Racket, and Dafny are historical experiment toolchains, not current repository dependencies. Their prior results remain in research prose and Git history. Reintroduce one only when a concrete question earns a distinct result unavailable from the live toolset.
 
 Do not introduce an optional tool merely because it is available or has been used before. State what the current toolset cannot answer clearly enough and what distinct result the added tool should provide. If two tools answer the same question in the same way, prefer the smaller combination.
 
