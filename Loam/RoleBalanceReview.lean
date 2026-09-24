@@ -434,21 +434,19 @@ private def loadCurrentAnchor
     return .ok Loam.CurrentQuantityAnchor.Evidence.empty
 
 /--
-Load one admitted production Actual image, independent zero-origin coverage,
-optional opening/current support, and explicit AccountingRole evidence, then
-compose them. No presentation selection such as `balance-view.tsv` is used.
+Load current Role Balance from a caller-supplied admitted Actual image plus the
+independent support and AccountingRole authorities.
+
+This is the composed-reader entrance for UI surfaces that already own one Actual
+generation. No presentation selection such as `balance-view.tsv` is used.
 -/
-def loadSnapshot
-    (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
+def loadSnapshotFromActualImage
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
   let rolesPath := dataDir / "accounting-role.loam"
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
-  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualPath with
-    | .error message => return .error message
-    | .ok image => pure image
   let coverage ←
     match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
     | .error message => return .error message
@@ -467,5 +465,19 @@ def loadSnapshot
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
   return projectImage image coverage openingSupport currentAnchor roles
+
+/--
+Load one admitted production Actual image, independent zero-origin coverage,
+optional opening/current support, and explicit AccountingRole evidence, then
+compose them. No presentation selection such as `balance-view.tsv` is used.
+-/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    | .error message => return .error message
+    | .ok image => pure image
+  loadSnapshotFromActualImage dataDir image
 
 end Loam.RoleBalanceReview
