@@ -1,6 +1,7 @@
 import Loam.ActualReview
 import Loam.AttentionReview
 import Loam.CycleSpendingPaceReview
+import Loam.Presentation.ReadState
 import Loam.ScheduledReview
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
@@ -29,20 +30,20 @@ structure Snapshot where
   Attention is an optional read answer. Missing configuration, configured empty,
   and read refusal remain distinct at the Review boundary.
   -/
-  attention : Except String Loam.AttentionReview.Availability :=
-    .error "loam: Attention not loaded"
+  attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
+    .notRequested
   /--
   Daily Pace is an optional read answer. Its unavailability must not prevent
   ordinary Home, Actual, or Scheduled use.
   -/
-  pace : Except String Loam.CycleSpendingPaceReview.Snapshot :=
-    .error "loam: Daily Pace not loaded"
+  pace : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot :=
+    .notRequested
   /--
   Optional retrospective current-truth series for presentation. This is derived
   from canonical evidence at load time and is never retained as household state.
   -/
-  paceHistory : Except String (List Loam.CycleSpendingPaceReview.Snapshot) :=
-    .error "loam: Daily Pace history not loaded"
+  paceHistory : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) :=
+    .notRequested
 
 /-- Production root state now owns only Home date focus and a human-facing notice. -/
 structure State where

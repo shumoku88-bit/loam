@@ -165,9 +165,13 @@ to preserve the calendar as the dominant object in the left pane.
 -/
 private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
   match snapshot.paceHistory with
-  | .error _ =>
+  | .notRequested =>
+      [mutedLine " Recent pace (current truth): not requested"]
+  | .unavailable =>
       [mutedLine " Recent pace (current truth): unavailable"]
-  | .ok history =>
+  | .failed _ =>
+      [mutedLine " Recent pace (current truth): failed"]
+  | .loaded history =>
       let recent := (history.reverse.take 5).reverse
       if recent.isEmpty then
         [mutedLine " Recent pace (current truth): unavailable"]
@@ -185,8 +189,10 @@ private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
 
 private def dailyPaceText (snapshot : Snapshot) : String :=
   match snapshot.pace with
-  | .error _ => "Daily pace: unavailable"
-  | .ok pace =>
+  | .notRequested => "Daily pace: not requested"
+  | .unavailable => "Daily pace: unavailable"
+  | .failed _ => "Daily pace: failed"
+  | .loaded pace =>
       match pace.dailyPaceQuanta? with
       | none => "Daily pace: unavailable"
       | some quanta =>
@@ -211,9 +217,10 @@ private def nextScheduledText (snapshot : Snapshot) : String :=
 
 private def attentionText (snapshot : Snapshot) : String :=
   match snapshot.attention with
-  | .error _ => "Attention: unavailable"
-  | .ok .unavailable => "Attention: not configured"
-  | .ok (.available attention) =>
+  | .notRequested => "Attention: not requested"
+  | .unavailable => "Attention: not configured"
+  | .failed _ => "Attention: failed"
+  | .loaded attention =>
       match attention.openItems with
       | [] => "Attention: 0 open"
       | [first] =>
@@ -224,21 +231,25 @@ private def attentionText (snapshot : Snapshot) : String :=
 
 private def attentionLine (snapshot : Snapshot) : Widget :=
   match snapshot.attention with
-  | .ok (.available { openItems := _ :: _ }) =>
+  | .loaded { openItems := _ :: _ } =>
       plainLine (" " ++ attentionText snapshot)
   | _ => mutedLine (" " ++ attentionText snapshot)
 
 private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
   match snapshot.attention with
-  | .error _ =>
+  | .notRequested =>
       [ mutedLine " Attention"
-      , mutedLine "   unavailable"
+      , mutedLine "   not requested"
       ]
-  | .ok .unavailable =>
+  | .unavailable =>
       [ mutedLine " Attention"
       , mutedLine "   not configured"
       ]
-  | .ok (.available attention) =>
+  | .failed _ =>
+      [ mutedLine " Attention"
+      , mutedLine "   failed"
+      ]
+  | .loaded attention =>
       match attention.openItems with
       | [] =>
           [ mutedLine " Attention"
@@ -258,8 +269,10 @@ private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
 
 private def dailyPaceLine (snapshot : Snapshot) : Widget :=
   match snapshot.pace with
-  | .error _ => mutedLine (" " ++ dailyPaceText snapshot)
-  | .ok pace =>
+  | .notRequested => mutedLine (" " ++ dailyPaceText snapshot)
+  | .unavailable => mutedLine (" " ++ dailyPaceText snapshot)
+  | .failed _ => mutedLine (" " ++ dailyPaceText snapshot)
+  | .loaded pace =>
       match pace.dailyPaceQuanta? with
       | none => mutedLine (" " ++ dailyPaceText snapshot)
       | some _ => plainLine (" " ++ dailyPaceText snapshot)
@@ -279,13 +292,21 @@ private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
   [nextScheduledLine snapshot, attentionLine snapshot]
 
 private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
-  let paceLines :=
+  let currentPaceLines :=
     match snapshot.pace with
-    | .error _ =>
+    | .notRequested =>
+        [ mutedLine " Daily pace"
+        , mutedLine "   not requested"
+        ]
+    | .unavailable =>
         [ mutedLine " Daily pace"
         , mutedLine "   unavailable"
         ]
-    | .ok pace =>
+    | .failed _ =>
+        [ mutedLine " Daily pace"
+        , mutedLine "   failed"
+        ]
+    | .loaded pace =>
         match pace.dailyPaceQuanta? with
         | none =>
             [ mutedLine " Daily pace"
@@ -297,8 +318,8 @@ private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
             , mutedLine
                 ("   " ++ toString pace.availableThroughEnd.quanta ++
                   " jpy through " ++ pace.endExclusive)
-            ] ++
-            dailyPaceHistoryLines snapshot
+            ]
+  let paceLines := currentPaceLines ++ dailyPaceHistoryLines snapshot
   let scheduledLines :=
     match snapshot.scheduled with
     | .error _ =>

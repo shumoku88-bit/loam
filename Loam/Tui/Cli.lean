@@ -139,12 +139,19 @@ def loadSnapshotFromActualImage
   let actualRecords := Loam.ActualReview.recordsFromActualImage image
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents
-  let attention ←
+  let attentionResult ←
     Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
-  let pace ←
+  let attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
+    match attentionResult with
+    | .error message => .failed message
+    | .ok .unavailable => .unavailable
+    | .ok (.available snapshot) => .loaded snapshot
+  let paceResult ←
     Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image today
-  let paceHistory ←
+  let pace := Loam.Presentation.ReadState.fromExcept paceResult
+  let paceHistoryResult ←
     Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt dataDir image today 7
+  let paceHistory := Loam.Presentation.ReadState.fromExcept paceHistoryResult
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
