@@ -478,3 +478,25 @@ experiments/normalized_actual_scheduled_completion.als
 
 The remaining normalized-Actual models for Effect identity promotion and dependency-sensitive writer guarding remain active research evidence for now.
 
+## Follow-up graduation - normalized Actual Effect-identity promotion model
+
+The historical Alloy model `experiments/normalized_actual_effect_promotion.als` explored sparse durable Effect identity before the rule had a stable production owner. Its model-local `Locator` represented a command-scoped selection capability, while the surviving semantic law was narrower: duplicate same-coordinate Effects remain distinct, and only an Effect independently referenced by Relation evidence earns a durable `EffectKey`.
+
+That surviving law is now owned directly by current production:
+
+- `Loam/SparseEffectIdentity.lean` owns the shared canonicalization mechanism;
+- `MovementAdmission.canonicalizeDraft` derives the earned key set from Relation sources and erases collector-local keys not independently justified;
+- Correction and Scheduled Completion reuse the same key-erasure law when no new Relation source earns identity;
+- `Loam/Tests/SparseMovementPublication.lean` pins duplicate temporary-key canonicalization, relation-earned retained identity, missing-source refusal, and relation-only key promotion;
+- the DRAKON write-path audit checkpoint and current system-map README record the same production ownership and anti-globalization boundary.
+
+The model-local Locator concept has no current production owner or independent live question. The model has no dedicated workflow and no current filename references. Git history retains the exact Alloy witness and assertions.
+
+The historical model therefore graduates from the working tree:
+
+```text
+experiments/normalized_actual_effect_promotion.als
+```
+
+The remaining normalized-Actual writer-authority model stays for now because dependency-sensitive cross-authority guards still express a distinct publication question.
+
