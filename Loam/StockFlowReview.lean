@@ -176,6 +176,32 @@ private def loadWithinActualObservation
   return project balances records start endExclusive
 
 /--
+Load one Stock–Flow answer from a caller-supplied admitted Actual image.
+
+This entrance is for composed presentation surfaces that already own one Actual
+generation. Balance selection and zero-origin evidence remain independent
+configuration/evidence gates; only the Actual generation is shared.
+-/
+def loadSnapshotFromActualImage
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
+    (start endExclusive : String) : IO (Except String Snapshot) := do
+  let coverage ←
+    match ← Loam.BalanceReview.loadCoverage (dataDir / "zero-origin-coverage.loam") with
+    | .error message => return .error message
+    | .ok evidence => pure evidence
+  let coordinates ←
+    match ← Loam.BalanceViewConfig.load? (dataDir / "config" / "balance-view.tsv") with
+    | none => return .error "loam: malformed or unsupported balance-view config"
+    | some selected => pure selected
+  let balances ←
+    match Loam.BalanceReview.projectImage image coverage coordinates with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+  let records := Loam.ActualReview.recordsFromActualImage image
+  return project balances records start endExclusive
+
+/--
 Load the two existing production read answers and compose them.
 
 Balance Review and Actual Review both observe normalized `actual.loam`. Their two
