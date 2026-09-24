@@ -129,7 +129,7 @@ private theorem buildEventIndexFrom_get?_eq_findBy?
       · have hToken : event.id.token ≠ id.token := by
           intro h
           exact hId (eventIdToken_injective h)
-        simp [hToken, hId, ih]
+        simpa [hToken, hId] using ih
 
 /--
 The transient Event index is extensionally identical to canonical EventMemory
@@ -164,7 +164,7 @@ RelationUnitId, including representation order.
 theorem buildDischargeBuckets_getD_eq_filter
     (discharges : List RelationDischarge)
     (target : RelationUnitId) :
-    (buildDischargeBuckets discharges).get? target.token |>.getD [] =
+    ((buildDischargeBuckets discharges).get? target.token).getD [] =
       discharges.filter (fun discharge => discharge.target = target) := by
   induction discharges with
   | nil =>
