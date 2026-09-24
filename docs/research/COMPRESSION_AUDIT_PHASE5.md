@@ -311,3 +311,23 @@ experiments/058_relation_memory_append.md
 
 This deliberately stops before Observation 059. The split-publication / recovery sequence still has dedicated operational SPIN coverage and therefore retains an independent current verification role.
 
+## Follow-up graduation - intermediate Observation summaries 063-084
+
+A repository-retirement pass found three intermediate research summaries that no longer own unique current knowledge:
+
+```text
+experiments/063_065_relation_family_audit.md
+experiments/066_071_practical_core_audit.md
+experiments/079_084_context_relative_sufficiency_audit.md
+```
+
+Their roles have been absorbed elsewhere:
+
+- the 063-065 genericization stop point is covered by the current compressed design rule that similar relation-shaped meanings do not automatically earn one generic ontology, while the individual observations remain available;
+- the 066-071 accounting/policy-pressure conclusion is summarized directly in the repository README and its surviving distinctions remain in individual experiments/current research;
+- the 079-084 context-relative-sufficiency conclusion is part of the compressed 001-084 law in `OBSERVATION_MAP.md`, which explicitly replaced the earlier detailed map with current terrain.
+
+None of these three filenames is referenced by a current workflow or current document. Their individual experiments, private dogfood checkpoints, current production laws, and Git history remain intact.
+
+This graduation deliberately does not remove current private-source dogfood checkpoints such as the Series, refund-provenance, descriptive-context, or canonical-coverage audits. Those still record direct observations of the current private source boundary rather than merely an intermediate synthesis layer.
+
