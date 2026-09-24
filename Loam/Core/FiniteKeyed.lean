@@ -113,7 +113,7 @@ theorem hashIndexBy_contains_eq_findBy?_isSome
               exact False.elim (hHash this)
         rw [hBeq]
         simp only [Bool.false_or]
-        exact ih
+        simpa [hKey] using ih
 
 /--
 Appending one item whose projected key is fresh preserves unique-key evidence.
