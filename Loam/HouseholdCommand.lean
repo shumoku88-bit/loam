@@ -14,6 +14,7 @@ import Loam.ScheduledRoutingPublisher
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRolePublisher
 import Loam.CurrentQuantityAnchorPublisher
+import Loam.MeasurePresentationAuthority
 
 namespace Loam.HouseholdCommand
 
@@ -203,5 +204,16 @@ def observeCurrentQuantities
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) :
     IO (Except String Unit) :=
   Loam.CurrentQuantityAnchorPublisher.publish root.toString assertions
+
+
+/--
+Select or change one Measure presentation scale through the qualified household
+administration boundary. Used Measures refuse ordinary scale changes.
+-/
+def setMeasureScale
+    (root : System.FilePath)
+    (measure : Loam.Core.MeasureId)
+    (scale : Nat) : IO (Except String Unit) :=
+  Loam.MeasurePresentationAuthority.setScale root measure scale
 
 end Loam.HouseholdCommand
