@@ -22,6 +22,42 @@ def main : IO Unit := do
     decreasesAcrossEvents := Quantity.ofQuanta (-3000)
     currentTracked := Quantity.ofQuanta 12000
   }
+  let jpy : MeasureId := { token := "jpy" }
+  let usd : MeasureId := { token := "usd" }
+  let salary : LocusId := { token := "salary" }
+  let food : LocusId := { token := "food" }
+  let cash : LocusId := { token := "cash" }
+  let roleFlow : Loam.RoleFlowReview.Snapshot := {
+    start := "2026-09-01"
+    endExclusive := "2026-10-01"
+    rows := [
+      { coordinate := { locus := salary, measure := jpy }
+        role := .income
+        quantity := Quantity.ofQuanta (-5000) },
+      { coordinate := { locus := food, measure := jpy }
+        role := .expense
+        quantity := Quantity.ofQuanta 1200 },
+      { coordinate := { locus := salary, measure := usd }
+        role := .income
+        quantity := Quantity.ofQuanta (-20) }
+    ]
+    unresolvedEffects := []
+  }
+  let roleBalances : Loam.RoleBalanceReview.Snapshot := {
+    rows := [
+      { coordinate := { locus := cash, measure := jpy }
+        role := .asset
+        quantity := Quantity.ofQuanta 12000 }
+    ]
+    unresolvedRoles := [
+      { coordinate := { locus := food, measure := jpy }
+        quantity := Quantity.ofQuanta 300 }
+    ]
+    unsupportedBalances := [
+      { coordinate := { locus := salary, measure := usd }
+        role := some .asset }
+    ]
+  }
   let snapshot : Loam.Presentation.HouseholdSnapshot := {
     observedAt := "2026-09-24"
     actual := .ok []
@@ -30,6 +66,8 @@ def main : IO Unit := do
     budget := budget
     capacity := .error "capacity unavailable"
     stockFlow := .ok stockFlow
+    roleFlow := .ok roleFlow
+    roleBalances := .ok roleBalances
     purposeMetadata := []
   }
 
@@ -53,4 +91,40 @@ def main : IO Unit := do
       expect (report.currentTracked.quanta == 12000)
         "Reports changed current tracked quantity"
 
-  IO.println "Reports presentation: Stock-Flow roles preserve shared Review arithmetic."
+  match reports.incomeExpense with
+  | .error message =>
+      throw (IO.userError ("Reports unexpectedly lost Income & Expense evidence: " ++ message))
+  | .ok report =>
+      expect (report.measures.length == 2)
+        "Reports merged distinct Measures in Income & Expense"
+      let some jpySummary := report.measures.find? (fun row => row.measure = jpy)
+        | throw (IO.userError "Reports lost JPY Income & Expense measure")
+      expect (jpySummary.income.quanta == 5000)
+        "Reports changed displayed Income sign"
+      expect (jpySummary.expense.quanta == 1200)
+        "Reports changed displayed Expense quantity"
+      expect (jpySummary.result.quanta == 3800)
+        "Reports changed Income & Expense result"
+      let some usdSummary := report.measures.find? (fun row => row.measure = usd)
+        | throw (IO.userError "Reports lost USD Income & Expense measure")
+      expect (usdSummary.income.quanta == 20 && usdSummary.expense.quanta == 0)
+        "Reports did not keep USD separate from JPY"
+      expect (report.unresolvedEffectCount == 0)
+        "Reports changed unresolved role Effect count"
+
+  match reports.balances with
+  | .error message =>
+      throw (IO.userError ("Reports unexpectedly lost Balances evidence: " ++ message))
+  | .ok report =>
+      expect (report.rows.length == 1)
+        "Reports changed supported Role Balance row count"
+      let some row := report.rows.head?
+        | throw (IO.userError "Reports lost supported Role Balance row")
+      expect (row.coordinate.locus = cash && row.role = .asset && row.quantity.quanta == 12000)
+        "Reports changed supported Role Balance row"
+      expect (report.unresolvedRoleCount == 1)
+        "Reports changed unresolved Role count"
+      expect (report.unsupportedBalanceCount == 1)
+        "Reports changed unsupported Balance count"
+
+  IO.println "Reports presentation: Stock-Flow, Income & Expense, and Balances preserve shared Review evidence."
