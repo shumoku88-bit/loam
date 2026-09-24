@@ -69,7 +69,8 @@ private def renderNav : String :=
   "<a href=\"#scheduled\">Scheduled</a> | " ++
   "<a href=\"#budget\">Budget</a> | " ++
   "<a href=\"#attention\">Attention</a> | " ++
-  "<a href=\"#capacity\">Capacity</a>" ++
+  "<a href=\"#capacity\">Capacity</a> | " ++
+  "<a href=\"#reports\">Reports</a>" ++
   "</div>"
 
 private def quantityText (quantity : Quantity) : String :=
