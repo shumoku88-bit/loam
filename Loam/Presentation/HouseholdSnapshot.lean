@@ -8,6 +8,7 @@ import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.ScheduledReview
 import Loam.StockFlowReview
+import Loam.TransactionsFlowReview
 
 namespace Loam.Presentation
 
@@ -49,6 +50,9 @@ structure HouseholdSnapshot where
   /-- Current evidence-aware Role Balance answer for presentation. -/
   roleBalances : Except String Loam.RoleBalanceReview.Snapshot :=
     .error "loam: Balances not loaded"
+  /-- Current explicit-window Transactions Flow answer for presentation. -/
+  transactionsFlow : Except String Loam.TransactionsFlowReview.Snapshot :=
+    .error "loam: Transactions Flow not loaded"
   purposeMetadata : List Loam.PurposeCatalog.Metadata := []
 
 end Loam.Presentation
