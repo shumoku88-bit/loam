@@ -8,6 +8,8 @@ on:
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Cli/MeasureScaleCli.lean'
       - 'Loam/Cli.lean'
+      - 'tools/loam'
+      - 'tools/loam'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ScheduledActualOwnership.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
