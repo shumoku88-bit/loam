@@ -98,14 +98,13 @@ theorem rowTotal_quanta_eq_activity_parts
     (Loam.TransactionsFlowReview.rowTotal snapshot coordinate).quanta =
       (Loam.TransactionsFlowReview.rowActivity snapshot coordinate).positive.quanta +
       (Loam.TransactionsFlowReview.rowActivity snapshot coordinate).negative.quanta := by
-  have hFold :=
-    fold_total_eq_activity_sum
-      snapshot.columns coordinate 0 0 0 0 (by rfl)
-  simpa [Loam.TransactionsFlowReview.rowTotal,
-    Loam.TransactionsFlowReview.rowActivity,
-    totalStep,
-    activityStep,
-    selectedQuanta] using hFold
+  change
+    snapshot.columns.foldl (totalStep coordinate) 0 =
+      let accumulated :=
+        snapshot.columns.foldl (activityStep coordinate) (0, 0, 0)
+      accumulated.1 + accumulated.2.1
+  exact fold_total_eq_activity_sum
+    snapshot.columns coordinate 0 0 0 0 (by rfl)
 
 /--
 For every Transactions-Flow Snapshot and every coordinate, the separately
@@ -193,9 +192,11 @@ theorem eventCellQuanta_eq_quantityAt
         event coordinate.locus coordinate.measure).quanta := by
   cases coordinate with
   | mk locus measure =>
-      have hFold :=
+      change
+        event.effects.foldl (cellFoldlStep ⟨locus, measure⟩) 0 =
+          event.effects.foldr (cellFoldrStep ⟨locus, measure⟩) 0
+      simpa using
         foldl_cell_eq_acc_plus_foldr event.effects ⟨locus, measure⟩ 0
-      simpa [eventCellQuanta, Event.quantityAt, cellFoldrStep] using hFold
 
 /--
 Quantity-wrapped form of the same correspondence, matching the public cell
