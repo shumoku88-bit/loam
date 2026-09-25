@@ -181,7 +181,7 @@ jobs:
           n="\$((n + 1))"
           printf '%s' "\$n" > "\$counter"
           extra=''
-          if [[ "\${1:-}" == '--record-form' ]]; then
+          if [[ "\${1:-}" == '--record-form' || "\${1:-}" == '--record-postings-form' ]]; then
             extra="<input type=\"hidden\" name=\"operation\" value=\"\${3:-}\">"
           fi
           printf '<!DOCTYPE html><html><body>render-%s%s</body></html>' "\$n" "\$extra"
@@ -192,12 +192,18 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 
-          for _ in 1 2 3 4 5; do
+          started=false
+          for _ in {1..20}; do
             if curl -fsS http://127.0.0.1:8765/ > "$tmpdir/first.html"; then
+              started=true
               break
             fi
             sleep 0.2
           done
+          if [[ "$started" != true ]]; then
+            cat "$tmpdir/server.log" >&2
+            exit 1
+          fi
           curl -fsS http://127.0.0.1:8765/ > "$tmpdir/second.html"
           curl -fsS http://127.0.0.1:8765/record > "$tmpdir/record.html"
           operation="$(sed -n 's/.*name="operation" value="\([^"]*\)".*/\1/p' "$tmpdir/record.html")"
