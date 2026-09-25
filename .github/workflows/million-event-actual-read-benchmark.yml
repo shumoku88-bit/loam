@@ -1,0 +1,120 @@
+name: Million-event Actual read benchmark
+
+on:
+  push:
+    branches:
+      - 'bench/million-event-actual-read'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/million-event-actual-read-benchmark.yml'
+      - 'tools/benchmark-actual-read.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Measure 50k through 1M Actual histories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build production review entrance
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Record runner context
+        shell: bash
+        run: |
+          {
+            echo '## Million-event Actual read benchmark'
+            echo
+            echo 'Commit: `'${GITHUB_SHA}'`'
+            echo
+            echo 'Runner: ubuntu-24.04'
+            echo
+            echo 'CPU cores: '$(nproc)
+            echo
+            echo '~~~text'
+            free -h
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark plain history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-actual-read.py \
+            --no-build \
+            --shape plain \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 \
+            --timeout 600 \
+            | tee /tmp/benchmark-plain.tsv
+
+          {
+            echo
+            echo '### Plain'
+            echo
+            echo '~~~text'
+            cat /tmp/benchmark-plain.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark description-heavy history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-actual-read.py \
+            --no-build \
+            --shape described \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 \
+            --timeout 600 \
+            | tee /tmp/benchmark-described.tsv
+
+          {
+            echo
+            echo '### Description-heavy'
+            echo
+            echo '~~~text'
+            cat /tmp/benchmark-described.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark correction-heavy history
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-actual-read.py \
+            --no-build \
+            --shape corrected \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 \
+            --timeout 600 \
+            | tee /tmp/benchmark-corrected.tsv
+
+          {
+            echo
+            echo '### Correction-heavy'
+            echo
+            echo '~~~text'
+            cat /tmp/benchmark-corrected.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
