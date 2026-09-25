@@ -116,6 +116,10 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not render its document identity"
   expect (contains html "href=\"#home\"")
     "Web snapshot did not expose lightweight section navigation"
+  expect (contains html "href=\"/record\"")
+    "Web snapshot did not place the Record action near Home"
+  expect (contains html ">[Record]</a>")
+    "Web Home did not expose the frequent Record action"
   expect (contains html "id=\"home\" class=\"card\"")
     "Web snapshot did not expose the Lean-derived Home section"
   expect (contains html "Current household orientation derived from shared Lean Review answers.")
