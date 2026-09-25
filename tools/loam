@@ -43,9 +43,10 @@ Open the production TUI (also the default with no arguments):
   ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
 
-Open the read-only local Web frontend:
+Open the local Web frontend:
   ./tools/loam web [LOAM_DATA_DIR]
   Re-reads shared Review answers on every request at http://127.0.0.1:8765.
+  Record uses explicit Review -> Confirm and the existing household command boundary.
 
 Diagnose whether the New-only production startup read boundary is coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
