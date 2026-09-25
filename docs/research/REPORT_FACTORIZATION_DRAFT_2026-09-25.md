@@ -770,6 +770,144 @@ This preserves the distinction:
 
 No production optimization is authorized by Observation 322.
 
+# 9. RF-2 complete fail-closed fusion — Observation 323
+
+Observation 323 extends the Stock-Flow fusion result from arithmetic to
+left-to-right refusal semantics.
+
+Qualified research head:
+
+    71a9b72aa0128775f9790f2a65cec329a3ffdb9f
+
+Lean Proof Surfaces:
+
+    36163341504 — SUCCESS
+
+Compression Audit:
+
+    36163341359 — SUCCESS
+
+## 9.1 General theorem
+
+For arbitrary:
+
+- selected EffectCoordinate list;
+- ActualReview.Record list;
+- start/end strings;
+- initial numeric Scan;
+
+the research one-pass function is exactly equal to the research two-pass
+reference:
+
+    fused coordinates start end records initial
+      =
+    twoPass coordinates records start end initial
+
+The two-pass reference performs:
+
+    validate records left-to-right
+        then
+    numeric fold
+
+The fused function performs:
+
+    for each record, left-to-right:
+        validate this record
+        if accepted, update numeric Scan
+        if rejected, return immediately
+
+The equality is over:
+
+    Except String Scan
+
+so it covers both success and failure observations.
+
+## 9.2 What failure equality includes
+
+The per-record refusal mirrors the current Stock-Flow validation rules:
+
+- superseded records are inert;
+- zero selected quantity does not require a date;
+- nonzero selected quantity requires a date;
+- a retained date must be a valid ISO calendar date;
+- the message embeds the offending EventId;
+- traversal order determines the first failure.
+
+Because the theorem proves equality of the complete Except value, an earlier
+numeric accumulator update cannot leak past a later refusal.
+
+The visible answer remains the same first error.
+
+## 9.3 What is now mathematically compressible
+
+Combining Observations 322 and 323 gives this research result:
+
+    current conceptual shape
+
+      validate all selected records
+      + start boundary scan
+      + end boundary scan
+      + window change scan
+
+    can factor into
+
+      one sequential fail-closed scan
+        -> error message
+        or
+        -> {
+             startBoundary
+             endBoundary
+             positiveWindow
+             negativeWindow
+           }
+
+without changing the research reference semantics.
+
+The end boundary remains independently accumulated, so the final Stock-Flow
+parity check can remain an independent witness.
+
+## 9.4 Remaining production boundary
+
+Observation 323 intentionally does not claim a direct general equality against
+the public StockFlowReview.project function.
+
+The public project also owns:
+
+- endpoint date validation;
+- start < end validation;
+- selected-coordinate derivation from BalanceReview;
+- currentTracked derivation from current balances;
+- final parity refusal;
+- public Snapshot construction.
+
+Its internal validation helpers are private.
+
+The research result therefore isolates the record-scan core. A production
+change, if ever justified, should connect this proven scan semantics to the
+public project boundary rather than treating the research duplicate as a second
+authority.
+
+## 9.5 Consequence for the mathematical map
+
+Stock-Flow is now a strong concrete example of:
+
+    fail-closed sequential semantics
+        ×
+    additive product accumulator
+
+The additive components compose freely after each record is admitted, while
+the error observation remains left-biased and order-sensitive.
+
+This is a useful counterexample to an over-broad "all report folds are
+commutative monoids" story.
+
+The numeric carrier is compositional.
+
+The complete observable computation is sequential because first-failure
+identity matters.
+
+No production change is authorized by Observation 323.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
