@@ -37,7 +37,25 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
+  let sharedInput : Loam.Presentation.Record.Input := {
+    date := "2026-09-06"
+    description := "数学ガール"
+    rows := #[
+      { locus := "paypay", amount := "-2470" },
+      { locus := "books", amount := "2470" }]
+  }
+  let .ok sharedPreview := Loam.Presentation.Record.preview? w [] sharedInput
+    | throw (IO.userError "shared Record preview")
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
+  expect
+    (sharedPreview.draft.validOn == draft.validOn &&
+      sharedPreview.draft.description == draft.description &&
+      sharedPreview.draft.total == draft.total &&
+      sharedPreview.draft.effects.map (fun effect =>
+        (effect.locus.token, effect.measure.token, effect.quantity.quanta)) ==
+      draft.effects.map (fun effect =>
+        (effect.locus.token, effect.measure.token, effect.quantity.quanta)))
+    "TUI Record draft diverged from shared Record preview"
   expect (draft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
     "signed postings did not preserve their quantities"
   let usdForm : Form := {

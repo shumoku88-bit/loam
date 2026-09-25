@@ -2,6 +2,7 @@ import Loam.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.MovementAdmission
 import Loam.Persistence.TokenSyntax
+import Loam.Presentation.Record
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
@@ -13,11 +14,8 @@ namespace Loam.Tui.Record
 open Loam.Tui.Kernel
 set_option autoImplicit false
 
-/-- One local editor row. Quantity text is signed; row order carries no meaning. -/
-structure Row where
-  locus : String := ""
-  amount : String := ""
-  deriving Repr, DecidableEq, Inhabited
+/-- Shared signed posting row; terminal focus remains outside this value. -/
+abbrev Row := Loam.Presentation.Record.Row
 
 structure Form where
   date : String
@@ -26,6 +24,14 @@ structure Form where
   rows : Array Row := #[{}, {}]
   -- Date, description, Measure, two fields per row, then four actions.
   focus : Fin (3 + rows.size * 2 + 4) := ⟨0, by omega⟩
+
+/-- Drop terminal-only focus and expose the shared Record input boundary. -/
+def input (form : Form) : Loam.Presentation.Record.Input := {
+  date := form.date
+  description := form.description
+  measure := form.measure
+  rows := form.rows
+}
 
 inductive Mode where
   | editing
@@ -164,45 +170,15 @@ def acceptCandidateAndAdvance (state : State) : State :=
   | none =>
       { state with form := moveFocus state.form false, candidateIndex := 0 }
 
-private def draftUsingPresentation?
-    (metadata : List Loam.MeasurePresentation.Metadata)
-    (form : Form) : Except String Loam.MovementAdmission.Draft := do
-  if !Loam.Persistence.validToken form.measure then
-    throw "Enter a nonempty single-line Measure token."
-  let measure : Loam.Core.MeasureId := ⟨form.measure⟩
-  let scale := Loam.MeasurePresentation.scaleFor metadata measure
-  let mut effects := []
-  let mut total := 0
-  for index in List.range form.rows.size do
-    let row := form.rows[index]!
-    let some amount := Loam.MeasurePresentation.parseQuanta? metadata measure row.amount
-      | throw
-          ("Enter a nonzero signed " ++ form.measure ++ " amount with at most " ++
-            toString scale ++ " decimal places for every posting.")
-    if amount = 0 then
-      throw
-        ("Enter a nonzero signed " ++ form.measure ++ " amount with at most " ++
-          toString scale ++ " decimal places for every posting.")
-    effects := effects ++ [Loam.Core.Effect.ofQuantity
-      ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ measure
-      (Loam.Core.Quantity.ofQuanta amount)]
-    if amount > 0 then total := total + amount
-  let draft : Loam.MovementAdmission.Draft := {
-    validOn := form.date
-    description := if form.description.isEmpty then none else some form.description
-    effects := effects, relations := [], discharges := [], total := total }
-  Loam.MovementAdmission.validateDraft draft
-  pure draft
-
-/-- Historical scale-0 parser retained for low-level callers and tests. -/
+/-- Compatibility entrance for existing TUI callers and tests. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft :=
-  draftUsingPresentation? [] form
+  Loam.Presentation.Record.draft? (input form)
 
-/-- Parse local signed posting syntax under one explicit Measure presentation convention. -/
+/-- Delegate Measure-aware draft construction to the shared Record boundary. -/
 def draftWithPresentation?
     (metadata : List Loam.MeasurePresentation.Metadata)
     (form : Form) : Except String Loam.MovementAdmission.Draft :=
-  draftUsingPresentation? metadata form
+  Loam.Presentation.Record.draftWithPresentation? metadata (input form)
 
 /-- Ordinary Locus token used by the TUI for explicitly unresolved classification. -/
 def unresolvedLocus : Loam.Core.LocusId := ⟨"suspense"⟩
@@ -292,14 +268,12 @@ def fillUnresolvedRemainder?
     notice := "" }
 
 def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
-  match draftWithPresentation? state.measurePresentation state.form with
+  match Loam.Presentation.Record.preview?
+      world state.measurePresentation (input state.form) with
   | .error message => { state with notice := message }
-  | .ok draft =>
-      match Loam.MovementAdmission.admit? world draft with
-      | .error message => { state with notice := message }
-      | .ok _ => { state with
-          mode := .preview draft ⟨0, by omega⟩,
-          notice := "" }
+  | .ok preview => { state with
+      mode := .preview preview.draft ⟨0, by omega⟩
+      notice := "" }
 
 def dropRow (form : Form) : Form :=
   -- Keep two rows so an ordinary balanced movement remains visible by default.
