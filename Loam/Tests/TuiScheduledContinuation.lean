@@ -1,6 +1,6 @@
 import Loam.AttentionReview
 import Loam.ScheduledReview
-import Loam.Tui.HraHome
+import Loam.Tui.Home
 import Loam.Tui.ScheduledContinuationSession
 
 open Loam.Core Loam.Tui.Kernel
@@ -150,7 +150,7 @@ def main : IO Unit := do
   }
   let homeState := Loam.Tui.Main.initialState "2026-09-15"
   let homeText := widgetText
-    (Loam.Tui.HraHome.view { width := 100, height := 42 } homeSnapshot homeState)
+    (Loam.Tui.Home.view { width := 100, height := 42 } homeSnapshot homeState)
   expect (contains "Attention: 1 open" homeText &&
       contains "due unknown" homeText && contains "source" homeText)
     "Home did not rediscover the deferred continuation Attention"
@@ -166,7 +166,7 @@ def main : IO Unit := do
     | .error message => throw (IO.userError message)
     | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
   let multiText := widgetText
-    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+    (Loam.Tui.Home.view { width := 100, height := 42 }
       { homeSnapshot with attention :=
           match multiAvailability with
           | .unavailable => .unavailable
@@ -177,14 +177,14 @@ def main : IO Unit := do
     "Home singled out representation-order Attention as if it were prioritized"
 
   let unavailableText := widgetText
-    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+    (Loam.Tui.Home.view { width := 100, height := 42 }
       { homeSnapshot with attention := .unavailable } homeState)
   expect (contains "Attention: not configured" unavailableText)
     "Home collapsed missing Attention configuration into an empty stream"
 
   let emptyAttention : Loam.AttentionReview.Snapshot := { openItems := [] }
   let emptyText := widgetText
-    (Loam.Tui.HraHome.view { width := 100, height := 42 }
+    (Loam.Tui.Home.view { width := 100, height := 42 }
       { homeSnapshot with attention := .loaded emptyAttention } homeState)
   expect (contains "Attention: 0 open" emptyText)
     "Home lost the configured-empty Attention distinction"

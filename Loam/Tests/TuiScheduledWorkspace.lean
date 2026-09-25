@@ -1,6 +1,6 @@
 import Loam.ScheduledCoverageSelector
 import Loam.Tui.Main
-import Loam.Tui.HraScheduled
+import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.ScheduledCoverageSetup
 
 open Loam.Core Loam.Tui.Kernel
@@ -35,7 +35,7 @@ private def scheduledRecord?
     movement := movement
   }
 
-private def hraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
+private def scheduledWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
   let first ← requireSome (scheduledRecord? "scheduled-0" "2026-09-07" "paypay" "food" 100)
     "first Scheduled fixture was not admitted"
   let second ← requireSome (scheduledRecord? "scheduled-1" "2026-09-07" "smbc" "paypay" 200)
@@ -59,7 +59,7 @@ private def hraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
   }
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
-private def longHraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
+private def longScheduledWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
   let rows ← requireSome
     ((List.range 12).mapM fun index =>
       scheduledRecord? ("scheduled-long-" ++ toString index) "2026-09-07"
@@ -83,7 +83,7 @@ private def longHraScheduledSnapshot : IO Loam.Tui.Main.Snapshot := do
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
 def main : IO Unit := do
-  let snapshot ← hraScheduledSnapshot
+  let snapshot ← scheduledWorkspaceSnapshot
 
   -- Shared current-open read order is date first, then Scheduled identity.
   -- Retained order is intentionally reversed for the same-date pair.
@@ -118,125 +118,125 @@ def main : IO Unit := do
   expect ((earliest.map (fun row => row.id.token)) == some "a-same-day")
     "earliest current-open Scheduled diverged from the shared ordered frontier"
 
-  let start := Loam.Tui.HraScheduled.initial "2026-09-07"
+  let start := Loam.Tui.ScheduledWorkspace.initial "2026-09-07"
 
   -- 1. Focus Day scope shows only today's Scheduled occurrences
-  expect ((Loam.Tui.HraScheduled.recordsForScope snapshot start).length == 2)
-    "HRA Scheduled Focus Day did not return the two scheduled occurrences on 2026-09-07"
+  expect ((Loam.Tui.ScheduledWorkspace.recordsForScope snapshot start).length == 2)
+    "Scheduled workspace Focus Day did not return the two scheduled occurrences on 2026-09-07"
 
   -- Unknown day evidence stays distinct from an empty complete answer.
-  let unknownState := Loam.Tui.HraScheduled.initial "2026-09-09"
-  match Loam.Tui.HraScheduled.scopeEvidence snapshot unknownState with
+  let unknownState := Loam.Tui.ScheduledWorkspace.initial "2026-09-09"
+  match Loam.Tui.ScheduledWorkspace.scopeEvidence snapshot unknownState with
   | .ok .unknown => pure ()
-  | _ => throw (IO.userError "HRA Scheduled Focus Day did not preserve Unknown evidence")
+  | _ => throw (IO.userError "Scheduled workspace Focus Day did not preserve Unknown evidence")
   let unknownText := widgetText
-    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot unknownState)
+    (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot unknownState)
   expect (contains "Scheduled [Unknown]" unknownText &&
     contains "Unknown; no completeness horizon claimed" unknownText)
-    "HRA Scheduled did not render open-world Unknown explicitly"
+    "Scheduled workspace did not render open-world Unknown explicitly"
   expect (!contains "none due on this day" unknownText)
-    "HRA Scheduled collapsed Unknown into an empty-day claim"
+    "Scheduled workspace collapsed Unknown into an empty-day claim"
 
-  -- Production HRA Scheduled owns its own eight-row viewport. Pin navigation beyond it
+  -- Production Scheduled workspace owns its own eight-row viewport. Pin navigation beyond it
   -- before the older Main Scheduled cursor implementation is retired.
-  let longSnapshot ← longHraScheduledSnapshot
-  let longStart := Loam.Tui.HraScheduled.initial "2026-09-07"
+  let longSnapshot ← longScheduledWorkspaceSnapshot
+  let longStart := Loam.Tui.ScheduledWorkspace.initial "2026-09-07"
   let longShifted := (List.range 10).foldl
-    (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+    (fun current _ => (Loam.Tui.ScheduledWorkspace.update longSnapshot current .next).state)
     longStart
   expect (longShifted.occurrenceRow == 10)
-    "HRA Scheduled selection could not reach the eleventh occurrence"
+    "Scheduled workspace selection could not reach the eleventh occurrence"
   let selectedLong ← requireSome
-    (Loam.Tui.HraScheduled.selectedRecord? longSnapshot longShifted)
-    "HRA Scheduled eleventh-row selection disappeared"
+    (Loam.Tui.ScheduledWorkspace.selectedRecord? longSnapshot longShifted)
+    "Scheduled workspace eleventh-row selection disappeared"
   let longViewText := widgetText
-    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } longSnapshot longShifted)
+    (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } longSnapshot longShifted)
   expect (contains selectedLong.id.token longViewText)
-    "HRA Scheduled moving viewport did not render its selected eleventh occurrence"
-  match (Loam.Tui.HraScheduled.recordsForScope longSnapshot longStart).head? with
-  | none => throw (IO.userError "HRA Scheduled long-list fixture became empty")
+    "Scheduled workspace moving viewport did not render its selected eleventh occurrence"
+  match (Loam.Tui.ScheduledWorkspace.recordsForScope longSnapshot longStart).head? with
+  | none => throw (IO.userError "Scheduled workspace long-list fixture became empty")
   | some firstLong =>
       expect (!contains firstLong.id.token longViewText)
-        "HRA Scheduled eight-row viewport did not move beyond its first occurrence"
+        "Scheduled workspace eight-row viewport did not move beyond its first occurrence"
   let longLast := (List.range 11).foldl
-    (fun current _ => (Loam.Tui.HraScheduled.update longSnapshot current .next).state)
+    (fun current _ => (Loam.Tui.ScheduledWorkspace.update longSnapshot current .next).state)
     longStart
-  let longBlocked := (Loam.Tui.HraScheduled.update longSnapshot longLast .next).state
+  let longBlocked := (Loam.Tui.ScheduledWorkspace.update longSnapshot longLast .next).state
   expect (longBlocked.occurrenceRow == longLast.occurrenceRow &&
     contains "No next Scheduled row" longBlocked.notice)
-    "HRA Scheduled end-of-list refusal moved selection or lost its notice"
+    "Scheduled workspace end-of-list refusal moved selection or lost its notice"
 
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
   expect (start.pane == .occurrences)
-    "HRA Scheduled did not open on the Scheduled occurrences pane"
-  let second := (Loam.Tui.HraScheduled.update snapshot start .next).state
-  match Loam.Tui.HraScheduled.selectedRecord? snapshot second with
-  | none => throw (IO.userError "HRA Scheduled occurrence selection disappeared")
+    "Scheduled workspace did not open on the Scheduled occurrences pane"
+  let second := (Loam.Tui.ScheduledWorkspace.update snapshot start .next).state
+  match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot second with
+  | none => throw (IO.userError "Scheduled workspace occurrence selection disappeared")
   | some record =>
       expect (record.id.token == "scheduled-1")
-        "HRA Scheduled j/down selection did not move to the second occurrence"
+        "Scheduled workspace j/down selection did not move to the second occurrence"
 
   -- 3. Rendering check
-  let viewWidget := Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot second
+  let viewWidget := Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot second
   let viewText := widgetText viewWidget
   expect (contains "Household Scheduled Workspace" viewText)
-    "HRA Scheduled heading was not rendered"
+    "Scheduled workspace heading was not rendered"
   expect (contains "Selected Scheduled Details:" viewText && contains "scheduled-1" viewText)
-    "HRA Scheduled details did not render selected occurrence information"
+    "Scheduled workspace details did not render selected occurrence information"
   let refusalMessage :=
     "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY replacement editor."
   let refusedState := { second with notice := refusalMessage }
   let refusedText := widgetText
-    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot refusedState)
+    (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot refusedState)
   expect (contains refusalMessage refusedText)
-    "HRA Scheduled did not render a Scheduled replacement refusal notice from its current state"
+    "Scheduled workspace did not render a Scheduled replacement refusal notice from its current state"
 
   -- 4. Cycle Filter expands to allCurrent
-  let allCurrent := (Loam.Tui.HraScheduled.update snapshot second .cycleFilter).state
-  expect ((Loam.Tui.HraScheduled.recordsForScope snapshot allCurrent).length == 3)
-    "HRA Scheduled filter cycle did not expand to all current-open Scheduled occurrences"
+  let allCurrent := (Loam.Tui.ScheduledWorkspace.update snapshot second .cycleFilter).state
+  expect ((Loam.Tui.ScheduledWorkspace.recordsForScope snapshot allCurrent).length == 3)
+    "Scheduled workspace filter cycle did not expand to all current-open Scheduled occurrences"
   expect (allCurrent.pane == .occurrences)
-    "HRA Scheduled scope change moved focus into the Locus filter pane"
+    "Scheduled workspace scope change moved focus into the Locus filter pane"
 
-  let allCurrentText := widgetText (Loam.Tui.HraScheduled.view { width := 100, height := 30 } snapshot allCurrent)
+  let allCurrentText := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot allCurrent)
   expect (contains "All Current-Open" allCurrentText)
-    "HRA Scheduled heading did not reflect All Current-Open scope"
+    "Scheduled workspace heading did not reflect All Current-Open scope"
 
   -- 5. Loci navigation and filtering
-  let toLoci := (Loam.Tui.HraScheduled.update snapshot allCurrent .focusLeft).state
+  let toLoci := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .focusLeft).state
   expect (toLoci.pane == .loci)
-    "HRA Scheduled focusLeft did not switch to loci pane"
+    "Scheduled workspace focusLeft did not switch to loci pane"
 
   -- 6. Object-local command emission from occurrences pane
-  let occPane := (Loam.Tui.HraScheduled.update snapshot allCurrent .focusRight).state
+  let occPane := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .focusRight).state
 
-  let completeStep := Loam.Tui.HraScheduled.update snapshot occPane .completeScheduled
+  let completeStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .completeScheduled
   expect (completeStep.command == .completeScheduled)
-    "HRA Scheduled completeScheduled event did not emit completeScheduled command"
+    "Scheduled workspace completeScheduled event did not emit completeScheduled command"
 
-  let replaceStep := Loam.Tui.HraScheduled.update snapshot occPane .replaceScheduled
+  let replaceStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .replaceScheduled
   expect (replaceStep.command == .replaceScheduled)
-    "HRA Scheduled replaceScheduled event did not emit replaceScheduled command"
+    "Scheduled workspace replaceScheduled event did not emit replaceScheduled command"
 
-  let cancelStep := Loam.Tui.HraScheduled.update snapshot occPane .cancelScheduled
+  let cancelStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .cancelScheduled
   expect (cancelStep.command == .cancelScheduled)
-    "HRA Scheduled cancelScheduled event did not emit cancelScheduled command"
+    "Scheduled workspace cancelScheduled event did not emit cancelScheduled command"
 
-  let createStep := Loam.Tui.HraScheduled.update snapshot occPane .createScheduled
+  let createStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .createScheduled
   expect (createStep.command == .createScheduled)
-    "HRA Scheduled createScheduled event did not emit createScheduled command"
+    "Scheduled workspace createScheduled event did not emit createScheduled command"
 
-  let fillStep := Loam.Tui.HraScheduled.update snapshot occPane .fillCurrentCycle
+  let fillStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .fillCurrentCycle
   expect (fillStep.command == .fillCurrentCycle)
-    "HRA Scheduled fillCurrentCycle event did not emit fillCurrentCycle command"
+    "Scheduled workspace fillCurrentCycle event did not emit fillCurrentCycle command"
 
-  let monitorStep := Loam.Tui.HraScheduled.update snapshot occPane .monitorCoverage
+  let monitorStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .monitorCoverage
   expect (monitorStep.command == .monitorCoverage)
-    "HRA Scheduled monitorCoverage event did not emit monitorCoverage command"
+    "Scheduled workspace monitorCoverage event did not emit monitorCoverage command"
 
   let selectedForMonitor ← requireSome
-    (Loam.Tui.HraScheduled.selectedRecord? snapshot occPane)
-    "HRA Scheduled monitoring source disappeared"
+    (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot occPane)
+    "Scheduled workspace monitoring source disappeared"
   let monitorRule ←
     match Loam.Tui.ScheduledCoverageSetup.ruleFor? selectedForMonitor 1 with
     | .error message => throw (IO.userError message)
@@ -248,42 +248,42 @@ def main : IO Unit := do
   expect (Loam.ScheduledCoverageSelector.matchesRule selectedForMonitor monitorRule)
     "Scheduled monitoring setup produced a rule that the shared coverage selector would not match"
 
-  let backStep := Loam.Tui.HraScheduled.update snapshot occPane .back
+  let backStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .back
   expect (backStep.command == .back)
-    "HRA Scheduled back event did not emit back command"
+    "Scheduled workspace back event did not emit back command"
 
   -- 7. From loci pane, complete/replace/cancel are refused and emit .stay with notice
-  let lociCompleteStep := Loam.Tui.HraScheduled.update snapshot toLoci .completeScheduled
+  let lociCompleteStep := Loam.Tui.ScheduledWorkspace.update snapshot toLoci .completeScheduled
   expect (lociCompleteStep.command == .stay)
-    "HRA Scheduled completeScheduled from loci pane unexpectedly emitted a non-stay command"
+    "Scheduled workspace completeScheduled from loci pane unexpectedly emitted a non-stay command"
   expect (contains "Scheduled pane" lociCompleteStep.state.notice)
-    "HRA Scheduled complete notice from loci pane was missing guidance"
-  let lociFillStep := Loam.Tui.HraScheduled.update snapshot toLoci .fillCurrentCycle
+    "Scheduled workspace complete notice from loci pane was missing guidance"
+  let lociFillStep := Loam.Tui.ScheduledWorkspace.update snapshot toLoci .fillCurrentCycle
   expect (lociFillStep.command == .stay && contains "Scheduled pane" lociFillStep.state.notice)
-    "HRA Scheduled cycle fill from loci pane was not refused with guidance"
-  let lociMonitorStep := Loam.Tui.HraScheduled.update snapshot toLoci .monitorCoverage
+    "Scheduled workspace cycle fill from loci pane was not refused with guidance"
+  let lociMonitorStep := Loam.Tui.ScheduledWorkspace.update snapshot toLoci .monitorCoverage
   expect (lociMonitorStep.command == .stay && contains "Scheduled pane" lociMonitorStep.state.notice)
-    "HRA Scheduled monitoring from loci pane was not refused with guidance"
+    "Scheduled workspace monitoring from loci pane was not refused with guidance"
 
   -- 8. Startup refusal remains explicit and blocks Scheduled writes.
   let unavailable : Loam.Tui.Main.Snapshot :=
     { snapshot with scheduled := .error "scheduled fixture unavailable" }
   let unavailableText := widgetText
-    (Loam.Tui.HraScheduled.view { width := 100, height := 30 } unavailable start)
+    (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } unavailable start)
   expect (contains "Scheduled [Unavailable]" unavailableText &&
     contains "[Unavailable] scheduled fixture unavailable" unavailableText)
-    "HRA Scheduled collapsed startup refusal into an empty Scheduled workspace"
-  let unavailableCreate := Loam.Tui.HraScheduled.update unavailable start .createScheduled
+    "Scheduled workspace collapsed startup refusal into an empty Scheduled workspace"
+  let unavailableCreate := Loam.Tui.ScheduledWorkspace.update unavailable start .createScheduled
   expect (unavailableCreate.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableCreate.state.notice)
-    "HRA Scheduled emitted a write intent while Scheduled evidence was unavailable"
-  let unavailableFill := Loam.Tui.HraScheduled.update unavailable start .fillCurrentCycle
+    "Scheduled workspace emitted a write intent while Scheduled evidence was unavailable"
+  let unavailableFill := Loam.Tui.ScheduledWorkspace.update unavailable start .fillCurrentCycle
   expect (unavailableFill.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableFill.state.notice)
-    "HRA Scheduled emitted cycle-fill intent while Scheduled evidence was unavailable"
-  let unavailableMonitor := Loam.Tui.HraScheduled.update unavailable start .monitorCoverage
+    "Scheduled workspace emitted cycle-fill intent while Scheduled evidence was unavailable"
+  let unavailableMonitor := Loam.Tui.ScheduledWorkspace.update unavailable start .monitorCoverage
   expect (unavailableMonitor.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableMonitor.state.notice)
-    "HRA Scheduled emitted monitoring intent while Scheduled evidence was unavailable"
+    "Scheduled workspace emitted monitoring intent while Scheduled evidence was unavailable"
 
-  IO.println "TUI Scheduled: HRA Scheduled workspace mechanics and startup unavailability passed."
+  IO.println "TUI Scheduled: Scheduled workspace mechanics and startup unavailability passed."

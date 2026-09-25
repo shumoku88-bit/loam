@@ -33,10 +33,10 @@ import Loam.BalanceReview
 import Loam.CapacityReview
 import Loam.ActualRoutingReview
 import Loam.Tui.Main
-import Loam.Tui.HraHome
-import Loam.Tui.HraActual
-import Loam.Tui.HraScheduled
-import Loam.Tui.HraScheduledSession
+import Loam.Tui.Home
+import Loam.Tui.ActualWorkspace
+import Loam.Tui.ScheduledWorkspace
+import Loam.Tui.ScheduledWorkspaceSession
 import Loam.Tui.SelectedDay
 import Loam.Tui.SelectedDaySession
 import Loam.Tui.Runtime
@@ -157,14 +157,14 @@ private def unavailableNotice (subject message : String) : String :=
   "[Unavailable] " ++ subject ++ ": " ++ message
 
 def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
-  compileWidget (Loam.Tui.HraHome.view bounds snapshot state)
+  compileWidget (Loam.Tui.Home.view bounds snapshot state)
 
 
 theorem compiledFrameFor_spec (bounds : Bounds) (snapshot : Snapshot) (state : State) :
     (compiledFrameFor bounds snapshot state).toScreen bounds 0 0 =
-      renderAt bounds 0 0 (Loam.Tui.HraHome.view bounds snapshot state) := by
+      renderAt bounds 0 0 (Loam.Tui.Home.view bounds snapshot state) := by
   simpa [compiledFrameFor] using
-    compileWidget_spec bounds 0 0 (Loam.Tui.HraHome.view bounds snapshot state)
+    compileWidget_spec bounds 0 0 (Loam.Tui.Home.view bounds snapshot state)
 
 
 def eventOfKey : Loam.Tui.Terminal.Key → Event
@@ -176,7 +176,7 @@ def eventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'Q' => .quit
   | _ => .other
 
-/-- HRA's Home navigation grammar, with arrows retained as equivalent navigation keys. -/
+/-- Home navigation grammar, with arrows retained as equivalent navigation keys. -/
 def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'h' | .input 'H' => .left
   | .input 'l' | .input 'L' => .right
@@ -184,8 +184,8 @@ def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | .input 'j' | .input 'J' => .down
   | key => eventOfKey key
 
-/-- HRA Actual interaction grammar over presentation-only pane and cursor state. -/
-def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
+/-- Actual workspace interaction grammar over presentation-only pane and cursor state. -/
+def actualWorkspaceEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.ActualWorkspace.Event
   | .up | .input 'k' | .input 'K' => .previous
   | .down | .input 'j' | .input 'J' => .next
   | .left | .input 'h' | .input 'H' => .focusLeft
@@ -196,12 +196,12 @@ def hraActualEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.HraActual.Event
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
-/-- HRA-shaped Actual session. `q` returns to Home; `n` reuses the shared Movement writer. -/
-partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
-    (snapshot : Snapshot) (state : Loam.Tui.HraActual.State)
+/-- Actual workspace session. `q` returns to Home; `n` reuses the shared Movement writer. -/
+partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePath)
+    (snapshot : Snapshot) (state : Loam.Tui.ActualWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
-  let step := Loam.Tui.HraActual.update snapshot state
-    (hraActualEventOfKey (← Loam.Tui.Terminal.readKey))
+  let step := Loam.Tui.ActualWorkspace.update snapshot state
+    (actualWorkspaceEventOfKey (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
   | .recordNew =>
@@ -220,15 +220,15 @@ partial def hraActualLoop (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
-      let refreshed := Loam.Tui.HraActual.refreshed fresh step.state
+      let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
       let next := { refreshed with notice := notice }
-      let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds fresh next)
+      let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-      hraActualLoop bounds dataDir root fresh next nextFrame
+      actualWorkspaceLoop bounds dataDir root fresh next nextFrame
   | .stay =>
-      let nextFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot step.state)
+      let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      hraActualLoop bounds dataDir root snapshot step.state nextFrame
+      actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
 
 /-- Read-only balance-view session; q/Esc returns to Home. -/
 partial def balancesLoop (bounds : Bounds)
@@ -294,20 +294,20 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
-    let actual := Loam.Tui.HraActual.withMetadata
-      (Loam.Tui.HraActual.initial state.selectedDate) metadata
-    let actualFrame := compileWidget (Loam.Tui.HraActual.view bounds snapshot actual)
+    let actual := Loam.Tui.ActualWorkspace.withMetadata
+      (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata
+    let actualFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot actual)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
-    let fresh ← hraActualLoop bounds dataDir root snapshot actual actualFrame
+    let fresh ← actualWorkspaceLoop bounds dataDir root snapshot actual actualFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 's' || key = .input 'S') then
-    let scheduled := Loam.Tui.HraScheduled.initial state.selectedDate
-    let scheduledFrame := compileWidget (Loam.Tui.HraScheduled.view bounds snapshot scheduled)
+    let scheduled := Loam.Tui.ScheduledWorkspace.initial state.selectedDate
+    let scheduledFrame := compileWidget (Loam.Tui.ScheduledWorkspace.view bounds snapshot scheduled)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
-    let fresh ← Loam.Tui.HraScheduledSession.run
+    let fresh ← Loam.Tui.ScheduledWorkspaceSession.run
       bounds dataDir root (loadSnapshot dataDir) snapshot scheduled scheduledFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
@@ -444,8 +444,8 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh destination
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh destination nextFrame
-  else if let some forward := Loam.Tui.HraHome.detailScrollDirection? bounds key then
-    let home := Loam.Tui.HraHome.scrollWideDetail bounds snapshot state forward
+  else if let some forward := Loam.Tui.Home.detailScrollDirection? bounds key then
+    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state forward
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame

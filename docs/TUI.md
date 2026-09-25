@@ -70,21 +70,21 @@ module name. `p` edits Actual-to-Purpose routing, `m` admits new Locus identitie
 ## Surface map
 
 ```text
-Loam/Tui/Kernel              Widget / Screen meaning and reconstruction laws
-Loam/Tui/Runtime             compiled sparse-row redraw representation
-Loam/Tui/Terminal            terminal input/output mechanics
-Loam/Tui/Calendar            presentation-only Gregorian calendar projection
-Loam/Tui/HraHome             production Home presentation
-Loam/Tui/HraActual           Actual workspace presentation state
-Loam/Tui/HraScheduled        Scheduled workspace presentation state
-Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
-Loam/Tui/Record              local Movement draft editor
-Loam/Tui/AttentionAdministration current-open Attention management view
-Loam/Tui/Balances            replaceable read-only balance view
-Loam/Tui/CycleBudget         current-cycle Budget decision surface
-Loam/Tui/Capacity            Capacity observation and action surface
-Loam/Tui/Reports             explicit-query Reports workspace
-Loam/Tui/Cli                 canonical loading, shared action delegation, executable loop
+Loam/Tui/Kernel                   Widget / Screen meaning and reconstruction laws
+Loam/Tui/Runtime                  compiled sparse-row redraw representation
+Loam/Tui/Terminal                 terminal input/output mechanics
+Loam/Tui/Calendar                 presentation-only Gregorian calendar projection
+Loam/Tui/Home                     production Home presentation
+Loam/Tui/ActualWorkspace          Actual workspace presentation state
+Loam/Tui/ScheduledWorkspace       Scheduled workspace presentation state
+Loam/Tui/SelectedDay              one-date Actual / Scheduled composition
+Loam/Tui/Record                   local Movement draft editor
+Loam/Tui/AttentionAdministration  current-open Attention management view
+Loam/Tui/Balances                 replaceable read-only balance view
+Loam/Tui/CycleBudget              current-cycle Budget decision surface
+Loam/Tui/Capacity                 Capacity observation and action surface
+Loam/Tui/Reports                  explicit-query Reports workspace
+Loam/Tui/Cli                      canonical loading, shared action delegation, executable loop
 ```
 
 Historical `Loam/Prototype/*` code and numbered prototype executables are research
@@ -107,7 +107,7 @@ to the surrounding workspace. A cached TUI answer is never promoted into authori
 
 ## Actual workspace
 
-Home `a` opens the Actual workspace (`Loam.Tui.HraActual`). It projects current
+Home `a` opens the Actual workspace (`Loam.Tui.ActualWorkspace`). It projects current
 Actual records over neutral Loci coordinates, supporting Focus Day and All Current
 scopes (`f`), as well as ascending and descending chronology toggling (`s`) so
 records can be inspected starting from the newest transaction.
@@ -118,7 +118,7 @@ evidence after durable writes.
 
 ## Scheduled workspace
 
-Home `s` opens the Scheduled workspace (`Loam.Tui.HraScheduled`). It projects
+Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). It projects
 the current-open Scheduled frontier over neutral Loci coordinates, supporting
 Focus Day and All Current-Open scopes (`f`).
 

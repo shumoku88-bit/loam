@@ -24,7 +24,7 @@ on:
       - "Loam/Tui/ReportsSession.lean"
       - "Loam/Tui/CycleBudgetSession.lean"
       - "Loam/Tui/CapacitySession.lean"
-      - "Loam/Tui/HraScheduledSession.lean"
+      - "Loam/Tui/ScheduledWorkspaceSession.lean"
       - "Loam/Tui/ScheduledCancellationSession.lean"
       - "Loam/Tui/SelectedDaySession.lean"
       - "Loam/Tui/TransactionsFlowPane.lean"

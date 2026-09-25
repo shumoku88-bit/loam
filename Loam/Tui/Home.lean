@@ -3,7 +3,7 @@ import Loam.Tui.Main
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 
-namespace Loam.Tui.HraHome
+namespace Loam.Tui.Home
 
 open Loam.Tui.Kernel
 open Loam.Tui.Main
@@ -44,7 +44,7 @@ private def pendingDates : PendingEvidence → List String
   | .error _ => []
 
 /-- Pure calendar presentation; marker dates are supplied evidence, not classified here. -/
-def hraCalendarSpans
+def calendarSpans
     (today : String) (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
   (List.range 7).map fun col =>
     match calendarSlot state row col with
@@ -63,7 +63,7 @@ def hraCalendarSpans
             (if date == today then .underlined else .normal)
 
 private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
-  (List.range 6).map fun row => .row (hraCalendarSpans today pastOpenDates state row)
+  (List.range 6).map fun row => .row (calendarSpans today pastOpenDates state row)
 
 private def cellsWidth (cells : List Cell) : Nat :=
   cells.foldl (fun width cell => width + Loam.Tui.Layout.charWidth cell.glyph) 0
@@ -531,7 +531,7 @@ def scrollWideDetail
     { state with detailScroll := next, notice := "" }
 
 /--
-HRA-shaped Home presentation over LOAM's already-admitted read answers.
+Production Home presentation over LOAM's already-admitted read answers.
 This is presentation only: it adds no household authority, cycle policy,
 Scheduled completeness claim, or retained pending status.
 -/
@@ -544,4 +544,4 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
   homeView bounds snapshot state
 
-end Loam.Tui.HraHome
+end Loam.Tui.Home

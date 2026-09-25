@@ -2,7 +2,7 @@ import Loam.LocusCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Main
 
-namespace Loam.Tui.HraActual
+namespace Loam.Tui.ActualWorkspace
 
 open Loam.Tui.Kernel
 open Loam.Tui.Main
@@ -267,7 +267,7 @@ private def orderText (state : State) : String :=
   | .desc => "newest first"
 
 /--
-HRA-shaped Actual workspace over the shared ActualReview answer. Stable tokens
+Production Actual workspace over the shared ActualReview answer. Stable tokens
 still own filtering/selection identity; catalog labels alter presentation only.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
@@ -310,4 +310,4 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     (if state.notice.isEmpty then [] else [plainLine state.notice])
   .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds))
 
-end Loam.Tui.HraActual
+end Loam.Tui.ActualWorkspace

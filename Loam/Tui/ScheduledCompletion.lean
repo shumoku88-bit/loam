@@ -104,7 +104,7 @@ private def positiveTotal (draft : Loam.MovementAdmission.Draft) : Int :=
     (fun total effect => if effect.quantity.quanta > 0 then total + effect.quantity.quanta else total)
     0
 
-/-- HRA-shaped completion interaction: identify Plan/Scheduled, then edit Actual. -/
+/-- Scheduled completion interaction: identify Plan/Scheduled, then edit Actual. -/
 def view (_known : List String) (state : State) : Widget :=
   match state.editor.mode with
   | .editing =>

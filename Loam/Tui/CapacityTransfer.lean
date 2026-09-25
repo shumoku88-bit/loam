@@ -241,7 +241,7 @@ private def impactLine
       let after := if source then current - quanta else current + quanta
       purpose.token ++ ": " ++ toString current ++ " -> " ++ toString after ++ " jpy"
 
-/-- Render one HRA-shaped transfer without importing Envelope identity or backing semantics. -/
+/-- Render one Capacity transfer without importing Envelope identity or backing semantics. -/
 def view (state : State) : Widget :=
   match state.mode with
   | .editing =>

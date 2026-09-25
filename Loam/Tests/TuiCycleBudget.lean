@@ -1,5 +1,5 @@
 import Loam.Tui.CycleBudget
-import Loam.Tui.HraHome
+import Loam.Tui.Home
 
 open Loam.Core Loam.Tui.Kernel
 

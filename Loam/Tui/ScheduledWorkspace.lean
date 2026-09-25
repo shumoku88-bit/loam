@@ -2,7 +2,7 @@ import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.ScheduledReview
 
-namespace Loam.Tui.HraScheduled
+namespace Loam.Tui.ScheduledWorkspace
 
 open Loam.Core
 open Loam.Tui.Kernel
@@ -67,7 +67,7 @@ def initial (focusDate : String) : State :=
 
 abbrev Record := ScheduledOccurrence String
 
-/-- Presentation result for one HRA Scheduled scope. Unknown is not an empty answer. -/
+/-- Presentation result for one Scheduled workspace scope. Unknown is not an empty answer. -/
 inductive ScopeEvidence where
   | records (rows : List Record)
   | unknown
@@ -327,7 +327,7 @@ private def footer (bounds : Bounds) : List Widget :=
     ]
 
 /--
-HRA-shaped Scheduled workspace over the shared ScheduledReview answer.
+Production Scheduled workspace over the shared ScheduledReview answer.
 Locus filtering, pane focus, windowing, and cursor coordinates are process-local presentation state.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
@@ -363,4 +363,4 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     (if state.notice.isEmpty then [] else [plainLine state.notice])
   .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds))
 
-end Loam.Tui.HraScheduled
+end Loam.Tui.ScheduledWorkspace

@@ -1,5 +1,5 @@
 import Loam.Tui.Main
-import Loam.Tui.HraActual
+import Loam.Tui.ActualWorkspace
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -41,13 +41,13 @@ private def emptyScheduledSnapshot : IO Loam.ScheduledReview.EvidenceSnapshot :=
   let events ← requireSome (EventMemory.ofEvents? []) "empty Event memory was not admitted"
   pure { scheduled, terminals, events }
 
-private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
+private def actualWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
   let first ← requireSome (actualRecord? "event-0" "2026-09-07" "alpha" "paypay" "food" 100)
-    "first HRA Actual fixture was not admitted"
+    "first Actual workspace fixture was not admitted"
   let second ← requireSome (actualRecord? "event-1" "2026-09-07" "beta" "smbc" "paypay" 200)
-    "second HRA Actual fixture was not admitted"
+    "second Actual workspace fixture was not admitted"
   let previous ← requireSome (actualRecord? "event-2" "2026-09-06" "gamma" "paypay" "books" 300)
-    "previous-day HRA Actual fixture was not admitted"
+    "previous-day Actual workspace fixture was not admitted"
   let scheduled ← emptyScheduledSnapshot
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-07"
@@ -57,115 +57,115 @@ private def hraSnapshot : IO Loam.Tui.Main.Snapshot := do
 
 
 def main : IO Unit := do
-  let snapshot ← hraSnapshot
-  let hraStart := Loam.Tui.HraActual.initial "2026-09-07"
-  expect ((Loam.Tui.HraActual.visibleRecords snapshot hraStart).length == 2)
-    "HRA Actual Focus Day did not use the shared selected-day Actual answer"
-  let right := (Loam.Tui.HraActual.update snapshot hraStart .focusRight).state
-  let second := (Loam.Tui.HraActual.update snapshot right .next).state
-  match Loam.Tui.HraActual.selectedRecord? snapshot second with
-  | none => throw (IO.userError "HRA Actual transaction selection disappeared")
+  let snapshot ← actualWorkspaceSnapshot
+  let actualStart := Loam.Tui.ActualWorkspace.initial "2026-09-07"
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).length == 2)
+    "Actual workspace Focus Day did not use the shared selected-day Actual answer"
+  let right := (Loam.Tui.ActualWorkspace.update snapshot actualStart .focusRight).state
+  let second := (Loam.Tui.ActualWorkspace.update snapshot right .next).state
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot second with
+  | none => throw (IO.userError "Actual workspace transaction selection disappeared")
   | some record =>
       expect (record.description == "beta")
-        "HRA Actual j/down-style selection did not move to the second transaction"
-  let hraText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot second)
+        "Actual workspace j/down-style selection did not move to the second transaction"
+  let hraText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot second)
   expect (contains "Household Actuals Workspace" hraText)
-    "HRA Actual shell heading disappeared"
+    "Actual workspace shell heading disappeared"
   expect (contains "Selected Actual Details:" hraText && contains "beta" hraText)
-    "HRA Actual did not keep selected transaction details visible without a detail transition"
-  let allCurrent := (Loam.Tui.HraActual.update snapshot second .cycleFilter).state
-  expect ((Loam.Tui.HraActual.visibleRecords snapshot allCurrent).length == 3)
-    "HRA Actual filter did not expand from Focus Day to all current Actual evidence"
+    "Actual workspace did not keep selected transaction details visible without a detail transition"
+  let allCurrent := (Loam.Tui.ActualWorkspace.update snapshot second .cycleFilter).state
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
+    "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
   expect (allCurrent.order == .asc)
-    "HRA Actual initial order was not ascending"
+    "Actual workspace initial order was not ascending"
 
   -- Focus left pane (loci) and select locus 1 (paypay)
-  let allCurrentLoci := (Loam.Tui.HraActual.update snapshot allCurrent .focusLeft).state
-  let paypayLocus := (Loam.Tui.HraActual.update snapshot allCurrentLoci .next).state
-  expect (Loam.Tui.HraActual.selectedLocus? snapshot paypayLocus == some "paypay")
-    "HRA Actual next did not select the paypay locus"
-  let paypayAsc := Loam.Tui.HraActual.visibleRecords snapshot paypayLocus
+  let allCurrentLoci := (Loam.Tui.ActualWorkspace.update snapshot allCurrent .focusLeft).state
+  let paypayLocus := (Loam.Tui.ActualWorkspace.update snapshot allCurrentLoci .next).state
+  expect (Loam.Tui.ActualWorkspace.selectedLocus? snapshot paypayLocus == some "paypay")
+    "Actual workspace next did not select the paypay locus"
+  let paypayAsc := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayLocus
   expect (paypayAsc.map (·.description) == ["gamma", "beta", "alpha"])
-    "HRA Actual paypay records in ascending order did not list oldest first"
-  match Loam.Tui.HraActual.selectedRecord? snapshot paypayLocus with
-  | none => throw (IO.userError "HRA Actual paypay record selection disappeared")
+    "Actual workspace paypay records in ascending order did not list oldest first"
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayLocus with
+  | none => throw (IO.userError "Actual workspace paypay record selection disappeared")
   | some record =>
       expect (record.description == "gamma")
-        "HRA Actual ascending paypay record was not oldest first (gamma)"
+        "Actual workspace ascending paypay record was not oldest first (gamma)"
 
   -- Toggle order to descending (newest first)
-  let paypayDesc := (Loam.Tui.HraActual.update snapshot paypayLocus .cycleOrder).state
+  let paypayDesc := (Loam.Tui.ActualWorkspace.update snapshot paypayLocus .cycleOrder).state
   expect (paypayDesc.order == .desc)
-    "HRA Actual cycleOrder did not change order to descending"
-  let paypayDescRecords := Loam.Tui.HraActual.visibleRecords snapshot paypayDesc
+    "Actual workspace cycleOrder did not change order to descending"
+  let paypayDescRecords := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayDesc
   expect (paypayDescRecords.map (·.description) == ["alpha", "beta", "gamma"])
-    "HRA Actual paypay records in descending order did not list newest first"
-  match Loam.Tui.HraActual.selectedRecord? snapshot paypayDesc with
-  | none => throw (IO.userError "HRA Actual descending paypay record selection disappeared")
+    "Actual workspace paypay records in descending order did not list newest first"
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDesc with
+  | none => throw (IO.userError "Actual workspace descending paypay record selection disappeared")
   | some record =>
       expect (record.description == "alpha")
-        "HRA Actual descending paypay record at row 0 was not newest (alpha)"
+        "Actual workspace descending paypay record at row 0 was not newest (alpha)"
 
   -- Move down in descending order
-  let paypayDescRight := (Loam.Tui.HraActual.update snapshot paypayDesc .focusRight).state
-  let paypayDescSecond := (Loam.Tui.HraActual.update snapshot paypayDescRight .next).state
-  match Loam.Tui.HraActual.selectedRecord? snapshot paypayDescSecond with
-  | none => throw (IO.userError "HRA Actual descending second record disappeared")
+  let paypayDescRight := (Loam.Tui.ActualWorkspace.update snapshot paypayDesc .focusRight).state
+  let paypayDescSecond := (Loam.Tui.ActualWorkspace.update snapshot paypayDescRight .next).state
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDescSecond with
+  | none => throw (IO.userError "Actual workspace descending second record disappeared")
   | some record =>
       expect (record.description == "beta")
-        "HRA Actual descending second record was not beta"
+        "Actual workspace descending second record was not beta"
 
   -- Toggle back to ascending
-  let paypayAscAgain := (Loam.Tui.HraActual.update snapshot paypayDescSecond .cycleOrder).state
+  let paypayAscAgain := (Loam.Tui.ActualWorkspace.update snapshot paypayDescSecond .cycleOrder).state
   expect (paypayAscAgain.order == .asc)
-    "HRA Actual cycleOrder did not toggle back to ascending"
-  match Loam.Tui.HraActual.selectedRecord? snapshot paypayAscAgain with
-  | none => throw (IO.userError "HRA Actual toggled-back record disappeared")
+    "Actual workspace cycleOrder did not toggle back to ascending"
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayAscAgain with
+  | none => throw (IO.userError "Actual workspace toggled-back record disappeared")
   | some record =>
       expect (record.description == "gamma")
-        "HRA Actual toggled-back record at row 0 was not oldest (gamma)"
+        "Actual workspace toggled-back record at row 0 was not oldest (gamma)"
 
   -- View check
-  let descViewText := widgetText (Loam.Tui.HraActual.view { width := 100, height := 30 } snapshot paypayDesc)
+  let descViewText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot paypayDesc)
   expect (contains "desc" descViewText && contains "newest first" descViewText)
-    "HRA Actual view did not display descending order indication"
+    "Actual workspace view did not display descending order indication"
   expect (contains "[s] sort" descViewText)
-    "HRA Actual view footer did not expose [s] sort"
+    "Actual workspace view footer did not expose [s] sort"
 
-  -- Production HRA Actual owns its own eight-row viewport. Pin navigation beyond it
+  -- Production Actual workspace owns its own eight-row viewport. Pin navigation beyond it
   -- before the older Main cursor implementation is retired.
   let longActual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-07"
     allRecords := (List.range 12).map testRecord
   }
   let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
-  let longHraStart :=
-    (Loam.Tui.HraActual.update longSnapshot
-      (Loam.Tui.HraActual.initial "2026-09-07") .focusRight).state
+  let longActualStart :=
+    (Loam.Tui.ActualWorkspace.update longSnapshot
+      (Loam.Tui.ActualWorkspace.initial "2026-09-07") .focusRight).state
   let longShifted := (List.range 10).foldl
-    (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
-    longHraStart
+    (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
+    longActualStart
   expect (longShifted.transactionRow == 10)
-    "HRA Actual selection could not reach the eleventh record"
-  let longRecords := Loam.Tui.HraActual.visibleRecords longSnapshot longShifted
+    "Actual workspace selection could not reach the eleventh record"
+  let longRecords := Loam.Tui.ActualWorkspace.visibleRecords longSnapshot longShifted
   let selectedLong ← requireSome
-    (Loam.Tui.HraActual.selectedRecord? longSnapshot longShifted)
-    "HRA Actual eleventh-row selection disappeared"
+    (Loam.Tui.ActualWorkspace.selectedRecord? longSnapshot longShifted)
+    "Actual workspace eleventh-row selection disappeared"
   let longViewText := widgetText
-    (Loam.Tui.HraActual.view { width := 100, height := 30 } longSnapshot longShifted)
+    (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } longSnapshot longShifted)
   expect (contains selectedLong.description longViewText)
-    "HRA Actual moving viewport did not render its selected eleventh record"
+    "Actual workspace moving viewport did not render its selected eleventh record"
   match longRecords.head? with
-  | none => throw (IO.userError "HRA Actual long-list fixture became empty")
+  | none => throw (IO.userError "Actual workspace long-list fixture became empty")
   | some firstLong =>
       expect (!contains firstLong.description longViewText)
-        "HRA Actual eight-row viewport did not move beyond its first record"
+        "Actual workspace eight-row viewport did not move beyond its first record"
   let longLast := (List.range 11).foldl
-    (fun current _ => (Loam.Tui.HraActual.update longSnapshot current .next).state)
-    longHraStart
-  let longBlocked := (Loam.Tui.HraActual.update longSnapshot longLast .next).state
+    (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
+    longActualStart
+  let longBlocked := (Loam.Tui.ActualWorkspace.update longSnapshot longLast .next).state
   expect (longBlocked.transactionRow == longLast.transactionRow &&
     contains "No next Actual row" longBlocked.notice)
-    "HRA Actual end-of-list refusal moved selection or lost its notice"
+    "Actual workspace end-of-list refusal moved selection or lost its notice"
 
-  IO.println "TUI Actual: HRA workspace mechanics and production viewport checks passed."
+  IO.println "TUI Actual: Actual workspace mechanics and production viewport checks passed."

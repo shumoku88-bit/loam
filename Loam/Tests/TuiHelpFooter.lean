@@ -1,8 +1,8 @@
 import Loam.Tui.Layout
-import Loam.Tui.HraHome
+import Loam.Tui.Home
 import Loam.Tui.SelectedDay
-import Loam.Tui.HraScheduled
-import Loam.Tui.HraActual
+import Loam.Tui.ScheduledWorkspace
+import Loam.Tui.ActualWorkspace
 import Loam.Tui.CurrentQuantityAnchor
 
 open Loam.Core Loam.Tui.Kernel Loam.Tui.Layout
@@ -101,7 +101,7 @@ def main : IO Unit := do
   expect (contains "body\n\n\nfooter-a\nfooter-b" (widgetText (.column fittedFrame)))
     "stable footer fitting did not pad short body content above the footer"
 
-  -- 2. Test HraHome help lines at various terminal widths
+  -- 2. Test Home help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[t] today", "[Enter] open", "[r] record",
@@ -112,7 +112,7 @@ def main : IO Unit := do
 
   -- 2a. Wide terminal
   let wideBounds : Bounds := { width := 190, height := 45 }
-  let wideView := Loam.Tui.HraHome.view wideBounds snapshot state
+  let wideView := Loam.Tui.Home.view wideBounds snapshot state
   let wideText := widgetText wideView
   let wideCalendarEnd ← requireSome
     (firstLineContaining? "underline = today" wideView.lines 0)
@@ -147,32 +147,32 @@ def main : IO Unit := do
 
   -- 2b. Target dogfood terminal (150 cols, user environment)
   let mediumBounds : Bounds := { width := 150, height := 45 }
-  let mediumView := Loam.Tui.HraHome.view mediumBounds snapshot state
+  let mediumView := Loam.Tui.Home.view mediumBounds snapshot state
   let mediumText := widgetText mediumView
   for token in expectedTokens do
     expect (contains token mediumText)
       s!"150-column Home lost token {token}; must not be clipped"
 
   let scrollBounds : Bounds := { width := 150, height := 15 }
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .up == none)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .up == none)
     "wide layout stole Up from Calendar navigation"
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .down == none)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .down == none)
     "wide layout stole Down from Calendar navigation"
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .left == none)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .left == none)
     "wide layout stole Left from Calendar navigation"
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds .right == none)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .right == none)
     "wide layout stole Right from Calendar navigation"
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds (.ctrl 'u') == some false)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds (.ctrl 'u') == some false)
     "wide layout lost Ctrl-U detail scrolling"
-  expect (Loam.Tui.HraHome.detailScrollDirection? scrollBounds (.ctrl 'd') == some true)
+  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds (.ctrl 'd') == some true)
     "wide layout lost Ctrl-D detail scrolling"
   let narrowScrollBounds : Bounds := { width := 80, height := 15 }
-  expect (Loam.Tui.HraHome.detailScrollDirection? narrowScrollBounds (.ctrl 'd') == none)
+  expect (Loam.Tui.Home.detailScrollDirection? narrowScrollBounds (.ctrl 'd') == none)
     "narrow layout unexpectedly captured detail-scroll input"
-  let scrolled := Loam.Tui.HraHome.scrollWideDetail scrollBounds snapshot state true
+  let scrolled := Loam.Tui.Home.scrollWideDetail scrollBounds snapshot state true
   expect (scrolled.detailScroll == 1)
     "wide Home detail viewport did not advance by one row"
-  let scrolledText := widgetText (Loam.Tui.HraHome.view scrollBounds snapshot scrolled)
+  let scrolledText := widgetText (Loam.Tui.Home.view scrollBounds snapshot scrolled)
   expect (contains "scroll  (Ctrl-U/D)" scrolledText)
     "overflowing wide Home did not advertise its local scroll affordance"
   let resetStep := Loam.Tui.Main.update scrolled .right
@@ -187,7 +187,7 @@ def main : IO Unit := do
 
   -- 2c. Standard terminal (80 cols)
   let narrowBounds : Bounds := { width := 80, height := 24 }
-  let narrowView := Loam.Tui.HraHome.view narrowBounds snapshot state
+  let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
   let narrowCalendarEnd ← requireSome
     (firstLineContaining? "underline = today" narrowView.lines 0)
@@ -220,13 +220,13 @@ def main : IO Unit := do
   expect (contains "Actual/Scheduled" selText130)
     "SelectedDay at 130 cols should expose detailed pane switch"
 
-  -- 4. Test HraScheduled footer geometry
-  let schedState := Loam.Tui.HraScheduled.initial "2026-09-10"
+  -- 4. Test ScheduledWorkspace footer geometry
+  let schedState := Loam.Tui.ScheduledWorkspace.initial "2026-09-10"
   let schedBounds80 : Bounds := { width := 80, height := 24 }
-  let schedView80 := Loam.Tui.HraScheduled.view schedBounds80 snapshot schedState
+  let schedView80 := Loam.Tui.ScheduledWorkspace.view schedBounds80 snapshot schedState
   let schedText80 := widgetText schedView80
   expect (contains "[c/Enter] complete" schedText80)
-    "HraScheduled at 80 cols must retain complete action in wrapped footer"
+    "ScheduledWorkspace at 80 cols must retain complete action in wrapped footer"
 
   -- 5. Current Quantity TUI remains a thin complete-image observation adapter.
   let enteredLocus := typeAnchorText Loam.Tui.CurrentQuantityAnchor.initial "mother-wifi-debt"
