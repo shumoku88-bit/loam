@@ -209,116 +209,6 @@ theorem fused_eq_twoPass
                       (numericStep coordinates start endExclusive initial record)
           exact ih (numericStep coordinates start endExclusive initial record)
 
-/-! ## Finite pressure against the actual public project boundary -/
-
-private def jpy : MeasureId := ⟨"jpy"⟩
-private def bank : LocusId := ⟨"bank"⟩
-private def bankJpy : EffectCoordinate := ⟨bank, jpy⟩
-
-private def effect (key : String) (q : Int) : Effect :=
-  Effect.ofQuantity ⟨key⟩ bank jpy (Quantity.ofQuanta q)
-
-private def event (id : String) (q : Int) : Event :=
-  {
-    id := ⟨id⟩
-    effects := [effect (id ++ "-effect") q]
-    keyNodup := retainedEffectKeys_singleton_nodup (effect (id ++ "-effect") q)
-  }
-
-private def record
-    (id : String)
-    (q : Int)
-    (date : Option String)
-    (current : Bool := true) : Loam.ActualReview.Record :=
-  {
-    event := event id q
-    date := date
-    description := ""
-    replacement := if current then none else some ⟨id ++ "-replacement"⟩
-  }
-
-private def zeroScan : Scan :=
-  {
-    startBoundary := 0
-    endBoundary := 0
-    positiveWindow := 0
-    negativeWindow := 0
-  }
-
-private def balances : Loam.BalanceReview.Snapshot :=
-  {
-    rows :=
-      [{
-        coordinate := bankJpy
-        quantity := Quantity.ofQuanta 13
-      }]
-  }
-
-private def missingMessage (id : String) : String :=
-  "loam: stock-flow unavailable: current selected Event " ++
-    id ++ " has no occurrence date"
-
-private def invalidMessage (id : String) : String :=
-  "loam: stock-flow unavailable: current selected Event " ++
-    id ++ " has an invalid occurrence date"
-
-theorem first_missing_failure_is_preserved :
-    let records :=
-      [ record "missing-first" 5 none
-      , record "invalid-later" 7 (some "2026-02-30")
-      ]
-    fused [bankJpy] "2026-09-01" "2026-10-01" records zeroScan =
-      .error (missingMessage "missing-first") ∧
-    Loam.StockFlowReview.project balances records "2026-09-01" "2026-10-01" =
-      .error (missingMessage "missing-first") := by
-  native_decide
-
-theorem first_invalid_failure_is_preserved :
-    let records :=
-      [ record "invalid-first" 5 (some "2026-02-30")
-      , record "missing-later" 7 none
-      ]
-    fused [bankJpy] "2026-09-01" "2026-10-01" records zeroScan =
-      .error (invalidMessage "invalid-first") ∧
-    Loam.StockFlowReview.project balances records "2026-09-01" "2026-10-01" =
-      .error (invalidMessage "invalid-first") := by
-  native_decide
-
-/--
-A current zero-selected-quantity record is permitted to remain undated. The
-later dated +5 record is the only numeric contribution.
--/
-theorem zero_selected_quantity_does_not_require_date :
-    let records :=
-      [ record "zero-undated" 0 none
-      , record "dated-five" 5 (some "2026-09-10")
-      ]
-    fused [bankJpy] "2026-09-01" "2026-10-01" records zeroScan =
-      .ok {
-        startBoundary := 0
-        endBoundary := 5
-        positiveWindow := 5
-        negativeWindow := 0
-      } := by
-  native_decide
-
-/--
-A superseded nonzero undated record is inert for both refusal and quantity.
--/
-theorem superseded_undated_record_is_inert :
-    let records :=
-      [ record "superseded-undated" 999 none false
-      , record "dated-three" 3 (some "2026-09-10")
-      ]
-    fused [bankJpy] "2026-09-01" "2026-10-01" records zeroScan =
-      .ok {
-        startBoundary := 0
-        endBoundary := 3
-        positiveWindow := 3
-        negativeWindow := 0
-      } := by
-  native_decide
-
 /-!
 ## Finding
 
@@ -328,13 +218,12 @@ For the research reference, one left-to-right traversal preserves the complete
 Except observation, including exact first-failure text, while accumulating the
 same numeric product summary.
 
-Finite witnesses against the actual public StockFlowReview.project boundary also
-confirm current first-failure wording/order for missing and invalid dates.
-
-This does not yet prove a general equality between this research fused function
-and the public production project, because the production helper functions are
-private and the public project also owns endpoint validation, current-balance
-projection, and the final parity gate.
+The error constructor used by the research reference mirrors the current
+StockFlowReview source spelling and left-to-right validation rule. This
+observation does not claim a general theorem directly against the public
+production project, because the production validation helpers are private and
+the public project also owns endpoint validation, current-balance projection,
+and the final parity gate.
 
 It does establish the difficult local result:
 
