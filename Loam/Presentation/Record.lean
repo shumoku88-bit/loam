@@ -46,7 +46,6 @@ reserved and no persistence occurs; final publication re-enters current authorit
 -/
 structure Preview where
   draft : Loam.MovementAdmission.Draft
-  deriving Repr, DecidableEq
 
 private def draftUsingPresentation?
     (metadata : List Loam.MeasurePresentation.Metadata)
