@@ -407,7 +407,12 @@ private def renderReports (snapshot : Snapshot) : String :=
     , renderBalancesReport reports
     ]
 
-def render (snapshot : Snapshot) : String :=
+def renderWithNotice (snapshot : Snapshot) (notice : Option String := none) : String :=
+  let noticeHtml :=
+    match notice with
+    | none => ""
+    | some message =>
+        "<div class=\"notice\">" ++ escapeHtml message ++ "</div>"
   String.intercalate "\n"
     [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"
     , "<html lang=\"en\">"
@@ -429,6 +434,7 @@ def render (snapshot : Snapshot) : String :=
     , "    li { margin: .3em 0; }"
     , "    .coordinate { font-weight: bold; }"
     , "    .unavailable { border-left: .25em solid #666; padding-left: .75em; }"
+    , "    .notice { border: 1px solid #666; margin: 0 0 1em 0; padding: .6em .8em; font-weight: bold; }"
     , "    table { border-collapse: collapse; margin: .4em 0 .8em 0; width: 100%; }"
     , "    th, td { border: 1px solid #aaa; padding: .3em .45em; text-align: right; vertical-align: top; }"
     , "    th:first-child, td:first-child, .facts th { text-align: left; }"
@@ -441,9 +447,10 @@ def render (snapshot : Snapshot) : String :=
     , "<div id=\"page\">"
     , "<div id=\"header\">"
     , "  <h1>LOAM</h1>"
-    , "  <div class=\"subtitle\">read-only household web snapshot | observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
+    , "  <div class=\"subtitle\">household snapshot | observed " ++ escapeHtml snapshot.observedAt ++ "</div>"
     , "</div>"
     , renderNav
+    , noticeHtml
     , renderCard "home" "Home" (renderHome snapshot)
     , renderCard "actual" "Recent Actual" (renderActual snapshot.observedAt snapshot.actual)
     , renderCard "scheduled" "Current-open Scheduled" (renderScheduled snapshot.scheduled)
@@ -451,10 +458,13 @@ def render (snapshot : Snapshot) : String :=
     , renderCard "attention" "Open Attention" (renderAttention snapshot.attention)
     , renderCard "capacity" "Raw Capacity (all retained)" (renderCapacity snapshot.purposeMetadata snapshot.capacity)
     , renderCard "reports" "Reports" (renderReports snapshot)
-    , "<p class=\"footer\">Presentation only. This page does not own household authority and performs no writes.</p>"
+    , "<p class=\"footer\">Presentation only. Household writes remain behind explicit command boundaries.</p>"
     , "</div>"
     , "</body>"
     , "</html>"
     ]
+
+def render (snapshot : Snapshot) : String :=
+  renderWithNotice snapshot
 
 end Loam.Web.Snapshot

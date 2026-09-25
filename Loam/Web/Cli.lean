@@ -1,4 +1,5 @@
 import Loam.HouseholdPaths
+import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.MovementWorldLoader
@@ -111,7 +112,7 @@ private def loadRecordContext
       | .ok metadata => return .ok (world, catalog, metadata)
 
 private def renderRecordFormDocument
-    (dataDir : System.FilePath) : IO String := do
+    (dataDir : System.FilePath) (operation : String) : IO String := do
   let some observedAt ← Loam.ActualDate.todayIso?
     | return Loam.Web.Record.renderUnavailable
         "loam: could not determine the local date"
@@ -119,23 +120,25 @@ private def renderRecordFormDocument
   | .error message => return Loam.Web.Record.renderUnavailable message
   | .ok (_, catalog, metadata) =>
       return Loam.Web.Record.render
-        (Loam.Web.Record.initial observedAt catalog metadata)
+        (Loam.Web.Record.initial operation observedAt catalog metadata)
 
 private def renderRecordPreviewDocument
     (dataDir : System.FilePath)
+    (operation : String)
     (request : Loam.Web.Record.Request) : IO String := do
   match ← loadRecordContext dataDir with
   | .error message => return Loam.Web.Record.renderUnavailable message
   | .ok (world, catalog, metadata) =>
       let model : Loam.Web.Record.Model := {
+        operation := operation
         request := request
         catalog := catalog
         measurePresentation := metadata
       }
       return Loam.Web.Record.render (Loam.Web.Record.review world model)
 
-private def renderCurrent
-    (dataDir : System.FilePath) : IO (Except String String) := do
+private def loadCurrentSnapshot
+    (dataDir : System.FilePath) : IO (Except String Loam.Web.Snapshot.Snapshot) := do
   let some observedAt ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local date"
 
@@ -230,7 +233,51 @@ private def renderCurrent
     purposeMetadata := purposeMetadata
   }
 
-  return .ok (Loam.Web.Snapshot.render snapshot)
+  return .ok snapshot
+
+private def renderCurrent
+    (dataDir : System.FilePath) : IO (Except String String) := do
+  match ← loadCurrentSnapshot dataDir with
+  | .error message => return .error message
+  | .ok snapshot => return .ok (Loam.Web.Snapshot.render snapshot)
+
+private def renderRecordPublishDocument
+    (dataDir : System.FilePath)
+    (operation : String)
+    (request : Loam.Web.Record.Request) : IO String := do
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (_, catalog, metadata) =>
+      let rejected (message : String) : String :=
+        Loam.Web.Record.render {
+          operation := operation
+          request := request
+          catalog := catalog
+          measurePresentation := metadata
+          review := .rejected message
+        }
+      let .ok input := request.toInput?
+        | return rejected "The submitted Record input is no longer valid."
+      let .ok draft := Loam.Presentation.Record.draftWithPresentation? metadata input
+        | return rejected "The submitted Record draft is no longer valid."
+      let result ← Loam.HouseholdCommand.recordIdempotent dataDir ⟨operation⟩ draft
+      match result with
+      | .error message => return rejected message
+      | .ok publication =>
+          let (event, notice) :=
+            match publication with
+            | .applied event =>
+                (event, "Recorded Event " ++ event.token ++ ". Canonical household state re-read.")
+            | .alreadyApplied event =>
+                (event, "Record already completed as Event " ++ event.token ++
+                  ". Canonical household state re-read.")
+          match ← loadCurrentSnapshot dataDir with
+          | .error message =>
+              return Loam.Web.Record.renderUnavailable
+                ("Record publication succeeded for " ++ event.token ++
+                  ", but the fresh household snapshot failed: " ++ message)
+          | .ok snapshot =>
+              return Loam.Web.Snapshot.renderWithNotice snapshot (some notice)
 
 private def renderTo
     (dataDir output : System.FilePath) : IO UInt32 := do
@@ -254,30 +301,47 @@ private def renderTo
         return 2
 
 private def usage : String :=
-  "Render the read-only LOAM Web frontend:\n" ++
+  "Render the LOAM Web frontend:\n" ++
   "  loamWeb [LOAM_DATA_DIR] [OUTPUT_HTML]\n\n" ++
   "Defaults: LOAM_DATA_DIR or ../loam-data; output ./loam-web.html.\n" ++
   "Use OUTPUT_HTML '-' to write only the current HTML document to stdout.\n" ++
-  "The page consumes shared Review boundaries and never writes household data."
+  "Household reads use shared Review boundaries; Record publication uses HouseholdCommand."
 
 def run (args : List String) : IO UInt32 := do
   match args with
-  | ["--record-form", dataPath] =>
+  | ["--record-form", dataPath, operation] =>
       match ← resolveDataDir (some dataPath) with
       | .error message =>
           IO.eprintln message
           return 2
       | .ok dataDir =>
-          IO.print (← renderRecordFormDocument dataDir)
+          IO.print (← renderRecordFormDocument dataDir operation)
           return 0
-  | ["--record-preview", dataPath, date, description, measure,
+  | ["--record-preview", dataPath, operation, date, description, measure,
       fromLocus, fromAmount, toLocus, toAmount] =>
       match ← resolveDataDir (some dataPath) with
       | .error message =>
           IO.eprintln message
           return 2
       | .ok dataDir =>
-          IO.print (← renderRecordPreviewDocument dataDir {
+          IO.print (← renderRecordPreviewDocument dataDir operation {
+            date := date
+            description := description
+            measure := measure
+            fromLocus := fromLocus
+            fromAmount := fromAmount
+            toLocus := toLocus
+            toAmount := toAmount
+          })
+          return 0
+  | ["--record-confirm", dataPath, operation, date, description, measure,
+      fromLocus, fromAmount, toLocus, toAmount] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordPublishDocument dataDir operation {
             date := date
             description := description
             measure := measure

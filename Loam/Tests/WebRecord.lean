@@ -41,6 +41,7 @@ def main (_args : List String) : IO Unit := do
     toAmount := "2470"
   }
   let model : Loam.Web.Record.Model := {
+    operation := "web-test-operation"
     request := request
     catalog := catalog
     measurePresentation := []
@@ -63,12 +64,18 @@ def main (_args : List String) : IO Unit := do
     "Web Record review did not render the admitted signed From posting"
   expect (contains html "&lt;book&amp;tea&gt;")
     "Web Record review did not escape human description text"
-  expect (contains html "No Event identity is reserved")
-    "Web Record review did not state its read-only identity boundary"
-  expect (contains html "Publication is deliberately unavailable")
-    "Web Record preview accidentally implied publication availability"
+  expect (contains html "action=\"/record/confirm\"")
+    "Web Record review did not expose explicit confirmation"
+  expect (contains html "name=\"operation\" value=\"web-test-operation\"")
+    "Web Record review did not preserve its retry-safe operation identity"
+  expect (contains html "writer re-reads authority before publication")
+    "Web Record review did not explain authoritative re-admission"
+  expect (contains html "value=\"Record\"")
+    "Web Record review did not expose the consequential Record action"
   expect (!contains html "HouseholdCommand")
     "Web Record presentation leaked internal writer vocabulary"
+  expect (!contains html "web-test-operation</")
+    "Web Record exposed its opaque operation identity as visible content"
 
   let signedRequest := { request with fromAmount := "-2470" }
   expect (signedRequest.toInput?.isOk == false)
@@ -83,4 +90,4 @@ def main (_args : List String) : IO Unit := do
   expect (contains unbalancedHtml "Nothing was written.")
     "Web Record refusal did not state the no-write result"
 
-  IO.println "Web Record: From/To transport, shared admission preview, escaping, refusal, and no-write review passed."
+  IO.println "Web Record: From/To transport, shared admission preview, explicit confirmation, escaping, and refusal passed."

@@ -1,4 +1,4 @@
-name: Read-only Web Frontend
+name: Web Frontend
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - 'Loam/Presentation/**'
       - 'Loam/Tests/WebSnapshot.lean'
       - 'Loam/Tests/WebRecord.lean'
+      - 'Loam/Tests/WebRecordPublication.lean'
       - 'Loam/Tests/PresentationHome.lean'
       - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/Tests/PresentationReadState.lean'
@@ -39,7 +40,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: read-only-web-${{ github.ref }}
+  group: web-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -47,7 +48,7 @@ permissions:
 
 jobs:
   lean:
-    name: Build read-only Web frontend
+    name: Build Web frontend
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -82,13 +83,27 @@ jobs:
       - name: Verify Web Record form and shared preview
         run: lake env lean --run Loam/Tests/WebRecord.lean
 
+      - name: Verify retry-safe Web Record publication
+        run: |
+          tmpdir="$(mktemp -d)"
+          lake env lean --run Loam/Tests/WebRecordPublication.lean "$tmpdir/data"
+          .lake/build/bin/loamWeb --record-confirm "$tmpdir/data" web-cli-operation \
+            2026-09-25 cli-confirm jpy paypay 100 books 100 > "$tmpdir/confirm.html"
+          grep -q 'Recorded Event' "$tmpdir/confirm.html"
+          .lake/build/bin/loamWeb --record-confirm "$tmpdir/data" web-cli-operation \
+            2026-09-25 cli-confirm jpy paypay 100 books 100 > "$tmpdir/retry.html"
+          grep -q 'Record already completed as Event' "$tmpdir/retry.html"
+
       - name: Verify Record document command modes
         run: |
-          .lake/build/bin/loamWeb --record-form /tmp/loam-web-missing > /tmp/loam-record-form.html
+          .lake/build/bin/loamWeb --record-form /tmp/loam-web-missing web-command-form > /tmp/loam-record-form.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-form.html
-          .lake/build/bin/loamWeb --record-preview /tmp/loam-web-missing \
+          .lake/build/bin/loamWeb --record-preview /tmp/loam-web-missing web-command-preview \
             2026-09-25 test jpy paypay 100 books 100 > /tmp/loam-record-preview.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-preview.html
+          .lake/build/bin/loamWeb --record-confirm /tmp/loam-web-missing web-command-confirm \
+            2026-09-25 test jpy paypay 100 books 100 > /tmp/loam-record-confirm.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-confirm.html
 
       - name: Verify stdout document mode
         run: |
@@ -128,7 +143,7 @@ jobs:
       - name: Check request-on-read server syntax
         run: python3 -m py_compile tools/loam_web_server.py
 
-      - name: Verify each GET regenerates the document
+      - name: Verify request freshness and issued-operation transport
         run: |
           tmpdir="$(mktemp -d)"
           counter="$tmpdir/counter"
@@ -142,7 +157,11 @@ jobs:
           fi
           n="\$((n + 1))"
           printf '%s' "\$n" > "\$counter"
-          printf '<!DOCTYPE html><html><body>render-%s</body></html>' "\$n"
+          extra=''
+          if [[ "\${1:-}" == '--record-form' ]]; then
+            extra="<input type=\"hidden\" name=\"operation\" value=\"\${3:-}\">"
+          fi
+          printf '<!DOCTYPE html><html><body>render-%s%s</body></html>' "\$n" "\$extra"
           EOF
           chmod +x "$tmpdir/fake-loam-web"
 
@@ -158,8 +177,25 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8765/ > "$tmpdir/second.html"
           curl -fsS http://127.0.0.1:8765/record > "$tmpdir/record.html"
+          operation="$(sed -n 's/.*name="operation" value="\([^"]*\)".*/\1/p' "$tmpdir/record.html")"
+          test -n "$operation"
+
+          forged_status="$(curl -sS -o "$tmpdir/forged.html" -w '%{http_code}' \
+            -X POST http://127.0.0.1:8765/record/preview \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'operation=web-forged-operation' \
+            --data-urlencode 'date=2026-09-25' \
+            --data-urlencode 'description=forged' \
+            --data-urlencode 'measure=jpy' \
+            --data-urlencode 'from_locus=paypay' \
+            --data-urlencode 'from_amount=1' \
+            --data-urlencode 'to_locus=books' \
+            --data-urlencode 'to_amount=1')"
+          test "$forged_status" = "403"
+
           curl -fsS -X POST http://127.0.0.1:8765/record/preview \
             -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "operation=$operation" \
             --data-urlencode 'date=2026-09-25' \
             --data-urlencode 'description=book & tea' \
             --data-urlencode 'measure=jpy' \
@@ -167,9 +203,20 @@ jobs:
             --data-urlencode 'from_amount=2470' \
             --data-urlencode 'to_locus=books' \
             --data-urlencode 'to_amount=2470' > "$tmpdir/review.html"
+          curl -fsS -X POST http://127.0.0.1:8765/record/confirm \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "operation=$operation" \
+            --data-urlencode 'date=2026-09-25' \
+            --data-urlencode 'description=book & tea' \
+            --data-urlencode 'measure=jpy' \
+            --data-urlencode 'from_locus=paypay' \
+            --data-urlencode 'from_amount=2470' \
+            --data-urlencode 'to_locus=books' \
+            --data-urlencode 'to_amount=2470' > "$tmpdir/confirmed.html"
 
           grep -q 'render-1' "$tmpdir/first.html"
           grep -q 'render-2' "$tmpdir/second.html"
           grep -q 'render-3' "$tmpdir/record.html"
           grep -q 'render-4' "$tmpdir/review.html"
-          test "$(cat "$counter")" = "4"
+          grep -q 'render-5' "$tmpdir/confirmed.html"
+          test "$(cat "$counter")" = "5"

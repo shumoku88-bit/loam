@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import secrets
 import subprocess
 import sys
+import threading
 from urllib.parse import parse_qs
 
 
@@ -29,8 +32,8 @@ def render_current(generator: Path, data_dir: str) -> bytes:
     return run_generator(generator, [data_dir, "-"])
 
 
-def render_record_form(generator: Path, data_dir: str) -> bytes:
-    return run_generator(generator, ["--record-form", data_dir])
+def render_record_form(generator: Path, data_dir: str, operation: str) -> bytes:
+    return run_generator(generator, ["--record-form", data_dir, operation])
 
 
 def render_record_preview(
@@ -41,6 +44,27 @@ def render_record_preview(
         [
             "--record-preview",
             data_dir,
+            fields["operation"],
+            fields["date"],
+            fields["description"],
+            fields["measure"],
+            fields["from_locus"],
+            fields["from_amount"],
+            fields["to_locus"],
+            fields["to_amount"],
+        ],
+    )
+
+
+def render_record_confirm(
+    generator: Path, data_dir: str, fields: dict[str, str]
+) -> bytes:
+    return run_generator(
+        generator,
+        [
+            "--record-confirm",
+            data_dir,
+            fields["operation"],
             fields["date"],
             fields["description"],
             fields["measure"],
@@ -59,6 +83,25 @@ def main() -> int:
 
     generator = Path(sys.argv[1]).resolve()
     data_dir = sys.argv[2]
+
+    issued_operations: set[str] = set()
+    operation_order: deque[str] = deque()
+    operation_lock = threading.Lock()
+    max_issued_operations = 256
+
+    def issue_operation() -> str:
+        operation = "web-" + secrets.token_hex(16)
+        with operation_lock:
+            issued_operations.add(operation)
+            operation_order.append(operation)
+            while len(operation_order) > max_issued_operations:
+                expired = operation_order.popleft()
+                issued_operations.discard(expired)
+        return operation
+
+    def operation_was_issued(operation: str) -> bool:
+        with operation_lock:
+            return operation in issued_operations
 
     class Handler(BaseHTTPRequestHandler):
         def _send_html(self, body: bytes, include_body: bool = True) -> None:
@@ -85,7 +128,7 @@ def main() -> int:
             if self.path in ("/", "/index.html"):
                 return render_current(generator, data_dir)
             if self.path == "/record":
-                return render_record_form(generator, data_dir)
+                return render_record_form(generator, data_dir, issue_operation())
             return None
 
         def do_GET(self) -> None:
@@ -111,7 +154,7 @@ def main() -> int:
             self._send_html(body, include_body=False)
 
         def do_POST(self) -> None:
-            if self.path != "/record/preview":
+            if self.path not in ("/record/preview", "/record/confirm"):
                 self.send_error(404, "Not Found")
                 return
             content_type = self.headers.get("Content-Type", "")
@@ -134,6 +177,7 @@ def main() -> int:
                 return
 
             names = (
+                "operation",
                 "date",
                 "description",
                 "measure",
@@ -148,10 +192,20 @@ def main() -> int:
                 if values is None or len(values) != 1:
                     self.send_error(400, f"Expected one {name} field")
                     return
+                if "\x00" in values[0]:
+                    self.send_error(400, f"NUL is not allowed in {name}")
+                    return
                 fields[name] = values[0]
 
+            if not operation_was_issued(fields["operation"]):
+                self.send_error(403, "Expired or unissued Record operation")
+                return
+
             try:
-                body = render_record_preview(generator, data_dir, fields)
+                if self.path == "/record/preview":
+                    body = render_record_preview(generator, data_dir, fields)
+                else:
+                    body = render_record_confirm(generator, data_dir, fields)
             except RuntimeError as error:
                 self._send_runtime_error(error)
                 return
@@ -162,7 +216,7 @@ def main() -> int:
 
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"LOAM Web: http://{HOST}:{PORT}")
-    print("request-on-read plus read-only Record preview; no household writes")
+    print("request-on-read plus explicit retry-safe Record confirmation")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
