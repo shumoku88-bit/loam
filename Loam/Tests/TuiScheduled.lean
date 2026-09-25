@@ -1,4 +1,4 @@
-import Loam.Tui.HraHome
+import Loam.Tui.Home
 import Loam.Tui.Terminal
 
 open Loam.Core Loam.Tui.Kernel
@@ -101,7 +101,7 @@ def main : IO Unit := do
         "Home selected-day Scheduled evidence lost retained due occurrences"
   | _ => throw (IO.userError "Home selected-day Scheduled evidence stopped being Due")
 
-  let dueTodayView := Loam.Tui.HraHome.view bounds snapshot home
+  let dueTodayView := Loam.Tui.Home.view bounds snapshot home
   expect (contains "Scheduled: Due (12)" (widgetText dueTodayView))
     "Home status lost the selected-day Scheduled due count"
   expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
@@ -124,7 +124,7 @@ def main : IO Unit := do
   let notRequestedSnapshot := { notRequestedSnapshot with pace := .notRequested }
   let notRequestedSnapshot := { notRequestedSnapshot with paceHistory := .notRequested }
   let notRequestedText :=
-    widgetText (Loam.Tui.HraHome.view stateBounds notRequestedSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds notRequestedSnapshot home)
   expect (contains "Attention: not requested" notRequestedText &&
       contains "Daily pace: not requested" notRequestedText &&
       contains "Recent pace (current truth): not requested" notRequestedText)
@@ -134,7 +134,7 @@ def main : IO Unit := do
   let unavailableSnapshot := { unavailableSnapshot with pace := .unavailable }
   let unavailableSnapshot := { unavailableSnapshot with paceHistory := .unavailable }
   let unavailableText :=
-    widgetText (Loam.Tui.HraHome.view stateBounds unavailableSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds unavailableSnapshot home)
   expect (contains "Attention: not configured" unavailableText &&
       contains "Daily pace: unavailable" unavailableText &&
       contains "Recent pace (current truth): unavailable" unavailableText)
@@ -144,7 +144,7 @@ def main : IO Unit := do
   let failedSnapshot := { failedSnapshot with pace := .failed "pace read failed" }
   let failedSnapshot := { failedSnapshot with paceHistory := .failed "pace history read failed" }
   let failedText :=
-    widgetText (Loam.Tui.HraHome.view stateBounds failedSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds failedSnapshot home)
   expect (contains "Attention: failed" failedText &&
       contains "Daily pace: failed" failedText &&
       contains "Recent pace (current truth): failed" failedText)
@@ -154,7 +154,7 @@ def main : IO Unit := do
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
   | .ok .unknown => pure ()
   | _ => throw (IO.userError "Home Scheduled evidence collapsed an unknown day")
-  let unknownText := widgetText (Loam.Tui.HraHome.view bounds snapshot unknownHome)
+  let unknownText := widgetText (Loam.Tui.Home.view bounds snapshot unknownHome)
   expect (contains "unknown; no completeness horizon is claimed" unknownText)
     "Home collapsed Scheduled Unknown into an empty-day claim"
 
@@ -180,7 +180,7 @@ def main : IO Unit := do
         "Scheduled due on the boundary was incorrectly classified as past-date pending"
 
   let pendingHome := Loam.Tui.Main.initialState "2026-09-08"
-  let pendingText := widgetText (Loam.Tui.HraHome.view bounds pendingSnapshot pendingHome)
+  let pendingText := widgetText (Loam.Tui.Home.view bounds pendingSnapshot pendingHome)
   expect (contains "Pending: 12" pendingText)
     "Home status did not expose the past-date current-open Scheduled count"
   expect (contains "Pending Scheduled:" pendingText)
@@ -192,20 +192,20 @@ def main : IO Unit := do
   expect (contains "expected date passed; Scheduled is still current-open" pendingText)
     "Home calendar marker lost its non-rescheduling explanation"
 
-  let sameDayView := Loam.Tui.HraHome.view bounds pendingSnapshot pendingHome
+  let sameDayView := Loam.Tui.Home.view bounds pendingSnapshot pendingHome
   expect (hasStyledText sameDayView "[08 ]" .selectedUnderlined)
     "Today + focus lost its combined presentation"
   expect (hasStyledText sameDayView " 07! " .normal)
     "Pending-only calendar cell changed"
   let moved := (Loam.Tui.Main.update pendingHome .right).state
   expect (moved.selectedDate == "2026-09-09") "Home focus did not advance"
-  let movedView := Loam.Tui.HraHome.view bounds pendingSnapshot moved
+  let movedView := Loam.Tui.Home.view bounds pendingSnapshot moved
   expect (hasStyledText movedView " 08  " .underlined)
     "Today indication followed focus instead of the snapshot date"
   expect (hasStyledText movedView "[09 ]" .selected)
     "Focus-only cell lost the existing selected style"
   let movedAgain := (Loam.Tui.Main.update moved .right).state
-  let movedAgainView := Loam.Tui.HraHome.view bounds pendingSnapshot movedAgain
+  let movedAgainView := Loam.Tui.Home.view bounds pendingSnapshot movedAgain
   expect (hasStyledText movedAgainView " 08  " .underlined &&
     hasStyledText movedAgainView "[10 ]" .selected &&
     hasStyledText movedAgainView " 09  " .normal)
@@ -214,11 +214,11 @@ def main : IO Unit := do
   -- A real Pending date is strictly before Today. Synthetic marker input checks
   -- presentation composition without weakening that evidence boundary.
   let overlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] moved row)
+    .row (Loam.Tui.Home.calendarSpans "2026-09-08" ["2026-09-08"] moved row)
   expect (hasStyledText overlap " 08! " .underlined)
     "Synthetic Today + Pending lost its marker or underline"
   let focusedOverlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.HraHome.hraCalendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
+    .row (Loam.Tui.Home.calendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
   expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
     "Synthetic Today + Focus + Pending lost a presentation cue"
 
