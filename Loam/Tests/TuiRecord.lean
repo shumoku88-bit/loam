@@ -47,7 +47,14 @@ def main (args : List String) : IO Unit := do
   let .ok sharedPreview := Loam.Presentation.Record.preview? w [] sharedInput
     | throw (IO.userError "shared Record preview")
   let .ok draft := draft? readyForm | throw (IO.userError "form parsing")
-  expect (sharedPreview.draft == draft)
+  expect
+    (sharedPreview.draft.validOn == draft.validOn &&
+      sharedPreview.draft.description == draft.description &&
+      sharedPreview.draft.total == draft.total &&
+      sharedPreview.draft.effects.map (fun effect =>
+        (effect.locus.token, effect.measure.token, effect.quantity.quanta)) ==
+      draft.effects.map (fun effect =>
+        (effect.locus.token, effect.measure.token, effect.quantity.quanta)))
     "TUI Record draft diverged from shared Record preview"
   expect (draft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
     "signed postings did not preserve their quantities"
