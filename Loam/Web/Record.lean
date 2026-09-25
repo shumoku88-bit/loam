@@ -134,7 +134,7 @@ private def renderForm (model : Model) : String :=
   let request := model.request
   "<h2>Record</h2>\n" ++
   "<p class=\"note\">Build one balanced Movement. Review is read-only; no household write occurs here.</p>\n" ++
-  "<form action=\"/record/preview\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
+  "<form id=\"record-form\" action=\"/record/preview\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
   hiddenInput "operation" model.operation ++ "\n" ++
   "<table class=\"facts\" summary=\"Record one household Movement\">\n" ++
   "<tr><th>Date</th><td>" ++ inputText "date" request.date 12 ++ "</td></tr>\n" ++
@@ -196,7 +196,7 @@ private def renderReady (model : Model)
   hiddenInput "to_locus" request.toLocus ++ "\n" ++
   hiddenInput "to_amount" request.toAmount ++ "\n" ++
   "<p><input type=\"submit\" value=\"Record\"> " ++
-    "<a href=\"/record\">Back</a></p>\n" ++
+    "<a href=\"#record-form\">Back to edit</a></p>\n" ++
   "</form>\n" ++
   "<p class=\"note\">The operation identity makes a repeated Confirm safe to retry.</p>\n" ++
   "</div>"
