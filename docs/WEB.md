@@ -1,6 +1,6 @@
 # LOAM Web
 
-Status: **read-only second-frontend experiment**
+Status: **read-only household frontend with Record preview**
 
 LOAM Web tests one architectural claim:
 
@@ -46,7 +46,9 @@ The command:
 3. on every GET, invokes `loamWeb` against the selected household root;
 4. re-reads the shared Review boundaries and renders a fresh semantic HTML document.
 
-The server does not retain household answers between requests.
+The server does not retain household answers between requests. It also exposes a
+small Record form at `/record`; submitting that form performs a read-only Lean
+admission preview and does not publish household data.
 
 Open the same URL in Dillo or Safari:
 
@@ -89,13 +91,33 @@ boundary rather than silently reusing an old document.
 
 ## Current surface
 
-The page currently shows five read-only sections:
+The Home document currently exposes:
 
+- Home orientation with `[Record]` nearby;
 - recent Actual;
 - current-open Scheduled;
 - Current Budget;
 - open Attention;
-- Raw Capacity (all retained).
+- Raw Capacity (all retained);
+- Reports.
+
+The separate `/record` document is the first interactive Web surface. Its v0
+form collects Date, Description, Measure, From, To, and exact amounts. Admitted
+Locus choices come from the existing Locus catalog boundary.
+
+Submitting `Review` follows:
+
+```text
+HTML form
+    -> localhost transport
+    -> Loam.Web.Record.Request
+    -> Loam.Presentation.Record.Input
+    -> MovementAdmission preview
+    -> human Review
+```
+
+The preview reserves no Event identity and performs no canonical publication.
+There is intentionally no Confirm/Record button yet.
 
 Current Budget consumes the same `CycleBudgetReview` boundary as the production TUI.
 The Web layer does not recompute budget arithmetic. It presents the shared answers,
@@ -212,7 +234,13 @@ request-on-read freshness
 read-only Reports
         |
         v
-one small existing write boundary
+shared Record input boundary
+        |
+        v
+Web Record form + read-only Review
+        |
+        v
+explicit Confirm + existing HouseholdCommand.record
         |
         v
 optional Safari progressive enhancement
@@ -223,7 +251,7 @@ optional Safari progressive enhancement
 This slice does not establish that:
 
 - every TUI capability is presentation-neutral;
-- Web writes are safe or qualified;
+- Web publication is safe or qualified;
 - the browser receives pushed updates without a request;
 - the page is a general remote HTTP API;
 - browser presentation is a new household authority;
