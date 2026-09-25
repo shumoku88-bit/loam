@@ -94,6 +94,17 @@ jobs:
             2026-09-25 cli-confirm jpy paypay books 100 > "$tmpdir/retry.html"
           grep -q 'Record already completed as Event' "$tmpdir/retry.html"
 
+          .lake/build/bin/loamWeb --record-postings-confirm "$tmpdir/data" web-cli-postings-operation \
+            2026-09-25 cli-split jpy \
+            paypay -3000 books 2000 food 700 shipping 300 "" "" "" "" \
+            > "$tmpdir/postings-confirm.html"
+          grep -q 'Recorded Event' "$tmpdir/postings-confirm.html"
+          .lake/build/bin/loamWeb --record-postings-confirm "$tmpdir/data" web-cli-postings-operation \
+            2026-09-25 cli-split jpy \
+            paypay -3000 books 2000 food 700 shipping 300 "" "" "" "" \
+            > "$tmpdir/postings-retry.html"
+          grep -q 'Record already completed as Event' "$tmpdir/postings-retry.html"
+
       - name: Verify Record document command modes
         run: |
           .lake/build/bin/loamWeb --record-form /tmp/loam-web-missing web-command-form > /tmp/loam-record-form.html
@@ -104,6 +115,18 @@ jobs:
           .lake/build/bin/loamWeb --record-confirm /tmp/loam-web-missing web-command-confirm \
             2026-09-25 test jpy paypay books 100 > /tmp/loam-record-confirm.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-confirm.html
+
+          .lake/build/bin/loamWeb --record-postings-form /tmp/loam-web-missing web-command-postings-form \
+            > /tmp/loam-record-postings-form.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-postings-form.html
+          .lake/build/bin/loamWeb --record-postings-preview /tmp/loam-web-missing web-command-postings-preview \
+            2026-09-25 test jpy paypay -3000 books 2000 food 700 shipping 300 "" "" "" "" \
+            > /tmp/loam-record-postings-preview.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-postings-preview.html
+          .lake/build/bin/loamWeb --record-postings-confirm /tmp/loam-web-missing web-command-postings-confirm \
+            2026-09-25 test jpy paypay -3000 books 2000 food 700 shipping 300 "" "" "" "" \
+            > /tmp/loam-record-postings-confirm.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-postings-confirm.html
 
       - name: Verify stdout document mode
         run: |
@@ -211,9 +234,52 @@ jobs:
             --data-urlencode 'to_locus=books' \
             --data-urlencode 'amount=2470' > "$tmpdir/confirmed.html"
 
+          curl -fsS http://127.0.0.1:8765/record/postings > "$tmpdir/postings.html"
+          posting_operation="$(sed -n 's/.*name="operation" value="\([^"]*\)".*/\1/p' "$tmpdir/postings.html")"
+          test -n "$posting_operation"
+          curl -fsS -X POST http://127.0.0.1:8765/record/postings/preview \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "operation=$posting_operation" \
+            --data-urlencode 'date=2026-09-25' \
+            --data-urlencode 'description=split purchase' \
+            --data-urlencode 'measure=jpy' \
+            --data-urlencode 'posting_1_locus=paypay' \
+            --data-urlencode 'posting_1_amount=-3000' \
+            --data-urlencode 'posting_2_locus=books' \
+            --data-urlencode 'posting_2_amount=2000' \
+            --data-urlencode 'posting_3_locus=food' \
+            --data-urlencode 'posting_3_amount=700' \
+            --data-urlencode 'posting_4_locus=shipping' \
+            --data-urlencode 'posting_4_amount=300' \
+            --data-urlencode 'posting_5_locus=' \
+            --data-urlencode 'posting_5_amount=' \
+            --data-urlencode 'posting_6_locus=' \
+            --data-urlencode 'posting_6_amount=' > "$tmpdir/postings-review.html"
+          curl -fsS -X POST http://127.0.0.1:8765/record/postings/confirm \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "operation=$posting_operation" \
+            --data-urlencode 'date=2026-09-25' \
+            --data-urlencode 'description=split purchase' \
+            --data-urlencode 'measure=jpy' \
+            --data-urlencode 'posting_1_locus=paypay' \
+            --data-urlencode 'posting_1_amount=-3000' \
+            --data-urlencode 'posting_2_locus=books' \
+            --data-urlencode 'posting_2_amount=2000' \
+            --data-urlencode 'posting_3_locus=food' \
+            --data-urlencode 'posting_3_amount=700' \
+            --data-urlencode 'posting_4_locus=shipping' \
+            --data-urlencode 'posting_4_amount=300' \
+            --data-urlencode 'posting_5_locus=' \
+            --data-urlencode 'posting_5_amount=' \
+            --data-urlencode 'posting_6_locus=' \
+            --data-urlencode 'posting_6_amount=' > "$tmpdir/postings-confirmed.html"
+
           grep -q 'render-1' "$tmpdir/first.html"
           grep -q 'render-2' "$tmpdir/second.html"
           grep -q 'render-3' "$tmpdir/record.html"
           grep -q 'render-4' "$tmpdir/review.html"
           grep -q 'render-5' "$tmpdir/confirmed.html"
-          test "$(cat "$counter")" = "5"
+          grep -q 'render-6' "$tmpdir/postings.html"
+          grep -q 'render-7' "$tmpdir/postings-review.html"
+          grep -q 'render-8' "$tmpdir/postings-confirmed.html"
+          test "$(cat "$counter")" = "8"
