@@ -12,7 +12,7 @@ private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? []
     | throw (IO.userError "empty events")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci?
-      [⟨"paypay"⟩, ⟨"books"⟩]
+      [⟨"paypay"⟩, ⟨"books"⟩, ⟨"food"⟩, ⟨"shipping"⟩]
     | throw (IO.userError "vocabulary")
   return {
     events := events
@@ -83,6 +83,51 @@ def main (args : List String) : IO Unit := do
       record.description == request.description)
     "fresh canonical reread did not expose the published Web Event"
 
+  let postingRequest : Loam.Web.Record.PostingRequest := {
+    date := "2026-09-25"
+    description := "web split publication"
+    measure := "jpy"
+    rows := #[
+      { locus := "paypay", amount := "-3000" },
+      { locus := "books", amount := "2000" },
+      { locus := "food", amount := "700" },
+      { locus := "shipping", amount := "300" },
+      {},
+      {}
+    ]
+  }
+  let .ok postingDraft :=
+      Loam.Presentation.Record.draftWithPresentation? [] postingRequest.toInput
+    | throw (IO.userError "Web multiple-posting shared draft")
+  let postingOperation : MovementOperationId := ⟨"web-postings-operation"⟩
+  let .ok postingFirst ←
+      Loam.HouseholdCommand.recordIdempotent root postingOperation postingDraft
+    | throw (IO.userError "first Web multiple-posting publication")
+  let postingEvent ←
+    match postingFirst with
+    | .applied event => pure event
+    | .alreadyApplied _ =>
+        throw (IO.userError "fresh Web multiple-posting operation unexpectedly already applied")
+  let .ok postingRetry ←
+      Loam.HouseholdCommand.recordIdempotent root postingOperation postingDraft
+    | throw (IO.userError "retry Web multiple-posting publication")
+  match postingRetry with
+  | .alreadyApplied retried =>
+      expect (retried == postingEvent)
+        "retry-safe multiple-posting Web operation returned a different Event"
+  | .applied _ =>
+      throw (IO.userError "repeated multiple-posting Confirm published a duplicate Event")
+
+  let .ok afterSplit ← Loam.ActualReview.loadRecordsFromActual root
+    | throw (IO.userError "fresh multiple-posting Web publication reread")
+  expect (afterSplit.length == 2)
+    "multiple-posting Web publication did not add exactly one canonical Event"
+  expect (afterSplit.any fun record =>
+      record.event.id == postingEvent &&
+      record.event.effects.length == 4 &&
+      record.description == postingRequest.description)
+    "fresh canonical reread did not expose all four Web postings"
+
   -- A reviewed draft is not publication authority. Change only the isolated
   -- stale fixture's policy after preview and require the writer to refuse it.
   let staleRoot := root / "stale"
@@ -113,4 +158,4 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile (staleRoot / "actual.loam")) == before)
     "refused stale Web Confirm changed canonical Actual authority"
 
-  IO.println "Web Record publication: explicit retry identity, one canonical Event, fresh reread, and stale-policy refusal passed."
+  IO.println "Web Record publication: ordinary and multiple-posting retry identity, canonical publication, fresh reread, and stale-policy refusal passed."

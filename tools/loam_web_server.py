@@ -36,6 +36,24 @@ def render_record_form(generator: Path, data_dir: str, operation: str) -> bytes:
     return run_generator(generator, ["--record-form", data_dir, operation])
 
 
+def render_record_postings_form(
+    generator: Path, data_dir: str, operation: str
+) -> bytes:
+    return run_generator(generator, ["--record-postings-form", data_dir, operation])
+
+
+def posting_args(fields: dict[str, str]) -> list[str]:
+    args: list[str] = []
+    for index in range(1, 7):
+        args.extend(
+            [
+                fields[f"posting_{index}_locus"],
+                fields[f"posting_{index}_amount"],
+            ]
+        )
+    return args
+
+
 def render_record_preview(
     generator: Path, data_dir: str, fields: dict[str, str]
 ) -> bytes:
@@ -70,6 +88,40 @@ def render_record_confirm(
             fields["from_locus"],
             fields["to_locus"],
             fields["amount"],
+        ],
+    )
+
+
+def render_record_postings_preview(
+    generator: Path, data_dir: str, fields: dict[str, str]
+) -> bytes:
+    return run_generator(
+        generator,
+        [
+            "--record-postings-preview",
+            data_dir,
+            fields["operation"],
+            fields["date"],
+            fields["description"],
+            fields["measure"],
+            *posting_args(fields),
+        ],
+    )
+
+
+def render_record_postings_confirm(
+    generator: Path, data_dir: str, fields: dict[str, str]
+) -> bytes:
+    return run_generator(
+        generator,
+        [
+            "--record-postings-confirm",
+            data_dir,
+            fields["operation"],
+            fields["date"],
+            fields["description"],
+            fields["measure"],
+            *posting_args(fields),
         ],
     )
 
@@ -127,6 +179,10 @@ def main() -> int:
                 return render_current(generator, data_dir)
             if self.path == "/record":
                 return render_record_form(generator, data_dir, issue_operation())
+            if self.path == "/record/postings":
+                return render_record_postings_form(
+                    generator, data_dir, issue_operation()
+                )
             return None
 
         def do_GET(self) -> None:
@@ -152,7 +208,13 @@ def main() -> int:
             self._send_html(body, include_body=False)
 
         def do_POST(self) -> None:
-            if self.path not in ("/record/preview", "/record/confirm"):
+            record_paths = (
+                "/record/preview",
+                "/record/confirm",
+                "/record/postings/preview",
+                "/record/postings/confirm",
+            )
+            if self.path not in record_paths:
                 self.send_error(404, "Not Found")
                 return
             content_type = self.headers.get("Content-Type", "")
@@ -174,15 +236,35 @@ def main() -> int:
                 self.send_error(400, "Malformed form input")
                 return
 
-            names = (
-                "operation",
-                "date",
-                "description",
-                "measure",
-                "from_locus",
-                "to_locus",
-                "amount",
-            )
+            if self.path.startswith("/record/postings/"):
+                names = (
+                    "operation",
+                    "date",
+                    "description",
+                    "measure",
+                    "posting_1_locus",
+                    "posting_1_amount",
+                    "posting_2_locus",
+                    "posting_2_amount",
+                    "posting_3_locus",
+                    "posting_3_amount",
+                    "posting_4_locus",
+                    "posting_4_amount",
+                    "posting_5_locus",
+                    "posting_5_amount",
+                    "posting_6_locus",
+                    "posting_6_amount",
+                )
+            else:
+                names = (
+                    "operation",
+                    "date",
+                    "description",
+                    "measure",
+                    "from_locus",
+                    "to_locus",
+                    "amount",
+                )
             fields: dict[str, str] = {}
             for name in names:
                 values = parsed.get(name)
@@ -201,8 +283,12 @@ def main() -> int:
             try:
                 if self.path == "/record/preview":
                     body = render_record_preview(generator, data_dir, fields)
-                else:
+                elif self.path == "/record/confirm":
                     body = render_record_confirm(generator, data_dir, fields)
+                elif self.path == "/record/postings/preview":
+                    body = render_record_postings_preview(generator, data_dir, fields)
+                else:
+                    body = render_record_postings_confirm(generator, data_dir, fields)
             except RuntimeError as error:
                 self._send_runtime_error(error)
                 return

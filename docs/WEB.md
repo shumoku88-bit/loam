@@ -101,18 +101,25 @@ The Home document currently exposes:
 - Raw Capacity (all retained);
 - Reports.
 
-The separate `/record` document is the first interactive Web surface. Its v0
-form collects Date, Description, Measure, From, To, and one exact Amount. The
-single human-entered magnitude becomes the negative From posting and positive To
-posting; the user is not asked to type the same quantity twice. Admitted Locus
-choices come from the existing Locus catalog boundary.
+The separate `/record` document is the first interactive Web surface. Its
+ordinary form collects Date, Description, Measure, From, To, and one exact
+Amount. The single human-entered magnitude becomes the negative From posting and
+positive To posting; the user is not asked to type the same quantity twice.
+Admitted Locus choices come from the existing Locus catalog boundary.
+
+For split or otherwise multi-posting Movements, `/record/postings` exposes a
+separate explicit signed-posting form. It presents up to six rows, matching the
+current practical TUI editing window, while the shared Record semantic boundary
+remains an unbounded `Array Row`. Completely unused rows are presentation-only
+and are dropped before shared parsing; partially completed rows are retained and
+must be fixed rather than silently discarded.
 
 Submitting `Review` follows:
 
 ```text
 HTML form
     -> localhost transport
-    -> Loam.Web.Record.Request
+    -> ordinary Request or signed PostingRequest
     -> Loam.Presentation.Record.Input
     -> MovementAdmission preview
     -> human Review
@@ -273,8 +280,9 @@ boundaries and no Web-specific retained meaning is introduced.
 
 The first existing write path is now Record. Its ordinary two-posting form keeps
 presentation tax low with one Amount field while the shared Record boundary still
-receives exact signed postings. Split/multi-posting entry remains a separate later
-UI problem rather than overloading this ordinary path.
+receives exact signed postings. Multiple postings use a separate signed-row path,
+so ordinary entry stays compact while split purchases and other balanced
+multi-posting Movements can use the same preview and publication boundary.
 
 Further write surfaces should be added only when they preserve the same explicit
 confirmation, shared-command, authoritative re-read, and visible-result rules.
