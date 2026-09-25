@@ -195,7 +195,11 @@ canonical household evidence
 ```
 
 The localhost Python process owns transport and an opaque per-form operation
-token only. It does not decide accounting semantics or write household files.
+token only. Tokens are high-entropy and only tokens issued by the current
+localhost server are accepted for Preview or Confirm, so a cross-origin page
+cannot invent a valid write request. The server retains only a bounded recent
+token set; this is transport capability state, not household state. It does not
+decide accounting semantics or write household files.
 
 Missing or refused evidence remains visibly unavailable. The Web layer must not
 turn missing authority into zero, empty, false, or NotDue.
