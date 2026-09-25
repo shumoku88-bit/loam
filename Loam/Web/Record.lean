@@ -9,11 +9,12 @@ namespace Loam.Web.Record
 set_option autoImplicit false
 
 /-!
-# Web Record form and read-only review
+# Web Record form, review, and explicit confirmation
 
 This module adapts one conservative HTML form to the shared
 `Loam.Presentation.Record` boundary. It owns no household publication,
-canonical path, writer lock, durable identity, or accounting semantics.
+canonical path, writer lock, or accounting semantics. It carries only the
+opaque logical operation identity needed for retry-safe confirmation.
 -/
 
 structure Request where
@@ -32,14 +33,16 @@ inductive ReviewState where
   | ready (preview : Loam.Presentation.Record.Preview)
 
 structure Model where
+  operation : String
   request : Request
   catalog : Loam.LocusCatalog.Catalog
   measurePresentation : List Loam.MeasurePresentation.Metadata
   review : ReviewState := .editing
 
-def initial (date : String)
+def initial (operation date : String)
     (catalog : Loam.LocusCatalog.Catalog)
     (measurePresentation : List Loam.MeasurePresentation.Metadata) : Model := {
+  operation := operation
   request := { date := date }
   catalog := catalog
   measurePresentation := measurePresentation
@@ -93,6 +96,9 @@ private def inputText
   "<input type=\"text\" name=\"" ++ esc name ++ "\" value=\"" ++ esc value ++
     "\" size=\"" ++ toString size ++ "\">"
 
+private def hiddenInput (name value : String) : String :=
+  "<input type=\"hidden\" name=\"" ++ esc name ++ "\" value=\"" ++ esc value ++ "\">"
+
 private def locusLabel (entry : Loam.LocusCatalog.Entry) : String :=
   if entry.label == entry.locus.token then entry.locus.token
   else entry.locus.token ++ "  " ++ entry.label
@@ -129,6 +135,7 @@ private def renderForm (model : Model) : String :=
   "<h2>Record</h2>\n" ++
   "<p class=\"note\">Build one balanced Movement. Review is read-only; no household write occurs here.</p>\n" ++
   "<form action=\"/record/preview\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
+  hiddenInput "operation" model.operation ++ "\n" ++
   "<table class=\"facts\" summary=\"Record one household Movement\">\n" ++
   "<tr><th>Date</th><td>" ++ inputText "date" request.date 12 ++ "</td></tr>\n" ++
   "<tr><th>Description</th><td>" ++ inputText "description" request.description 40 ++ "</td></tr>\n" ++
@@ -150,10 +157,11 @@ private def renderRejected (message : String) : String :=
   "<p class=\"note\">Nothing was written.</p>\n" ++
   "</div>"
 
-private def renderReady
-    (metadata : List Loam.MeasurePresentation.Metadata)
+private def renderReady (model : Model)
     (preview : Loam.Presentation.Record.Preview) : String :=
   let draft := preview.draft
+  let request := model.request
+  let metadata := model.measurePresentation
   let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
   let rows :=
     draft.effects.map fun effect =>
@@ -177,15 +185,27 @@ private def renderReady
   "<tr><th>Locus</th><th>Signed amount</th></tr>\n" ++
   String.intercalate "\n" rows ++ "\n</table>\n" ++
   "<p class=\"note\">Admissible against the household world read for this review. " ++
-    "No Event identity is reserved and no household write has occurred.</p>\n" ++
-  "<p class=\"note\">Publication is deliberately unavailable in this slice.</p>\n" ++
+    "Confirm rebuilds the draft and the household writer re-reads authority before publication.</p>\n" ++
+  "<form action=\"/record/confirm\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
+  hiddenInput "operation" model.operation ++ "\n" ++
+  hiddenInput "date" request.date ++ "\n" ++
+  hiddenInput "description" request.description ++ "\n" ++
+  hiddenInput "measure" request.measure ++ "\n" ++
+  hiddenInput "from_locus" request.fromLocus ++ "\n" ++
+  hiddenInput "from_amount" request.fromAmount ++ "\n" ++
+  hiddenInput "to_locus" request.toLocus ++ "\n" ++
+  hiddenInput "to_amount" request.toAmount ++ "\n" ++
+  "<p><input type=\"submit\" value=\"Record\"> " ++
+    "<a href=\"/record\">Back</a></p>\n" ++
+  "</form>\n" ++
+  "<p class=\"note\">The operation identity makes a repeated Confirm safe to retry.</p>\n" ++
   "</div>"
 
 private def renderReview (model : Model) : String :=
   match model.review with
   | .editing => ""
   | .rejected message => renderRejected message
-  | .ready preview => renderReady model.measurePresentation preview
+  | .ready preview => renderReady model preview
 
 private def style : String :=
   String.intercalate "\n"
