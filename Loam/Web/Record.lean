@@ -22,9 +22,8 @@ structure Request where
   description : String := ""
   measure : String := "jpy"
   fromLocus : String := ""
-  fromAmount : String := ""
   toLocus : String := ""
-  toAmount : String := ""
+  amount : String := ""
   deriving Repr, DecidableEq, Inhabited
 
 inductive ReviewState where
@@ -58,21 +57,22 @@ private def magnitude?
   | _ => pure text
 
 /--
-Translate the Web's recognition-friendly From/To grammar into the shared signed
-posting input. This is presentation grammar only; the shared Record boundary
+Translate the Web's recognition-friendly From/To + one Amount grammar into the
+shared signed posting input. The same human-entered magnitude becomes the
+negative From posting and positive To posting. This is presentation grammar only;
+the shared Record boundary
 still owns exact quantity parsing and Movement validation.
 -/
 def Request.toInput? (request : Request) :
     Except String Loam.Presentation.Record.Input := do
-  let fromAmount ← magnitude? "the From amount" request.fromAmount
-  let toAmount ← magnitude? "the To amount" request.toAmount
+  let amount ← magnitude? "the amount" request.amount
   pure {
     date := request.date
     description := request.description
     measure := request.measure
     rows := #[
-      { locus := request.fromLocus, amount := "-" ++ fromAmount },
-      { locus := request.toLocus, amount := toAmount }
+      { locus := request.fromLocus, amount := "-" ++ amount },
+      { locus := request.toLocus, amount := amount }
     ]
   }
 
@@ -141,10 +141,9 @@ private def renderForm (model : Model) : String :=
   "<tr><th>Description</th><td>" ++ inputText "description" request.description 40 ++ "</td></tr>\n" ++
   "<tr><th>Measure</th><td>" ++ inputText "measure" request.measure 10 ++
     " " ++ scaleNote model.measurePresentation request.measure ++ "</td></tr>\n" ++
-  "<tr><th>From</th><td>" ++ locusSelect "from_locus" request.fromLocus model.catalog ++
-    " " ++ inputText "from_amount" request.fromAmount 14 ++ "</td></tr>\n" ++
-  "<tr><th>To</th><td>" ++ locusSelect "to_locus" request.toLocus model.catalog ++
-    " " ++ inputText "to_amount" request.toAmount 14 ++ "</td></tr>\n" ++
+  "<tr><th>From</th><td>" ++ locusSelect "from_locus" request.fromLocus model.catalog ++ "</td></tr>\n" ++
+  "<tr><th>To</th><td>" ++ locusSelect "to_locus" request.toLocus model.catalog ++ "</td></tr>\n" ++
+  "<tr><th>Amount</th><td>" ++ inputText "amount" request.amount 14 ++ "</td></tr>\n" ++
   "</table>\n" ++
   "<p><input type=\"submit\" value=\"Review\"> " ++
     "<a href=\"/\">Back to Home</a></p>\n" ++
@@ -192,9 +191,8 @@ private def renderReady (model : Model)
   hiddenInput "description" request.description ++ "\n" ++
   hiddenInput "measure" request.measure ++ "\n" ++
   hiddenInput "from_locus" request.fromLocus ++ "\n" ++
-  hiddenInput "from_amount" request.fromAmount ++ "\n" ++
   hiddenInput "to_locus" request.toLocus ++ "\n" ++
-  hiddenInput "to_amount" request.toAmount ++ "\n" ++
+  hiddenInput "amount" request.amount ++ "\n" ++
   "<p><input type=\"submit\" value=\"Record\"> " ++
     "<a href=\"#record-form\">Back to edit</a></p>\n" ++
   "</form>\n" ++

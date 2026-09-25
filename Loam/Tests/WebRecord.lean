@@ -36,9 +36,8 @@ def main (_args : List String) : IO Unit := do
     description := "<book&tea>"
     measure := "jpy"
     fromLocus := "paypay"
-    fromAmount := "2470"
     toLocus := "books"
-    toAmount := "2470"
+    amount := "2470"
   }
   let model : Loam.Web.Record.Model := {
     operation := "web-test-operation"
@@ -77,17 +76,24 @@ def main (_args : List String) : IO Unit := do
   expect (!contains html "web-test-operation</")
     "Web Record exposed its opaque operation identity as visible content"
 
-  let signedRequest := { request with fromAmount := "-2470" }
-  expect (signedRequest.toInput?.isOk == false)
-    "Web From field accepted a second direction sign"
+  expect (contains html "name=\"amount\" value=\"2470\"")
+    "Web Record did not retain the single human-entered amount"
+  expect (!contains html "from_amount")
+    "Web Record still exposed a redundant From amount field"
+  expect (!contains html "to_amount")
+    "Web Record still exposed a redundant To amount field"
 
-  let unbalanced := Loam.Web.Record.review w {
-    model with request := { request with toAmount := "2400" }
+  let signedRequest := { request with amount := "-2470" }
+  expect (signedRequest.toInput?.isOk == false)
+    "Web Amount accepted a second direction sign"
+
+  let missingAmount := Loam.Web.Record.review w {
+    model with request := { request with amount := "" }
   }
-  let unbalancedHtml := Loam.Web.Record.render unbalanced
-  expect (contains unbalancedHtml "Not ready:")
-    "Web Record did not preserve shared refusal as a visible review state"
-  expect (contains unbalancedHtml "Nothing was written.")
+  let missingAmountHtml := Loam.Web.Record.render missingAmount
+  expect (contains missingAmountHtml "Not ready:")
+    "Web Record did not preserve missing Amount as a visible review state"
+  expect (contains missingAmountHtml "Nothing was written.")
     "Web Record refusal did not state the no-write result"
 
   IO.println "Web Record: From/To transport, shared admission preview, explicit confirmation, escaping, and refusal passed."

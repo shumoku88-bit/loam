@@ -318,7 +318,7 @@ def run (args : List String) : IO UInt32 := do
           IO.print (← renderRecordFormDocument dataDir operation)
           return 0
   | ["--record-preview", dataPath, operation, date, description, measure,
-      fromLocus, fromAmount, toLocus, toAmount] =>
+      fromLocus, toLocus, amount] =>
       match ← resolveDataDir (some dataPath) with
       | .error message =>
           IO.eprintln message
@@ -329,13 +329,12 @@ def run (args : List String) : IO UInt32 := do
             description := description
             measure := measure
             fromLocus := fromLocus
-            fromAmount := fromAmount
             toLocus := toLocus
-            toAmount := toAmount
+            amount := amount
           })
           return 0
   | ["--record-confirm", dataPath, operation, date, description, measure,
-      fromLocus, fromAmount, toLocus, toAmount] =>
+      fromLocus, toLocus, amount] =>
       match ← resolveDataDir (some dataPath) with
       | .error message =>
           IO.eprintln message
@@ -346,9 +345,8 @@ def run (args : List String) : IO UInt32 := do
             description := description
             measure := measure
             fromLocus := fromLocus
-            fromAmount := fromAmount
             toLocus := toLocus
-            toAmount := toAmount
+            amount := amount
           })
           return 0
   | [] =>

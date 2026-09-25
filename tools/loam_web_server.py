@@ -49,9 +49,8 @@ def render_record_preview(
             fields["description"],
             fields["measure"],
             fields["from_locus"],
-            fields["from_amount"],
             fields["to_locus"],
-            fields["to_amount"],
+            fields["amount"],
         ],
     )
 
@@ -69,9 +68,8 @@ def render_record_confirm(
             fields["description"],
             fields["measure"],
             fields["from_locus"],
-            fields["from_amount"],
             fields["to_locus"],
-            fields["to_amount"],
+            fields["amount"],
         ],
     )
 
@@ -182,9 +180,8 @@ def main() -> int:
                 "description",
                 "measure",
                 "from_locus",
-                "from_amount",
                 "to_locus",
-                "to_amount",
+                "amount",
             )
             fields: dict[str, str] = {}
             for name in names:

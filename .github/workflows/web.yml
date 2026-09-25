@@ -88,10 +88,10 @@ jobs:
           tmpdir="$(mktemp -d)"
           lake env lean --run Loam/Tests/WebRecordPublication.lean "$tmpdir/data"
           .lake/build/bin/loamWeb --record-confirm "$tmpdir/data" web-cli-operation \
-            2026-09-25 cli-confirm jpy paypay 100 books 100 > "$tmpdir/confirm.html"
+            2026-09-25 cli-confirm jpy paypay books 100 > "$tmpdir/confirm.html"
           grep -q 'Recorded Event' "$tmpdir/confirm.html"
           .lake/build/bin/loamWeb --record-confirm "$tmpdir/data" web-cli-operation \
-            2026-09-25 cli-confirm jpy paypay 100 books 100 > "$tmpdir/retry.html"
+            2026-09-25 cli-confirm jpy paypay books 100 > "$tmpdir/retry.html"
           grep -q 'Record already completed as Event' "$tmpdir/retry.html"
 
       - name: Verify Record document command modes
@@ -99,10 +99,10 @@ jobs:
           .lake/build/bin/loamWeb --record-form /tmp/loam-web-missing web-command-form > /tmp/loam-record-form.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-form.html
           .lake/build/bin/loamWeb --record-preview /tmp/loam-web-missing web-command-preview \
-            2026-09-25 test jpy paypay 100 books 100 > /tmp/loam-record-preview.html
+            2026-09-25 test jpy paypay books 100 > /tmp/loam-record-preview.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-preview.html
           .lake/build/bin/loamWeb --record-confirm /tmp/loam-web-missing web-command-confirm \
-            2026-09-25 test jpy paypay 100 books 100 > /tmp/loam-record-confirm.html
+            2026-09-25 test jpy paypay books 100 > /tmp/loam-record-confirm.html
           grep -q '<title>LOAM Record</title>' /tmp/loam-record-confirm.html
 
       - name: Verify stdout document mode
@@ -188,9 +188,8 @@ jobs:
             --data-urlencode 'description=forged' \
             --data-urlencode 'measure=jpy' \
             --data-urlencode 'from_locus=paypay' \
-            --data-urlencode 'from_amount=1' \
             --data-urlencode 'to_locus=books' \
-            --data-urlencode 'to_amount=1')"
+            --data-urlencode 'amount=1')"
           test "$forged_status" = "403"
 
           curl -fsS -X POST http://127.0.0.1:8765/record/preview \
@@ -200,9 +199,8 @@ jobs:
             --data-urlencode 'description=book & tea' \
             --data-urlencode 'measure=jpy' \
             --data-urlencode 'from_locus=paypay' \
-            --data-urlencode 'from_amount=2470' \
             --data-urlencode 'to_locus=books' \
-            --data-urlencode 'to_amount=2470' > "$tmpdir/review.html"
+            --data-urlencode 'amount=2470' > "$tmpdir/review.html"
           curl -fsS -X POST http://127.0.0.1:8765/record/confirm \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             --data-urlencode "operation=$operation" \
@@ -210,9 +208,8 @@ jobs:
             --data-urlencode 'description=book & tea' \
             --data-urlencode 'measure=jpy' \
             --data-urlencode 'from_locus=paypay' \
-            --data-urlencode 'from_amount=2470' \
             --data-urlencode 'to_locus=books' \
-            --data-urlencode 'to_amount=2470' > "$tmpdir/confirmed.html"
+            --data-urlencode 'amount=2470' > "$tmpdir/confirmed.html"
 
           grep -q 'render-1' "$tmpdir/first.html"
           grep -q 'render-2' "$tmpdir/second.html"
