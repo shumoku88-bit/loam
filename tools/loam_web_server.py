@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import secrets
 import subprocess
 import sys
+import threading
 from urllib.parse import parse_qs
 
 
@@ -82,6 +84,25 @@ def main() -> int:
     generator = Path(sys.argv[1]).resolve()
     data_dir = sys.argv[2]
 
+    issued_operations: set[str] = set()
+    operation_order: deque[str] = deque()
+    operation_lock = threading.Lock()
+    max_issued_operations = 256
+
+    def issue_operation() -> str:
+        operation = "web-" + secrets.token_hex(16)
+        with operation_lock:
+            issued_operations.add(operation)
+            operation_order.append(operation)
+            while len(operation_order) > max_issued_operations:
+                expired = operation_order.popleft()
+                issued_operations.discard(expired)
+        return operation
+
+    def operation_was_issued(operation: str) -> bool:
+        with operation_lock:
+            return operation in issued_operations
+
     class Handler(BaseHTTPRequestHandler):
         def _send_html(self, body: bytes, include_body: bool = True) -> None:
             self.send_response(200)
@@ -107,8 +128,7 @@ def main() -> int:
             if self.path in ("/", "/index.html"):
                 return render_current(generator, data_dir)
             if self.path == "/record":
-                operation = "web-" + secrets.token_hex(16)
-                return render_record_form(generator, data_dir, operation)
+                return render_record_form(generator, data_dir, issue_operation())
             return None
 
         def do_GET(self) -> None:
@@ -173,6 +193,10 @@ def main() -> int:
                     self.send_error(400, f"Expected one {name} field")
                     return
                 fields[name] = values[0]
+
+            if not operation_was_issued(fields["operation"]):
+                self.send_error(403, "Expired or unissued Record operation")
+                return
 
             try:
                 if self.path == "/record/preview":
