@@ -309,15 +309,15 @@ theorem focused_contributors_correspond_on_all_represented_rows :
           directContributorIds snapshot coordinate)) = true := by
   native_decide
 
+private def sparseMixedColumn : SparseColumn :=
+  { source := column mixedEvent "2026-09-04"
+    cells := cellsForEvent mixedEvent }
+
 theorem measure_residuals_correspond_for_mixed_event :
-    match sparse.columns.find? fun candidate =>
-        decide (candidate.source.event.id = mixedEvent.id) with
-    | none => False
-    | some sparseMixed =>
-        sparseMeasureResidual sparseMixed jpy =
-            Loam.TransactionsFlowReview.measureResidual sparseMixed.source jpy ∧
-        sparseMeasureResidual sparseMixed point =
-            Loam.TransactionsFlowReview.measureResidual sparseMixed.source point := by
+    sparseMeasureResidual sparseMixedColumn jpy =
+        Loam.TransactionsFlowReview.measureResidual sparseMixedColumn.source jpy ∧
+    sparseMeasureResidual sparseMixedColumn point =
+        Loam.TransactionsFlowReview.measureResidual sparseMixedColumn.source point := by
   native_decide
 
 /-! ## Counterexample pressure -/
