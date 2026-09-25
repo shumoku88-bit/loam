@@ -656,6 +656,120 @@ So RF-1 now separates cleanly into:
 
 No production optimization follows automatically.
 
+# 8. RF-2 numeric-pass fusion — Observation 322
+
+Observation 322 proves a universal correspondence for the arithmetic part of
+Stock-Flow construction while deliberately leaving the existing fail-closed
+date-validation pass untouched.
+
+Qualified research head:
+
+    d70ec0ca8f24ff491008c390a3f0736c6f752260
+
+Lean Proof Surfaces:
+
+    36147789932 — SUCCESS
+
+Compression Audit:
+
+    36147789943 — SUCCESS
+
+## 8.1 What is now general
+
+For arbitrary:
+
+- selected EffectCoordinate list;
+- ActualReview.Record list;
+- start/end strings;
+- initial accumulators;
+
+one fused record fold produces exactly the same four numeric components as the
+three separate current-style numeric folds:
+
+    start boundary
+    end boundary
+    positive window change
+    negative window change
+
+The fused step computes one selected Event quantity for a dated current record
+and routes that quantity to all relevant result components.
+
+The proof factors through one-record projection correspondence and then proves
+whole-list equality by induction over the Record list.
+
+## 8.2 What this means for the current shape
+
+The numeric construction is therefore not intrinsically three independent
+passes.
+
+Its mathematical image is one product accumulator:
+
+    StockFlowNumericSummary
+      startBoundary
+      endBoundary
+      positiveWindow
+      negativeWindow
+
+with component-wise accumulation after each record's semantic selection.
+
+So the current conceptual construction can be reduced, without changing
+numeric meaning, from:
+
+    validate dates
+      + start-boundary scan
+      + end-boundary scan
+      + window-change scan
+
+to:
+
+    validate dates
+      + one fused numeric scan
+
+This statement is now a general Lean result on the research surface.
+
+## 8.3 Why validation remains separate for now
+
+The current validation pass is not merely a Boolean gate.
+
+It preserves a specific fail-closed observation:
+
+- only current records matter;
+- zero selected quantity does not require a date;
+- the first contributing record lacking a date reports that Event identity;
+- the first contributing record with an invalid date reports that Event identity.
+
+Fusing validation into the numeric scan is operationally plausible, but its
+correctness obligation includes exact first-failure witness/order, not only
+addition.
+
+That is a sequencing/refusal theorem and should be tested separately.
+
+## 8.4 Useful redundancy remains
+
+The fused numeric summary retains both:
+
+    endBoundary
+
+and:
+
+    startBoundary + positiveWindow + negativeWindow
+
+even though they should agree for a valid ordered window.
+
+Therefore the existing parity check can survive a future one-scan
+implementation. Arithmetic fusion does not require deleting the independent end
+accumulator.
+
+This preserves the distinction:
+
+    repeated traversal
+        may be removable
+
+    independent qualification witness
+        may remain valuable
+
+No production optimization is authorized by Observation 322.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
