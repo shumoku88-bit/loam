@@ -564,6 +564,98 @@ arbitrary Snapshots. It upgrades RF-1 from "plausible factorization" to
 The next mathematical question, if pursued, is general correspondence rather
 than production implementation.
 
+# 7. RF-1 general additive laws — Observation 321
+
+Observation 321 moves two RF-1 edges beyond finite witness testing.
+
+Qualified research head:
+
+    9f269c13ccd82cbd96ca76f800f6c4c7d1ff60ea
+
+Lean Proof Surfaces run:
+
+    36147111120
+
+All three Lean surfaces passed:
+
+- product Lean surface: SUCCESS;
+- selected live research witnesses: SUCCESS;
+- durable Lean proof surface: SUCCESS.
+
+The research theorem is still isolated from production reachability.
+
+## 7.1 rowTotal is not an independent quantity meaning
+
+For arbitrary Transactions-Flow Snapshot and arbitrary EffectCoordinate:
+
+    rowTotal snapshot coordinate
+      =
+    (rowActivity snapshot coordinate).net
+
+The proof is by induction over the selected Column list.
+
+Its invariant is:
+
+    scalar total
+      =
+    accumulated positive + accumulated negative
+
+for an arbitrary scan prefix / suffix state.
+
+The contributor count is irrelevant to the numeric invariant and therefore
+remains unconstrained by the proof.
+
+This means current rowTotal and rowActivity.net are two presentations of one
+quantity semantics, not two independent report meanings.
+
+## 7.2 Event-local coordinate aggregation is exactly Event.quantityAt
+
+Observation 321 also proves, for arbitrary Event and EffectCoordinate:
+
+    eventCellQuanta event coordinate
+      =
+    (Event.quantityAt event coordinate.locus coordinate.measure).quanta
+
+where eventCellQuanta is a research-only left fold that:
+
+- scans every retained Effect;
+- selects exactly one EffectCoordinate;
+- accumulates all matching exact signed quanta.
+
+The proof is by induction over the Effect list and establishes equivalence with
+the existing right-fold Event.quantityAt definition.
+
+Therefore the first RF-1 factorization edge is now general:
+
+    Event.effects
+        -> Event-local coordinate aggregation
+        = Event.quantityAt
+
+This formally protects the aggregation order identified by Observation 320.
+
+## 7.3 What remains unproved
+
+Observation 321 does not prove that one particular sparse finite-map
+representation is globally equivalent.
+
+A future concrete sparse builder would still need correspondence for:
+
+- coordinate-key uniqueness;
+- lookup after repeated same-coordinate insertion;
+- represented zero-cell coordinates;
+- reconstruction of represented row keys;
+- contributor identity lookup.
+
+Those are representation laws rather than quantity algebra.
+
+So RF-1 now separates cleanly into:
+
+    proved arithmetic core
+        +
+    not-yet-selected finite-map representation
+
+No production optimization follows automatically.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
