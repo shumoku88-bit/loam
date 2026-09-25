@@ -102,8 +102,10 @@ The Home document currently exposes:
 - Reports.
 
 The separate `/record` document is the first interactive Web surface. Its v0
-form collects Date, Description, Measure, From, To, and exact amounts. Admitted
-Locus choices come from the existing Locus catalog boundary.
+form collects Date, Description, Measure, From, To, and one exact Amount. The
+single human-entered magnitude becomes the negative From posting and positive To
+posting; the user is not asked to type the same quantity twice. Admitted Locus
+choices come from the existing Locus catalog boundary.
 
 Submitting `Review` follows:
 
@@ -269,6 +271,10 @@ The experiment succeeds when lightweight and modern browsers can request the sam
 fresh household answers while all semantics still come from existing shared Review
 boundaries and no Web-specific retained meaning is introduced.
 
-The first existing write path is now Record. Further write surfaces should be
-added only when they preserve the same explicit confirmation, shared-command,
-authoritative re-read, and visible-result rules.
+The first existing write path is now Record. Its ordinary two-posting form keeps
+presentation tax low with one Amount field while the shared Record boundary still
+receives exact signed postings. Split/multi-posting entry remains a separate later
+UI problem rather than overloading this ordinary path.
+
+Further write surfaces should be added only when they preserve the same explicit
+confirmation, shared-command, authoritative re-read, and visible-result rules.
