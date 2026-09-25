@@ -139,11 +139,13 @@ private def twoPass
     (coordinates : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
     (start endExclusive : String)
-    (initial : Scan) : Except String Scan := do
-  validate coordinates records
-  return records.foldl
-    (numericStep coordinates start endExclusive)
-    initial
+    (initial : Scan) : Except String Scan :=
+  match validate coordinates records with
+  | .error message => .error message
+  | .ok () =>
+      .ok <| records.foldl
+        (numericStep coordinates start endExclusive)
+        initial
 
 /--
 Candidate complete one-pass scan.
@@ -198,12 +200,13 @@ theorem fused_eq_twoPass
           change
             fused coordinates start endExclusive rest
                 (numericStep coordinates start endExclusive initial record) =
-              (do
-                validate coordinates rest
-                return
-                  rest.foldl
-                    (numericStep coordinates start endExclusive)
-                    (numericStep coordinates start endExclusive initial record))
+              match validate coordinates rest with
+              | .error message => .error message
+              | .ok () =>
+                  .ok <|
+                    rest.foldl
+                      (numericStep coordinates start endExclusive)
+                      (numericStep coordinates start endExclusive initial record)
           exact ih (numericStep coordinates start endExclusive initial record)
 
 /-! ## Finite pressure against the actual public project boundary -/
@@ -219,7 +222,7 @@ private def event (id : String) (q : Int) : Event :=
   {
     id := ⟨id⟩
     effects := [effect (id ++ "-effect") q]
-    keyNodup := by native_decide
+    keyNodup := retainedEffectKeys_singleton_nodup (effect (id ++ "-effect") q)
   }
 
 private def record
