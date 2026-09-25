@@ -104,7 +104,7 @@ private theorem fold_total_eq_activity_sum
                 (positive, negative, active) := by
             simp [activityStep, hPositive, hNegative, hZero]
           rw [hTotalStep, hActivityStep, hZero]
-          exact ih total positive negative active hInvariant
+          simpa using ih total positive negative active hInvariant
 
 /--
 The scalar row total quanta equal the sum of the two retained activity
