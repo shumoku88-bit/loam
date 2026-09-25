@@ -85,6 +85,7 @@ private def renderCard (id title body : String) : String :=
 private def renderNav : String :=
   "<div id=\"nav\">" ++
   "<a href=\"#home\">Home</a> | " ++
+  "<a href=\"/record\">Record</a> | " ++
   "<a href=\"#actual\">Actual</a> | " ++
   "<a href=\"#scheduled\">Scheduled</a> | " ++
   "<a href=\"#budget\">Budget</a> | " ++
@@ -148,6 +149,7 @@ private def renderHome (snapshot : Snapshot) : String :=
           tableCell (quantityText funding.remainingAssigned) ++ "</tr>\n" ++
         "<tr><th>Residual before unresolved</th>" ++
           tableCell (quantityText funding.residualBeforeUnresolved) ++ "</tr>"
+  "<p><a href=\"/record\">[Record]</a></p>\n" ++
   "<p class=\"note\">Current household orientation derived from shared Lean Review answers.</p>\n" ++
   "<table class=\"facts\" summary=\"LOAM Home current household orientation\">\n" ++
   "<tr><th>Observed</th>" ++ tableCell (escapeHtml home.observedAt) ++ "</tr>\n" ++

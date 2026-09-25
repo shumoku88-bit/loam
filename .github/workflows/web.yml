@@ -7,6 +7,7 @@ on:
       - 'Loam/Web/**'
       - 'Loam/Presentation/**'
       - 'Loam/Tests/WebSnapshot.lean'
+      - 'Loam/Tests/WebRecord.lean'
       - 'Loam/Tests/PresentationHome.lean'
       - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/Tests/PresentationReadState.lean'
@@ -78,6 +79,17 @@ jobs:
       - name: Verify presentation-only Web snapshot
         run: lake env lean --run Loam/Tests/WebSnapshot.lean
 
+      - name: Verify Web Record form and shared preview
+        run: lake env lean --run Loam/Tests/WebRecord.lean
+
+      - name: Verify Record document command modes
+        run: |
+          .lake/build/bin/loamWeb --record-form /tmp/loam-web-missing > /tmp/loam-record-form.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-form.html
+          .lake/build/bin/loamWeb --record-preview /tmp/loam-web-missing \
+            2026-09-25 test jpy paypay 100 books 100 > /tmp/loam-record-preview.html
+          grep -q '<title>LOAM Record</title>' /tmp/loam-record-preview.html
+
       - name: Verify stdout document mode
         run: |
           .lake/build/bin/loamWeb /tmp/loam-web-missing - > /tmp/loam-web.html
@@ -145,7 +157,19 @@ jobs:
             sleep 0.2
           done
           curl -fsS http://127.0.0.1:8765/ > "$tmpdir/second.html"
+          curl -fsS http://127.0.0.1:8765/record > "$tmpdir/record.html"
+          curl -fsS -X POST http://127.0.0.1:8765/record/preview \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'date=2026-09-25' \
+            --data-urlencode 'description=book & tea' \
+            --data-urlencode 'measure=jpy' \
+            --data-urlencode 'from_locus=paypay' \
+            --data-urlencode 'from_amount=2470' \
+            --data-urlencode 'to_locus=books' \
+            --data-urlencode 'to_amount=2470' > "$tmpdir/review.html"
 
           grep -q 'render-1' "$tmpdir/first.html"
           grep -q 'render-2' "$tmpdir/second.html"
-          test "$(cat "$counter")" = "2"
+          grep -q 'render-3' "$tmpdir/record.html"
+          grep -q 'render-4' "$tmpdir/review.html"
+          test "$(cat "$counter")" = "4"

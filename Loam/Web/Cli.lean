@@ -1,4 +1,7 @@
 import Loam.HouseholdPaths
+import Loam.LocusCatalog
+import Loam.MeasurePresentation
+import Loam.MovementWorldLoader
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
@@ -13,6 +16,7 @@ import Loam.ScheduledReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.Web.Snapshot
+import Loam.Web.Record
 
 namespace Loam.Web.Cli
 
@@ -87,6 +91,48 @@ private def attentionReadState
   | .error message => .failed message
   | .ok .unavailable => .unavailable
   | .ok (.available snapshot) => .loaded snapshot
+
+
+private def loadRecordContext
+    (dataDir : System.FilePath) :
+    IO (Except String
+      (Loam.MovementAdmission.World ×
+        Loam.LocusCatalog.Catalog ×
+        List Loam.MeasurePresentation.Metadata)) := do
+  match ← Loam.MovementWorldLoader.loadSelectedWorld? dataDir with
+  | .error message => return .error message
+  | .ok world =>
+      let catalog ←
+        match ← Loam.LocusCatalog.loadForVocabulary dataDir world.locusAdmission with
+        | .ok catalog => pure catalog
+        | .error _ => pure (Loam.LocusCatalog.fallback world.locusAdmission)
+      match ← Loam.MeasurePresentation.loadMetadata dataDir with
+      | .error message => return .error message
+      | .ok metadata => return .ok (world, catalog, metadata)
+
+private def renderRecordFormDocument
+    (dataDir : System.FilePath) : IO String := do
+  let some observedAt ← Loam.ActualDate.todayIso?
+    | return Loam.Web.Record.renderUnavailable
+        "loam: could not determine the local date"
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (_, catalog, metadata) =>
+      return Loam.Web.Record.render
+        (Loam.Web.Record.initial observedAt catalog metadata)
+
+private def renderRecordPreviewDocument
+    (dataDir : System.FilePath)
+    (request : Loam.Web.Record.Request) : IO String := do
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (world, catalog, metadata) =>
+      let model : Loam.Web.Record.Model := {
+        request := request
+        catalog := catalog
+        measurePresentation := metadata
+      }
+      return Loam.Web.Record.render (Loam.Web.Record.review world model)
 
 private def renderCurrent
     (dataDir : System.FilePath) : IO (Except String String) := do
@@ -216,6 +262,31 @@ private def usage : String :=
 
 def run (args : List String) : IO UInt32 := do
   match args with
+  | ["--record-form", dataPath] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordFormDocument dataDir)
+          return 0
+  | ["--record-preview", dataPath, date, description, measure,
+      fromLocus, fromAmount, toLocus, toAmount] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordPreviewDocument dataDir {
+            date := date
+            description := description
+            measure := measure
+            fromLocus := fromLocus
+            fromAmount := fromAmount
+            toLocus := toLocus
+            toAmount := toAmount
+          })
+          return 0
   | [] =>
       match ← resolveDataDir none with
       | .error message =>
