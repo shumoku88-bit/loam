@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import secrets
 import subprocess
 import sys
 from urllib.parse import parse_qs
@@ -29,8 +30,8 @@ def render_current(generator: Path, data_dir: str) -> bytes:
     return run_generator(generator, [data_dir, "-"])
 
 
-def render_record_form(generator: Path, data_dir: str) -> bytes:
-    return run_generator(generator, ["--record-form", data_dir])
+def render_record_form(generator: Path, data_dir: str, operation: str) -> bytes:
+    return run_generator(generator, ["--record-form", data_dir, operation])
 
 
 def render_record_preview(
@@ -41,6 +42,27 @@ def render_record_preview(
         [
             "--record-preview",
             data_dir,
+            fields["operation"],
+            fields["date"],
+            fields["description"],
+            fields["measure"],
+            fields["from_locus"],
+            fields["from_amount"],
+            fields["to_locus"],
+            fields["to_amount"],
+        ],
+    )
+
+
+def render_record_confirm(
+    generator: Path, data_dir: str, fields: dict[str, str]
+) -> bytes:
+    return run_generator(
+        generator,
+        [
+            "--record-confirm",
+            data_dir,
+            fields["operation"],
             fields["date"],
             fields["description"],
             fields["measure"],
@@ -85,7 +107,8 @@ def main() -> int:
             if self.path in ("/", "/index.html"):
                 return render_current(generator, data_dir)
             if self.path == "/record":
-                return render_record_form(generator, data_dir)
+                operation = "web-" + secrets.token_hex(16)
+                return render_record_form(generator, data_dir, operation)
             return None
 
         def do_GET(self) -> None:
@@ -111,7 +134,7 @@ def main() -> int:
             self._send_html(body, include_body=False)
 
         def do_POST(self) -> None:
-            if self.path != "/record/preview":
+            if self.path not in ("/record/preview", "/record/confirm"):
                 self.send_error(404, "Not Found")
                 return
             content_type = self.headers.get("Content-Type", "")
@@ -134,6 +157,7 @@ def main() -> int:
                 return
 
             names = (
+                "operation",
                 "date",
                 "description",
                 "measure",
@@ -151,7 +175,10 @@ def main() -> int:
                 fields[name] = values[0]
 
             try:
-                body = render_record_preview(generator, data_dir, fields)
+                if self.path == "/record/preview":
+                    body = render_record_preview(generator, data_dir, fields)
+                else:
+                    body = render_record_confirm(generator, data_dir, fields)
             except RuntimeError as error:
                 self._send_runtime_error(error)
                 return
@@ -162,7 +189,7 @@ def main() -> int:
 
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"LOAM Web: http://{HOST}:{PORT}")
-    print("request-on-read plus read-only Record preview; no household writes")
+    print("request-on-read plus explicit retry-safe Record confirmation")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
