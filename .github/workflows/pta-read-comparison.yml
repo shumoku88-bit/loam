@@ -1,0 +1,122 @@
+name: PTA full-file read comparison
+
+on:
+  push:
+    branches:
+      - 'bench/pta-read-comparison'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Compare LOAM, hledger, and Beancount
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build LOAM
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loam
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Install hledger 1.52.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/hledger-bin
+          curl -fL https://github.com/plaintextaccounting/hledger/releases/download/1.52.4/hledger-linux-x64.tar.gz \
+            | tar -xz -C /tmp/hledger-bin hledger
+          /tmp/hledger-bin/hledger --version
+
+      - name: Install Beancount 3.2.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/beancount-venv
+          /tmp/beancount-venv/bin/pip install --disable-pip-version-check beancount==3.2.3
+          /tmp/beancount-venv/bin/python -c 'import beancount; print("beancount", getattr(beancount, "__version__", "3.2.3"))'
+
+      - name: Record comparison context
+        shell: bash
+        run: |
+          {
+            echo '## PTA full-file acceptance comparison'
+            echo
+            echo "Commit: \`${GITHUB_SHA}\`"
+            echo
+            echo 'Runner: ubuntu-24.04'
+            echo
+            echo "CPU cores: $(nproc)"
+            echo
+            echo '~~~text'
+            free -h
+            .lake/build/bin/loam --help 2>/dev/null | head -1 || true
+            /tmp/hledger-bin/hledger --version
+            /tmp/beancount-venv/bin/python -c 'import beancount; print("Beancount", getattr(beancount, "__version__", "3.2.3"))'
+            echo '~~~'
+            echo
+            echo 'Semantic scope: LOAM review = decode + fail-closed admission + review projection; hledger check = basic journal checks; Beancount standard loader = parse + standard validations/plugins. These are nearby cold full-file acceptance paths, not identical workloads.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark LOAM
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-pta-comparison.py \
+            --tool loam \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 --timeout 600 \
+            | tee /tmp/pta-loam.tsv
+          {
+            echo
+            echo '### LOAM production review'
+            echo '~~~text'
+            cat /tmp/pta-loam.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark hledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-pta-comparison.py \
+            --tool hledger \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 --timeout 600 \
+            | tee /tmp/pta-hledger.tsv
+          {
+            echo
+            echo '### hledger check'
+            echo '~~~text'
+            cat /tmp/pta-hledger.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Benchmark Beancount
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-pta-comparison.py \
+            --tool beancount \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 --timeout 600 \
+            | tee /tmp/pta-beancount.tsv
+          {
+            echo
+            echo '### Beancount standard loader'
+            echo '~~~text'
+            cat /tmp/pta-beancount.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
