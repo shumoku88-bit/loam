@@ -506,6 +506,64 @@ Small theorem-shaped question:
 This would connect two currently separate full-column scans and clarify that they
 are two observations of one row quantity meaning.
 
+# 6. RF-1 finite Lean probe result
+
+Observation 320 implements the candidate Transactions-Flow factorization only on
+the research surface and tests it against current production observations.
+
+Qualified head:
+
+    c7f85df7431782ffb4b28c3ffa1cd2902c342931
+
+Lean Proof Surfaces run:
+
+    36145185286
+    Build selected live Lean research witnesses: SUCCESS
+
+The experiment builds:
+
+    raw Effects
+        -> Event-local coordinate cells
+        -> global coordinate row summaries
+
+and checks the selected witness snapshot against current
+TransactionsFlowReview.
+
+The successful finite correspondence set covers:
+
+- represented coordinate rows;
+- cellAt for every selected Event / represented coordinate pair;
+- rowActivity on every represented row;
+- rowTotal = sparse row-summary net on every represented row;
+- focused contributing Event identities;
+- per-Measure residuals.
+
+The falsification fixtures include:
+
+- repeated same-coordinate Effects;
+- exact same-Event same-coordinate cancellation;
+- cross-Event positive/negative cancellation;
+- zero-net/high-gross pressure;
+- multiple Measures;
+- a represented coordinate with a zero Event cell.
+
+Most importantly, the exact same-Event cancellation witness confirms the
+required aggregation order:
+
+    raw Effects
+        -> first aggregate by coordinate inside one Event
+        -> only then classify cell sign / active Event contribution
+
+A raw-Effect sign bucket is therefore not equivalent to current
+Transactions-Flow semantics.
+
+This is a **finite executable correspondence result**, not yet a theorem for
+arbitrary Snapshots. It upgrades RF-1 from "plausible factorization" to
+"survived deliberately hostile finite witnesses".
+
+The next mathematical question, if pursued, is general correspondence rather
+than production implementation.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
