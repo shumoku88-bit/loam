@@ -122,6 +122,17 @@ private def renderRecordFormDocument
       return Loam.Web.Record.render
         (Loam.Web.Record.initial operation observedAt catalog metadata)
 
+private def renderRecordPostingsFormDocument
+    (dataDir : System.FilePath) (operation : String) : IO String := do
+  let some observedAt ← Loam.ActualDate.todayIso?
+    | return Loam.Web.Record.renderUnavailable
+        "loam: could not determine the local date"
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (_, catalog, metadata) =>
+      return Loam.Web.Record.renderPostings
+        (Loam.Web.Record.postingsInitial operation observedAt catalog metadata)
+
 private def renderRecordPreviewDocument
     (dataDir : System.FilePath)
     (operation : String)
@@ -136,6 +147,22 @@ private def renderRecordPreviewDocument
         measurePresentation := metadata
       }
       return Loam.Web.Record.render (Loam.Web.Record.review world model)
+
+private def renderRecordPostingsPreviewDocument
+    (dataDir : System.FilePath)
+    (operation : String)
+    (request : Loam.Web.Record.PostingRequest) : IO String := do
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (world, catalog, metadata) =>
+      let model : Loam.Web.Record.PostingModel := {
+        operation := operation
+        request := request
+        catalog := catalog
+        measurePresentation := metadata
+      }
+      return Loam.Web.Record.renderPostings
+        (Loam.Web.Record.reviewPostings world model)
 
 private def loadCurrentSnapshot
     (dataDir : System.FilePath) : IO (Except String Loam.Web.Snapshot.Snapshot) := do
@@ -279,6 +306,43 @@ private def renderRecordPublishDocument
           | .ok snapshot =>
               return Loam.Web.Snapshot.renderWithNotice snapshot (some notice)
 
+private def renderRecordPostingsPublishDocument
+    (dataDir : System.FilePath)
+    (operation : String)
+    (request : Loam.Web.Record.PostingRequest) : IO String := do
+  match ← loadRecordContext dataDir with
+  | .error message => return Loam.Web.Record.renderUnavailable message
+  | .ok (_, catalog, metadata) =>
+      let rejected (message : String) : String :=
+        Loam.Web.Record.renderPostings {
+          operation := operation
+          request := request
+          catalog := catalog
+          measurePresentation := metadata
+          review := .rejected message
+        }
+      let input := request.toInput
+      let .ok draft := Loam.Presentation.Record.draftWithPresentation? metadata input
+        | return rejected "The submitted Record draft is no longer valid."
+      let result ← Loam.HouseholdCommand.recordIdempotent dataDir ⟨operation⟩ draft
+      match result with
+      | .error message => return rejected message
+      | .ok publication =>
+          let (event, notice) :=
+            match publication with
+            | .applied event =>
+                (event, "Recorded Event " ++ event.token ++ ". Canonical household state re-read.")
+            | .alreadyApplied event =>
+                (event, "Record already completed as Event " ++ event.token ++
+                  ". Canonical household state re-read.")
+          match ← loadCurrentSnapshot dataDir with
+          | .error message =>
+              return Loam.Web.Record.renderUnavailable
+                ("Record publication succeeded for " ++ event.token ++
+                  ", but the fresh household snapshot failed: " ++ message)
+          | .ok snapshot =>
+              return Loam.Web.Snapshot.renderWithNotice snapshot (some notice)
+
 private def renderTo
     (dataDir output : System.FilePath) : IO UInt32 := do
   match ← renderCurrent dataDir with
@@ -316,6 +380,58 @@ def run (args : List String) : IO UInt32 := do
           return 2
       | .ok dataDir =>
           IO.print (← renderRecordFormDocument dataDir operation)
+          return 0
+  | ["--record-postings-form", dataPath, operation] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordPostingsFormDocument dataDir operation)
+          return 0
+  | ["--record-postings-preview", dataPath, operation, date, description, measure,
+      p1Locus, p1Amount, p2Locus, p2Amount, p3Locus, p3Amount,
+      p4Locus, p4Amount, p5Locus, p5Amount, p6Locus, p6Amount] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordPostingsPreviewDocument dataDir operation {
+            date := date
+            description := description
+            measure := measure
+            rows := #[
+              { locus := p1Locus, amount := p1Amount },
+              { locus := p2Locus, amount := p2Amount },
+              { locus := p3Locus, amount := p3Amount },
+              { locus := p4Locus, amount := p4Amount },
+              { locus := p5Locus, amount := p5Amount },
+              { locus := p6Locus, amount := p6Amount }
+            ]
+          })
+          return 0
+  | ["--record-postings-confirm", dataPath, operation, date, description, measure,
+      p1Locus, p1Amount, p2Locus, p2Amount, p3Locus, p3Amount,
+      p4Locus, p4Amount, p5Locus, p5Amount, p6Locus, p6Amount] =>
+      match ← resolveDataDir (some dataPath) with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok dataDir =>
+          IO.print (← renderRecordPostingsPublishDocument dataDir operation {
+            date := date
+            description := description
+            measure := measure
+            rows := #[
+              { locus := p1Locus, amount := p1Amount },
+              { locus := p2Locus, amount := p2Amount },
+              { locus := p3Locus, amount := p3Amount },
+              { locus := p4Locus, amount := p4Amount },
+              { locus := p5Locus, amount := p5Amount },
+              { locus := p6Locus, amount := p6Amount }
+            ]
+          })
           return 0
   | ["--record-preview", dataPath, operation, date, description, measure,
       fromLocus, toLocus, amount] =>
