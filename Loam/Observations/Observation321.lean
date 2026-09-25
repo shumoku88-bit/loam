@@ -73,19 +73,38 @@ private theorem fold_total_eq_activity_sum
       simpa using hInvariant
   | cons column rest ih =>
       simp only [List.foldl_cons]
+      have hTotalStep :
+          totalStep coordinate total column =
+            total + selectedQuanta coordinate column := by
+        rfl
       by_cases hPositive : selectedQuanta coordinate column > 0
-      · apply ih
-        simp [totalStep, activityStep, hPositive]
+      · have hActivityStep :
+            activityStep coordinate (positive, negative, active) column =
+              ( positive + selectedQuanta coordinate column
+              , negative
+              , active + 1 ) := by
+          simp [activityStep, hPositive]
+        rw [hTotalStep, hActivityStep]
+        apply ih
         omega
       · by_cases hNegative : selectedQuanta coordinate column < 0
-        · apply ih
-          simp [totalStep, activityStep, hPositive, hNegative]
+        · have hActivityStep :
+              activityStep coordinate (positive, negative, active) column =
+                ( positive
+                , negative + selectedQuanta coordinate column
+                , active + 1 ) := by
+            simp [activityStep, hPositive, hNegative]
+          rw [hTotalStep, hActivityStep]
+          apply ih
           omega
         · have hZero : selectedQuanta coordinate column = 0 := by
             omega
-          apply ih
-          simp [totalStep, activityStep, hPositive, hNegative, hZero]
-          exact hInvariant
+          have hActivityStep :
+              activityStep coordinate (positive, negative, active) column =
+                (positive, negative, active) := by
+            simp [activityStep, hPositive, hNegative, hZero]
+          rw [hTotalStep, hActivityStep, hZero]
+          exact ih total positive negative active hInvariant
 
 /--
 The scalar row total quanta equal the sum of the two retained activity
