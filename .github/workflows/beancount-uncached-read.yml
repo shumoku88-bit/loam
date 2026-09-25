@@ -1,0 +1,48 @@
+name: Beancount uncached full-file read
+
+on:
+  push:
+    branches:
+      - 'bench/beancount-uncached-read'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Measure Beancount 3.2.3 without load cache
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Beancount 3.2.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/beancount-venv
+          /tmp/beancount-venv/bin/pip install --disable-pip-version-check beancount==3.2.3
+          /tmp/beancount-venv/bin/python -c 'import beancount; print("beancount", getattr(beancount, "__version__", "3.2.3"))'
+
+      - name: Benchmark uncached standard loader
+        shell: bash
+        env:
+          BEANCOUNT_DISABLE_LOAD_CACHE: "1"
+        run: |
+          set -euo pipefail
+          python3 tools/benchmark-pta-comparison.py \
+            --tool beancount \
+            --sizes 50000 100000 250000 500000 1000000 \
+            --repeat 3 --timeout 600 \
+            | tee /tmp/beancount-uncached.tsv
+
+          {
+            echo '## Beancount 3.2.3 uncached standard loader'
+            echo
+            echo 'BEANCOUNT_DISABLE_LOAD_CACHE=1'
+            echo
+            echo '~~~text'
+            cat /tmp/beancount-uncached.tsv
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
