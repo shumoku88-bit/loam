@@ -89,6 +89,25 @@ private theorem fold_total_eq_activity_sum
             hInvariant]
 
 /--
+The scalar row total quanta equal the sum of the two retained activity
+partitions for every Snapshot and coordinate.
+-/
+theorem rowTotal_quanta_eq_activity_parts
+    (snapshot : Loam.TransactionsFlowReview.Snapshot)
+    (coordinate : EffectCoordinate) :
+    (Loam.TransactionsFlowReview.rowTotal snapshot coordinate).quanta =
+      (Loam.TransactionsFlowReview.rowActivity snapshot coordinate).positive.quanta +
+      (Loam.TransactionsFlowReview.rowActivity snapshot coordinate).negative.quanta := by
+  have hFold :=
+    fold_total_eq_activity_sum
+      snapshot.columns coordinate 0 0 0 0 (by rfl)
+  simpa [Loam.TransactionsFlowReview.rowTotal,
+    Loam.TransactionsFlowReview.rowActivity,
+    totalStep,
+    activityStep,
+    selectedQuanta] using hFold
+
+/--
 For every Transactions-Flow Snapshot and every coordinate, the separately
 implemented current reads are the same quantity observation:
 
@@ -102,16 +121,13 @@ theorem rowTotal_eq_rowActivity_net
     (coordinate : EffectCoordinate) :
     Loam.TransactionsFlowReview.rowTotal snapshot coordinate =
       (Loam.TransactionsFlowReview.rowActivity snapshot coordinate).net := by
-  have hFold :=
-    fold_total_eq_activity_sum
-      snapshot.columns coordinate 0 0 0 0 (by rfl)
-  simpa [Loam.TransactionsFlowReview.rowTotal,
-    Loam.TransactionsFlowReview.rowActivity,
-    Loam.TransactionsFlowReview.RowActivity.net,
-    Quantity.add,
-    totalStep,
-    activityStep,
-    selectedQuanta] using congrArg Quantity.ofQuanta hFold
+  rw [← Quantity.ofQuanta_quanta
+      (Loam.TransactionsFlowReview.rowTotal snapshot coordinate)]
+  rw [← Quantity.ofQuanta_quanta
+      ((Loam.TransactionsFlowReview.rowActivity snapshot coordinate).net)]
+  apply congrArg Quantity.ofQuanta
+  simpa [Loam.TransactionsFlowReview.RowActivity.net] using
+    rowTotal_quanta_eq_activity_parts snapshot coordinate
 
 /-! ## 2. Event-local coordinate fold is exactly Event.quantityAt -/
 
@@ -175,9 +191,11 @@ theorem eventCellQuanta_eq_quantityAt
     eventCellQuanta event coordinate =
       (Event.quantityAt
         event coordinate.locus coordinate.measure).quanta := by
-  have hFold :=
-    foldl_cell_eq_acc_plus_foldr event.effects coordinate 0
-  simpa [eventCellQuanta, Event.quantityAt, cellFoldrStep] using hFold
+  cases coordinate with
+  | mk locus measure =>
+      have hFold :=
+        foldl_cell_eq_acc_plus_foldr event.effects ⟨locus, measure⟩ 0
+      simpa [eventCellQuanta, Event.quantityAt, cellFoldrStep] using hFold
 
 /--
 Quantity-wrapped form of the same correspondence, matching the public cell
