@@ -192,6 +192,9 @@ def main() -> int:
                 if values is None or len(values) != 1:
                     self.send_error(400, f"Expected one {name} field")
                     return
+                if "\x00" in values[0]:
+                    self.send_error(400, f"NUL is not allowed in {name}")
+                    return
                 fields[name] = values[0]
 
             if not operation_was_issued(fields["operation"]):
