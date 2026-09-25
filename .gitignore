@@ -6,6 +6,11 @@ dist-newstyle/
 # This tree is intentionally outside repository history; CI checks this boundary.
 scratch/
 
+# Local environment files may contain credentials or machine-specific settings.
+.env
+.env.*
+!.env.example
+
 # Local interpreter and OS noise
 __pycache__/
 *.py[cod]
