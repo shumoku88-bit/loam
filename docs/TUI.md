@@ -70,21 +70,21 @@ module name. `p` edits Actual-to-Purpose routing, `m` admits new Locus identitie
 ## Surface map
 
 ```text
-Loam/Tui/Kernel              Widget / Screen meaning and reconstruction laws
-Loam/Tui/Runtime             compiled sparse-row redraw representation
-Loam/Tui/Terminal            terminal input/output mechanics
-Loam/Tui/Calendar            presentation-only Gregorian calendar projection
-Loam/Tui/Home             production Home presentation
-Loam/Tui/ActualWorkspace           Actual workspace presentation state
-Loam/Tui/ScheduledWorkspace        Scheduled workspace presentation state
-Loam/Tui/SelectedDay         one-date Actual / Scheduled composition
-Loam/Tui/Record              local Movement draft editor
-Loam/Tui/AttentionAdministration current-open Attention management view
-Loam/Tui/Balances            replaceable read-only balance view
-Loam/Tui/CycleBudget         current-cycle Budget decision surface
-Loam/Tui/Capacity            Capacity observation and action surface
-Loam/Tui/Reports             explicit-query Reports workspace
-Loam/Tui/Cli                 canonical loading, shared action delegation, executable loop
+Loam/Tui/Kernel                   Widget / Screen meaning and reconstruction laws
+Loam/Tui/Runtime                  compiled sparse-row redraw representation
+Loam/Tui/Terminal                 terminal input/output mechanics
+Loam/Tui/Calendar                 presentation-only Gregorian calendar projection
+Loam/Tui/Home                     production Home presentation
+Loam/Tui/ActualWorkspace          Actual workspace presentation state
+Loam/Tui/ScheduledWorkspace       Scheduled workspace presentation state
+Loam/Tui/SelectedDay              one-date Actual / Scheduled composition
+Loam/Tui/Record                   local Movement draft editor
+Loam/Tui/AttentionAdministration  current-open Attention management view
+Loam/Tui/Balances                 replaceable read-only balance view
+Loam/Tui/CycleBudget              current-cycle Budget decision surface
+Loam/Tui/Capacity                 Capacity observation and action surface
+Loam/Tui/Reports                  explicit-query Reports workspace
+Loam/Tui/Cli                      canonical loading, shared action delegation, executable loop
 ```
 
 Historical `Loam/Prototype/*` code and numbered prototype executables are research
